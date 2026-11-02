@@ -51,7 +51,7 @@ int query_learn_step_read(const QueryLearnWordsCtx *args);
 // the lines of the latest blob of `name` that contain more than spaces, counted
 unsigned int query_learn_lines(const QueryLearnCtx *args);
 // the forms lists and the faults carried in, and the lessons where `lessons`
-int query_learn_carry(const QueryLearnErrMsgCtx *args);
+int query_learn_machine_transfer(const QueryLearnErrMsgCtx *args);
 // the teacher's first words: the part, its machine file, the vendor's tables and the vendor's writer
 void query_teacher_words(const QueryLearnWordsWordsCtx *args);
 // the gate's verdicts counted off the dry record, a line a verdict
@@ -119,7 +119,7 @@ typedef struct
 } QueryLearnErrMsgNs;
 EMBED_TABLE_LAYOUT(QueryLearnErrMsgNs, carry);
 EMBED_TABLE_STORAGE QueryLearnErrMsgNs query_learn_err_msg_internal EMBED_UNUSED = {
-    .carry = query_learn_carry,
+    .carry = query_learn_machine_transfer,
 };
 
 typedef struct

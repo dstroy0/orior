@@ -66,7 +66,7 @@ static void connection_named(const char *name, const char *kind, const char *ser
 // PostgreSQL connected with a table of 42 rows, s_open the connection; the test ignored where no password is named or no server answers
 static void postgres_connected(void)
 {
-    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_PG_PASSWORD", .value_out = s_password, .room = sizeof(s_password)))
+    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_PG_PASSWORD", .value_out = s_password, .capacity = sizeof(s_password)))
     {
         TEST_IGNORE_MESSAGE("ORIOR_PG_PASSWORD names no password");
     }
@@ -97,7 +97,7 @@ static void postgres_guarded(const char *guard)
 // MySQL connected with a database of one table, s_open the connection; the test ignored where no password is named or no server answers
 static void mysql_connected(void)
 {
-    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_MYSQL_PASSWORD", .value_out = s_password, .room = sizeof(s_password)))
+    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_MYSQL_PASSWORD", .value_out = s_password, .capacity = sizeof(s_password)))
     {
         TEST_IGNORE_MESSAGE("ORIOR_MYSQL_PASSWORD names no password");
     }
@@ -200,7 +200,7 @@ void test_a_tunnel_through_ssh_reaches_the_server_and_is_down_once_its_ssh_ends(
     char ssh[CLI_PATH_MAX_LEN];
     char through[CLI_NAME_MAX_LEN];
     char to[CLI_NAME_MAX_LEN];
-    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_PG_PASSWORD", .value_out = s_password, .room = sizeof(s_password)) || !EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_TEST_SSH", .value_out = ssh, .room = sizeof(ssh)) || !EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_TEST_SSH_HOST", .value_out = through, .room = sizeof(through)) || !EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_TEST_SSH_TO", .value_out = to, .room = sizeof(to)))
+    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_PG_PASSWORD", .value_out = s_password, .capacity = sizeof(s_password)) || !EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_TEST_SSH", .value_out = ssh, .capacity = sizeof(ssh)) || !EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_TEST_SSH_HOST", .value_out = through, .capacity = sizeof(through)) || !EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_TEST_SSH_TO", .value_out = to, .capacity = sizeof(to)))
     {
         TEST_IGNORE_MESSAGE("no ssh or password is named for the tests");
     }

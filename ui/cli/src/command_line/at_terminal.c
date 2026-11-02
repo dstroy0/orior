@@ -184,7 +184,7 @@ EMBED_INLINE int at_terminal_branch_delete(const AtTerminalCtx *args)
     }
     unsigned long long at = 0ull;
     if (EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = why, .length_value = refused.at,
-                   .wanted = "not fully merged", .size = 16ull, .at_pointer = &at))
+                   .required = "not fully merged", .size = 16ull, .at_pointer = &at))
     {
         mmgr_line_put(err_msg, name);
         mmgr_line_put(err_msg, " has commits no other branch contains: branch-delete ");
@@ -240,7 +240,7 @@ EMBED_INLINE int at_terminal_files_run(const AtTerminalCtx *args)
         files[one] = joined + at;
         at += cellul.len(&(CatenaFinitaCfg){.src = joined + at, .cap = CLI_CELLS_POOL}) + 1u;
     }
-    const int good = EMBED_CALL(cli_at_terminal_root.tests, CliAtTerminalRootCfg, .root = root, .given = files,
+    const int good = EMBED_CALL(cli_at_terminal_root.tests, CliAtTerminalRootCfg, .root = root, .supplied = files,
                                 .count = args->found->count, .cover = cover, .out = out, .err_msg = err_msg);
     g_cli_cells->persistent_buf_release(files, &g_cli_git_cells);
     return good;
@@ -349,9 +349,9 @@ int cli_at_terminal_run(const CliAtTerminalCommandCfg *args)
         (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "cover-tests", .cap = CLI_CELLS_POOL})))
     {
         static CliTerminalFiles s_found;
-        const unsigned long long room = CLI_AT_TERMINAL_FILES_TEXT + 1ull;
-        char *const found_text = g_cli_cells->temporary_buf_alloc(room, &g_cli_git_cells);
-        s_found.line = mmgr_line_over(found_text, room);
+        const unsigned long long capacity = CLI_AT_TERMINAL_FILES_TEXT + 1ull;
+        char *const found_text = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_git_cells);
+        s_found.line = mmgr_line_over(found_text, capacity);
         s_found.last[0] = '\0';
         s_found.count = 0u;
         EMBED_CALL(cli_testing_root.tests_find, CliTestingRootCfg, .root = root, .each = at_terminal_test_file,
@@ -370,7 +370,7 @@ int cli_at_terminal_run(const CliAtTerminalCommandCfg *args)
             mmgr_line_put(err_msg, " takes the tests or files of tests to run");
             return 0;
         }
-        return EMBED_CALL(cli_at_terminal_root.tests, CliAtTerminalRootCfg, .root = root, .given = args->request,
+        return EMBED_CALL(cli_at_terminal_root.tests, CliAtTerminalRootCfg, .root = root, .supplied = args->request,
                           .count = count, .cover = cover, .out = out, .err_msg = err_msg);
     }
     char home[CLI_PATH_MAX_LEN];
@@ -379,8 +379,8 @@ int cli_at_terminal_run(const CliAtTerminalCommandCfg *args)
         name = EMBED_CALL(at_terminal_by_name, AtTerminalCtx, .command = args->command, .request = args->request,
                           .count = count, .what = "the file or folder the settings go to", .err_msg = err_msg);
         return (name != NULL) && EMBED_CALL(at_terminal_home, AtTerminalCtx, .home = home, .err_msg = err_msg) &&
-               EMBED_CALL(cli_carry_home_to.send, CliCarryHomeToCfg, .home = home, .to = name, .out = out,
-                          .err_msg = err_msg);
+               EMBED_CALL(cli_machine_transfer_home_to.send, CliMachineTransferHomeToCfg, .home = home, .to = name,
+                          .out = out, .err_msg = err_msg);
     }
     if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "carry-take", .cap = CLI_CELLS_POOL}))
     {

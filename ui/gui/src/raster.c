@@ -54,7 +54,7 @@ typedef struct
 typedef struct
 {
     const GuiRaster *raster_read;
-    GuiColor ground_color;
+    GuiColor background_color;
     GuiColor color;
     unsigned int share;
     GuiRaster *raster;
@@ -71,8 +71,8 @@ typedef struct
     int row;
     GuiRect rect;
     unsigned int radius;
-    GuiUnder ground;
-    GuiColor ink;
+    GuiUnder background_fill;
+    GuiColor text_color;
     unsigned int alpha;
     int toward_x;
     int toward_y;
@@ -85,17 +85,17 @@ typedef struct
     int *centre_y;
     int cover;
     const GuiOutline *lines;
-    int *wide;
+    int *pixel_width;
     GuiRect inside;
     GuiUnder table;
     GuiUnder clear;
     int across_i32;
-    int wide_value;
+    int width_value;
     int from;
     int to;
     const GuiRect *holes;
     unsigned int count;
-    unsigned int ground_u32;
+    unsigned int background_u32;
     unsigned int color_u32;
     float share_f32;
     float threshold;
@@ -122,7 +122,7 @@ int gui_raster_init(const GuiRasterWidthXCfg *args)
     args->raster->height = height;
     args->raster->pages = NULL;
     args->raster->pages_bytes = 0ull;
-    args->raster->placed = 0ull;
+    args->raster->positioned = 0ull;
     args->raster->pixels = g_cli_cells->persistent_buf_alloc(bytes, &g_gui_raster_cells);
     if (args->raster->pixels == NULL)
     {
@@ -140,8 +140,8 @@ void gui_raster_free(const GuiRasterRectColorCfg *args)
     args->raster->height = 0u;
 }
 
-// `color` over `ground` by `share` of 255, the pixel left opaque: red and blue blended in one word, each in its own
-// sixteen bits, and green in another, two multiplies a pixel; each lane's sum is the color's share plus the
+// `color` over `background_fill` by `share` of 255, the pixel left opaque: red and blue blended in one word, each in
+// its own sixteen bits, and green in another, two multiplies a pixel; each lane's sum is the color's share plus the
 // ground's rest plus half of 255, below 65536, and the lane divided by 255 exactly by adding its own high byte
 // before the shift, which the raster's check holds over every ground, color and share
 EMBED_INLINE GuiColor raster_blend(const GuiRasterCtx *args)
@@ -152,20 +152,20 @@ EMBED_INLINE GuiColor raster_blend(const GuiRasterCtx *args)
     }
     const unsigned int rest = 255u - args->share;
     const unsigned int red_blue =
-        ((args->color & 0x00ff00ffu) * args->share) + ((args->ground_color & 0x00ff00ffu) * rest) + 0x00800080u;
+        ((args->color & 0x00ff00ffu) * args->share) + ((args->background_color & 0x00ff00ffu) * rest) + 0x00800080u;
     const unsigned int green =
-        (((args->color >> 8u) & 0xffu) * args->share) + (((args->ground_color >> 8u) & 0xffu) * rest) + 0x80u;
+        (((args->color >> 8u) & 0xffu) * args->share) + (((args->background_color >> 8u) & 0xffu) * rest) + 0x80u;
     const unsigned int red_blue_out = ((red_blue + ((red_blue >> 8u) & 0x00ff00ffu)) >> 8u) & 0x00ff00ffu;
     const unsigned int green_out = ((green + (green >> 8u)) >> 8u) & 0xffu;
     return 0xff000000u | red_blue_out | (green_out << 8u);
 }
 
 // the pixel at x, y of a rectangle known to lie on the raster blended with `color` by `share` of 255
-EMBED_INLINE void raster_put(const GuiRasterCtx *args)
+EMBED_INLINE void raster_append(const GuiRasterCtx *args)
 {
     // the pixel lies on the raster: its coordinates are not negative
     GuiColor *const at = &args->raster->pixels[((unsigned int)args->y * args->raster->width) + (unsigned int)args->x];
-    *at = EMBED_CALL(raster_blend, GuiRasterCtx, .ground_color = *at, .color = args->color, .share = args->share);
+    *at = EMBED_CALL(raster_blend, GuiRasterCtx, .background_color = *at, .color = args->color, .share = args->share);
 }
 
 void gui_raster_fill(const GuiRasterRectColorCfg *args)
@@ -201,9 +201,9 @@ void gui_raster_fill(const GuiRasterRectColorCfg *args)
     {
         for (int x = 0; x < on.width; x += 1)
         {
-            const GuiColor ground = row[x];
-            const unsigned int red_blue = color_red_blue + ((ground & 0x00ff00ffu) * rest);
-            const unsigned int green = color_green + (((ground >> 8u) & 0xffu) * rest);
+            const GuiColor background_fill = row[x];
+            const unsigned int red_blue = color_red_blue + ((background_fill & 0x00ff00ffu) * rest);
+            const unsigned int green = color_green + (((background_fill >> 8u) & 0xffu) * rest);
             const unsigned int red_blue_out = ((red_blue + ((red_blue >> 8u) & 0x00ff00ffu)) >> 8u) & 0x00ff00ffu;
             const unsigned int green_out = ((green + (green >> 8u)) >> 8u) & 0xffu;
             row[x] = 0xff000000u | red_blue_out | (green_out << 8u);
@@ -217,7 +217,7 @@ void gui_raster_fill(const GuiRasterRectColorCfg *args)
 // the arc
 #define RASTER_ARC_MOST 47u
 static unsigned char s_arc[RASTER_ARC_MOST + 1u][RASTER_ARC_MOST + 1u][RASTER_ARC_MOST + 1u];
-static unsigned char s_arc_made[RASTER_ARC_MOST + 1u];
+static unsigned char s_arc_created[RASTER_ARC_MOST + 1u];
 
 // the share of 255 inside an arc of `reach` of the pixel `across` and `down` whole pixels from its center: the distance
 // left from the pixel's middle to the arc, clamped, by 255, rounded
@@ -240,7 +240,7 @@ unsigned int gui_raster_arc_cover(const GuiRasterReachCfg *args)
     {
         return 0u;
     }
-    if (!s_arc_made[args->reach])
+    if (!s_arc_created[args->reach])
     {
         for (unsigned int row = 0u; row <= args->reach; row += 1u)
         {
@@ -251,7 +251,7 @@ unsigned int gui_raster_arc_cover(const GuiRasterReachCfg *args)
                     raster_arc_work, GuiRasterCtx, .reach = args->reach, .across = column, .down = row);
             }
         }
-        s_arc_made[args->reach] = 1u;
+        s_arc_created[args->reach] = 1u;
     }
     return s_arc[args->reach][args->down][args->across];
 }
@@ -329,7 +329,7 @@ void gui_raster_round(const GuiRasterRectColorCfg *args)
             if (cover != 0u)
             {
                 // two shares of 255 multiplied are a share of 255 once divided by 255
-                EMBED_CALL(raster_put, GuiRasterCtx, .raster = args->raster, .x = x, .y = y, .color = args->color,
+                EMBED_CALL(raster_append, GuiRasterCtx, .raster = args->raster, .x = x, .y = y, .color = args->color,
                            .share = ((alpha * cover) + 127u) / 255u);
             }
         }
@@ -338,7 +338,7 @@ void gui_raster_round(const GuiRasterRectColorCfg *args)
 
 GuiColor gui_color_over(const GuiRasterCfg *args)
 {
-    return EMBED_CALL(raster_blend, GuiRasterCtx, .ground_color = args->ground_color, .color = args->color,
+    return EMBED_CALL(raster_blend, GuiRasterCtx, .background_color = args->background_color, .color = args->color,
                       .share = GUI_ALPHA_OF(args->color));
 }
 
@@ -347,52 +347,56 @@ EMBED_INLINE GuiColor raster_under_at(const GuiRasterCtx *args)
 {
     int x = args->x;
     int y = args->y;
-    if ((args->ground.raster == NULL) || (args->ground.raster->pixels == NULL) ||
+    if ((args->background_fill.raster == NULL) || (args->background_fill.raster->pixels == NULL) ||
         !EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg,
-                    .rect = EMBED_CALL(raster_rect, GuiRasterCtx, .raster_read = args->ground.raster), .x = x, .y = y))
+                    .rect = EMBED_CALL(raster_rect, GuiRasterCtx, .raster_read = args->background_fill.raster), .x = x,
+                    .y = y))
     {
-        return args->ground.color;
+        return args->background_fill.color;
     }
     // the pixel lies on the ground raster: its coordinates are not negative
-    return args->ground.raster->pixels[((unsigned int)y * args->ground.raster->width) + (unsigned int)x];
+    return args->background_fill.raster
+        ->pixels[((unsigned int)y * args->background_fill.raster->width) + (unsigned int)x];
 }
 
 // the alpha the ground's grain gives the pixel at x, y, 0 where it has none; the coordinates are not negative
 EMBED_INLINE unsigned int raster_grain_at(const GuiRasterCtx *args)
 {
-    if ((args->ground.grain == NULL) || (args->ground.tile == 0u))
+    if ((args->background_fill.grain == NULL) || (args->background_fill.tile == 0u))
     {
         return 0u;
     }
-    return args->ground.grain[(((unsigned int)args->y % args->ground.tile) * args->ground.tile) +
-                              ((unsigned int)args->x % args->ground.tile)];
+    return args->background_fill
+        .grain[(((unsigned int)args->y % args->background_fill.tile) * args->background_fill.tile) +
+               ((unsigned int)args->x % args->background_fill.tile)];
 }
 
 // the ground's color at x, y, a pixel on the raster: the ground's own pixel with the color over it, and the grain's
 // white over that where the ground has a grain
-EMBED_INLINE GuiColor raster_ground_at(const GuiRasterCtx *args)
+EMBED_INLINE GuiColor raster_background_at(const GuiRasterCtx *args)
 {
-    const GuiColor tinted = EMBED_CALL(raster_blend, GuiRasterCtx, .ground_color = raster_under_at(args),
-                                       .color = args->ground.over, .share = GUI_ALPHA_OF(args->ground.over));
+    const GuiColor tinted =
+        EMBED_CALL(raster_blend, GuiRasterCtx, .background_color = raster_under_at(args),
+                   .color = args->background_fill.over, .share = GUI_ALPHA_OF(args->background_fill.over));
     const unsigned int grain = raster_grain_at(args);
     return (grain == 0u) ? tinted
-                         : EMBED_CALL(raster_blend, GuiRasterCtx, .ground_color = tinted,
+                         : EMBED_CALL(raster_blend, GuiRasterCtx, .background_color = tinted,
                                       .color = GUI_RGB(0xffu, 0xffu, 0xffu), .share = grain);
 }
 
-// a pixel of a pane on the table `ground` at x, y: the ground's own pixel with the ink at `alpha`, and the grain's
-// white over that
+// a pixel of a pane on the table `background_fill` at x, y: the ground's own pixel with the ink at `alpha`, and the
+// grain's white over that
 EMBED_INLINE GuiColor raster_pane_at(const GuiRasterCtx *args)
 {
-    const GuiColor tinted = EMBED_CALL(raster_blend, GuiRasterCtx, .ground_color = raster_under_at(args),
-                                       .color = args->ink, .share = args->alpha);
+    const GuiColor tinted = EMBED_CALL(raster_blend, GuiRasterCtx, .background_color = raster_under_at(args),
+                                       .color = args->text_color, .share = args->alpha);
     const unsigned int grain = raster_grain_at(args);
     return (grain == 0u) ? tinted
-                         : EMBED_CALL(raster_blend, GuiRasterCtx, .ground_color = tinted,
+                         : EMBED_CALL(raster_blend, GuiRasterCtx, .background_color = tinted,
                                       .color = GUI_RGB(0xffu, 0xffu, 0xffu), .share = grain);
 }
 
-void gui_raster_pane(const GuiRasterRectRadiusGroundCfg *args)
+void gui_raster_pane(const GuiRasterRectRadiusBackgroundCfg *args)
 {
     const GuiRect on = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->rect,
                                   .other = EMBED_CALL(raster_rect, GuiRasterCtx, .raster_read = args->raster));
@@ -400,7 +404,7 @@ void gui_raster_pane(const GuiRasterRectRadiusGroundCfg *args)
     {
         return;
     }
-    const int outer_alpha = (int)GUI_ALPHA_OF(args->ground.over);
+    const int outer_alpha = (int)GUI_ALPHA_OF(args->background_fill.over);
     const int alpha_span = (int)GUI_ALPHA_OF(args->inner) - outer_alpha;
     // the corners' squares are radius by radius, which an int holds
     const int side = (int)args->radius;
@@ -427,13 +431,13 @@ void gui_raster_pane(const GuiRasterRectRadiusGroundCfg *args)
                 (unsigned int)(outer_alpha + (((alpha_span * cover) + ((alpha_span < 0) ? -127 : 127)) / 255));
             // the pixel lies on the raster: its coordinates are not negative
             args->raster->pixels[((unsigned int)y * args->raster->width) + (unsigned int)x] =
-                EMBED_CALL(raster_pane_at, GuiRasterCtx, .ground = args->ground, .x = x, .y = y, .ink = args->inner,
-                           .alpha = alpha);
+                EMBED_CALL(raster_pane_at, GuiRasterCtx, .background_fill = args->background_fill, .x = x, .y = y,
+                           .text_color = args->inner, .alpha = alpha);
         }
     }
 }
 
-void gui_raster_corners_cut(const GuiRasterRectRadiusGroundCfg *args)
+void gui_raster_corners_cut(const GuiRasterRectRadiusBackgroundCfg *args)
 {
     const GuiRect on = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->rect,
                                   .other = EMBED_CALL(raster_rect, GuiRasterCtx, .raster_read = args->raster));
@@ -460,42 +464,11 @@ void gui_raster_corners_cut(const GuiRasterRectRadiusGroundCfg *args)
                                                                .radius = args->radius, .x = x, .y = y);
                 if (outside != 0u)
                 {
-                    EMBED_CALL(raster_put, GuiRasterCtx, .raster = args->raster, .x = x, .y = y,
-                               .color =
-                                   EMBED_CALL(raster_ground_at, GuiRasterCtx, .ground = args->ground, .x = x, .y = y),
+                    EMBED_CALL(raster_append, GuiRasterCtx, .raster = args->raster, .x = x, .y = y,
+                               .color = EMBED_CALL(raster_background_at, GuiRasterCtx,
+                                                   .background_fill = args->background_fill, .x = x, .y = y),
                                .share = outside);
                 }
-            }
-        }
-    }
-}
-
-// the turn of the work's outline out at x, y on the work's edge, rounded by `reach`: the square of that side from
-// the point, reaching `toward_x` and `toward_y` (each 1 or -1) into the work, holds the arc about its far corner, and
-// the pixels outside the arc take `ground` by their share outside it
-EMBED_INLINE void raster_turned_out(const GuiRasterCtx *args)
-{
-    // the square's side is the radius, which an int holds
-    const int side = (int)args->reach;
-    const GuiRect square = {(args->toward_x < 0) ? args->x - side : args->x,
-                            (args->toward_y < 0) ? args->y - side : args->y, side, side};
-    const GuiRect on = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = square,
-                                  .other = EMBED_CALL(raster_rect, GuiRasterCtx, .raster_read = args->raster));
-    const int centre_x = args->x + (args->toward_x * side);
-    const int centre_y = args->y + (args->toward_y * side);
-    for (int row = on.y; row < on.y + on.height; row += 1)
-    {
-        for (int column = on.x; column < on.x + on.width; column += 1)
-        {
-            const unsigned int outside =
-                255u - EMBED_CALL(raster_arc_at, GuiRasterCtx, .centre_x_value = centre_x, .centre_y_value = centre_y,
-                                  .reach = args->reach, .column = column, .row = row);
-            if (outside != 0u)
-            {
-                EMBED_CALL(
-                    raster_put, GuiRasterCtx, .raster = args->raster, .x = column, .y = row,
-                    .color = EMBED_CALL(raster_ground_at, GuiRasterCtx, .ground = args->ground, .x = column, .y = row),
-                    .share = outside);
             }
         }
     }
@@ -598,7 +571,7 @@ unsigned int gui_raster_notch_fillets(const GuiRasterRadiusCfg *args)
     return count;
 }
 
-void gui_raster_notch(const GuiRasterRadiusGroundCfg *args)
+void gui_raster_notch(const GuiRasterRadiusBackgroundCfg *args)
 {
     RasterNotch read;
     if (!EMBED_CALL(raster_notch_read, GuiRasterCtx, .work = args->work, .notch_rect = args->notch,
@@ -639,10 +612,10 @@ void gui_raster_notch(const GuiRasterRadiusGroundCfg *args)
             }
             if (share != 0u)
             {
-                EMBED_CALL(
-                    raster_put, GuiRasterCtx, .raster = args->raster, .x = column, .y = row,
-                    .color = EMBED_CALL(raster_ground_at, GuiRasterCtx, .ground = args->ground, .x = column, .y = row),
-                    .share = share);
+                EMBED_CALL(raster_append, GuiRasterCtx, .raster = args->raster, .x = column, .y = row,
+                           .color = EMBED_CALL(raster_background_at, GuiRasterCtx,
+                                               .background_fill = args->background_fill, .x = column, .y = row),
+                           .share = share);
             }
         }
     }
@@ -669,9 +642,9 @@ void gui_raster_notch(const GuiRasterRadiusGroundCfg *args)
                                       .reach = read.reach, .column = column, .row = row);
                 if (outside != 0u)
                 {
-                    EMBED_CALL(raster_put, GuiRasterCtx, .raster = args->raster, .x = column, .y = row,
-                               .color = EMBED_CALL(raster_ground_at, GuiRasterCtx, .ground = args->ground, .x = column,
-                                                   .y = row),
+                    EMBED_CALL(raster_append, GuiRasterCtx, .raster = args->raster, .x = column, .y = row,
+                               .color = EMBED_CALL(raster_background_at, GuiRasterCtx,
+                                                   .background_fill = args->background_fill, .x = column, .y = row),
                                .share = outside);
                 }
             }
@@ -680,15 +653,15 @@ void gui_raster_notch(const GuiRasterRadiusGroundCfg *args)
 }
 
 // a line's `color` put at x, y by `cover`, a share of 255, of the color's alpha; a cover below none puts nothing
-EMBED_INLINE void raster_line_put(const GuiRasterCtx *args)
+EMBED_INLINE void raster_line_append(const GuiRasterCtx *args)
 {
     // the cover is not negative past the test, and two shares of 255 multiplied are a share of 255 once divided by 255
     const unsigned int share =
         (args->cover <= 0) ? 0u : ((GUI_ALPHA_OF(args->color) * (unsigned int)args->cover) + 127u) / 255u;
     if (share != 0u)
     {
-        EMBED_CALL(raster_put, GuiRasterCtx, .raster = args->raster, .x = args->x, .y = args->y, .color = args->color,
-                   .share = share);
+        EMBED_CALL(raster_append, GuiRasterCtx, .raster = args->raster, .x = args->x, .y = args->y,
+                   .color = args->color, .share = share);
     }
 }
 
@@ -696,23 +669,23 @@ EMBED_INLINE void raster_line_put(const GuiRasterCtx *args)
 // before the right's; the right's where it reaches none
 EMBED_INLINE GuiColor raster_notch_line(const GuiRasterCtx *args)
 {
-    int *wide = args->wide;
+    int *pixel_width = args->pixel_width;
     if (args->notch->on_y[0])
     {
-        *wide = args->lines->top_wide;
+        *pixel_width = args->lines->top_width;
         return args->lines->top;
     }
     if (args->notch->on_y[2])
     {
-        *wide = args->lines->bottom_wide;
+        *pixel_width = args->lines->bottom_width;
         return args->lines->bottom;
     }
     if (args->notch->on_x[0])
     {
-        *wide = args->lines->left_wide;
+        *pixel_width = args->lines->left_width;
         return args->lines->left;
     }
-    *wide = args->lines->right_wide;
+    *pixel_width = args->lines->right_width;
     return args->lines->right;
 }
 
@@ -743,9 +716,10 @@ EMBED_INLINE void raster_corner_outline(const GuiRasterCtx *args)
                     ? EMBED_CALL(raster_corner_cover, GuiRasterCtx, .rect = args->inside, .radius = inner_radius,
                                  .x = x, .y = y)
                     : 0u;
-            EMBED_CALL(raster_put, GuiRasterCtx, .raster = args->raster, .x = x, .y = y,
-                       .color = EMBED_CALL(raster_ground_at, GuiRasterCtx, .ground = args->clear, .x = x, .y = y),
-                       .share = 255u - inner);
+            EMBED_CALL(
+                raster_append, GuiRasterCtx, .raster = args->raster, .x = x, .y = y,
+                .color = EMBED_CALL(raster_background_at, GuiRasterCtx, .background_fill = args->clear, .x = x, .y = y),
+                .share = 255u - inner);
             // the nearer edge's line: how far the pixel's middle stands in from the edge across and the edge down, in
             // half pixels
             const int from_across =
@@ -753,11 +727,12 @@ EMBED_INLINE void raster_corner_outline(const GuiRasterCtx *args)
             const int from_down =
                 at_right ? (2 * (args->work.x + args->work.width - x)) - 1 : (2 * (x - args->work.x)) + 1;
             // the shares are bytes
-            EMBED_CALL(raster_line_put, GuiRasterCtx, .raster = args->raster, .x = x, .y = y,
+            EMBED_CALL(raster_line_append, GuiRasterCtx, .raster = args->raster, .x = x, .y = y,
                        .color = (from_across <= from_down) ? across : down, .cover = (int)outer - (int)inner);
-            EMBED_CALL(raster_put, GuiRasterCtx, .raster = args->raster, .x = x, .y = y,
-                       .color = EMBED_CALL(raster_ground_at, GuiRasterCtx, .ground = args->table, .x = x, .y = y),
-                       .share = 255u - outer);
+            EMBED_CALL(
+                raster_append, GuiRasterCtx, .raster = args->raster, .x = x, .y = y,
+                .color = EMBED_CALL(raster_background_at, GuiRasterCtx, .background_fill = args->table, .x = x, .y = y),
+                .share = 255u - outer);
         }
     }
 }
@@ -808,8 +783,8 @@ static void raster_edge_line(const GuiRasterCtx *args)
         }
         if (end > begin)
         {
-            const GuiRect piece = args->across_i32 ? (GuiRect){begin, args->at, end - begin, args->wide_value}
-                                                   : (GuiRect){args->at, begin, args->wide_value, end - begin};
+            const GuiRect piece = args->across_i32 ? (GuiRect){begin, args->at, end - begin, args->width_value}
+                                                   : (GuiRect){args->at, begin, args->width_value, end - begin};
             EMBED_CALL(
                 gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
                 .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = piece, .other = args->work),
@@ -824,9 +799,9 @@ static void raster_edge_line(const GuiRasterCtx *args)
 EMBED_INLINE void raster_notch_outline(const GuiRasterCtx *args)
 {
     GuiRaster *raster = args->raster;
-    int wide = 0;
-    const GuiColor color =
-        EMBED_CALL(raster_notch_line, GuiRasterCtx, .notch = args->notch, .lines = args->lines, .wide = &wide);
+    int pixel_width = 0;
+    const GuiColor color = EMBED_CALL(raster_notch_line, GuiRasterCtx, .notch = args->notch, .lines = args->lines,
+                                      .pixel_width = &pixel_width);
     // the square's side is the radius, which an int holds
     const int side = (int)args->notch->reach;
     const GuiRect hole = args->notch->hole;
@@ -840,9 +815,9 @@ EMBED_INLINE void raster_notch_outline(const GuiRasterCtx *args)
             // corner
             const GuiRect square = EMBED_CALL(raster_fillet_square, GuiRasterCtx, .notch = args->notch,
                                               .corner = corner, .centre_x = &centre_x, .centre_y = &centre_y);
-            const GuiRect grown = {(args->notch->into_x[corner] > 0) ? square.x - wide : square.x,
-                                   (args->notch->into_y[corner] > 0) ? square.y - wide : square.y, square.width + wide,
-                                   square.height + wide};
+            const GuiRect grown = {(args->notch->into_x[corner] > 0) ? square.x - pixel_width : square.x,
+                                   (args->notch->into_y[corner] > 0) ? square.y - pixel_width : square.y,
+                                   square.width + pixel_width, square.height + pixel_width};
             const GuiRect on = EMBED_CALL(
                 gui_raster_one.rect_intersect, GuiRasterOneCfg,
                 .one = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = grown, .other = args->work),
@@ -856,17 +831,17 @@ EMBED_INLINE void raster_notch_outline(const GuiRasterCtx *args)
                                    .reach = args->notch->reach, .column = x, .row = y);
                     if (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = square, .x = x, .y = y))
                     {
-                        EMBED_CALL(
-                            raster_put, GuiRasterCtx, .raster = raster, .x = x, .y = y,
-                            .color = EMBED_CALL(raster_ground_at, GuiRasterCtx, .ground = args->table, .x = x, .y = y),
-                            .share = inside);
+                        EMBED_CALL(raster_append, GuiRasterCtx, .raster = raster, .x = x, .y = y,
+                                   .color = EMBED_CALL(raster_background_at, GuiRasterCtx,
+                                                       .background_fill = args->table, .x = x, .y = y),
+                                   .share = inside);
                     }
                     // the line's width is far inside what an unsigned int represents, and the shares are bytes
-                    EMBED_CALL(raster_line_put, GuiRasterCtx, .raster = raster, .x = x, .y = y, .color = color,
+                    EMBED_CALL(raster_line_append, GuiRasterCtx, .raster = raster, .x = x, .y = y, .color = color,
                                .cover = (int)EMBED_CALL(raster_arc_at, GuiRasterCtx, .centre_x_value = centre_x,
                                                         .centre_y_value = centre_y,
-                                                        .reach = args->notch->reach + (unsigned int)wide, .column = x,
-                                                        .row = y) -
+                                                        .reach = args->notch->reach + (unsigned int)pixel_width,
+                                                        .column = x, .row = y) -
                                         (int)inside);
                 }
             }
@@ -879,7 +854,7 @@ EMBED_INLINE void raster_notch_outline(const GuiRasterCtx *args)
             const GuiRect on = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = square,
                                           .other = EMBED_CALL(raster_rect, GuiRasterCtx, .raster_read = raster));
             const unsigned int inner =
-                (args->notch->reach > (unsigned int)wide) ? args->notch->reach - (unsigned int)wide : 0u;
+                (args->notch->reach > (unsigned int)pixel_width) ? args->notch->reach - (unsigned int)pixel_width : 0u;
             for (int y = on.y; y < on.y + on.height; y += 1)
             {
                 for (int x = on.x; x < on.x + on.width; x += 1)
@@ -887,12 +862,12 @@ EMBED_INLINE void raster_notch_outline(const GuiRasterCtx *args)
                     const unsigned int inside =
                         EMBED_CALL(raster_arc_at, GuiRasterCtx, .centre_x_value = centre_x, .centre_y_value = centre_y,
                                    .reach = args->notch->reach, .column = x, .row = y);
-                    EMBED_CALL(raster_put, GuiRasterCtx, .raster = raster, .x = x, .y = y,
-                               .color =
-                                   EMBED_CALL(raster_ground_at, GuiRasterCtx, .ground = args->table, .x = x, .y = y),
+                    EMBED_CALL(raster_append, GuiRasterCtx, .raster = raster, .x = x, .y = y,
+                               .color = EMBED_CALL(raster_background_at, GuiRasterCtx, .background_fill = args->table,
+                                                   .x = x, .y = y),
                                .share = 255u - inside);
                     // the shares are bytes
-                    EMBED_CALL(raster_line_put, GuiRasterCtx, .raster = raster, .x = x, .y = y, .color = color,
+                    EMBED_CALL(raster_line_append, GuiRasterCtx, .raster = raster, .x = x, .y = y, .color = color,
                                .cover =
                                    (int)inside - (int)EMBED_CALL(raster_arc_at, GuiRasterCtx,
                                                                  .centre_x_value = centre_x, .centre_y_value = centre_y,
@@ -905,35 +880,37 @@ EMBED_INLINE void raster_notch_outline(const GuiRasterCtx *args)
     if (!args->notch->on_x[0])
     {
         EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
-                   .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
-                                      .one = (GuiRect){hole.x - wide, hole.y + side, wide, hole.height - (2 * side)},
-                                      .other = args->work),
+                   .rect = EMBED_CALL(
+                       gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                       .one = (GuiRect){hole.x - pixel_width, hole.y + side, pixel_width, hole.height - (2 * side)},
+                       .other = args->work),
                    .color = color);
     }
     if (!args->notch->on_x[1])
     {
         EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
-                   .rect =
-                       EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
-                                  .one = (GuiRect){hole.x + hole.width, hole.y + side, wide, hole.height - (2 * side)},
-                                  .other = args->work),
+                   .rect = EMBED_CALL(
+                       gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                       .one = (GuiRect){hole.x + hole.width, hole.y + side, pixel_width, hole.height - (2 * side)},
+                       .other = args->work),
                    .color = color);
     }
     if (!args->notch->on_y[0])
     {
         EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
-                   .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
-                                      .one = (GuiRect){hole.x + side, hole.y - wide, hole.width - (2 * side), wide},
-                                      .other = args->work),
+                   .rect = EMBED_CALL(
+                       gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                       .one = (GuiRect){hole.x + side, hole.y - pixel_width, hole.width - (2 * side), pixel_width},
+                       .other = args->work),
                    .color = color);
     }
     if (!args->notch->on_y[2])
     {
         EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
-                   .rect =
-                       EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
-                                  .one = (GuiRect){hole.x + side, hole.y + hole.height, hole.width - (2 * side), wide},
-                                  .other = args->work),
+                   .rect = EMBED_CALL(
+                       gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                       .one = (GuiRect){hole.x + side, hole.y + hole.height, hole.width - (2 * side), pixel_width},
+                       .other = args->work),
                    .color = color);
     }
 }
@@ -953,13 +930,13 @@ void gui_raster_outline(const GuiRasterRadiusWorkCfg *args)
                              args->work.y + args->work.height - 1};
     for (unsigned int corner = 0u; (args->radius > 0u) && (corner < 4u); corner += 1u)
     {
-        int taken = 0;
+        int reserved = 0;
         for (unsigned int hole = 0u; hole < args->count; hole += 1u)
         {
-            taken = taken || EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = args->holes[hole],
-                                        .x = corner_x[corner], .y = corner_y[corner]);
+            reserved = reserved || EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = args->holes[hole],
+                                              .x = corner_x[corner], .y = corner_y[corner]);
         }
-        if (!taken)
+        if (!reserved)
         {
             EMBED_CALL(raster_corner_outline, GuiRasterCtx, .raster = args->raster, .work = args->work,
                        .inside = args->inside, .radius = args->radius, .lines = args->lines, .corner = corner,
@@ -970,20 +947,20 @@ void gui_raster_outline(const GuiRasterRadiusWorkCfg *args)
     // the radius is far inside what an int represents
     const int side = (int)args->radius;
     EMBED_CALL(raster_edge_line, GuiRasterCtx, .raster = args->raster, .work = args->work, .radius = args->radius,
-               .across_i32 = 1, .at = args->work.y, .wide_value = args->lines->top_wide, .color = args->lines->top,
+               .across_i32 = 1, .at = args->work.y, .width_value = args->lines->top_width, .color = args->lines->top,
                .from = args->work.x + side, .to = args->work.x + args->work.width - side, .holes = args->holes,
                .count = args->count);
     EMBED_CALL(raster_edge_line, GuiRasterCtx, .raster = args->raster, .work = args->work, .radius = args->radius,
-               .across_i32 = 1, .at = args->work.y + args->work.height - args->lines->bottom_wide,
-               .wide_value = args->lines->bottom_wide, .color = args->lines->bottom, .from = args->work.x + side,
+               .across_i32 = 1, .at = args->work.y + args->work.height - args->lines->bottom_width,
+               .width_value = args->lines->bottom_width, .color = args->lines->bottom, .from = args->work.x + side,
                .to = args->work.x + args->work.width - side, .holes = args->holes, .count = args->count);
     EMBED_CALL(raster_edge_line, GuiRasterCtx, .raster = args->raster, .work = args->work, .radius = args->radius,
-               .across_i32 = 0, .at = args->work.x, .wide_value = args->lines->left_wide, .color = args->lines->left,
+               .across_i32 = 0, .at = args->work.x, .width_value = args->lines->left_width, .color = args->lines->left,
                .from = args->work.y + side, .to = args->work.y + args->work.height - side, .holes = args->holes,
                .count = args->count);
     EMBED_CALL(raster_edge_line, GuiRasterCtx, .raster = args->raster, .work = args->work, .radius = args->radius,
-               .across_i32 = 0, .at = args->work.x + args->work.width - args->lines->right_wide,
-               .wide_value = args->lines->right_wide, .color = args->lines->right, .from = args->work.y + side,
+               .across_i32 = 0, .at = args->work.x + args->work.width - args->lines->right_width,
+               .width_value = args->lines->right_width, .color = args->lines->right, .from = args->work.y + side,
                .to = args->work.y + args->work.height - side, .holes = args->holes, .count = args->count);
     // each hole's turns and the line round it
     for (unsigned int hole = 0u; hole < args->count; hole += 1u)
@@ -1013,7 +990,7 @@ void gui_raster_line(const GuiRasterColorX0Cfg *args)
     {
         if (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = on, .x = x, .y = y))
         {
-            EMBED_CALL(raster_put, GuiRasterCtx, .raster = args->raster, .x = x, .y = y, .color = args->color,
+            EMBED_CALL(raster_append, GuiRasterCtx, .raster = args->raster, .x = x, .y = y, .color = args->color,
                        .share = alpha);
         }
         if ((x == args->x1) && (y == args->y1))
@@ -1057,7 +1034,7 @@ void gui_raster_mask(const GuiRasterXYColorCfg *args)
             if (share != 0u)
             {
                 // two shares of 255 multiplied are a share of 255 once divided by 255
-                EMBED_CALL(raster_put, GuiRasterCtx, .raster = args->raster, .x = column, .y = row,
+                EMBED_CALL(raster_append, GuiRasterCtx, .raster = args->raster, .x = column, .y = row,
                            .color = args->color, .share = ((share * alpha) + 127u) / 255u);
             }
         }
@@ -1081,16 +1058,16 @@ void gui_raster_lanes_layout(const GuiRasterWidthXCfg *args)
         // the row and column inside the picture are not negative, the rectangle laid lying inside it; the pixel lies
         // on the raster: its coordinates are not negative
         const unsigned int from = ((unsigned int)(row - args->y) * args->width) + (unsigned int)(on.x - args->x);
-        const unsigned int *const ink_red_blue = args->red_blue + from;
-        const unsigned int *const ink_green = args->green + from;
+        const unsigned int *const text_color_red_blue = args->red_blue + from;
+        const unsigned int *const text_color_green = args->green + from;
         const unsigned int *const saved = args->rest + from;
         GuiColor *const out = &args->raster->pixels[((unsigned int)row * args->raster->width) + (unsigned int)on.x];
         // the row's width is not negative
         for (unsigned int px = 0u; px < (unsigned int)on.width; px += 1u)
         {
-            const GuiColor ground = out[px];
-            const unsigned int lanes = ink_red_blue[px] + ((ground & 0x00ff00ffu) * saved[px]);
-            const unsigned int lane = ink_green[px] + (((ground >> 8u) & 0xffu) * saved[px]);
+            const GuiColor background_fill = out[px];
+            const unsigned int lanes = text_color_red_blue[px] + ((background_fill & 0x00ff00ffu) * saved[px]);
+            const unsigned int lane = text_color_green[px] + (((background_fill >> 8u) & 0xffu) * saved[px]);
             out[px] = 0xff000000u | (((lanes + ((lanes >> 8u) & 0x00ff00ffu)) >> 8u) & 0x00ff00ffu) |
                       ((((lane + (lane >> 8u)) >> 8u) & 0xffu) << 8u);
         }
@@ -1121,14 +1098,14 @@ unsigned int gui_raster_row_cover(const GuiRasterWidthCfg *args)
     const int first = (args->left < 0) ? 0 : (args->left >> 16);
     const int ends = (int)((((long long)args->right + 65535ll) >> 16));
     // the raster's width is far inside what an int represents
-    const int past = (ends > (int)args->raster_width) ? (int)args->raster_width : ends;
-    if (past <= first)
+    const int end = (ends > (int)args->raster_width) ? (int)args->raster_width : ends;
+    if (end <= first)
     {
         return 0u;
     }
     *x = first;
     // the pixels are not negative in count, past being past first
-    const unsigned int count = (unsigned int)(past - first);
+    const unsigned int count = (unsigned int)(end - first);
     if (args->out == NULL)
     {
         return count;
@@ -1138,7 +1115,7 @@ unsigned int gui_raster_row_cover(const GuiRasterWidthCfg *args)
     // pixel, by that one over: no division a pixel
     const long long whole = (((long long)args->width << 16) << 16) / span;
     const long long over = (1ll << 40) / whole;
-    const long long stop_place = (long long)args->width << 16;
+    const long long stop_position = (long long)args->width << 16;
     long long place =
         (first == (args->left >> 16)) ? 0ll : ((((long long)first << 16) - (long long)args->left) * whole) >> 16;
     unsigned int at = (unsigned int)(place >> 16);
@@ -1149,7 +1126,7 @@ unsigned int gui_raster_row_cover(const GuiRasterWidthCfg *args)
             (((end_word > (long long)args->right) ? (long long)args->right : end_word) - (long long)args->left) *
                 whole >>
             16;
-        const long long stop = (worked > stop_place) ? stop_place : worked;
+        const long long stop = (worked > stop_position) ? stop_position : worked;
         long long area = 0ll;
         while (place < stop)
         {
@@ -1178,7 +1155,7 @@ void gui_raster_span_layout(const GuiRasterXYColorCountCfg *args)
     {
         if (args->cover[at] != 0u)
         {
-            out[at] = EMBED_CALL(raster_blend, GuiRasterCtx, .ground_color = out[at], .color = args->color,
+            out[at] = EMBED_CALL(raster_blend, GuiRasterCtx, .background_color = out[at], .color = args->color,
                                  .share = ((args->cover[at] * alpha) + 127u) / 255u);
         }
     }
@@ -1241,7 +1218,7 @@ void gui_raster_picture_layout(const GuiRasterXCfg *args)
             const unsigned int share = ((GUI_ALPHA_OF(pixel) * args->opacity) + 127u) / 255u;
             if (share != 0u)
             {
-                EMBED_CALL(raster_put, GuiRasterCtx, .raster = args->raster, .x = column, .y = row, .color = pixel,
+                EMBED_CALL(raster_append, GuiRasterCtx, .raster = args->raster, .x = column, .y = row, .color = pixel,
                            .share = share);
             }
         }
@@ -1256,16 +1233,16 @@ unsigned int gui_raster_order(const GuiRasterRectCfg *args)
     return ((across & 1u) << 3u) | ((down & 1u) << 2u) | (((across >> 1u) & 1u) << 1u) | ((down >> 1u) & 1u);
 }
 
-// a channel of `color` put down over `ground` with the dot's `share` of it from 0 to 1 and the dither's `threshold`
-// in levels of 255: the color's share and the threshold laid over the ground's rest, as the page's shader blends a
-// premultiplied dot over what stands
+// a channel of `color` put down over `background_fill` with the dot's `share` of it from 0 to 1 and the dither's
+// `threshold` in levels of 255: the color's share and the threshold laid over the ground's rest, as the page's shader
+// blends a premultiplied dot over what stands
 EMBED_INLINE unsigned int raster_dot_channel(const GuiRasterCtx *args)
 {
     const float laid = ((float)args->color_u32 * args->share_f32) + args->threshold;
     const float within = (laid < 0.0f) ? 0.0f : ((laid > 255.0f) ? 255.0f : laid);
     const float alpha = (args->share_f32 * 255.0f) + args->threshold;
     const float rest = (alpha < 0.0f) ? 1.0f : ((alpha > 255.0f) ? 0.0f : 1.0f - (alpha / 255.0f));
-    const float out = within + ((float)args->ground_u32 * rest);
+    const float out = within + ((float)args->background_u32 * rest);
     // a channel from 0 to 255, rounded, is a byte
     return (out >= 255.0f) ? 255u : (unsigned int)(out + 0.5f);
 }
@@ -1305,7 +1282,8 @@ void gui_raster_grain(const GuiRasterRectRadiusCfg *args)
             }
             if (grain != 0u)
             {
-                *pixel = EMBED_CALL(raster_blend, GuiRasterCtx, .ground_color = *pixel, .color = white, .share = grain);
+                *pixel =
+                    EMBED_CALL(raster_blend, GuiRasterCtx, .background_color = *pixel, .color = white, .share = grain);
             }
             pixel += 1;
         }
@@ -1314,7 +1292,7 @@ void gui_raster_grain(const GuiRasterRectRadiusCfg *args)
 
 void gui_raster_dot(const GuiRasterColorCfg *args)
 {
-    const float ink = (float)GUI_ALPHA_OF(args->color) / 255.0f;
+    const float text_color = (float)GUI_ALPHA_OF(args->color) / 255.0f;
     const float reach = args->radius_f32 + 1.0f;
     // the square about the dot, its sides whole pixels, is far inside what an int represents
     const int left = (int)floorf(args->x_f32 - reach);
@@ -1333,18 +1311,18 @@ void gui_raster_dot(const GuiRasterColorCfg *args)
             {
                 continue;
             }
-            const float share = ink * ((inside < 1.0f) ? inside : 1.0f);
+            const float share = text_color * ((inside < 1.0f) ? inside : 1.0f);
             const float threshold =
                 ((float)EMBED_CALL(gui_raster_rect.order, GuiRasterRectCfg, .x = column, .y = row) - 7.5f) / 16.0f;
             // the pixel lies on the raster: its coordinates are not negative
             GuiColor *const at =
                 &args->raster->pixels[((unsigned int)row * args->raster->width) + (unsigned int)column];
             *at =
-                GUI_RGB(EMBED_CALL(raster_dot_channel, GuiRasterCtx, .ground_u32 = GUI_RED_OF(*at),
+                GUI_RGB(EMBED_CALL(raster_dot_channel, GuiRasterCtx, .background_u32 = GUI_RED_OF(*at),
                                    .color_u32 = GUI_RED_OF(args->color), .share_f32 = share, .threshold = threshold),
-                        EMBED_CALL(raster_dot_channel, GuiRasterCtx, .ground_u32 = GUI_GREEN_OF(*at),
+                        EMBED_CALL(raster_dot_channel, GuiRasterCtx, .background_u32 = GUI_GREEN_OF(*at),
                                    .color_u32 = GUI_GREEN_OF(args->color), .share_f32 = share, .threshold = threshold),
-                        EMBED_CALL(raster_dot_channel, GuiRasterCtx, .ground_u32 = GUI_BLUE_OF(*at),
+                        EMBED_CALL(raster_dot_channel, GuiRasterCtx, .background_u32 = GUI_BLUE_OF(*at),
                                    .color_u32 = GUI_BLUE_OF(args->color), .share_f32 = share, .threshold = threshold));
         }
     }

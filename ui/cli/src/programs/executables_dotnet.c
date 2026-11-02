@@ -9,7 +9,7 @@
 #include "executables_internal.h"
 
 // the most places the .NET runtime is looked for, and the most numbers of a version read
-#define CLI_DOTNET_PLACES 8u
+#define CLI_DOTNET_POSITIONS 8u
 
 #define CLI_DOTNET_NUMBERS 8u
 
@@ -17,12 +17,12 @@ typedef struct
 {
     QuerySink sink;
     const char *text;
-    char (*places)[CLI_PATH_MAX_LEN];
+    char (*positions)[CLI_PATH_MAX_LEN];
     const char *version;
     unsigned long long *numbers;
     const CliJson *json;
     unsigned int framework;
-    unsigned int place_count;
+    unsigned int position_count;
     const char *file;
     const char *folder;
     const char *importer;
@@ -36,42 +36,42 @@ EMBED_INLINE void cli_print(const ExecutablesDotnetCtx *args)
 }
 
 // the folders a program opened on its own looks in for the .NET runtime, DOTNET_ROOT where the system sets it, then
-// where .NET installs for every user, into `places`: their count
-EMBED_INLINE unsigned int cli_dotnet_places(const ExecutablesDotnetCtx *args)
+// where .NET installs for every user, into `positions`: their count
+EMBED_INLINE unsigned int cli_dotnet_positions(const ExecutablesDotnetCtx *args)
 {
     unsigned int count = 0u;
     if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "DOTNET_ROOT",
-                   .value_out = args->places[count], .room = CLI_PATH_MAX_LEN))
+                   .value_out = args->positions[count], .capacity = CLI_PATH_MAX_LEN))
     {
         count += 1u;
     }
 #if defined(_WIN32)
     char files[CLI_PATH_MAX_LEN];
     if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ProgramFiles",
-                   .value_out = files, .room = sizeof(files)) &&
+                   .value_out = files, .capacity = sizeof(files)) &&
         EMBED_CALL(cli_executables_name_out_folder_internal.join, CliExecutablesNameOutFolderCtx, .folder = files,
-                   .name = "dotnet", .out = args->places[count]))
+                   .name = "dotnet", .out = args->positions[count]))
     {
         count += 1u;
     }
 #else
     char text[CLI_PATH_MAX_LEN];
-    if (EMBED_CALL(cli_executables_room_internal.text_read, CliExecutablesRoomCtx,
-                   .path = "/etc/dotnet/install_location", .bytes = text, .room = sizeof(text)))
+    if (EMBED_CALL(cli_executables_capacity_internal.text_read, CliExecutablesCapacityCtx,
+                   .path = "/etc/dotnet/install_location", .bytes = text, .capacity = sizeof(text)))
     {
         const char *from = text;
         unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
         EMBED_CALL(cli_executables_text_length_internal.scan_trim, CliExecutablesTextLengthCtx, .text_pointer = &from,
                    .length_pointer = &length);
         EMBED_CALL(cli_executables_length_text_internal.scan_copy, CliExecutablesLengthTextCtx, .text = from,
-                   .length = length, .out = args->places[count], .room = CLI_PATH_MAX_LEN);
+                   .length = length, .out = args->positions[count], .capacity = CLI_PATH_MAX_LEN);
         count += 1u;
     }
     static const char *const s_usual[3] = {"/usr/share/dotnet", "/usr/lib/dotnet", "/usr/local/share/dotnet"};
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
         memor.cpy(
-            &(MemoriaCfg){.dst = args->places[count],
+            &(MemoriaCfg){.dst = args->positions[count],
                           .src = s_usual[at],
                           .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_usual[at], .cap = CLI_CELLS_POOL}) + 1u});
         count += 1u;
@@ -92,7 +92,7 @@ EMBED_INLINE unsigned int cli_numbers(const ExecutablesDotnetCtx *args)
                           .size = cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}), .set = ".-");
         const unsigned long long digits = (unsigned long long)(end - part);
         const int number = (digits != 0ull) &&
-                           (EMBED_CALL(cli_text_at_size_classes.past_class, CliTextAtSizeClassesCfg, .text = part,
+                           (EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = part,
                                        .at = 0ull, .size = digits, .classes = CLI_TEXT_DIGITS, .set = "") == digits);
         const unsigned long long value = number ? EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = part,
                                                              .at = 0ull, .size = digits, .end = NULL)
@@ -110,8 +110,8 @@ EMBED_INLINE unsigned int cli_numbers(const ExecutablesDotnetCtx *args)
 // A framework looked for among a place's versions of it: the numbers wanted, and whether one installed is new enough
 typedef struct
 {
-    unsigned long long wanted[CLI_DOTNET_NUMBERS];
-    unsigned int wanted_count;
+    unsigned long long required[CLI_DOTNET_NUMBERS];
+    unsigned int requested_count;
     int satisfied;
 } CliFramework;
 
@@ -121,17 +121,17 @@ static void cli_version_each(const CliEachNameIsFolderCfg *args)
     CliFramework *const framework = (CliFramework *)args->context;
     unsigned long long have[CLI_DOTNET_NUMBERS];
     const unsigned int count = EMBED_CALL(cli_numbers, ExecutablesDotnetCtx, .version = args->name, .numbers = have);
-    if ((count == 0u) || (framework->wanted_count == 0u) || (have[0] != framework->wanted[0]))
+    if ((count == 0u) || (framework->requested_count == 0u) || (have[0] != framework->required[0]))
     {
         return;
     }
     // the numbers compared in turn, the longer newer where one runs out
     int order = 0;
-    for (unsigned int at = 0u; (order == 0) && (at < count) && (at < framework->wanted_count); at += 1u)
+    for (unsigned int at = 0u; (order == 0) && (at < count) && (at < framework->requested_count); at += 1u)
     {
-        order = (have[at] < framework->wanted[at]) ? -1 : (have[at] > framework->wanted[at]) ? 1 : 0;
+        order = (have[at] < framework->required[at]) ? -1 : (have[at] > framework->required[at]) ? 1 : 0;
     }
-    order = (order != 0) ? order : ((count < framework->wanted_count) ? -1 : 0);
+    order = (order != 0) ? order : ((count < framework->requested_count) ? -1 : 0);
     framework->satisfied = framework->satisfied || (order >= 0);
 }
 
@@ -153,23 +153,24 @@ static void cli_framework_check_print(const ExecutablesDotnetCtx *args)
     {
         return;
     }
-    CliFramework wanted;
-    wanted.wanted_count = EMBED_CALL(cli_numbers, ExecutablesDotnetCtx, .version = version, .numbers = wanted.wanted);
-    wanted.satisfied = 0;
-    for (unsigned int at = 0u; !wanted.satisfied && (at < args->place_count); at += 1u)
+    CliFramework required;
+    required.requested_count =
+        EMBED_CALL(cli_numbers, ExecutablesDotnetCtx, .version = version, .numbers = required.required);
+    required.satisfied = 0;
+    for (unsigned int at = 0u; !required.satisfied && (at < args->position_count); at += 1u)
     {
         char shared[CLI_PATH_MAX_LEN];
         char folder[CLI_PATH_MAX_LEN];
         if (EMBED_CALL(cli_executables_name_out_folder_internal.join, CliExecutablesNameOutFolderCtx,
-                       .folder = args->places[at], .name = "shared", .out = shared) &&
+                       .folder = args->positions[at], .name = "shared", .out = shared) &&
             EMBED_CALL(cli_executables_name_out_folder_internal.join, CliExecutablesNameOutFolderCtx, .folder = shared,
                        .name = name, .out = folder))
         {
             EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = folder,
-                       .each = cli_version_each, .context_bytess = &wanted);
+                       .each = cli_version_each, .context_bytess = &required);
         }
     }
-    if (wanted.satisfied)
+    if (required.satisfied)
     {
         return;
     }
@@ -189,7 +190,7 @@ static void cli_framework_check_print(const ExecutablesDotnetCtx *args)
                           .byte = '\\') +
                1)
             : args->file;
-    char print_buf[CLI_PATH_MAX_LEN * (CLI_DOTNET_PLACES + 2u)];
+    char print_buf[CLI_PATH_MAX_LEN * (CLI_DOTNET_POSITIONS + 2u)];
     VerbaLinea line = {print_buf, sizeof(print_buf), 0ull};
     mmgr_line_put(&line, base);
     mmgr_line_put(&line, " needs the .NET runtime ");
@@ -197,10 +198,10 @@ static void cli_framework_check_print(const ExecutablesDotnetCtx *args)
     mmgr_line_ch(&line, ' ');
     mmgr_line_put(&line, version);
     mmgr_line_put(&line, ", which a program opened on its own looks for in ");
-    for (unsigned int at = 0u; at < args->place_count; at += 1u)
+    for (unsigned int at = 0u; at < args->position_count; at += 1u)
     {
         mmgr_line_put(&line, (at != 0u) ? " and " : "");
-        mmgr_line_put(&line, args->places[at]);
+        mmgr_line_put(&line, args->positions[at]);
     }
     mmgr_line_put(&line, " and does not find: Publish as One File, the job's output one file, carries it inside the "
                          "program");
@@ -250,29 +251,29 @@ EMBED_INLINE void cli_dotnet_missing(const ExecutablesDotnetCtx *args)
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea reason = {why, sizeof(why), 0ull};
     const unsigned int root =
-        EMBED_CALL(cli_json_tree_err_msg.json_file_take, CliJsonTreeErrMsgCfg, .json = &json, .path = config,
+        EMBED_CALL(cli_json_tree_err_msg.json_file_alloc, CliJsonTreeErrMsgCfg, .json = &json, .path = config,
                    .nodes_more = 0u, .text_more = 0ull, .err_msg = &reason, .owner = &g_cli_executables_cells);
     const unsigned int options = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
                                             .object = root, .name = "runtimeOptions");
-    char (*const places)[CLI_PATH_MAX_LEN] =
+    char (*const positions)[CLI_PATH_MAX_LEN] =
         ((options != CLI_JSON_NONE) &&
          (EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json, .object = options,
                      .name = "includedFrameworks") == CLI_JSON_NONE))
-            ? g_cli_cells->persistent_buf_alloc((unsigned long long)CLI_DOTNET_PLACES * CLI_PATH_MAX_LEN,
+            ? g_cli_cells->persistent_buf_alloc((unsigned long long)CLI_DOTNET_POSITIONS * CLI_PATH_MAX_LEN,
                                                 &g_cli_executables_cells)
             : NULL;
-    if (places == NULL)
+    if (positions == NULL)
     {
         EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
         return;
     }
-    const unsigned int place_count = EMBED_CALL(cli_dotnet_places, ExecutablesDotnetCtx, .places = places);
+    const unsigned int position_count = EMBED_CALL(cli_dotnet_positions, ExecutablesDotnetCtx, .positions = positions);
     const unsigned int single = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
                                            .object = options, .name = "framework");
     if (single != CLI_JSON_NONE)
     {
         EMBED_CALL(cli_framework_check_print, ExecutablesDotnetCtx, .json = &json, .framework = single,
-                   .places = places, .place_count = place_count, .file = args->file, .sink = args->sink);
+                   .positions = positions, .position_count = position_count, .file = args->file, .sink = args->sink);
     }
     const unsigned int many = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
                                          .object = options, .name = "frameworks");
@@ -282,10 +283,10 @@ EMBED_INLINE void cli_dotnet_missing(const ExecutablesDotnetCtx *args)
                                  : CLI_JSON_NONE;
          item != CLI_JSON_NONE; item = json.node[item].next)
     {
-        EMBED_CALL(cli_framework_check_print, ExecutablesDotnetCtx, .json = &json, .framework = item, .places = places,
-                   .place_count = place_count, .file = args->file, .sink = args->sink);
+        EMBED_CALL(cli_framework_check_print, ExecutablesDotnetCtx, .json = &json, .framework = item,
+                   .positions = positions, .position_count = position_count, .file = args->file, .sink = args->sink);
     }
-    g_cli_cells->persistent_buf_release(places, &g_cli_executables_cells);
+    g_cli_cells->persistent_buf_release(positions, &g_cli_executables_cells);
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
 }
 
@@ -325,7 +326,7 @@ EMBED_INLINE int cli_is_own(const ExecutablesDotnetCtx *args)
     char path[CLI_PATH_MAX_LEN];
     char marked[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_executables_length_text_internal.scan_copy, CliExecutablesLengthTextCtx, .text = args->importer,
-               .length = top, .out = name, .room = sizeof(name));
+               .length = top, .out = name, .capacity = sizeof(name));
     VerbaLinea line = {name + top, sizeof(name) - top, 0ull};
     mmgr_line_put(&line, ".py");
     mmgr_line_finish(&line);
@@ -362,7 +363,7 @@ static void cli_own_each(const CliEachModuleImportersCfg *args)
         one = (stop < end) ? (stop + 2) : end;
         // `name (kinds)`: the `)` at its end left off, then parted at its last ` (`
         const char *close = stop;
-        close = start + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = start,
+        close = start + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = start,
                                    .at = (unsigned long long)(close - start), .set = ")");
         const char *split = NULL;
         for (const char *at = start; (at + 1) < close; at += 1)
@@ -390,18 +391,18 @@ static void cli_own_each(const CliEachModuleImportersCfg *args)
             continue;
         }
         // a script by its file's name, a module by its own
-        const char *shown = name;
+        const char *displayed = name;
         const int script = (length > 3ull) &&
                            (memor.cmp(&(MemoriaCfg){.src = name + length - 3ull, .other = ".py", .bytes = 3u}) == 0);
         for (unsigned long long at = 0ull; script && (at < length); at += 1ull)
         {
-            shown = ((name[at] == '/') || (name[at] == '\\')) ? (name + at + 1) : shown;
+            displayed = ((name[at] == '/') || (name[at] == '\\')) ? (name + at + 1) : displayed;
         }
         char print_buf[CLI_PATH_MAX_LEN * 2u];
         VerbaLinea line = {print_buf, sizeof(print_buf), 0ull};
         mmgr_line_put_n(&line, args->module, args->module_length);
         mmgr_line_put(&line, ", which ");
-        mmgr_line_put_n(&line, shown, (unsigned long long)((name + length) - shown));
+        mmgr_line_put_n(&line, displayed, (unsigned long long)((name + length) - displayed));
         mmgr_line_put(&line, " imports, is not in the frozen program: PyInstaller found it nowhere in the Python that "
                              "ran it; install it there and build again");
         mmgr_line_finish(&line);

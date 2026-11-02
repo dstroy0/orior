@@ -10,7 +10,7 @@
 #include <math.h>
 
 static unsigned char s_grain[GUI_GRAIN_TILE * GUI_GRAIN_TILE];
-static int s_grain_made;
+static int s_grain_created;
 
 typedef struct
 {
@@ -68,7 +68,7 @@ EMBED_INLINE double grain_noise(const GlassCtx *args)
 
 const unsigned char *gui_grain(void)
 {
-    if (s_grain_made)
+    if (s_grain_created)
     {
         return s_grain;
     }
@@ -93,7 +93,7 @@ const unsigned char *gui_grain(void)
             s_grain[(y * GUI_GRAIN_TILE) + x] = (unsigned char)((summed / weights) * GUI_GRAIN_ALPHA * 255.0 + 0.5);
         }
     }
-    s_grain_made = 1;
+    s_grain_created = 1;
     return s_grain;
 }
 
@@ -114,6 +114,6 @@ GuiColor gui_glass_pane_tint(const GuiGlassCfg *args)
 
 GuiUnder gui_glass_table(const GuiGlassCfg *args)
 {
-    const GuiUnder table = {args->ground, args->glass, gui_grain(), GUI_GRAIN_TILE, args->color};
+    const GuiUnder table = {args->background_fill, args->glass, gui_grain(), GUI_GRAIN_TILE, args->color};
     return table;
 }

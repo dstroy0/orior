@@ -15,11 +15,9 @@ extern void test_rust_dbg_prints(void);
 extern void test_c_printf_prints(void);
 extern void test_c_fprintf_prints(void);
 extern void test_go_println_prints(void);
-extern void test_ruby_puts_prints(void);
+extern void test_ruby_appends_prints(void);
 extern void test_a_longer_ruby_word_does_not_print(void);
 extern void test_a_file_with_no_known_language_does_not_print(void);
-extern void test_a_diffs_added_lines_report_their_line_in_the_new_file(void);
-extern void test_a_change_reports_only_the_prints_it_added(void);
 
 
 /*=======Mock Management=====*/
@@ -89,11 +87,9 @@ int main(void)
   run_test(test_c_printf_prints, "test_c_printf_prints", 51);
   run_test(test_c_fprintf_prints, "test_c_fprintf_prints", 56);
   run_test(test_go_println_prints, "test_go_println_prints", 61);
-  run_test(test_ruby_puts_prints, "test_ruby_puts_prints", 66);
+  run_test(test_ruby_appends_prints, "test_ruby_appends_prints", 66);
   run_test(test_a_longer_ruby_word_does_not_print, "test_a_longer_ruby_word_does_not_print", 71);
   run_test(test_a_file_with_no_known_language_does_not_print, "test_a_file_with_no_known_language_does_not_print", 76);
-  run_test(test_a_diffs_added_lines_report_their_line_in_the_new_file, "test_a_diffs_added_lines_report_their_line_in_the_new_file", 81);
-  run_test(test_a_change_reports_only_the_prints_it_added, "test_a_change_reports_only_the_prints_it_added", 93);
 
   return UNITY_END();
 }

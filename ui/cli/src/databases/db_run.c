@@ -186,7 +186,7 @@ int cli_db_run(const CliDbOutFailureCfg *args)
     {
         end -= 1ull;
     }
-    end = (start + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg,
+    end = (start + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg,
                               .text = args->statement + start, .at = end - start, .set = ";"));
     while ((end > start) &&
            (cellul.chr(&(CatenaFinitaCfg){
@@ -207,24 +207,25 @@ int cli_db_run(const CliDbOutFailureCfg *args)
     {
         return 1;
     }
-    CliDbRunning running_room;
-    CliDbRunning *const running = &running_room;
+    CliDbRunning running_capacity;
+    CliDbRunning *const running = &running_capacity;
     const unsigned long long from = args->out->at;
     *running = (CliDbRunning){args->open, text, length, args->page, args->out, "", 0, 0, "", {NULL, 0ull, 0ull}, ""};
     const unsigned long long started = cli_clock_milliseconds();
     mmgr_line_ch(args->out, '{');
     // the rows buffered are taken before the query link, as every reader of them takes the two, and retained through
     // the run
-    const int ran = EMBED_CALL(cli_db_failure_context_internal.with_query, CliDbFailureContextCtx, .open = args->open,
-                               .work = run_work, .context = running, .failure = args->failure);
-    const unsigned long long took = cli_clock_milliseconds() - started;
+    const int run_result =
+        EMBED_CALL(cli_db_failure_context_internal.with_query, CliDbFailureContextCtx, .open = args->open,
+                   .work = run_work, .context = running, .failure = args->failure);
+    const unsigned long long consumed = cli_clock_milliseconds() - started;
     char tag_buf[CLI_DB_TAG];
     VerbaLinea tag_line = {tag_buf, sizeof(tag_buf), 0ull};
-    if (ran && running->has_tag)
+    if (run_result && running->has_tag)
     {
         mmgr_line_put(&tag_line, running->tag);
     }
-    else if (ran)
+    else if (run_result)
     {
         mmgr_line_decimal(&tag_line, args->open->results.rows, 1u);
         mmgr_line_put(&tag_line, "+ rows");
@@ -235,8 +236,8 @@ int cli_db_run(const CliDbOutFailureCfg *args)
     }
     mmgr_line_finish(&tag_line);
     EMBED_CALL(cli_db_statement_internal.remembered, CliDbStatementCtx, .open = args->open, .statement = text,
-               .size = length, .took = took, .err_text = tag_buf, .failed = !ran);
-    if (!ran)
+               .size = length, .consumed = consumed, .err_text = tag_buf, .failed = !run_result);
+    if (!run_result)
     {
         args->out->at = from;
         return 0;
@@ -331,7 +332,7 @@ int cli_db_run(const CliDbOutFailureCfg *args)
         mmgr_line_put(args->out, "null");
     }
     mmgr_line_put(args->out, ",\"ms\":");
-    mmgr_line_decimal(args->out, took, 1u);
+    mmgr_line_decimal(args->out, consumed, 1u);
     mmgr_line_ch(args->out, '}');
     return 1;
 }

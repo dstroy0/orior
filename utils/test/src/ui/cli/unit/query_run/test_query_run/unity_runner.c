@@ -23,7 +23,7 @@ extern void test_a_failed_loop_still_stops_its_writer_and_stores_its_run(void);
 extern void test_a_step_joins_a_run_left_open(void);
 extern void test_a_steps_end_leaves_the_writer_running_with_its_line(void);
 extern void test_no_step_joins_a_run_whose_writer_has_stopped(void);
-extern void test_carried_reads_a_name_from_the_latest_run_else_the_disk_and_none_from_nowhere(void);
+extern void test_transferred_reads_a_name_from_the_latest_run_else_the_disk_and_none_from_nowhere(void);
 extern void test_a_file_read_is_written_under_its_path_and_recorded_as_a_leaf(void);
 extern void test_a_file_written_is_recorded_as_a_leaf(void);
 extern void test_a_later_step_reads_the_runs_own_not_the_disks_older_copy(void);
@@ -104,7 +104,7 @@ int main(void)
   run_test(test_a_step_joins_a_run_left_open, "test_a_step_joins_a_run_left_open", 298);
   run_test(test_a_steps_end_leaves_the_writer_running_with_its_line, "test_a_steps_end_leaves_the_writer_running_with_its_line", 311);
   run_test(test_no_step_joins_a_run_whose_writer_has_stopped, "test_no_step_joins_a_run_whose_writer_has_stopped", 330);
-  run_test(test_carried_reads_a_name_from_the_latest_run_else_the_disk_and_none_from_nowhere, "test_carried_reads_a_name_from_the_latest_run_else_the_disk_and_none_from_nowhere", 342);
+  run_test(test_transferred_reads_a_name_from_the_latest_run_else_the_disk_and_none_from_nowhere, "test_transferred_reads_a_name_from_the_latest_run_else_the_disk_and_none_from_nowhere", 342);
   run_test(test_a_file_read_is_written_under_its_path_and_recorded_as_a_leaf, "test_a_file_read_is_written_under_its_path_and_recorded_as_a_leaf", 380);
   run_test(test_a_file_written_is_recorded_as_a_leaf, "test_a_file_written_is_recorded_as_a_leaf", 405);
   run_test(test_a_later_step_reads_the_runs_own_not_the_disks_older_copy, "test_a_later_step_reads_the_runs_own_not_the_disks_older_copy", 428);

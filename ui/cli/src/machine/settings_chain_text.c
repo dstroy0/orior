@@ -4,40 +4,14 @@
 #include "../text/text.h"
 #include "settings_internal.h"
 
-void cli_settings_chain_write(const CliSettingsCfg *args)
-{
-    mmgr_line_put(args->out, "{\"files\":[");
-    for (unsigned int at = 0u; at < args->chain_read->files; at += 1u)
-    {
-        mmgr_line_put(args->out, (at != 0u) ? ",{\"file\":" : "{\"file\":");
-        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
-                   .text = args->chain_read->file[at],
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->chain_read->file[at], .cap = CLI_CELLS_POOL}));
-        mmgr_line_put(args->out, ",\"values\":");
-        EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = &args->chain_read->json,
-                   .node = args->chain_read->values[at], .out = args->out, .indent = 0u, .sorted = 0);
-        mmgr_line_ch(args->out, '}');
-    }
-    mmgr_line_put(args->out, "],\"problems\":[");
-    for (unsigned int at = 0u; at < args->chain_read->problems; at += 1u)
-    {
-        mmgr_line_put(args->out, (at != 0u) ? "," : "");
-        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
-                   .text = args->chain_read->problem[at],
-                   .length =
-                       cellul.len(&(CatenaFinitaCfg){.src = args->chain_read->problem[at], .cap = CLI_CELLS_POOL}));
-    }
-    mmgr_line_put(args->out, "]}");
-}
-
 int cli_settings_chain_read(const CliSettingsChainCfg *args)
 {
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &args->chain->json,
-               .node_json_node_pointer = NULL, .nodes_most = 0u, .text_out = NULL, .text_most = 0ull);
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
     args->chain->files = 0u;
     args->chain->problems = 0u;
     const unsigned int root =
-        EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg, .json = &args->chain->json,
+        EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &args->chain->json,
                    .text = args->text, .size = args->length, .nodes_more = 0u, .text_more = 0ull,
                    .err_msg = args->err_msg, .owner = &g_cli_machine_cells);
     if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &args->chain->json,

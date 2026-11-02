@@ -29,8 +29,8 @@ static CliTreeFindings s_findings;
 // a finding of the tree's counted, or stored
 static void findings_collect(const CliTreeFindingCfg *args)
 {
-    CliInspectPlace from = args->from;
-    CliInspectPlace to = args->to;
+    CliInspectPosition from = args->from;
+    CliInspectPosition to = args->to;
     const char *code = args->code;
     const VerbaLinea *message = args->message;
     if (s_findings.counting)
@@ -77,7 +77,7 @@ static void findings_order(void)
 }
 
 // the tree's findings counted, their cell taken at that count, and stored: the cell, NULL where it cannot be taken
-static void *findings_take(void)
+static void *findings_alloc(void)
 {
     s_findings = (CliTreeFindings){1, 0u, 0ull, NULL, NULL, NULL, NULL, NULL, NULL};
     EMBED_CALL(cli_inspect_tree_internal.tree_cycles, CliInspectTreeCtx, .each = findings_collect, .context = NULL);
@@ -147,7 +147,7 @@ EMBED_INLINE void findings_dispatch(const InspectTreeFindingsCtx *args)
 
 void cli_inspect_tree_findings(const CliInspectTreeCfg *args)
 {
-    void *const cell = findings_take();
+    void *const cell = findings_alloc();
     CliFacts tree = {0};
     tree.finding = s_findings.findings;
     tree.findings = (cell != NULL) ? s_findings.count : 0u;

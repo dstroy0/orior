@@ -27,32 +27,32 @@ static int start_send(const CliSinkBytesSizeCfg *args)
 }
 
 // a piece of what the adapter program writes, or of what comes over the adapter's connection, read
-static unsigned long long start_piped_read(const CliSourcePieceRoomCfg *args)
+static unsigned long long start_piped_read(const CliSourcePieceCapacityCfg *args)
 {
     char *piece = args->piece;
-    unsigned long long room = args->room;
-    return EMBED_CALL(cli_room_pipe_handle_internal.spawn_read, CliRoomPipeHandleCtx,
-                      .pipe_handle = ((CliDap *)args->source)->spawned.out, .piece = piece, .room = room);
+    unsigned long long capacity = args->capacity;
+    return EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx,
+                      .pipe_handle = ((CliDap *)args->source)->spawned.out, .piece = piece, .capacity = capacity);
 }
 
-static unsigned long long start_receive(const CliSourcePieceRoomCfg *args)
+static unsigned long long start_receive(const CliSourcePieceCapacityCfg *args)
 {
-    unsigned long long room = args->room;
+    unsigned long long capacity = args->capacity;
     const long long count =
-        EMBED_CALL(cli_room_internal.socket_some, CliRoomCtx, .sock = &((CliDap *)args->source)->socket,
-                   .bytes_out = args->piece, .room = room);
+        EMBED_CALL(cli_capacity_internal.socket_some, CliCapacityCtx, .sock = &((CliDap *)args->source)->socket,
+                   .bytes_out = args->piece, .capacity = capacity);
     return (count > 0ll) ? (unsigned long long)count : 0ull;
 }
 
 typedef struct
 {
     CliDap *dap;
-    unsigned long long (*read)(const CliSourcePieceRoomCfg *args);
+    unsigned long long (*read)(const CliSourcePieceCapacityCfg *args);
 } DapStartCtx;
 // an adapter's reader made to read from `read`
 EMBED_INLINE void start_reader(const DapStartCtx *args)
 {
-    unsigned long long (*read)(const CliSourcePieceRoomCfg *args) = args->read;
+    unsigned long long (*read)(const CliSourcePieceCapacityCfg *args) = args->read;
     args->dap->reader.read = read;
     args->dap->reader.source = args->dap;
     args->dap->reader.start = 0ull;
@@ -65,7 +65,7 @@ CliDap *cli_dap_start(const CliDapProgramCfg *args)
     int ends_program = args->ends_program;
     CliDapEventFn emit = args->emit;
     void *context = args->context;
-    CliDap *const dap = cli_dap_place_take();
+    CliDap *const dap = cli_dap_position_alloc();
     if (dap == NULL)
     {
         mmgr_line_put(args->err_msg, "no more debug adapters are open at once");
@@ -78,11 +78,11 @@ CliDap *cli_dap_start(const CliDapProgramCfg *args)
     dap->words.count = 0u;
     dap->words.used = 0u;
     dap->words.full = 0;
-    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &dap->words,
+    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &dap->words,
                .word = args->program);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &dap->words,
+        EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &dap->words,
                    .word = args->request[at]);
     }
     memor.cpy(&(MemoriaCfg){.dst = dap->path,
@@ -93,7 +93,7 @@ CliDap *cli_dap_start(const CliDapProgramCfg *args)
                     .words = dap->words.word, .folder = args->folder, .settings = settings, .count = 1u, .detached = 1,
                     .err_msg = args->err_msg))
     {
-        dap->taken = 0;
+        dap->reserved = 0;
         return NULL;
     }
     dap->input = (CliLspWriter){start_pipe, dap};
@@ -118,7 +118,7 @@ CliDap *cli_dap_connect(const CliDapEndsProgramCfg *args)
     {
         return NULL;
     }
-    CliDap *const dap = cli_dap_place_take();
+    CliDap *const dap = cli_dap_position_alloc();
     if (dap == NULL)
     {
         mmgr_line_put(args->err_msg, "no more debug adapters are open at once");
@@ -128,7 +128,7 @@ CliDap *cli_dap_connect(const CliDapEndsProgramCfg *args)
                     .host = args->host, .port = args->port, .milliseconds = CLI_DAP_CONNECTING,
                     .err_msg = args->err_msg))
     {
-        dap->taken = 0;
+        dap->reserved = 0;
         return NULL;
     }
     dap->kind = CLI_DAP_SOCKET;

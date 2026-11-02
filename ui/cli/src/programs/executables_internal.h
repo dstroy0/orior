@@ -29,7 +29,7 @@ typedef struct CliExecutablesNamesTextModuleCtx CliExecutablesNamesTextModuleCtx
 typedef struct CliExecutablesFolderCtx CliExecutablesFolderCtx;
 typedef struct CliExecutablesTextEachCtx CliExecutablesTextEachCtx;
 typedef struct CliExecutablesTextExeCtx CliExecutablesTextExeCtx;
-typedef struct CliExecutablesRoomCtx CliExecutablesRoomCtx;
+typedef struct CliExecutablesCapacityCtx CliExecutablesCapacityCtx;
 typedef struct CliExecutablesFoundCtx CliExecutablesFoundCtx;
 typedef struct CliExecutablesSystemCtx CliExecutablesSystemCtx;
 typedef struct CliExecutablesSpecCtx CliExecutablesSpecCtx;
@@ -60,7 +60,7 @@ enum
 
 // the most programs the tree's scripts make, the most names one script gives, the most bytes of a script read, and how
 // deep in the tree's folders a build script is looked for
-#define CLI_EXECUTABLES_MOST 1024u
+#define CLI_EXECUTABLES_MAX 1024u
 
 #define CLI_EXECUTABLES_NAMES 256u
 
@@ -84,13 +84,13 @@ typedef struct
     int commonjs;
 } CliExecutable;
 
-// The programs found, `count` of them in a cell of `room` at their most, and their places in the order of their scripts
-// and then their names, a cell of their count; both given back with cli_executables_free
+// The programs found, `count` of them in a cell of `capacity` at their most, and their places in the order of their
+// scripts and then their names, a cell of their count; both given back with cli_executables_free
 typedef struct
 {
     CliExecutable *item;
     unsigned int count;
-    unsigned int room;
+    unsigned int capacity;
     unsigned int *order;
 } CliExecutables;
 
@@ -111,10 +111,10 @@ typedef struct
 // the kind of build script a file's name is: CLI_KIND_NONE where it is none
 unsigned int cli_executables_kind_get(const CliExecutablesNameOutFolderCtx *args);
 // a name put after the names, with its second text, where the names contain it not already
-void cli_names_put(const CliExecutablesNameNamesCtx *args);
+void cli_names_append(const CliExecutablesNameNamesCtx *args);
 
 // whether a letter is ASCII's whitespace; `*length` bytes from `*text` trimmed of whitespace at either end; and
-// `length` bytes of `text` into `out`, sized for `room` (executables_scan.c)
+// `length` bytes of `text` into `out`, sized for `capacity` (executables_scan.c)
 int cli_scan_white(const CliExecutablesCtx *args);
 void cli_scan_trim(const CliExecutablesTextLengthCtx *args);
 void cli_scan_copy(const CliExecutablesLengthTextCtx *args);
@@ -126,11 +126,11 @@ typedef struct
     unsigned long long length;
 } CliCall;
 
-// the readers of a script's text (executables_scan.c): a TOML value as text into `out`, sized for `room`; the
+// the readers of a script's text (executables_scan.c): a TOML value as text into `out`, sized for `capacity`; the
 // binaries of the package a Cargo.toml at `manifest` describes; a script's text with its comments taken out into
-// `out`, sized for `room`; the text inside each call of `command` in `code`, into `calls`, sized for `room`: their
-// count, or, where `calls` is NULL, the count of them all; the names CMake's add_executable calls give and the name its
-// project() gives, into `out`, sized for CLI_NAME_MAX_LEN: 1, or 0 where it gives none; the same of Meson; the
+// `out`, sized for `capacity`; the text inside each call of `command` in `code`, into `calls`, sized for `capacity`:
+// their count, or, where `calls` is NULL, the count of them all; the names CMake's add_executable calls give and the
+// name its project() gives, into `out`, sized for CLI_NAME_MAX_LEN: 1, or 0 where it gives none; the same of Meson; the
 // package a Go file's clause names; the program a .NET project builds; the string a call's `key` is set to; the names a
 // build.zig's addExecutable calls give; the program a PyInstaller spec freezes and its path under the spec's folder;
 // and the bins of a package.json
@@ -141,8 +141,8 @@ unsigned int cli_calls(const CliExecutablesCodeCtx *args);
 // a script's text with its comments taken out, in a cell no longer than the text, NULL where the cell is refused; and
 // the calls of `command` in `code` in a cell of their count into `*calls`: their count, 0 and NULL where `code` is
 // NULL, it contains none or the cell is refused. Each cell is given back to g_cli_executables_cells
-char *cli_uncommented_take(const CliExecutablesTextCtx *args);
-unsigned int cli_calls_take(const CliExecutablesCodeCommandCtx *args);
+char *cli_uncommented_alloc(const CliExecutablesTextCtx *args);
+unsigned int cli_calls_alloc(const CliExecutablesCodeCommandCtx *args);
 void cli_cmake_targets(const CliExecutablesNamesTextCtx *args);
 int cli_cmake_project(const CliExecutablesTextOutCtx *args);
 void cli_meson_targets(const CliExecutablesNamesCtx *args);
@@ -159,33 +159,33 @@ void cli_npm_bins(const CliExecutablesNamesTextModuleCtx *args);
 #define CLI_EXECUTABLES_PENDING 4096u
 
 // A walk of the tree's folders: those still to look in and their depths, the folder looked in, and what is found, all
-// in one cell taken with cli_executables_walk_take and given back with cli_executables_walk_free
+// in one cell taken with cli_executables_walk_alloc and given back with cli_executables_walk_free
 typedef struct
 {
     char (*pending)[CLI_PATH_MAX_LEN];
     unsigned int *depth;
     unsigned int pending_count;
-    unsigned int pending_room;
+    unsigned int pending_capacity;
     const char *folder;
     unsigned int at_depth;
     char (*found)[CLI_PATH_MAX_LEN];
     unsigned int found_count;
-    unsigned int found_room;
+    unsigned int found_capacity;
     int main;
 } CliWalk;
 
 // `name` joined to `folder` into `out`, sized for CLI_PATH_MAX_LEN: 1, or 0 where it does not fit; whether a folder
 // is one a walk passes; the folders a walk has pending looked through in turn from `top`, each entry handed to
 // `each`, a folder whose entries set `main` put after those found; a folder put after those pending at `depth`, and a
-// path put after those found, each up to its most: 1, or 0 where it is past the most; a walk's cell taken, its rooms
-// none where it is refused; a walk's cell given back; and every program the tree's build scripts make, by script and
-// then by name (executables_read.c)
+// path put after those found, each up to its most: 1, or 0 where it is past the most; a walk's cell taken, its
+// capacities none where it is refused; a walk's cell given back; and every program the tree's build scripts make, by
+// script and then by name (executables_read.c)
 int cli_executables_join(const CliExecutablesNameOutFolderCtx *args);
 int cli_executables_pass(const CliExecutablesNameOutFolderCtx *args);
 void cli_executables_walk(const CliExecutablesWalkTopCtx *args);
-int cli_executables_pending_put(const CliExecutablesWalkCtx *args);
-int cli_executables_found_put(const CliExecutablesWalkCtx *args);
-void cli_executables_walk_take(const CliExecutablesWalkCtx *args);
+int cli_executables_pending_append(const CliExecutablesWalkCtx *args);
+int cli_executables_found_append(const CliExecutablesWalkCtx *args);
+void cli_executables_walk_alloc(const CliExecutablesWalkCtx *args);
 void cli_executables_walk_free(const CliExecutablesWalkCtx *args);
 void cli_executables_read(const CliExecutablesFoundCtx *args);
 
@@ -212,7 +212,7 @@ int cli_executables_job_begin(const CliExecutablesRootCtx *args);
 void cli_executables_steps(const CliExecutablesRootCtx *args);
 
 // what the program `name` of the toolchain `tool` writes for `args`, `count` of them, run in `folder` where it is
-// given, into `ran`: 1 where it ends well, or 0 with `name`, its first argument and what went wrong reported
+// given, into `run_result`: 1 where it ends well, or 0 with `name`, its first argument and what went wrong reported
 // (executables.c)
 int cli_executables_output(const CliExecutablesNameCtx *args);
 
@@ -234,11 +234,11 @@ int cli_meson_artifact(const CliExecutablesNameOutCtx *args);
 char *cli_pyinstaller_warn(const CliExecutablesSpecCtx *args);
 void cli_pyinstaller_missing(const CliExecutablesTextEachCtx *args);
 
-// the text of the file at `path` read whole into `bytes`, sized for `room`, ended by a 0: 1, or 0 where it could not
-// be read; and read whole into a cell of its size and a 0 after it, given back to g_cli_executables_cells: the cell,
-// or NULL where it could not be read or the cell is refused
-int cli_text_read(const CliExecutablesRoomCtx *args);
-char *cli_text_take(const CliExecutablesWalkCtx *args);
+// the text of the file at `path` read whole into `bytes`, sized for `capacity`, ended by a 0: 1, or 0 where it could
+// not be read; and read whole into a cell of its size and a 0 after it, given back to g_cli_executables_cells: the
+// cell, or NULL where it could not be read or the cell is refused
+int cli_text_read(const CliExecutablesCapacityCtx *args);
+char *cli_text_alloc(const CliExecutablesWalkCtx *args);
 
 struct CliExecutablesNameCtx
 {
@@ -247,7 +247,7 @@ struct CliExecutablesNameCtx
     const char *tool;
     const char *const *request;
     unsigned int count;
-    CliRan *ran;
+    CliRunResult *run_result;
     VerbaLinea *err_msg;
 };
 
@@ -273,7 +273,7 @@ struct CliExecutablesCodeCtx
     const char *code;
     const char *command;
     CliCall *calls;
-    unsigned int room_u32;
+    unsigned int capacity_u32;
 };
 
 struct CliExecutablesNameOutErrMsgCtx
@@ -313,7 +313,7 @@ struct CliExecutablesLengthTextCtx
     unsigned long long length;
     const char *text;
     char *out;
-    unsigned long long room;
+    unsigned long long capacity;
 };
 
 struct CliExecutablesLengthValueCtx
@@ -321,14 +321,14 @@ struct CliExecutablesLengthValueCtx
     unsigned long long length;
     const char *value;
     char *out;
-    unsigned long long room;
+    unsigned long long capacity;
 };
 
 struct CliExecutablesTextCtx
 {
     const char *text;
     char *out;
-    unsigned long long room;
+    unsigned long long capacity;
     char quote;
 };
 
@@ -419,13 +419,13 @@ struct CliExecutablesTextEachCtx
 struct CliExecutablesTextExeCtx
 {
     const char *text;
-    char *exe_room;
+    char *exe_capacity;
     char *path_out;
 };
 
-struct CliExecutablesRoomCtx
+struct CliExecutablesCapacityCtx
 {
-    unsigned long long room;
+    unsigned long long capacity;
     const char *path;
     char *bytes;
 };
@@ -489,11 +489,11 @@ EMBED_TABLE_STORAGE CliExecutablesNameOutFolderNs cli_executables_name_out_folde
 
 typedef struct
 {
-    void (*names_put)(const CliExecutablesNameNamesCtx *args);
+    void (*names_append)(const CliExecutablesNameNamesCtx *args);
 } CliExecutablesNameNamesNs;
-EMBED_TABLE_LAYOUT(CliExecutablesNameNamesNs, names_put);
+EMBED_TABLE_LAYOUT(CliExecutablesNameNamesNs, names_append);
 EMBED_TABLE_STORAGE CliExecutablesNameNamesNs cli_executables_name_names_internal EMBED_UNUSED = {
-    .names_put = cli_names_put,
+    .names_append = cli_names_append,
 };
 
 typedef struct
@@ -548,12 +548,12 @@ EMBED_TABLE_STORAGE CliExecutablesNamesNs cli_executables_names_internal EMBED_U
 typedef struct
 {
     void (*uncommented)(const CliExecutablesTextCtx *args);
-    char *(*uncommented_take)(const CliExecutablesTextCtx *args);
+    char *(*uncommented_alloc)(const CliExecutablesTextCtx *args);
 } CliExecutablesTextNs;
-EMBED_TABLE_LAYOUT(CliExecutablesTextNs, uncommented, uncommented_take);
+EMBED_TABLE_LAYOUT(CliExecutablesTextNs, uncommented, uncommented_alloc);
 EMBED_TABLE_STORAGE CliExecutablesTextNs cli_executables_text_internal EMBED_UNUSED = {
     .uncommented = cli_uncommented,
-    .uncommented_take = cli_uncommented_take,
+    .uncommented_alloc = cli_uncommented_alloc,
 };
 
 typedef struct
@@ -567,11 +567,11 @@ EMBED_TABLE_STORAGE CliExecutablesCodeNs cli_executables_code_internal EMBED_UNU
 
 typedef struct
 {
-    unsigned int (*calls_take)(const CliExecutablesCodeCommandCtx *args);
+    unsigned int (*calls_alloc)(const CliExecutablesCodeCommandCtx *args);
 } CliExecutablesCodeCommandNs;
-EMBED_TABLE_LAYOUT(CliExecutablesCodeCommandNs, calls_take);
+EMBED_TABLE_LAYOUT(CliExecutablesCodeCommandNs, calls_alloc);
 EMBED_TABLE_STORAGE CliExecutablesCodeCommandNs cli_executables_code_command_internal EMBED_UNUSED = {
-    .calls_take = cli_calls_take,
+    .calls_alloc = cli_calls_alloc,
 };
 
 typedef struct
@@ -636,19 +636,19 @@ EMBED_TABLE_STORAGE CliExecutablesWalkTopNs cli_executables_walk_top_internal EM
 
 typedef struct
 {
-    int (*pending_put)(const CliExecutablesWalkCtx *args);
-    int (*found_put)(const CliExecutablesWalkCtx *args);
-    void (*walk_take)(const CliExecutablesWalkCtx *args);
+    int (*pending_append)(const CliExecutablesWalkCtx *args);
+    int (*found_append)(const CliExecutablesWalkCtx *args);
+    void (*walk_alloc)(const CliExecutablesWalkCtx *args);
     void (*walk_free)(const CliExecutablesWalkCtx *args);
-    char *(*text_take)(const CliExecutablesWalkCtx *args);
+    char *(*text_alloc)(const CliExecutablesWalkCtx *args);
 } CliExecutablesWalkNs;
-EMBED_TABLE_LAYOUT(CliExecutablesWalkNs, pending_put, found_put, walk_take, walk_free, text_take);
+EMBED_TABLE_LAYOUT(CliExecutablesWalkNs, pending_append, found_append, walk_alloc, walk_free, text_alloc);
 EMBED_TABLE_STORAGE CliExecutablesWalkNs cli_executables_walk_internal EMBED_UNUSED = {
-    .pending_put = cli_executables_pending_put,
-    .found_put = cli_executables_found_put,
-    .walk_take = cli_executables_walk_take,
+    .pending_append = cli_executables_pending_append,
+    .found_append = cli_executables_found_append,
+    .walk_alloc = cli_executables_walk_alloc,
     .walk_free = cli_executables_walk_free,
-    .text_take = cli_text_take,
+    .text_alloc = cli_text_alloc,
 };
 
 typedef struct
@@ -758,10 +758,10 @@ EMBED_TABLE_STORAGE CliExecutablesTextEachNs cli_executables_text_each_internal 
 
 typedef struct
 {
-    int (*text_read)(const CliExecutablesRoomCtx *args);
-} CliExecutablesRoomNs;
-EMBED_TABLE_LAYOUT(CliExecutablesRoomNs, text_read);
-EMBED_TABLE_STORAGE CliExecutablesRoomNs cli_executables_room_internal EMBED_UNUSED = {
+    int (*text_read)(const CliExecutablesCapacityCtx *args);
+} CliExecutablesCapacityNs;
+EMBED_TABLE_LAYOUT(CliExecutablesCapacityNs, text_read);
+EMBED_TABLE_STORAGE CliExecutablesCapacityNs cli_executables_capacity_internal EMBED_UNUSED = {
     .text_read = cli_text_read,
 };
 

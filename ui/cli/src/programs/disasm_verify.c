@@ -79,8 +79,8 @@ typedef struct
     const char *relative;
     VerbaLinea *line;
     const char *name_read;
-    const CliDisasmReading *llvm;
-    const CliDisasmReading *ghidra;
+    const CliDisasmReadState *llvm;
+    const CliDisasmReadState *ghidra;
     int same;
     unsigned int at;
     unsigned int ghidra_at;
@@ -111,7 +111,7 @@ EMBED_INLINE int verify_cli_by_name(const DisasmVerifyCtx *args)
         return 0;
     }
     unsigned long long size = 0ull;
-    const unsigned char *const text = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = path,
+    const unsigned char *const text = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                  .size_pointer = &size, .owner = &g_cli_programs_cells);
     if (text == NULL)
     {
@@ -160,8 +160,8 @@ int cli_disasm_path(const CliDisasmVerifyCfg *args)
 // the module's object's name as build.sh names it, the path within the tree with each separator as two underscores
 EMBED_INLINE void verify_object_by_name(const DisasmVerifyCtx *args)
 {
-    EMBED_CALL(cli_text_set_table.put_replace, CliTextSetCfg, .out = args->line, .text = args->relative, .set = "/\\",
-               .with = "__");
+    EMBED_CALL(cli_text_set_table.append_replace, CliTextSetCfg, .out = args->line, .text = args->relative,
+               .set = "/\\", .with = "__");
 }
 
 // one function's row written to the output: its name, how many instructions each reader gave, and the verdict: same,
@@ -229,8 +229,8 @@ int cli_disasm_verify_words(const CliDisasmVerifyWordsCfg *args)
     const char *module = NULL;
     const char *toolchain_id = "llvm";
     const char *target = "x86_64-unknown-linux-gnu";
-    const char *wanted[CLI_DISASM_FUNCTIONS];
-    unsigned int wanted_count = 0u;
+    const char *required[CLI_DISASM_FUNCTIONS];
+    unsigned int requested_count = 0u;
     for (unsigned int each = 0u; each < args->count; each += 1u)
     {
         const int function =
@@ -242,10 +242,10 @@ int cli_disasm_verify_words(const CliDisasmVerifyWordsCfg *args)
         if ((function || toolchain || triple) && (each + 1u < args->count))
         {
             each += 1u;
-            if (function && (wanted_count < CLI_DISASM_FUNCTIONS))
+            if (function && (requested_count < CLI_DISASM_FUNCTIONS))
             {
-                wanted[wanted_count] = args->words[each];
-                wanted_count += 1u;
+                required[requested_count] = args->words[each];
+                requested_count += 1u;
             }
             toolchain_id = toolchain ? args->words[each] : toolchain_id;
             target = triple ? args->words[each] : target;
@@ -287,11 +287,11 @@ int cli_disasm_verify_words(const CliDisasmVerifyWordsCfg *args)
                     .name = toolchain->compiler, .path = compiler, .err_msg = &err_msg) ||
         !EMBED_CALL(cli_executables_tool.program, CliExecutablesToolCfg, .tool = "ghidra", .name = "analyzeHeadless",
                     .path = analyzer, .err_msg = &err_msg) ||
-        !EMBED_CALL(cli_disasm_verify_path.disasm_beside, CliDisasmVerifyPathCfg, .compiler = compiler,
+        !EMBED_CALL(cli_disasm_verify_path.disasm_adjacent, CliDisasmVerifyPathCfg, .compiler = compiler,
                     .names_letters = toolchain->lifter, .path = lifter, .err_msg = &err_msg) ||
-        !EMBED_CALL(cli_disasm_verify_path.disasm_beside, CliDisasmVerifyPathCfg, .compiler = compiler,
+        !EMBED_CALL(cli_disasm_verify_path.disasm_adjacent, CliDisasmVerifyPathCfg, .compiler = compiler,
                     .names_letters = toolchain->lister, .path = lister, .err_msg = &err_msg) ||
-        !EMBED_CALL(cli_disasm_verify_path.disasm_beside, CliDisasmVerifyPathCfg, .compiler = compiler,
+        !EMBED_CALL(cli_disasm_verify_path.disasm_adjacent, CliDisasmVerifyPathCfg, .compiler = compiler,
                     .names_letters = toolchain->disassembler, .path = disassembler, .err_msg = &err_msg))
     {
         (void)mmgr_line_finish(&err_msg);
@@ -346,13 +346,13 @@ int cli_disasm_verify_words(const CliDisasmVerifyWordsCfg *args)
     unsigned int named_count = 0u;
     for (unsigned int each = 0u; each < functions; each += 1u)
     {
-        int all_wanted = wanted_count == 0u;
-        for (unsigned int one = 0u; !all_wanted && (one < wanted_count); one += 1u)
+        int all_requested = requested_count == 0u;
+        for (unsigned int one = 0u; !all_requested && (one < requested_count); one += 1u)
         {
-            all_wanted =
-                cellul.eq(&(CatenaFinitaCfg){.src = s_names[each], .other = wanted[one], .cap = CLI_NAME_MAX_LEN});
+            all_requested =
+                cellul.eq(&(CatenaFinitaCfg){.src = s_names[each], .other = required[one], .cap = CLI_NAME_MAX_LEN});
         }
-        if (all_wanted)
+        if (all_requested)
         {
             memor.cpy(&(MemoriaCfg){.dst = s_names[named_count], .src = s_names[each], .bytes = CLI_NAME_MAX_LEN});
             named_count += 1u;
@@ -372,7 +372,7 @@ int cli_disasm_verify_words(const CliDisasmVerifyWordsCfg *args)
                                : "the program contains none of the module's functions");
         return CLI_NO_CODE;
     }
-    CliRan *const disassembled = EMBED_CALL(
+    CliRunResult *const disassembled = EMBED_CALL(
         cli_disasm_verify_count_err_msg.disasm_disassemble, CliDisasmVerifyCountErrMsgCfg, .disassembler = disassembler,
         .program = program, .symbols = s_symbols, .count = functions, .into = llvm_text, .err_msg = &err_msg);
     unsigned long long ghidra_size = 0ull;
@@ -383,12 +383,12 @@ int cli_disasm_verify_words(const CliDisasmVerifyWordsCfg *args)
                          .symbols = s_symbols, .count = functions, .into = ghidra_text, .size_pointer = &ghidra_size,
                          .err_msg = &err_msg)
             : NULL;
-    CliDisasmReading one = {g_cli_cells->persistent_buf_alloc(CLI_DISASM_INSTRUCTIONS * sizeof(CliDisasmInstruction),
-                                                              &g_cli_programs_cells),
-                            0u, 0};
-    CliDisasmReading other = {g_cli_cells->persistent_buf_alloc(CLI_DISASM_INSTRUCTIONS * sizeof(CliDisasmInstruction),
+    CliDisasmReadState one = {g_cli_cells->persistent_buf_alloc(CLI_DISASM_INSTRUCTIONS * sizeof(CliDisasmInstruction),
                                                                 &g_cli_programs_cells),
                               0u, 0};
+    CliDisasmReadState other = {g_cli_cells->persistent_buf_alloc(
+                                    CLI_DISASM_INSTRUCTIONS * sizeof(CliDisasmInstruction), &g_cli_programs_cells),
+                                0u, 0};
     int code = 0;
     if ((ghidra == NULL) || (one.instruction == NULL) || (other.instruction == NULL))
     {
@@ -404,10 +404,10 @@ int cli_disasm_verify_words(const CliDisasmVerifyWordsCfg *args)
             continue;
         }
         (void)EMBED_CALL(cli_disasm_verify_size.disasm_objdump_read, CliDisasmVerifySizeCfg, .text = disassembled->out,
-                         .size = disassembled->out_size, .symbol = s_symbols[each], .reading = &one);
+                         .size = disassembled->out_size, .symbol = s_symbols[each], .read_state = &one);
         (void)EMBED_CALL(cli_disasm_verify_size.disasm_ghidra_read, CliDisasmVerifySizeCfg,
                          .text = (const char *)ghidra, .size = ghidra_size, .symbol = s_symbols[each],
-                         .reading = &other);
+                         .read_state = &other);
         unsigned int at = 0u;
         unsigned int other_at = 0u;
         const int same = EMBED_CALL(cli_disasm_verify_one.disasm_same, CliDisasmVerifyOneCfg, .one = &one,
@@ -421,7 +421,7 @@ int cli_disasm_verify_words(const CliDisasmVerifyWordsCfg *args)
     EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = ghidra, .owner = &g_cli_programs_cells);
     if (disassembled != NULL)
     {
-        EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = disassembled);
+        EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = disassembled);
     }
     return code;
 }

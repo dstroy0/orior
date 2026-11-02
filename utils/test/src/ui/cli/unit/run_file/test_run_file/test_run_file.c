@@ -49,9 +49,9 @@ void test_every_run_line_of_the_manifest_closes_its_placeholders(void)
 void test_a_language_with_no_run_line_is_refused(void)
 {
     char why[1024];
-    char ran[1024];
+    char run_result[1024];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    VerbaLinea out = {ran, sizeof(ran), 0ull};
+    VerbaLinea out = {run_result, sizeof(run_result), 0ull};
     TEST_ASSERT_FALSE(EMBED_CALL(cli_run_file.line, CliRunFileCfg, .root = ".", .path = "a.json", .language = "json", .out = &out, .err_msg = &err_msg));
     (void)mmgr_line_finish(&err_msg);
     CLI_TEST_ASSERT_CONTAINS("no way to run", why);

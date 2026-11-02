@@ -26,14 +26,14 @@ typedef struct
     unsigned int one;
 } DebugRequestsCtx;
 
-// session `id` taken and a request's room with it: the room, or NULL with why given
+// session `id` taken and a request's capacity with it: the capacity, or NULL with why given
 EMBED_INLINE CliDebugAnswer *requests_begin(const DebugRequestsCtx *args)
 {
     unsigned long long id = args->id;
     CliDebugSession **session = args->session_pointer;
     VerbaLinea *err_msg = args->err_msg;
     *session = EMBED_CALL(cli_debug_err_msg_id_internal.take, CliDebugErrMsgIdCtx, .id = id, .err_msg = err_msg);
-    return (*session != NULL) ? cli_debug_answer_take() : NULL;
+    return (*session != NULL) ? cli_debug_answer_alloc() : NULL;
 }
 
 // the request sent to the session taken and the session let go where it failed: 1, or 0 with why given
@@ -53,7 +53,7 @@ EMBED_INLINE int requests_send(const DebugRequestsCtx *args)
     return 1;
 }
 
-// the request's room and the session let go
+// the request's capacity and the session let go
 EMBED_INLINE int requests_finish(const DebugRequestsCtx *args)
 {
     CliDebugSession *session = args->session;
@@ -595,7 +595,7 @@ int cli_debug_memory(const CliDebugOutErrMsgIdReferenceOffsetCfg *args)
     unsigned char *const decoded = (data != NULL) ? g_cli_cells->temporary_buf_alloc(most, &g_cli_debug_cells) : NULL;
     const unsigned long long bytes = (decoded != NULL)
                                          ? EMBED_CALL(cli_debug_text_internal.base64, CliDebugTextCtx, .text = data,
-                                                      .size = length, .out_bytes = decoded, .room = most)
+                                                      .size = length, .out_bytes = decoded, .capacity = most)
                                          : 0ull;
     for (unsigned long long at = 0ull; at < bytes; at += 1ull)
     {

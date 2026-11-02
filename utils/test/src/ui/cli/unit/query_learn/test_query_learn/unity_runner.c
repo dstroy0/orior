@@ -7,10 +7,10 @@
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
 extern void tearDown(void);
-extern void test_the_files_are_handed_with_forward_slashes(void);
-extern void test_the_parts_files_are_beside_the_bridge(void);
-extern void test_the_carriers_words_with_the_lessons(void);
-extern void test_the_carriers_words_without_the_lessons(void);
+extern void test_the_files_are_transferred_with_forward_slashes(void);
+extern void test_the_parts_files_are_adjacent_the_bridge(void);
+extern void test_the_transports_words_with_the_lessons(void);
+extern void test_the_transports_words_without_the_lessons(void);
 extern void test_a_pass_is_read(void);
 extern void test_a_pass_with_its_base_is_read(void);
 extern void test_the_costs_pass_is_read(void);
@@ -19,9 +19,9 @@ extern void test_rounds_through_the_airlock_are_read(void);
 extern void test_dry_with_no_count_is_one_round(void);
 extern void test_dry_reads_its_count_of_rounds(void);
 extern void test_the_clock_with_no_span_uses_its_default(void);
-extern void test_the_clock_reads_a_given_span(void);
-extern void test_one_places_questions_are_read(void);
-extern void test_an_enumerate_with_no_place_is_refused(void);
+extern void test_the_clock_reads_a_input_span(void);
+extern void test_one_positions_questions_are_read(void);
+extern void test_an_enumerate_with_no_position_is_refused(void);
 extern void test_a_seed_with_no_listing_is_refused(void);
 extern void test_rounds_that_are_not_a_number_are_refused(void);
 extern void test_an_unknown_step_is_refused(void);
@@ -33,7 +33,7 @@ extern void test_posix_the_sticks_path_starts_at_the_root(void);
 extern void test_the_same_text_is_not_compiled_again(void);
 extern void test_a_changed_text_is_compiled_again(void);
 extern void test_a_missing_container_is_compiled(void);
-extern void test_the_stick_with_no_words_reads_the_vendors_reading(void);
+extern void test_the_stick_with_no_words_reads_the_vendors_read_state(void);
 extern void test_the_stick_reads_vendor(void);
 extern void test_the_stick_reads_engine(void);
 extern void test_the_stick_reads_read_with_its_words(void);
@@ -100,10 +100,10 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\query_learn\\test_query_learn\\test_query_learn.c");
-  run_test(test_the_files_are_handed_with_forward_slashes, "test_the_files_are_handed_with_forward_slashes", 104);
-  run_test(test_the_parts_files_are_beside_the_bridge, "test_the_parts_files_are_beside_the_bridge", 114);
-  run_test(test_the_carriers_words_with_the_lessons, "test_the_carriers_words_with_the_lessons", 122);
-  run_test(test_the_carriers_words_without_the_lessons, "test_the_carriers_words_without_the_lessons", 128);
+  run_test(test_the_files_are_transferred_with_forward_slashes, "test_the_files_are_transferred_with_forward_slashes", 104);
+  run_test(test_the_parts_files_are_adjacent_the_bridge, "test_the_parts_files_are_adjacent_the_bridge", 114);
+  run_test(test_the_transports_words_with_the_lessons, "test_the_transports_words_with_the_lessons", 122);
+  run_test(test_the_transports_words_without_the_lessons, "test_the_transports_words_without_the_lessons", 128);
   run_test(test_a_pass_is_read, "test_a_pass_is_read", 134);
   run_test(test_a_pass_with_its_base_is_read, "test_a_pass_with_its_base_is_read", 142);
   run_test(test_the_costs_pass_is_read, "test_the_costs_pass_is_read", 149);
@@ -112,9 +112,9 @@ int main(void)
   run_test(test_dry_with_no_count_is_one_round, "test_dry_with_no_count_is_one_round", 173);
   run_test(test_dry_reads_its_count_of_rounds, "test_dry_reads_its_count_of_rounds", 180);
   run_test(test_the_clock_with_no_span_uses_its_default, "test_the_clock_with_no_span_uses_its_default", 187);
-  run_test(test_the_clock_reads_a_given_span, "test_the_clock_reads_a_given_span", 195);
-  run_test(test_one_places_questions_are_read, "test_one_places_questions_are_read", 203);
-  run_test(test_an_enumerate_with_no_place_is_refused, "test_an_enumerate_with_no_place_is_refused", 211);
+  run_test(test_the_clock_reads_a_input_span, "test_the_clock_reads_a_input_span", 195);
+  run_test(test_one_positions_questions_are_read, "test_one_positions_questions_are_read", 203);
+  run_test(test_an_enumerate_with_no_position_is_refused, "test_an_enumerate_with_no_position_is_refused", 211);
   run_test(test_a_seed_with_no_listing_is_refused, "test_a_seed_with_no_listing_is_refused", 217);
   run_test(test_rounds_that_are_not_a_number_are_refused, "test_rounds_that_are_not_a_number_are_refused", 223);
   run_test(test_an_unknown_step_is_refused, "test_an_unknown_step_is_refused", 229);
@@ -126,7 +126,7 @@ int main(void)
   run_test(test_the_same_text_is_not_compiled_again, "test_the_same_text_is_not_compiled_again", 276);
   run_test(test_a_changed_text_is_compiled_again, "test_a_changed_text_is_compiled_again", 282);
   run_test(test_a_missing_container_is_compiled, "test_a_missing_container_is_compiled", 289);
-  run_test(test_the_stick_with_no_words_reads_the_vendors_reading, "test_the_stick_with_no_words_reads_the_vendors_reading", 296);
+  run_test(test_the_stick_with_no_words_reads_the_vendors_read_state, "test_the_stick_with_no_words_reads_the_vendors_read_state", 296);
   run_test(test_the_stick_reads_vendor, "test_the_stick_reads_vendor", 301);
   run_test(test_the_stick_reads_engine, "test_the_stick_reads_engine", 307);
   run_test(test_the_stick_reads_read_with_its_words, "test_the_stick_reads_read_with_its_words", 312);

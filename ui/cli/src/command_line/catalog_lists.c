@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // catalog_lists.c: the catalog's lists and texts, each in a cell of its size counted to the catalog's owner: a
-// folder's entries in order, a list's room made as it fills, and each given back
+// folder's entries in order, a list's capacity made as it fills, and each given back
 #include "../text/text.h"
 #include "callback_cfg.h"
 #include "catalog_internal.h"
@@ -46,7 +46,7 @@ static void cli_entry_each(const CliEachNameIsFolderCfg *args)
     CliEntryWalk *const walk = (CliEntryWalk *)args->context;
     CliEntries *const entries = walk->entries;
     if (!EMBED_CALL(cli_entry_include, CatalogListsCtx, .walk = walk, .name = name, .is_folder = is_folder) ||
-        (entries->count >= entries->room))
+        (entries->count >= entries->capacity))
     {
         return;
     }
@@ -71,34 +71,35 @@ void cli_catalog_entries(const CliCatalogFolderCtx *args)
     CliEntryWalk walk = {entries, args->folders, args->filter, 0u};
     EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = args->folder,
                .each = cli_entry_count, .context_bytess = &walk);
-    (void)EMBED_CALL(cli_catalog_names_internal.names_room, CliCatalogNamesCtx, .names = entries, .most = walk.seen);
+    (void)EMBED_CALL(cli_catalog_names_internal.names_capacity, CliCatalogNamesCtx, .names = entries,
+                     .most = walk.seen);
     EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = args->folder,
                .each = cli_entry_each, .context_bytess = &walk);
 }
 
-// the most names or paths one list contains, its cell taken at them as the list is first made room in
-#define CLI_CATALOG_ENTRIES_MOST 16384u
+// the most names or paths one list contains, its cell taken at them as the list is first made capacity in
+#define CLI_CATALOG_ENTRIES_MAX 16384u
 
-int cli_catalog_names_room(const CliCatalogNamesCtx *args)
+int cli_catalog_names_capacity(const CliCatalogNamesCtx *args)
 {
-    if ((args->names->name == NULL) && (args->most <= CLI_CATALOG_ENTRIES_MOST))
+    if ((args->names->name == NULL) && (args->most <= CLI_CATALOG_ENTRIES_MAX))
     {
         args->names->name = g_cli_cells->temporary_buf_alloc(
-            (unsigned long long)CLI_CATALOG_ENTRIES_MOST * CLI_NAME_MAX_LEN, &g_cli_catalog_cells);
-        args->names->room = (args->names->name != NULL) ? CLI_CATALOG_ENTRIES_MOST : 0u;
+            (unsigned long long)CLI_CATALOG_ENTRIES_MAX * CLI_NAME_MAX_LEN, &g_cli_catalog_cells);
+        args->names->capacity = (args->names->name != NULL) ? CLI_CATALOG_ENTRIES_MAX : 0u;
     }
-    return args->most <= args->names->room;
+    return args->most <= args->names->capacity;
 }
 
-int cli_catalog_paths_room(const CliCatalogMostCtx *args)
+int cli_catalog_paths_capacity(const CliCatalogMaxCtx *args)
 {
-    if ((args->paths->path == NULL) && (args->most <= CLI_CATALOG_ENTRIES_MOST))
+    if ((args->paths->path == NULL) && (args->most <= CLI_CATALOG_ENTRIES_MAX))
     {
         args->paths->path = g_cli_cells->temporary_buf_alloc(
-            (unsigned long long)CLI_CATALOG_ENTRIES_MOST * CLI_PATH_MAX_LEN, &g_cli_catalog_cells);
-        args->paths->room = (args->paths->path != NULL) ? CLI_CATALOG_ENTRIES_MOST : 0u;
+            (unsigned long long)CLI_CATALOG_ENTRIES_MAX * CLI_PATH_MAX_LEN, &g_cli_catalog_cells);
+        args->paths->capacity = (args->paths->path != NULL) ? CLI_CATALOG_ENTRIES_MAX : 0u;
     }
-    return args->most <= args->paths->room;
+    return args->most <= args->paths->capacity;
 }
 
 void cli_catalog_entries_free(const CliCatalogFolderCtx *args)
@@ -106,14 +107,14 @@ void cli_catalog_entries_free(const CliCatalogFolderCtx *args)
     g_cli_cells->persistent_buf_release(args->entries->name, &g_cli_catalog_cells);
     args->entries->name = NULL;
     args->entries->count = 0u;
-    args->entries->room = 0u;
+    args->entries->capacity = 0u;
 }
 
-void cli_catalog_paths_free(const CliCatalogMostCtx *args)
+void cli_catalog_paths_free(const CliCatalogMaxCtx *args)
 {
     g_cli_cells->persistent_buf_release(args->paths->path, &g_cli_catalog_cells);
     args->paths->path = NULL;
-    args->paths->room = 0u;
+    args->paths->capacity = 0u;
 }
 
 void cli_catalog_text_free(const CliCatalogCtx *args)

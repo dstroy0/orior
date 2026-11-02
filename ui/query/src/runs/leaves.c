@@ -30,8 +30,8 @@ typedef struct
 } QueryDiff;
 // the most bytes shown of a file, and the most a byte of a file shows as: an empty line is 1 byte, its lead and its
 // break 2, and a fold of the lines beside it its own line
-#define QUERY_SHOWN_MOST (8ull << 20u)
-#define QUERY_SHOWN_WIDER 16ull
+#define QUERY_DISPLAYED_MAX (8ull << 20u)
+#define QUERY_DISPLAYED_WIDER 16ull
 
 static QueryAnswer query_terminal_prompt(const CliEachPathCfg *args)
 {
@@ -45,8 +45,8 @@ static QueryAnswer query_terminal_prompt(const CliEachPathCfg *args)
         EMBED_CALL(query_errors_internal.terminal_write, QueryErrorsCtx, .errors = 1, .text = question,
                    .length = line.at);
         char answer[64];
-        const unsigned long long read = EMBED_CALL(query_room_line_internal.terminal_line_read, QueryRoomLineCtx,
-                                                   .line = answer, .room = sizeof(answer));
+        const unsigned long long read = EMBED_CALL(query_capacity_line_internal.terminal_line_read,
+                                                   QueryCapacityLineCtx, .line = answer, .capacity = sizeof(answer));
         if ((read == QRY_MEMBER_UNREAD) || (read == 0ull))
         {
             return QUERY_ANSWER_NONE;
@@ -107,7 +107,7 @@ typedef struct
     const QueryDiff *diff_read;
     unsigned int first;
     unsigned int count_u32;
-    VerbaLinea *shown;
+    VerbaLinea *displayed;
     unsigned int changes;
 } LeavesCtx;
 // the lines of `size` bytes at `bytes` cut at their ends into `line` and `length`, or counted where `line` is NULL:
@@ -119,10 +119,10 @@ EMBED_INLINE unsigned int query_lines_cut(const LeavesCtx *args)
     unsigned long long at = 0ull;
     while (at < args->size)
     {
-        const unsigned char *const end = (const unsigned char *)memor.chr(
+        const unsigned char *const newline = (const unsigned char *)memor.chr(
             &(MemoriaCfg){.src = bytes + at, .val = '\n', .bytes = (size_t)(args->size - at)});
-        const unsigned long long past = (end != NULL) ? (unsigned long long)(end - bytes) : args->size;
-        unsigned long long cut = past - at;
+        const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - bytes) : args->size;
+        unsigned long long cut = end - at;
         // a line read as Rust's `lines` reads it: its `\r` before the `\n` left off
         cut -= ((cut != 0ull) && (bytes[at + cut - 1ull] == '\r')) ? 1ull : 0ull;
         if (args->line != NULL)
@@ -132,7 +132,7 @@ EMBED_INLINE unsigned int query_lines_cut(const LeavesCtx *args)
             args->length[count] = (unsigned int)cut;
         }
         count += 1u;
-        at = past + 1ull;
+        at = end + 1ull;
     }
     return count;
 }
@@ -176,7 +176,7 @@ EMBED_INLINE void query_diff_free(const LeavesCtx *args)
 
 // the lines of `before` and `after` counted, then cut into cells of their counts, with the reach over every diagonal
 // they span: 1, or 0 where the cells cannot meet them
-EMBED_INLINE int query_diff_take(const LeavesCtx *args)
+EMBED_INLINE int query_diff_alloc(const LeavesCtx *args)
 {
     const unsigned char *before = args->before;
     const unsigned char *after = args->after;
@@ -198,18 +198,18 @@ EMBED_INLINE int query_diff_take(const LeavesCtx *args)
     args->diff->reach =
         EMBED_CALL(query_diff_part, LeavesCtx, .count = 2ull * (unsigned long long)args->diff->reach_middle + 1ull,
                    .size_size = sizeof(int), .what = "a diff's reach");
-    const int taken =
+    const int reserved =
         ((args->diff->n == 0u) || ((args->diff->before != NULL) && (args->diff->before_length != NULL))) &&
         ((args->diff->m == 0u) || ((args->diff->after != NULL) && (args->diff->after_length != NULL))) &&
         (args->diff->reach != NULL);
-    if (taken)
+    if (reserved)
     {
         (void)EMBED_CALL(query_lines_cut, LeavesCtx, .bytes = before, .size = args->before_size,
                          .line = args->diff->before, .length = args->diff->before_length);
         (void)EMBED_CALL(query_lines_cut, LeavesCtx, .bytes = after, .size = args->after_size,
                          .line = args->diff->after, .length = args->diff->after_length);
     }
-    return taken;
+    return reserved;
 }
 
 // the shortest edit script of the diff's lines, Myers' way, each step's furthest reach traced into the band where
@@ -332,14 +332,14 @@ EMBED_INLINE void query_same_flush(const LeavesCtx *args)
     {
         if ((args->count_u32 > 6u) && (at == 3u))
         {
-            mmgr_line_put(args->shown, "\n ... ");
-            mmgr_line_decimal(args->shown, (unsigned long long)args->count_u32 - 6ull, 0u);
-            mmgr_line_put(args->shown, " lines the same ...");
+            mmgr_line_put(args->displayed, "\n ... ");
+            mmgr_line_decimal(args->displayed, (unsigned long long)args->count_u32 - 6ull, 0u);
+            mmgr_line_put(args->displayed, " lines the same ...");
             at = args->count_u32 - 4u;
             continue;
         }
-        mmgr_line_put(args->shown, "\n ");
-        mmgr_line_put_n(args->shown, args->diff_read->change_line[args->first + at],
+        mmgr_line_put(args->displayed, "\n ");
+        mmgr_line_put_n(args->displayed, args->diff_read->change_line[args->first + at],
                         args->diff_read->change_length[args->first + at]);
     }
 }
@@ -359,24 +359,24 @@ EMBED_INLINE void query_render(const LeavesCtx *args)
             continue;
         }
         EMBED_CALL(query_same_flush, LeavesCtx, .diff_read = args->diff_read, .first = same_first, .count_u32 = same,
-                   .shown = args->shown);
+                   .displayed = args->displayed);
         same = 0u;
-        mmgr_line_ch(args->shown, '\n');
-        mmgr_line_ch(args->shown, (args->diff_read->change[at] == 1u) ? '+' : '-');
-        mmgr_line_put_n(args->shown, args->diff_read->change_line[at], args->diff_read->change_length[at]);
+        mmgr_line_ch(args->displayed, '\n');
+        mmgr_line_ch(args->displayed, (args->diff_read->change[at] == 1u) ? '+' : '-');
+        mmgr_line_put_n(args->displayed, args->diff_read->change_line[at], args->diff_read->change_length[at]);
     }
     EMBED_CALL(query_same_flush, LeavesCtx, .diff_read = args->diff_read, .first = same_first, .count_u32 = same,
-               .shown = args->shown);
+               .displayed = args->displayed);
 }
 
 void query_leaf_show(const QueryPathTreeCtx *args)
 {
     static const char *const s_text[] = {"khw", "krs", "klq", "klm", "md", "tsv", "txt", "h", "gsm", NULL};
     const char *name = args->path;
-    const unsigned long long name_past =
+    const unsigned long long name_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
                    .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
-    name = (name_past != 0ull) ? (args->path + name_past) : name;
+    name = (name_end != 0ull) ? (args->path + name_end) : name;
     const char *const dot =
         EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = name,
                    .length_value = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .byte = '.');
@@ -389,38 +389,38 @@ void query_leaf_show(const QueryPathTreeCtx *args)
     if (is_text)
     {
         QueryDiff diff;
-        const int taken =
-            EMBED_CALL(query_diff_take, LeavesCtx, .diff = &diff, .before = args->tree, .before_size = args->tree_size,
+        const int reserved =
+            EMBED_CALL(query_diff_alloc, LeavesCtx, .diff = &diff, .before = args->tree, .before_size = args->tree_size,
                        .after = args->stored, .after_size = args->stored_size);
-        const unsigned int changes = taken ? EMBED_CALL(query_diff, LeavesCtx, .diff = &diff) : 0u;
-        if (taken && ((changes != 0u) || ((diff.n == 0u) && (diff.m == 0u))))
+        const unsigned int changes = reserved ? EMBED_CALL(query_diff, LeavesCtx, .diff = &diff) : 0u;
+        if (reserved && ((changes != 0u) || ((diff.n == 0u) && (diff.m == 0u))))
         {
-            mmgr_line_put(args->shown, name);
-            mmgr_line_ch(args->shown, ':');
-            EMBED_CALL(query_render, LeavesCtx, .diff_read = &diff, .changes = changes, .shown = args->shown);
+            mmgr_line_put(args->displayed, name);
+            mmgr_line_ch(args->displayed, ':');
+            EMBED_CALL(query_render, LeavesCtx, .diff_read = &diff, .changes = changes, .displayed = args->displayed);
             EMBED_CALL(query_diff_free, LeavesCtx, .diff = &diff);
             return;
         }
         EMBED_CALL(query_diff_free, LeavesCtx, .diff = &diff);
     }
-    mmgr_line_put(args->shown, name);
+    mmgr_line_put(args->displayed, name);
     if (args->stored_size > args->tree_size)
     {
-        mmgr_line_put(args->shown, " grew by ");
-        mmgr_line_decimal(args->shown, args->stored_size - args->tree_size, 0u);
-        mmgr_line_put(args->shown, " bytes");
+        mmgr_line_put(args->displayed, " grew by ");
+        mmgr_line_decimal(args->displayed, args->stored_size - args->tree_size, 0u);
+        mmgr_line_put(args->displayed, " bytes");
         return;
     }
-    mmgr_line_put(args->shown, ": ");
-    mmgr_line_decimal(args->shown, args->tree_size, 0u);
-    mmgr_line_put(args->shown, " bytes in the tree, ");
-    mmgr_line_decimal(args->shown, args->stored_size, 0u);
-    mmgr_line_put(args->shown, " as the run leaves it");
+    mmgr_line_put(args->displayed, ": ");
+    mmgr_line_decimal(args->displayed, args->tree_size, 0u);
+    mmgr_line_put(args->displayed, " bytes in the tree, ");
+    mmgr_line_decimal(args->displayed, args->stored_size, 0u);
+    mmgr_line_put(args->displayed, " as the run leaves it");
 }
 
 int query_leaves_settle(const QueryContextErrMsgCtx *args)
 {
-    QueryLeave standing = args->leave;
+    QueryLeave existing = args->leave;
     const unsigned int reads = args->run_read->read.count;
     const unsigned int count = reads + args->run_read->left.count;
     for (unsigned int at = 0u; at < count; at += 1u)
@@ -451,26 +451,26 @@ int query_leaves_settle(const QueryContextErrMsgCtx *args)
         {
             // what is shown of the file in a cell of the most it writes to, up to the most shown: a line that fills it
             // holds what fit and its 0
-            const unsigned long long wanted =
-                ((tree_size + stored_size) * QUERY_SHOWN_WIDER) + QUERY_PATH_MAX_LEN + 256ull;
-            const unsigned long long room = (wanted < QUERY_SHOWN_MOST) ? wanted : QUERY_SHOWN_MOST;
-            char *const text = g_cli_cells->temporary_buf_alloc(room, &g_query_cells);
-            VerbaLinea shown = mmgr_line_over(text, room);
+            const unsigned long long required =
+                ((tree_size + stored_size) * QUERY_DISPLAYED_WIDER) + QUERY_PATH_MAX_LEN + 256ull;
+            const unsigned long long capacity = (required < QUERY_DISPLAYED_MAX) ? required : QUERY_DISPLAYED_MAX;
+            char *const text = g_cli_cells->temporary_buf_alloc(capacity, &g_query_cells);
+            VerbaLinea displayed = mmgr_line_over(text, capacity);
             EMBED_CALL(query_path_tree_internal.leaf_show, QueryPathTreeCtx, .path = path,
                        .tree = (tree != NULL) ? tree : (const unsigned char *)"", .tree_size = tree_size,
-                       .stored = stored, .stored_size = stored_size, .shown = &shown);
+                       .stored = stored, .stored_size = stored_size, .displayed = &displayed);
             if (text != NULL)
             {
                 EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = args->context, .text = text);
             }
             g_cli_cells->persistent_buf_release(text, &g_query_cells);
-            const QueryAnswer answer = (standing == QUERY_LEAVE_ALL) ? QUERY_ANSWER_YES
-                                       : (standing == QUERY_LEAVE_NONE)
+            const QueryAnswer answer = (existing == QUERY_LEAVE_ALL) ? QUERY_ANSWER_YES
+                                       : (existing == QUERY_LEAVE_NONE)
                                            ? QUERY_ANSWER_NO
                                            : EMBED_CALL(args->prompter.prompt, CliEachPathCfg,
                                                         .context = args->prompter.context, .path = path);
-            standing = (answer == QUERY_ANSWER_ALL) ? QUERY_LEAVE_ALL : standing;
-            standing = (answer == QUERY_ANSWER_NONE) ? QUERY_LEAVE_NONE : standing;
+            existing = (answer == QUERY_ANSWER_ALL) ? QUERY_LEAVE_ALL : existing;
+            existing = (answer == QUERY_ANSWER_NONE) ? QUERY_LEAVE_NONE : existing;
             if ((answer == QUERY_ANSWER_NO) || (answer == QUERY_ANSWER_NONE))
             {
                 if (!EMBED_CALL(query_path_bytes_size_internal.writer_file, QueryPathBytesSizeCtx,

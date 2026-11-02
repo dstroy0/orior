@@ -11,8 +11,8 @@
 // ORIOR_CELLS_OWNERS set: the pool's report and MMgr's owner table written as the process ends, each owner's bytes now and its peak
 static void owners_written(void)
 {
-    char asked[8];
-    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_CELLS_OWNERS", .value_out = asked, .room = sizeof(asked)))
+    char requested[8];
+    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_CELLS_OWNERS", .value_out = requested, .capacity = sizeof(requested)))
     {
         return;
     }
@@ -40,7 +40,7 @@ void cli_unity_begun(void)
 
 void cli_unity_folder(const char *name, char *full)
 {
-    if (!EMBED_CALL(query_room_path_internal.path_full, QueryRoomPathCtx, .path = name, .full = full, .room = CLI_PATH_MAX_LEN))
+    if (!EMBED_CALL(query_capacity_path_internal.path_full, QueryCapacityPathCtx, .path = name, .full = full, .capacity = CLI_PATH_MAX_LEN))
     {
         memor.cpy(&(MemoriaCfg){.dst = full, .src = name, .bytes = CLI_UNITY_LENGTH(name) + 1ull});
     }
@@ -63,12 +63,12 @@ void cli_unity_git(const char *root, const char *const *words, unsigned int coun
         line[at + 1u] = words[at];
     }
     line[count + 1u] = NULL;
-    CliRan *const ran = cli_ran_take();
+    CliRunResult *const run_result = cli_run_result_alloc();
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    const int ran_well = EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = line, .folder = root, .settings = NULL, .count = 0u, .ran = ran, .err_msg = &err_msg) && (ran->code == 0);
-    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
-    TEST_ASSERT_TRUE_MESSAGE(ran_well, words[0]);
+    const int run_result_well = EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = line, .folder = root, .settings = NULL, .count = 0u, .run_result = run_result, .err_msg = &err_msg) && (run_result->code == 0);
+    EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
+    TEST_ASSERT_TRUE_MESSAGE(run_result_well, words[0]);
 }
 
 // the tree a test's JSON is parsed into, replaced at each parse
@@ -79,7 +79,7 @@ const CliJson *cli_unity_parsed(const char *text, unsigned long long size, unsig
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &s_json);
     char why[512];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    *root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg, .json = &s_json, .text = text, .size = size, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = &g_checks_cells);
+    *root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &s_json, .text = text, .size = size, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = &g_checks_cells);
     return &s_json;
 }
 
@@ -149,7 +149,7 @@ void cli_unity_server(const char *name, unsigned int port, char *host, unsigned 
     char named[CLI_NAME_MAX_LEN];
     memor.cpy(&(MemoriaCfg){.dst = host, .src = "127.0.0.1", .bytes = 10u});
     *at = port;
-    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = variable, .value_out = named, .room = sizeof(named)))
+    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = variable, .value_out = named, .capacity = sizeof(named)))
     {
         return;
     }

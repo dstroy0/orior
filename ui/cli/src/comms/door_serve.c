@@ -2,66 +2,59 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // door_serve.c: the door's container side: the processes that join, each in a place of its own with a thread reading
 // what it requests and a thread sending it what it receives, the messages on its channels queued between them, a body
-// past the room a message is queued in stored in a region of the transfer layer
+// past the capacity a message is queued in stored in a region of the transfer layer
 #include "door_serve.h"
 #include "../command_line/callback_cfg.h"
 
-#include "../servers/lsp.h"
-#include "../text/json_tree.h"
 #include "container.h"
 
-CliDoorServed g_cli_door_served = {0};
+CliIpcServed g_cli_ipc_served = {0};
 
 // the listener the door is joined through
-static CliDoorListener s_listener;
+static CliIpcListener s_listener;
 
 typedef struct
 {
-    CliDoorJoined *joined;
-    const char *json;
+    CliIpcJoined *joined;
+    const char *bytes;
     unsigned long long size;
     const char *why;
-    CliDoorEntry *entry;
+    CliIpcEntry *entry;
     const char *key;
     const char *name;
 } DoorServeCtx;
 // an answer written to the process: 1, or 0 where its end is broken
 EMBED_INLINE int serve_answer(const DoorServeCtx *args)
 {
-    const char *json = args->json;
-    unsigned long long size = args->size;
-    const int written = EMBED_CALL(cli_door_end_internal.frame_write, CliDoorEndCtx, .end = &args->joined->end,
-                                   .json = json, .size = size, .region = NULL);
-    return written;
+    return EMBED_CALL(cli_ipc_end_internal.frame_write, CliIpcEndCtx, .end = &args->joined->end, .bytes = args->bytes,
+                      .size = args->size, .region = NULL);
 }
 
 // a refusal answered, why it was refused given
 EMBED_INLINE int serve_reject(const DoorServeCtx *args)
 {
-    char answer[CLI_ERR_MSG_MAX_LEN + 64u];
+    char answer[CLI_ERR_MSG_MAX_LEN + 8u];
     VerbaLinea out = {answer, sizeof(answer), 0ull};
-    mmgr_line_put(&out, "{\"refused\":");
-    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &out,
-               .text_bytes = (const unsigned char *)args->why, .length = args->size);
-    mmgr_line_ch(&out, '}');
-    return EMBED_CALL(serve_answer, DoorServeCtx, .joined = args->joined, .json = out.out, .size = out.at);
+    mmgr_line_ch(&out, CLI_IPC_KIND_REFUSED);
+    mmgr_line_put_n(&out, args->why, args->size);
+    return EMBED_CALL(serve_answer, DoorServeCtx, .joined = args->joined, .bytes = out.out, .size = out.at);
 }
 
 // a message sent on a channel the process listens on queued for it, under the comms layer's lock: 1, 0 where the
-// process is gone, -1 where its queue has no room
+// process is gone, -1 where its queue has no capacity
 static int serve_recv(const CliCommsRecvCfg *args)
 {
     unsigned long long size = args->size;
-    CliDoorJoined *const joined = (CliDoorJoined *)args->context;
-    if (!joined->reading)
+    CliIpcJoined *const joined = (CliIpcJoined *)args->context;
+    if (!joined->read_state)
     {
         return 0;
     }
-    if (joined->queued == CLI_DOOR_ENTRIES)
+    if (joined->queued == CLI_IPC_ENTRIES)
     {
         return -1;
     }
-    CliDoorEntry *const entry = &joined->entries[(joined->first + joined->queued) % CLI_DOOR_ENTRIES];
+    CliIpcEntry *const entry = &joined->entries[(joined->first + joined->queued) % CLI_IPC_ENTRIES];
     memor.cpy(&(MemoriaCfg){.dst = entry->channel,
                             .src = args->channel,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->channel, .cap = CLI_CELLS_POOL}) + 1u});
@@ -69,7 +62,7 @@ static int serve_recv(const CliCommsRecvCfg *args)
                             .src = args->from,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->from, .cap = CLI_CELLS_POOL}) + 1u});
     entry->size = size;
-    entry->has_region = (size > sizeof(entry->body));
+    entry->has_region = (size > CLI_IPC_ENTRY_BODY);
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     if (entry->has_region &&
@@ -96,17 +89,14 @@ EMBED_INLINE int serve_send(const DoorServeCtx *args)
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     const int inline_body = (args->entry->size <= CLI_TRANSFER_SMALL);
     const char *const body = args->entry->has_region ? (const char *)args->entry->region.view : args->entry->body;
-    mmgr_line_put(&prefix, "{\"message\":{\"channel\":");
-    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &prefix,
-               .text_bytes = (const unsigned char *)args->entry->channel,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->entry->channel, .cap = CLI_CELLS_POOL}));
-    mmgr_line_put(&prefix, ",\"from\":");
-    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &prefix,
-               .text_bytes = (const unsigned char *)args->entry->from,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->entry->from, .cap = CLI_CELLS_POOL}));
-    mmgr_line_put(&prefix, inline_body ? ",\"body\":" : ",\"transfer\":");
+    mmgr_line_ch(&prefix, CLI_IPC_KIND_MESSAGE);
+    mmgr_line_put(&prefix, args->entry->channel);
+    mmgr_line_ch(&prefix, '\0');
+    mmgr_line_put(&prefix, args->entry->from);
+    mmgr_line_ch(&prefix, '\0');
+    mmgr_line_ch(&prefix, inline_body ? CLI_IPC_BODY_INLINE : CLI_IPC_BODY_TRANSFER);
     if (!inline_body &&
-        !EMBED_CALL(cli_door_err_msg_region_internal.dispatch, CliDoorErrMsgRegionCtx, .region = &args->entry->region,
+        !EMBED_CALL(cli_ipc_err_msg_region_internal.dispatch, CliIpcErrMsgRegionCtx, .region = &args->entry->region,
                     .has_to = args->joined->has_peer, .to = args->joined->peer, .out = &prefix, .err_msg = &err_msg))
     {
         return 0;
@@ -115,18 +105,16 @@ EMBED_INLINE int serve_send(const DoorServeCtx *args)
     {
         return 0;
     }
-    const unsigned long long size = prefix.at + (inline_body ? args->entry->size : 0ull) + 2ull;
+    const unsigned long long size = prefix.at + (inline_body ? args->entry->size : 0ull);
     const unsigned char length[4] = {(unsigned char)(size & 0xffu), (unsigned char)((size >> 8u) & 0xffu),
                                      (unsigned char)((size >> 16u) & 0xffu), (unsigned char)((size >> 24u) & 0xffu)};
     const int sent =
-        EMBED_CALL(cli_door_end_size_internal.write, CliDoorEndSizeCtx, .end = &args->joined->end, .bytes_read = length,
+        EMBED_CALL(cli_ipc_end_size_internal.write, CliIpcEndSizeCtx, .end = &args->joined->end, .bytes_read = length,
                    .size = sizeof(length), .region = inline_body ? NULL : &args->entry->region) &&
-        EMBED_CALL(cli_door_end_size_internal.write, CliDoorEndSizeCtx, .end = &args->joined->end,
+        EMBED_CALL(cli_ipc_end_size_internal.write, CliIpcEndSizeCtx, .end = &args->joined->end,
                    .bytes_read = prefix.out, .size = prefix.at, .region = NULL) &&
-        (!inline_body || EMBED_CALL(cli_door_end_size_internal.write, CliDoorEndSizeCtx, .end = &args->joined->end,
-                                    .bytes_read = body, .size = args->entry->size, .region = NULL)) &&
-        EMBED_CALL(cli_door_end_size_internal.write, CliDoorEndSizeCtx, .end = &args->joined->end, .bytes_read = "}}",
-                   .size = 2ull, .region = NULL);
+        (!inline_body || EMBED_CALL(cli_ipc_end_size_internal.write, CliIpcEndSizeCtx, .end = &args->joined->end,
+                                    .bytes_read = body, .size = args->entry->size, .region = NULL));
     if (sent && !inline_body)
     {
         EMBED_CALL(cli_comms_channel_bytes.transfer, CliCommsChannelBytesCfg, .channel = args->entry->channel,
@@ -144,20 +132,20 @@ EMBED_INLINE void serve_thread_end(const DoorServeCtx *args)
     {
         return;
     }
-    EMBED_CALL(cli_door_internal.close, CliDoorCtx, .end = &args->joined->end);
-    g_cli_door_served.joined[args->joined->place] = NULL;
-    g_cli_cells->persistent_buf_release(args->joined, &g_cli_door_cells);
+    EMBED_CALL(cli_ipc_internal.close, CliIpcCtx, .end = &args->joined->end);
+    g_cli_ipc_served.joined[args->joined->place] = NULL;
+    g_cli_cells->persistent_buf_release(args->joined, &g_cli_ipc_cells);
 }
 
 // the messages queued sent to the process, one at a time, until the process is gone and its queue is empty; a message
 // that does not go ends the sending, its channels let go
 static void serve_drain(void *context)
 {
-    CliDoorJoined *const joined = (CliDoorJoined *)context;
+    CliIpcJoined *const joined = (CliIpcJoined *)context;
     int sending = 1;
     for (;;)
     {
-        while (joined->reading && (joined->queued == 0u))
+        while (joined->read_state && (joined->queued == 0u))
         {
             EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &joined->queue_wake);
         }
@@ -165,21 +153,21 @@ static void serve_drain(void *context)
         {
             break;
         }
-        CliDoorEntry *const entry = &joined->entries[joined->first];
+        CliIpcEntry *const entry = &joined->entries[joined->first];
         sending = sending && EMBED_CALL(serve_send, DoorServeCtx, .joined = joined, .entry = entry);
         if (entry->has_region)
         {
             EMBED_CALL(cli_transfer_region_bytes.region_close, CliTransferRegionBytesCfg, .region = &entry->region);
         }
-        joined->first = (joined->first + 1u) % CLI_DOOR_ENTRIES;
+        joined->first = (joined->first + 1u) % CLI_IPC_ENTRIES;
         joined->queued -= 1u;
         if (!sending)
         {
-            joined->reading = 0;
+            joined->read_state = 0;
         }
         if (!sending)
         {
-            EMBED_CALL(cli_door_internal.shut, CliDoorCtx, .end = &joined->end);
+            EMBED_CALL(cli_ipc_internal.shut, CliIpcCtx, .end = &joined->end);
         }
     }
     EMBED_CALL(serve_thread_end, DoorServeCtx, .joined = joined);
@@ -192,12 +180,12 @@ EMBED_INLINE int serve_may_join(const DoorServeCtx *args)
     const char *key = args->key;
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    unsigned int given = 0u;
+    unsigned int supplied = 0u;
     if (EMBED_CALL(cli_comms_process.is_persistent, CliCommsProcessCfg, .key = key))
     {
         return 1;
     }
-    if (!EMBED_CALL(cli_comms_key_process.process_get, CliCommsKeyProcessCfg, .key = key, .process_pointer = &given))
+    if (!EMBED_CALL(cli_comms_key_process.process_get, CliCommsKeyProcessCfg, .key = key, .process_pointer = &supplied))
     {
         mmgr_line_put(&err_msg, "the key of ");
         mmgr_line_put(&err_msg, args->name);
@@ -207,12 +195,12 @@ EMBED_INLINE int serve_may_join(const DoorServeCtx *args)
     }
     unsigned int count = 0u;
     CliProcess *const parents =
-        EMBED_CALL(cli_container.processes_take, CliContainerCfg, .owner = &g_cli_door_cells, .count_pointer = &count);
+        EMBED_CALL(cli_container.processes_alloc, CliContainerCfg, .owner = &g_cli_ipc_cells, .count_pointer = &count);
     const int under =
-        args->joined->has_peer &&
-        ((args->joined->peer == given) || EMBED_CALL(cli_container_root_id.under, CliContainerRootIdCfg, .root = given,
-                                                     .id = args->joined->peer, .parents = parents, .count = count));
-    g_cli_cells->persistent_buf_release(parents, &g_cli_door_cells);
+        args->joined->has_peer && ((args->joined->peer == supplied) ||
+                                   EMBED_CALL(cli_container_root_id.under, CliContainerRootIdCfg, .root = supplied,
+                                              .id = args->joined->peer, .parents = parents, .count = count));
+    g_cli_cells->persistent_buf_release(parents, &g_cli_ipc_cells);
     if (!under)
     {
         mmgr_line_put(&err_msg, "the key of ");
@@ -227,22 +215,21 @@ EMBED_INLINE int serve_may_join(const DoorServeCtx *args)
 // end breaks; its channels are let go and its queue drained as it goes
 static void serve_read(void *context)
 {
-    CliDoorJoined *const joined = (CliDoorJoined *)context;
+    CliIpcJoined *const joined = (CliIpcJoined *)context;
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     unsigned long long size = 0ull;
-    if (EMBED_CALL(cli_door_err_msg_end_internal.frame_read, CliDoorErrMsgEndCtx, .end = &joined->end,
-                   .frame = joined->frame, .room = sizeof(joined->frame), .size_pointer = &size,
-                   .err_msg = &err_msg) == CLI_DOOR_FRAME_READ)
+    if (EMBED_CALL(cli_ipc_err_msg_end_internal.frame_read, CliIpcErrMsgEndCtx, .end = &joined->end,
+                   .frame = joined->frame, .capacity = CLI_IPC_FRAME, .size_pointer = &size,
+                   .err_msg = &err_msg) == CLI_IPC_FRAME_READ)
     {
-        unsigned long long start = 0ull;
-        unsigned long long length = 0ull;
         joined->key[0] = '\0';
-        if (EMBED_CALL(cli_lsp_body.member, CliLspBodyCfg, .body = joined->frame, .size_value = size, .name = "key",
-                       .start = &start, .length_pointer = &length))
+        if ((size != 0ull) && (joined->frame[0] == CLI_IPC_KIND_JOIN) &&
+            (cli_ipc_field_end(joined->frame, size, 1ull) != 0ull))
         {
-            (void)EMBED_CALL(cli_lsp_room.string, CliLspRoomCfg, .text = joined->frame + start, .length = length,
-                             .out_room = joined->key, .room = sizeof(joined->key));
+            VerbaLinea key = {joined->key, sizeof(joined->key), 0ull};
+            mmgr_line_put(&key, joined->frame + 1);
+            (void)mmgr_line_finish(&key);
         }
         char name[CLI_NAME_MAX_LEN];
         if (!EMBED_CALL(cli_comms_key.name_get, CliCommsKeyCfg, .key = joined->key, .name_out = name))
@@ -252,16 +239,13 @@ static void serve_read(void *context)
         }
         else if (EMBED_CALL(serve_may_join, DoorServeCtx, .joined = joined, .key = joined->key, .name = name))
         {
-            char answer[CLI_NAME_MAX_LEN + 64u];
+            char answer[CLI_NAME_MAX_LEN + 8u];
             VerbaLinea out = {answer, sizeof(answer), 0ull};
-            mmgr_line_put(&out, "{\"ok\":\"joined\",\"name\":");
-            EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &out,
-                       .text_bytes = (const unsigned char *)name,
-                       .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
-            mmgr_line_ch(&out, '}');
-            if (EMBED_CALL(serve_answer, DoorServeCtx, .joined = joined, .json = out.out, .size = out.at))
+            mmgr_line_ch(&out, CLI_IPC_KIND_ANSWER);
+            mmgr_line_put(&out, name);
+            if (EMBED_CALL(serve_answer, DoorServeCtx, .joined = joined, .bytes = out.out, .size = out.at))
             {
-                EMBED_CALL(cli_door_serve.door_requests_serve, CliDoorServeCfg, .joined = joined);
+                EMBED_CALL(cli_ipc_serve.ipc_requests_serve, CliIpcServeCfg, .joined = joined);
             }
         }
     }
@@ -269,7 +253,7 @@ static void serve_read(void *context)
     {
         EMBED_CALL(cli_comms_listener.unlisten, CliCommsListenerCfg, .listener_value = joined->listeners[at]);
     }
-    joined->reading = 0;
+    joined->read_state = 0;
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &joined->queue_wake);
     EMBED_CALL(serve_thread_end, DoorServeCtx, .joined = joined);
 }
@@ -281,37 +265,47 @@ static void serve_accept(void *context)
     (void)context;
     for (;;)
     {
-        CliDoorEnd end;
+        CliIpcEnd end;
         int has_peer = 0;
         unsigned int peer = 0u;
         char why[CLI_ERR_MSG_MAX_LEN];
         VerbaLinea err_msg = {why, sizeof(why), 0ull};
-        if (!EMBED_CALL(cli_door_listener_internal.accept, CliDoorListenerCtx, .listener = &s_listener, .end = &end,
+        if (!EMBED_CALL(cli_ipc_listener_internal.accept, CliIpcListenerCtx, .listener = &s_listener, .end = &end,
                         .has_peer = &has_peer, .peer = &peer, .err_msg = &err_msg))
         {
             EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 100u);
             continue;
         }
-        CliDoorJoined *joined = NULL;
-        unsigned int place = CLI_DOOR_JOINED;
-        for (unsigned int at = 0u; (at < CLI_DOOR_JOINED) && (place == CLI_DOOR_JOINED); at += 1u)
+        CliIpcJoined *joined = NULL;
+        unsigned int place = CLI_IPC_JOINED;
+        for (unsigned int at = 0u; (at < CLI_IPC_JOINED) && (place == CLI_IPC_JOINED); at += 1u)
         {
-            place = (g_cli_door_served.joined[at] == NULL) ? at : place;
+            place = (g_cli_ipc_served.joined[at] == NULL) ? at : place;
         }
-        joined = (place < CLI_DOOR_JOINED) ? g_cli_cells->persistent_buf_alloc(sizeof(CliDoorJoined), &g_cli_door_cells)
-                                           : NULL;
+        // a joined process's frame and queued bodies stand in its cell, after it
+        joined = (place < CLI_IPC_JOINED)
+                     ? g_cli_cells->persistent_buf_alloc(sizeof(CliIpcJoined) + CLI_IPC_FRAME +
+                                                             ((unsigned long long)CLI_IPC_ENTRIES * CLI_IPC_ENTRY_BODY),
+                                                         &g_cli_ipc_cells)
+                     : NULL;
         if (joined != NULL)
         {
+            joined->frame = (char *)(void *)(joined + 1);
+            for (unsigned int at = 0u; at < CLI_IPC_ENTRIES; at += 1u)
+            {
+                joined->entries[at].body =
+                    joined->frame + CLI_IPC_FRAME + ((unsigned long long)at * CLI_IPC_ENTRY_BODY);
+            }
             joined->place = place;
             joined->going = 2u;
-            g_cli_door_served.joined[place] = joined;
+            g_cli_ipc_served.joined[place] = joined;
         }
         if (joined == NULL)
         {
-            static const char s_full[] = "{\"refused\":\"the door has as many processes as it can\"}";
-            (void)EMBED_CALL(cli_door_end_internal.frame_write, CliDoorEndCtx, .end = &end, .json = s_full,
+            static const char s_full[] = "Rthe door has as many processes as it can";
+            (void)EMBED_CALL(cli_ipc_end_internal.frame_write, CliIpcEndCtx, .end = &end, .bytes = s_full,
                              .size = sizeof(s_full) - 1u, .region = NULL);
-            EMBED_CALL(cli_door_internal.close, CliDoorCtx, .end = &end);
+            EMBED_CALL(cli_ipc_internal.close, CliIpcCtx, .end = &end);
             continue;
         }
         joined->end = end;
@@ -321,10 +315,10 @@ static void serve_accept(void *context)
         joined->first = 0u;
         joined->queued = 0u;
         joined->listens = 0u;
-        joined->reading = 1;
+        joined->read_state = 1;
         joined->reader = (CliThread){serve_read, joined};
-        joined->teller = (CliThread){serve_drain, joined};
-        if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &joined->teller))
+        joined->reporter = (CliThread){serve_drain, joined};
+        if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &joined->reporter))
         {
             EMBED_CALL(serve_thread_end, DoorServeCtx, .joined = joined);
         }
@@ -335,41 +329,41 @@ static void serve_accept(void *context)
     }
 }
 
-int cli_door_open(const CliDoorAddressCfg *args)
+int cli_ipc_open(const CliIpcAddressCfg *args)
 {
-    if (g_cli_door_served.open)
+    if (g_cli_ipc_served.open)
     {
         memor.cpy(&(MemoriaCfg){
             .dst = args->address,
-            .src = g_cli_door_served.address,
-            .bytes = cellul.len(&(CatenaFinitaCfg){.src = g_cli_door_served.address, .cap = CLI_CELLS_POOL}) + 1u});
+            .src = g_cli_ipc_served.address,
+            .bytes = cellul.len(&(CatenaFinitaCfg){.src = g_cli_ipc_served.address, .cap = CLI_CELLS_POOL}) + 1u});
         return 1;
     }
-    if (!EMBED_CALL(cli_door_listener_address_internal.listening, CliDoorListenerAddressCtx, .listener = &s_listener,
-                    .address = g_cli_door_served.address, .err_msg = args->err_msg))
+    if (!EMBED_CALL(cli_ipc_listener_address_internal.listening, CliIpcListenerAddressCtx, .listener = &s_listener,
+                    .address = g_cli_ipc_served.address, .err_msg = args->err_msg))
     {
         return 0;
     }
-    g_cli_door_served.accepter = (CliThread){serve_accept, NULL};
-    if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &g_cli_door_served.accepter))
+    g_cli_ipc_served.accepter = (CliThread){serve_accept, NULL};
+    if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &g_cli_ipc_served.accepter))
     {
         mmgr_line_put(args->err_msg, "the door's thread did not start");
         return 0;
     }
-    g_cli_door_served.open = 1;
+    g_cli_ipc_served.open = 1;
     memor.cpy(&(MemoriaCfg){
         .dst = args->address,
-        .src = g_cli_door_served.address,
-        .bytes = cellul.len(&(CatenaFinitaCfg){.src = g_cli_door_served.address, .cap = CLI_CELLS_POOL}) + 1u});
+        .src = g_cli_ipc_served.address,
+        .bytes = cellul.len(&(CatenaFinitaCfg){.src = g_cli_ipc_served.address, .cap = CLI_CELLS_POOL}) + 1u});
     return 1;
 }
 
-int cli_door_listen_request(const CliDoorServeChannelCfg *args)
+int cli_ipc_listen_request(const CliIpcServeChannelCfg *args)
 {
     const char *channel = args->channel;
     VerbaLinea *err_msg = args->err_msg;
     unsigned int listener = 0u;
-    if (args->joined->listens == CLI_DOOR_LISTENS)
+    if (args->joined->listens == CLI_IPC_LISTENS)
     {
         mmgr_line_put(err_msg, "a process listens on at most 32 channels");
         return 0;
@@ -385,12 +379,12 @@ int cli_door_listen_request(const CliDoorServeChannelCfg *args)
     return 1;
 }
 
-int cli_door_reject(const CliDoorServeWhyCfg *args)
+int cli_ipc_reject(const CliIpcServeErrorCfg *args)
 {
     return EMBED_CALL(serve_reject, DoorServeCtx, .joined = args->joined, .why = args->why, .size = args->size);
 }
 
-int cli_door_answer(const CliDoorServeCfg *args)
+int cli_ipc_answer(const CliIpcServeCfg *args)
 {
-    return EMBED_CALL(serve_answer, DoorServeCtx, .joined = args->joined, .json = args->json, .size = args->size);
+    return EMBED_CALL(serve_answer, DoorServeCtx, .joined = args->joined, .bytes = args->bytes, .size = args->size);
 }

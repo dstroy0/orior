@@ -18,7 +18,7 @@
 typedef struct CliPagesOutCfg CliPagesOutCfg;
 typedef struct CliPagesOutErrMsgCfg CliPagesOutErrMsgCfg;
 typedef struct CliPagesFromCfg CliPagesFromCfg;
-typedef struct CliPagesOutErrMsgSoughtCfg CliPagesOutErrMsgSoughtCfg;
+typedef struct CliPagesOutErrMsgNeedleCfg CliPagesOutErrMsgNeedleCfg;
 typedef struct CliPagesPathCfg CliPagesPathCfg;
 typedef struct CliPagesCfg CliPagesCfg;
 typedef struct CliPagesViewCfg CliPagesViewCfg;
@@ -34,7 +34,6 @@ typedef struct CliPagesViewCfg CliPagesViewCfg;
 // written into it as a JSON array of numbers; and the text let go
 int cli_pages_open(const CliPagesPathCfg *args);
 int cli_pages_shape(const CliPagesPathCfg *args);
-int cli_pages_read(const CliPagesOutCfg *args);
 void cli_pages_release(const CliPagesCfg *args);
 
 // A view of a paged text as the page reports it, each frame it moves and once as it rests: the line at its top, the
@@ -63,35 +62,35 @@ typedef struct
     unsigned long long cut;
     unsigned long long save_from;
     unsigned long long save_to;
-} CliPagesPlaced;
+} CliPagesPositioned;
 
-// the view `view` of the paged text under `key` placed into `placed`, the view saved as the last reported. A view
+// the view `view` of the paged text under `key` placed into `positioned`, the view saved as the last reported. A view
 // reported where it was reported last, or more than CLI_PAGE_STILL milliseconds after the last report, rests: its rows
-// whole where the page does not hold them whole, then the lines it saves whole, CLI_PAGE_NEAR about its rows and the
-// minimap's, a step of CLI_PAGE_REST_BYTES at a time. Any other moves: its rows where it will stand a report later at
-// the step it moved since the last, and where it stands where that step is no more than its rows, CLI_PAGE_EDGE about
-// them, cut at its reach. Nothing where the page holds those already. A step of lines toward the ends of the page's is
-// no more than CLI_PAGE_REST_BYTES of their bytes reach, one at the least; and a view that wraps its lines is placed
-// the lines its rows take of those about them, each line as many rows as its letters fill at the view's width, a step
-// as it moves no more than fill the rows placed. 1, or 0 where none is stored under the key
+// whole where the page does not hold them whole, then the lines it saves whole, CLI_PAGE_ADJACENT about its rows and
+// the minimap's, a step of CLI_PAGE_REMAINDER_BYTES at a time. Any other moves: its rows where it will stand a report
+// later at the step it moved since the last, and where it stands where that step is no more than its rows,
+// CLI_PAGE_EDGE about them, cut at its reach. Nothing where the page holds those already. A step of lines toward the
+// ends of the page's is no more than CLI_PAGE_REMAINDER_BYTES of their bytes reach, one at the least; and a view that
+// wraps its lines is placed the lines its rows take of those about them, each line as many rows as its letters fill at
+// the view's width, a step as it moves no more than fill the rows placed. 1, or 0 where none is stored under the key
 int cli_pages_on_view(const CliPagesViewCfg *args);
 // how many lines the paged text under `key` contains as far as its index has read, into `lines`, and whether the index
 // is whole, into `whole`: 1, or 0 where none is stored under the key; and its lines from `from` to before `to` as far
 // as the index has read, as the walk of its colors reads them: each written as UTF-8 and ended by a NUL into a cell
-// taken for `owner`, its start put into `line`, room for `to` - `from` of them, and how many were read into `count`:
-// the cell, given back with persistent_buf_release, or NULL where none is stored or they could not be read
+// taken for `owner`, its start put into `line`, capacity for `to` - `from` of them, and how many were read into
+// `count`: the cell, given back with persistent_buf_release, or NULL where none is stored or they could not be read
 int cli_pages_count(const CliPagesCfg *args);
-char *cli_pages_lines_take(const CliPagesFromCfg *args);
+char *cli_pages_lines_alloc(const CliPagesFromCfg *args);
 
 // the page's changes written, each as its document writes it, `edits[at]` edits of `changes[at]`, `count` changes,
 // its edits placed against the text as it stood before any of them, written from the last to the first, the text's
 // shape written after; the lines written since the file was read, each run written as `[from, to]`; the text's matches
-// for `sought`, each `[line, from col, to col]`, read 16384 lines at a time until `most` are found; and the text saved
+// for `needle`, each `[line, from col, to col]`, read 16384 lines at a time until `most` are found; and the text saved
 // to its file through a file beside it, the file read afresh, its index whole before the save answers, its shape
 // written. Each 1, or 0 with why given (pages_edit.c)
 int cli_pages_edit(const CliPagesOutErrMsgCfg *args);
 int cli_pages_change(const CliPagesPathCfg *args);
-int cli_pages_find(const CliPagesOutErrMsgSoughtCfg *args);
+int cli_pages_find(const CliPagesOutErrMsgNeedleCfg *args);
 int cli_pages_save(const CliPagesPathCfg *args);
 
 struct CliPagesOutCfg
@@ -125,12 +124,12 @@ struct CliPagesFromCfg
     CellOwner *owner;
 };
 
-struct CliPagesOutErrMsgSoughtCfg
+struct CliPagesOutErrMsgNeedleCfg
 {
     const char *key;
     VerbaLinea *out;
     VerbaLinea *err_msg;
-    const CliDocSought *sought;
+    const CliDocNeedle *needle;
     unsigned long long most;
 };
 
@@ -153,7 +152,7 @@ struct CliPagesViewCfg
 {
     const char *key;
     const CliPagesView *view;
-    CliPagesPlaced *placed;
+    CliPagesPositioned *positioned;
 };
 
 typedef struct
@@ -169,15 +168,6 @@ EMBED_TABLE_STORAGE CliPagesPathNs cli_pages_path EMBED_UNUSED = {
     .shape = cli_pages_shape,
     .change = cli_pages_change,
     .save = cli_pages_save,
-};
-
-typedef struct
-{
-    int (*read)(const CliPagesOutCfg *args);
-} CliPagesOutNs;
-EMBED_TABLE_LAYOUT(CliPagesOutNs, read);
-EMBED_TABLE_STORAGE CliPagesOutNs cli_pages_out EMBED_UNUSED = {
-    .read = cli_pages_read,
 };
 
 typedef struct
@@ -202,11 +192,11 @@ EMBED_TABLE_STORAGE CliPagesViewNs cli_pages_view EMBED_UNUSED = {
 
 typedef struct
 {
-    char *(*lines_take)(const CliPagesFromCfg *args);
+    char *(*lines_alloc)(const CliPagesFromCfg *args);
 } CliPagesFromNs;
-EMBED_TABLE_LAYOUT(CliPagesFromNs, lines_take);
+EMBED_TABLE_LAYOUT(CliPagesFromNs, lines_alloc);
 EMBED_TABLE_STORAGE CliPagesFromNs cli_pages_from EMBED_UNUSED = {
-    .lines_take = cli_pages_lines_take,
+    .lines_alloc = cli_pages_lines_alloc,
 };
 
 typedef struct
@@ -220,10 +210,10 @@ EMBED_TABLE_STORAGE CliPagesOutErrMsgNs cli_pages_out_err_msg EMBED_UNUSED = {
 
 typedef struct
 {
-    int (*find)(const CliPagesOutErrMsgSoughtCfg *args);
-} CliPagesOutErrMsgSoughtNs;
-EMBED_TABLE_LAYOUT(CliPagesOutErrMsgSoughtNs, find);
-EMBED_TABLE_STORAGE CliPagesOutErrMsgSoughtNs cli_pages_out_err_msg_sought EMBED_UNUSED = {
+    int (*find)(const CliPagesOutErrMsgNeedleCfg *args);
+} CliPagesOutErrMsgNeedleNs;
+EMBED_TABLE_LAYOUT(CliPagesOutErrMsgNeedleNs, find);
+EMBED_TABLE_STORAGE CliPagesOutErrMsgNeedleNs cli_pages_out_err_msg_needle EMBED_UNUSED = {
     .find = cli_pages_find,
 };
 

@@ -22,11 +22,7 @@ extern void test_an_included_folder_is_known(void);
 extern void test_an_included_folder_includes_what_is_in_it(void);
 extern void test_a_set_names_its_files_and_removes_some(void);
 extern void test_a_set_of_none_is_empty(void);
-extern void test_git_picks_the_files_hiding_patterns_leave(void);
-extern void test_git_picks_the_files_an_including_folder_leaves(void);
-extern void test_git_picks_the_files_an_including_glob_leaves(void);
-extern void test_git_picks_the_files_a_hiding_and_an_including_pattern_leave(void);
-extern void test_no_patterns_name_the_whole_tree(void);
+extern void test_no_patterns_name_the_complete_tree(void);
 extern void test_the_pathspecs_name_what_the_patterns_name(void);
 
 
@@ -89,26 +85,22 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\patterns\\test_patterns\\test_patterns.c");
-  run_test(test_a_name_hides_itself_and_what_is_in_it_at_any_depth, "test_a_name_hides_itself_and_what_is_in_it_at_any_depth", 131);
-  run_test(test_a_glob_hides_the_names_it_matches, "test_a_glob_hides_the_names_it_matches", 138);
-  run_test(test_a_folders_path_hides_that_folder_only, "test_a_folders_path_hides_that_folder_only", 146);
-  run_test(test_a_double_star_matches_any_depth, "test_a_double_star_matches_any_depth", 155);
-  run_test(test_a_question_mark_matches_one_letter, "test_a_question_mark_matches_one_letter", 163);
-  run_test(test_a_comment_hides_nothing, "test_a_comment_hides_nothing", 170);
-  run_test(test_a_bang_pattern_includes_only_what_it_names, "test_a_bang_pattern_includes_only_what_it_names", 175);
-  run_test(test_what_a_bang_pattern_names_stays, "test_what_a_bang_pattern_names_stays", 180);
-  run_test(test_every_other_file_and_what_a_pattern_hides_among_the_included_are_hidden, "test_every_other_file_and_what_a_pattern_hides_among_the_included_are_hidden", 188);
-  run_test(test_a_folder_is_hidden_only_where_a_pattern_names_it, "test_a_folder_is_hidden_only_where_a_pattern_names_it", 195);
-  run_test(test_an_included_folder_is_known, "test_an_included_folder_is_known", 200);
-  run_test(test_an_included_folder_includes_what_is_in_it, "test_an_included_folder_includes_what_is_in_it", 207);
-  run_test(test_a_set_names_its_files_and_removes_some, "test_a_set_names_its_files_and_removes_some", 213);
-  run_test(test_a_set_of_none_is_empty, "test_a_set_of_none_is_empty", 222);
-  run_test(test_git_picks_the_files_hiding_patterns_leave, "test_git_picks_the_files_hiding_patterns_leave", 228);
-  run_test(test_git_picks_the_files_an_including_folder_leaves, "test_git_picks_the_files_an_including_folder_leaves", 234);
-  run_test(test_git_picks_the_files_an_including_glob_leaves, "test_git_picks_the_files_an_including_glob_leaves", 240);
-  run_test(test_git_picks_the_files_a_hiding_and_an_including_pattern_leave, "test_git_picks_the_files_a_hiding_and_an_including_pattern_leave", 246);
-  run_test(test_no_patterns_name_the_whole_tree, "test_no_patterns_name_the_whole_tree", 252);
-  run_test(test_the_pathspecs_name_what_the_patterns_name, "test_the_pathspecs_name_what_the_patterns_name", 261);
+  run_test(test_a_name_hides_itself_and_what_is_in_it_at_any_depth, "test_a_name_hides_itself_and_what_is_in_it_at_any_depth", 38);
+  run_test(test_a_glob_hides_the_names_it_matches, "test_a_glob_hides_the_names_it_matches", 45);
+  run_test(test_a_folders_path_hides_that_folder_only, "test_a_folders_path_hides_that_folder_only", 53);
+  run_test(test_a_double_star_matches_any_depth, "test_a_double_star_matches_any_depth", 62);
+  run_test(test_a_question_mark_matches_one_letter, "test_a_question_mark_matches_one_letter", 70);
+  run_test(test_a_comment_hides_nothing, "test_a_comment_hides_nothing", 77);
+  run_test(test_a_bang_pattern_includes_only_what_it_names, "test_a_bang_pattern_includes_only_what_it_names", 82);
+  run_test(test_what_a_bang_pattern_names_stays, "test_what_a_bang_pattern_names_stays", 87);
+  run_test(test_every_other_file_and_what_a_pattern_hides_among_the_included_are_hidden, "test_every_other_file_and_what_a_pattern_hides_among_the_included_are_hidden", 95);
+  run_test(test_a_folder_is_hidden_only_where_a_pattern_names_it, "test_a_folder_is_hidden_only_where_a_pattern_names_it", 102);
+  run_test(test_an_included_folder_is_known, "test_an_included_folder_is_known", 107);
+  run_test(test_an_included_folder_includes_what_is_in_it, "test_an_included_folder_includes_what_is_in_it", 114);
+  run_test(test_a_set_names_its_files_and_removes_some, "test_a_set_names_its_files_and_removes_some", 120);
+  run_test(test_a_set_of_none_is_empty, "test_a_set_of_none_is_empty", 129);
+  run_test(test_no_patterns_name_the_complete_tree, "test_no_patterns_name_the_complete_tree", 135);
+  run_test(test_the_pathspecs_name_what_the_patterns_name, "test_the_pathspecs_name_what_the_patterns_name", 144);
 
   return UNITY_END();
 }

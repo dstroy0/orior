@@ -46,7 +46,7 @@ EMBED_INLINE void walk_pending(const FilesSeenCtx *args)
 {
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL});
     char *const cell = (args->walk->pending_count < CLI_WALK_PENDING)
-                           ? EMBED_CALL(cli_files_bytes_internal.work_take, CliFilesBytesCtx, .bytes = length + 1ull)
+                           ? EMBED_CALL(cli_files_bytes_internal.work_alloc, CliFilesBytesCtx, .bytes = length + 1ull)
                            : NULL;
     if (cell != NULL)
     {
@@ -90,7 +90,7 @@ static void walk_each(const CliEachNameIsFolderCfg *args)
 EMBED_INLINE void walked_from(const FilesSeenCtx *args)
 {
     CliWalk walk = {
-        EMBED_CALL(cli_files_bytes_internal.work_take, CliFilesBytesCtx, .bytes = CLI_WALK_PENDING * sizeof(char *)),
+        EMBED_CALL(cli_files_bytes_internal.work_alloc, CliFilesBytesCtx, .bytes = CLI_WALK_PENDING * sizeof(char *)),
         0u,
         args->root,
         NULL,
@@ -150,31 +150,31 @@ static int git_list(const FilesSeenCtx *args)
         count += 2u;
     }
     words[count] = NULL;
-    CliRan *const ran = cli_ran_take();
+    CliRunResult *const run_result = cli_run_result_alloc();
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea unstarted = {why, sizeof(why), 0ull};
     if (!EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = words, .folder = args->root, .settings = NULL,
-                    .count = 0u, .ran = ran, .err_msg = &unstarted) ||
-        (ran->code != 0ll))
+                    .count = 0u, .run_result = run_result, .err_msg = &unstarted) ||
+        (run_result->code != 0ll))
     {
-        EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+        EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
         return 0;
     }
-    *whole = ran->whole;
-    unsigned long long listed = 0ull;
-    const char *const end = ran->out + ran->out_size;
-    for (const char *path = ran->out; path < end;)
+    *whole = run_result->whole;
+    unsigned long long list_entries = 0ull;
+    const char *const end = run_result->out + run_result->out_size;
+    for (const char *path = run_result->out; path < end;)
     {
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
         if (length != 0ull)
         {
             EMBED_CALL(args->each, CliEachPathLengthCfg, .context = args->context, .path = path, .length = length);
-            listed += 1ull;
+            list_entries += 1ull;
         }
         path += length + 1ull;
     }
-    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
-    return (folder != NULL) || (listed != 0ull);
+    EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
+    return (folder != NULL) || (list_entries != 0ull);
 }
 
 int cli_files_on_list(const CliFilesRootEachContextCfg *args)
@@ -244,7 +244,7 @@ void cli_files_ignored_read(const CliFilesRootPathsCfg *args)
     {
         bytes += cellul.len(&(CatenaFinitaCfg){.src = args->paths[at], .cap = CLI_CELLS_POOL}) + 1ull;
     }
-    char *const input = EMBED_CALL(cli_files_bytes_internal.work_take, CliFilesBytesCtx, .bytes = bytes + 1ull);
+    char *const input = EMBED_CALL(cli_files_bytes_internal.work_alloc, CliFilesBytesCtx, .bytes = bytes + 1ull);
     if (input == NULL)
     {
         return;
@@ -264,16 +264,17 @@ void cli_files_ignored_read(const CliFilesRootPathsCfg *args)
     words[word + 1u] = "--stdin";
     words[word + 2u] = "-z";
     words[word + 3u] = NULL;
-    CliRan *const ran = cli_ran_take();
+    CliRunResult *const run_result = cli_run_result_alloc();
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea unstarted = {why, sizeof(why), 0ull};
-    if (EMBED_CALL(cli_words_internal.ran_feed, CliWordsCtx, .words = words, .folder = args->root, .settings = NULL,
-                   .count = 0u, .input = input, .length = used, .ran = ran, .err_msg = &unstarted) &&
-        (ran->code == 0ll))
+    if (EMBED_CALL(cli_words_internal.run_result_feed, CliWordsCtx, .words = words, .folder = args->root,
+                   .settings = NULL, .count = 0u, .input = input, .length = used, .run_result = run_result,
+                   .err_msg = &unstarted) &&
+        (run_result->code == 0ll))
     {
         // git answers in the order it was asked, the paths it ignores alone
-        const char *answer = ran->out;
-        const char *const end = ran->out + ran->out_size;
+        const char *answer = run_result->out;
+        const char *const end = run_result->out + run_result->out_size;
         for (unsigned int at = 0u; (at < args->count) && (answer < end); at += 1u)
         {
             if (cellul.eq(&(CatenaFinitaCfg){.src = answer, .other = args->paths[at], .cap = CLI_CELLS_POOL}))
@@ -283,7 +284,7 @@ void cli_files_ignored_read(const CliFilesRootPathsCfg *args)
             }
         }
     }
-    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+    EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
     EMBED_CALL(cli_files_internal.cell_free, CliFilesCtx, .cell = input);
 }
 
@@ -295,7 +296,7 @@ const CliFiles *cli_files_view(const CliFilesRootPathsCfg *args)
     unsigned long long bytes = 0ull;
     EMBED_CALL(cli_symbols_count.tree_files_count, CliSymbolsCountCfg, .count_pointer = &count, .bytes = &bytes);
     CliFiles *const files =
-        EMBED_CALL(cli_files_bytes_internal.work_take, CliFilesBytesCtx,
+        EMBED_CALL(cli_files_bytes_internal.work_alloc, CliFilesBytesCtx,
                    .bytes = sizeof(*files) + ((unsigned long long)count * sizeof(unsigned int)) + bytes);
     if (files == NULL)
     {
@@ -358,7 +359,7 @@ const CliFiles *cli_files_kinds_view(const CliFilesRootPathsCfg *args)
         count += (ending != 0ull) ? 2ull : 1ull;
         bytes += (length - name) + 1ull + ((ending != 0ull) ? (ending + 1ull) : 0ull);
     }
-    CliFiles *const kinds = EMBED_CALL(cli_files_bytes_internal.work_take, CliFilesBytesCtx,
+    CliFiles *const kinds = EMBED_CALL(cli_files_bytes_internal.work_alloc, CliFilesBytesCtx,
                                        .bytes = sizeof(*kinds) + (count * sizeof(unsigned int)) + bytes);
     if (kinds == NULL)
     {

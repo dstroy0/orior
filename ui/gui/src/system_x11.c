@@ -30,7 +30,7 @@ struct GuiSystem
     int screen;
     const GuiSystemEvents *events;
     void *context;
-    const GuiRaster *shown;
+    const GuiRaster *displayed;
     int wake_pipe[2];
     int closed;
     unsigned long long tick_deadline_ms;
@@ -46,7 +46,7 @@ struct GuiSystem
     Window settings_owner;
     Atom settings;
     GuiSystem *owner;
-    GuiSystem *owned;
+    GuiSystem *owner;
 };
 // the rows one notch of the wheel scrolls; the Motif hints that take the decorations off, their flags word and the
 // decorations word; and the window manager's move and resize directions, as the specification numbers them, and its
@@ -71,7 +71,7 @@ typedef struct
     XKeyEvent *event;
     unsigned int hit;
     XEvent *event_x_event_pointer;
-    const CliWindowPlace *place;
+    const CliWindowPosition *place;
     const char *title;
     unsigned long *data;
     const GuiRaster *raster;
@@ -93,9 +93,9 @@ EMBED_INLINE int system_scale_get(const SystemX11Ctx *args)
 
 // the raster shown put into the window
 // the raster shown put into the window, its `rows` rows from the row `from`
-EMBED_INLINE void system_put(const SystemX11Ctx *args)
+EMBED_INLINE void system_append(const SystemX11Ctx *args)
 {
-    const GuiRaster *const raster = args->system->shown;
+    const GuiRaster *const raster = args->system->displayed;
     if ((raster == NULL) || (raster->pixels == NULL))
     {
         return;
@@ -226,7 +226,7 @@ EMBED_INLINE void system_key_press(const SystemX11Ctx *args)
         VerbaLinea line = {utf8, sizeof(utf8), 0ull};
         for (int at = 0; at < wrote; at += 1)
         {
-            EMBED_CALL(cli_line_letter_internal.utf8_put, CliLineLetterCtx, .line = &line,
+            EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &line,
                        .letter = (unsigned char)text[at]);
         }
         EMBED_CALL(args->system->events->input, GuiEachInputCfg, .context = args->system->context,
@@ -249,7 +249,7 @@ static int system_settings_reject(Display *display, XErrorEvent *error)
     return 0;
 }
 
-int gui_system_motion_reduce(const GuiSystemPlaceCfg *args)
+int gui_system_motion_reduce(const GuiSystemPositionCfg *args)
 {
     if (args->system_read->settings_owner == None)
     {
@@ -262,14 +262,14 @@ int gui_system_motion_reduce(const GuiSystemPlaceCfg *args)
     unsigned char *data = NULL;
     const XErrorHandler saved = XSetErrorHandler(system_settings_reject);
     // a settings list is far shorter than a million words
-    const int asked =
+    const int requested =
         XGetWindowProperty(args->system_read->display, args->system_read->settings_owner, args->system_read->settings,
                            0l, 1l << 20, False, AnyPropertyType, &type, &format, &count, &after, &data);
     XSync(args->system_read->display, False);
     XSetErrorHandler(saved);
     int enabled = 1;
     const int read =
-        (asked == Success) && (data != NULL) && (format == 8) &&
+        (requested == Success) && (data != NULL) && (format == 8) &&
         EMBED_CALL(gui_xsettings.animations, GuiXsettingsCfg, .data = data, .size = count, .enabled = &enabled);
     if (data != NULL)
     {
@@ -300,9 +300,9 @@ EMBED_INLINE void system_settings_watch(const SystemX11Ctx *args)
 static void system_event(const SystemX11Ctx *args)
 {
     // a window owned shares this one's connection and its events come through its loop
-    if ((args->system->owned != NULL) && (args->event_x_event_pointer->xany.window == args->system->owned->window))
+    if ((args->system->owner != NULL) && (args->event_x_event_pointer->xany.window == args->system->owner->window))
     {
-        EMBED_CALL(system_event, SystemX11Ctx, .system = args->system->owned,
+        EMBED_CALL(system_event, SystemX11Ctx, .system = args->system->owner,
                    .event_x_event_pointer = args->event_x_event_pointer);
         return;
     }
@@ -326,8 +326,8 @@ static void system_event(const SystemX11Ctx *args)
     case Expose:
         if (args->event_x_event_pointer->xexpose.count == 0)
         {
-            EMBED_CALL(system_put, SystemX11Ctx, .system = args->system, .from = 0u,
-                       .rows = (args->system->shown != NULL) ? args->system->shown->height : 0u);
+            EMBED_CALL(system_append, SystemX11Ctx, .system = args->system, .from = 0u,
+                       .rows = (args->system->displayed != NULL) ? args->system->displayed->height : 0u);
         }
         break;
     case ConfigureNotify:
@@ -344,10 +344,12 @@ static void system_event(const SystemX11Ctx *args)
         }
         break;
     case MapNotify:
-        EMBED_CALL(args->system->events->shown, GuiEachShownCfg, .context = args->system->context, .shown = 1);
+        EMBED_CALL(args->system->events->displayed, GuiEachDisplayedCfg, .context = args->system->context,
+                   .displayed = 1);
         break;
     case UnmapNotify:
-        EMBED_CALL(args->system->events->shown, GuiEachShownCfg, .context = args->system->context, .shown = 0);
+        EMBED_CALL(args->system->events->displayed, GuiEachDisplayedCfg, .context = args->system->context,
+                   .displayed = 0);
         break;
     case MotionNotify:
         EMBED_CALL(args->system->events->input, GuiEachInputCfg, .context = args->system->context,
@@ -424,7 +426,7 @@ static void system_event(const SystemX11Ctx *args)
     }
 }
 
-void gui_system_display_most(const GuiSystemWidthCfg *args)
+void gui_system_display_max(const GuiSystemWidthCfg *args)
 {
     unsigned int *width = args->width;
     unsigned int *height = args->height;
@@ -485,14 +487,14 @@ EMBED_INLINE void system_window_init(const SystemX11Ctx *args)
     XSetWMProtocols(args->system->display, args->system->window, &args->system->delete_window, 1);
     XStoreName(args->system->display, args->system->window, args->title);
     // the least size the window manager drags the window to; a size is far inside an int
-    XSizeHints least;
-    least.flags = PMinSize;
-    least.min_width = (int)CLI_PLACE_LEAST_WIDTH;
-    least.min_height = (int)CLI_PLACE_LEAST_HEIGHT;
-    XSetWMNormalHints(args->system->display, args->system->window, &least);
+    XSizeHints min;
+    min.flags = PMinSize;
+    min.min_width = (int)CLI_POSITION_MIN_WIDTH;
+    min.min_height = (int)CLI_POSITION_MIN_HEIGHT;
+    XSetWMNormalHints(args->system->display, args->system->window, &min);
 }
 
-GuiSystem *gui_system_open(const GuiSystemPlaceTitleCfg *args)
+GuiSystem *gui_system_open(const GuiSystemPositionTitleCfg *args)
 {
     const GuiSystemEvents *events = args->events;
     void *context = args->context;
@@ -530,7 +532,7 @@ GuiSystem *gui_system_open(const GuiSystemPlaceTitleCfg *args)
     return system;
 }
 
-GuiSystem *gui_system_owned_open(const GuiSystemPlaceTitleCfg *args)
+GuiSystem *gui_system_owner_open(const GuiSystemPositionTitleCfg *args)
 {
     GuiSystem *owner = args->owner;
     const GuiSystemEvents *events = args->events;
@@ -549,7 +551,7 @@ GuiSystem *gui_system_owned_open(const GuiSystemPlaceTitleCfg *args)
     EMBED_CALL(system_window_init, SystemX11Ctx, .system = system, .place = args->place, .title = args->title);
     // the window manager saves a transient window in front of the one it is for
     XSetTransientForHint(system->display, system->window, owner->window);
-    owner->owned = system;
+    owner->owner = system;
     XMapWindow(system->display, system->window);
     XFlush(system->display);
     return system;
@@ -633,7 +635,7 @@ void gui_system_pumped(const GuiSystemCfg *args)
     }
 }
 
-void *gui_system_native(const GuiSystemPlaceCfg *args)
+void *gui_system_native(const GuiSystemPositionCfg *args)
 {
     return (void *)(unsigned long)args->system_read->window;
 }
@@ -644,7 +646,7 @@ void gui_system_close(const GuiSystemCfg *args)
     if (args->system->owner != NULL)
     {
         // the connection is the owner's and stays open
-        args->system->owner->owned = NULL;
+        args->system->owner->owner = NULL;
         XDestroyWindow(args->system->display, args->system->window);
         XFlush(args->system->display);
         args->system->display = NULL;
@@ -681,14 +683,14 @@ void gui_system_pages_free(const GuiSystemBytesCfg *args)
 
 void gui_system_present(const GuiSystemRasterCfg *args)
 {
-    args->system->shown = args->raster;
-    EMBED_CALL(system_put, SystemX11Ctx, .system = args->system, .from = 0, .rows = args->raster->height);
+    args->system->displayed = args->raster;
+    EMBED_CALL(system_append, SystemX11Ctx, .system = args->system, .from = 0, .rows = args->raster->height);
     args->system->presented_ms = cli_clock_milliseconds();
 }
 
 void gui_system_present_part(const GuiSystemRasterCfg *args)
 {
-    args->system->shown = args->raster;
+    args->system->displayed = args->raster;
     if (!EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = args->part) && (args->part.y >= 0) &&
         (args->part.y < (int)args->raster->height))
     {
@@ -697,7 +699,7 @@ void gui_system_present_part(const GuiSystemRasterCfg *args)
         const unsigned int rows = ((unsigned int)args->part.height < args->raster->height - from)
                                       ? (unsigned int)args->part.height
                                       : args->raster->height - from;
-        EMBED_CALL(system_put, SystemX11Ctx, .system = args->system, .from = from, .rows = rows);
+        EMBED_CALL(system_append, SystemX11Ctx, .system = args->system, .from = from, .rows = rows);
     }
     args->system->presented_ms = cli_clock_milliseconds();
 }
@@ -710,7 +712,7 @@ void gui_system_wake(const GuiSystemCfg *args)
 
 // `raster`'s pixels put after `at` of `data` as the icon property lays them, the width, the height and then each
 // pixel as a word: the words put
-EMBED_INLINE unsigned long system_icon_put(const SystemX11Ctx *args)
+EMBED_INLINE unsigned long system_icon_append(const SystemX11Ctx *args)
 {
     args->data[0] = args->raster->width;
     args->data[1] = args->raster->height;
@@ -731,8 +733,8 @@ void gui_system_icon(const GuiSystemTitleIconCfg *args)
     {
         return;
     }
-    const unsigned long put = EMBED_CALL(system_icon_put, SystemX11Ctx, .data = data, .raster = args->title_icon);
-    (void)EMBED_CALL(system_icon_put, SystemX11Ctx, .data = data + put, .raster = args->taskbar_icon);
+    const unsigned long put = EMBED_CALL(system_icon_append, SystemX11Ctx, .data = data, .raster = args->title_icon);
+    (void)EMBED_CALL(system_icon_append, SystemX11Ctx, .data = data + put, .raster = args->taskbar_icon);
     const Atom icon = XInternAtom(args->system->display, "_NET_WM_ICON", False);
     // the words are far fewer than an int counts
     XChangeProperty(args->system->display, args->system->window, icon, XA_CARDINAL, 32, PropModeReplace,
@@ -773,7 +775,7 @@ void gui_system_act(const GuiSystemCfg *args)
     }
 }
 
-void gui_system_on_place(const GuiSystemPlaceCfg *args)
+void gui_system_on_position(const GuiSystemPositionCfg *args)
 {
     XWindowAttributes attributes;
     XGetWindowAttributes(args->system_read->display, args->system_read->window, &attributes);
@@ -782,12 +784,12 @@ void gui_system_on_place(const GuiSystemPlaceCfg *args)
     int y = 0;
     XTranslateCoordinates(args->system_read->display, args->system_read->window,
                           RootWindow(args->system_read->display, args->system_read->screen), 0, 0, &x, &y, &child);
-    args->place_out->x = x;
-    args->place_out->y = y;
+    args->position_out->x = x;
+    args->position_out->y = y;
     // a window's sides are not negative
-    args->place_out->width = (unsigned int)attributes.width;
-    args->place_out->height = (unsigned int)attributes.height;
-    args->place_out->maximized = 0;
+    args->position_out->width = (unsigned int)attributes.width;
+    args->position_out->height = (unsigned int)attributes.height;
+    args->position_out->maximized = 0;
     Atom kind;
     int format = 0;
     unsigned long count = 0ul;
@@ -800,14 +802,14 @@ void gui_system_on_place(const GuiSystemPlaceCfg *args)
         const Atom *const each = (const Atom *)states;
         for (unsigned long at = 0ul; at < count; at += 1ul)
         {
-            args->place_out->maximized =
-                args->place_out->maximized || (each[at] == args->system_read->state_maximized_vertical);
+            args->position_out->maximized =
+                args->position_out->maximized || (each[at] == args->system_read->state_maximized_vertical);
         }
         XFree(states);
     }
 }
 
-int gui_system_scale(const GuiSystemPlaceCfg *args)
+int gui_system_scale(const GuiSystemPositionCfg *args)
 {
     return EMBED_CALL(system_scale_get, SystemX11Ctx, .display = args->system_read->display,
                       .screen = args->system_read->screen);

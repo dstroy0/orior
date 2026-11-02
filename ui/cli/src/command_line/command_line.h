@@ -10,7 +10,7 @@
 // code (command_line*.c)
 #ifndef COMMAND_LINE_H
 #define COMMAND_LINE_H
-typedef struct CliCommandLineGivenCfg CliCommandLineGivenCfg;
+typedef struct CliCommandLineInputCfg CliCommandLineInputCfg;
 typedef struct CliCommandLineNamedCfg CliCommandLineNamedCfg;
 typedef struct CliCommandLineCfg CliCommandLineCfg;
 typedef struct CliCommandLineLaunchOutCfg CliCommandLineLaunchOutCfg;
@@ -31,8 +31,6 @@ typedef struct
     int code;
     char root[CLI_PATH_MAX_LEN];
     int has_root;
-    char remote[CLI_PATH_MAX_LEN];
-    int has_remote;
     char menu[CLI_NAME_MAX_LEN];
     char command[CLI_NAME_MAX_LEN];
     unsigned int args;
@@ -43,7 +41,7 @@ typedef struct
 
 // the words given on the command line, `count` of them, run: a command run here, with the code to exit with, or the
 // window to open for one that acts there, into `outcome`
-void cli_command_line_run(const CliCommandLineGivenCfg *args);
+void cli_command_line_run(const CliCommandLineInputCfg *args);
 // the words that name a launch's command, as the command line takes them, written into `out`
 void cli_launch_words(const CliCommandLineLaunchOutCfg *args);
 // the word `at` of a launch's command
@@ -56,9 +54,9 @@ int cli_command_line_tree(const CliCommandLineNamedCfg *args);
 // (platform/windows.c, platform/posix.c)
 void cli_console_let_go(void);
 
-struct CliCommandLineGivenCfg
+struct CliCommandLineInputCfg
 {
-    const char *const *given;
+    const char *const *supplied;
     unsigned int count;
     CliOutcome *outcome;
 };
@@ -84,10 +82,10 @@ struct CliCommandLineLaunchOutCfg
 
 typedef struct
 {
-    void (*run)(const CliCommandLineGivenCfg *args);
-} CliCommandLineGivenNs;
-EMBED_TABLE_LAYOUT(CliCommandLineGivenNs, run);
-EMBED_TABLE_STORAGE CliCommandLineGivenNs cli_command_line_given EMBED_UNUSED = {
+    void (*run)(const CliCommandLineInputCfg *args);
+} CliCommandLineInputNs;
+EMBED_TABLE_LAYOUT(CliCommandLineInputNs, run);
+EMBED_TABLE_STORAGE CliCommandLineInputNs cli_command_line_input EMBED_UNUSED = {
     .run = cli_command_line_run,
 };
 

@@ -37,7 +37,7 @@ static CliToolsFound s_found;
 static const char *const s_found_states[4] = {"chosen", "path", "found", "missing"};
 
 // the places the cache begins with
-#define CLI_FOUND_MOST 1024u
+#define CLI_FOUND_MAX 1024u
 
 typedef struct
 {
@@ -54,7 +54,7 @@ typedef struct
     const char *text;
     unsigned long long against;
 } ToolchainsChosenCtx;
-// The folders the reader gave, by tool, read into a tree sized to them with room for one folder more, which
+// The folders the reader gave, by tool, read into a tree sized to them with capacity for one folder more, which
 // cli_json_free gives back: the object of them
 EMBED_INLINE unsigned int cli_chosen_read(const ToolchainsChosenCtx *args)
 {
@@ -79,19 +79,19 @@ int cli_toolchains_on_choose(const CliToolchainsIdFolderCfg *args)
     CliJson json;
     char path[CLI_PATH_MAX_LEN];
     const unsigned int chosen = EMBED_CALL(cli_chosen_read, ToolchainsChosenCtx, .json = &json, .path = path);
-    const char *const given =
+    const char *const supplied =
         EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
                                       .object = chosen, .name = args->id),
                    .length_pointer = NULL);
-    if (given != NULL)
+    if (supplied != NULL)
     {
         memor.cpy(&(MemoriaCfg){.dst = args->folder,
-                                .src = given,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = given, .cap = CLI_CELLS_POOL}) + 1u});
+                                .src = supplied,
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = supplied, .cap = CLI_CELLS_POOL}) + 1u});
     }
     EMBED_CALL(cli_chosen_release, ToolchainsChosenCtx, .json = &json);
-    return given != NULL;
+    return supplied != NULL;
 }
 
 void cli_toolchains_chosen_each(const CliToolchainsContextCfg *args)
@@ -138,7 +138,7 @@ int cli_toolchains_choose(const CliToolchainsIdCfg *args)
     CliJson manifest_json;
     char dir[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_toolchains_text_internal.trim, CliToolchainsTextCtx, .text = args->folder_read, .out = dir,
-               .room = sizeof(dir));
+               .capacity = sizeof(dir));
     const unsigned int manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
                                              .json_out = &manifest_json, .nodes_more = 0u, .text_more = 0ull);
     const unsigned int tool =
@@ -271,7 +271,7 @@ EMBED_INLINE unsigned long long found_against(const ToolchainsChosenCtx *args)
 }
 
 // the place of the tool cached of `id`, or the cache's count where none is. Under the cache's lock
-EMBED_INLINE unsigned int found_place(const ToolchainsChosenCtx *args)
+EMBED_INLINE unsigned int found_position(const ToolchainsChosenCtx *args)
 {
     unsigned int place = 0u;
     while ((place < s_found.count) &&
@@ -284,22 +284,22 @@ EMBED_INLINE unsigned int found_place(const ToolchainsChosenCtx *args)
 
 // tool `id` cached as found `state`, with `program`, in its place or after the others, the cache taken at its most as
 // the first is put: 1, or 0 where the id is too long or the cellblock cannot meet the cache. Under the cache's lock
-EMBED_INLINE int found_put(const ToolchainsChosenCtx *args)
+EMBED_INLINE int found_append(const ToolchainsChosenCtx *args)
 {
     const char *state = args->state;
     const unsigned long long id_length = cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_NAME_MAX_LEN});
     const unsigned long long program_length =
         cellul.len(&(CatenaFinitaCfg){.src = args->program, .cap = CLI_PATH_MAX_LEN});
-    const unsigned int place = found_place(args);
+    const unsigned int place = found_position(args);
     if ((id_length >= CLI_NAME_MAX_LEN) || (program_length >= CLI_PATH_MAX_LEN))
     {
         return 0;
     }
     if (s_found.most == 0u)
     {
-        s_found.tool = g_cli_cells->persistent_buf_alloc((unsigned long long)CLI_FOUND_MOST * sizeof(*s_found.tool),
+        s_found.tool = g_cli_cells->persistent_buf_alloc((unsigned long long)CLI_FOUND_MAX * sizeof(*s_found.tool),
                                                          &g_cli_toolchains_found_cells);
-        s_found.most = (s_found.tool != NULL) ? CLI_FOUND_MOST : 0u;
+        s_found.most = (s_found.tool != NULL) ? CLI_FOUND_MAX : 0u;
     }
     if (place >= s_found.most)
     {
@@ -375,8 +375,8 @@ static void found_current(const ToolchainsChosenCtx *args)
                            .length_pointer = NULL);
             if (state != NULL)
             {
-                (void)EMBED_CALL(found_put, ToolchainsChosenCtx, .id = json.text + json.node[item].key, .state = state,
-                                 .program = (program != NULL) ? program : "");
+                (void)EMBED_CALL(found_append, ToolchainsChosenCtx, .id = json.text + json.node[item].key,
+                                 .state = state, .program = (program != NULL) ? program : "");
             }
         }
         EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
@@ -416,7 +416,7 @@ static void found_write(void)
     {
         return;
     }
-    VerbaLinea out = {piece, sizeof(piece), 0ull, cli_file_put, &file, 0ull};
+    VerbaLinea out = {piece, sizeof(piece), 0ull, cli_file_write_chunk, &file, 0ull};
     mmgr_line_put(&out, "{\n  \"against\": \"");
     mmgr_line_put(&out, hex);
     mmgr_line_put(&out, "\",\n  \"tools\": {");
@@ -448,7 +448,7 @@ int cli_toolchains_found_cache(const CliToolchainsIdCtx *args)
     const unsigned long long against =
         EMBED_CALL(found_against, ToolchainsChosenCtx, .path_callback = path, .count = count);
     EMBED_CALL(found_current, ToolchainsChosenCtx, .against = against);
-    const unsigned int place = EMBED_CALL(found_place, ToolchainsChosenCtx, .id = id);
+    const unsigned int place = EMBED_CALL(found_position, ToolchainsChosenCtx, .id = id);
     const CliToolFound *const tool = (place < s_found.count) ? &s_found.tool[place] : NULL;
     // a program cached that is gone from its folder is searched for again
     const int cached =
@@ -461,16 +461,16 @@ int cli_toolchains_found_cache(const CliToolchainsIdCtx *args)
         memor.cpy(&(MemoriaCfg){.dst = args->found->program, .src = tool->program, .bytes = CLI_PATH_MAX_LEN});
         memor.cpy(&(MemoriaCfg){.dst = args->found->folder, .src = tool->program, .bytes = CLI_PATH_MAX_LEN});
         char *cut = args->found->folder;
-        const unsigned long long cut_past = EMBED_CALL(
+        const unsigned long long cut_end = EMBED_CALL(
             cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->found->folder,
             .at = cellul.len(&(CatenaFinitaCfg){.src = args->found->folder, .cap = CLI_CELLS_POOL}), .set = "/\\");
-        cut = (cut_past != 0ull) ? (args->found->folder + (cut_past - 1ull)) : cut;
+        cut = (cut_end != 0ull) ? (args->found->folder + (cut_end - 1ull)) : cut;
         *cut = '\0';
     }
     return cached;
 }
 
-void cli_toolchains_found_put(const CliToolchainsIdPathCtx *args)
+void cli_toolchains_found_append(const CliToolchainsIdPathCtx *args)
 {
     const char *id = args->id;
     const char (*path)[CLI_PATH_MAX_LEN] = args->path_callback;
@@ -483,7 +483,7 @@ void cli_toolchains_found_put(const CliToolchainsIdPathCtx *args)
     const unsigned long long against =
         EMBED_CALL(found_against, ToolchainsChosenCtx, .path_callback = path, .count = count);
     EMBED_CALL(found_current, ToolchainsChosenCtx, .against = against);
-    (void)EMBED_CALL(found_put, ToolchainsChosenCtx, .id = id, .state = state,
+    (void)EMBED_CALL(found_append, ToolchainsChosenCtx, .id = id, .state = state,
                      .program = args->found_read->has_program ? args->found_read->program : "");
     if (s_found.refs == 0u)
     {

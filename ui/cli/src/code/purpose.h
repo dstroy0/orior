@@ -30,7 +30,7 @@ typedef struct CliPurposeTextCfg CliPurposeTextCfg;
 #define CLI_PURPOSE_USERS 20u
 
 // what the first comment of `size` bytes of `text`, the text of the file at `path`, states, past a license's comment,
-// written into `out`; and the cells the room it is read in occupies (purpose_comment.c)
+// written into `out`; and the cells the capacity it is read in occupies (purpose_comment.c)
 void cli_purpose_first_comment(const CliPurposePathTextCfg *args);
 extern CellOwner g_cli_purpose_cells;
 
@@ -40,9 +40,6 @@ extern CellOwner g_cli_purpose_cells;
 // orior's work may take, written as `{"users", "all"}`; and both, written as `{"comment", "users", "all"}`. Each of the
 // last three 1, or 0 with why given (purpose.c)
 int cli_purpose_uses(const CliPurposeTextCfg *args);
-int cli_purpose_write(const CliPurposeCfg *args);
-int cli_purpose_users(const CliPurposeCfg *args);
-int cli_purpose(const CliPurposeCfg *args);
 
 struct CliPurposeCfg
 {
@@ -84,19 +81,6 @@ typedef struct
 EMBED_TABLE_LAYOUT(CliPurposeTextNs, uses);
 EMBED_TABLE_STORAGE CliPurposeTextNs cli_purpose_text EMBED_UNUSED = {
     .uses = cli_purpose_uses,
-};
-
-typedef struct
-{
-    int (*write)(const CliPurposeCfg *args);
-    int (*users)(const CliPurposeCfg *args);
-    int (*purpose)(const CliPurposeCfg *args);
-} CliPurposeNs;
-EMBED_TABLE_LAYOUT(CliPurposeNs, write, users, purpose);
-EMBED_TABLE_STORAGE CliPurposeNs cli_purpose_table EMBED_UNUSED = {
-    .write = cli_purpose_write,
-    .users = cli_purpose_users,
-    .purpose = cli_purpose,
 };
 
 #endif

@@ -77,7 +77,7 @@ EMBED_INLINE unsigned int object_missing(const SchemaObjectCtx *args)
 }
 
 // a count of members past a bound reported over `from` to `to`
-EMBED_INLINE void object_count_finding_put(const SchemaObjectCtx *args)
+EMBED_INLINE void object_count_finding_append(const SchemaObjectCtx *args)
 {
     unsigned long long from = args->from;
     unsigned long long to = args->to;
@@ -187,8 +187,8 @@ EMBED_INLINE void object_additional(const SchemaObjectCtx *args)
     const unsigned int finding = EMBED_CALL(cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = check->found,
                                             .message = &msg, .lines = check->lines, .from = one->from, .to = one->to,
                                             .severity = CLI_BUILD_WARNING, .code = "schema-property");
-    CliBuildNear near;
-    EMBED_CALL(cli_builds_size.build_near_begin, CliBuildsSizeCfg, .near = &near,
+    CliBuildAdjacent adjacent;
+    EMBED_CALL(cli_builds_size.build_adjacent_begin, CliBuildsSizeCfg, .adjacent = &adjacent,
                .name = EMBED_CALL(cli_schema_read_at_internal.text, CliSchemaReadAtCtx, .read = check->read,
                                   .at = one->key_at),
                .size = one->key_size);
@@ -199,19 +199,19 @@ EMBED_INLINE void object_additional(const SchemaObjectCtx *args)
          at != CLI_JSON_NONE; at = json->node[at].next)
     {
         const char *const name = json->text + json->node[at].key;
-        EMBED_CALL(cli_builds_size_near.build_near_offer, CliBuildsSizeNearCfg, .near = &near, .one = name,
-                   .size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
+        EMBED_CALL(cli_builds_size_adjacent.build_adjacent_offer, CliBuildsSizeAdjacentCfg, .adjacent = &adjacent,
+                   .one = name, .size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
     }
-    for (unsigned int at = 0u; at < near.count; at += 1u)
+    for (unsigned int at = 0u; at < adjacent.count; at += 1u)
     {
         VerbaLinea title = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = check->found);
         mmgr_line_put(&title, "Change to \"");
-        mmgr_line_put_n(&title, near.near[at], near.near_size[at]);
+        mmgr_line_put_n(&title, adjacent.adjacent[at], adjacent.adjacent_size[at]);
         mmgr_line_ch(&title, '"');
         static char s_quoted[1u << 13u];
         VerbaLinea quoted = {s_quoted, sizeof(s_quoted), 0ull};
         EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &quoted,
-                   .text = near.near[at], .length = near.near_size[at]);
+                   .text = adjacent.adjacent[at], .length = adjacent.adjacent_size[at]);
         EMBED_CALL(cli_builds_text.build_edit_fix, CliBuildsTextCfg, .found = check->found, .finding = finding,
                    .title = &title, .lines = check->lines, .from = one->from, .to = one->to, .text = s_quoted,
                    .size = quoted.at);
@@ -225,7 +225,7 @@ EMBED_INLINE void object_name(const SchemaObjectCtx *args)
     const char *base = args->base;
     unsigned int depth = args->depth;
     CliSchemaRead *const read = check->read;
-    if (read->nodes == read->nodes_most)
+    if (read->nodes == read->nodes_max)
     {
         return;
     }
@@ -256,7 +256,7 @@ void cli_schema_object_check(const CliSchemaBaseMapCtx *args)
                    .value_u64s = &bound) &&
         (count < bound))
     {
-        EMBED_CALL(object_count_finding_put, SchemaObjectCtx, .check = args->check, .from = from, .to = to,
+        EMBED_CALL(object_count_finding_append, SchemaObjectCtx, .check = args->check, .from = from, .to = to,
                    .count = count, .middle = ", fewer than the ", .bound = bound,
                    .after = " properties the schema requires");
     }
@@ -266,7 +266,7 @@ void cli_schema_object_check(const CliSchemaBaseMapCtx *args)
                    .value_u64s = &bound) &&
         (count > bound))
     {
-        EMBED_CALL(object_count_finding_put, SchemaObjectCtx, .check = args->check, .from = from, .to = to,
+        EMBED_CALL(object_count_finding_append, SchemaObjectCtx, .check = args->check, .from = from, .to = to,
                    .count = count, .middle = ", more than the ", .bound = bound,
                    .after = " properties the schema allows");
     }

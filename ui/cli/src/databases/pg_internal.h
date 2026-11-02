@@ -42,14 +42,14 @@ struct CliPg
     unsigned int parameters;
     char notices[CLI_PG_NOTICES][CLI_PG_NOTICE];
     unsigned int notice_count;
-    int reading;
+    int read_state;
     int has_failed;
     CliDbFailure failed;
     CliDbHead head;
     CliDbValue row[CLI_DB_COLUMNS];
 };
 
-// a message read off the connection, its kind into `kind` and its body into the connection's room: 1, or 0 with the
+// a message read off the connection, its kind into `kind` and its body into the connection's capacity: 1, or 0 with the
 // failure given; a message of `kind` sent, `count` parts of its body, each `sizes` bytes of `parts`: 1, or 0 with the
 // failure given; what a server reported went wrong read from a message's body; a parameter the server reported
 // recorded; and a notice it gave recorded as the reader reads a failure (pg.c)
@@ -59,7 +59,7 @@ void cli_pg_failure_get(const CliPgCtx *args);
 void cli_pg_parameter_store(const CliPgBodyCtx *args);
 void cli_pg_notice_store(const CliPgFailurePasswordCtx *args);
 
-// the room one sign-in's texts are made in
+// the capacity one sign-in's texts are made in
 #define CLI_PG_SIGN_TEXT 1024u
 
 // the client's final message of SCRAM-SHA-256, and the server's signature it must answer with, base64, each into what

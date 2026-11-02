@@ -59,7 +59,7 @@ EMBED_INLINE void *tree_part(const InspectTreeCtx *args)
 // the work of `size` bytes of `text` in `language` made over one cell sized to what the walk picks up: the facts are
 // counted by a walk that stores nothing, the cell taken for the counts, and the walk after fills it. The cell, or NULL
 // where the language is not read or the cell cannot be taken
-EMBED_INLINE void *tree_work_take(const InspectTreeCtx *args)
+EMBED_INLINE void *tree_work_alloc(const InspectTreeCtx *args)
 {
     const char *language = args->language;
     const char *text = args->text;
@@ -98,12 +98,12 @@ EMBED_INLINE void *tree_work_take(const InspectTreeCtx *args)
         EMBED_CALL(tree_part, InspectTreeCtx, .at = &at, .bytes = counted.names * sizeof(CliInspectName));
     args->work->text = EMBED_CALL(tree_part, InspectTreeCtx, .at = &at, .bytes = counted.used);
     EMBED_CALL(cli_inspect_facts_table.facts_begin, CliInspectFactsCfg, .facts = &args->work->facts,
-               .imports = args->work->imports, .imports_most = counted.imports, .classes = args->work->classes,
-               .classes_most = counted.classes, .functions = args->work->functions, .functions_most = counted.functions,
-               .findings = args->work->findings, .findings_most = counted.findings, .fixes = args->work->fixes,
-               .fixes_most = counted.fixes, .edits = args->work->edits, .edits_most = counted.edits,
-               .names = args->work->names, .names_most = counted.names, .text_out = args->work->text,
-               .text_most = counted.used);
+               .imports = args->work->imports, .imports_max = counted.imports, .classes = args->work->classes,
+               .classes_max = counted.classes, .functions = args->work->functions, .functions_max = counted.functions,
+               .findings = args->work->findings, .findings_max = counted.findings, .fixes = args->work->fixes,
+               .fixes_max = counted.fixes, .edits = args->work->edits, .edits_max = counted.edits,
+               .names = args->work->names, .names_max = counted.names, .text_out = args->work->text,
+               .text_max = counted.used);
     return cell;
 }
 
@@ -159,7 +159,7 @@ unsigned long long cli_tree_parent(const CliInspectTreePathCtx *args)
 }
 
 // a file's place put in the table
-EMBED_INLINE void tree_bucket_put(const InspectTreeCtx *args)
+EMBED_INLINE void tree_bucket_append(const InspectTreeCtx *args)
 {
     unsigned int bucket = EMBED_CALL(tree_hash, InspectTreeCtx, .path = CLI_TREE_FILE(args->file).path,
                                      .size = CLI_TREE_FILE(args->file).path_size);
@@ -171,7 +171,7 @@ EMBED_INLINE void tree_bucket_put(const InspectTreeCtx *args)
 }
 
 // a file's place taken out of the table
-EMBED_INLINE void tree_bucket_take(const InspectTreeCtx *args)
+EMBED_INLINE void tree_bucket_alloc(const InspectTreeCtx *args)
 {
     unsigned int bucket = EMBED_CALL(tree_hash, InspectTreeCtx, .path = CLI_TREE_FILE(args->file).path,
                                      .size = CLI_TREE_FILE(args->file).path_size);
@@ -213,9 +213,9 @@ EMBED_INLINE unsigned long long tree_size(const InspectTreeCtx *args)
 }
 
 // the file at `file` taken out of the tree, its cell given back
-EMBED_INLINE void tree_take(const InspectTreeCtx *args)
+EMBED_INLINE void tree_alloc(const InspectTreeCtx *args)
 {
-    tree_bucket_take(args);
+    tree_bucket_alloc(args);
     g_cli_cells->persistent_buf_release(CLI_TREE_FILE(args->file).cell, &g_cli_inspect_cells);
     CLI_TREE_FILE(args->file).cell = NULL;
     CLI_TREE_FILE(args->file).used = 0;
@@ -223,7 +223,7 @@ EMBED_INLINE void tree_take(const InspectTreeCtx *args)
 }
 
 // a place among the files for a new one: its place, CLI_TREE_NONE where every place is taken
-static unsigned int tree_place(void)
+static unsigned int tree_position(void)
 {
     for (unsigned int file = 0u; file < g_cli_tree_files; file += 1u)
     {
@@ -262,7 +262,7 @@ int cli_inspect_tree_set(const CliInspectTreePathLanguageCfg *args)
     CliTreeWork work_copy;
     CliTreeWork *const work = &work_copy;
     void *const work_cell =
-        EMBED_CALL(tree_work_take, InspectTreeCtx, .work = work, .language = language, .text = text, .size = size);
+        EMBED_CALL(tree_work_alloc, InspectTreeCtx, .work = work, .language = language, .text = text, .size = size);
     if (work_cell == NULL)
     {
         return 0;
@@ -279,9 +279,9 @@ int cli_inspect_tree_set(const CliInspectTreePathLanguageCfg *args)
         EMBED_CALL(cli_inspect_tree_path_internal.tree_find, CliInspectTreePathCtx, .path = path, .size = path_size);
     if (place != CLI_TREE_NONE)
     {
-        EMBED_CALL(tree_take, InspectTreeCtx, .file = place);
+        EMBED_CALL(tree_alloc, InspectTreeCtx, .file = place);
     }
-    const unsigned int file = (cell != NULL) ? tree_place() : CLI_TREE_NONE;
+    const unsigned int file = (cell != NULL) ? tree_position() : CLI_TREE_NONE;
     if (file == CLI_TREE_NONE)
     {
         g_cli_cells->persistent_buf_release(cell, &g_cli_inspect_cells);
@@ -318,16 +318,16 @@ int cli_inspect_tree_set(const CliInspectTreePathLanguageCfg *args)
                                        .bytes_bytess = work->names, .size = facts->names * sizeof(CliInspectName));
     tree_file->facts.text = EMBED_CALL(tree_copy, InspectTreeCtx, .cell = cell, .at_u64s = &at,
                                        .bytes_bytess = work->text, .size = facts->used);
-    tree_file->facts.imports_most = facts->imports;
-    tree_file->facts.classes_most = facts->classes;
-    tree_file->facts.functions_most = facts->functions;
-    tree_file->facts.findings_most = facts->findings;
-    tree_file->facts.fixes_most = facts->fixes;
-    tree_file->facts.edits_most = facts->edits;
-    tree_file->facts.names_most = facts->names;
-    tree_file->facts.text_most = facts->used;
+    tree_file->facts.imports_max = facts->imports;
+    tree_file->facts.classes_max = facts->classes;
+    tree_file->facts.functions_max = facts->functions;
+    tree_file->facts.findings_max = facts->findings;
+    tree_file->facts.fixes_max = facts->fixes;
+    tree_file->facts.edits_max = facts->edits;
+    tree_file->facts.names_max = facts->names;
+    tree_file->facts.text_max = facts->used;
     tree_file->used = 1;
-    EMBED_CALL(tree_bucket_put, InspectTreeCtx, .file = file);
+    EMBED_CALL(tree_bucket_append, InspectTreeCtx, .file = file);
     cli_tree_families_free();
     g_cli_cells->persistent_buf_release(work_cell, &g_cli_inspect_cells);
     return 1;
@@ -340,7 +340,7 @@ void cli_inspect_tree_remove(const CliInspectTreePathLineCfg *args)
                    .size = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}));
     if (place != CLI_TREE_NONE)
     {
-        EMBED_CALL(tree_take, InspectTreeCtx, .file = place);
+        EMBED_CALL(tree_alloc, InspectTreeCtx, .file = place);
     }
 }
 
@@ -388,14 +388,14 @@ int cli_inspect_tree_function_at(const CliInspectTreePathLineCfg *args)
         EMBED_CALL(cli_inspect_tree_path_internal.tree_find, CliInspectTreePathCtx, .path = args->path,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}));
     int found = 0;
-    unsigned int least = 0u;
+    unsigned int min = 0u;
     for (unsigned int index = 0u; (file != CLI_TREE_NONE) && (index < CLI_TREE_FILE(file).facts.functions); index += 1u)
     {
         const CliInspectFunction *const one = &CLI_TREE_FILE(file).facts.function[index];
-        if ((one->first <= args->line) && (args->line <= one->last) && (!found || (one->last - one->first < least)))
+        if ((one->first <= args->line) && (args->line <= one->last) && (!found || (one->last - one->first < min)))
         {
             found = 1;
-            least = one->last - one->first;
+            min = one->last - one->first;
             *at = index;
         }
     }

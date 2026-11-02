@@ -37,7 +37,7 @@ typedef struct
 // who receives it; and its readers
 struct CliDap
 {
-    int taken;
+    int reserved;
     unsigned int refs;
     unsigned int kind;
     int ends_program;
@@ -52,7 +52,7 @@ struct CliDap
     CliDapWaiter waiters[CLI_DAP_WAITERS];
     char complaint[CLI_DAP_COMPLAINT * 2u];
     unsigned long long complaint_size;
-    unsigned int reading;
+    unsigned int read_state;
     CliDapEventFn emit;
     void *context;
     CliThread reader_thread;
@@ -60,12 +60,12 @@ struct CliDap
     CliLspReader reader;
 };
 
-extern CliDap g_cli_daps[CLI_DAPS_MOST];
+extern CliDap g_cli_daps[CLI_DAPS_MAX];
 
 // a place for an adapter taken, referenced once and made empty, NULL where every place is taken; and its readers
 // started: what it writes read on a thread of its own, each response handed to the request waiting on it, each event
 // received and each request of its refused, and, for a program, what it writes to its errors retained (dap.c)
-CliDap *cli_dap_place_take(void);
+CliDap *cli_dap_position_alloc(void);
 void cli_dap_readers_start(const CliDapCtx *args);
 // the adapter ended: its connection ended, its process ended and waited on, an adapter in orior_cli notified no more
 // comes

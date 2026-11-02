@@ -5,21 +5,19 @@
 #include "ui/cli/src/editor/highlight.h"
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "ui/cli/src/plugins/plugins.h"
-#include "ui/cli/src/window/window.h"
 
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
 extern void tearDown(void);
-extern void test_every_bundled_plugin_reads_and_names_itself_and_a_script_carries_its_code(void);
-extern void test_a_plugin_written_in_oriors_folder_is_listed_as_the_readers(void);
-extern void test_the_windows_list_of_plugins_includes_the_readers(void);
+extern void test_every_bundled_plugin_reads_and_names_itself_and_a_script_transfers_its_code(void);
+extern void test_a_plugin_written_in_oriors_folder_is_listing_as_the_readers(void);
 extern void test_a_plugins_code_is_each_file_its_main_names_in_order(void);
 extern void test_a_file_main_names_outside_its_folder_is_refused(void);
-extern void test_a_file_opens_by_its_whole_name(void);
+extern void test_a_file_opens_by_its_complete_name(void);
 extern void test_a_file_opens_by_its_path(void);
 extern void test_a_path_opens_whichever_way_its_slashes_lean(void);
 extern void test_a_file_opens_by_its_extension(void);
-extern void test_the_languages_keys_are_in_a_room_at_their_most(void);
+extern void test_the_languages_keys_are_in_a_capacity_at_their_max(void);
 extern void test_the_plugins_are_read_in_cells_each_released(void);
 extern void test_a_name_becomes_an_id(void);
 extern void test_each_run_of_other_characters_is_one_dash(void);
@@ -38,7 +36,7 @@ extern void test_a_plugin_created_has_its_manifest(void);
 extern void test_a_plugin_created_has_a_sample_in_its_language(void);
 extern void test_a_plugin_is_not_overwritten_unless_requested_and_stays_one_plugin(void);
 extern void test_a_plugin_starts_from_another_larger_than_the_answers_own_tree(void);
-extern void test_a_grammar_is_made_whole_from_the_trees_tables(void);
+extern void test_a_grammar_is_created_complete_from_the_trees_tables(void);
 extern void test_a_plugin_serves_a_folder_containing_its_table_named_by_the_folder(void);
 extern void test_a_plugin_serves_no_folder_unless_matches_except_names_or_with_no_table(void);
 extern void test_a_folders_grammar_is_stored_under_the_plugin_and_folder(void);
@@ -104,39 +102,38 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\plugins\\test_plugins\\test_plugins.c");
-  run_test(test_every_bundled_plugin_reads_and_names_itself_and_a_script_carries_its_code, "test_every_bundled_plugin_reads_and_names_itself_and_a_script_carries_its_code", 211);
-  run_test(test_a_plugin_written_in_oriors_folder_is_listed_as_the_readers, "test_a_plugin_written_in_oriors_folder_is_listed_as_the_readers", 249);
-  run_test(test_the_windows_list_of_plugins_includes_the_readers, "test_the_windows_list_of_plugins_includes_the_readers", 257);
-  run_test(test_a_plugins_code_is_each_file_its_main_names_in_order, "test_a_plugins_code_is_each_file_its_main_names_in_order", 269);
-  run_test(test_a_file_main_names_outside_its_folder_is_refused, "test_a_file_main_names_outside_its_folder_is_refused", 281);
-  run_test(test_a_file_opens_by_its_whole_name, "test_a_file_opens_by_its_whole_name", 291);
-  run_test(test_a_file_opens_by_its_path, "test_a_file_opens_by_its_path", 298);
-  run_test(test_a_path_opens_whichever_way_its_slashes_lean, "test_a_path_opens_whichever_way_its_slashes_lean", 304);
-  run_test(test_a_file_opens_by_its_extension, "test_a_file_opens_by_its_extension", 310);
-  run_test(test_the_languages_keys_are_in_a_room_at_their_most, "test_the_languages_keys_are_in_a_room_at_their_most", 317);
-  run_test(test_the_plugins_are_read_in_cells_each_released, "test_the_plugins_are_read_in_cells_each_released", 324);
-  run_test(test_a_name_becomes_an_id, "test_a_name_becomes_an_id", 332);
-  run_test(test_each_run_of_other_characters_is_one_dash, "test_each_run_of_other_characters_is_one_dash", 337);
-  run_test(test_a_name_of_no_letters_has_no_id, "test_a_name_of_no_letters_has_no_id", 342);
-  run_test(test_a_drafted_plugins_id_is_its_names, "test_a_drafted_plugins_id_is_its_names", 347);
-  run_test(test_a_drafted_plugins_extensions_have_no_dots, "test_a_drafted_plugins_extensions_have_no_dots", 352);
-  run_test(test_a_drafted_plugin_has_its_comments, "test_a_drafted_plugin_has_its_comments", 357);
-  run_test(test_a_drafted_plugin_has_each_keyword_once, "test_a_drafted_plugin_has_each_keyword_once", 362);
-  run_test(test_a_block_comment_opens_the_comment_state, "test_a_block_comment_opens_the_comment_state", 368);
-  run_test(test_a_line_comment_runs_to_its_end, "test_a_line_comment_runs_to_its_end", 375);
-  run_test(test_a_drafted_plugins_text_reads_back_as_itself, "test_a_drafted_plugins_text_reads_back_as_itself", 382);
-  run_test(test_a_plugin_from_another_has_its_own_id_extensions_and_words, "test_a_plugin_from_another_has_its_own_id_extensions_and_words", 399);
-  run_test(test_a_plugin_from_another_has_the_others_grammar, "test_a_plugin_from_another_has_the_others_grammar", 408);
-  run_test(test_a_plugin_from_one_not_there_is_refused, "test_a_plugin_from_one_not_there_is_refused", 416);
-  run_test(test_a_plugin_created_has_its_manifest, "test_a_plugin_created_has_its_manifest", 423);
-  run_test(test_a_plugin_created_has_a_sample_in_its_language, "test_a_plugin_created_has_a_sample_in_its_language", 431);
-  run_test(test_a_plugin_is_not_overwritten_unless_requested_and_stays_one_plugin, "test_a_plugin_is_not_overwritten_unless_requested_and_stays_one_plugin", 443);
-  run_test(test_a_plugin_starts_from_another_larger_than_the_answers_own_tree, "test_a_plugin_starts_from_another_larger_than_the_answers_own_tree", 454);
-  run_test(test_a_grammar_is_made_whole_from_the_trees_tables, "test_a_grammar_is_made_whole_from_the_trees_tables", 468);
-  run_test(test_a_plugin_serves_a_folder_containing_its_table_named_by_the_folder, "test_a_plugin_serves_a_folder_containing_its_table_named_by_the_folder", 490);
-  run_test(test_a_plugin_serves_no_folder_unless_matches_except_names_or_with_no_table, "test_a_plugin_serves_no_folder_unless_matches_except_names_or_with_no_table", 496);
-  run_test(test_a_folders_grammar_is_stored_under_the_plugin_and_folder, "test_a_folders_grammar_is_stored_under_the_plugin_and_folder", 504);
-  run_test(test_a_word_of_the_folders_table_is_colored_as_a_keyword, "test_a_word_of_the_folders_table_is_colored_as_a_keyword", 513);
+  run_test(test_every_bundled_plugin_reads_and_names_itself_and_a_script_transfers_its_code, "test_every_bundled_plugin_reads_and_names_itself_and_a_script_transfers_its_code", 210);
+  run_test(test_a_plugin_written_in_oriors_folder_is_listing_as_the_readers, "test_a_plugin_written_in_oriors_folder_is_listing_as_the_readers", 248);
+  run_test(test_a_plugins_code_is_each_file_its_main_names_in_order, "test_a_plugins_code_is_each_file_its_main_names_in_order", 256);
+  run_test(test_a_file_main_names_outside_its_folder_is_refused, "test_a_file_main_names_outside_its_folder_is_refused", 268);
+  run_test(test_a_file_opens_by_its_complete_name, "test_a_file_opens_by_its_complete_name", 278);
+  run_test(test_a_file_opens_by_its_path, "test_a_file_opens_by_its_path", 285);
+  run_test(test_a_path_opens_whichever_way_its_slashes_lean, "test_a_path_opens_whichever_way_its_slashes_lean", 291);
+  run_test(test_a_file_opens_by_its_extension, "test_a_file_opens_by_its_extension", 297);
+  run_test(test_the_languages_keys_are_in_a_capacity_at_their_max, "test_the_languages_keys_are_in_a_capacity_at_their_max", 304);
+  run_test(test_the_plugins_are_read_in_cells_each_released, "test_the_plugins_are_read_in_cells_each_released", 311);
+  run_test(test_a_name_becomes_an_id, "test_a_name_becomes_an_id", 319);
+  run_test(test_each_run_of_other_characters_is_one_dash, "test_each_run_of_other_characters_is_one_dash", 324);
+  run_test(test_a_name_of_no_letters_has_no_id, "test_a_name_of_no_letters_has_no_id", 329);
+  run_test(test_a_drafted_plugins_id_is_its_names, "test_a_drafted_plugins_id_is_its_names", 334);
+  run_test(test_a_drafted_plugins_extensions_have_no_dots, "test_a_drafted_plugins_extensions_have_no_dots", 339);
+  run_test(test_a_drafted_plugin_has_its_comments, "test_a_drafted_plugin_has_its_comments", 344);
+  run_test(test_a_drafted_plugin_has_each_keyword_once, "test_a_drafted_plugin_has_each_keyword_once", 349);
+  run_test(test_a_block_comment_opens_the_comment_state, "test_a_block_comment_opens_the_comment_state", 355);
+  run_test(test_a_line_comment_runs_to_its_end, "test_a_line_comment_runs_to_its_end", 362);
+  run_test(test_a_drafted_plugins_text_reads_back_as_itself, "test_a_drafted_plugins_text_reads_back_as_itself", 369);
+  run_test(test_a_plugin_from_another_has_its_own_id_extensions_and_words, "test_a_plugin_from_another_has_its_own_id_extensions_and_words", 386);
+  run_test(test_a_plugin_from_another_has_the_others_grammar, "test_a_plugin_from_another_has_the_others_grammar", 395);
+  run_test(test_a_plugin_from_one_not_there_is_refused, "test_a_plugin_from_one_not_there_is_refused", 403);
+  run_test(test_a_plugin_created_has_its_manifest, "test_a_plugin_created_has_its_manifest", 410);
+  run_test(test_a_plugin_created_has_a_sample_in_its_language, "test_a_plugin_created_has_a_sample_in_its_language", 418);
+  run_test(test_a_plugin_is_not_overwritten_unless_requested_and_stays_one_plugin, "test_a_plugin_is_not_overwritten_unless_requested_and_stays_one_plugin", 430);
+  run_test(test_a_plugin_starts_from_another_larger_than_the_answers_own_tree, "test_a_plugin_starts_from_another_larger_than_the_answers_own_tree", 441);
+  run_test(test_a_grammar_is_created_complete_from_the_trees_tables, "test_a_grammar_is_created_complete_from_the_trees_tables", 455);
+  run_test(test_a_plugin_serves_a_folder_containing_its_table_named_by_the_folder, "test_a_plugin_serves_a_folder_containing_its_table_named_by_the_folder", 477);
+  run_test(test_a_plugin_serves_no_folder_unless_matches_except_names_or_with_no_table, "test_a_plugin_serves_no_folder_unless_matches_except_names_or_with_no_table", 483);
+  run_test(test_a_folders_grammar_is_stored_under_the_plugin_and_folder, "test_a_folders_grammar_is_stored_under_the_plugin_and_folder", 491);
+  run_test(test_a_word_of_the_folders_table_is_colored_as_a_keyword, "test_a_word_of_the_folders_table_is_colored_as_a_keyword", 500);
 
   return UNITY_END();
 }

@@ -7,17 +7,17 @@
 #include "../../cli/src/command_line/cli_internal.h"
 
 // which lattice instances grounds have taken, a bit each
-static uint32_t s_lattice_taken;
+static uint32_t s_lattice_allocated;
 
 typedef struct
 {
     const GuiPalette *palette;
     double loose;
-    GuiGround *ground;
+    GuiBackground *background_fill;
 } GroundCtx;
 
 // The color at `loose`, 0 for ordered to 1 for the least ordered: the two lattice colors either side, blended.
-EMBED_INLINE GuiColor ground_pen_color(const GroundCtx *args)
+EMBED_INLINE GuiColor background_pen_color(const GroundCtx *args)
 {
     const double along = args->loose * 2.0;
     const unsigned int low = (along < 1.0) ? 0u : 1u;
@@ -34,100 +34,104 @@ EMBED_INLINE GuiColor ground_pen_color(const GroundCtx *args)
     return GUI_RGB(red, green, blue);
 }
 
-EMBED_INLINE void ground_shade(const GroundCtx *args)
+EMBED_INLINE void background_shade(const GroundCtx *args)
 {
     LatticePens pens;
     for (unsigned int level = 0u; level < LATTICE_LEVELS; level += 1u)
     {
         const double loose = (double)level / (LATTICE_LEVELS - 1);
         const double order = 1.0 - loose;
-        const GuiColor color = EMBED_CALL(ground_pen_color, GroundCtx, .palette = args->palette, .loose = loose);
+        const GuiColor color = EMBED_CALL(background_pen_color, GroundCtx, .palette = args->palette, .loose = loose);
         // a byte over 255, and the ink between its two bounds, each fit a float
         pens.color[level * 4u] = (float)GUI_RED_OF(color) / 255.0f;
         pens.color[level * 4u + 1u] = (float)GUI_GREEN_OF(color) / 255.0f;
         pens.color[level * 4u + 2u] = (float)GUI_BLUE_OF(color) / 255.0f;
-        pens.color[level * 4u + 3u] = (float)(GUI_GROUND_FAINTEST * (1.0 - order) + GUI_GROUND_BRIGHTEST * order);
-        pens.radius[level] = (float)(GUI_GROUND_RADIUS + GUI_GROUND_RADIUS_SPREAD * order);
+        pens.color[level * 4u + 3u] =
+            (float)(GUI_BACKGROUND_FAINTEST * (1.0 - order) + GUI_BACKGROUND_BRIGHTEST * order);
+        pens.radius[level] = (float)(GUI_BACKGROUND_RADIUS + GUI_BACKGROUND_RADIUS_SPREAD * order);
     }
-    lattice_shaded(&pens, &args->ground->shades);
+    lattice_shaded(&pens, &args->background_fill->shades);
 }
 
-int gui_ground_init(const GuiGroundCfg *args)
+int gui_background_init(const GuiBackgroundCfg *args)
 {
     const unsigned long long now_ms = cli_clock_milliseconds();
-    memor.set(&(MemoriaCfg){.dst = args->ground, .val = 0, .bytes = sizeof(*args->ground)});
+    memor.set(&(MemoriaCfg){.dst = args->background_fill, .val = 0, .bytes = sizeof(*args->background_fill)});
     for (uint32_t index = 0u; index < LATTICE_SLOTS; index += 1u)
     {
-        if ((s_lattice_taken & (1u << index)) == 0u)
+        if ((s_lattice_allocated & (1u << index)) == 0u)
         {
-            s_lattice_taken |= 1u << index;
-            args->ground->lattice_index = index;
-            args->ground->start_ms = now_ms;
+            s_lattice_allocated |= 1u << index;
+            args->background_fill->lattice_index = index;
+            args->background_fill->start_ms = now_ms;
             return 1;
         }
     }
     return 0;
 }
 
-void gui_ground_free(const GuiGroundCfg *args)
+void gui_background_free(const GuiBackgroundCfg *args)
 {
-    memor.set(&(MemoriaCfg){.dst = &args->ground->raster, .val = 0, .bytes = sizeof(args->ground->raster)});
-    lattice_given(args->ground->lattice_index);
-    s_lattice_taken &= ~(1u << args->ground->lattice_index);
-    args->ground->laid = 0;
+    memor.set(
+        &(MemoriaCfg){.dst = &args->background_fill->raster, .val = 0, .bytes = sizeof(args->background_fill->raster)});
+    lattice_given(args->background_fill->lattice_index);
+    s_lattice_allocated &= ~(1u << args->background_fill->lattice_index);
+    args->background_fill->laid = 0;
 }
 
-void gui_ground_pause(const GuiGroundCfg *args)
+void gui_background_pause(const GuiBackgroundCfg *args)
 {
     const unsigned long long now_ms = cli_clock_milliseconds();
-    if (args->paused && (args->ground->paused_ms == 0ull))
+    if (args->paused && (args->background_fill->paused_ms == 0ull))
     {
-        args->ground->paused_ms = now_ms;
+        args->background_fill->paused_ms = now_ms;
     }
-    else if (!args->paused && (args->ground->paused_ms != 0ull))
+    else if (!args->paused && (args->background_fill->paused_ms != 0ull))
     {
-        args->ground->start_ms += now_ms - args->ground->paused_ms;
-        args->ground->paused_ms = 0ull;
+        args->background_fill->start_ms += now_ms - args->background_fill->paused_ms;
+        args->background_fill->paused_ms = 0ull;
     }
 }
 
-unsigned long long gui_ground_elapsed_ms(const GuiGroundClockCfg *args)
+unsigned long long gui_background_elapsed_ms(const GuiBackgroundClockCfg *args)
 {
     const unsigned long long now_ms = cli_clock_milliseconds();
-    const unsigned long long stopped = (args->ground->paused_ms != 0ull) ? args->ground->paused_ms : now_ms;
-    return stopped - args->ground->start_ms;
+    const unsigned long long stopped =
+        (args->background_fill->paused_ms != 0ull) ? args->background_fill->paused_ms : now_ms;
+    return stopped - args->background_fill->start_ms;
 }
 
-unsigned long long gui_ground_next_deadline_ms(const GuiGroundClockCfg *args)
+unsigned long long gui_background_next_deadline_ms(const GuiBackgroundClockCfg *args)
 {
-    if (!args->ground->laid || (args->ground->paused_ms != 0ull))
+    if (!args->background_fill->laid || (args->background_fill->paused_ms != 0ull))
     {
         return 0ull;
     }
-    return args->ground->start_ms + args->ground->next_draw_ms;
+    return args->background_fill->start_ms + args->background_fill->next_draw_ms;
 }
 
-int gui_ground_layout(const GuiGroundRasterCfg *args)
+int gui_background_layout(const GuiBackgroundRasterCfg *args)
 {
     // the raster is as wide as the framebuffers' pitch; the lattice lies over the window's own width
-    args->ground->raster = *args->raster;
-    args->ground->width = args->width;
-    args->ground->height = args->height;
-    args->ground->scale = args->scale;
-    EMBED_CALL(ground_shade, GroundCtx, .ground = args->ground, .palette = args->palette);
-    args->ground->laid =
-        lattice_lay(args->ground->lattice_index, ((double)args->width * GUI_SCALE_WHOLE) / (double)args->scale,
-                    ((double)args->height * GUI_SCALE_WHOLE) / (double)args->scale) != 0u;
-    gui_ground_raster.draw(args);
-    return args->ground->laid;
+    args->background_fill->raster = *args->raster;
+    args->background_fill->width = args->width;
+    args->background_fill->height = args->height;
+    args->background_fill->scale = args->scale;
+    EMBED_CALL(background_shade, GroundCtx, .background_fill = args->background_fill, .palette = args->palette);
+    args->background_fill->laid =
+        lattice_lay(args->background_fill->lattice_index, ((double)args->width * GUI_SCALE_ONE) / (double)args->scale,
+                    ((double)args->height * GUI_SCALE_ONE) / (double)args->scale) != 0u;
+    gui_background_raster.draw(args);
+    return args->background_fill->laid;
 }
 
-void gui_ground_draw(const GuiGroundRasterCfg *args)
+void gui_background_draw(const GuiBackgroundRasterCfg *args)
 {
-    GuiGround *const ground = args->ground;
-    GuiRaster *const raster = &ground->raster;
+    GuiBackground *const background_fill = args->background_fill;
+    GuiRaster *const raster = &background_fill->raster;
     const double seconds =
-        (double)EMBED_CALL(gui_ground_clock.elapsed_ms, GuiGroundClockCfg, .ground = ground) / 1000.0;
+        (double)EMBED_CALL(gui_background_clock.elapsed_ms, GuiBackgroundClockCfg, .background_fill = background_fill) /
+        1000.0;
     // the deep color is blended over what the raster holds, and a raster reused across sizes holds an old drawing
     memor.set(&(MemoriaCfg){.dst = raster->pixels,
                             .val = 0,
@@ -135,20 +139,20 @@ void gui_ground_draw(const GuiGroundRasterCfg *args)
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
                .rect = (GuiRect){0, 0, (int)raster->width, (int)raster->height}, .color = args->palette->deep);
     // a moment within one loop of the lattice, in whole milliseconds, fits
-    ground->next_draw_ms = (unsigned long long)(lattice_shown_after(seconds, seconds) * 1000.0);
-    ground->frames += 1u;
-    if (!ground->laid)
+    background_fill->next_draw_ms = (unsigned long long)(lattice_shown_after(seconds, seconds) * 1000.0);
+    background_fill->frames += 1u;
+    if (!background_fill->laid)
     {
         return;
     }
-    LatticeSlot *const lattice = lattice_slot(ground->lattice_index);
-    if (!lattice_dots_moved(lattice, ((double)ground->width * GUI_SCALE_WHOLE) / (double)ground->scale,
-                            ((double)ground->height * GUI_SCALE_WHOLE) / (double)ground->scale, seconds,
-                            &ground->shades))
+    LatticeSlot *const lattice = lattice_slot(background_fill->lattice_index);
+    if (!lattice_dots_moved(lattice, ((double)background_fill->width * GUI_SCALE_ONE) / (double)background_fill->scale,
+                            ((double)background_fill->height * GUI_SCALE_ONE) / (double)background_fill->scale, seconds,
+                            &background_fill->shades))
     {
         return;
     }
-    const float scale = (float)ground->scale / (float)GUI_SCALE_WHOLE;
+    const float scale = (float)background_fill->scale / (float)GUI_SCALE_ONE;
     for (uint32_t point = 0u; point < lattice->count; point += 1u)
     {
         const LatticeDot *const dot = &lattice->dots[point];
@@ -160,16 +164,17 @@ void gui_ground_draw(const GuiGroundRasterCfg *args)
     }
 }
 
-int gui_ground_tick(const GuiGroundRasterCfg *args)
+int gui_background_tick(const GuiBackgroundRasterCfg *args)
 {
-    if (!args->ground->laid || (args->ground->paused_ms != 0ull))
+    if (!args->background_fill->laid || (args->background_fill->paused_ms != 0ull))
     {
         return 0;
     }
-    if (EMBED_CALL(gui_ground_clock.elapsed_ms, GuiGroundClockCfg, .ground = args->ground) < args->ground->next_draw_ms)
+    if (EMBED_CALL(gui_background_clock.elapsed_ms, GuiBackgroundClockCfg, .background_fill = args->background_fill) <
+        args->background_fill->next_draw_ms)
     {
         return 0;
     }
-    gui_ground_raster.draw(args);
+    gui_background_raster.draw(args);
     return 1;
 }

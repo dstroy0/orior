@@ -30,7 +30,6 @@ static const int s_quarter[(GUI_BUSY_STAGES / 4u) + 1u] = {
     0, 6424, 12785, 19024, 25080, 30894, 36410, 41575, 46341, 50660, 54491, 57798, 60547, 62714, 64277, 65220, 65536};
 
 _Static_assert((GUI_BUSY_STAGES & (GUI_BUSY_STAGES - 1u)) == 0u, "GUI_BUSY_STAGES is a power of two");
-_Static_assert((GUI_BUSY_ASKS & (GUI_BUSY_ASKS - 1u)) == 0u, "GUI_BUSY_ASKS is a power of two");
 _Static_assert(BUSY_SHARE_ASH + BUSY_SHARE_TRAIL < 255u, "the trail's share stays under the burn's whole share");
 
 typedef struct
@@ -81,7 +80,6 @@ EMBED_INLINE int busy_wave(const BusyCtx *args)
 void gui_busy_init(const GuiBusyStillCfg *args)
 {
     memor.set(&(MemoriaCfg){.dst = args->busy, .val = 0, .bytes = sizeof(*args->busy)});
-    args->busy->oldest = 1ull;
 }
 
 // the pictures' cell given back, nothing left saved
@@ -96,32 +94,7 @@ EMBED_INLINE void busy_cell_free(const BusyCtx *args)
 void gui_busy_free(const GuiBusyStillCfg *args)
 {
     EMBED_CALL(busy_cell_free, BusyCtx, .busy = args->busy);
-    args->busy->shown = 0;
-}
-
-// the oldest ticket walked on past those answered, each ticket walked once: it stands on an ask unanswered or past the
-// newest
-EMBED_INLINE void busy_oldest_walk(const BusyCtx *args)
-{
-    while ((args->busy->oldest <= args->busy->newest) &&
-           (args->busy->request_start_ms[args->busy->oldest & (GUI_BUSY_ASKS - 1u)] == 0ull))
-    {
-        args->busy->oldest += 1ull;
-    }
-}
-
-void gui_busy_request(const GuiBusyTicketCfg *args)
-{
-    const unsigned long long now_ms = cli_clock_milliseconds();
-    args->busy->request_start_ms[args->ticket & (GUI_BUSY_ASKS - 1u)] = now_ms + 1ull;
-    args->busy->newest = (args->ticket > args->busy->newest) ? args->ticket : args->busy->newest;
-    EMBED_CALL(busy_oldest_walk, BusyCtx, .busy = args->busy);
-}
-
-void gui_busy_answer(const GuiBusyTicketCfg *args)
-{
-    args->busy->request_start_ms[args->ticket & (GUI_BUSY_ASKS - 1u)] = 0ull;
-    EMBED_CALL(busy_oldest_walk, BusyCtx, .busy = args->busy);
+    args->busy->displayed = 0;
 }
 
 void gui_busy_work(const GuiBusyRunningCfg *args)
@@ -139,21 +112,11 @@ void gui_busy_work(const GuiBusyRunningCfg *args)
 
 int gui_busy_waiting(const GuiBusySinceCfg *args)
 {
-    unsigned long long *since = args->since;
-    const unsigned long long asked =
-        (args->busy_read->oldest <= args->busy_read->newest)
-            ? args->busy_read->request_start_ms[args->busy_read->oldest & (GUI_BUSY_ASKS - 1u)]
-            : 0ull;
-    if ((asked == 0ull) && (args->busy_read->work_start_ms == 0ull))
+    if (args->busy_read->work_start_ms == 0ull)
     {
         return 0;
     }
-    // each one past its millisecond, 0 for none: the lesser of the two that stand
-    const unsigned long long oldest =
-        ((asked != 0ull) && ((args->busy_read->work_start_ms == 0ull) || (asked < args->busy_read->work_start_ms)))
-            ? asked
-            : args->busy_read->work_start_ms;
-    *since = oldest - 1ull;
+    *args->since = args->busy_read->work_start_ms - 1ull;
     return 1;
 }
 
@@ -167,16 +130,16 @@ EMBED_INLINE int busy_wait_over(const BusyCtx *args)
            (now_ms >= since + GUI_BUSY_SHOW_DELAY_MS);
 }
 
-int gui_busy_tick(const GuiBusyTicketCfg *args)
+int gui_busy_tick(const GuiBusyRunningCfg *args)
 {
     const unsigned long long now_ms = cli_clock_milliseconds();
-    if (!args->busy->shown)
+    if (!args->busy->displayed)
     {
         if (!EMBED_CALL(busy_wait_over, BusyCtx, .busy_read = args->busy))
         {
             return 0;
         }
-        args->busy->shown = 1;
+        args->busy->displayed = 1;
         args->busy->visible_start_ms = now_ms;
         return 1;
     }
@@ -185,7 +148,7 @@ int gui_busy_tick(const GuiBusyTicketCfg *args)
     {
         return 0;
     }
-    args->busy->shown = 0;
+    args->busy->displayed = 0;
     EMBED_CALL(busy_cell_free, BusyCtx, .busy = args->busy);
     return 1;
 }
@@ -197,7 +160,7 @@ unsigned long long gui_busy_next_deadline_ms(const GuiBusyCfg *args)
     const int waiting =
         EMBED_CALL(gui_busy_since.waiting, GuiBusySinceCfg, .busy_read = args->busy_read, .since = &since);
     const unsigned long long show_deadline_ms = since + GUI_BUSY_SHOW_DELAY_MS;
-    if (!args->busy_read->shown)
+    if (!args->busy_read->displayed)
     {
         return waiting ? show_deadline_ms : 0ull;
     }
@@ -297,8 +260,8 @@ EMBED_INLINE unsigned int busy_between_arcs(const BusyCtx *args)
 EMBED_INLINE unsigned int busy_along(const BusyCtx *args)
 {
     // a reach by a sine with sixteen bits of fraction, either way from the center, is far inside what an int represents
-    const unsigned int stands = ((unsigned int)((args->sine < 0) ? -args->sine : args->sine) * args->reach) >> 16u;
-    return (args->sine < 0) ? args->half - 1u - stands : args->half + stands;
+    const unsigned int exists = ((unsigned int)((args->sine < 0) ? -args->sine : args->sine) * args->reach) >> 16u;
+    return (args->sine < 0) ? args->half - 1u - exists : args->half + exists;
 }
 
 // the picture of `stage`, its pixels gathered from the ring, the trail's glow about it and the burn at its head; the
@@ -494,7 +457,7 @@ EMBED_INLINE void busy_stage_layout(const BusyCtx *args)
 void gui_busy_draw(const GuiBusyFrameCfg *args)
 {
     args->busy->under_saved = 0;
-    if (!args->busy->shown)
+    if (!args->busy->displayed)
     {
         return;
     }

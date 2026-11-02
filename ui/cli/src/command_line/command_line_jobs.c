@@ -55,43 +55,45 @@ int cli_tests_list(const CliCommandLineRootCtx *args)
             char text[1u << 22u];
             CfgJsonToken token[1u << 17u];
             CliJson json;
-        } CliTestsListRoom;
-        CliTestsListRoom *const room = g_cli_cells->temporary_buf_alloc(sizeof(*room), &g_cli_command_line_cells);
-        if (room == NULL)
+        } CliTestsListWorkState;
+        CliTestsListWorkState *const work_state =
+            g_cli_cells->temporary_buf_alloc(sizeof(*work_state), &g_cli_command_line_cells);
+        if (work_state == NULL)
         {
             EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx,
                        .text = "a listing of tests could not be taken");
             return CLI_NO_CODE;
         }
-        VerbaLinea found = {room->found, sizeof(room->found), 0ull};
+        VerbaLinea found = {work_state->found, sizeof(work_state->found), 0ull};
         mmgr_line_ch(&found, '[');
         EMBED_CALL(cli_testing_root.tests_find, CliTestingRootCfg, .root = root, .each = jobs_test_write,
                    .context = &found);
         mmgr_line_ch(&found, ']');
-        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &room->json,
-                   .node_json_node_pointer = room->node, .nodes_most = sizeof(room->node) / sizeof(room->node[0]),
-                   .text_out = room->text, .text_most = sizeof(room->text));
+        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &work_state->json,
+                   .node_json_node_pointer = work_state->node,
+                   .nodes_max = sizeof(work_state->node) / sizeof(work_state->node[0]), .text_out = work_state->text,
+                   .text_max = sizeof(work_state->text));
         char quiet[256];
         VerbaLinea ignored = {quiet, sizeof(quiet), 0ull};
-        const unsigned int tree =
-            EMBED_CALL(cli_json_tree_text_size_tokens.json_read, CliJsonTreeTextSizeTokensCfg, .json = &room->json,
-                       .text = room->found, .size = found.at, .tokens = room->token,
-                       .tokens_most = sizeof(room->token) / sizeof(room->token[0]), .err_msg = &ignored);
-        VerbaLinea pretty = {room->pretty, sizeof(room->pretty), 0ull};
+        const unsigned int tree = EMBED_CALL(
+            cli_json_tree_text_size_tokens.json_read, CliJsonTreeTextSizeTokensCfg, .json = &work_state->json,
+            .text = work_state->found, .size = found.at, .tokens = work_state->token,
+            .tokens_max = sizeof(work_state->token) / sizeof(work_state->token[0]), .err_msg = &ignored);
+        VerbaLinea pretty = {work_state->pretty, sizeof(work_state->pretty), 0ull};
         if (tree != CLI_JSON_NONE)
         {
-            EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = &room->json, .node = tree,
-                       .out = &pretty, .indent = 2u, .sorted = 0);
+            EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = &work_state->json,
+                       .node = tree, .out = &pretty, .indent = 2u, .sorted = 0);
         }
-        EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = room->pretty,
+        EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = work_state->pretty,
                    .size = mmgr_line_ok(&pretty) ? pretty.at : 0ull);
-        g_cli_cells->persistent_buf_release(room, &g_cli_command_line_cells);
+        g_cli_cells->persistent_buf_release(work_state, &g_cli_command_line_cells);
         return 0;
     }
-    unsigned int listed = 0u;
+    unsigned int list_entries = 0u;
     EMBED_CALL(cli_testing_root.tests_find, CliTestingRootCfg, .root = root, .each = jobs_test_print,
-               .context = &listed);
-    if (listed == 0u)
+               .context = &list_entries);
+    if (list_entries == 0u)
     {
         EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx,
                    .text = "the tree contains no test that pytest or unittest finds");
@@ -103,7 +105,7 @@ int cli_tests_list(const CliCommandLineRootCtx *args)
 int cli_jobs_list(const CliCommandLineWordCtx *args)
 {
     const CliCatalog *const catalog = cli_command_line_word_internal.catalog(args);
-    static unsigned int s_listed[CLI_LINE_JOBS];
+    static unsigned int s_list_result[CLI_LINE_JOBS];
     unsigned int count = 0u;
     unsigned long long pad = 0ull;
     for (unsigned int at = 0u; (at < catalog->jobs) && (count < CLI_LINE_JOBS); at += 1u)
@@ -124,7 +126,7 @@ int cli_jobs_list(const CliCommandLineWordCtx *args)
         {
             continue;
         }
-        s_listed[count] = at;
+        s_list_result[count] = at;
         count += 1u;
         const unsigned long long letters =
             EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = id,
@@ -138,12 +140,12 @@ int cli_jobs_list(const CliCommandLineWordCtx *args)
     }
     pad = (pad < 48ull) ? pad : 48ull;
     const unsigned long long width = cli_width();
-    const unsigned long long room = (width > pad + 2ull) ? width - (pad + 2ull) : 0ull;
+    const unsigned long long capacity = (width > pad + 2ull) ? width - (pad + 2ull) : 0ull;
     // written to a terminal, each about is cut to the line; written anywhere else, it is whole
     const int terminal = cli_output_terminal();
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        const CliJob *const job = &catalog->job[s_listed[at]];
+        const CliJob *const job = &catalog->job[s_list_result[at]];
         const char *const id =
             EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = catalog, .text_u32 = job->id);
         const char *const about =
@@ -163,10 +165,10 @@ int cli_jobs_list(const CliCommandLineWordCtx *args)
         {
             mmgr_line_put(&line, about);
         }
-        else if (room >= 20ull)
+        else if (capacity >= 20ull)
         {
             EMBED_CALL(cli_command_line_text_size_internal.cut, CliCommandLineTextSizeCtx, .text = about,
-                       .size = cellul.len(&(CatenaFinitaCfg){.src = about, .cap = CLI_CELLS_POOL}), .most = room,
+                       .size = cellul.len(&(CatenaFinitaCfg){.src = about, .cap = CLI_CELLS_POOL}), .most = capacity,
                        .out = &line);
         }
         const unsigned long long size = mmgr_line_ok(&line) ? line.at : 0ull;
@@ -186,12 +188,12 @@ static void jobs_line_out(const CliEachLineSizeCfg *args)
 }
 
 // a step's line written as the job's runs show it
-static void jobs_show(const CliEachShownCfg *args)
+static void jobs_show(const CliEachDisplayedCfg *args)
 {
     char line[1u << 16u];
     VerbaLinea out = {line, sizeof(line), 0ull};
     mmgr_line_put(&out, "  $ ");
-    mmgr_line_put(&out, args->shown);
+    mmgr_line_put(&out, args->displayed);
     EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = line,
                .size = mmgr_line_ok(&out) ? out.at : 0ull);
 }
@@ -275,14 +277,14 @@ void cli_job_show(const CliCommandLineRootCtx *args)
     {
         mmgr_line_put(&err_msg, "the cells cannot meet the values a job is shown with");
     }
-    const int shown =
+    const int displayed =
         (values != NULL) &&
         EMBED_CALL(cli_command_line_catalog_internal.job_values, CliCommandLineCatalogCtx, .catalog = catalog,
                    .job = args->job, .words = NULL, .count = 0u, .values = values, .err_msg = &err_msg) &&
         EMBED_CALL(cli_runner_err_msg_root.show, CliRunnerErrMsgRootCfg, .root = args->root, .catalog = catalog,
                    .job = args->job, .values = values, .each = jobs_show, .context = NULL, .err_msg = &err_msg);
     g_cli_cells->persistent_buf_release(values, &g_cli_command_line_cells);
-    if (!shown)
+    if (!displayed)
     {
         line.at = 0ull;
         mmgr_line_put(&line, "  ");
@@ -292,12 +294,9 @@ void cli_job_show(const CliCommandLineRootCtx *args)
     }
 }
 
-// A run reported to the window as it goes, on a channel of its own under runs, where a terminal of the window's started
-// this process; elsewhere reported to no one; and the code its end gave
+// How a run ended: the code its end gave, and whether it ended
 typedef struct
 {
-    CliDoorClient *window;
-    char channel[64];
     int has_code;
     long long code;
     int ended;
@@ -305,52 +304,13 @@ typedef struct
 
 static CliLineRun s_run;
 
-// the bytes what a run sends the window is written in
-#define CLI_JOBS_STATE_MORE 256ull
-#define CLI_JOBS_STATE_ROOM (1ull << 20u)
-
-void cli_window_channel_begin(void)
-{
-    s_run.window = cli_door_from_environment();
-    VerbaLinea channel = {s_run.channel, sizeof(s_run.channel), 0ull};
-    mmgr_line_put(&channel, "runs/");
-    mmgr_line_decimal(&channel, cli_process_own(), 1u);
-    (void)mmgr_line_finish(&channel);
-}
-
-void cli_window_channel_send(const CliCommandLineSizeCtx *args)
-{
-    const char *body = args->body;
-    unsigned long long size = args->size;
-    if (s_run.window != NULL)
-    {
-        char quiet[256];
-        VerbaLinea ignored = {quiet, sizeof(quiet), 0ull};
-        unsigned long long reply_size = 0ull;
-        (void)EMBED_CALL(cli_door_err_msg.send, CliDoorErrMsgCfg, .client = s_run.window, .channel = s_run.channel,
-                         .body = body, .size = size, .delivered = &reply_size, .err_msg = &ignored);
-    }
-}
-
 typedef struct
 {
-    VerbaLinea *state;
     const char *lead;
     const char *text;
 } CommandLineJobsCtx;
-// `state`, a line, sent to the window where it fits, and given back
-EMBED_INLINE void jobs_state_send(const CommandLineJobsCtx *args)
-{
-    if (mmgr_line_ok(args->state))
-    {
-        EMBED_CALL(cli_command_line_size_internal.window_channel_send, CliCommandLineSizeCtx, .body = args->state->out,
-                   .size = args->state->at);
-    }
-    g_cli_cells->persistent_buf_release(args->state->out, &g_cli_command_line_cells);
-}
-
 // a line of the errors led by `lead`
-EMBED_INLINE void jobs_err_lead(const CommandLineJobsCtx *args)
+EMBED_INLINE void jobs_err_prefix(const CommandLineJobsCtx *args)
 {
     const char *text = args->text;
     static char s_line[1u << 16u];
@@ -361,7 +321,7 @@ EMBED_INLINE void jobs_err_lead(const CommandLineJobsCtx *args)
                .size = mmgr_line_ok(&line) ? line.at : 0ull);
 }
 
-// what a run prints: each line to the terminal and the window, and its end, the pages it wrote and the program it made
+// what a run prints: each line to the terminal, and its end, the pages it wrote and the program it made
 static void jobs_run_event(const CliEachEventCfg *args)
 {
     // a blob the run's writer placed is the panel's, and the command line shows the console alone
@@ -369,35 +329,15 @@ static void jobs_run_event(const CliEachEventCfg *args)
     {
         return;
     }
-    // a line's byte is written as at most 6, and the words about it are few
-    const unsigned long long text_length =
-        (args->event->kind == CLI_RUN_EVENT_LINE)
-            ? cellul.len(&(CatenaFinitaCfg){.src = args->event->text, .cap = CLI_CELLS_POOL})
-            : 0ull;
-    const unsigned long long state_room = (text_length * 6ull) + CLI_JOBS_STATE_MORE;
-    char *const state_cell = g_cli_cells->temporary_buf_alloc(state_room, &g_cli_command_line_cells);
-    VerbaLinea state = mmgr_line_over(state_cell, state_room);
     if (args->event->kind == CLI_RUN_EVENT_LINE)
     {
-        mmgr_line_put(&state, "{\"line\":");
-        EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &state,
-                   .text_bytes = (const unsigned char *)args->event->text, .length = text_length);
-        mmgr_line_put(&state, ",\"stream\":");
-        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &state,
-                   .text = args->event->stream,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->event->stream, .cap = CLI_CELLS_POOL}));
-        mmgr_line_put(&state, ",\"ms\":");
-        EMBED_CALL(cli_json_tree_out_value.json_double, CliJsonTreeOutValueCfg, .out = &state,
-                   .value_f64 = args->event->ms);
-        mmgr_line_ch(&state, '}');
-        EMBED_CALL(jobs_state_send, CommandLineJobsCtx, .state = &state);
         if (cellul.eq(&(CatenaFinitaCfg){.src = args->event->stream, .other = "stdout", .cap = CLI_CELLS_POOL}))
         {
             EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx, .text = args->event->text);
         }
         else if (cellul.eq(&(CatenaFinitaCfg){.src = args->event->stream, .other = "command", .cap = CLI_CELLS_POOL}))
         {
-            EMBED_CALL(jobs_err_lead, CommandLineJobsCtx, .lead = "$ ", .text = args->event->text);
+            EMBED_CALL(jobs_err_prefix, CommandLineJobsCtx, .lead = "$ ", .text = args->event->text);
         }
         else
         {
@@ -405,27 +345,13 @@ static void jobs_run_event(const CliEachEventCfg *args)
         }
         return;
     }
-    mmgr_line_put(&state, "{\"state\":\"ended\",\"code\":");
-    if (args->event->has_code)
-    {
-        mmgr_line_decimal_signed(&state, args->event->code);
-    }
-    else
-    {
-        mmgr_line_put(&state, "null");
-    }
-    mmgr_line_put(&state, args->event->stopped ? ",\"stopped\":true,\"ms\":" : ",\"stopped\":false,\"ms\":");
-    EMBED_CALL(cli_json_tree_out_value.json_double, CliJsonTreeOutValueCfg, .out = &state,
-               .value_f64 = args->event->ms);
-    mmgr_line_ch(&state, '}');
-    EMBED_CALL(jobs_state_send, CommandLineJobsCtx, .state = &state);
     for (unsigned int at = 0u; at < args->event->view_count; at += 1u)
     {
-        EMBED_CALL(jobs_err_lead, CommandLineJobsCtx, .lead = "page ", .text = args->event->views[at]);
+        EMBED_CALL(jobs_err_prefix, CommandLineJobsCtx, .lead = "page ", .text = args->event->views[at]);
     }
     if (args->event->made != NULL)
     {
-        EMBED_CALL(jobs_err_lead, CommandLineJobsCtx, .lead = "made ", .text = args->event->made);
+        EMBED_CALL(jobs_err_prefix, CommandLineJobsCtx, .lead = "made ", .text = args->event->made);
     }
     s_run.has_code = args->event->has_code;
     s_run.code = args->event->code;
@@ -450,35 +376,8 @@ int cli_job_run(const CliCommandLineRootCtx *args)
         g_cli_cells->persistent_buf_release(values, &g_cli_command_line_cells);
         return CLI_WRONG;
     }
-    cli_window_channel_begin();
     s_run.ended = 0;
     s_run.has_code = 0;
-    char *const state_cell = g_cli_cells->temporary_buf_alloc(CLI_JOBS_STATE_ROOM, &g_cli_command_line_cells);
-    VerbaLinea state = mmgr_line_over(state_cell, CLI_JOBS_STATE_ROOM);
-    mmgr_line_put(&state, "{\"state\":\"started\",\"job\":");
-    const char *const id = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = catalog,
-                                      .text_u32 = catalog->job[job].id);
-    const char *const title = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = catalog,
-                                         .text_u32 = catalog->job[job].title);
-    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &state, .text = id,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}));
-    mmgr_line_put(&state, ",\"title\":");
-    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &state, .text = title,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = title, .cap = CLI_CELLS_POOL}));
-    mmgr_line_put(&state, ",\"root\":");
-    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &state,
-               .text_bytes = (const unsigned char *)root,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}));
-    mmgr_line_put(&state, ",\"words\":[");
-    for (unsigned int at = 0u; at < args->count; at += 1u)
-    {
-        mmgr_line_put(&state, (at > 0u) ? "," : "");
-        EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &state,
-                   .text_bytes = (const unsigned char *)args->words[at],
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->words[at], .cap = CLI_CELLS_POOL}));
-    }
-    mmgr_line_put(&state, "]}");
-    EMBED_CALL(jobs_state_send, CommandLineJobsCtx, .state = &state);
     cli_runs_attach();
     const CliRunSink sink = {jobs_run_event, NULL};
     unsigned long long run = 0ull;

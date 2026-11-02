@@ -35,7 +35,7 @@ typedef struct
     unsigned int lines;
 } CliFilled;
 
-// the texts whose words are filled, each where it starts and its size, a cell taken under the fill's lock with room
+// the texts whose words are filled, each where it starts and its size, a cell taken under the fill's lock with capacity
 // for `g_cli_fill_slices` of them, each a line of the text or a place after the lines (fill.c)
 extern const char **g_cli_fill_slice;
 extern unsigned long long *g_cli_fill_slice_size;
@@ -61,11 +61,8 @@ void cli_fill_words(const CliFillFilledCtx *args);
 // the edit that writes the lines `first` to `last` as the lines written (fill.c)
 void cli_fill_edit_get(const CliFillTextFilledCtx *args);
 
-// the `/** */` comment around `at`, its paragraphs filled and its tags lined up: 1 with its edit, or 0 where `at` is
-// in none (fill_comment.c)
-int cli_fill_comment(const CliFillTextCtx *args);
-// the comment fill's room, a cell taken under the fill's lock: 1, or 0 with why given; and the room given back before
-// the lock is (fill_comment.c)
+// the comment fill's capacity, a cell taken under the fill's lock: 1, or 0 with why given; and the capacity given back
+// before the lock is (fill_comment.c)
 int cli_fill_comment_lock(const CliFillCtx *args);
 void cli_fill_comment_release(void);
 
@@ -82,7 +79,7 @@ struct CliFillFilledCtx
     const char *first;
     unsigned long long first_size;
     const char *rest;
-    unsigned long long rest_size;
+    unsigned long long remainder_size;
     unsigned int width;
 };
 
@@ -167,13 +164,11 @@ EMBED_TABLE_STORAGE CliFillFilledSizeNs cli_fill_filled_size_internal EMBED_UNUS
 typedef struct
 {
     void (*filled_drop)(const CliFillTextCtx *args);
-    int (*comment)(const CliFillTextCtx *args);
     int (*docstring)(const CliFillTextCtx *args);
 } CliFillTextNs;
-EMBED_TABLE_LAYOUT(CliFillTextNs, filled_drop, comment, docstring);
+EMBED_TABLE_LAYOUT(CliFillTextNs, filled_drop, docstring);
 EMBED_TABLE_STORAGE CliFillTextNs cli_fill_text_internal EMBED_UNUSED = {
     .filled_drop = cli_filled_drop,
-    .comment = cli_fill_comment,
     .docstring = cli_fill_docstring,
 };
 

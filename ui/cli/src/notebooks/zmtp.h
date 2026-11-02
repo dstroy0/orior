@@ -28,8 +28,8 @@ int cli_zmtp_connect(const CliZmtpSocketHostCfg *args);
 // failed or the cells cannot meet the message
 unsigned char *cli_zmtp_message_init(const CliZmtpCfg *args);
 int cli_zmtp_send(const CliZmtpFramesCountCfg *args);
-// the next message's frames, the commands between messages passed over, each body in `room`, a message larger than
-// the room passed over whole and the next one read: their count, or 0 where the connection failed
+// the next message's frames, the commands between messages passed over, each body in `capacity`, a message larger than
+// the capacity passed over whole and the next one read: their count, or 0 where the connection failed
 unsigned int cli_zmtp_receive(const CliZmtpSocketCfg *args);
 
 struct CliZmtpSocketHostCfg
@@ -44,8 +44,8 @@ struct CliZmtpSocketHostCfg
 struct CliZmtpSocketCfg
 {
     const CliSocket *socket;
-    unsigned char *room;
-    unsigned long long room_size;
+    unsigned char *capacity;
+    unsigned long long capacity_bytes;
     CliZmtpFrame *frames_out;
     unsigned int most;
 };

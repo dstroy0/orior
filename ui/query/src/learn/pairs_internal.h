@@ -34,7 +34,7 @@ typedef struct QueryPairsCtx QueryPairsCtx;
 typedef struct
 {
     const char *mode;
-    const char *words[QUERY_WORDS_MOST];
+    const char *words[QUERY_WORDS_MAX];
     unsigned int word_count;
     const char *part;
     const char *to;
@@ -43,11 +43,11 @@ typedef struct
     const char *trace;
 } QueryPairsMode;
 
-// the part's name as the vendor's reader takes it: `sm_86` is `SM86`, into `name`, sized for `room`
+// the part's name as the vendor's reader takes it: `sm_86` is `SM86`, into `name`, sized for `capacity`
 void query_part_read(const QueryPairsPartNameCtx *args);
 // the carrier's words with the tools built and the vendor's reader found, added to `words`: the airlock every round
 // passes before the part, the pop and the cross, and the carrier stopped before the driver where `dry`
-int query_pairs_carry(const QueryPairsPartContextDryCtx *args);
+int query_pairs_machine_transfer(const QueryPairsPartContextDryCtx *args);
 // the part's files, the bridge, the rulesets and the stick's manifest read into the run
 int query_pairs_configs(const QueryPairsPartContextCtx *args);
 // the host's questions, the C++ the run contains as `host_questions.cpp`, compiled under `out` with signed arithmetic
@@ -69,7 +69,7 @@ int query_stick_slice(const QueryPairsContextErrMsgCtx *args);
 // is given after its folder; whether a mode opens with the kernel the system accepted; and the vendor's writer's
 // words after its program that hand the run that kernel (pairs_judged.c)
 int query_pairs_read(const QueryPairsErrMsgCtx *args);
-void query_pairs_carry_words(const QueryPairsPartDryCtx *args);
+void query_pairs_machine_transfer_words(const QueryPairsPartDryCtx *args);
 void query_targets(const QueryPairsWordsCtx *args);
 int query_kernel_dispatch(const QueryPairsCtx *args);
 void query_kernel_words(const QueryPairsPartCtx *args);
@@ -79,7 +79,7 @@ struct QueryPairsPartDryCtx
     const char *part;
     int dry;
     QueryWords *words;
-    const char *carrier;
+    const char *transport;
     const char *cross;
     const char *nvdisasm;
     const char *machine;
@@ -165,7 +165,7 @@ struct QueryPairsPartNameCtx
 {
     const char *part;
     char *name;
-    size_t room;
+    size_t capacity;
 };
 
 struct QueryPairsWordsCtx
@@ -195,7 +195,7 @@ typedef struct
 } QueryPairsPartContextDryNs;
 EMBED_TABLE_LAYOUT(QueryPairsPartContextDryNs, carry);
 EMBED_TABLE_STORAGE QueryPairsPartContextDryNs query_pairs_part_context_dry_internal EMBED_UNUSED = {
-    .carry = query_pairs_carry,
+    .carry = query_pairs_machine_transfer,
 };
 
 typedef struct
@@ -267,11 +267,11 @@ EMBED_TABLE_STORAGE QueryPairsErrMsgNs query_pairs_err_msg_internal EMBED_UNUSED
 
 typedef struct
 {
-    void (*carry_words)(const QueryPairsPartDryCtx *args);
+    void (*machine_transfer_words)(const QueryPairsPartDryCtx *args);
 } QueryPairsPartDryNs;
-EMBED_TABLE_LAYOUT(QueryPairsPartDryNs, carry_words);
+EMBED_TABLE_LAYOUT(QueryPairsPartDryNs, machine_transfer_words);
 EMBED_TABLE_STORAGE QueryPairsPartDryNs query_pairs_part_dry_internal EMBED_UNUSED = {
-    .carry_words = query_pairs_carry_words,
+    .machine_transfer_words = query_pairs_machine_transfer_words,
 };
 
 typedef struct

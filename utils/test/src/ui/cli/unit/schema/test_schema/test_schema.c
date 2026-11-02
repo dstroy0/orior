@@ -88,8 +88,8 @@ static int offers(const CliCompletions *items, const char *label, const char *in
     return 0;
 }
 
-// the labels of the items, `|` between them, are `wanted`
-static void assert_labels(const char *wanted, const CliCompletions *items)
+// the labels of the items, `|` between them, are `required`
+static void assert_labels(const char *required, const CliCompletions *items)
 {
     char text[256];
     VerbaLinea line = {text, sizeof(text), 0ull};
@@ -98,7 +98,7 @@ static void assert_labels(const char *wanted, const CliCompletions *items)
         mmgr_line_put(&line, (at > 0u) ? "|" : "");
         mmgr_line_put_n(&line, items->text + items->item[at].label_at, items->item[at].label_size);
     }
-    CLI_TEST_ASSERT_TEXT(wanted, text, line.at);
+    CLI_TEST_ASSERT_TEXT(required, text, line.at);
 }
 
 // whether an error of the read contains `part`
@@ -145,7 +145,7 @@ void test_json_reads_with_its_positions(void)
     EMBED_CALL(cli_schema_read_text_internal.read_free, CliSchemaReadTextCtx, .read_out = &s_read);
 }
 
-void test_a_file_of_many_values_reads_whole_with_its_lists_in_one_cell(void)
+void test_a_file_of_many_values_reads_complete_with_its_lists_in_one_cell(void)
 {
     static char s_many[1u << 15u];
     VerbaLinea many = {s_many, sizeof(s_many), 0ull};
@@ -160,7 +160,7 @@ void test_a_file_of_many_values_reads_whole_with_its_lists_in_one_cell(void)
     TEST_ASSERT_FALSE(s_read.full);
     TEST_ASSERT_EQUAL_UINT(6001u, s_read.nodes);
     TEST_ASSERT_EQUAL_UINT(3000u, s_read.members);
-    TEST_ASSERT_GREATER_OR_EQUAL_UINT(s_read.nodes, s_read.nodes_most);
+    TEST_ASSERT_GREATER_OR_EQUAL_UINT(s_read.nodes, s_read.nodes_max);
     EMBED_CALL(cli_schema_read_text_internal.read_free, CliSchemaReadTextCtx, .read_out = &s_read);
 }
 
@@ -182,7 +182,7 @@ void test_a_file_is_checked_against_the_schema_it_names(void)
     }
 }
 
-void test_a_property_near_a_known_one_is_offered_it(void)
+void test_a_property_adjacent_a_known_one_is_offered_it(void)
 {
     const unsigned int fix = first_fix(cli_unity_finding(file_findings(), "schema-property", NULL));
     TEST_ASSERT_EQUAL_STRING("\"name\"", cli_unity_member_text(EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = s_json, .array = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = fix, .name = "edits"), .index = 0u), "text"));
@@ -205,7 +205,7 @@ void test_a_type_no_schema_knows_is_found(void)
     TEST_ASSERT_NOT_EQUAL(CLI_JSON_NONE, cli_unity_finding(findings_of("/t", "s.json", s_own_text), NULL, "\"strin\""));
 }
 
-void test_a_bound_below_its_least_is_found(void)
+void test_a_bound_below_its_min_is_found(void)
 {
     TEST_ASSERT_NOT_EQUAL(CLI_JSON_NONE, cli_unity_finding(findings_of("/t", "s.json", s_own_text), NULL, "-1 is below the least"));
 }

@@ -21,13 +21,13 @@ void cli_ipp_begin(const CliIppMessageCodeCfg *args)
         return;
     }
     args->message->group = (CliIppGroup *)(void *)cell;
-    args->message->group_room = CLI_IPP_GROUPS;
+    args->message->group_capacity = CLI_IPP_GROUPS;
     args->message->attribute = (CliIppAttribute *)(void *)(cell + group_bytes);
-    args->message->attribute_room = CLI_IPP_ATTRIBUTES;
+    args->message->attribute_capacity = CLI_IPP_ATTRIBUTES;
     args->message->value = (CliIppValue *)(void *)(cell + group_bytes + attribute_bytes);
-    args->message->value_room = CLI_IPP_VALUES;
+    args->message->value_capacity = CLI_IPP_VALUES;
     args->message->bytes = (unsigned char *)(cell + group_bytes + attribute_bytes + value_bytes);
-    args->message->byte_room = CLI_IPP_BYTES;
+    args->message->byte_capacity = CLI_IPP_BYTES;
 }
 
 void cli_ipp_free(const CliIppMessageCodeCfg *args)
@@ -57,7 +57,7 @@ typedef struct
 EMBED_INLINE unsigned int cli_bytes_store(const IppCtx *args)
 {
     const void *bytes = args->bytes;
-    if ((args->message->used + args->length) > args->message->byte_room)
+    if ((args->message->used + args->length) > args->message->byte_capacity)
     {
         args->message->full = 1;
         return 0u;
@@ -71,7 +71,7 @@ EMBED_INLINE unsigned int cli_bytes_store(const IppCtx *args)
 
 void cli_ipp_group(const CliIppMessageTagCfg *args)
 {
-    if (args->message->groups >= args->message->group_room)
+    if (args->message->groups >= args->message->group_capacity)
     {
         args->message->full = 1;
         return;
@@ -84,7 +84,7 @@ void cli_ipp_group(const CliIppMessageTagCfg *args)
 // an attribute of `length` bytes of `name` written in the last group
 EMBED_INLINE void cli_attribute_count(const IppCtx *args)
 {
-    if ((args->message->groups == 0u) || (args->message->attributes >= args->message->attribute_room))
+    if ((args->message->groups == 0u) || (args->message->attributes >= args->message->attribute_capacity))
     {
         args->message->full = 1;
         return;
@@ -107,7 +107,7 @@ void cli_ipp_attribute(const CliIppCfg *args)
 // a value put after the last attribute's
 EMBED_INLINE void cli_value(const IppCtx *args)
 {
-    if ((args->message->attributes == 0u) || (args->message->values >= args->message->value_room))
+    if ((args->message->attributes == 0u) || (args->message->values >= args->message->value_capacity))
     {
         args->message->full = 1;
         return;
@@ -221,16 +221,16 @@ void cli_ipp_encode(const CliIppMessageOutVerbaLineaCfg *args)
 }
 
 // `count` bytes taken from `at`: where they start, or NULL where the answer is cut short
-EMBED_INLINE const unsigned char *cli_take(const IppCtx *args)
+EMBED_INLINE const unsigned char *cli_alloc(const IppCtx *args)
 {
     unsigned long long *at = args->at;
     if ((*at + args->count_u64) > args->size)
     {
         return NULL;
     }
-    const unsigned char *const taken = args->bytes_bytes + *at;
+    const unsigned char *const reserved = args->bytes_bytes + *at;
     *at += args->count_u64;
-    return taken;
+    return reserved;
 }
 
 EMBED_INLINE unsigned long long cli_number(const IppCtx *args)
@@ -256,9 +256,9 @@ int cli_ipp_decode(const CliIppMessageCfg *args)
     const unsigned char *bytes = args->bytes;
     unsigned long long at = 2ull;
     const unsigned char *const code =
-        EMBED_CALL(cli_take, IppCtx, .bytes_bytes = bytes, .size = args->size, .at = &at, .count_u64 = 2ull);
+        EMBED_CALL(cli_alloc, IppCtx, .bytes_bytes = bytes, .size = args->size, .at = &at, .count_u64 = 2ull);
     const unsigned char *const request =
-        EMBED_CALL(cli_take, IppCtx, .bytes_bytes = bytes, .size = args->size, .at = &at, .count_u64 = 4ull);
+        EMBED_CALL(cli_alloc, IppCtx, .bytes_bytes = bytes, .size = args->size, .at = &at, .count_u64 = 4ull);
     if ((code == NULL) || (request == NULL))
     {
         mmgr_line_put(args->err_msg, "the printer's answer is cut short");
@@ -271,7 +271,7 @@ int cli_ipp_decode(const CliIppMessageCfg *args)
     for (;;)
     {
         const unsigned char *const tag =
-            EMBED_CALL(cli_take, IppCtx, .bytes_bytes = bytes, .size = args->size, .at = &at, .count_u64 = 1ull);
+            EMBED_CALL(cli_alloc, IppCtx, .bytes_bytes = bytes, .size = args->size, .at = &at, .count_u64 = 1ull);
         if (tag == NULL)
         {
             mmgr_line_put(args->err_msg, "the printer's answer is cut short");
@@ -287,21 +287,21 @@ int cli_ipp_decode(const CliIppMessageCfg *args)
             continue;
         }
         const unsigned char *const name_size =
-            EMBED_CALL(cli_take, IppCtx, .bytes_bytes = bytes, .size = args->size, .at = &at, .count_u64 = 2ull);
+            EMBED_CALL(cli_alloc, IppCtx, .bytes_bytes = bytes, .size = args->size, .at = &at, .count_u64 = 2ull);
         const unsigned char *const name =
-            (name_size != NULL) ? EMBED_CALL(cli_take, IppCtx, .bytes_bytes = bytes, .size = args->size, .at = &at,
+            (name_size != NULL) ? EMBED_CALL(cli_alloc, IppCtx, .bytes_bytes = bytes, .size = args->size, .at = &at,
                                              .count_u64 = EMBED_CALL(cli_number, IppCtx, .raw = name_size, .count = 2u))
                                 : NULL;
         const unsigned char *const value_size =
             (name != NULL)
-                ? EMBED_CALL(cli_take, IppCtx, .bytes_bytes = bytes, .size = args->size, .at = &at, .count_u64 = 2ull)
+                ? EMBED_CALL(cli_alloc, IppCtx, .bytes_bytes = bytes, .size = args->size, .at = &at, .count_u64 = 2ull)
                 : NULL;
         const unsigned long long length =
             (value_size != NULL) ? EMBED_CALL(cli_number, IppCtx, .raw = value_size, .count = 2u) : 0ull;
-        const unsigned char *const raw =
-            (value_size != NULL)
-                ? EMBED_CALL(cli_take, IppCtx, .bytes_bytes = bytes, .size = args->size, .at = &at, .count_u64 = length)
-                : NULL;
+        const unsigned char *const raw = (value_size != NULL)
+                                             ? EMBED_CALL(cli_alloc, IppCtx, .bytes_bytes = bytes, .size = args->size,
+                                                          .at = &at, .count_u64 = length)
+                                             : NULL;
         if (raw == NULL)
         {
             mmgr_line_put(args->err_msg, "the printer's answer is cut short");
@@ -395,7 +395,7 @@ int cli_ipp_value_text(const CliIppMessageValueCfg *args)
     {
         return 0;
     }
-    VerbaLinea line = {args->out, args->room, 0ull};
+    VerbaLinea line = {args->out, args->capacity, 0ull};
     mmgr_line_put_n(&line, (const char *)(args->message_read->bytes + args->value_ipp_value_pointer->bytes),
                     args->value_ipp_value_pointer->length);
     mmgr_line_finish(&line);
@@ -408,7 +408,7 @@ int cli_ipp_first_text(const CliIppNameCfg *args)
     return (attribute != NULL) && (attribute->count != 0u) &&
            EMBED_CALL(cli_ipp_message_value.value_text, CliIppMessageValueCfg, .message_read = args->message_read,
                       .value_ipp_value_pointer = &args->message_read->value[attribute->first], .out = args->out,
-                      .room = args->room);
+                      .capacity = args->capacity);
 }
 
 int cli_ipp_first_number(const CliIppNameCfg *args)

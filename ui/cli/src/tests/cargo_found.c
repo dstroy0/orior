@@ -20,10 +20,10 @@ typedef struct
     CliCargoTarget target;
     unsigned long long *seen;
     unsigned long long seen_count;
-    unsigned long long seen_room;
+    unsigned long long seen_capacity;
     char *seen_text;
     unsigned long long seen_used;
-    unsigned long long seen_text_room;
+    unsigned long long seen_text_capacity;
 } CliCargoWalk;
 
 int cli_cargo_is_rust(const CliCargoTestsIdCfg *args)
@@ -45,11 +45,11 @@ typedef struct
     const char *file;
     const char *path;
     const CliRustItem *item;
-    int owns_folder;
+    int owner_folder;
 } CargoFoundCtx;
-// a text put in the tests' texts, in the newest piece where it has room, else in a new piece put before it, so a text
-// put stays where it is: where it is, "" where it does not fit or no piece could be taken
-EMBED_INLINE const char *found_put(const CargoFoundCtx *args)
+// a text put in the tests' texts, in the newest piece where it has capacity, else in a new piece put before it, so a
+// text put stays where it is: where it is, "" where it does not fit or no piece could be taken
+EMBED_INLINE const char *found_append(const CargoFoundCtx *args)
 {
     if (args->tests->used + args->length + 1ull > CLI_CARGO_TEXT)
     {
@@ -57,17 +57,17 @@ EMBED_INLINE const char *found_put(const CargoFoundCtx *args)
         return "";
     }
     CliCargoPiece *piece = args->tests->pieces;
-    if ((piece == NULL) || ((piece->used + args->length + 1ull) > piece->room))
+    if ((piece == NULL) || ((piece->used + args->length + 1ull) > piece->capacity))
     {
-        const unsigned long long room =
+        const unsigned long long capacity =
             ((args->length + 1ull) > CLI_CARGO_PIECE) ? (args->length + 1ull) : CLI_CARGO_PIECE;
-        piece = g_cli_cells->persistent_buf_alloc(sizeof(*piece) + room, &g_cli_cargo_cells);
+        piece = g_cli_cells->persistent_buf_alloc(sizeof(*piece) + capacity, &g_cli_cargo_cells);
         if (piece == NULL)
         {
             args->tests->full = 1;
             return "";
         }
-        *piece = (CliCargoPiece){args->tests->pieces, 0ull, room};
+        *piece = (CliCargoPiece){args->tests->pieces, 0ull, capacity};
         args->tests->pieces = piece;
     }
     char *const at = piece->text + piece->used;
@@ -104,8 +104,8 @@ EMBED_INLINE int found_visit(const CargoFoundCtx *args)
         }
     }
     const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}) + 1u;
-    if ((args->walk->seen_count < args->walk->seen_room) &&
-        (args->walk->seen_used + length <= args->walk->seen_text_room))
+    if ((args->walk->seen_count < args->walk->seen_capacity) &&
+        (args->walk->seen_used + length <= args->walk->seen_text_capacity))
     {
         memor.cpy(
             &(MemoriaCfg){.dst = args->walk->seen_text + args->walk->seen_used, .src = args->file, .bytes = length});
@@ -123,7 +123,7 @@ EMBED_INLINE void found_test(const CargoFoundCtx *args)
     const char *const inline_names = g_cli_cargo_scan.names + args->item->inline_names;
     const char *const name = g_cli_cargo_scan.names + args->item->name;
     CliCargoTests *const tests = args->walk->tests;
-    if (tests->count >= tests->room)
+    if (tests->count >= tests->capacity)
     {
         tests->full = 1;
         return;
@@ -132,28 +132,28 @@ EMBED_INLINE void found_test(const CargoFoundCtx *args)
     char full[4096];
     char id[CLI_PATH_MAX_LEN + 4096u];
     EMBED_CALL(cli_cargo_tests_a_internal.cargo_join, CliCargoTestsACtx, .a = inline_names, .b = name,
-               .between = "::", .out = inside, .room = sizeof(inside));
+               .between = "::", .out = inside, .capacity = sizeof(inside));
     EMBED_CALL(cli_cargo_tests_a_internal.cargo_join, CliCargoTestsACtx, .a = args->path, .b = inside,
-               .between = "::", .out = full, .room = sizeof(full));
+               .between = "::", .out = full, .capacity = sizeof(full));
     EMBED_CALL(cli_cargo_tests_a_internal.cargo_join, CliCargoTestsACtx, .a = file, .b = inside,
-               .between = "::", .out = id, .room = sizeof(id));
+               .between = "::", .out = id, .capacity = sizeof(id));
     CliCargoFound *const found = &tests->found[tests->count];
-    found->test.id = EMBED_CALL(found_put, CargoFoundCtx, .tests = tests, .text = id,
+    found->test.id = EMBED_CALL(found_append, CargoFoundCtx, .tests = tests, .text = id,
                                 .length = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}));
-    found->test.file = EMBED_CALL(found_put, CargoFoundCtx, .tests = tests, .text = file,
+    found->test.file = EMBED_CALL(found_append, CargoFoundCtx, .tests = tests, .text = file,
                                   .length = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}));
     found->test.class_name =
         (inline_names[0] != '\0')
-            ? EMBED_CALL(found_put, CargoFoundCtx, .tests = tests, .text = inline_names,
+            ? EMBED_CALL(found_append, CargoFoundCtx, .tests = tests, .text = inline_names,
                          .length = cellul.len(&(CatenaFinitaCfg){.src = inline_names, .cap = CLI_CELLS_POOL}))
             : NULL;
-    found->test.name = EMBED_CALL(found_put, CargoFoundCtx, .tests = tests, .text = name,
+    found->test.name = EMBED_CALL(found_append, CargoFoundCtx, .tests = tests, .text = name,
                                   .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
     found->test.line = args->item->line;
     found->manifest = args->walk->manifest;
     found->package = args->walk->package;
     found->target = args->walk->target;
-    found->full = EMBED_CALL(found_put, CargoFoundCtx, .tests = tests, .text = full,
+    found->full = EMBED_CALL(found_append, CargoFoundCtx, .tests = tests, .text = full,
                              .length = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_CELLS_POOL}));
     tests->count += 1u;
 }
@@ -171,7 +171,7 @@ static void found_walk(const CargoFoundCtx *args)
     char full[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->walk->root, .relative = args->file, .joined = full);
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = full,
+    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = full,
                                                   .size_pointer = &size, .owner = &g_cli_cargo_cells);
     if (bytes == NULL)
     {
@@ -180,7 +180,7 @@ static void found_walk(const CargoFoundCtx *args)
     const unsigned int first = g_cli_cargo_scan.item_count;
     const unsigned long long names = g_cli_cargo_scan.name_used;
     unsigned int count = 0u;
-    if (EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg, .bytes = (const char *)bytes, .size = size))
+    if (EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = (const char *)bytes, .size = size))
     {
         EMBED_CALL(cli_cargo_tests_internal.cargo_tokens, CliCargoTestsCtx, .text = (const char *)bytes, .size = size);
         count = EMBED_CALL(cli_cargo_tests_internal.cargo_scan, CliCargoTestsCtx, .text = (const char *)bytes);
@@ -209,7 +209,7 @@ static void found_walk(const CargoFoundCtx *args)
     }
     VerbaLinea base_line = {base, sizeof(base), 0ull};
     mmgr_line_put_n(&base_line, args->file, folder_size);
-    if (!args->owns_folder)
+    if (!args->owner_folder)
     {
         mmgr_line_put(&base_line, (folder_size > 0u) ? "/" : "");
         mmgr_line_put_n(&base_line, stem, stem_size);
@@ -242,9 +242,9 @@ static void found_walk(const CargoFoundCtx *args)
         }
         mmgr_line_finish(&dir_line);
         EMBED_CALL(cli_cargo_tests_a_internal.cargo_join, CliCargoTestsACtx, .a = inline_names, .b = name,
-                   .between = "::", .out = inner, .room = sizeof(inner));
+                   .between = "::", .out = inner, .capacity = sizeof(inner));
         EMBED_CALL(cli_cargo_tests_a_internal.cargo_join, CliCargoTestsACtx, .a = path, .b = inner,
-                   .between = "::", .out = whole, .room = sizeof(whole));
+                   .between = "::", .out = whole, .capacity = sizeof(whole));
         char flat[CLI_PATH_MAX_LEN];
         char nested[CLI_PATH_MAX_LEN];
         VerbaLinea tail_line = {tail, sizeof(tail), 0ull};
@@ -252,13 +252,13 @@ static void found_walk(const CargoFoundCtx *args)
         mmgr_line_put(&tail_line, ".rs");
         mmgr_line_finish(&tail_line);
         EMBED_CALL(cli_cargo_tests_a_internal.cargo_join, CliCargoTestsACtx, .a = dir, .b = tail, .between = "/",
-                   .out = flat, .room = sizeof(flat));
+                   .out = flat, .capacity = sizeof(flat));
         tail_line.at = 0ull;
         mmgr_line_put(&tail_line, name);
         mmgr_line_put(&tail_line, "/mod.rs");
         mmgr_line_finish(&tail_line);
         EMBED_CALL(cli_cargo_tests_a_internal.cargo_join, CliCargoTestsACtx, .a = dir, .b = tail, .between = "/",
-                   .out = nested, .room = sizeof(nested));
+                   .out = nested, .capacity = sizeof(nested));
         char flat_full[CLI_PATH_MAX_LEN];
         char nested_full[CLI_PATH_MAX_LEN];
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->walk->root, .relative = flat, .joined = flat_full);
@@ -266,11 +266,11 @@ static void found_walk(const CargoFoundCtx *args)
                    .joined = nested_full);
         if (EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = flat_full))
         {
-            EMBED_CALL(found_walk, CargoFoundCtx, .walk = args->walk, .file = flat, .path = whole, .owns_folder = 0);
+            EMBED_CALL(found_walk, CargoFoundCtx, .walk = args->walk, .file = flat, .path = whole, .owner_folder = 0);
         }
         else if (EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = nested_full))
         {
-            EMBED_CALL(found_walk, CargoFoundCtx, .walk = args->walk, .file = nested, .path = whole, .owns_folder = 1);
+            EMBED_CALL(found_walk, CargoFoundCtx, .walk = args->walk, .file = nested, .path = whole, .owner_folder = 1);
         }
     }
     g_cli_cargo_scan.item_count = first;
@@ -285,15 +285,15 @@ void cli_cargo_find(const CliCargoTestsCfg *args)
     cli_cargo_scan_free();
     args->tests->found = g_cli_cells->persistent_buf_alloc(
         (unsigned long long)CLI_CARGO_FOUND * sizeof(*args->tests->found), &g_cli_cargo_cells);
-    args->tests->room = (args->tests->found != NULL) ? CLI_CARGO_FOUND : 0u;
+    args->tests->capacity = (args->tests->found != NULL) ? CLI_CARGO_FOUND : 0u;
     const unsigned long long seen_bytes = (unsigned long long)CLI_CARGO_FOUND * sizeof(*walk.seen);
     char *const seen_cell = g_cli_cells->temporary_buf_alloc(seen_bytes + CLI_CARGO_TEXT, &g_cli_cargo_cells);
     if (seen_cell != NULL)
     {
         walk.seen = (unsigned long long *)(void *)seen_cell;
-        walk.seen_room = CLI_CARGO_FOUND;
+        walk.seen_capacity = CLI_CARGO_FOUND;
         walk.seen_text = seen_cell + seen_bytes;
-        walk.seen_text_room = CLI_CARGO_TEXT;
+        walk.seen_text_capacity = CLI_CARGO_TEXT;
     }
     const CliFiles *const files = EMBED_CALL(cli_files_root_paths.view, CliFilesRootPathsCfg, .root = args->root);
     for (unsigned int index = 0u; (files != NULL) && (index < files->count); index += 1u)
@@ -327,8 +327,8 @@ void cli_cargo_find(const CliCargoTestsCfg *args)
                    .joined = manifest_full);
         unsigned long long size = 0ull;
         const unsigned char *const bytes =
-            searched ? EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = manifest_full, .size_pointer = &size,
-                                  .owner = &g_cli_cargo_cells)
+            searched ? EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = manifest_full,
+                                  .size_pointer = &size, .owner = &g_cli_cargo_cells)
                      : NULL;
         if (bytes == NULL)
         {
@@ -338,12 +338,12 @@ void cli_cargo_find(const CliCargoTestsCfg *args)
         char folder[CLI_PATH_MAX_LEN];
         VerbaLinea folder_line = {folder, sizeof(folder), 0ull};
         size_t folder_size = length - 10u;
-        folder_size = (size_t)EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = manifest,
+        folder_size = (size_t)EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = manifest,
                                          .at = folder_size, .set = "/");
         mmgr_line_put_n(&folder_line, manifest, folder_size);
         mmgr_line_finish(&folder_line);
         const int read =
-            EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg, .bytes = (const char *)bytes, .size = size) &&
+            EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = (const char *)bytes, .size = size) &&
             EMBED_CALL(cli_cargo_tests_internal.cargo_package_name, CliCargoTestsCtx, .text = (const char *)bytes,
                        .size = size, .name = package);
         char package_folder[CLI_PATH_MAX_LEN];
@@ -360,8 +360,9 @@ void cli_cargo_find(const CliCargoTestsCfg *args)
         {
             continue;
         }
-        walk.manifest = EMBED_CALL(found_put, CargoFoundCtx, .tests = args->tests, .text = manifest, .length = length);
-        walk.package = EMBED_CALL(found_put, CargoFoundCtx, .tests = args->tests, .text = package,
+        walk.manifest =
+            EMBED_CALL(found_append, CargoFoundCtx, .tests = args->tests, .text = manifest, .length = length);
+        walk.package = EMBED_CALL(found_append, CargoFoundCtx, .tests = args->tests, .text = package,
                                   .length = cellul.len(&(CatenaFinitaCfg){.src = package, .cap = CLI_CELLS_POOL}));
         walk.seen_count = 0ull;
         walk.seen_used = 0ull;
@@ -370,14 +371,14 @@ void cli_cargo_find(const CliCargoTestsCfg *args)
             const CliCargoFirst *const first = &firsts[target];
             char file[CLI_PATH_MAX_LEN];
             EMBED_CALL(cli_cargo_tests_a_internal.cargo_join, CliCargoTestsACtx, .a = folder, .b = first->path,
-                       .between = "/", .out = file, .room = sizeof(file));
+                       .between = "/", .out = file, .capacity = sizeof(file));
             walk.target = (CliCargoTarget){
                 first->kind,
                 (first->kind == CLI_CARGO_LIB)
                     ? NULL
-                    : EMBED_CALL(found_put, CargoFoundCtx, .tests = args->tests, .text = first->name,
+                    : EMBED_CALL(found_append, CargoFoundCtx, .tests = args->tests, .text = first->name,
                                  .length = cellul.len(&(CatenaFinitaCfg){.src = first->name, .cap = CLI_CELLS_POOL}))};
-            EMBED_CALL(found_walk, CargoFoundCtx, .walk = &walk, .file = file, .path = "", .owns_folder = 1);
+            EMBED_CALL(found_walk, CargoFoundCtx, .walk = &walk, .file = file, .path = "", .owner_folder = 1);
         }
     }
     cli_cargo_firsts_free();

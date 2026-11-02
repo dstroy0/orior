@@ -9,8 +9,8 @@
 
 // the most include folders a tool names, MMgr's among them, and the most words one compile is given: the compiler,
 // its flags, MMgr's settings, the includes and the source and object
-#define QUERY_INCLUDES_MOST 32u
-#define QUERY_COMPILE_WORDS (8u + 4u + QUERY_INCLUDES_MOST + 8u)
+#define QUERY_INCLUDES_MAX 32u
+#define QUERY_COMPILE_WORDS (8u + 4u + QUERY_INCLUDES_MAX + 8u)
 // One compile: the compiler, its words, the program first and NULL after the last, and the source they compile
 typedef struct
 {
@@ -22,7 +22,7 @@ typedef struct
 // to be stored in
 #define QUERY_BUILD_OUTPUT_MAX_LEN 65536u
 
-static char s_includes[QUERY_INCLUDES_MOST][QUERY_PATH_MAX_LEN + 2u];
+static char s_includes[QUERY_INCLUDES_MAX][QUERY_PATH_MAX_LEN + 2u];
 
 typedef struct
 {
@@ -60,19 +60,19 @@ EMBED_INLINE long long query_build_read(const ToolsBuildCtx *args)
     {
         char piece[4096];
         const unsigned long long got = EMBED_CALL(query_process_piece_internal.process_read, QueryProcessPieceCtx,
-                                                  .process = process, .piece = piece, .room_u64 = sizeof(piece));
+                                                  .process = process, .piece = piece, .capacity_u64 = sizeof(piece));
         if (got == 0ull)
         {
             break;
         }
-        const unsigned long long room =
+        const unsigned long long capacity =
             (output->at < QUERY_BUILD_OUTPUT_MAX_LEN) ? (QUERY_BUILD_OUTPUT_MAX_LEN - output->at) : 0ull;
-        mmgr_line_put_n(output, piece, (got < room) ? got : room);
+        mmgr_line_put_n(output, piece, (got < capacity) ? got : capacity);
     }
     // what the compiler printed, its trailing blank lines left off
     if (mmgr_line_ok(output))
     {
-        output->at = EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = output->out,
+        output->at = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = output->out,
                                 .at = output->at, .set = "\n\r");
     }
     (void)mmgr_line_finish(output);
@@ -99,10 +99,10 @@ EMBED_INLINE int query_compiled_at_once(const ToolsBuildCtx *args)
     unsigned int started = 0u;
     for (unsigned int first = 0u; first < args->count; first += QUERY_LAUNCHES_AT_ONCE)
     {
-        const unsigned int past =
+        const unsigned int end =
             ((args->count - first) < QUERY_LAUNCHES_AT_ONCE) ? args->count : (first + QUERY_LAUNCHES_AT_ONCE);
         QueryProcess running[QUERY_LAUNCHES_AT_ONCE];
-        for (unsigned int at = first; at < past; at += 1u)
+        for (unsigned int at = first; at < end; at += 1u)
         {
             if (started != 0u)
             {
@@ -119,7 +119,7 @@ EMBED_INLINE int query_compiled_at_once(const ToolsBuildCtx *args)
             started += 1u;
         }
         int whole = 1;
-        for (unsigned int at = first; at < past; at += 1u)
+        for (unsigned int at = first; at < end; at += 1u)
         {
             VerbaLinea output;
             const long long code =
@@ -184,7 +184,7 @@ EMBED_INLINE void query_compile_add(const ToolsBuildCtx *args)
 // one: 1, or 0 with why given
 EMBED_INLINE int query_tool_compile(const ToolsBuildCtx *args);
 
-int query_tool_built_into(const QueryNameRoomCtx *args)
+int query_tool_built_into(const QueryNameCapacityCtx *args)
 {
     const QueryTool *const tool = EMBED_CALL(query_tools_internal.tool_by_name, QueryToolsCtx, .name = args->name);
     if (tool == NULL)
@@ -194,9 +194,9 @@ int query_tool_built_into(const QueryNameRoomCtx *args)
         return 0;
     }
     char base[QUERY_PATH_MAX_LEN];
-    EMBED_CALL(query_name_room_internal.binary_name, QueryNameRoomCtx, .name = args->name, .binary = base,
-               .room = sizeof(base));
-    VerbaLinea binary_line = {args->binary, args->room, 0ull};
+    EMBED_CALL(query_name_capacity_internal.binary_name, QueryNameCapacityCtx, .name = args->name, .binary = base,
+               .capacity = sizeof(base));
+    VerbaLinea binary_line = {args->binary, args->capacity, 0ull};
     mmgr_line_put(&binary_line, args->out_text);
     mmgr_line_ch(&binary_line, '/');
     mmgr_line_put(&binary_line, base);
@@ -208,8 +208,8 @@ int query_tool_built_into(const QueryNameRoomCtx *args)
     }
     static char s_c[QUERY_PATH_MAX_LEN];
     static char s_cxx[QUERY_PATH_MAX_LEN];
-    if (!EMBED_CALL(args->programs->program, QueryEachRolePathRoomErrMsgCfg, .context = args->programs->context,
-                    .role = QUERY_ROLE_C, .path = s_c, .room = sizeof(s_c), .err_msg = args->err_msg))
+    if (!EMBED_CALL(args->programs->program, QueryEachRolePathCapacityErrMsgCfg, .context = args->programs->context,
+                    .role = QUERY_ROLE_C, .path = s_c, .capacity = sizeof(s_c), .err_msg = args->err_msg))
     {
         return 0;
     }
@@ -231,9 +231,9 @@ EMBED_INLINE int query_tool_compile(const ToolsBuildCtx *args)
     EMBED_CALL(query_tools_root_tool_c_internal.every_source, QueryToolsRootToolCCtx, .root = root, .tool = tool,
                .c = &c, .cxx = &cxx, .tools = &tools);
     const int with_cxx = (cxx != 0u) || (tools != 0u);
-    if (with_cxx && !EMBED_CALL(args->programs->program, QueryEachRolePathRoomErrMsgCfg,
+    if (with_cxx && !EMBED_CALL(args->programs->program, QueryEachRolePathCapacityErrMsgCfg,
                                 .context = args->programs->context, .role = QUERY_ROLE_CXX, .path = args->cxx_compiler,
-                                .room = QUERY_PATH_MAX_LEN, .err_msg = args->err_msg))
+                                .capacity = QUERY_PATH_MAX_LEN, .err_msg = args->err_msg))
     {
         return 0;
     }
@@ -254,7 +254,7 @@ EMBED_INLINE int query_tool_compile(const ToolsBuildCtx *args)
     const char *const *const folders[2] = {g_query_mmgr_includes, tool->includes};
     for (unsigned int list = 0u; list < 2u; list += 1u)
     {
-        for (unsigned int at = 0u; (folders[list][at] != NULL) && (includes < QUERY_INCLUDES_MOST); at += 1u)
+        for (unsigned int at = 0u; (folders[list][at] != NULL) && (includes < QUERY_INCLUDES_MAX); at += 1u)
         {
             VerbaLinea line = {s_includes[includes], sizeof(s_includes[includes]), 0ull};
             mmgr_line_put(&line, "-I");
@@ -275,8 +275,8 @@ EMBED_INLINE int query_tool_compile(const ToolsBuildCtx *args)
                        .root = root, .tool = tool, .sources = lists[list], .count = counts[list]);
         newest = (seconds > newest) ? seconds : newest;
     }
-    // the objects' room taken for every source before one is named, as each compile reserves its object's place
-    if (!EMBED_CALL(query_paths_internal.paths_take, QueryPathsCtx, .paths = &g_query_objects,
+    // the objects' capacity taken for every source before one is named, as each compile reserves its object's place
+    if (!EMBED_CALL(query_paths_internal.paths_alloc, QueryPathsCtx, .paths = &g_query_objects,
                     .count = c + cxx + tools))
     {
         mmgr_line_put(args->err_msg, "the objects of ");
@@ -313,7 +313,7 @@ EMBED_INLINE int query_tool_compile(const ToolsBuildCtx *args)
             const char *const source = lists[list][at];
             char *const object = g_query_objects.path[objected];
             EMBED_CALL(query_tools_root_objects_internal.object_get, QueryToolsRootObjectsCtx, .root = root,
-                       .objects = objects, .source_text = source, .object_room = object);
+                       .objects = objects, .source_text = source, .object_capacity = object);
             g_query_objects.count += 1u;
             unsigned long long source_time = 0ull;
             unsigned long long object_time = 0ull;

@@ -6,7 +6,7 @@
 #include "../query_loops.h"
 
 // the record the decoder hands its text in (KDECODE_SHOWN, kdecode_internal.h)
-#define QUERY_DECODE_SHOWN "orior_kdecode"
+#define QUERY_DECODE_DISPLAYED "orior_kdecode"
 
 int query_decode_run(const QueryLoopCfg *args)
 {
@@ -31,13 +31,13 @@ int query_decode_run(const QueryLoopCfg *args)
     {
         return -1;
     }
-    static const char *s_words[QUERY_WORDS_MOST + 2u];
+    static const char *s_words[QUERY_WORDS_MAX + 2u];
     s_words[0] = s_decoder;
-    for (unsigned int at = 0u; (at < args->count) && (at < QUERY_WORDS_MOST); at += 1u)
+    for (unsigned int at = 0u; (at < args->count) && (at < QUERY_WORDS_MAX); at += 1u)
     {
         s_words[at + 1u] = words[at];
     }
-    s_words[((args->count < QUERY_WORDS_MOST) ? args->count : QUERY_WORDS_MOST) + 1u] = NULL;
+    s_words[((args->count < QUERY_WORDS_MAX) ? args->count : QUERY_WORDS_MAX) + 1u] = NULL;
     long long code = -1ll;
     if (!EMBED_CALL(query_loops_context_err_msg_name_run.context_run, QueryLoopsContextErrMsgNameRunCfg,
                     .context = context, .run = &s_run, .words = s_words, .code = &code, .err_msg = err_msg))
@@ -46,19 +46,20 @@ int query_decode_run(const QueryLoopCfg *args)
                    .err_msg = err_msg);
         return -1;
     }
-    unsigned long long shown_size = 0ull;
-    char *const shown = EMBED_CALL(query_count_name_internal.writer_read_take, QueryCountNameCtx,
-                                   .writer = &s_run.writer, .name = QUERY_DECODE_SHOWN, .size_pointer = &shown_size);
-    if (shown != NULL)
+    unsigned long long displayed_size = 0ull;
+    char *const displayed =
+        EMBED_CALL(query_count_name_internal.writer_read_alloc, QueryCountNameCtx, .writer = &s_run.writer,
+                   .name = QUERY_DECODE_DISPLAYED, .size_pointer = &displayed_size);
+    if (displayed != NULL)
     {
         // each line printed as it stands
         unsigned long long at = 0ull;
-        while (at < shown_size)
+        while (at < displayed_size)
         {
-            const char *const line = shown + at;
-            const char *const end =
-                (const char *)memor.chr(&(MemoriaCfg){.src = line, .val = '\n', .bytes = (size_t)(shown_size - at)});
-            const unsigned long long length = (end != NULL) ? (unsigned long long)(end - line) : (shown_size - at);
+            const char *const line = displayed + at;
+            const char *const end = (const char *)memor.chr(
+                &(MemoriaCfg){.src = line, .val = '\n', .bytes = (size_t)(displayed_size - at)});
+            const unsigned long long length = (end != NULL) ? (unsigned long long)(end - line) : (displayed_size - at);
             char text[QUERY_LINE_MAX_LEN];
             VerbaLinea text_line = {text, sizeof(text), 0ull};
             mmgr_line_put_most(&text_line, line,
@@ -70,7 +71,7 @@ int query_decode_run(const QueryLoopCfg *args)
             at += length + 1ull;
         }
     }
-    g_cli_cells->persistent_buf_release(shown, &g_query_cells);
+    g_cli_cells->persistent_buf_release(displayed, &g_query_cells);
     if (!EMBED_CALL(query_loops_context_run.context_end, QueryLoopsContextRunCfg, .context = context, .run_out = &s_run,
                     .err_msg = err_msg))
     {

@@ -6,31 +6,32 @@
 #include "../text/text.h"
 #include "executables_internal.h"
 
-char *cli_uncommented_take(const CliExecutablesTextCtx *args)
+char *cli_uncommented_alloc(const CliExecutablesTextCtx *args)
 {
     // the code with its comments taken out is no longer than the text
-    const unsigned long long room = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL}) + 1ull;
-    char *const code = g_cli_cells->persistent_buf_alloc(room, &g_cli_executables_cells);
+    const unsigned long long capacity = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL}) + 1ull;
+    char *const code = g_cli_cells->persistent_buf_alloc(capacity, &g_cli_executables_cells);
     if (code != NULL)
     {
         EMBED_CALL(cli_executables_text_internal.uncommented, CliExecutablesTextCtx, .text = args->text,
-                   .quote = args->quote, .out = code, .room = room);
+                   .quote = args->quote, .out = code, .capacity = capacity);
     }
     return code;
 }
 
-unsigned int cli_calls_take(const CliExecutablesCodeCommandCtx *args)
+unsigned int cli_calls_alloc(const CliExecutablesCodeCommandCtx *args)
 {
     CliCall **calls = args->calls_pointer;
     const unsigned int count =
-        (args->code != NULL) ? EMBED_CALL(cli_executables_code_internal.calls, CliExecutablesCodeCtx,
-                                          .code = args->code, .command = args->command, .calls = NULL, .room_u32 = 0u)
-                             : 0u;
+        (args->code != NULL)
+            ? EMBED_CALL(cli_executables_code_internal.calls, CliExecutablesCodeCtx, .code = args->code,
+                         .command = args->command, .calls = NULL, .capacity_u32 = 0u)
+            : 0u;
     *calls = (count != 0u) ? g_cli_cells->persistent_buf_alloc((unsigned long long)count * sizeof(CliCall),
                                                                &g_cli_executables_cells)
                            : NULL;
     return (*calls != NULL) ? EMBED_CALL(cli_executables_code_internal.calls, CliExecutablesCodeCtx, .code = args->code,
-                                         .command = args->command, .calls = *calls, .room_u32 = count)
+                                         .command = args->command, .calls = *calls, .capacity_u32 = count)
                             : 0u;
 }
 
@@ -76,12 +77,12 @@ void cli_scan_trim(const CliExecutablesTextLengthCtx *args)
 
 void cli_scan_copy(const CliExecutablesLengthTextCtx *args)
 {
-    VerbaLinea line = {args->out, args->room, 0ull};
+    VerbaLinea line = {args->out, args->capacity, 0ull};
     mmgr_line_put_n(&line, args->text, args->length);
     mmgr_line_finish(&line);
 }
 
-void cli_names_put(const CliExecutablesNameNamesCtx *args)
+void cli_names_append(const CliExecutablesNameNamesCtx *args)
 {
     for (unsigned int at = 0u; at < args->names->count; at += 1u)
     {
@@ -94,8 +95,8 @@ void cli_names_put(const CliExecutablesNameNamesCtx *args)
     if (args->names->count < CLI_EXECUTABLES_NAMES)
     {
         EMBED_CALL(cli_executables_length_text_internal.scan_copy, CliExecutablesLengthTextCtx, .text = args->name,
-                   .length = args->length, .out = args->names->name[args->names->count], .room = CLI_NAME_MAX_LEN);
-        EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_room = args->names->value[args->names->count],
+                   .length = args->length, .out = args->names->name[args->names->count], .capacity = CLI_NAME_MAX_LEN);
+        EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_capacity = args->names->value[args->names->count],
                    .text = args->value, .otherwise = "");
         args->names->count += 1u;
     }
@@ -103,7 +104,7 @@ void cli_names_put(const CliExecutablesNameNamesCtx *args)
 
 void cli_uncommented(const CliExecutablesTextCtx *args)
 {
-    VerbaLinea line = {args->out, args->room, 0ull};
+    VerbaLinea line = {args->out, args->capacity, 0ull};
     const char *at = args->text;
     while (at[0] != '\0')
     {
@@ -125,26 +126,6 @@ void cli_uncommented(const CliExecutablesTextCtx *args)
         at = (stop[0] != '\0') ? (stop + 1) : stop;
     }
     mmgr_line_finish(&line);
-}
-
-// a letter in lower case, ASCII's
-EMBED_INLINE char cli_lower(const ExecutablesScanCtx *args)
-{
-    return ((args->letter >= 'A') && (args->letter <= 'Z')) ? (char)(args->letter + ('a' - 'A')) : args->letter;
-}
-
-// whether the code at `code` starts with the first `length` letters of `command`, their case aside
-EMBED_INLINE int cli_match(const ExecutablesScanCtx *args)
-{
-    for (unsigned long long at = 0ull; at < args->length; at += 1ull)
-    {
-        if ((args->code[at] == '\0') || (EMBED_CALL(cli_lower, ExecutablesScanCtx, .letter = args->code[at]) !=
-                                         EMBED_CALL(cli_lower, ExecutablesScanCtx, .letter = args->command[at])))
-        {
-            return 0;
-        }
-    }
-    return 1;
 }
 
 // the length of the text inside the parentheses that open at `open`, to the one that closes them, or to the code's end
@@ -190,10 +171,10 @@ unsigned int cli_calls(const CliExecutablesCodeCtx *args)
         from = at + length;
         const int starts_word =
             (at == 0ull) || !EMBED_CALL(cli_wordy, ExecutablesScanCtx, .letter = args->code[at - 1ull]);
-        const unsigned long long gap = EMBED_CALL(
-            cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = args->code + from, .at = 0ull,
-            .size = cellul.len(&(CatenaFinitaCfg){.src = args->code + from, .cap = CLI_CELLS_POOL}),
-            .set = CLI_TEXT_WHITE);
+        const unsigned long long gap =
+            EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = args->code + from, .at = 0ull,
+                       .size = cellul.len(&(CatenaFinitaCfg){.src = args->code + from, .cap = CLI_CELLS_POOL}),
+                       .set = CLI_TEXT_WHITE);
         if (!starts_word || (args->code[from + gap] != '('))
         {
             continue;
@@ -204,7 +185,7 @@ unsigned int cli_calls(const CliExecutablesCodeCtx *args)
         {
             found += 1u;
         }
-        else if (found < args->room_u32)
+        else if (found < args->capacity_u32)
         {
             args->calls[found] = (CliCall){args->code + from + gap + 1ull, size};
             found += 1u;
@@ -239,13 +220,13 @@ EMBED_INLINE int cli_cmake_word(const ExecutablesScanCtx *args)
         if (word == args->index)
         {
             const char *from = at;
-            from += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
+            from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
                                .size = (unsigned long long)(stop - from), .set = "\"");
             const char *to = stop;
-            to = from + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = from,
+            to = from + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = from,
                                    .at = (unsigned long long)(to - from), .set = "\"");
             EMBED_CALL(cli_executables_length_text_internal.scan_copy, CliExecutablesLengthTextCtx, .text = from,
-                       .length = (unsigned long long)(to - from), .out = out, .room = CLI_NAME_MAX_LEN);
+                       .length = (unsigned long long)(to - from), .out = out, .capacity = CLI_NAME_MAX_LEN);
             return 1;
         }
         at = stop;
@@ -256,11 +237,11 @@ EMBED_INLINE int cli_cmake_word(const ExecutablesScanCtx *args)
 void cli_cmake_targets(const CliExecutablesNamesTextCtx *args)
 {
     args->names->count = 0u;
-    char *const code = EMBED_CALL(cli_executables_text_internal.uncommented_take, CliExecutablesTextCtx,
+    char *const code = EMBED_CALL(cli_executables_text_internal.uncommented_alloc, CliExecutablesTextCtx,
                                   .text = args->text, .quote = '"');
     CliCall *calls = NULL;
     const unsigned int count =
-        EMBED_CALL(cli_executables_code_command_internal.calls_take, CliExecutablesCodeCommandCtx, .code = code,
+        EMBED_CALL(cli_executables_code_command_internal.calls_alloc, CliExecutablesCodeCommandCtx, .code = code,
                    .command = "add_executable", .calls_pointer = &calls);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
@@ -278,15 +259,15 @@ void cli_cmake_targets(const CliExecutablesNamesTextCtx *args)
         }
         char name[CLI_NAME_MAX_LEN];
         VerbaLinea line = {name, sizeof(name), 0ull};
-        EMBED_CALL(cli_text_out_name.put_fill, CliTextOutNameCfg, .out = &line, .text = first,
+        EMBED_CALL(cli_text_out_name.append_fill, CliTextOutNameCfg, .out = &line, .text = first,
                    .name = "${PROJECT_NAME}", .value = args->project);
         const unsigned long long length = mmgr_line_finish(&line);
         if ((length != 0ull) &&
             (cellul.find(&(CatenaFinitaCfg){
                  .src = name, .cap = CLI_CELLS_POOL, .other = "${", .other_cap = CLI_CELLS_POOL}) == NULL))
         {
-            EMBED_CALL(cli_executables_name_names_internal.names_put, CliExecutablesNameNamesCtx, .names = args->names,
-                       .name = name, .length = length, .value = NULL);
+            EMBED_CALL(cli_executables_name_names_internal.names_append, CliExecutablesNameNamesCtx,
+                       .names = args->names, .name = name, .length = length, .value = NULL);
         }
     }
     g_cli_cells->persistent_buf_release(calls, &g_cli_executables_cells);
@@ -295,11 +276,11 @@ void cli_cmake_targets(const CliExecutablesNamesTextCtx *args)
 
 int cli_cmake_project(const CliExecutablesTextOutCtx *args)
 {
-    char *const code = EMBED_CALL(cli_executables_text_internal.uncommented_take, CliExecutablesTextCtx,
+    char *const code = EMBED_CALL(cli_executables_text_internal.uncommented_alloc, CliExecutablesTextCtx,
                                   .text = args->text, .quote = '"');
     CliCall *calls = NULL;
     const unsigned int count =
-        EMBED_CALL(cli_executables_code_command_internal.calls_take, CliExecutablesCodeCommandCtx, .code = code,
+        EMBED_CALL(cli_executables_code_command_internal.calls_alloc, CliExecutablesCodeCommandCtx, .code = code,
                    .command = "project", .calls_pointer = &calls);
     int found = 0;
     for (unsigned int at = 0u; !found && (at < count); at += 1u)
@@ -326,27 +307,27 @@ EMBED_INLINE int cli_meson_first(const ExecutablesScanCtx *args)
         return 0;
     }
     EMBED_CALL(cli_executables_length_text_internal.scan_copy, CliExecutablesLengthTextCtx, .text = first + 1,
-               .length = length - 2ull, .out = out, .room = CLI_NAME_MAX_LEN);
+               .length = length - 2ull, .out = out, .capacity = CLI_NAME_MAX_LEN);
     return 1;
 }
 
 void cli_meson_targets(const CliExecutablesNamesCtx *args)
 {
     args->names->count = 0u;
-    char *const code = EMBED_CALL(cli_executables_text_internal.uncommented_take, CliExecutablesTextCtx,
+    char *const code = EMBED_CALL(cli_executables_text_internal.uncommented_alloc, CliExecutablesTextCtx,
                                   .text = args->text, .quote = '\'');
     CliCall *calls = NULL;
     const unsigned int count =
-        EMBED_CALL(cli_executables_code_command_internal.calls_take, CliExecutablesCodeCommandCtx, .code = code,
+        EMBED_CALL(cli_executables_code_command_internal.calls_alloc, CliExecutablesCodeCommandCtx, .code = code,
                    .command = "executable", .calls_pointer = &calls);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         char name[CLI_NAME_MAX_LEN];
         if (EMBED_CALL(cli_meson_first, ExecutablesScanCtx, .call = &calls[at], .out = name))
         {
-            EMBED_CALL(cli_executables_name_names_internal.names_put, CliExecutablesNameNamesCtx, .names = args->names,
-                       .name = name, .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}),
-                       .value = NULL);
+            EMBED_CALL(cli_executables_name_names_internal.names_append, CliExecutablesNameNamesCtx,
+                       .names = args->names, .name = name,
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .value = NULL);
         }
     }
     g_cli_cells->persistent_buf_release(calls, &g_cli_executables_cells);
@@ -355,11 +336,11 @@ void cli_meson_targets(const CliExecutablesNamesCtx *args)
 
 int cli_meson_project(const CliExecutablesTextOutCtx *args)
 {
-    char *const code = EMBED_CALL(cli_executables_text_internal.uncommented_take, CliExecutablesTextCtx,
+    char *const code = EMBED_CALL(cli_executables_text_internal.uncommented_alloc, CliExecutablesTextCtx,
                                   .text = args->text, .quote = '\'');
     CliCall *calls = NULL;
     const unsigned int count =
-        EMBED_CALL(cli_executables_code_command_internal.calls_take, CliExecutablesCodeCommandCtx, .code = code,
+        EMBED_CALL(cli_executables_code_command_internal.calls_alloc, CliExecutablesCodeCommandCtx, .code = code,
                    .command = "project", .calls_pointer = &calls);
     int found = 0;
     for (unsigned int at = 0u; !found && (at < count); at += 1u)

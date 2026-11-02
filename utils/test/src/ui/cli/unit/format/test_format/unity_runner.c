@@ -23,7 +23,7 @@ extern void test_a_crates_edition_is_read(void);
 extern void test_a_language_with_no_formatter_has_no_width(void);
 extern void test_markdown_prose_has_no_width_unless_it_wraps(void);
 extern void test_prettiers_width_is_the_margin_of_a_script(void);
-extern void test_markdown_prose_takes_the_width_where_it_wraps(void);
+extern void test_markdown_prose_allocs_the_width_where_it_wraps(void);
 extern void test_a_python_file_is_python(void);
 extern void test_an_extensions_case_does_not_matter(void);
 extern void test_of_two_languages_the_first_by_id_wins(void);
@@ -103,7 +103,7 @@ int main(void)
   run_test(test_a_language_with_no_formatter_has_no_width, "test_a_language_with_no_formatter_has_no_width", 123);
   run_test(test_markdown_prose_has_no_width_unless_it_wraps, "test_markdown_prose_has_no_width_unless_it_wraps", 128);
   run_test(test_prettiers_width_is_the_margin_of_a_script, "test_prettiers_width_is_the_margin_of_a_script", 134);
-  run_test(test_markdown_prose_takes_the_width_where_it_wraps, "test_markdown_prose_takes_the_width_where_it_wraps", 145);
+  run_test(test_markdown_prose_allocs_the_width_where_it_wraps, "test_markdown_prose_allocs_the_width_where_it_wraps", 145);
   run_test(test_a_python_file_is_python, "test_a_python_file_is_python", 151);
   run_test(test_an_extensions_case_does_not_matter, "test_an_extensions_case_does_not_matter", 156);
   run_test(test_of_two_languages_the_first_by_id_wins, "test_of_two_languages_the_first_by_id_wins", 161);

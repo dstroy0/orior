@@ -41,25 +41,25 @@ typedef struct CliPagesOneCtx CliPagesOneCtx;
 // for the view to be moving at the step between them
 #define CLI_PAGE_EDGE 8ull
 #define CLI_PAGE_SPREAD 4ull
-#define CLI_PAGE_NEAR 100ull
-#define CLI_PAGE_REST_BYTES (128ull * 1024ull)
-#define CLI_PAGE_REST_LEAST 16ull
+#define CLI_PAGE_ADJACENT 100ull
+#define CLI_PAGE_REMAINDER_BYTES (128ull * 1024ull)
+#define CLI_PAGE_REMAINDER_MIN 16ull
 #define CLI_PAGE_SAVED 2000ull
 #define CLI_PAGE_STILL 100ull
 
 // The index of a file's lines as far as it has been read: the byte a line starts at, recorded CLI_PAGE_STEP lines or
 // CLI_PAGE_SPAN bytes after the one recorded before, whichever comes first, and the line each is, in order, each a cell
-// of `starts_most` sized to the file and no more than CLI_PAGE_STARTS; how many lines there are, whether it is whole,
+// of `starts_max` sized to the file and no more than CLI_PAGE_STARTS; how many lines there are, whether it is whole,
 // whether its reading is going on or is to stop, and the file it reads
 typedef struct
 {
     unsigned long long *start;
     unsigned long long *line;
-    unsigned long long starts_most;
+    unsigned long long starts_max;
     unsigned long long starts;
     unsigned long long lines;
     int done;
-    int reading;
+    int read_state;
     int cancel;
     char path[CLI_PATH_MAX_LEN];
     CliThread reader;
@@ -107,10 +107,10 @@ typedef struct
     unsigned char *cell;
     unsigned long long *start;
     unsigned long long *length;
-    unsigned long long lines_most;
+    unsigned long long lines_max;
     unsigned long long count;
     char *text;
-    unsigned long long text_most;
+    unsigned long long text_max;
     unsigned long long used;
     int full;
 } CliPageLines;
@@ -120,11 +120,11 @@ typedef struct
 // `size` bytes put after the lines, the lines full where it does not fit; and the cell given back (pages_lines.c)
 int cli_page_lines_reserve(const CliPagesLinesLinesFirstCtx *args);
 void cli_page_lines_clear(const CliPagesLinesLinesFirstCtx *args);
-int cli_page_lines_room(const CliPagesLinesLinesMoreCtx *args);
-void cli_page_lines_put(const CliPagesLinesBytesCtx *args);
+int cli_page_lines_capacity(const CliPagesLinesLinesMoreCtx *args);
+void cli_page_lines_append(const CliPagesLinesBytesCtx *args);
 void cli_page_lines_free(const CliPagesLinesLinesFirstCtx *args);
-// the lines of `one` from `from`, up to `*block_most` of them and none past `total`, read whole into `lines`,
-// `*block_most` halved while a reading of that many is full, the line after the last read into `to`: 1, or 0 with why
+// the lines of `one` from `from`, up to `*block_max` of them and none past `total`, read whole into `lines`,
+// `*block_max` halved while a reading of that many is full, the line after the last read into `to`: 1, or 0 with why
 // given, a single line a reading cannot contain among the whys (pages_lines.c)
 int cli_page_block_read(const CliPagesLinesCtx *args);
 
@@ -143,11 +143,11 @@ unsigned long long cli_page_index(const CliPagesOneCtx *args);
 unsigned long long cli_page_length(const CliPagesCtx *args);
 int cli_page_lines_get(const CliPagesLinesErrMsgCtx *args);
 void cli_page_shape_write(const CliPagesOneCtx *args);
-int cli_page_open_reading(const CliPagesErrMsgCtx *args);
+int cli_page_open_read_state(const CliPagesErrMsgCtx *args);
 
 // the path beside `path` named a dot, its file's name and `ending`; and the byte of the shadow line `line` of a written
 // piece of `one` starts at, its end past its last line (pages_shadow.c)
-void cli_page_beside(const CliPagesPathCtx *args);
+void cli_page_adjacent(const CliPagesPathCtx *args);
 unsigned long long cli_page_write_at(const CliPagesPieceCtx *args);
 
 struct CliPagesLinesCtx
@@ -157,7 +157,7 @@ struct CliPagesLinesCtx
     CliPaged *one;
     unsigned long long from;
     unsigned long long total;
-    unsigned long long *block_most;
+    unsigned long long *block_max;
     unsigned long long *to;
 };
 
@@ -191,7 +191,7 @@ struct CliPagesPathCtx
 {
     const char *path;
     const char *ending;
-    char *beside;
+    char *adjacent;
 };
 
 struct CliPagesLinesBytesCtx
@@ -242,20 +242,20 @@ EMBED_TABLE_STORAGE CliPagesLinesLinesFirstNs cli_pages_lines_lines_first_intern
 
 typedef struct
 {
-    int (*page_lines_room)(const CliPagesLinesLinesMoreCtx *args);
+    int (*page_lines_capacity)(const CliPagesLinesLinesMoreCtx *args);
 } CliPagesLinesLinesMoreNs;
-EMBED_TABLE_LAYOUT(CliPagesLinesLinesMoreNs, page_lines_room);
+EMBED_TABLE_LAYOUT(CliPagesLinesLinesMoreNs, page_lines_capacity);
 EMBED_TABLE_STORAGE CliPagesLinesLinesMoreNs cli_pages_lines_lines_more_internal EMBED_UNUSED = {
-    .page_lines_room = cli_page_lines_room,
+    .page_lines_capacity = cli_page_lines_capacity,
 };
 
 typedef struct
 {
-    void (*page_lines_put)(const CliPagesLinesBytesCtx *args);
+    void (*page_lines_append)(const CliPagesLinesBytesCtx *args);
 } CliPagesLinesBytesNs;
-EMBED_TABLE_LAYOUT(CliPagesLinesBytesNs, page_lines_put);
+EMBED_TABLE_LAYOUT(CliPagesLinesBytesNs, page_lines_append);
 EMBED_TABLE_STORAGE CliPagesLinesBytesNs cli_pages_lines_bytes_internal EMBED_UNUSED = {
-    .page_lines_put = cli_page_lines_put,
+    .page_lines_append = cli_page_lines_append,
 };
 
 typedef struct
@@ -270,12 +270,12 @@ EMBED_TABLE_STORAGE CliPagesLinesNsTable cli_pages_lines_internal EMBED_UNUSED =
 typedef struct
 {
     CliPaged *(*paged_get)(const CliPagesErrMsgCtx *args);
-    int (*page_open_reading)(const CliPagesErrMsgCtx *args);
+    int (*page_open_read_state)(const CliPagesErrMsgCtx *args);
 } CliPagesErrMsgNs;
-EMBED_TABLE_LAYOUT(CliPagesErrMsgNs, paged_get, page_open_reading);
+EMBED_TABLE_LAYOUT(CliPagesErrMsgNs, paged_get, page_open_read_state);
 EMBED_TABLE_STORAGE CliPagesErrMsgNs cli_pages_err_msg_internal EMBED_UNUSED = {
     .paged_get = cli_paged_get,
-    .page_open_reading = cli_page_open_reading,
+    .page_open_read_state = cli_page_open_read_state,
 };
 
 typedef struct
@@ -309,11 +309,11 @@ EMBED_TABLE_STORAGE CliPagesLinesErrMsgNs cli_pages_lines_err_msg_internal EMBED
 
 typedef struct
 {
-    void (*page_beside)(const CliPagesPathCtx *args);
+    void (*page_adjacent)(const CliPagesPathCtx *args);
 } CliPagesPathNsTable;
-EMBED_TABLE_LAYOUT(CliPagesPathNsTable, page_beside);
+EMBED_TABLE_LAYOUT(CliPagesPathNsTable, page_adjacent);
 EMBED_TABLE_STORAGE CliPagesPathNsTable cli_pages_path_internal EMBED_UNUSED = {
-    .page_beside = cli_page_beside,
+    .page_adjacent = cli_page_adjacent,
 };
 
 typedef struct

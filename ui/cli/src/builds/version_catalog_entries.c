@@ -130,7 +130,7 @@ EMBED_INLINE void entries_library(const VersionCatalogEntriesCtx *args)
                                                      .key = "group", .present = &group_present);
     const CliVersionsField *const name = EMBED_CALL(entries_text_get, VersionCatalogEntriesCtx, .table = args->entry,
                                                     .key = "name", .present = &name_present);
-    VerbaLinea coordinates = {check->coordinates, check->room, 0ull};
+    VerbaLinea coordinates = {check->coordinates, check->capacity, 0ull};
     if (module != NULL)
     {
         if (!EMBED_CALL(entries_parts, VersionCatalogEntriesCtx,
@@ -241,7 +241,7 @@ EMBED_INLINE void entries_bundle(const VersionCatalogEntriesCtx *args)
             EMBED_CALL(cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = check->found, .message = &msg,
                        .lines = check->lines, .from = member->from, .to = member->to, .severity = CLI_BUILD_ERROR,
                        .code = "catalog-reference");
-        EMBED_CALL(cli_version_catalog_size_internal.versions_near, CliVersionCatalogSizeCtx, .check = check,
+        EMBED_CALL(cli_version_catalog_size_internal.versions_adjacent, CliVersionCatalogSizeCtx, .check = check,
                    .finding = finding, .name = accessor, .size = line.at, .known = NULL, .count = 0u,
                    .names = &g_cli_versions_libraries, .from = member->from, .to = member->to, .open = "", .close = "");
     }
@@ -334,7 +334,7 @@ EMBED_INLINE void entries_unknown_section(const VersionCatalogEntriesCtx *args)
         cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = check->found, .message = &msg,
         .lines = check->lines, .from = args->section_versions_section_pointer->from,
         .to = args->section_versions_section_pointer->to, .severity = CLI_BUILD_WARNING, .code = "catalog-section");
-    EMBED_CALL(cli_version_catalog_size_internal.versions_near, CliVersionCatalogSizeCtx, .check = check,
+    EMBED_CALL(cli_version_catalog_size_internal.versions_adjacent, CliVersionCatalogSizeCtx, .check = check,
                .finding = finding, .name = name, .size = args->section_versions_section_pointer->name_size,
                .known = s_sections, .count = 5u, .names = NULL, .from = args->section_versions_section_pointer->from,
                .to = args->section_versions_section_pointer->to, .open = "[", .close = "]");
@@ -363,7 +363,7 @@ void cli_versions_check(const CliVersionCatalogTextCtx *args)
         (void)mmgr_line_finish(&copy);
     }
     EMBED_CALL(cli_builds_root.build_inside, CliBuildsRootCfg, .root = root, .folder = folder,
-               .out_room = s_check.folder);
+               .out_capacity = s_check.folder);
     char build[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = s_check.folder, .joined = build);
     EMBED_CALL(cli_builds_internal.gradle_program, CliBuildsCtx, .folder = build, .out = s_check.program);
@@ -379,9 +379,9 @@ void cli_versions_check(const CliVersionCatalogTextCtx *args)
     }
     // a dependency's coordinates are a module, or a group and a name, of the catalog's texts, and with its version
     // twice that; the entries are checked only where these and the accessors are met
-    s_check.room = g_cli_versions.used + 2ull;
-    s_check.coordinates = g_cli_cells->persistent_buf_alloc(3ull * s_check.room, &g_cli_versions_cells);
-    s_check.full = (s_check.coordinates != NULL) ? s_check.coordinates + s_check.room : NULL;
+    s_check.capacity = g_cli_versions.used + 2ull;
+    s_check.coordinates = g_cli_cells->persistent_buf_alloc(3ull * s_check.capacity, &g_cli_versions_cells);
+    s_check.full = (s_check.coordinates != NULL) ? s_check.coordinates + s_check.capacity : NULL;
     const int met = (s_check.coordinates != NULL) &&
                     EMBED_CALL(cli_version_catalog_name_internal.versions_names_get, CliVersionCatalogNameCtx,
                                .name = "versions", .names_out = &g_cli_versions_known) &&

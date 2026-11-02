@@ -50,7 +50,7 @@ EMBED_INLINE int cli_reply_file_read(const CompileDbCmakeCtx *args)
 }
 
 // a flag put after the compile group's flags
-EMBED_INLINE void cli_flag_put(const CompileDbCmakeCtx *args)
+EMBED_INLINE void cli_flag_append(const CompileDbCmakeCtx *args)
 {
     VerbaLinea *const text = &g_cli_gather.flags_text;
     const unsigned long long mark = text->at;
@@ -60,7 +60,7 @@ EMBED_INLINE void cli_flag_put(const CompileDbCmakeCtx *args)
     }
     mmgr_line_put_n(text, args->flag, args->size);
     mmgr_line_ch(text, '\0');
-    // a flag whose room the cellblock cannot meet is left out, the flags before it retained
+    // a flag whose capacity the cellblock cannot meet is left out, the flags before it retained
     if (!mmgr_line_ok(text))
     {
         text->at = mark;
@@ -74,7 +74,7 @@ EMBED_INLINE void cli_flag_put(const CompileDbCmakeCtx *args)
 static void cli_fragment_word(const CliEachWordSizeCfg *args)
 {
     unsigned long long size = args->size;
-    EMBED_CALL(cli_flag_put, CompileDbCmakeCtx, .flag = args->word, .size = size);
+    EMBED_CALL(cli_flag_append, CompileDbCmakeCtx, .flag = args->word, .size = size);
 }
 
 // a flag made of `lead` and `text` put after the flags
@@ -85,7 +85,7 @@ EMBED_INLINE void cli_flag_init(const CompileDbCmakeCtx *args)
     mmgr_line_put(&line, args->lead);
     mmgr_line_put(&line, args->text);
     mmgr_line_finish(&line);
-    EMBED_CALL(cli_flag_put, CompileDbCmakeCtx, .flag = flag,
+    EMBED_CALL(cli_flag_append, CompileDbCmakeCtx, .flag = flag,
                .size = cellul.len(&(CatenaFinitaCfg){.src = flag, .cap = CLI_CELLS_POOL}));
 }
 
@@ -364,10 +364,10 @@ EMBED_INLINE void cli_target_entries(const CompileDbCmakeCtx *args)
 EMBED_INLINE unsigned long long cli_configuration_get(const CompileDbCmakeCtx *args)
 {
     const char *named = args->build;
-    const unsigned long long named_past =
+    const unsigned long long named_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->build,
                    .at = cellul.len(&(CatenaFinitaCfg){.src = args->build, .cap = CLI_CELLS_POOL}), .set = "/\\");
-    named = (named_past != 0ull) ? (args->build + named_past) : named;
+    named = (named_end != 0ull) ? (args->build + named_end) : named;
     const unsigned long long first =
         EMBED_CALL(cli_reply_array.first, CliReplyArrayCfg, .reply = args->model, .array = args->configurations);
     for (unsigned long long at = first; at != CLI_REPLY_NONE;

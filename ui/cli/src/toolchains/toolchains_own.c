@@ -9,14 +9,14 @@ int cli_toolchains_own(const CliToolchainsErrMsgFolderOnPathCfg *args)
     int *on_path = args->on_path;
     char program[CLI_PATH_MAX_LEN];
     char full[CLI_PATH_MAX_LEN];
-    if (!EMBED_CALL(cli_path_room_internal.program_own, CliPathRoomCtx, .path_out = program,
-                    .room_size = sizeof(program)))
+    if (!EMBED_CALL(cli_path_capacity_internal.program_own, CliPathCapacityCtx, .path_out = program,
+                    .capacity_bytes = sizeof(program)))
     {
         mmgr_line_put(args->err_msg, "orior's program could not be found");
         return 0;
     }
-    if (!EMBED_CALL(query_room_path_internal.path_full, QueryRoomPathCtx, .path = program, .full = full,
-                    .room = sizeof(full)))
+    if (!EMBED_CALL(query_capacity_path_internal.path_full, QueryCapacityPathCtx, .path = program, .full = full,
+                    .capacity = sizeof(full)))
     {
         memor.cpy(&(MemoriaCfg){.dst = full,
                                 .src = program,
@@ -64,13 +64,13 @@ EMBED_INLINE int cli_add_folder(const ToolchainsOwnCtx *args)
 #if defined(_WIN32)
     static char s_now[CLI_PATH_TEXT];
     static char s_next[CLI_PATH_TEXT];
-    if (!EMBED_CALL(cli_out_room_internal.registry_user_value, CliOutRoomCtx, .name = "Path", .out = s_now,
-                    .room = sizeof(s_now)))
+    if (!EMBED_CALL(cli_out_capacity_internal.registry_user_value, CliOutCapacityCtx, .name = "Path", .out = s_now,
+                    .capacity = sizeof(s_now)))
     {
         s_now[0] = '\0';
     }
     if (EMBED_CALL(cli_toolchains_folder.join, CliToolchainsFolderCfg, .path_read = s_now, .folder_read = folder,
-                   .out_room = s_next, .size = sizeof(s_next)))
+                   .out_capacity = s_next, .size = sizeof(s_next)))
     {
         if (!EMBED_CALL(cli_err_msg_name_internal.registry_set_user_value, CliErrMsgNameCtx, .name = "Path",
                         .value = s_next, .err_msg = err_msg))
@@ -84,7 +84,7 @@ EMBED_INLINE int cli_add_folder(const ToolchainsOwnCtx *args)
     static char s_file[1u << 20u];
     char home[CLI_PATH_MAX_LEN];
     if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "HOME", .value_out = home,
-                    .room = sizeof(home)))
+                    .capacity = sizeof(home)))
     {
         mmgr_line_put(err_msg, "HOME is not set");
         return 0;
@@ -92,7 +92,8 @@ EMBED_INLINE int cli_add_folder(const ToolchainsOwnCtx *args)
     char line[CLI_PATH_MAX_LEN * 2u];
     VerbaLinea made = {line, sizeof(line), 0ull};
     mmgr_line_put(&made, "export PATH=\"$PATH:");
-    EMBED_CALL(cli_text_size_set.put_mark, CliTextSizeSetCfg, .out = &made, .text = folder, .set = "\"", .mark = '\\');
+    EMBED_CALL(cli_text_size_set.append_mark, CliTextSizeSetCfg, .out = &made, .text = folder, .set = "\"",
+               .mark = '\\');
     mmgr_line_ch(&made, '"');
     const unsigned long long line_length = mmgr_line_finish(&made);
     static const char *const s_names[4] = {"/.profile", "/.zprofile", "/.bash_profile", "/.bash_login"};
@@ -125,9 +126,9 @@ EMBED_INLINE int cli_add_folder(const ToolchainsOwnCtx *args)
             {
                 const char *start = from;
                 const char *end = place;
-                start += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = start,
+                start += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = start,
                                     .at = 0ull, .size = (unsigned long long)(end - start), .set = CLI_TEXT_WHITE);
-                end = start + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = start,
+                end = start + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = start,
                                          .at = (unsigned long long)(end - start), .set = CLI_TEXT_WHITE);
                 there = ((unsigned long long)(end - start) == line_length) &&
                         (memor.cmp(&(MemoriaCfg){.src = start, .other = line, .bytes = line_length}) == 0);

@@ -78,11 +78,10 @@ int cli_highlight_leaves(const CliHighlightKeyCfg *args);
 // array: 1, or 0 where no grammar is stored under `key`; each of those names handed to `each` with its place, in turn,
 // under the lock the grammars are stored under: how many, 0 where no grammar is stored under `key`; and one line's
 // runs written into `out` as `[column, name, column, name, ...]`, as the page reads a line's colors
-int cli_highlight_names_write(const CliHighlightKeyErrMsgCfg *args);
 typedef void (*CliNameEach)(const CliNameEachCfg *args);
 unsigned int cli_highlight_names_each(const CliHighlightKeyContextCfg *args);
 void cli_highlight_runs_write(const CliHighlightCfg *args);
-// the grammars' own report, `<pool's bytes> <their mark> 0`, the most the grammars and their rooms occupied of the
+// the grammars' own report, `<pool's bytes> <their mark> 0`, the most the grammars and their capacities occupied of the
 // cellblock at once, written into `out` (highlight_store.c)
 void cli_highlight_cells_usage_write(const CliHighlightCfg *args);
 
@@ -142,12 +141,10 @@ EMBED_TABLE_STORAGE CliHighlightKeyJsonNs cli_highlight_key_json EMBED_UNUSED = 
 typedef struct
 {
     int (*color)(const CliHighlightKeyErrMsgCfg *args);
-    int (*names_write)(const CliHighlightKeyErrMsgCfg *args);
 } CliHighlightKeyErrMsgNs;
-EMBED_TABLE_LAYOUT(CliHighlightKeyErrMsgNs, color, names_write);
+EMBED_TABLE_LAYOUT(CliHighlightKeyErrMsgNs, color);
 EMBED_TABLE_STORAGE CliHighlightKeyErrMsgNs cli_highlight_key_err_msg EMBED_UNUSED = {
     .color = cli_highlight_color,
-    .names_write = cli_highlight_names_write,
 };
 
 typedef struct

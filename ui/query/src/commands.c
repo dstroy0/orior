@@ -8,7 +8,7 @@
 #include "query_loops.h"
 
 // the most bytes of a program's output a run records
-#define QUERY_OUTPUT_MOST (64ull << 20u)
+#define QUERY_OUTPUT_MAX (64ull << 20u)
 
 // the name of the record this process's own lines go to, `<loop>.console`
 static char s_console[QRY_NAME_MAX_LEN + 1u];
@@ -62,9 +62,9 @@ int query_context_tool(const QueryLoopsErrMsgContextCfg *args)
     const char *name = args->name;
     char *binary = args->binary;
     VerbaLinea *err_msg = args->err_msg;
-    return EMBED_CALL(query_name_room_internal.tool_build, QueryNameRoomCtx, .root = args->context_read->root,
+    return EMBED_CALL(query_name_capacity_internal.tool_build, QueryNameCapacityCtx, .root = args->context_read->root,
                       .programs = args->context_read->programs, .name = name, .binary = binary,
-                      .room = QUERY_PATH_MAX_LEN, .err_msg = err_msg);
+                      .capacity = QUERY_PATH_MAX_LEN, .err_msg = err_msg);
 }
 
 typedef struct
@@ -150,19 +150,19 @@ int query_context_dispatch(const QueryLoopsContextErrMsgNameRunCfg *args)
     }
     // the output read to its end into a cell of the most it holds; what it writes past that is read and let go, for the
     // program to run to its end, and the output refused
-    char *const output = g_cli_cells->temporary_buf_alloc(QUERY_OUTPUT_MOST, &g_query_cells);
-    const unsigned long long room = (output != NULL) ? QUERY_OUTPUT_MOST - 1ull : 0ull;
+    char *const output = g_cli_cells->temporary_buf_alloc(QUERY_OUTPUT_MAX, &g_query_cells);
+    const unsigned long long capacity = (output != NULL) ? QUERY_OUTPUT_MAX - 1ull : 0ull;
     unsigned long long used = 0ull;
     int whole = (output != NULL);
     for (;;)
     {
         char over[4096];
-        const int fits = (used < room);
+        const int fits = (used < capacity);
         const unsigned long long got =
             fits ? EMBED_CALL(query_process_piece_internal.process_read, QueryProcessPieceCtx, .process = &process,
-                              .piece = output + used, .room_u64 = room - used)
+                              .piece = output + used, .capacity_u64 = capacity - used)
                  : EMBED_CALL(query_process_piece_internal.process_read, QueryProcessPieceCtx, .process = &process,
-                              .piece = over, .room_u64 = sizeof(over));
+                              .piece = over, .capacity_u64 = sizeof(over));
         if (got == 0ull)
         {
             break;
@@ -195,12 +195,12 @@ int query_context_end(const QueryLoopsContextRunCfg *args)
 }
 
 // `--leave <word>` taken off `words`, `*count` of them, where it is there, into `leave`: 1, or 0 with why given
-int query_leave_take(const QueryLoopsErrMsgWordsCountGivenCfg *args)
+int query_leave_alloc(const QueryLoopsErrMsgWordsCountInputCfg *args)
 {
     unsigned int *count = args->count_pointer;
-    int *given = args->given;
+    int *supplied = args->supplied;
     QueryLeave *leave = args->leave;
-    *given = 0;
+    *supplied = 0;
     for (unsigned int at = 0u; at < *count; at += 1u)
     {
         if (!cellul.eq(&(CatenaFinitaCfg){.src = args->words_read[at], .other = "--leave", .cap = CLI_CELLS_POOL}))
@@ -235,7 +235,7 @@ int query_leave_take(const QueryLoopsErrMsgWordsCountGivenCfg *args)
                                       .src = &args->words_read[at + 2u],
                                       .bytes = (size_t)(*count - at - 2u) * sizeof(args->words_read[0])});
         *count -= 2u;
-        *given = 1;
+        *supplied = 1;
         return 1;
     }
     return 1;
@@ -250,25 +250,26 @@ int query_run(const QueryCfg *args)
     QuerySink sink = args->sink;
     static QueryContext s_context;
     static char s_root[QUERY_PATH_MAX_LEN];
-    static const char *s_words[QUERY_WORDS_MOST];
+    static const char *s_words[QUERY_WORDS_MAX];
     char err_buf[QUERY_LINE_MAX_LEN];
     VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ull};
     memor.set(&(MemoriaCfg){.dst = &s_context, .val = 0, .bytes = sizeof(s_context)});
     // a path as the compilers and the tools are given it: forward slashes throughout
     VerbaLinea root_line = {s_root, sizeof(s_root), 0ull};
-    (void)EMBED_CALL(cli_text_from.put_swap, CliTextFromCfg, .out = &root_line, .text = root, .from = '\\', .to = '/');
+    (void)EMBED_CALL(cli_text_from.append_swap, CliTextFromCfg, .out = &root_line, .text = root, .from = '\\',
+                     .to = '/');
     mmgr_line_finish(&root_line);
     s_context.root = s_root;
     s_context.programs = programs;
     s_context.sink = sink;
     s_context.prompter = query_terminal();
-    unsigned int word_count = (count < QUERY_WORDS_MOST) ? count : QUERY_WORDS_MOST;
+    unsigned int word_count = (count < QUERY_WORDS_MAX) ? count : QUERY_WORDS_MAX;
     memor.cpy(&(MemoriaCfg){.dst = s_words, .src = words, .bytes = (size_t)word_count * sizeof(words[0])});
-    int given = 0;
+    int supplied = 0;
     QueryLeave leave = QUERY_LEAVE_ALL;
     int code = -1;
-    if (!EMBED_CALL(query_loops_err_msg_words_count_given.leave_take, QueryLoopsErrMsgWordsCountGivenCfg,
-                    .words_read = s_words, .count_pointer = &word_count, .given = &given, .leave = &leave,
+    if (!EMBED_CALL(query_loops_err_msg_words_count_input.leave_alloc, QueryLoopsErrMsgWordsCountInputCfg,
+                    .words_read = s_words, .count_pointer = &word_count, .supplied = &supplied, .leave = &leave,
                     .err_msg = &err_msg))
     {
         // nothing to run
@@ -279,7 +280,7 @@ int query_run(const QueryCfg *args)
     }
     else
     {
-        s_context.leave = given ? leave : (query_terminal_is() ? QUERY_LEAVE_PROMPT : QUERY_LEAVE_ALL);
+        s_context.leave = supplied ? leave : (query_terminal_is() ? QUERY_LEAVE_PROMPT : QUERY_LEAVE_ALL);
         // the loop's own lines go to its run as `<loop>.console`
         VerbaLinea console = {s_console, sizeof(s_console), 0ull};
         mmgr_line_put(&console, s_words[0]);

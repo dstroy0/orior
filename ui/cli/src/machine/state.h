@@ -26,7 +26,7 @@ typedef struct CliStateCfg CliStateCfg;
 
 // whether the entry `key`, without `orior.`, is a setting or the list of themes, those a taking of another machine's
 // settings changes
-int cli_state_is_carry(const CliStateCfg *args);
+int cli_state_is_machine_transfer(const CliStateCfg *args);
 // an entry as the page stores it, from the value written: a string's text, else the value as compact JSON, after `out`
 void cli_state_read_back(const CliStateJsonCfg *args);
 // every entry stored in `folder`, by its key without `orior.`, written as a JSON object of texts in the order of the
@@ -36,6 +36,42 @@ int cli_state_read(const CliStateOutCfg *args);
 // it is gone, `length` bytes of `changes`; `state.json` made where it is not there yet: 1, or 0 with why given
 // (state_save.c)
 int cli_state_save(const CliStateFolderCfg *args);
+
+// One entry of orior's folder, its key without `orior.` and its text
+typedef struct
+{
+    const char *key;
+    const char *value;
+} CliStateEntry;
+
+// Every entry of orior's folder in one cell: how many and each
+typedef struct
+{
+    unsigned int count;
+    CliStateEntry *entry;
+} CliStateEntries;
+
+// every entry stored in `folder` read into a cell of `owner`, the files' JSON decoded here at their edge: the cell, or
+// NULL where the window has stored nothing there yet or the cells cannot meet it; and the text of `key` among them,
+// NULL where none is
+typedef struct
+{
+    const char *folder;
+    CellOwner *owner;
+} CliStateEntriesCfg;
+CliStateEntries *cli_state_entries_alloc(const CliStateEntriesCfg *args);
+const char *cli_state_entry_value(const CliStateEntries *entries, const char *key);
+
+// the text `value` stored under `key`, without `orior.`, in `folder`, written as the file's JSON here at its edge: 1,
+// or 0 with why given
+typedef struct
+{
+    const char *folder;
+    const char *key;
+    const char *value;
+    VerbaLinea *err_msg;
+} CliStateValueCfg;
+int cli_state_value_save(const CliStateValueCfg *args);
 
 struct CliStateFolderCfg
 {
@@ -65,11 +101,11 @@ struct CliStateCfg
 
 typedef struct
 {
-    int (*is_carry)(const CliStateCfg *args);
+    int (*is_machine_transfer)(const CliStateCfg *args);
 } CliStateNs;
-EMBED_TABLE_LAYOUT(CliStateNs, is_carry);
+EMBED_TABLE_LAYOUT(CliStateNs, is_machine_transfer);
 EMBED_TABLE_STORAGE CliStateNs cli_state_table EMBED_UNUSED = {
-    .is_carry = cli_state_is_carry,
+    .is_machine_transfer = cli_state_is_machine_transfer,
 };
 
 typedef struct

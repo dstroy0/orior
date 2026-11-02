@@ -29,7 +29,7 @@ typedef struct
 // of its size given back with the server; its receiver; and its readers
 struct CliLsp
 {
-    int taken;
+    int reserved;
     unsigned int refs;
     unsigned int number;
     CliWords words;
@@ -42,7 +42,7 @@ struct CliLsp
     CliLspWaiter waiters[CLI_LSP_WAITERS];
     char complaint[CLI_LSP_COMPLAINT * 2u];
     unsigned long long complaint_size;
-    unsigned int reading;
+    unsigned int read_state;
     char *capabilities;
     unsigned long long capabilities_size;
     CliLspRecvFn recv;

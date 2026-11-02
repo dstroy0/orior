@@ -16,11 +16,11 @@ static const CliProcess s_tree[6] = {{2u, 1u}, {3u, 2u}, {4u, 3u}, {5u, 1u}, {6u
 static const CliProcess s_walk[7] = {{2u, 1u}, {3u, 2u}, {4u, 3u}, {5u, 1u}, {6u, 9u}, {7u, 6u}, {8u, 8u}};
 static const CliProcess s_loop[2] = {{2u, 3u}, {3u, 2u}};
 
-static CliProcess s_listed[1u << 14u];
+static CliProcess s_list_result[1u << 14u];
 static char s_output[1u << 16u];
 static CliRestarts s_restarts;
 static unsigned int s_found[8];
-static int s_heads_ran;
+static int s_heads_run_result;
 static unsigned int s_serve_ids;
 static int s_serve_child_still;
 static unsigned int s_container_ids;
@@ -41,11 +41,11 @@ static const char *const *waiting_words(void)
 // whether the process `id` runs: the system lists it, and on Linux it is no zombie
 static int process_alive(unsigned int id)
 {
-    const unsigned int count = EMBED_CALL(cli_room_processes_internal.processes_list, CliRoomProcessesCtx, .processes = s_listed, .room_u32 = sizeof(s_listed) / sizeof(s_listed[0]));
-    int listed = 0;
+    const unsigned int count = EMBED_CALL(cli_capacity_processes_internal.processes_list, CliCapacityProcessesCtx, .processes = s_list_result, .capacity_u32 = sizeof(s_list_result) / sizeof(s_list_result[0]));
+    int list_entries = 0;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        listed |= s_listed[at].id == id;
+        list_entries |= s_list_result[at].id == id;
     }
 #if defined(__linux__)
     char path[64];
@@ -58,9 +58,9 @@ static int process_alive(unsigned int id)
     const unsigned long long size = qry_member_file_read(path, (unsigned char *)stat, sizeof(stat) - 1u);
     stat[(size == QRY_MEMBER_UNREAD) ? 0u : size] = '\0';
     const char *const close = EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = stat, .length_value = CLI_UNITY_LENGTH(stat), .byte = ')');
-    listed &= (close != NULL) && (close[1] == ' ') && (close[2] != 'Z');
+    list_entries &= (close != NULL) && (close[1] == ' ') && (close[2] != 'Z');
 #endif
-    return listed;
+    return list_entries;
 }
 
 // the process `id` waited for to end, up to five seconds: whether it still runs
@@ -80,7 +80,7 @@ static unsigned long long output_read(CliSpawned *spawned)
     unsigned long long size = 0ull;
     for (;;)
     {
-        const unsigned long long piece = EMBED_CALL(cli_room_pipe_handle_internal.spawn_read, CliRoomPipeHandleCtx, .pipe_handle = spawned->out, .piece = s_output + size, .room = sizeof(s_output) - 1u - size);
+        const unsigned long long piece = EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx, .pipe_handle = spawned->out, .piece = s_output + size, .capacity = sizeof(s_output) - 1u - size);
         if (piece == 0ull)
         {
             break;
@@ -103,12 +103,12 @@ static int found_contains(unsigned int count, unsigned int id)
 }
 
 // this program run again with `variable` set: the ids its head reports, into `ids`, which is sized for 2: their count
-static unsigned int head_ran(const char *variable, unsigned int *ids)
+static unsigned int head_run_result(const char *variable, unsigned int *ids)
 {
     char program[CLI_PATH_MAX_LEN];
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    (void)EMBED_CALL(cli_path_room_internal.program_own, CliPathRoomCtx, .path_out = program, .room_size = sizeof(program));
+    (void)EMBED_CALL(cli_path_capacity_internal.program_own, CliPathCapacityCtx, .path_out = program, .capacity_bytes = sizeof(program));
     const char *const words[2] = {program, NULL};
     const CliSetting settings[1] = {{variable, "1"}};
     CliSpawned spawned;
@@ -175,7 +175,7 @@ static int head_code(int outside)
     {
         static CliOutcome s_outcome;
         static const char *const s_serve[1] = {"serve"};
-        EMBED_CALL(cli_command_line_given.run, CliCommandLineGivenCfg, .given = s_serve, .count = 1u, .outcome = &s_outcome);
+        EMBED_CALL(cli_command_line_input.run, CliCommandLineInputCfg, .supplied = s_serve, .count = 1u, .outcome = &s_outcome);
         ids_written(ids, 1u);
         return 0;
     }
@@ -184,7 +184,7 @@ static int head_code(int outside)
         return 1;
     }
     unsigned int members[256];
-    const unsigned int count = EMBED_CALL(cli_ids_internal.container_members, CliIdsCtx, .ids = members, .room_u32 = 256u);
+    const unsigned int count = EMBED_CALL(cli_ids_internal.container_members, CliIdsCtx, .ids = members, .capacity_u32 = 256u);
     int lists_inside = 0;
     int lists_outside = 0;
     for (unsigned int at = 0u; at < count; at += 1u)
@@ -204,19 +204,19 @@ static int head_code(int outside)
 }
 
 // both heads run and what they left recorded, once for the process
-static void heads_ran(void)
+static void heads_run_result(void)
 {
-    if (s_heads_ran)
+    if (s_heads_run_result)
     {
         return;
     }
-    s_heads_ran = 1;
+    s_heads_run_result = 1;
     unsigned int ids[2] = {0u, 0u};
-    s_serve_ids = head_ran("ORIOR_SERVE_HEAD", ids);
+    s_serve_ids = head_run_result("ORIOR_SERVE_HEAD", ids);
     s_serve_child_still = (s_serve_ids == 1u) && process_still(ids[0]);
     ids[0] = 0u;
     ids[1] = 0u;
-    s_container_ids = head_ran("ORIOR_CONTAINER_HEAD", ids);
+    s_container_ids = head_run_result("ORIOR_CONTAINER_HEAD", ids);
     s_member_still = (s_container_ids == 2u) && process_still(ids[0]);
     s_outside_alive = (s_container_ids == 2u) && process_alive(ids[1]);
     if (s_container_ids == 2u)
@@ -229,11 +229,11 @@ void setUp(void)
 {
     char head[8];
     cli_unity_begun();
-    if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_SERVE_HEAD", .value_out = head, .room = sizeof(head)))
+    if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_SERVE_HEAD", .value_out = head, .capacity = sizeof(head)))
     {
         exit(head_code(0));
     }
-    if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_CONTAINER_HEAD", .value_out = head, .room = sizeof(head)))
+    if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_CONTAINER_HEAD", .value_out = head, .capacity = sizeof(head)))
     {
         exit(head_code(1));
     }
@@ -318,7 +318,7 @@ void test_windows_a_groups_end_ends_a_scripts_processes_under_gits_bash_launcher
     unsigned long long size = 0ull;
     while (size < 5ull)
     {
-        const unsigned long long piece = EMBED_CALL(cli_room_pipe_handle_internal.spawn_read, CliRoomPipeHandleCtx, .pipe_handle = spawned.out, .piece = first + size, .room = 5ull - size);
+        const unsigned long long piece = EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx, .pipe_handle = spawned.out, .piece = first + size, .capacity = 5ull - size);
         size += piece;
         if (piece == 0ull)
         {
@@ -352,7 +352,7 @@ void test_posix_a_tree_end_ends_a_detached_groups_processes_and_their_output(voi
     unsigned long long size = 0ull;
     while (size < 5ull)
     {
-        const unsigned long long piece = EMBED_CALL(cli_room_pipe_handle_internal.spawn_read, CliRoomPipeHandleCtx, .pipe_handle = spawned.out, .piece = first + size, .room = 5ull - size);
+        const unsigned long long piece = EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx, .pipe_handle = spawned.out, .piece = first + size, .capacity = 5ull - size);
         size += piece;
         if (piece == 0ull)
         {
@@ -372,7 +372,7 @@ void test_posix_a_tree_end_ends_a_detached_groups_processes_and_their_output(voi
 
 void test_descendants_are_every_process_under_a_root(void)
 {
-    const unsigned int count = EMBED_CALL(cli_container_root.descendants, CliContainerRootCfg, .root = 1u, .parents = s_tree, .count = 6u, .found = s_found, .room = 8u);
+    const unsigned int count = EMBED_CALL(cli_container_root.descendants, CliContainerRootCfg, .root = 1u, .parents = s_tree, .count = 6u, .found = s_found, .capacity = 8u);
     TEST_ASSERT_EQUAL_UINT(4u, count);
     for (unsigned int want = 2u; want <= 5u; want += 1u)
     {
@@ -382,12 +382,12 @@ void test_descendants_are_every_process_under_a_root(void)
 
 void test_a_leaf_has_no_descendants(void)
 {
-    TEST_ASSERT_EQUAL_UINT(0u, EMBED_CALL(cli_container_root.descendants, CliContainerRootCfg, .root = 4u, .parents = s_tree, .count = 6u, .found = s_found, .room = 8u));
+    TEST_ASSERT_EQUAL_UINT(0u, EMBED_CALL(cli_container_root.descendants, CliContainerRootCfg, .root = 4u, .parents = s_tree, .count = 6u, .found = s_found, .capacity = 8u));
 }
 
 void test_children_come_after_their_parents(void)
 {
-    TEST_ASSERT_EQUAL_UINT(2u, EMBED_CALL(cli_container_root.descendants, CliContainerRootCfg, .root = 9u, .parents = s_tree, .count = 6u, .found = s_found, .room = 8u));
+    TEST_ASSERT_EQUAL_UINT(2u, EMBED_CALL(cli_container_root.descendants, CliContainerRootCfg, .root = 9u, .parents = s_tree, .count = 6u, .found = s_found, .capacity = 8u));
     TEST_ASSERT_EQUAL_UINT(6u, s_found[0]);
     TEST_ASSERT_EQUAL_UINT(7u, s_found[1]);
 }
@@ -404,7 +404,7 @@ void test_a_process_is_under_no_other(void)
     TEST_ASSERT_FALSE(EMBED_CALL(cli_container_root_id.under, CliContainerRootIdCfg, .root = 1u, .id = 7u, .parents = s_walk, .count = 7u));
 }
 
-void test_a_process_listed_as_its_own_parent_ends_the_walk(void)
+void test_a_process_listing_as_its_own_parent_ends_the_walk(void)
 {
     TEST_ASSERT_FALSE(EMBED_CALL(cli_container_root_id.under, CliContainerRootIdCfg, .root = 1u, .id = 8u, .parents = s_walk, .count = 7u));
 }
@@ -416,15 +416,15 @@ void test_a_loop_of_reused_ids_ends_the_walk(void)
 
 void test_this_process_is_under_its_parent(void)
 {
-    const unsigned int listed = EMBED_CALL(cli_room_processes_internal.processes_list, CliRoomProcessesCtx, .processes = s_listed, .room_u32 = sizeof(s_listed) / sizeof(s_listed[0]));
+    const unsigned int list_entries = EMBED_CALL(cli_capacity_processes_internal.processes_list, CliCapacityProcessesCtx, .processes = s_list_result, .capacity_u32 = sizeof(s_list_result) / sizeof(s_list_result[0]));
     const unsigned int own = cli_process_own();
     unsigned int parent = 0u;
-    for (unsigned int at = 0u; at < listed; at += 1u)
+    for (unsigned int at = 0u; at < list_entries; at += 1u)
     {
-        parent = (s_listed[at].id == own) ? s_listed[at].parent : parent;
+        parent = (s_list_result[at].id == own) ? s_list_result[at].parent : parent;
     }
     TEST_ASSERT_NOT_EQUAL(0u, parent);
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_container_root_id.under, CliContainerRootIdCfg, .root = parent, .id = own, .parents = s_listed, .count = listed));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_container_root_id.under, CliContainerRootIdCfg, .root = parent, .id = own, .parents = s_list_result, .count = list_entries));
 }
 
 void test_a_process_may_die_three_times_a_minute(void)
@@ -445,7 +445,7 @@ void test_a_fourth_death_within_a_minute_stops_restarts_and_is_counted(void)
     TEST_ASSERT_EQUAL_UINT(4u, EMBED_CALL(cli_container_at.restarts_count, CliContainerAtCfg, .restarts_read = &s_restarts, .at = start + 3000ull));
 }
 
-void test_deaths_long_past_are_not_counted(void)
+void test_deaths_long_end_are_not_counted(void)
 {
     const unsigned long long start = cli_clock_milliseconds();
     (void)EMBED_CALL(cli_container_restarts_at.restarts_dy, CliContainerRestartsAtCfg, .restarts = &s_restarts, .at = start);
@@ -458,25 +458,25 @@ void test_deaths_long_past_are_not_counted(void)
 
 void test_what_serve_started_ended_as_its_input_did(void)
 {
-    heads_ran();
+    heads_run_result();
     TEST_ASSERT_EQUAL_UINT(1u, s_serve_ids);
     TEST_ASSERT_FALSE(s_serve_child_still);
 }
 
 void test_the_head_starts_a_member_and_one_outside(void)
 {
-    heads_ran();
+    heads_run_result();
     TEST_ASSERT_EQUAL_UINT(2u, s_container_ids);
 }
 
 void test_the_member_ended_with_the_container(void)
 {
-    heads_ran();
+    heads_run_result();
     TEST_ASSERT_FALSE(s_member_still);
 }
 
 void test_what_was_started_outside_lives_on(void)
 {
-    heads_ran();
+    heads_run_result();
     TEST_ASSERT_TRUE(s_outside_alive);
 }

@@ -57,14 +57,14 @@ struct CliMysql
     unsigned int warnings;
     unsigned char codes[CLI_DB_COLUMNS];
     unsigned int charsets[CLI_DB_COLUMNS];
-    int reading;
+    int read_state;
     int sealed;
     CliDbHead head;
     CliDbValue row[CLI_DB_COLUMNS];
     char hex[CLI_MYSQL_HEX];
 };
 
-// a packet read, its payloads joined where it spans more than one, into the connection's room: 1, or 0 with the
+// a packet read, its payloads joined where it spans more than one, into the connection's capacity: 1, or 0 with the
 // failure given; `size` bytes of `payload` sent as packets of the connection's sequence: 1, or 0 with the failure
 // given; what a server reported went wrong read from an error packet; a length-encoded number at `at`, moving past it:
 // 1, or 0 where it is NULL or runs past the end; and a length-encoded string's start and length (mysql.c)
@@ -80,7 +80,7 @@ unsigned int cli_mysql_answer(const CliMysqlSizePasswordCtx *args);
 // the handshake read and the sign-in made, as the account requires: 1, or 0 with the failure given (mysql_sign.c)
 int cli_mysql_signed_in(const CliMysqlFailurePasswordCtx *args);
 
-// the words of a number's room
+// the words of a number's capacity
 #define CLI_BIG_WORDS 520u
 
 // A number: its words, least first, and how many of them are used, the top one not 0
@@ -90,7 +90,7 @@ typedef struct
     unsigned int count;
 } CliBig;
 
-// a number read from `size` bytes, most significant first: 1, or 0 where it does not fit its room; a number written
+// a number read from `size` bytes, most significant first: 1, or 0 where it does not fit its capacity; a number written
 // into `length` bytes, most significant first; the product of two: 1, or 0 where it does not fit; the remainder of a
 // number by `modulus`; and `base` to the power `exponent` by `modulus`, while no sealing runs: 1, or 0 where a product
 // does not fit; the `length` bytes of the mask MGF1 makes of `size` bytes of `seed` with SHA-1; and `size` bytes of

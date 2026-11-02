@@ -47,15 +47,15 @@ int cli_db_tunnel_open(const CliDbHostCtx *args)
     if (!EMBED_CALL(cli_runner_variable.program_words, CliRunnerVariableCfg, .variable = "ORIOR_SSH",
                     .words = &s_words))
     {
-        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+        EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
                    .word = "ssh");
     }
     for (unsigned int at = 0u; at < 11u; at += 1u)
     {
-        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+        EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
                    .word = words[at]);
     }
-    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
                .word = args->through);
     EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = s_path, .size = sizeof(s_path));
     const CliSetting settings[1] = {{"PATH", s_path}};
@@ -84,9 +84,9 @@ int cli_db_tunnel_open(const CliDbHostCtx *args)
             unsigned long long used = 0ull;
             for (unsigned long long got = 1ull; (got > 0ull) && (used < sizeof(errors));)
             {
-                got = EMBED_CALL(cli_room_pipe_handle_internal.spawn_read, CliRoomPipeHandleCtx,
+                got = EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx,
                                  .pipe_handle = args->tunnel->child.err, .piece = errors + used,
-                                 .room = sizeof(errors) - used);
+                                 .capacity = sizeof(errors) - used);
                 used += got;
             }
             while ((used > 0u) &&

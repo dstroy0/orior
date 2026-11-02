@@ -13,7 +13,7 @@
 #include "../text/text.h"
 
 // the most plugins bundled, the most bytes of one, and the most bytes of the file written
-#define CLI_BUNDLE_MOST 512u
+#define CLI_BUNDLE_MAX 512u
 
 #define CLI_BUNDLE_BYTES (1u << 22u)
 
@@ -23,12 +23,12 @@
 const CliBundled g_cli_bundled[1] = {{NULL, NULL, 0ull, NULL, 0ull}};
 const unsigned int g_cli_bundled_count = 0u;
 
-static char s_ids[CLI_BUNDLE_MOST][CLI_NAME_MAX_LEN];
+static char s_ids[CLI_BUNDLE_MAX][CLI_NAME_MAX_LEN];
 static unsigned int s_count;
 static unsigned char s_bytes[CLI_BUNDLE_BYTES];
 static char s_code[CLI_BUNDLE_BYTES];
-static unsigned long long s_code_size[CLI_BUNDLE_MOST];
-static int s_coded[CLI_BUNDLE_MOST];
+static unsigned long long s_code_size[CLI_BUNDLE_MAX];
+static int s_coded[CLI_BUNDLE_MAX];
 static char s_out[CLI_BUNDLE_OUT];
 
 typedef struct
@@ -69,10 +69,10 @@ EMBED_INLINE int cli_script(const PluginsBundleCtx *args)
     unsigned long long size = args->size;
     CliJson json;
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &json,
-               .node_json_node_pointer = NULL, .nodes_most = 0u, .text_out = NULL, .text_most = 0ull);
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
     char why[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg,
+    const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                          .json = &json, .text = (const char *)text, .size = size, .nodes_more = 0u,
                                          .text_more = 0ull, .err_msg = &err_msg, .owner = &g_cli_bundle_cells);
     const char *const kind =
@@ -119,7 +119,7 @@ EMBED_INLINE int cli_code_bundle(const PluginsBundleCtx *args)
 // Each folder under the plugins' folder taken, its name stored in order
 static void cli_folder_each(const CliEachNameIsFolderCfg *args)
 {
-    if (!args->is_folder || (s_count >= CLI_BUNDLE_MOST) ||
+    if (!args->is_folder || (s_count >= CLI_BUNDLE_MAX) ||
         (cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}) >= CLI_NAME_MAX_LEN))
     {
         return;

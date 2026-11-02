@@ -5,7 +5,7 @@
 #include "../text/text.h"
 #include "format_internal.h"
 
-CliFormatRoom g_cli_format;
+CliFormatWorkState g_cli_format;
 
 void cli_format_release(void)
 {
@@ -62,7 +62,7 @@ static void cli_plugin_each(const CliEachPluginCfg *args)
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea unread = {why, sizeof(why), 0ull};
     const unsigned int root =
-        EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
+        EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
                    .text = args->plugin->text, .size = args->plugin->size, .nodes_more = 0u, .text_more = 0ull,
                    .err_msg = &unread, .owner = &g_cli_toolchains_cells);
     const unsigned int extensions = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
@@ -97,10 +97,10 @@ static void cli_plugin_each(const CliEachPluginCfg *args)
 int cli_format_language_get(const CliFormatCfg *args)
 {
     const char *name = args->path;
-    const unsigned long long name_past =
+    const unsigned long long name_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
                    .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
-    name = (name_past != 0ull) ? (args->path + name_past) : name;
+    name = (name_end != 0ull) ? (args->path + name_end) : name;
     const char *const dot =
         EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = name,
                    .length_value = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .byte = '.');
@@ -108,8 +108,8 @@ int cli_format_language_get(const CliFormatCfg *args)
     {
         return 0;
     }
-    (void)EMBED_CALL(cli_text_out_room.lowered_into, CliTextOutRoomCfg, .out_room = s_choice.extension,
-                     .room = CLI_NAME_MAX_LEN, .text = dot + 1);
+    (void)EMBED_CALL(cli_text_out_capacity.lowered_into, CliTextOutCapacityCfg, .out_capacity = s_choice.extension,
+                     .capacity = CLI_NAME_MAX_LEN, .text = dot + 1);
     s_choice.chosen = 0;
     EMBED_CALL(cli_plugins_each_table.each, CliPluginsEachCfg, .each = cli_plugin_each, .context = NULL);
     const int chosen = s_choice.chosen;
@@ -121,50 +121,6 @@ int cli_format_language_get(const CliFormatCfg *args)
                           .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_choice.id, .cap = CLI_CELLS_POOL}) + 1u});
     }
     return chosen;
-}
-
-void cli_format_languages(const CliFormatPathCfg *args)
-{
-    const unsigned int manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
-                                             .json_out = &g_cli_format.json, .nodes_more = 0u, .text_more = 0ull);
-    mmgr_line_ch(args->out, '[');
-    unsigned int written = 0u;
-    for (unsigned int index = 0u;
-         EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = &g_cli_format.json,
-                    .array = manifest, .index = index) != CLI_JSON_NONE;
-         index += 1u)
-    {
-        const unsigned int tool = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
-                                             .json_read = &g_cli_format.json, .array = manifest, .index = index);
-        if (EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &g_cli_format.json,
-                       .object = tool, .name = "format") == CLI_JSON_NONE)
-        {
-            continue;
-        }
-        const unsigned int formats = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                                .json_read = &g_cli_format.json, .object = tool, .name = "formats");
-        for (unsigned int at = 0u;
-             EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = &g_cli_format.json,
-                        .array = formats, .index = at) != CLI_JSON_NONE;
-             at += 1u)
-        {
-            unsigned long long length = 0ull;
-            const char *const one = EMBED_CALL(
-                cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &g_cli_format.json,
-                .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
-                                   .json_read = &g_cli_format.json, .array = formats, .index = at),
-                .length_pointer = &length);
-            if (one != NULL)
-            {
-                mmgr_line_put(args->out, (written != 0u) ? "," : "");
-                EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
-                           .text = one, .length = length);
-                written += 1u;
-            }
-        }
-    }
-    mmgr_line_ch(args->out, ']');
-    cli_format_release();
 }
 
 unsigned int cli_format_tool(const CliFormatLanguageCtx *args)
@@ -270,20 +226,20 @@ void cli_format_edition_get(const CliFormatCtx *args)
         const char *end = cellul.chr(&(CatenaFinitaCfg){.src = line, .cap = CLI_CELLS_POOL, .byte = '\n'});
         end = (end != NULL) ? end : (line + cellul.len(&(CatenaFinitaCfg){.src = line, .cap = CLI_CELLS_POOL}));
         const char *at = line;
-        at += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ull,
+        at += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ull,
                          .size = (unsigned long long)(end - at), .set = " \t");
         if (((end - at) >= 7) && (memor.cmp(&(MemoriaCfg){.src = at, .other = "edition", .bytes = 7u}) == 0))
         {
             at += 7;
-            at += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ull,
+            at += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ull,
                              .size = (unsigned long long)(end - at), .set = " \t");
             if ((at < end) && (at[0] == '='))
             {
                 at += 1;
                 const char *stop = end;
-                at += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ull,
+                at += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ull,
                                  .size = (unsigned long long)(stop - at), .set = "  \t\n\v\f\r\"");
-                stop = at + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = at,
+                stop = at + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = at,
                                        .at = (unsigned long long)(stop - at), .set = "  \t\n\v\f\r\"");
                 // the edition lies between its quotes, its end at or past its start
                 const unsigned long long length = (unsigned long long)(stop - at);
@@ -367,7 +323,7 @@ int cli_format(const CliFormatPathCfg *args)
                    .length_pointer = NULL);
     const char *const program_name = (named != NULL) ? named : "";
     unsigned int count = 0u;
-    char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&count, &g_cli_toolchains_cells);
+    char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_allocated(&count, &g_cli_toolchains_cells);
     EMBED_CALL(cli_toolchains_json.find, CliToolchainsJsonCfg, .json = json, .tool = tool,
                .path_callback = (const char (*)[CLI_PATH_MAX_LEN])folders, .count = count,
                .found = &g_cli_format.found);
@@ -403,10 +359,10 @@ int cli_format(const CliFormatPathCfg *args)
             break;
         }
     }
-    const char *words[CLI_WORDS_MOST + 2u] = {program};
+    const char *words[CLI_WORDS_MAX + 2u] = {program};
     unsigned int word_count = 1u;
     unsigned long long used = 0ull;
-    for (unsigned int at = 0u; (word_count <= CLI_WORDS_MOST) &&
+    for (unsigned int at = 0u; (word_count <= CLI_WORDS_MAX) &&
                                (EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                            .json_read = json, .array = arguments, .index = at) != CLI_JSON_NONE);
          at += 1u)
@@ -433,22 +389,22 @@ int cli_format(const CliFormatPathCfg *args)
     const int in_folder =
         EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->path, .out = folder) &&
         EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = folder);
-    CliRan *const ran = cli_ran_take();
+    CliRunResult *const run_result = cli_run_result_alloc();
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea unstarted = {why, sizeof(why), 0ull};
-    const int started =
-        EMBED_CALL(cli_words_internal.ran_within, CliWordsCtx, .words = words, .folder = in_folder ? folder : NULL,
-                   .settings = settings, .count = 1u, .input = args->text, .length = args->length,
-                   .milliseconds_u64 = CLI_FORMAT_PATIENCE, .ran = ran, .err_msg = &unstarted);
+    const int started = EMBED_CALL(cli_words_internal.run_result_within, CliWordsCtx, .words = words,
+                                   .folder = in_folder ? folder : NULL, .settings = settings, .count = 1u,
+                                   .input = args->text, .length = args->length, .milliseconds_u64 = CLI_FORMAT_PATIENCE,
+                                   .run_result = run_result, .err_msg = &unstarted);
     cli_format_release();
-    const int formatted = started && !ran->stopped && (ran->code == 0ll);
+    const int formatted = started && !run_result->stopped && (run_result->code == 0ll);
     if (!started)
     {
         mmgr_line_put(args->err_msg, program);
         mmgr_line_put(args->err_msg, ": ");
         mmgr_line_put_n(args->err_msg, why, unstarted.at);
     }
-    else if (ran->stopped)
+    else if (run_result->stopped)
     {
         mmgr_line_put(args->err_msg, program_name);
         mmgr_line_put(args->err_msg, " took longer than 30 s and was stopped");
@@ -456,20 +412,21 @@ int cli_format(const CliFormatPathCfg *args)
     else if (!formatted)
     {
         EMBED_CALL(cli_format_err_msg_internal.fail, CliFormatErrMsgCtx, .program = program_name, .path = args->path,
-                   .ran = ran, .err_msg = args->err_msg);
+                   .run_result = run_result, .err_msg = args->err_msg);
     }
-    else if (!EMBED_CALL(cli_format_bytes_internal.utf8, CliFormatBytesCtx, .bytes = ran->out, .size = ran->out_size))
+    else if (!EMBED_CALL(cli_format_bytes_internal.utf8, CliFormatBytesCtx, .bytes = run_result->out,
+                         .size = run_result->out_size))
     {
         mmgr_line_put(args->err_msg, program_name);
         mmgr_line_put(args->err_msg, " wrote text that is not UTF-8");
-        EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+        EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
         return 0;
     }
     else
     {
-        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out, .text = ran->out,
-                   .length = ran->out_size);
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
+                   .text = run_result->out, .length = run_result->out_size);
     }
-    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+    EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
     return formatted;
 }

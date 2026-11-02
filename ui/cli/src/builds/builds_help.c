@@ -8,7 +8,7 @@
 #include "../text/text.h"
 #include "builds.h"
 
-unsigned int *cli_build_lines_take(const CliBuildsTextSizeCfg *args)
+unsigned int *cli_build_lines_alloc(const CliBuildsTextSizeCfg *args)
 {
     unsigned long long count = 1ull;
     for (unsigned long long at = 0ull; at < args->size; at += 1ull)
@@ -52,7 +52,7 @@ void cli_build_lines_get(const CliBuildsTextSizeCfg *args)
     }
 }
 
-CliTextPlace cli_build_place(const CliBuildsLinesAtCfg *args)
+CliTextPosition cli_build_position(const CliBuildsLinesAtCfg *args)
 {
     unsigned int low = 0u;
     unsigned int high = args->lines->count;
@@ -82,7 +82,7 @@ CliTextPlace cli_build_place(const CliBuildsLinesAtCfg *args)
     const unsigned long long units = (start <= end) ? EMBED_CALL(cli_text_size_byte.units, CliTextSizeByteCfg,
                                                                  .text = args->lines->text + start, .size = end - start)
                                                     : 0ull;
-    return (CliTextPlace){line, (unsigned int)units};
+    return (CliTextPosition){line, (unsigned int)units};
 }
 
 unsigned long long cli_build_line_start(const CliBuildsLineCfg *args)
@@ -121,11 +121,11 @@ void cli_build_findings_begin(const CliBuildsLinesCfg *args)
         return;
     }
     args->found->finding = (CliBuildFinding *)(void *)cell;
-    args->found->finding_room = CLI_BUILD_FINDINGS;
+    args->found->finding_capacity = CLI_BUILD_FINDINGS;
     args->found->fix = (CliBuildFix *)(void *)(cell + finding_bytes);
-    args->found->fix_room = CLI_BUILD_FIXES;
+    args->found->fix_capacity = CLI_BUILD_FIXES;
     args->found->text = cell + finding_bytes + fix_bytes;
-    args->found->text_room = CLI_BUILD_TEXT;
+    args->found->text_capacity = CLI_BUILD_TEXT;
 }
 
 void cli_build_findings_free(const CliBuildsLinesCfg *args)
@@ -137,9 +137,9 @@ void cli_build_findings_free(const CliBuildsLinesCfg *args)
 
 VerbaLinea cli_build_msg_line(const CliBuildsLinesCfg *args)
 {
-    return (args->found->text != NULL)
-               ? (VerbaLinea){args->found->text + args->found->used, args->found->text_room - args->found->used, 0ull}
-               : (VerbaLinea){NULL, 0ull, 0ull};
+    return (args->found->text != NULL) ? (VerbaLinea){args->found->text + args->found->used,
+                                                      args->found->text_capacity - args->found->used, 0ull}
+                                       : (VerbaLinea){NULL, 0ull, 0ull};
 }
 
 typedef struct
@@ -150,7 +150,7 @@ typedef struct
     const VerbaLinea *line;
     unsigned int finding;
     const VerbaLinea *title;
-    CliTextPlace place;
+    CliTextPosition place;
     VerbaLinea *out;
     const CliBuildFindings *found_read;
     const CliBuildFix *fix;
@@ -160,15 +160,15 @@ typedef struct
 EMBED_INLINE unsigned int help_text_store(const BuildsHelpCtx *args)
 {
     const char *bytes = args->bytes;
-    // a line written in place already has its room; any other is copied in
-    const int in_place = (args->found->text != NULL) && (bytes == args->found->text + args->found->used);
-    if ((args->found->used + args->size + 1ull) > args->found->text_room)
+    // a line written in place already has its capacity; any other is copied in
+    const int in_position = (args->found->text != NULL) && (bytes == args->found->text + args->found->used);
+    if ((args->found->used + args->size + 1ull) > args->found->text_capacity)
     {
         args->found->full = 1;
         return CLI_BUILD_TEXT;
     }
     const unsigned int at = args->found->used;
-    if (!in_place)
+    if (!in_position)
     {
         memor.move_down(&(MemoriaCfg){.dst = args->found->text + at, .src = bytes, .bytes = (size_t)args->size});
     }
@@ -191,7 +191,7 @@ EMBED_INLINE unsigned int help_line_store(const BuildsHelpCtx *args)
 
 unsigned int cli_build_finding(const CliBuildsLinesCfg *args)
 {
-    if (args->found->count >= args->found->finding_room)
+    if (args->found->count >= args->found->finding_capacity)
     {
         args->found->full = 1;
         return CLI_BUILD_NONE;
@@ -202,8 +202,8 @@ unsigned int cli_build_finding(const CliBuildsLinesCfg *args)
         return CLI_BUILD_NONE;
     }
     args->found->finding[args->found->count] = (CliBuildFinding){
-        EMBED_CALL(cli_builds_lines_at.build_place, CliBuildsLinesAtCfg, .lines = args->lines, .at = args->from),
-        EMBED_CALL(cli_builds_lines_at.build_place, CliBuildsLinesAtCfg, .lines = args->lines, .at = args->to),
+        EMBED_CALL(cli_builds_lines_at.build_position, CliBuildsLinesAtCfg, .lines = args->lines, .at = args->from),
+        EMBED_CALL(cli_builds_lines_at.build_position, CliBuildsLinesAtCfg, .lines = args->lines, .at = args->to),
         args->severity,
         args->code,
         at,
@@ -216,7 +216,7 @@ unsigned int cli_build_finding(const CliBuildsLinesCfg *args)
 EMBED_INLINE unsigned int help_fix(const BuildsHelpCtx *args)
 {
     unsigned int finding = args->finding;
-    if ((finding == CLI_BUILD_NONE) || (args->found->fixes >= args->found->fix_room))
+    if ((finding == CLI_BUILD_NONE) || (args->found->fixes >= args->found->fix_capacity))
     {
         args->found->full = 1;
         return CLI_BUILD_FIXES;
@@ -245,8 +245,8 @@ void cli_build_edit_fix(const CliBuildsTextCfg *args)
         return;
     }
     CliBuildFix *const fix = &args->found->fix[at];
-    fix->from = EMBED_CALL(cli_builds_lines_at.build_place, CliBuildsLinesAtCfg, .lines = args->lines, .at = from);
-    fix->to = EMBED_CALL(cli_builds_lines_at.build_place, CliBuildsLinesAtCfg, .lines = args->lines, .at = to);
+    fix->from = EMBED_CALL(cli_builds_lines_at.build_position, CliBuildsLinesAtCfg, .lines = args->lines, .at = from);
+    fix->to = EMBED_CALL(cli_builds_lines_at.build_position, CliBuildsLinesAtCfg, .lines = args->lines, .at = to);
     fix->text_at =
         EMBED_CALL(help_text_store, BuildsHelpCtx, .found = args->found, .bytes = args->text, .size = args->size);
     fix->text_size = (unsigned int)args->size;
@@ -267,9 +267,9 @@ void cli_build_edit_fix_twice(const CliBuildsTextCfg *args)
         CliBuildFix *const fix = &args->found->fix[fixes];
         fix->also = 1;
         fix->also_from =
-            EMBED_CALL(cli_builds_lines_at.build_place, CliBuildsLinesAtCfg, .lines = args->lines, .at = also_from);
+            EMBED_CALL(cli_builds_lines_at.build_position, CliBuildsLinesAtCfg, .lines = args->lines, .at = also_from);
         fix->also_to =
-            EMBED_CALL(cli_builds_lines_at.build_place, CliBuildsLinesAtCfg, .lines = args->lines, .at = also_to);
+            EMBED_CALL(cli_builds_lines_at.build_position, CliBuildsLinesAtCfg, .lines = args->lines, .at = also_to);
     }
 }
 
@@ -297,7 +297,7 @@ void cli_build_run_fix(const CliBuildsFoundCfg *args)
 }
 
 // a place written as the protocol's `{"line", "character"}`
-EMBED_INLINE void help_place_write(const BuildsHelpCtx *args)
+EMBED_INLINE void help_position_write(const BuildsHelpCtx *args)
 {
     mmgr_line_put(args->out, "{\"line\":");
     mmgr_line_decimal(args->out, args->place.line, 1u);
@@ -345,9 +345,9 @@ void cli_build_findings_write(const CliBuildsCfg *args)
     {
         const CliBuildFinding *const one = &args->found_read->finding[at];
         mmgr_line_put(args->out, (at > 0u) ? ",{\"range\":{\"start\":" : "{\"range\":{\"start\":");
-        EMBED_CALL(help_place_write, BuildsHelpCtx, .place = one->from, .out = args->out);
+        EMBED_CALL(help_position_write, BuildsHelpCtx, .place = one->from, .out = args->out);
         mmgr_line_put(args->out, ",\"end\":");
-        EMBED_CALL(help_place_write, BuildsHelpCtx, .place = one->to, .out = args->out);
+        EMBED_CALL(help_position_write, BuildsHelpCtx, .place = one->to, .out = args->out);
         mmgr_line_put(args->out, "},\"severity\":");
         mmgr_line_decimal(args->out, one->severity, 1u);
         mmgr_line_put(args->out, ",\"message\":{\"kind\":\"markdown\",\"value\":");
@@ -436,7 +436,7 @@ void cli_build_relative(const CliBuildsItemsCfg *args)
     {
         return;
     }
-    (void)EMBED_CALL(cli_edits_items.completion_put, CliEditsItemsCfg, .items = args->items,
+    (void)EMBED_CALL(cli_edits_items.completion_append, CliEditsItemsCfg, .items = args->items,
                      .label = args->value + base, .label_size = args->value_size - base, .kind = args->kind,
                      .detail = args->detail, .detail_size = args->detail_size, .insert = args->value + base,
                      .insert_size = args->value_size - base, .snippet = 0);
@@ -452,7 +452,7 @@ void cli_build_items(const CliBuildsItemsKindCfg *args)
         {
             label -= 2u;
         }
-        (void)EMBED_CALL(cli_edits_items.completion_put, CliEditsItemsCfg, .items = args->items,
+        (void)EMBED_CALL(cli_edits_items.completion_append, CliEditsItemsCfg, .items = args->items,
                          .label = args->words[at], .label_size = label, .kind = args->kind, .detail = args->detail,
                          .detail_size = cellul.len(&(CatenaFinitaCfg){.src = args->detail, .cap = CLI_CELLS_POOL}),
                          .insert = args->words[at],
@@ -463,7 +463,7 @@ void cli_build_items(const CliBuildsItemsKindCfg *args)
 
 void cli_build_inside(const CliBuildsRootCfg *args)
 {
-    VerbaLinea line = {args->out_room, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->out_capacity, CLI_PATH_MAX_LEN, 0ull};
     const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL});
     const char after = args->folder[length];
     if (!EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = args->folder, .other_pointer = args->root,
@@ -471,14 +471,14 @@ void cli_build_inside(const CliBuildsRootCfg *args)
         ((after != '\0') && (after != '/') && (after != '\\') && (length > 0u) && (args->root[length - 1u] != '/') &&
          (args->root[length - 1u] != '\\')))
     {
-        args->out_room[0] = '\0';
+        args->out_capacity[0] = '\0';
         return;
     }
     const char *rest = args->folder + length;
-    rest += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = rest, .at = 0ull,
+    rest += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = rest, .at = 0ull,
                        .size = cellul.len(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL}), .set = "/\\");
-    rest += EMBED_CALL(cli_text_from.put_swap, CliTextFromCfg, .out = &line, .text = rest, .from = '\\', .to = '/');
-    line.at = EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = args->out_room,
+    rest += EMBED_CALL(cli_text_from.append_swap, CliTextFromCfg, .out = &line, .text = rest, .from = '\\', .to = '/');
+    line.at = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = args->out_capacity,
                          .at = line.at, .set = "/");
     (void)mmgr_line_finish(&line);
 }

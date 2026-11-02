@@ -35,7 +35,7 @@ typedef struct
     char *out;
     const CliXml *xml;
     unsigned int of;
-    char *room;
+    char *capacity;
     unsigned long long size;
     unsigned long long *length;
     unsigned int parent;
@@ -50,7 +50,7 @@ EMBED_INLINE CliMavenMapped model_map(const MavenModelCtx *args)
 {
     const char *path = args->path;
     CliMavenMapped mapped = {NULL, 0ull};
-    mapped.bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = path, .size_pointer = &mapped.size,
+    mapped.bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path, .size_pointer = &mapped.size,
                               .owner = &g_cli_maven_model_cells);
     if ((mapped.bytes != NULL) && (mapped.size > CLI_MAVEN_POM_TEXT))
     {
@@ -101,7 +101,7 @@ EMBED_INLINE void model_set(const MavenModelCtx *args)
     {
         return;
     }
-    if ((at == model->properties) && (at >= model->property_room))
+    if ((at == model->properties) && (at >= model->property_capacity))
     {
         return;
     }
@@ -138,24 +138,24 @@ void cli_maven_resolve(const CliMavenSizeOutCtx *args)
         unsigned long long start = 0ull;
         unsigned long long length = 0ull;
         if (!EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = s_turn[turn_at], .length_value = line.at,
-                        .wanted = "${", .size = 2u, .at_pointer = &start) ||
+                        .required = "${", .size = 2u, .at_pointer = &start) ||
             !EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = s_turn[turn_at] + start,
-                        .length_value = line.at - start, .wanted = "}", .size = 1u, .at_pointer = &length))
+                        .length_value = line.at - start, .required = "}", .size = 1u, .at_pointer = &length))
         {
             break;
         }
-        unsigned long long given_size = 0ull;
-        const char *const given =
+        unsigned long long input_size = 0ull;
+        const char *const supplied =
             EMBED_CALL(cli_maven_size_internal.property, CliMavenSizeCtx, .model_read = args->model_read,
-                       .name = s_turn[turn_at] + start + 2u, .size = length - 2u, .value_size = &given_size);
-        if (given == NULL)
+                       .name = s_turn[turn_at] + start + 2u, .size = length - 2u, .value_size = &input_size);
+        if (supplied == NULL)
         {
             break;
         }
         const unsigned int next = 1u - turn_at;
         VerbaLinea turned = {s_turn[next], sizeof(s_turn[next]), 0ull};
         mmgr_line_put_n(&turned, s_turn[turn_at], start);
-        mmgr_line_put_n(&turned, given, given_size);
+        mmgr_line_put_n(&turned, supplied, input_size);
         mmgr_line_put_n(&turned, s_turn[turn_at] + start + length + 1u, line.at - start - length - 1u);
         line = turned;
         turn_at = next;
@@ -169,9 +169,9 @@ int cli_maven_free(const CliMavenSizeNameCtx *args)
     const unsigned long long first = (dot != NULL) ? (unsigned long long)(dot - args->name) : args->size;
     for (unsigned int at = 0u; at < 16u; at += 1u)
     {
-        if ((cellul.len(&(CatenaFinitaCfg){.src = g_cli_maven_given_heads[at], .cap = CLI_CELLS_POOL}) == first) &&
+        if ((cellul.len(&(CatenaFinitaCfg){.src = g_cli_maven_input_heads[at], .cap = CLI_CELLS_POOL}) == first) &&
             (memor.cmp(
-                 &(MemoriaCfg){.src = g_cli_maven_given_heads[at], .other = args->name, .bytes = (size_t)first}) == 0))
+                 &(MemoriaCfg){.src = g_cli_maven_input_heads[at], .other = args->name, .bytes = (size_t)first}) == 0))
         {
             return 1;
         }
@@ -183,9 +183,9 @@ int cli_maven_free(const CliMavenSizeNameCtx *args)
 EMBED_INLINE int model_home(const MavenModelCtx *args)
 {
     return EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "USERPROFILE",
-                      .value_out = args->out, .room = CLI_PATH_MAX_LEN) ||
+                      .value_out = args->out, .capacity = CLI_PATH_MAX_LEN) ||
            EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "HOME",
-                      .value_out = args->out, .room = CLI_PATH_MAX_LEN);
+                      .value_out = args->out, .capacity = CLI_PATH_MAX_LEN);
 }
 
 int cli_maven_user_settings(const CliMavenOutCtx *args)
@@ -197,7 +197,8 @@ int cli_maven_user_settings(const CliMavenOutCtx *args)
         return 0;
     }
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = home, .relative = ".m2", .joined = m2);
-    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = m2, .relative = "settings.xml", .joined = args->out_room);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = m2, .relative = "settings.xml",
+               .joined = args->out_capacity);
     return 1;
 }
 
@@ -206,7 +207,7 @@ int cli_maven_local_repository(const CliMavenOutCtx *args)
     // the settings mapped and read into a tree; settings larger than a POM is read as are read as settings that are not
     // there
     char path[CLI_PATH_MAX_LEN];
-    if (EMBED_CALL(cli_maven_out_internal.user_settings, CliMavenOutCtx, .out_room = path))
+    if (EMBED_CALL(cli_maven_out_internal.user_settings, CliMavenOutCtx, .out_capacity = path))
     {
         const CliMavenMapped mapped = EMBED_CALL(model_map, MavenModelCtx, .path = path);
         int named_one = 0;
@@ -216,7 +217,7 @@ int cli_maven_local_repository(const CliMavenOutCtx *args)
             // the file's bytes are read as its text
             EMBED_CALL(cli_maven_xml_text_internal.xml_parse, CliMavenXmlTextCtx, .text = (const char *)mapped.bytes,
                        .size = mapped.size, .xml_out = &settings);
-            VerbaLinea named = {args->out_room, CLI_PATH_MAX_LEN, 0ull};
+            VerbaLinea named = {args->out_capacity, CLI_PATH_MAX_LEN, 0ull};
             const unsigned int root =
                 EMBED_CALL(cli_maven_xml_project_internal.xml_root, CliMavenXmlProjectCtx, .xml = &settings);
             named_one = (root != CLI_XML_NONE) &&
@@ -238,18 +239,18 @@ int cli_maven_local_repository(const CliMavenOutCtx *args)
         return 0;
     }
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = home, .relative = ".m2", .joined = m2);
-    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = m2, .relative = "repository", .joined = args->out_room);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = m2, .relative = "repository", .joined = args->out_capacity);
     return 1;
 }
 
-// a child's text of `of` in the xml at `depth` into a line over `room`: its size, or 0 where it has none
+// a child's text of `of` in the xml at `depth` into a line over `capacity`: its size, or 0 where it has none
 EMBED_INLINE int model_text_get(const MavenModelCtx *args)
 {
     const CliXml *xml = args->xml;
     unsigned int of = args->of;
     const char *name = args->name;
     unsigned long long *length = args->length;
-    VerbaLinea line = {args->room, args->size, 0ull};
+    VerbaLinea line = {args->capacity, args->size, 0ull};
     const int found = EMBED_CALL(cli_maven_xml_out_internal.xml_text_get, CliMavenXmlOutCtx, .xml = xml, .of = of,
                                  .name = name, .out = &line) &&
                       mmgr_line_ok(&line);
@@ -278,7 +279,7 @@ EMBED_INLINE int model_parent_pom(const MavenModelCtx *args)
         memor.cpy(&(MemoriaCfg){.dst = relative, .src = "../pom.xml", .bytes = 11u});
     }
     else if (!EMBED_CALL(model_text_get, MavenModelCtx, .xml = xml, .of = args->parent, .name = "relativePath",
-                         .room = relative, .size = sizeof(relative) - 1u, .length = &relative_size))
+                         .capacity = relative, .size = sizeof(relative) - 1u, .length = &relative_size))
     {
         relative_size = 0u;
     }
@@ -288,9 +289,9 @@ EMBED_INLINE int model_parent_pom(const MavenModelCtx *args)
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = relative, .joined = args->place);
         if (EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = args->place))
         {
-            char folder_place[CLI_PATH_MAX_LEN];
-            (void)cellul.copy(&(CatenaFinitaCfg){.dst = folder_place, .src = args->place, .cap = CLI_PATH_MAX_LEN});
-            EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder_place, .relative = "pom.xml",
+            char folder_position[CLI_PATH_MAX_LEN];
+            (void)cellul.copy(&(CatenaFinitaCfg){.dst = folder_position, .src = args->place, .cap = CLI_PATH_MAX_LEN});
+            EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder_position, .relative = "pom.xml",
                        .joined = args->place);
         }
         *mapped = EMBED_CALL(model_map, MavenModelCtx, .path = args->place);
@@ -306,13 +307,13 @@ EMBED_INLINE int model_parent_pom(const MavenModelCtx *args)
     unsigned long long artifact_size = 0ull;
     unsigned long long version_size = 0ull;
     char repository[CLI_PATH_MAX_LEN];
-    if (!EMBED_CALL(model_text_get, MavenModelCtx, .xml = xml, .of = args->parent, .name = "groupId", .room = group,
+    if (!EMBED_CALL(model_text_get, MavenModelCtx, .xml = xml, .of = args->parent, .name = "groupId", .capacity = group,
                     .size = sizeof(group), .length = &group_size) ||
         !EMBED_CALL(model_text_get, MavenModelCtx, .xml = xml, .of = args->parent, .name = "artifactId",
-                    .room = artifact, .size = sizeof(artifact), .length = &artifact_size) ||
-        !EMBED_CALL(model_text_get, MavenModelCtx, .xml = xml, .of = args->parent, .name = "version", .room = version,
-                    .size = sizeof(version), .length = &version_size) ||
-        !EMBED_CALL(cli_maven_out_internal.local_repository, CliMavenOutCtx, .out_room = repository))
+                    .capacity = artifact, .size = sizeof(artifact), .length = &artifact_size) ||
+        !EMBED_CALL(model_text_get, MavenModelCtx, .xml = xml, .of = args->parent, .name = "version",
+                    .capacity = version, .size = sizeof(version), .length = &version_size) ||
+        !EMBED_CALL(cli_maven_out_internal.local_repository, CliMavenOutCtx, .out_capacity = repository))
     {
         return 0;
     }
@@ -376,11 +377,11 @@ static void model_holder(const MavenModelCtx *args)
         }
         unsigned long long group_size = 0ull;
         unsigned long long artifact_size = 0ull;
-        if (EMBED_CALL(model_text_get, MavenModelCtx, .xml = xml, .of = one, .name = "groupId", .room = s_group,
+        if (EMBED_CALL(model_text_get, MavenModelCtx, .xml = xml, .of = one, .name = "groupId", .capacity = s_group,
                        .size = sizeof(s_group), .length = &group_size) &&
-            EMBED_CALL(model_text_get, MavenModelCtx, .xml = xml, .of = one, .name = "artifactId", .room = s_artifact,
-                       .size = sizeof(s_artifact), .length = &artifact_size) &&
-            (model->managed < model->managed_room))
+            EMBED_CALL(model_text_get, MavenModelCtx, .xml = xml, .of = one, .name = "artifactId",
+                       .capacity = s_artifact, .size = sizeof(s_artifact), .length = &artifact_size) &&
+            (model->managed < model->managed_capacity))
         {
             VerbaLinea key = {s_value, sizeof(s_value), 0ull};
             EMBED_CALL(cli_maven_size_out_internal.resolve, CliMavenSizeOutCtx, .value = s_group, .size = group_size,
@@ -415,7 +416,7 @@ static void model_read(const MavenModelCtx *args)
     CliXml read;
     CliXml *const xml = &read;
     EMBED_CALL(cli_maven_xml_text_internal.xml_parse, CliMavenXmlTextCtx, .text = text, .size = size, .xml_out = xml);
-    // a POM with no room left to read it in leaves the model not whole
+    // a POM with no capacity left to read it in leaves the model not whole
     args->model->whole = args->model->whole && ((xml->element != NULL) || (size == 0ull));
     const unsigned int root = EMBED_CALL(cli_maven_xml_project_internal.xml_root, CliMavenXmlProjectCtx, .xml = xml);
     if (root == CLI_XML_NONE)
@@ -444,7 +445,7 @@ static void model_read(const MavenModelCtx *args)
             args->model->whole = 0;
         }
         unsigned long long version = 0ull;
-        if (EMBED_CALL(model_text_get, MavenModelCtx, .xml = xml, .of = parent, .name = "version", .room = s_value,
+        if (EMBED_CALL(model_text_get, MavenModelCtx, .xml = xml, .of = parent, .name = "version", .capacity = s_value,
                        .size = sizeof(s_value), .length = &version))
         {
             EMBED_CALL(model_set, MavenModelCtx, .model = args->model, .name = "project.parent.version",
@@ -458,8 +459,8 @@ static void model_read(const MavenModelCtx *args)
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
         unsigned long long found = 0ull;
-        if (EMBED_CALL(model_text_get, MavenModelCtx, .xml = xml, .of = root, .name = s_names[at][1], .room = s_value,
-                       .size = sizeof(s_value), .length = &found))
+        if (EMBED_CALL(model_text_get, MavenModelCtx, .xml = xml, .of = root, .name = s_names[at][1],
+                       .capacity = s_value, .size = sizeof(s_value), .length = &found))
         {
             EMBED_CALL(model_set, MavenModelCtx, .model = args->model, .name = s_names[at][0],
                        .name_size = cellul.len(&(CatenaFinitaCfg){.src = s_names[at][0], .cap = CLI_CELLS_POOL}),
@@ -484,7 +485,7 @@ static void model_read(const MavenModelCtx *args)
 void cli_maven_model_get(const CliMavenTextSizeModelCtx *args)
 {
     cli_maven_text_size_model_internal.model_free(args);
-    cli_maven_text_size_model_internal.model_take(args);
+    cli_maven_text_size_model_internal.model_alloc(args);
     args->model->whole = args->model->text != NULL;
     EMBED_CALL(model_read, MavenModelCtx, .path = args->path, .text = args->text, .size = args->size, .depth = 0u,
                .model = args->model);
@@ -492,7 +493,7 @@ void cli_maven_model_get(const CliMavenTextSizeModelCtx *args)
 
 void cli_maven_program(const CliMavenOutCtx *args)
 {
-    VerbaLinea line = {args->out_room, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->out_capacity, CLI_PATH_MAX_LEN, 0ull};
     char at[CLI_PATH_MAX_LEN];
     char above[CLI_PATH_MAX_LEN];
     memor.cpy(&(MemoriaCfg){.dst = at,

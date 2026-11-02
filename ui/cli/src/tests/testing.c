@@ -53,7 +53,7 @@ typedef struct
     unsigned long long *to;
 } TestingCtx;
 // `size` bytes of `value` put on `rule`, where they fit
-EMBED_INLINE void testing_value_put(const TestingCtx *args)
+EMBED_INLINE void testing_value_append(const TestingCtx *args)
 {
     if ((args->rule->count == CLI_TEST_VALUES) || (args->size + 1u > CLI_TEST_RULES_TEXT - args->rules->used))
     {
@@ -71,15 +71,15 @@ EMBED_INLINE void testing_value_put(const TestingCtx *args)
 void cli_test_rules_own(const CliTestingRulesCfg *args)
 {
     memor.set(&(MemoriaCfg){.dst = args->rules, .val = 0, .bytes = sizeof(*args->rules)});
-    EMBED_CALL(testing_value_put, TestingCtx, .rules = args->rules, .rule = &args->rules->files, .value = "test_*.py",
-               .size = 9u);
-    EMBED_CALL(testing_value_put, TestingCtx, .rules = args->rules, .rule = &args->rules->files, .value = "*_test.py",
-               .size = 9u);
-    EMBED_CALL(testing_value_put, TestingCtx, .rules = args->rules, .rule = &args->rules->files, .value = "test*.py",
+    EMBED_CALL(testing_value_append, TestingCtx, .rules = args->rules, .rule = &args->rules->files,
+               .value = "test_*.py", .size = 9u);
+    EMBED_CALL(testing_value_append, TestingCtx, .rules = args->rules, .rule = &args->rules->files,
+               .value = "*_test.py", .size = 9u);
+    EMBED_CALL(testing_value_append, TestingCtx, .rules = args->rules, .rule = &args->rules->files, .value = "test*.py",
                .size = 8u);
-    EMBED_CALL(testing_value_put, TestingCtx, .rules = args->rules, .rule = &args->rules->classes, .value = "Test",
+    EMBED_CALL(testing_value_append, TestingCtx, .rules = args->rules, .rule = &args->rules->classes, .value = "Test",
                .size = 4u);
-    EMBED_CALL(testing_value_put, TestingCtx, .rules = args->rules, .rule = &args->rules->functions, .value = "test",
+    EMBED_CALL(testing_value_append, TestingCtx, .rules = args->rules, .rule = &args->rules->functions, .value = "test",
                .size = 4u);
 }
 
@@ -102,9 +102,9 @@ EMBED_INLINE void testing_values_get(const TestingCtx *args)
     args->rule->count = 0u;
     unsigned long long start = 0ull;
     unsigned long long end = size;
-    start = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = args->raw, .at = start,
+    start = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = args->raw, .at = start,
                        .size = end, .set = "[");
-    end = (start + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = args->raw + start,
+    end = (start + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = args->raw + start,
                               .at = end - start, .set = "]"));
     for (unsigned long long at = start; at <= end; at += 1u)
     {
@@ -114,13 +114,13 @@ EMBED_INLINE void testing_values_get(const TestingCtx *args)
         }
         unsigned long long from = start;
         unsigned long long to = at;
-        from = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = args->raw, .at = from,
+        from = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = args->raw, .at = from,
                           .size = to, .set = CLI_TEXT_WHITE "\"'");
-        to = from + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = args->raw + from,
+        to = from + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = args->raw + from,
                                .at = to - from, .set = CLI_TEXT_WHITE "\"'");
         if (to > from)
         {
-            EMBED_CALL(testing_value_put, TestingCtx, .rules = args->rules, .rule = args->rule,
+            EMBED_CALL(testing_value_append, TestingCtx, .rules = args->rules, .rule = args->rule,
                        .value = args->raw + from, .size = to - from);
         }
         start = at + 1u;
@@ -186,8 +186,8 @@ int cli_test_rules_in(const CliTestingRulesCfg *args)
         const char *const trimmed = line + from;
         const unsigned long long trimmed_size = to - from;
         const int indented = (line_size > 0u) && ((line[0] == ' ') || (line[0] == '\t'));
-        const int listed = keyed && (trimmed_size >= 2u) && (trimmed[0] == '[') && (trimmed[1] == '"');
-        if ((trimmed_size > 0u) && (trimmed[0] == '[') && !indented && !listed)
+        const int list_entries = keyed && (trimmed_size >= 2u) && (trimmed[0] == '[') && (trimmed[1] == '"');
+        if ((trimmed_size > 0u) && (trimmed[0] == '[') && !indented && !list_entries)
         {
             if (keyed)
             {
@@ -225,14 +225,14 @@ int cli_test_rules_in(const CliTestingRulesCfg *args)
             unsigned long long name_to = 0ull;
             EMBED_CALL(testing_trim, TestingCtx, .text = trimmed, .size = name_size, .from = &name_from,
                        .to = &name_to);
-            unsigned long long rest_from = 0ull;
-            unsigned long long rest_to = 0ull;
+            unsigned long long remainder_from = 0ull;
+            unsigned long long remainder_to = 0ull;
             EMBED_CALL(testing_trim, TestingCtx, .text = equals + 1, .size = trimmed_size - name_size - 1u,
-                       .from = &rest_from, .to = &rest_to);
+                       .from = &remainder_from, .to = &remainder_to);
             key_size = (name_to - name_from < sizeof(s_key)) ? name_to - name_from : 0ull;
             memor.cpy(&(MemoriaCfg){.dst = s_key, .src = trimmed + name_from, .bytes = (size_t)key_size});
             value.at = 0ull;
-            mmgr_line_put_n(&value, equals + 1 + rest_from, rest_to - rest_from);
+            mmgr_line_put_n(&value, equals + 1 + remainder_from, remainder_to - remainder_from);
             keyed = 1;
         }
     }
@@ -253,14 +253,14 @@ void cli_test_rules_get(const CliTestingRulesCfg *args)
         char path[CLI_PATH_MAX_LEN];
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->root, .relative = s_files[at], .joined = path);
         unsigned long long size = 0ull;
-        const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = path,
+        const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                       .size_pointer = &size, .owner = &g_cli_tests_cells);
         if (bytes == NULL)
         {
             continue;
         }
         const char *const text = (const char *)bytes;
-        const int read = EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg, .bytes = text, .size = size) &&
+        const int read = EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = text, .size = size) &&
                          EMBED_CALL(cli_testing_rules.test_rules_in, CliTestingRulesCfg, .text = text, .size = size,
                                     .section = s_sections[at], .rules = args->rules);
         EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_tests_cells);
@@ -320,7 +320,7 @@ int cli_test_glob(const CliTestingSizeCfg *args)
             return 0;
         }
     }
-    matched = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = args->pattern,
+    matched = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = args->pattern,
                          .at = matched, .size = length, .set = "*");
     return matched == length;
 }

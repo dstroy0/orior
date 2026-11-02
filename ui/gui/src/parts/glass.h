@@ -27,8 +27,8 @@ typedef struct GuiGlassCfg GuiGlassCfg;
 const unsigned char *gui_grain(void);
 // the glass's tint as a pane lays it: the same ink at GUI_PANE_SHARE of the tint's alpha
 GuiColor gui_glass_pane_tint(const GuiGlassCfg *args);
-// the table every frame lies on: the lattice's `ground` raster, or `color` where none is the window's size, the
-// glass's tint over it and the grain over that
+// the table every frame lies on: the lattice's `background_fill` raster, or `color` where none is the window's size,
+// the glass's tint over it and the grain over that
 GuiUnder gui_glass_table(const GuiGlassCfg *args);
 // a pane drawn over `rect`, its corners rounded by `radius`: `tint` blended over what stands, then the grain
 // blended over it inside the corners, the tile's pixel for each of the raster's
@@ -44,7 +44,7 @@ struct GuiGlassRasterCfg
 struct GuiGlassCfg
 {
     GuiColor glass;
-    const GuiRaster *ground;
+    const GuiRaster *background_fill;
     GuiColor color;
 };
 

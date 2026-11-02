@@ -9,7 +9,7 @@ extern void setUp(void);
 extern void tearDown(void);
 extern void test_a_square_of_four_draws_five_by_four(void);
 extern void test_a_pixel_inside_is_fully_covered(void);
-extern void test_a_pixel_past_the_edge_is_not_covered(void);
+extern void test_a_pixel_end_the_edge_is_not_covered(void);
 extern void test_a_pixel_halved_by_the_edge_is_half_covered(void);
 extern void test_the_system_font_has_a_glyph_for_h(void);
 extern void test_the_system_font_is_monospace(void);
@@ -79,7 +79,7 @@ int main(void)
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\font\\test_font\\test_font.c");
   run_test(test_a_square_of_four_draws_five_by_four, "test_a_square_of_four_draws_five_by_four", 63);
   run_test(test_a_pixel_inside_is_fully_covered, "test_a_pixel_inside_is_fully_covered", 71);
-  run_test(test_a_pixel_past_the_edge_is_not_covered, "test_a_pixel_past_the_edge_is_not_covered", 78);
+  run_test(test_a_pixel_end_the_edge_is_not_covered, "test_a_pixel_end_the_edge_is_not_covered", 78);
   run_test(test_a_pixel_halved_by_the_edge_is_half_covered, "test_a_pixel_halved_by_the_edge_is_half_covered", 85);
   run_test(test_the_system_font_has_a_glyph_for_h, "test_the_system_font_has_a_glyph_for_h", 92);
   run_test(test_the_system_font_is_monospace, "test_the_system_font_is_monospace", 98);

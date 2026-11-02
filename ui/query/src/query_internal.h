@@ -6,7 +6,7 @@
 #ifndef QUERY_INTERNAL_H
 #define QUERY_INTERNAL_H
 typedef struct QueryCountNameCtx QueryCountNameCtx;
-typedef struct QueryNameRoomCtx QueryNameRoomCtx;
+typedef struct QueryNameCapacityCtx QueryNameCapacityCtx;
 typedef struct QueryFolderContextCtx QueryFolderContextCtx;
 typedef struct QueryPathTreeCtx QueryPathTreeCtx;
 typedef struct QueryCountFolderCtx QueryCountFolderCtx;
@@ -16,18 +16,18 @@ typedef struct QueryContextErrMsgCtx QueryContextErrMsgCtx;
 typedef struct QueryContextErrMsgRunCtx QueryContextErrMsgRunCtx;
 typedef struct QueryErrMsgRootCtx QueryErrMsgRootCtx;
 typedef struct QueryPathBytesSizeCtx QueryPathBytesSizeCtx;
-typedef struct QueryRoomPathNameCtx QueryRoomPathNameCtx;
-typedef struct QueryRoomQryPathCtx QueryRoomQryPathCtx;
+typedef struct QueryCapacityPathNameCtx QueryCapacityPathNameCtx;
+typedef struct QueryCapacityQryPathCtx QueryCapacityQryPathCtx;
 typedef struct QueryStartedCtx QueryStartedCtx;
 typedef struct QueryCountErrMsgCtx QueryCountErrMsgCtx;
 typedef struct QueryFolderNumberCtx QueryFolderNumberCtx;
 typedef struct QueryFromWriterCtx QueryFromWriterCtx;
 typedef struct QueryContextUnderCtx QueryContextUnderCtx;
-typedef struct QueryRoomRootCtx QueryRoomRootCtx;
+typedef struct QueryCapacityRootCtx QueryCapacityRootCtx;
 typedef struct QueryNameValueCtx QueryNameValueCtx;
 typedef struct QueryFolderEachCtx QueryFolderEachCtx;
-typedef struct QueryFolderRoomCtx QueryFolderRoomCtx;
-typedef struct QueryRoomPathCtx QueryRoomPathCtx;
+typedef struct QueryFolderCapacityCtx QueryFolderCapacityCtx;
+typedef struct QueryCapacityPathCtx QueryCapacityPathCtx;
 typedef struct QueryProcessPieceCtx QueryProcessPieceCtx;
 typedef struct QueryErrorsCtx QueryErrorsCtx;
 typedef struct QueryWriterCtx QueryWriterCtx;
@@ -38,9 +38,9 @@ typedef struct QueryPathSecondsCtx QueryPathSecondsCtx;
 typedef struct QueryPathSecondsKindCtx QueryPathSecondsKindCtx;
 typedef struct QueryPathsCtx QueryPathsCtx;
 typedef struct QueryTextCtx QueryTextCtx;
-typedef struct QueryFolderMostCtx QueryFolderMostCtx;
+typedef struct QueryFolderMaxCtx QueryFolderMaxCtx;
 typedef struct QueryFolderRunsCtx QueryFolderRunsCtx;
-typedef struct QueryRoomLineCtx QueryRoomLineCtx;
+typedef struct QueryCapacityLineCtx QueryCapacityLineCtx;
 typedef struct QueryErrMsgWriterCtx QueryErrMsgWriterCtx;
 typedef struct QueryMillisecondsCtx QueryMillisecondsCtx;
 typedef struct QueryProcessCtx QueryProcessCtx;
@@ -60,13 +60,13 @@ extern CellOwner g_query_cells;
 
 // the most files a run reads or leaves, the most settings a context appends, the most words a command takes, and the
 // most runs a folder contains that the query walks
-#define QUERY_LEAVES_MOST 256u
+#define QUERY_LEAVES_MAX 256u
 
-#define QUERY_SETTINGS_MOST 8u
+#define QUERY_SETTINGS_MAX 8u
 
-#define QUERY_WORDS_MOST 64u
+#define QUERY_WORDS_MAX 64u
 
-#define QUERY_RUNS_MOST 4096u
+#define QUERY_RUNS_MAX 4096u
 
 // the writer's own wait for its shared memory to be made, in steps of ten milliseconds
 #define QUERY_READY_STEPS 3000u
@@ -74,18 +74,18 @@ extern CellOwner g_query_cells;
 // how many runs of a folder are retained where QRY_RETAINED is not set
 #define QUERY_RETAIN_MAX 64u
 
-// A list of paths, each in a row of QUERY_PATH_MAX_LEN, in a cell of `room` taken at its most with query_paths_take
-// and given back with query_paths_free
+// A list of paths, each in a row of QUERY_PATH_MAX_LEN, in a cell of `capacity` taken at its most with
+// query_paths_alloc and given back with query_paths_free
 typedef struct
 {
     char (*path)[QUERY_PATH_MAX_LEN];
     unsigned int count;
-    unsigned int room;
+    unsigned int capacity;
 } QueryPaths;
 
 // the cell of `count` paths taken in place of what the list contained: 1, or 0 where it is refused and the list has no
-// room; and the paths' cell given back, the list left empty (tools/tools.c)
-int query_paths_take(const QueryPathsCtx *args);
+// capacity; and the paths' cell given back, the list left empty (tools/tools.c)
+int query_paths_alloc(const QueryPathsCtx *args);
 void query_paths_free(const QueryPathsCtx *args);
 
 // The writer of one run: its program, its .qry, the top of the tree every current file is named under, the PATH every
@@ -129,7 +129,7 @@ typedef struct
     QuerySink sink;
     QueryLeave leave;
     QueryPrompter prompter;
-    QuerySetting setting[QUERY_SETTINGS_MOST];
+    QuerySetting setting[QUERY_SETTINGS_MAX];
     unsigned int settings;
     char open[QUERY_PATH_MAX_LEN];
 } QueryContext;
@@ -162,7 +162,7 @@ long long query_process_wait(const QueryProcessCtx *args);
 #define QUERY_ENVIRONMENT_MAX_LEN ((32767u * 3u) + 1u)
 
 // an environment variable of this process set, which every process it starts after inherits, or read into `value`,
-// sized for `room`; and the variable `name` written after what `out` contains, nothing written where it is not set:
+// sized for `capacity`; and the variable `name` written after what `out` contains, nothing written where it is not set:
 // 1, or 0 where it is not set or does not fit
 int query_environment_set(const QueryNameCtx *args);
 int query_environment_read(const QueryNameValueCtx *args);
@@ -188,13 +188,13 @@ unsigned long long query_now(void);
 int query_modified_set(const QueryPathSecondsKindCtx *args);
 // this thread paused `milliseconds`
 void query_pause(const QueryMillisecondsCtx *args);
-// `path` as a full path, without the `\\?\` prefix Windows gives a canonical one, into `full`, sized for `room`
-int query_path_full(const QueryRoomPathCtx *args);
-// 1 where the standard input is a terminal; a line read from it into `line`, sized for `room`, as much of it as fits
-// and a 0 after, as snprintf writes: the line's whole length, `room` or more where it was cut, or QRY_MEMBER_UNREAD at
-// the input's end; `length` bytes of `text` written to the standard output, or its errors
+// `path` as a full path, without the `\\?\` prefix Windows gives a canonical one, into `full`, sized for `capacity`
+int query_path_full(const QueryCapacityPathCtx *args);
+// 1 where the standard input is a terminal; a line read from it into `line`, sized for `capacity`, as much of it as
+// fits and a 0 after, as snprintf writes: the line's whole length, `capacity` or more where it was cut, or
+// QRY_MEMBER_UNREAD at the input's end; `length` bytes of `text` written to the standard output, or its errors
 int query_terminal_is(void);
-unsigned long long query_terminal_line_read(const QueryRoomLineCtx *args);
+unsigned long long query_terminal_line_read(const QueryCapacityLineCtx *args);
 void query_terminal_write(const QueryErrorsCtx *args);
 
 // `text` printed through the context's sink, and handed to the run this process is a member of as its console
@@ -202,7 +202,7 @@ void query_print(const QueryTextCtx *args);
 // the path `under` the top of the tree written into `path`, sized for QUERY_PATH_MAX_LEN
 void query_at(const QueryContextUnderCtx *args);
 
-// the writer's words (writer.c, writer_carry.c)
+// the writer's words (writer.c, writer_machine_transfer.c)
 int query_writer_start(const QueryWriterCtx *args);
 int query_writer_init(const QueryWriterCtx *args);
 int query_writer_runs(const QueryWriterCtx *args);
@@ -214,12 +214,12 @@ int query_writer_append(const QueryNameBytesCtx *args);
 int query_writer_latest(const QueryCountNameCtx *args);
 int query_writer_file(const QueryPathBytesSizeCtx *args);
 int query_writer_leave(const QueryPathBytesSizeCtx *args);
-int query_writer_carry(const QueryCountNameCtx *args);
-int query_writer_carry_list(const QueryFromWriterCtx *args);
+int query_writer_machine_transfer(const QueryCountNameCtx *args);
+int query_writer_machine_transfer_list(const QueryFromWriterCtx *args);
 int query_writer_read(const QueryCountNameCtx *args);
 // every record of `name` joined, as query_writer_read joins them, in a cell of their size with a 0 after, their size
 // into `size`: the cell, or NULL where none was there or the cell could not be taken
-char *query_writer_read_take(const QueryCountNameCtx *args);
+char *query_writer_read_alloc(const QueryCountNameCtx *args);
 int query_writer_current(const QueryCountNameCtx *args);
 int query_writer_tee(const QueryWordsNameCtx *args);
 
@@ -234,18 +234,18 @@ typedef struct
 // the runs of a folder and a run's lifecycle (run.c, run_folder.c); the runs of `folder` counted; the same counted,
 // then taken into `runs`: 1, or 0 where the cells cannot meet them; and given back
 unsigned int query_runs_each(const QueryFolderNumberCtx *args);
-unsigned int query_runs_count(const QueryFolderMostCtx *args);
-int query_runs_take(const QueryFolderRunsCtx *args);
+unsigned int query_runs_count(const QueryFolderMaxCtx *args);
+int query_runs_alloc(const QueryFolderRunsCtx *args);
 void query_runs_free(const QueryFolderRunsCtx *args);
-void query_next_name(const QueryFolderRoomCtx *args);
-void query_by_name(const QueryRoomPathNameCtx *args);
-int query_open(const QueryRoomQryPathCtx *args);
-int query_crystal(const QueryRoomRootCtx *args);
+void query_next_name(const QueryFolderCapacityCtx *args);
+void query_by_name(const QueryCapacityPathNameCtx *args);
+int query_open(const QueryCapacityQryPathCtx *args);
+int query_crystal(const QueryCapacityRootCtx *args);
 unsigned int query_retain_max(void);
-void query_runs_prune(const QueryFolderMostCtx *args);
+void query_runs_prune(const QueryFolderMaxCtx *args);
 int query_run_start(const QueryFolderContextCtx *args);
 int query_run_joining(const QueryErrMsgRootCtx *args);
-int query_run_carry(const QueryCountFolderCtx *args);
+int query_run_machine_transfer(const QueryCountFolderCtx *args);
 int query_run_read(const QueryCountErrMsgCtx *args);
 void query_run_leave(const QueryCountErrMsgCtx *args);
 int query_run_end(const QueryContextErrMsgRunCtx *args);
@@ -256,9 +256,9 @@ int query_leaves_settle(const QueryContextErrMsgCtx *args);
 void query_leaf_show(const QueryPathTreeCtx *args);
 
 // the tools built (tools.c, tools_table.c)
-int query_tool_build(const QueryNameRoomCtx *args);
-int query_tool_built_into(const QueryNameRoomCtx *args);
-void query_binary_name(const QueryNameRoomCtx *args);
+int query_tool_build(const QueryNameCapacityCtx *args);
+int query_tool_built_into(const QueryNameCapacityCtx *args);
+void query_binary_name(const QueryNameCapacityCtx *args);
 
 struct QueryCountNameCtx
 {
@@ -274,10 +274,10 @@ struct QueryCountNameCtx
     VerbaLinea *joined;
 };
 
-struct QueryNameRoomCtx
+struct QueryNameCapacityCtx
 {
     const char *name;
-    size_t room;
+    size_t capacity;
     VerbaLinea *err_msg;
     const char *root;
     const QueryPrograms *programs;
@@ -302,7 +302,7 @@ struct QueryPathTreeCtx
     unsigned long long tree_size;
     const unsigned char *stored;
     unsigned long long stored_size;
-    VerbaLinea *shown;
+    VerbaLinea *displayed;
 };
 
 struct QueryCountFolderCtx
@@ -371,17 +371,17 @@ struct QueryPathBytesSizeCtx
     VerbaLinea *err_msg;
 };
 
-struct QueryRoomPathNameCtx
+struct QueryCapacityPathNameCtx
 {
-    size_t room;
+    size_t capacity;
     const char *path;
     char *name_out;
     const char *top;
 };
 
-struct QueryRoomQryPathCtx
+struct QueryCapacityQryPathCtx
 {
-    size_t room;
+    size_t capacity;
     const char *qry_path;
     const char *crystal;
     char *named;
@@ -408,7 +408,7 @@ struct QueryFolderNumberCtx
     const char *folder;
     unsigned long long *number;
     char (*path_callback)[QUERY_PATH_MAX_LEN];
-    unsigned int room_u32;
+    unsigned int capacity_u32;
 };
 
 struct QueryFromWriterCtx
@@ -416,7 +416,7 @@ struct QueryFromWriterCtx
     const char *from;
     const QueryWriter *writer;
     VerbaLinea *err_msg;
-    const char *listed;
+    const char *list_entries;
 };
 
 struct QueryContextUnderCtx
@@ -426,9 +426,9 @@ struct QueryContextUnderCtx
     char *path_out;
 };
 
-struct QueryRoomRootCtx
+struct QueryCapacityRootCtx
 {
-    size_t room;
+    size_t capacity;
     const char *root;
     char *program;
 };
@@ -437,7 +437,7 @@ struct QueryNameValueCtx
 {
     const char *name;
     char *value_out;
-    size_t room;
+    size_t capacity;
 };
 
 struct QueryFolderEachCtx
@@ -447,16 +447,16 @@ struct QueryFolderEachCtx
     void *context_bytess;
 };
 
-struct QueryFolderRoomCtx
+struct QueryFolderCapacityCtx
 {
     const char *folder;
-    size_t room;
+    size_t capacity;
     char *name_out;
 };
 
-struct QueryRoomPathCtx
+struct QueryCapacityPathCtx
 {
-    size_t room;
+    size_t capacity;
     const char *path;
     char *full;
 };
@@ -465,7 +465,7 @@ struct QueryProcessPieceCtx
 {
     const QueryProcess *process;
     char *piece;
-    unsigned long long room_u64;
+    unsigned long long capacity_u64;
 };
 
 struct QueryErrorsCtx
@@ -524,7 +524,7 @@ struct QueryTextCtx
     QueryContext *context;
 };
 
-struct QueryFolderMostCtx
+struct QueryFolderMaxCtx
 {
     const char *folder;
     unsigned int most;
@@ -536,9 +536,9 @@ struct QueryFolderRunsCtx
     QueryRuns *runs;
 };
 
-struct QueryRoomLineCtx
+struct QueryCapacityLineCtx
 {
-    size_t room;
+    size_t capacity;
     char *line;
 };
 
@@ -560,12 +560,12 @@ struct QueryProcessCtx
 
 typedef struct
 {
-    int (*paths_take)(const QueryPathsCtx *args);
+    int (*paths_alloc)(const QueryPathsCtx *args);
     void (*paths_free)(const QueryPathsCtx *args);
 } QueryPathsNs;
-EMBED_TABLE_LAYOUT(QueryPathsNs, paths_take, paths_free);
+EMBED_TABLE_LAYOUT(QueryPathsNs, paths_alloc, paths_free);
 EMBED_TABLE_STORAGE QueryPathsNs query_paths_internal EMBED_UNUSED = {
-    .paths_take = query_paths_take,
+    .paths_alloc = query_paths_alloc,
     .paths_free = query_paths_free,
 };
 
@@ -702,19 +702,19 @@ EMBED_TABLE_STORAGE QueryMillisecondsNs query_milliseconds_internal EMBED_UNUSED
 
 typedef struct
 {
-    int (*path_full)(const QueryRoomPathCtx *args);
-} QueryRoomPathNs;
-EMBED_TABLE_LAYOUT(QueryRoomPathNs, path_full);
-EMBED_TABLE_STORAGE QueryRoomPathNs query_room_path_internal EMBED_UNUSED = {
+    int (*path_full)(const QueryCapacityPathCtx *args);
+} QueryCapacityPathNs;
+EMBED_TABLE_LAYOUT(QueryCapacityPathNs, path_full);
+EMBED_TABLE_STORAGE QueryCapacityPathNs query_capacity_path_internal EMBED_UNUSED = {
     .path_full = query_path_full,
 };
 
 typedef struct
 {
-    unsigned long long (*terminal_line_read)(const QueryRoomLineCtx *args);
-} QueryRoomLineNs;
-EMBED_TABLE_LAYOUT(QueryRoomLineNs, terminal_line_read);
-EMBED_TABLE_STORAGE QueryRoomLineNs query_room_line_internal EMBED_UNUSED = {
+    unsigned long long (*terminal_line_read)(const QueryCapacityLineCtx *args);
+} QueryCapacityLineNs;
+EMBED_TABLE_LAYOUT(QueryCapacityLineNs, terminal_line_read);
+EMBED_TABLE_STORAGE QueryCapacityLineNs query_capacity_line_internal EMBED_UNUSED = {
     .terminal_line_read = query_terminal_line_read,
 };
 
@@ -775,19 +775,19 @@ typedef struct
 {
     int (*writer_is_member)(const QueryCountNameCtx *args);
     int (*writer_latest)(const QueryCountNameCtx *args);
-    int (*writer_carry)(const QueryCountNameCtx *args);
+    int (*writer_machine_transfer)(const QueryCountNameCtx *args);
     int (*writer_read)(const QueryCountNameCtx *args);
-    char *(*writer_read_take)(const QueryCountNameCtx *args);
+    char *(*writer_read_alloc)(const QueryCountNameCtx *args);
     int (*writer_current)(const QueryCountNameCtx *args);
 } QueryCountNameNs;
-EMBED_TABLE_LAYOUT(QueryCountNameNs, writer_is_member, writer_latest, writer_carry, writer_read, writer_read_take,
-                   writer_current);
+EMBED_TABLE_LAYOUT(QueryCountNameNs, writer_is_member, writer_latest, writer_machine_transfer, writer_read,
+                   writer_read_alloc, writer_current);
 EMBED_TABLE_STORAGE QueryCountNameNs query_count_name_internal EMBED_UNUSED = {
     .writer_is_member = query_writer_is_member,
     .writer_latest = query_writer_latest,
-    .writer_carry = query_writer_carry,
+    .writer_machine_transfer = query_writer_machine_transfer,
     .writer_read = query_writer_read,
-    .writer_read_take = query_writer_read_take,
+    .writer_read_alloc = query_writer_read_alloc,
     .writer_current = query_writer_current,
 };
 
@@ -802,11 +802,11 @@ EMBED_TABLE_STORAGE QueryNameBytesNs query_name_bytes_internal EMBED_UNUSED = {
 
 typedef struct
 {
-    int (*writer_carry_list)(const QueryFromWriterCtx *args);
+    int (*writer_machine_transfer_list)(const QueryFromWriterCtx *args);
 } QueryFromWriterNs;
-EMBED_TABLE_LAYOUT(QueryFromWriterNs, writer_carry_list);
+EMBED_TABLE_LAYOUT(QueryFromWriterNs, writer_machine_transfer_list);
 EMBED_TABLE_STORAGE QueryFromWriterNs query_from_writer_internal EMBED_UNUSED = {
-    .writer_carry_list = query_writer_carry_list,
+    .writer_machine_transfer_list = query_writer_machine_transfer_list,
 };
 
 typedef struct
@@ -829,59 +829,59 @@ EMBED_TABLE_STORAGE QueryFolderNumberNs query_folder_number_internal EMBED_UNUSE
 
 typedef struct
 {
-    unsigned int (*runs_count)(const QueryFolderMostCtx *args);
-    void (*runs_prune)(const QueryFolderMostCtx *args);
-} QueryFolderMostNs;
-EMBED_TABLE_LAYOUT(QueryFolderMostNs, runs_count, runs_prune);
-EMBED_TABLE_STORAGE QueryFolderMostNs query_folder_most_internal EMBED_UNUSED = {
+    unsigned int (*runs_count)(const QueryFolderMaxCtx *args);
+    void (*runs_prune)(const QueryFolderMaxCtx *args);
+} QueryFolderMaxNs;
+EMBED_TABLE_LAYOUT(QueryFolderMaxNs, runs_count, runs_prune);
+EMBED_TABLE_STORAGE QueryFolderMaxNs query_folder_max_internal EMBED_UNUSED = {
     .runs_count = query_runs_count,
     .runs_prune = query_runs_prune,
 };
 
 typedef struct
 {
-    int (*runs_take)(const QueryFolderRunsCtx *args);
+    int (*runs_alloc)(const QueryFolderRunsCtx *args);
     void (*runs_free)(const QueryFolderRunsCtx *args);
 } QueryFolderRunsNs;
-EMBED_TABLE_LAYOUT(QueryFolderRunsNs, runs_take, runs_free);
+EMBED_TABLE_LAYOUT(QueryFolderRunsNs, runs_alloc, runs_free);
 EMBED_TABLE_STORAGE QueryFolderRunsNs query_folder_runs_internal EMBED_UNUSED = {
-    .runs_take = query_runs_take,
+    .runs_alloc = query_runs_alloc,
     .runs_free = query_runs_free,
 };
 
 typedef struct
 {
-    void (*next_name)(const QueryFolderRoomCtx *args);
-} QueryFolderRoomNs;
-EMBED_TABLE_LAYOUT(QueryFolderRoomNs, next_name);
-EMBED_TABLE_STORAGE QueryFolderRoomNs query_folder_room_internal EMBED_UNUSED = {
+    void (*next_name)(const QueryFolderCapacityCtx *args);
+} QueryFolderCapacityNs;
+EMBED_TABLE_LAYOUT(QueryFolderCapacityNs, next_name);
+EMBED_TABLE_STORAGE QueryFolderCapacityNs query_folder_capacity_internal EMBED_UNUSED = {
     .next_name = query_next_name,
 };
 
 typedef struct
 {
-    void (*by_name)(const QueryRoomPathNameCtx *args);
-} QueryRoomPathNameNs;
-EMBED_TABLE_LAYOUT(QueryRoomPathNameNs, by_name);
-EMBED_TABLE_STORAGE QueryRoomPathNameNs query_room_path_name_internal EMBED_UNUSED = {
+    void (*by_name)(const QueryCapacityPathNameCtx *args);
+} QueryCapacityPathNameNs;
+EMBED_TABLE_LAYOUT(QueryCapacityPathNameNs, by_name);
+EMBED_TABLE_STORAGE QueryCapacityPathNameNs query_capacity_path_name_internal EMBED_UNUSED = {
     .by_name = query_by_name,
 };
 
 typedef struct
 {
-    int (*open)(const QueryRoomQryPathCtx *args);
-} QueryRoomQryPathNs;
-EMBED_TABLE_LAYOUT(QueryRoomQryPathNs, open);
-EMBED_TABLE_STORAGE QueryRoomQryPathNs query_room_qry_path_internal EMBED_UNUSED = {
+    int (*open)(const QueryCapacityQryPathCtx *args);
+} QueryCapacityQryPathNs;
+EMBED_TABLE_LAYOUT(QueryCapacityQryPathNs, open);
+EMBED_TABLE_STORAGE QueryCapacityQryPathNs query_capacity_qry_path_internal EMBED_UNUSED = {
     .open = query_open,
 };
 
 typedef struct
 {
-    int (*crystal)(const QueryRoomRootCtx *args);
-} QueryRoomRootNs;
-EMBED_TABLE_LAYOUT(QueryRoomRootNs, crystal);
-EMBED_TABLE_STORAGE QueryRoomRootNs query_room_root_internal EMBED_UNUSED = {
+    int (*crystal)(const QueryCapacityRootCtx *args);
+} QueryCapacityRootNs;
+EMBED_TABLE_LAYOUT(QueryCapacityRootNs, crystal);
+EMBED_TABLE_STORAGE QueryCapacityRootNs query_capacity_root_internal EMBED_UNUSED = {
     .crystal = query_crystal,
 };
 
@@ -896,11 +896,11 @@ EMBED_TABLE_STORAGE QueryErrMsgRootNs query_err_msg_root_internal EMBED_UNUSED =
 
 typedef struct
 {
-    int (*run_carry)(const QueryCountFolderCtx *args);
+    int (*run_machine_transfer)(const QueryCountFolderCtx *args);
 } QueryCountFolderNs;
-EMBED_TABLE_LAYOUT(QueryCountFolderNs, run_carry);
+EMBED_TABLE_LAYOUT(QueryCountFolderNs, run_machine_transfer);
 EMBED_TABLE_STORAGE QueryCountFolderNs query_count_folder_internal EMBED_UNUSED = {
-    .run_carry = query_run_carry,
+    .run_machine_transfer = query_run_machine_transfer,
 };
 
 typedef struct
@@ -945,12 +945,12 @@ EMBED_TABLE_STORAGE QueryPathTreeNs query_path_tree_internal EMBED_UNUSED = {
 
 typedef struct
 {
-    int (*tool_build)(const QueryNameRoomCtx *args);
-    int (*tool_built_into)(const QueryNameRoomCtx *args);
-    void (*binary_name)(const QueryNameRoomCtx *args);
-} QueryNameRoomNs;
-EMBED_TABLE_LAYOUT(QueryNameRoomNs, tool_build, tool_built_into, binary_name);
-EMBED_TABLE_STORAGE QueryNameRoomNs query_name_room_internal EMBED_UNUSED = {
+    int (*tool_build)(const QueryNameCapacityCtx *args);
+    int (*tool_built_into)(const QueryNameCapacityCtx *args);
+    void (*binary_name)(const QueryNameCapacityCtx *args);
+} QueryNameCapacityNs;
+EMBED_TABLE_LAYOUT(QueryNameCapacityNs, tool_build, tool_built_into, binary_name);
+EMBED_TABLE_STORAGE QueryNameCapacityNs query_name_capacity_internal EMBED_UNUSED = {
     .tool_build = query_tool_build,
     .tool_built_into = query_tool_built_into,
     .binary_name = query_binary_name,

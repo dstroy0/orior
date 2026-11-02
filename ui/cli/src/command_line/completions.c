@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// completions.c: completion items, each its texts stored in its items' room, made unique by what they show and written
-// as the page reads them
+// completions.c: completion items, each its texts stored in its items' capacity, made unique by what they show and
+// written as the page reads them
 #include "../text/edits.h"
 #include "../text/json_tree.h"
 
@@ -18,7 +18,8 @@ typedef struct
     const char *bytes;
     unsigned long long size;
 } CompletionsCtx;
-// `size` bytes of `bytes` stored in the items' room: where they start, or CLI_COMPLETIONS_TEXT where they do not fit
+// `size` bytes of `bytes` stored in the items' capacity: where they start, or CLI_COMPLETIONS_TEXT where they do not
+// fit
 EMBED_INLINE unsigned int completions_text_store(const CompletionsCtx *args)
 {
     const char *bytes = args->bytes;
@@ -33,9 +34,9 @@ EMBED_INLINE unsigned int completions_text_store(const CompletionsCtx *args)
     return at;
 }
 
-int cli_completion_put(const CliEditsItemsCfg *args)
+int cli_completion_append(const CliEditsItemsCfg *args)
 {
-    if (args->items->count == CLI_COMPLETIONS_MOST)
+    if (args->items->count == CLI_COMPLETIONS_MAX)
     {
         args->items->full = 1;
         return 0;
@@ -83,22 +84,4 @@ void cli_completions_unique(const CliEditsItemsCfg *args)
         }
     }
     args->items->count = count;
-}
-
-void cli_completion_write(const CliEditsOutItemsCfg *args)
-{
-    const CliCompletion *const one = &args->items_read->item[args->at];
-    mmgr_line_put(args->out, "{\"label\":");
-    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
-               .text = args->items_read->text + one->label_at, .length = one->label_size);
-    mmgr_line_put(args->out, ",\"kind\":");
-    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out, .text = one->kind,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = one->kind, .cap = CLI_CELLS_POOL}));
-    mmgr_line_put(args->out, ",\"detail\":");
-    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
-               .text = args->items_read->text + one->detail_at, .length = one->detail_size);
-    mmgr_line_put(args->out, ",\"insert\":");
-    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
-               .text = args->items_read->text + one->insert_at, .length = one->insert_size);
-    mmgr_line_put(args->out, one->snippet ? ",\"snippet\":true}" : "}");
 }

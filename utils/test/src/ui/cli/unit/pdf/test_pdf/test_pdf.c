@@ -64,16 +64,16 @@ static unsigned long long cross_reference_offset(void)
 void setUp(void)
 {
     cli_unity_begun();
-    cli_print_take();
+    cli_print_alloc();
     pdf_written("{}");
 }
 
 void tearDown(void)
 {
-    cli_print_give();
+    cli_print_release();
 }
 
-void test_120_lines_take_at_least_two_pages(void)
+void test_120_lines_alloc_at_min_two_pages(void)
 {
     TEST_ASSERT_GREATER_OR_EQUAL_UINT64(2ull, s_pages);
 }
@@ -89,7 +89,7 @@ void test_it_ends_with_the_end_of_file_mark(void)
     TEST_ASSERT_EQUAL_STRING("%%EOF\n", s_pdf + s_size - 6u);
 }
 
-void test_a_line_is_shown_as_its_text(void)
+void test_a_line_is_displayed_as_its_text(void)
 {
     CLI_TEST_ASSERT_CONTAINS("print\\(12\\)", s_pdf);
 }

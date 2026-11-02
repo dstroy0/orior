@@ -73,12 +73,12 @@ EMBED_INLINE int binary_line(const CargoBinaryCtx *args)
     unsigned long long size = args->size;
     CliJson json;
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &json,
-               .node_json_node_pointer = NULL, .nodes_most = 0u, .text_out = NULL, .text_most = 0ull);
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea unread = {why, sizeof(why), 0ull};
     const unsigned int message =
         (size <= CLI_CARGO_LINE_TEXT)
-            ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
+            ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
                          .text = args->line, .size = size, .nodes_more = 0u, .text_more = 0ull, .err_msg = &unread,
                          .owner = &g_cli_tests_cells)
             : CLI_JSON_NONE;
@@ -174,24 +174,24 @@ EMBED_INLINE int binary_build(const CargoBinaryCtx *args)
     words[count + 2u] = NULL;
     EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = s_path, .size = sizeof(s_path));
     const CliSetting settings[1] = {{"PATH", s_path}};
-    CliRan *const ran = cli_ran_take();
+    CliRunResult *const run_result = cli_run_result_alloc();
     if (!EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = words, .folder = args->package, .settings = settings,
-                    .count = 1u, .ran = ran, .err_msg = err_msg))
+                    .count = 1u, .run_result = run_result, .err_msg = err_msg))
     {
-        EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+        EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
         return 0;
     }
-    const int built = EMBED_CALL(binary_read, CargoBinaryCtx, .one = args->one, .out = ran->out, .size = ran->out_size,
-                                 .program = args->program);
+    const int built = EMBED_CALL(binary_read, CargoBinaryCtx, .one = args->one, .out = run_result->out,
+                                 .size = run_result->out_size, .program = args->program);
     if (!built)
     {
         char error[4096];
         char path[CLI_PATH_MAX_LEN];
         long long line = 0ll;
         unsigned long long length = 0ull;
-        if (EMBED_CALL(cli_cargo_report_size.cargo_build_error, CliCargoReportSizeCfg, .output = ran->err,
-                       .size = ran->err_size, .error = error, .room = sizeof(error), .length = &length, .path = path,
-                       .line = &line))
+        if (EMBED_CALL(cli_cargo_report_size.cargo_build_error, CliCargoReportSizeCfg, .output = run_result->err,
+                       .size = run_result->err_size, .error = error, .capacity = sizeof(error), .length = &length,
+                       .path = path, .line = &line))
         {
             mmgr_line_put(err_msg, "The test's build failed: ");
             mmgr_line_put_n(err_msg, error, length);
@@ -202,7 +202,7 @@ EMBED_INLINE int binary_build(const CargoBinaryCtx *args)
             mmgr_line_put(err_msg, args->one->test.id);
         }
     }
-    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+    EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
     return built;
 }
 

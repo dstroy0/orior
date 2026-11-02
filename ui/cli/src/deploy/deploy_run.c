@@ -19,7 +19,7 @@ typedef struct
     unsigned int index;
     int sent;
     char why[CLI_ERR_MSG_MAX_LEN];
-    unsigned long long why_size;
+    unsigned long long error_size;
 } CliDeploySending;
 
 // the tree deploy.json is read into for a run; each place's send, in the run's pool at the count of the places; and
@@ -56,7 +56,7 @@ typedef struct
 // place
 EMBED_INLINE int run_in_release(const DeployRunCtx *args)
 {
-    return !g_cli_deploy.deployment.in_place && !g_cli_deploy.place[args->index].here;
+    return !g_cli_deploy.deployment.in_position && !g_cli_deploy.place[args->index].here;
 }
 
 // a line printed: `before`, the place's name, `after`
@@ -65,7 +65,7 @@ EMBED_INLINE void run_line_print(const DeployRunCtx *args)
     char line[(3u * CLI_PATH_MAX_LEN) + 256u];
     VerbaLinea print_line = {line, sizeof(line), 0ull};
     mmgr_line_put(&print_line, args->before);
-    EMBED_CALL(cli_deploy_size_internal.place_name, CliDeploySizeCtx, .place = &g_cli_deploy.place[args->index],
+    EMBED_CALL(cli_deploy_size_internal.position_name, CliDeploySizeCtx, .place = &g_cli_deploy.place[args->index],
                .out = &print_line);
     mmgr_line_put(&print_line, args->after);
     EMBED_CALL(cli_deploy_internal.print, CliDeployCtx, .line = &print_line);
@@ -81,14 +81,14 @@ static void run_send(void *context)
                    .releases = EMBED_CALL(run_in_release, DeployRunCtx, .index = sending->index), .release = s_release,
                    .time = s_time, .replace = s_replace, .remove = s_remove, .err_msg = &why);
     sending->sent = sent;
-    sending->why_size = why.at;
+    sending->error_size = why.at;
     s_going -= 1u;
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_send_wake);
 }
 
 // the deployment's places read, each place's lists and send placed in the run's pool at the count of the places, and
 // its patterns set: 1, or 0 with why given
-EMBED_INLINE int run_places(const DeployRunCtx *args)
+EMBED_INLINE int run_positions(const DeployRunCtx *args)
 {
     const char *root = args->root;
     VerbaLinea *err_msg = args->err_msg;
@@ -106,10 +106,10 @@ EMBED_INLINE int run_places(const DeployRunCtx *args)
                                    .size = (unsigned long long)tos * sizeof(run->changed_list[0]));
     run->changed = EMBED_CALL(cli_deploy_pool_internal.place, CliDeployPoolCtx, .pool = &run->pool,
                               .size = (unsigned long long)tos * sizeof(run->changed[0]));
-    run->gone_list = EMBED_CALL(cli_deploy_pool_internal.place, CliDeployPoolCtx, .pool = &run->pool,
-                                .size = (unsigned long long)tos * sizeof(run->gone_list[0]));
-    run->gone = EMBED_CALL(cli_deploy_pool_internal.place, CliDeployPoolCtx, .pool = &run->pool,
-                           .size = (unsigned long long)tos * sizeof(run->gone[0]));
+    run->removed_list = EMBED_CALL(cli_deploy_pool_internal.place, CliDeployPoolCtx, .pool = &run->pool,
+                                   .size = (unsigned long long)tos * sizeof(run->removed_list[0]));
+    run->deleted = EMBED_CALL(cli_deploy_pool_internal.place, CliDeployPoolCtx, .pool = &run->pool,
+                              .size = (unsigned long long)tos * sizeof(run->deleted[0]));
     s_sending = EMBED_CALL(cli_deploy_pool_internal.place, CliDeployPoolCtx, .pool = &run->pool,
                            .size = (unsigned long long)tos * sizeof(s_sending[0]));
     run->pattern = EMBED_CALL(cli_deploy_pool_internal.place, CliDeployPoolCtx, .pool = &run->pool,
@@ -121,18 +121,18 @@ EMBED_INLINE int run_places(const DeployRunCtx *args)
     }
     memor.set(&(MemoriaCfg){.dst = run->changed_list, .bytes = tos * sizeof(run->changed_list[0]), .val = 0u});
     memor.set(&(MemoriaCfg){.dst = run->changed, .bytes = tos * sizeof(run->changed[0]), .val = 0u});
-    memor.set(&(MemoriaCfg){.dst = run->gone_list, .bytes = tos * sizeof(run->gone_list[0]), .val = 0u});
-    memor.set(&(MemoriaCfg){.dst = run->gone, .bytes = tos * sizeof(run->gone[0]), .val = 0u});
+    memor.set(&(MemoriaCfg){.dst = run->removed_list, .bytes = tos * sizeof(run->removed_list[0]), .val = 0u});
+    memor.set(&(MemoriaCfg){.dst = run->deleted, .bytes = tos * sizeof(run->deleted[0]), .val = 0u});
     memor.set(&(MemoriaCfg){.dst = s_sending, .bytes = tos * sizeof(s_sending[0]), .val = 0u});
-    run->places = 0u;
+    run->positions = 0u;
     for (unsigned int at = 0u; at < tos; at += 1u)
     {
         if (!EMBED_CALL(cli_deploy_text_internal.place, CliDeployTextCtx, .text = run->deployment.to[at], .root = root,
-                        .place_out = &run->place[run->places], .err_msg = err_msg))
+                        .position_out = &run->place[run->positions], .err_msg = err_msg))
         {
             return 0;
         }
-        run->places += 1u;
+        run->positions += 1u;
     }
     run->pattern[0] = ".git/";
     run->patterns = 1u;
@@ -158,7 +158,7 @@ EMBED_INLINE int run_show(const DeployRunCtx *args)
     mmgr_line_put(&print_buf, " files of ");
     mmgr_line_put(&print_buf, run->deployment.from);
     mmgr_line_put(&print_buf, " go to ");
-    mmgr_line_decimal(&print_buf, run->places, 1u);
+    mmgr_line_decimal(&print_buf, run->positions, 1u);
     mmgr_line_put(&print_buf, " places");
     EMBED_CALL(cli_deploy_internal.print, CliDeployCtx, .line = &print_buf);
     for (unsigned int at = 0u; at < run->outs; at += 1u)
@@ -170,11 +170,11 @@ EMBED_INLINE int run_show(const DeployRunCtx *args)
         mmgr_line_put(&print_buf, run->out[at].text);
         EMBED_CALL(cli_deploy_internal.print, CliDeployCtx, .line = &print_buf);
     }
-    for (unsigned int index = 0u; index < run->places; index += 1u)
+    for (unsigned int index = 0u; index < run->positions; index += 1u)
     {
         const int releases = EMBED_CALL(run_in_release, DeployRunCtx, .index = index);
         const char *const base =
-            EMBED_CALL(cli_deploy_size_internal.place_folder, CliDeploySizeCtx, .place = &run->place[index]);
+            EMBED_CALL(cli_deploy_size_internal.position_folder, CliDeploySizeCtx, .place = &run->place[index]);
         char folder[CLI_PATH_MAX_LEN + 16u];
         VerbaLinea folder_line = {folder, sizeof(folder), 0ull};
         mmgr_line_put(&folder_line, base);
@@ -200,18 +200,19 @@ EMBED_INLINE int run_show(const DeployRunCtx *args)
             }
         }
         char why[CLI_ERR_MSG_MAX_LEN];
-        VerbaLinea why_line = {why, sizeof(why) - 1u, 0ull};
+        VerbaLinea error_line = {why, sizeof(why) - 1u, 0ull};
         run->changed[index] = 0u;
-        run->gone[index] = 0u;
-        if (!EMBED_CALL(cli_deploy_err_msg_index_internal.standing, CliDeployErrMsgIndexCtx, .index = index,
-                        .folder = folder, .replace = replace, .remove = remove, .err_msg = &why_line))
+        run->deleted[index] = 0u;
+        if (!EMBED_CALL(cli_deploy_err_msg_index_internal.existing, CliDeployErrMsgIndexCtx, .index = index,
+                        .folder = folder, .replace = replace, .remove = remove, .err_msg = &error_line))
         {
-            why[why_line.at] = '\0';
+            why[error_line.at] = '\0';
             VerbaLinea *const into = (args->act == CLI_DEPLOY_PREVIEW) ? &print_buf : err_msg;
             print_buf.at = 0ull;
-            EMBED_CALL(cli_deploy_size_internal.place_name, CliDeploySizeCtx, .place = &run->place[index], .out = into);
+            EMBED_CALL(cli_deploy_size_internal.position_name, CliDeploySizeCtx, .place = &run->place[index],
+                       .out = into);
             mmgr_line_put(into, " is not reached: ");
-            mmgr_line_put_n(into, why, why_line.at);
+            mmgr_line_put_n(into, why, error_line.at);
             if (args->act != CLI_DEPLOY_PREVIEW)
             {
                 return 0;
@@ -226,8 +227,8 @@ EMBED_INLINE int run_show(const DeployRunCtx *args)
 static int run_sends(void)
 {
     const CliDeployRun *const run = &g_cli_deploy;
-    s_going = run->places;
-    for (unsigned int index = 0u; index < run->places; index += 1u)
+    s_going = run->positions;
+    for (unsigned int index = 0u; index < run->positions; index += 1u)
     {
         s_sending[index].index = index;
         s_sending[index].thread = (CliThread){run_send, &s_sending[index]};
@@ -241,7 +242,7 @@ static int run_sends(void)
         EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_send_wake);
     }
     int every = 1;
-    for (unsigned int index = 0u; index < run->places; index += 1u)
+    for (unsigned int index = 0u; index < run->positions; index += 1u)
     {
         every = every && s_sending[index].sent;
     }
@@ -255,24 +256,24 @@ EMBED_INLINE int run_fail(const DeployRunCtx *args)
     const CliDeployRun *const run = &g_cli_deploy;
     unsigned int failed = 0u;
     // the words before the places, and each place's name and its reason
-    const unsigned long long room =
-        ((unsigned long long)run->places * (CLI_ERR_MSG_MAX_LEN + (2ull * CLI_PATH_MAX_LEN) + 8ull)) + 128ull;
-    char *const print_text = g_cli_cells->temporary_buf_alloc(room, &g_cli_deploy_cells);
-    VerbaLinea print_buf = mmgr_line_over(print_text, room);
+    const unsigned long long capacity =
+        ((unsigned long long)run->positions * (CLI_ERR_MSG_MAX_LEN + (2ull * CLI_PATH_MAX_LEN) + 8ull)) + 128ull;
+    char *const print_text = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_deploy_cells);
+    VerbaLinea print_buf = mmgr_line_over(print_text, capacity);
     mmgr_line_put(&print_buf, "no machine was turned to the new release, and each runs the release it had: ");
-    for (unsigned int index = 0u; index < run->places; index += 1u)
+    for (unsigned int index = 0u; index < run->positions; index += 1u)
     {
         if (s_sending[index].sent && EMBED_CALL(run_in_release, DeployRunCtx, .index = index))
         {
             char line[(2u * CLI_PATH_MAX_LEN) + 64u];
             VerbaLinea command = {line, sizeof(line), 0ull};
-            char gone[CLI_PATH_MAX_LEN + 64u];
-            VerbaLinea gone_line = {gone, sizeof(gone), 0ull};
-            mmgr_line_put(&gone_line, run->place[index].address.folder);
-            mmgr_line_put(&gone_line, "/releases/");
-            mmgr_line_put(&gone_line, args->release);
+            char deleted[CLI_PATH_MAX_LEN + 64u];
+            VerbaLinea removed_line = {deleted, sizeof(deleted), 0ull};
+            mmgr_line_put(&removed_line, run->place[index].address.folder);
+            mmgr_line_put(&removed_line, "/releases/");
+            mmgr_line_put(&removed_line, args->release);
             mmgr_line_put(&command, "rm -rf ");
-            EMBED_CALL(cli_link_text_size.quote, CliLinkTextSizeCfg, .text = gone, .size = gone_line.at,
+            EMBED_CALL(cli_link_text_size.quote, CliLinkTextSizeCfg, .text = deleted, .size = removed_line.at,
                        .out = &command);
             mmgr_line_finish(&command);
             char why[CLI_ERR_MSG_MAX_LEN];
@@ -284,10 +285,10 @@ EMBED_INLINE int run_fail(const DeployRunCtx *args)
         if (!s_sending[index].sent)
         {
             mmgr_line_put(&print_buf, (failed > 0u) ? "; " : "");
-            EMBED_CALL(cli_deploy_size_internal.place_name, CliDeploySizeCtx, .place = &run->place[index],
+            EMBED_CALL(cli_deploy_size_internal.position_name, CliDeploySizeCtx, .place = &run->place[index],
                        .out = &print_buf);
             mmgr_line_put(&print_buf, ": ");
-            mmgr_line_put_n(&print_buf, s_sending[index].why, s_sending[index].why_size);
+            mmgr_line_put_n(&print_buf, s_sending[index].why, s_sending[index].error_size);
             failed += 1u;
         }
     }
@@ -298,7 +299,7 @@ EMBED_INLINE int run_fail(const DeployRunCtx *args)
     g_cli_cells->persistent_buf_release(print_text, &g_cli_deploy_cells);
     mmgr_line_decimal(err_msg, failed, 1u);
     mmgr_line_put(err_msg, " of ");
-    mmgr_line_decimal(err_msg, run->places, 1u);
+    mmgr_line_decimal(err_msg, run->positions, 1u);
     mmgr_line_put(err_msg, " places failed");
     return 0;
 }
@@ -311,11 +312,11 @@ EMBED_INLINE int run_turn(const DeployRunCtx *args)
     int replace = args->replace;
     VerbaLinea *err_msg = args->err_msg;
     const CliDeployRun *const run = &g_cli_deploy;
-    for (unsigned int index = 0u; index < run->places; index += 1u)
+    for (unsigned int index = 0u; index < run->positions; index += 1u)
     {
-        const CliDeployPlace *const place = &run->place[index];
+        const CliDeployPosition *const place = &run->place[index];
         char why[CLI_ERR_MSG_MAX_LEN];
-        VerbaLinea why_line = {why, sizeof(why), 0ull};
+        VerbaLinea error_line = {why, sizeof(why), 0ull};
         if (EMBED_CALL(run_in_release, DeployRunCtx, .index = index))
         {
             char line[(2u * CLI_PATH_MAX_LEN) + 256u];
@@ -325,11 +326,11 @@ EMBED_INLINE int run_turn(const DeployRunCtx *args)
             mmgr_line_finish(&command);
             VerbaLinea nothing = {NULL, 0ull, 0ull};
             if (!EMBED_CALL(cli_deploy_size_internal.remote_run, CliDeploySizeCtx, .place = place, .line_text = line,
-                            .input = NULL, .size = 0ull, .out = &nothing, .err_msg = &why_line))
+                            .input = NULL, .size = 0ull, .out = &nothing, .err_msg = &error_line))
             {
-                EMBED_CALL(cli_deploy_size_internal.place_name, CliDeploySizeCtx, .place = place, .out = err_msg);
+                EMBED_CALL(cli_deploy_size_internal.position_name, CliDeploySizeCtx, .place = place, .out = err_msg);
                 mmgr_line_put(err_msg, ": ");
-                mmgr_line_put_n(err_msg, why, why_line.at);
+                mmgr_line_put_n(err_msg, why, error_line.at);
                 return 0;
             }
             EMBED_CALL(cli_deploy_index_internal.prune, CliDeployIndexCtx, .index = index,
@@ -364,7 +365,7 @@ static void run_free(void)
     EMBED_CALL(cli_deploy_root_internal.tree_free, CliDeployRootCtx, .tree = &s_tree);
     cli_deploy_there_free();
     run->place = NULL;
-    run->places = 0u;
+    run->positions = 0u;
     run->pattern = NULL;
     run->patterns = 0u;
     run->sent = NULL;
@@ -373,8 +374,8 @@ static void run_free(void)
     run->outs = 0u;
     run->changed_list = NULL;
     run->changed = NULL;
-    run->gone_list = NULL;
-    run->gone = NULL;
+    run->removed_list = NULL;
+    run->deleted = NULL;
     s_sending = NULL;
 }
 
@@ -407,7 +408,7 @@ int cli_deploy_run(const CliDeployRootCfg *args)
     if (done)
     {
         run->deployment = deployments[found];
-        done = EMBED_CALL(run_places, DeployRunCtx, .root = root, .err_msg = args->err_msg);
+        done = EMBED_CALL(run_positions, DeployRunCtx, .root = root, .err_msg = args->err_msg);
     }
     if (done && (args->act == CLI_DEPLOY_ROLL_BACK))
     {

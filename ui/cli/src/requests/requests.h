@@ -55,7 +55,6 @@ int cli_requests_private_init(const CliRequestsTextCfg *args);
 // environment `env`, none where it is NULL, stored with its last answers and written into `out`: 1, or 0 with why given
 // (requests_send.c); the answers stored for the request named `key` of the file at `path`, the last first, written into
 // `out`, with the key (requests_history.c)
-int cli_requests_sent_at(const CliRequestsTextCfg *args);
 int cli_requests_answers(const CliRequestsTextCfg *args);
 
 // the curl line that sends the request at line `line`, for bash and the shells that read quotes as it does; and the
@@ -63,12 +62,6 @@ int cli_requests_answers(const CliRequestsTextCfg *args);
 // why given (requests_curl_line.c, requests_curl.c)
 int cli_requests_curl(const CliRequestsTextCfg *args);
 int cli_requests_from_curl(const CliRequestsCfg *args);
-
-// a GET of `address` sent, following redirects, the peer's certificate checked, and its answer read: its status, its
-// reason, whether its body was cut, and its body's bytes, as text read as Rust's from_utf8_lossy reads it where it is
-// text, into `status`, `reason`, `cut` and `body`: 1, or 0 with what failed given where nothing answered
-// (requests_send.c)
-int cli_requests_get(const CliRequestsAddressCfg *args);
 
 struct CliRequestsTextCfg
 {
@@ -106,17 +99,15 @@ typedef struct
     int (*key_at)(const CliRequestsTextCfg *args);
     int (*environments)(const CliRequestsTextCfg *args);
     int (*private_init)(const CliRequestsTextCfg *args);
-    int (*sent_at)(const CliRequestsTextCfg *args);
     int (*answers)(const CliRequestsTextCfg *args);
     int (*curl)(const CliRequestsTextCfg *args);
 } CliRequestsTextNs;
-EMBED_TABLE_LAYOUT(CliRequestsTextNs, parse, key_at, environments, private_init, sent_at, answers, curl);
+EMBED_TABLE_LAYOUT(CliRequestsTextNs, parse, key_at, environments, private_init, answers, curl);
 EMBED_TABLE_STORAGE CliRequestsTextNs cli_requests_text_table EMBED_UNUSED = {
     .parse = cli_requests_on_parse,
     .key_at = cli_requests_key_at,
     .environments = cli_requests_environments,
     .private_init = cli_requests_private_init,
-    .sent_at = cli_requests_sent_at,
     .answers = cli_requests_answers,
     .curl = cli_requests_curl,
 };
@@ -128,15 +119,6 @@ typedef struct
 EMBED_TABLE_LAYOUT(CliRequestsNs, from_curl);
 EMBED_TABLE_STORAGE CliRequestsNs cli_requests_table EMBED_UNUSED = {
     .from_curl = cli_requests_from_curl,
-};
-
-typedef struct
-{
-    int (*get)(const CliRequestsAddressCfg *args);
-} CliRequestsAddressNs;
-EMBED_TABLE_LAYOUT(CliRequestsAddressNs, get);
-EMBED_TABLE_STORAGE CliRequestsAddressNs cli_requests_address_table EMBED_UNUSED = {
-    .get = cli_requests_get,
 };
 
 #endif

@@ -29,7 +29,7 @@ static void cli_go_each(const CliEachNameIsFolderCfg *args)
             (!cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "testdata", .cap = CLI_CELLS_POOL})) &&
             !EMBED_CALL(cli_executables_name_out_folder_internal.pass, CliExecutablesNameOutFolderCtx, .name = name))
         {
-            (void)EMBED_CALL(cli_executables_walk_internal.pending_put, CliExecutablesWalkCtx, .walk = walk,
+            (void)EMBED_CALL(cli_executables_walk_internal.pending_append, CliExecutablesWalkCtx, .walk = walk,
                              .path = path, .depth = walk->at_depth + 1u);
         }
     }
@@ -39,7 +39,7 @@ static void cli_go_each(const CliEachNameIsFolderCfg *args)
                                       .src = name + length - 8ull, .other = "_test.go", .cap = CLI_CELLS_POOL}))))
     {
         char package[CLI_NAME_MAX_LEN];
-        char *const text = EMBED_CALL(cli_executables_walk_internal.text_take, CliExecutablesWalkCtx, .path = path);
+        char *const text = EMBED_CALL(cli_executables_walk_internal.text_alloc, CliExecutablesWalkCtx, .path = path);
         walk->main = (text != NULL) &&
                      EMBED_CALL(cli_executables_text_out_internal.go_package, CliExecutablesTextOutCtx, .text = text,
                                 .out = package) &&
@@ -66,7 +66,7 @@ void cli_go_mains(const CliExecutablesTextModuleCtx *args)
         if ((length >= 7ull) && (memor.cmp(&(MemoriaCfg){.src = from, .other = "module ", .bytes = 7u}) == 0))
         {
             EMBED_CALL(cli_executables_length_value_internal.toml_value, CliExecutablesLengthValueCtx,
-                       .value = from + 7, .length = length - 7ull, .out = path, .room = sizeof(path));
+                       .value = from + 7, .length = length - 7ull, .out = path, .capacity = sizeof(path));
             break;
         }
         line = (stop[0] != '\0') ? (stop + 1) : stop;
@@ -79,7 +79,7 @@ void cli_go_mains(const CliExecutablesTextModuleCtx *args)
     }
     CliWalk go_walk;
     CliWalk *const walk = &go_walk;
-    EMBED_CALL(cli_executables_walk_internal.walk_take, CliExecutablesWalkCtx, .walk = walk);
+    EMBED_CALL(cli_executables_walk_internal.walk_alloc, CliExecutablesWalkCtx, .walk = walk);
     EMBED_CALL(cli_executables_walk_top_internal.walk, CliExecutablesWalkTopCtx, .walk = walk, .top = top,
                .each = cli_go_each);
     const unsigned long long top_length = cellul.len(&(CatenaFinitaCfg){.src = top, .cap = CLI_CELLS_POOL});
@@ -104,8 +104,8 @@ void cli_go_mains(const CliExecutablesTextModuleCtx *args)
                               .byte = '/') +
                    1)
                 : named;
-        char shown[CLI_PATH_MAX_LEN];
-        VerbaLinea line = {shown, sizeof(shown), 0ull};
+        char displayed[CLI_PATH_MAX_LEN];
+        VerbaLinea line = {displayed, sizeof(displayed), 0ull};
         mmgr_line_put(&line, (package[0] == '\0') ? "." : "./");
         mmgr_line_put(&line, package);
         mmgr_line_finish(&line);
@@ -114,9 +114,10 @@ void cli_go_mains(const CliExecutablesTextModuleCtx *args)
             memor.cpy(&(MemoriaCfg){.dst = args->mains->name[args->mains->count],
                                     .src = name,
                                     .bytes = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) + 1u});
-            memor.cpy(&(MemoriaCfg){.dst = args->mains->value[args->mains->count],
-                                    .src = shown,
-                                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = shown, .cap = CLI_CELLS_POOL}) + 1u});
+            memor.cpy(
+                &(MemoriaCfg){.dst = args->mains->value[args->mains->count],
+                              .src = displayed,
+                              .bytes = cellul.len(&(CatenaFinitaCfg){.src = displayed, .cap = CLI_CELLS_POOL}) + 1u});
             args->mains->count += 1u;
         }
     }
@@ -189,7 +190,8 @@ void cli_npm_builders(const CliExecutablesFolderCtx *args)
     {
         order = s_deno;
     }
-    else if (EMBED_CALL(cli_sea_table.outside, CliSeaCfg, .text = args->script, .found = s_outside, .room = 4u) == 0u)
+    else if (EMBED_CALL(cli_sea_table.outside, CliSeaCfg, .text = args->script, .found = s_outside, .capacity = 4u) ==
+             0u)
     {
         order = s_node;
     }

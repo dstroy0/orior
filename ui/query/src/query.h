@@ -52,16 +52,16 @@ extern "C"
         void *context;
         QueryRole role;
         char *path;
-        size_t room;
+        size_t capacity;
         VerbaLinea *err_msg;
-    } QueryEachRolePathRoomErrMsgCfg;
+    } QueryEachRolePathCapacityErrMsgCfg;
 
-    // Where the query's programs are found: the program of a role into `path`, sized for `room`, 1, or 0 with why
+    // Where the query's programs are found: the program of a role into `path`, sized for `capacity`, 1, or 0 with why
     // it is not found written into `err_msg` in words that explain what to do; and the PATH every program the query
     // starts runs with
     typedef struct
     {
-        int (*program)(const QueryEachRolePathRoomErrMsgCfg *args);
+        int (*program)(const QueryEachRolePathCapacityErrMsgCfg *args);
         const char *(*run_path)(void *context);
         void *context;
     } QueryPrograms;

@@ -18,8 +18,8 @@ typedef struct
 #define CLI_SYMBOLS_FOUND 1024u
 
 // the most bytes of a declaration's line written with it, and the most bytes of a file read for that line
-#define CLI_SYMBOL_LINE_MOST 240ull
-#define CLI_SYMBOL_LINE_FILE_MOST (1ull << 20u)
+#define CLI_SYMBOL_LINE_MAX 240ull
+#define CLI_SYMBOL_LINE_FILE_MAX (1ull << 20u)
 
 typedef struct
 {
@@ -36,25 +36,22 @@ typedef struct
     const CliScored *one_scored_pointer;
     const CliScored *other_scored_pointer;
 } SymbolsFindCtx;
-// the declaration's own line, `line` counted from 0 in the file at `path`, written as a JSON string with the whitespace
-// at either end left off, cut to CLI_SYMBOL_LINE_MOST bytes: an empty string where the file is not read or has no
-// such line
+// the declaration's own line, `line` counted from 0 in the file at `path`, written with the whitespace at either end
+// left off, cut to CLI_SYMBOL_LINE_MAX bytes: nothing where the file is not read or has no such line
 EMBED_INLINE void find_line_write(const SymbolsFindCtx *args)
 {
     const char *path = args->path;
     VerbaLinea *out = args->out;
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = path,
+    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                   .size_pointer = &size, .owner = &g_cli_code_cells);
     if (bytes == NULL)
     {
-        EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
-                   .text_bytes = (const unsigned char *)"", .length = 0ull);
         return;
     }
     unsigned long long start = 0ull;
     unsigned int counted = 0u;
-    while ((size <= CLI_SYMBOL_LINE_FILE_MOST) && (counted < args->line) && (start < size))
+    while ((size <= CLI_SYMBOL_LINE_FILE_MAX) && (counted < args->line) && (start < size))
     {
         start =
             EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = (const char *)bytes, .at = start, .size = size).next;
@@ -66,13 +63,13 @@ EMBED_INLINE void find_line_write(const SymbolsFindCtx *args)
         end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = (const char *)bytes,
                          .at = end, .size = size, .set = "\n");
     }
-    end = (start + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg,
+    end = (start + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg,
                               .text = (const char *)(bytes + start), .at = end - start, .set = "\r \t"));
-    start = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = (const char *)bytes,
+    start = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = (const char *)bytes,
                        .at = start, .size = end, .set = " \t");
-    const unsigned long long length = ((end - start) < CLI_SYMBOL_LINE_MOST) ? (end - start) : CLI_SYMBOL_LINE_MOST;
-    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
-               .text_bytes = bytes + start, .length = length);
+    const unsigned long long length = ((end - start) < CLI_SYMBOL_LINE_MAX) ? (end - start) : CLI_SYMBOL_LINE_MAX;
+    EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = out, .text_bytes = bytes + start,
+               .length = length);
     EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_code_cells);
 }
 
@@ -139,12 +136,12 @@ EMBED_INLINE int cli_ranks_before(const SymbolsFindCtx *args)
     return (order != 0) ? (order < 0) : (left.line < right.line);
 }
 
-void cli_tree_declarations_find(const CliSymbolsQueryMostCfg *args)
+CliFoundDeclarations *cli_tree_declarations_alloc(const CliSymbolsQueryMaxCfg *args)
 {
     static CliScored s_found[CLI_SYMBOLS_FOUND];
-    const unsigned int room = (args->most < CLI_SYMBOLS_FOUND) ? args->most : CLI_SYMBOLS_FOUND;
+    const unsigned int capacity = (args->most < CLI_SYMBOLS_FOUND) ? args->most : CLI_SYMBOLS_FOUND;
     unsigned int count = 0u;
-    char *const scratch = cli_branch_copy_take();
+    char *const scratch = cli_branch_copy_alloc();
     for (unsigned int file = 0u; (scratch != NULL) && (file < g_cli_branch_count); file += 1u)
     {
         if (g_cli_branches[file].used)
@@ -163,52 +160,66 @@ void cli_tree_declarations_find(const CliSymbolsQueryMostCfg *args)
             {
                 continue;
             }
-            // retained in rank among the best `room` so far
-            unsigned int place = (count < room) ? count : room;
+            // retained in rank among the best `capacity` so far
+            unsigned int place = (count < capacity) ? count : capacity;
             while ((place > 0u) && EMBED_CALL(cli_ranks_before, SymbolsFindCtx, .one_scored_pointer = &scored,
                                               .other_scored_pointer = &s_found[place - 1u]))
             {
-                if (place < room)
+                if (place < capacity)
                 {
                     s_found[place] = s_found[place - 1u];
                 }
                 place -= 1u;
             }
-            if (place < room)
+            if (place < capacity)
             {
                 s_found[place] = scored;
-                count += (count < room) ? 1u : 0u;
+                count += (count < capacity) ? 1u : 0u;
             }
         }
     }
-    mmgr_line_put(args->out, "{\"symbols\":[");
-    for (unsigned int at = 0u; at < count; at += 1u)
+    // each found's name, kind, path and line of text in one line laid after the list, a line of text no longer than its
+    // most
+    const unsigned long long text_capacity =
+        (count * ((3ull * CLI_PATH_MAX_LEN) + (4ull * CLI_SYMBOL_LINE_MAX))) + 1ull;
+    CliFoundDeclarations *const declarations = g_cli_cells->persistent_buf_alloc(
+        sizeof(*declarations) + (count * sizeof(CliFoundDeclaration)) + text_capacity, args->owner);
+    if (declarations != NULL)
     {
-        const CliTreeBranch *const branch = &g_cli_branches[s_found[at].file];
-        EMBED_CALL(cli_symbols_tree_branch.branch_copy, CliSymbolsTreeBranchCfg, .branch = branch, .scratch = scratch);
-        const CliDeclaration *const symbol =
-            &EMBED_CALL(cli_symbols_tree_branch_scratch.branch_copy_declarations, CliSymbolsTreeBranchScratchCfg,
-                        .scratch_read = scratch)[s_found[at].symbol];
-        const char *const path = EMBED_CALL(cli_symbols_tree_branch_scratch.branch_copy_path,
-                                            CliSymbolsTreeBranchScratchCfg, .branch = branch, .scratch_read = scratch);
-        mmgr_line_put(args->out, (at != 0u) ? ",{\"name\":" : "{\"name\":");
-        EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->out,
-                   .text_bytes = (const unsigned char *)(scratch + symbol->name), .length = symbol->length);
-        mmgr_line_put(args->out, ",\"kind\":");
-        const char *const kind = scratch + symbol->kind;
-        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out, .text = kind,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = kind, .cap = CLI_CELLS_POOL}));
-        mmgr_line_put(args->out, ",\"path\":");
-        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out, .text = path,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
-        mmgr_line_put(args->out, ",\"line\":");
-        mmgr_line_decimal(args->out, symbol->line, 1u);
-        mmgr_line_put(args->out, ",\"text\":");
-        char full[CLI_PATH_MAX_LEN];
-        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = g_cli_tree_root, .relative = path, .joined = full);
-        EMBED_CALL(find_line_write, SymbolsFindCtx, .path = full, .line = symbol->line, .out = args->out);
-        mmgr_line_ch(args->out, '}');
+        declarations->count = count;
+        declarations->reading = g_cli_tree_walking;
+        declarations->found = (CliFoundDeclaration *)(void *)(declarations + 1);
+        VerbaLinea text = {(char *)(void *)(declarations->found + count), text_capacity, 0ull};
+        for (unsigned int at = 0u; at < count; at += 1u)
+        {
+            const CliTreeBranch *const branch = &g_cli_branches[s_found[at].file];
+            EMBED_CALL(cli_symbols_tree_branch.branch_copy, CliSymbolsTreeBranchCfg, .branch = branch,
+                       .scratch = scratch);
+            const CliDeclaration *const symbol =
+                &EMBED_CALL(cli_symbols_tree_branch_scratch.branch_copy_declarations, CliSymbolsTreeBranchScratchCfg,
+                            .branch = branch, .scratch_read = scratch)[s_found[at].symbol];
+            const char *const path =
+                EMBED_CALL(cli_symbols_tree_branch_scratch.branch_copy_path, CliSymbolsTreeBranchScratchCfg,
+                           .branch = branch, .scratch_read = scratch);
+            CliFoundDeclaration *const found = &declarations->found[at];
+            found->line = symbol->line;
+            found->name = text.out + text.at;
+            EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &text,
+                       .text_bytes = (const unsigned char *)(scratch + symbol->name), .length = symbol->length);
+            mmgr_line_ch(&text, '\0');
+            found->kind = text.out + text.at;
+            mmgr_line_put(&text, scratch + symbol->kind);
+            mmgr_line_ch(&text, '\0');
+            found->path = text.out + text.at;
+            mmgr_line_put(&text, path);
+            mmgr_line_ch(&text, '\0');
+            found->text = text.out + text.at;
+            char full[CLI_PATH_MAX_LEN];
+            EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = g_cli_tree_root, .relative = path, .joined = full);
+            EMBED_CALL(find_line_write, SymbolsFindCtx, .path = full, .line = symbol->line, .out = &text);
+            mmgr_line_ch(&text, '\0');
+        }
     }
-    mmgr_line_put(args->out, g_cli_tree_walking ? "],\"reading\":true}" : "],\"reading\":false}");
     EMBED_CALL(cli_symbols_tree_branch.branch_copy_free, CliSymbolsTreeBranchCfg, .scratch = scratch);
+    return declarations;
 }

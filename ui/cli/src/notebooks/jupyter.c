@@ -32,13 +32,13 @@ typedef struct
     const char *name;
     const char *value;
     char *out;
-    unsigned long long room;
+    unsigned long long capacity;
     const char *folder;
     const unsigned int *ports;
     unsigned int *ports_out;
 } JupyterCtx;
 // the kernel's cell given back, where no reader of its reads on
-EMBED_INLINE void jupyter_place_free(const JupyterCtx *args)
+EMBED_INLINE void jupyter_position_free(const JupyterCtx *args)
 {
     g_cli_cells->persistent_buf_release(args->kernel->shell_queue.out, &g_cli_notebook_cells);
     g_cli_cells->persistent_buf_release(args->kernel, &g_cli_notebook_cells);
@@ -56,12 +56,12 @@ EMBED_INLINE void jupyter_let_go(const JupyterCtx *args)
     EMBED_CALL(cli_sock_internal.socket_end, CliSockCtx, .sock = &kernel->control);
     EMBED_CALL(cli_sock_internal.socket_end, CliSockCtx, .sock = &kernel->iopub);
     const unsigned long long until = cli_clock_milliseconds() + CLI_KERNEL_READERS_WAIT;
-    while ((kernel->reading > 0u) && (cli_clock_milliseconds() < until))
+    while ((kernel->read_state > 0u) && (cli_clock_milliseconds() < until))
     {
         (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &kernel->wake,
                          .milliseconds_u64 = until - cli_clock_milliseconds());
     }
-    const int ended = (kernel->reading == 0u);
+    const int ended = (kernel->read_state == 0u);
     if (!ended)
     {
         return;
@@ -70,7 +70,7 @@ EMBED_INLINE void jupyter_let_go(const JupyterCtx *args)
     EMBED_CALL(cli_err_msg_internal.socket_close, CliErrMsgCtx, .sock_out = &kernel->control);
     EMBED_CALL(cli_err_msg_internal.socket_close, CliErrMsgCtx, .sock_out = &kernel->iopub);
     EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &kernel->spawned);
-    EMBED_CALL(jupyter_place_free, JupyterCtx, .kernel = kernel);
+    EMBED_CALL(jupyter_position_free, JupyterCtx, .kernel = kernel);
 }
 
 void cli_jupyter_ref(const CliJupyterErrMsgKernelFileCfg *args)
@@ -89,14 +89,25 @@ void cli_jupyter_free(const CliJupyterErrMsgKernelFileCfg *args)
 }
 
 // a kernel's cell taken, referenced once and made empty: the kernel, or NULL where the cells cannot meet it
-static CliKernel *jupyter_place_take(void)
+static CliKernel *jupyter_position_alloc(void)
 {
-    CliKernel *const kernel = g_cli_cells->persistent_buf_alloc(sizeof(*kernel), &g_cli_notebook_cells);
+    // a kernel's buffers stand in its cell, after it
+    CliKernel *const kernel = g_cli_cells->persistent_buf_alloc(
+        sizeof(*kernel) + (unsigned long long)CLI_KERNEL_CONTENT + (3ull * CLI_KERNEL_REPLY_CAPACITY) +
+            CLI_KERNEL_IOPUB_CAPACITY + (2ull * CLI_KERNEL_LINE * 8ull),
+        &g_cli_notebook_cells);
     if (kernel == NULL)
     {
         return NULL;
     }
-    kernel->taken = 1;
+    kernel->content = (char *)(void *)(kernel + 1);
+    kernel->debug_reply = kernel->content + CLI_KERNEL_CONTENT;
+    kernel->iopub_capacity = (unsigned char *)(kernel->debug_reply + CLI_KERNEL_REPLY_CAPACITY);
+    kernel->shell_capacity = kernel->iopub_capacity + CLI_KERNEL_IOPUB_CAPACITY;
+    kernel->control_capacity = kernel->shell_capacity + CLI_KERNEL_REPLY_CAPACITY;
+    kernel->out_capacity = kernel->control_capacity + CLI_KERNEL_REPLY_CAPACITY;
+    kernel->err_capacity = kernel->out_capacity + (CLI_KERNEL_LINE * 8u);
+    kernel->reserved = 1;
     kernel->refs = 1u;
     kernel->ended = 0;
     kernel->code = 0ll;
@@ -109,7 +120,7 @@ static CliKernel *jupyter_place_take(void)
     kernel->shell_queue_from = 0ull;
     kernel->wake = (CliWake)CLI_WAKE_INIT;
     memor.set(&(MemoriaCfg){.dst = kernel->waiters, .val = 0, .bytes = sizeof(kernel->waiters)});
-    kernel->reading = 0u;
+    kernel->read_state = 0u;
     kernel->listening = 0;
     kernel->debug_port = 0u;
     kernel->interrupt_event = 0ull;
@@ -177,16 +188,17 @@ static int jupyter_connected_while(const JupyterCtx *args)
     }
 }
 
-// `text` with every `name` in it written as `value` into `out`, sized for `room`
+// `text` with every `name` in it written as `value` into `out`, sized for `capacity`
 EMBED_INLINE void jupyter_replace(const JupyterCtx *args)
 {
     const char *text = args->text;
     const char *name = args->name;
     const char *value = args->value;
     char *out = args->out;
-    VerbaLinea line = {out, args->room, 0ull};
+    VerbaLinea line = {out, args->capacity, 0ull};
     const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
-    EMBED_CALL(cli_text_out_name.put_fill, CliTextOutNameCfg, .out = &line, .text = text, .name = name, .value = value);
+    EMBED_CALL(cli_text_out_name.append_fill, CliTextOutNameCfg, .out = &line, .text = text, .name = name,
+               .value = value);
     mmgr_line_finish(&line);
 }
 
@@ -244,12 +256,13 @@ EMBED_INLINE int jupyter_process_start(const JupyterCtx *args)
         EMBED_CALL(jupyter_replace, JupyterCtx,
                    .text = EMBED_CALL(cli_jupyter_spec_internal.kernel_text, CliJupyterSpecCtx, .spec = spec,
                                       .at = spec->argv[at]),
-                   .name = "{connection_file}", .value = kernel->connection, .out = s_named, .room = sizeof(s_named));
+                   .name = "{connection_file}", .value = kernel->connection, .out = s_named,
+                   .capacity = sizeof(s_named));
         EMBED_CALL(jupyter_replace, JupyterCtx, .text = s_named, .name = "{resource_dir}",
                    .value = EMBED_CALL(cli_jupyter_spec_internal.kernel_text, CliJupyterSpecCtx, .spec = spec,
                                        .at = spec->folder),
-                   .out = s_word, .room = sizeof(s_word));
-        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &kernel->words,
+                   .out = s_word, .capacity = sizeof(s_word));
+        EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &kernel->words,
                    .word = s_word);
     }
     if (kernel->words.count == 0u)
@@ -284,10 +297,14 @@ EMBED_INLINE int jupyter_process_start(const JupyterCtx *args)
     {
         return 0;
     }
-    kernel->readers[3] = (CliKernelReader){
-        .channel = "log", .pipe = kernel->spawned.out, .room = kernel->out_room, .room_size = sizeof(kernel->out_room)};
-    kernel->readers[4] = (CliKernelReader){
-        .channel = "log", .pipe = kernel->spawned.err, .room = kernel->err_room, .room_size = sizeof(kernel->err_room)};
+    kernel->readers[3] = (CliKernelReader){.channel = "log",
+                                           .pipe = kernel->spawned.out,
+                                           .capacity = kernel->out_capacity,
+                                           .capacity_bytes = (CLI_KERNEL_LINE * 8u)};
+    kernel->readers[4] = (CliKernelReader){.channel = "log",
+                                           .pipe = kernel->spawned.err,
+                                           .capacity = kernel->err_capacity,
+                                           .capacity_bytes = (CLI_KERNEL_LINE * 8u)};
     EMBED_CALL(cli_jupyter_at_internal.kernel_reader_start, CliJupyterAtCtx, .kernel = kernel, .at = 3u);
     EMBED_CALL(cli_jupyter_at_internal.kernel_reader_start, CliJupyterAtCtx, .kernel = kernel, .at = 4u);
     return 1;
@@ -354,17 +371,17 @@ EMBED_INLINE int jupyter_sockets_connect(const JupyterCtx *args)
     kernel->session[16] = '\0';
     kernel->readers[0] = (CliKernelReader){.channel = "iopub",
                                            .socket = &kernel->iopub,
-                                           .room = kernel->iopub_room,
-                                           .room_size = sizeof(kernel->iopub_room)};
+                                           .capacity = kernel->iopub_capacity,
+                                           .capacity_bytes = CLI_KERNEL_IOPUB_CAPACITY};
     kernel->readers[1] = (CliKernelReader){.channel = "shell",
                                            .socket = &kernel->shell,
-                                           .room = kernel->shell_room,
-                                           .room_size = sizeof(kernel->shell_room),
+                                           .capacity = kernel->shell_capacity,
+                                           .capacity_bytes = CLI_KERNEL_REPLY_CAPACITY,
                                            .replies = 1};
     kernel->readers[2] = (CliKernelReader){.channel = "control",
                                            .socket = &kernel->control,
-                                           .room = kernel->control_room,
-                                           .room_size = sizeof(kernel->control_room),
+                                           .capacity = kernel->control_capacity,
+                                           .capacity_bytes = CLI_KERNEL_REPLY_CAPACITY,
                                            .replies = 1};
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
@@ -390,7 +407,7 @@ CliKernel *cli_jupyter_start(const CliJupyterSpecCfg *args)
     // the kernel binds ports of its own choosing, each written 0 in its connection file, and writes the file again
     // with the ports it bound, which are read back from it: no port is probed and let go for another process to take
     unsigned int ports[5] = {0u, 0u, 0u, 0u, 0u};
-    CliKernel *const kernel = jupyter_place_take();
+    CliKernel *const kernel = jupyter_position_alloc();
     if (kernel == NULL)
     {
         mmgr_line_put(args->err_msg, "no more kernels are run at once");
@@ -404,7 +421,7 @@ CliKernel *cli_jupyter_start(const CliJupyterSpecCfg *args)
                     .err_msg = args->err_msg))
     {
         EMBED_CALL(cli_jupyter_at_internal.kernel_forgotten, CliJupyterAtCtx, .kernel = kernel);
-        EMBED_CALL(jupyter_place_free, JupyterCtx, .kernel = kernel);
+        EMBED_CALL(jupyter_position_free, JupyterCtx, .kernel = kernel);
         return NULL;
     }
     const unsigned long long until = cli_clock_milliseconds() + CLI_KERNEL_START;

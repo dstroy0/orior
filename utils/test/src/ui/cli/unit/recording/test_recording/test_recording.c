@@ -10,11 +10,11 @@
 static char s_seen[512];
 static VerbaLinea s_seen_line = {s_seen, sizeof(s_seen), 0ull};
 
-// the values of frame `serial` as step `at` was about to run, `name=value` joined by `|`, are `wanted`
-static void assert_values(const char *wanted, unsigned int serial, unsigned int at)
+// the values of frame `serial` as step `at` was about to run, `name=value` joined by `|`, are `required`
+static void assert_values(const char *required, unsigned int serial, unsigned int at)
 {
     CliRecordedValue *values = NULL;
-    const unsigned int count = EMBED_CALL(cli_recording_at_internal.values, CliRecordingAtCtx, .serial = serial, .at = at, .taken = &values, .most = 8u, .owner = &g_checks_cells);
+    const unsigned int count = EMBED_CALL(cli_recording_at_internal.values, CliRecordingAtCtx, .serial = serial, .at = at, .reserved = &values, .most = 8u, .owner = &g_checks_cells);
     char text[256];
     VerbaLinea line = {text, sizeof(text), 0ull};
     for (unsigned int each = 0u; each < count; each += 1u)
@@ -25,14 +25,14 @@ static void assert_values(const char *wanted, unsigned int serial, unsigned int 
         mmgr_line_put(&line, values[each].value);
     }
     g_cli_cells->persistent_buf_release(values, &g_checks_cells);
-    CLI_TEST_ASSERT_TEXT(wanted, text, line.at);
+    CLI_TEST_ASSERT_TEXT(required, text, line.at);
 }
 
-// the stack at `at`, `frame:step` joined by `|`, is `wanted`
-static void assert_stack(const char *wanted, unsigned int at)
+// the stack at `at`, `frame:step` joined by `|`, is `required`
+static void assert_stack(const char *required, unsigned int at)
 {
     unsigned int frames[8][2];
-    const unsigned int count = EMBED_CALL(cli_recording_at_frames_internal.stack, CliRecordingAtFramesCtx, .at = at, .frames = frames, .room = 8u);
+    const unsigned int count = EMBED_CALL(cli_recording_at_frames_internal.stack, CliRecordingAtFramesCtx, .at = at, .frames = frames, .capacity = 8u);
     char text[128];
     VerbaLinea line = {text, sizeof(text), 0ull};
     for (unsigned int each = 0u; each < count; each += 1u)
@@ -42,7 +42,7 @@ static void assert_stack(const char *wanted, unsigned int at)
         mmgr_line_ch(&line, ':');
         mmgr_line_decimal(&line, frames[each][1], 1u);
     }
-    CLI_TEST_ASSERT_TEXT(wanted, text, line.at);
+    CLI_TEST_ASSERT_TEXT(required, text, line.at);
 }
 
 // a change of a name recorded, `step:line:value` after the others
@@ -56,12 +56,12 @@ static void name_changed(const CliEachStepLineValueCfg *args)
     mmgr_line_put(&s_seen_line, (args->value != NULL) ? args->value : "");
 }
 
-// the history of `name` in frame `serial` is `wanted`
-static void assert_history(const char *wanted, unsigned int serial, const char *name)
+// the history of `name` in frame `serial` is `required`
+static void assert_history(const char *required, unsigned int serial, const char *name)
 {
     s_seen_line.at = 0ull;
     EMBED_CALL(cli_recording_serial_internal.history, CliRecordingSerialCtx, .serial = serial, .name = name, .each = name_changed, .context = NULL);
-    CLI_TEST_ASSERT_TEXT(wanted, s_seen, s_seen_line.at);
+    CLI_TEST_ASSERT_TEXT(required, s_seen, s_seen_line.at);
 }
 
 // `how` from step `at` goes to `step` for the reason `reason`
@@ -144,7 +144,7 @@ void test_a_raise_is_recorded_at_its_step(void)
     TEST_ASSERT_EQUAL_UINT(6u, g_cli_replay->recording.raised[0].step);
 }
 
-void test_a_stack_places_each_caller_at_its_line(void)
+void test_a_stack_positions_each_caller_at_its_line(void)
 {
     assert_stack("2:3|1:1", 3u);
 }

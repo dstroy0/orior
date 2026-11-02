@@ -24,17 +24,9 @@ typedef struct CliContainersCfg CliContainersCfg;
 // restarted, as `act` specifies; the last CLI_LOG_LINES lines the container `name` wrote, its output and its errors as
 // they came, written as a JSON string; and `line` run in the container `name` by its shell, what it wrote, its errors
 // after and its exit code where it is not 0, written as a JSON string. Each of the last three 1, or 0 with why given
-void cli_containers_list(const CliContainersOutLineCfg *args);
 int cli_containers_act(const CliContainersCfg *args);
 int cli_containers_logs(const CliContainersOutLineCfg *args);
 int cli_containers_run_in(const CliContainersOutLineCfg *args);
-
-// every pod of the cluster kubectl names, in every namespace, written as `{"items": [{"namespace", "name", "phase",
-// "ready", "containers", "node"}], "problem"}`, by namespace and name; and the last CLI_LOG_LINES lines the container
-// `container` of the pod `name` in `namespace` wrote, or its only container's where `container` is NULL or empty,
-// written as a JSON string: 1, or 0 with why given
-void cli_containers_pods(const CliContainersOutLineCfg *args);
-int cli_containers_pod_logs(const CliContainersOutCfg *args);
 
 struct CliContainersOutCfg
 {
@@ -62,17 +54,13 @@ struct CliContainersCfg
 
 typedef struct
 {
-    void (*list)(const CliContainersOutLineCfg *args);
     int (*logs)(const CliContainersOutLineCfg *args);
     int (*run_in)(const CliContainersOutLineCfg *args);
-    void (*pods)(const CliContainersOutLineCfg *args);
 } CliContainersOutLineNs;
-EMBED_TABLE_LAYOUT(CliContainersOutLineNs, list, logs, run_in, pods);
+EMBED_TABLE_LAYOUT(CliContainersOutLineNs, logs, run_in);
 EMBED_TABLE_STORAGE CliContainersOutLineNs cli_containers_out_line EMBED_UNUSED = {
-    .list = cli_containers_list,
     .logs = cli_containers_logs,
     .run_in = cli_containers_run_in,
-    .pods = cli_containers_pods,
 };
 
 typedef struct
@@ -82,15 +70,6 @@ typedef struct
 EMBED_TABLE_LAYOUT(CliContainersNs, act);
 EMBED_TABLE_STORAGE CliContainersNs cli_containers EMBED_UNUSED = {
     .act = cli_containers_act,
-};
-
-typedef struct
-{
-    int (*pod_logs)(const CliContainersOutCfg *args);
-} CliContainersOutNs;
-EMBED_TABLE_LAYOUT(CliContainersOutNs, pod_logs);
-EMBED_TABLE_STORAGE CliContainersOutNs cli_containers_out EMBED_UNUSED = {
-    .pod_logs = cli_containers_pod_logs,
 };
 
 #endif

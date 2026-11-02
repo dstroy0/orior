@@ -27,7 +27,7 @@ typedef struct
 {
     unsigned char *bytes;
     unsigned long long at;
-    unsigned long long room;
+    unsigned long long capacity;
     int fits;
 } CliDbusWritten;
 #endif
@@ -60,7 +60,7 @@ typedef struct
     char type_value;
     const char *value_text;
     unsigned char *bytes;
-    unsigned long long room;
+    unsigned long long capacity;
     unsigned int serial;
     const char *destination;
     const char *object;
@@ -77,14 +77,14 @@ typedef struct
     CliDbusMessage *message_dbus_message_pointer;
     const CliDbusMessage *message_dbus_message_pointer_other;
     char *text_out;
-    size_t room_size;
+    size_t capacity_bytes;
     const char *uri;
     char *path;
 #endif
 } PosixPickerCtx;
 
 #if defined(__APPLE__)
-int cli_file_pick(const CliPathRoomCtx *args)
+int cli_file_pick(const CliPathCapacityCtx *args)
 {
     static const char *const s_scripts[3] = {"POSIX path of (choose file)", "POSIX path of (choose folder)",
                                              "POSIX path of (choose file name)"};
@@ -92,20 +92,20 @@ int cli_file_pick(const CliPathRoomCtx *args)
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     args->path_out[0] = '\0';
-    CliRan *const ran = cli_ran_take();
+    CliRunResult *const run_result = cli_run_result_alloc();
     // a reader who cancels ends osascript with an error
     int chosen = EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = words, .folder = NULL, .settings = NULL,
-                            .count = 0u, .ran = ran, .err_msg = &err_msg) &&
-                 (ran->code == 0ll) && (ran->out_size > 0ull);
-    unsigned long long end = chosen ? ran->out_size : 0ull;
-    end = EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = ran->out, .at = end,
+                            .count = 0u, .run_result = run_result, .err_msg = &err_msg) &&
+                 (run_result->code == 0ll) && (run_result->out_size > 0ull);
+    unsigned long long end = chosen ? run_result->out_size : 0ull;
+    end = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = run_result->out, .at = end,
                      .set = "\n\r");
     // a folder's path is given with a `/` after it, which a path of the window's does not have
-    end -= ((end > 1ull) && (ran->out[end - 1ull] == '/')) ? 1ull : 0ull;
-    VerbaLinea chose = {args->path_out, args->room_size, 0ull};
-    mmgr_line_put_n(&chose, ran->out, end);
+    end -= ((end > 1ull) && (run_result->out[end - 1ull] == '/')) ? 1ull : 0ull;
+    VerbaLinea chose = {args->path_out, args->capacity_bytes, 0ull};
+    mmgr_line_put_n(&chose, run_result->out, end);
     chosen = chosen && (end > 0ull) && (mmgr_line_finish(&chose) != 0ull);
-    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+    EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
     return chosen;
 }
 #else
@@ -122,7 +122,7 @@ int cli_file_pick(const CliPathRoomCtx *args)
 #define CLI_DBUS_SIGNATURE 8u
 
 // the most bytes of a message written or read
-#define CLI_DBUS_MESSAGE_MOST (64u << 10u)
+#define CLI_DBUS_MESSAGE_MAX (64u << 10u)
 
 // how deep a value's types nest that this file passes over
 #define CLI_DBUS_DEPTH 32u
@@ -178,17 +178,17 @@ EMBED_INLINE void dbus_align(const PosixPickerCtx *args)
 {
     while (args->message->fits && ((args->message->at % args->alignment) != 0ull))
     {
-        args->message->fits = args->message->at < args->message->room;
+        args->message->fits = args->message->at < args->message->capacity;
         args->message->bytes[args->message->fits ? args->message->at : 0ull] = 0u;
         args->message->at += args->message->fits ? 1ull : 0ull;
     }
 }
 
 // `size` bytes put at the message's end
-EMBED_INLINE void dbus_put(const PosixPickerCtx *args)
+EMBED_INLINE void dbus_append(const PosixPickerCtx *args)
 {
     const void *bytes = args->bytes_bytess;
-    args->message->fits = args->message->fits && (args->message->at + args->size <= args->message->room);
+    args->message->fits = args->message->fits && (args->message->at + args->size <= args->message->capacity);
     if (args->message->fits)
     {
         memor.cpy(&(MemoriaCfg){.dst = args->message->bytes + args->message->at, .src = bytes, .bytes = args->size});
@@ -202,7 +202,7 @@ EMBED_INLINE void dbus_u32(const PosixPickerCtx *args)
     const unsigned char bytes[4] = {(unsigned char)(args->value & 0xffu), (unsigned char)((args->value >> 8u) & 0xffu),
                                     (unsigned char)((args->value >> 16u) & 0xffu), (unsigned char)(args->value >> 24u)};
     EMBED_CALL(dbus_align, PosixPickerCtx, .message = args->message, .alignment = 4ull);
-    EMBED_CALL(dbus_put, PosixPickerCtx, .message = args->message, .bytes_bytess = bytes, .size = sizeof(bytes));
+    EMBED_CALL(dbus_append, PosixPickerCtx, .message = args->message, .bytes_bytess = bytes, .size = sizeof(bytes));
 }
 
 // a 32-bit number written back at `at`, as an array's length is once its items are written
@@ -220,10 +220,10 @@ EMBED_INLINE void dbus_u32_at(const PosixPickerCtx *args)
 // a string or an object path put: its length, its bytes, and a 0
 EMBED_INLINE void dbus_string(const PosixPickerCtx *args)
 {
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_DBUS_MESSAGE_MOST});
-    // a string a message holds is below its room, which 32 bits count
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_DBUS_MESSAGE_MAX});
+    // a string a message holds is below its capacity, which 32 bits count
     EMBED_CALL(dbus_u32, PosixPickerCtx, .message = args->message, .value = (unsigned int)length);
-    EMBED_CALL(dbus_put, PosixPickerCtx, .message = args->message, .bytes_bytess = args->text, .size = length + 1u);
+    EMBED_CALL(dbus_append, PosixPickerCtx, .message = args->message, .bytes_bytess = args->text, .size = length + 1u);
 }
 
 // a signature put: its length in one byte, its letters, and a 0
@@ -232,8 +232,8 @@ EMBED_INLINE void dbus_signature(const PosixPickerCtx *args)
     const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->signature, .cap = 255u});
     // a signature's length is below 256
     const unsigned char counted = (unsigned char)length;
-    EMBED_CALL(dbus_put, PosixPickerCtx, .message = args->message, .bytes_bytess = &counted, .size = 1ull);
-    EMBED_CALL(dbus_put, PosixPickerCtx, .message = args->message, .bytes_bytess = args->signature,
+    EMBED_CALL(dbus_append, PosixPickerCtx, .message = args->message, .bytes_bytess = &counted, .size = 1ull);
+    EMBED_CALL(dbus_append, PosixPickerCtx, .message = args->message, .bytes_bytess = args->signature,
                .size = length + 1u);
 }
 
@@ -243,7 +243,7 @@ EMBED_INLINE void dbus_field(const PosixPickerCtx *args)
     unsigned char code = args->code;
     const char signature[2] = {args->type_value, '\0'};
     EMBED_CALL(dbus_align, PosixPickerCtx, .message = args->message, .alignment = 8ull);
-    EMBED_CALL(dbus_put, PosixPickerCtx, .message = args->message, .bytes_bytess = &code, .size = 1ull);
+    EMBED_CALL(dbus_append, PosixPickerCtx, .message = args->message, .bytes_bytess = &code, .size = 1ull);
     EMBED_CALL(dbus_signature, PosixPickerCtx, .message = args->message, .signature = signature);
     if (args->type_value == 'g')
     {
@@ -255,16 +255,16 @@ EMBED_INLINE void dbus_field(const PosixPickerCtx *args)
     }
 }
 
-// a call's head written in `message`, over `room` bytes of `bytes`: its serial, the object, interface and member it
+// a call's head written in `message`, over `capacity` bytes of `bytes`: its serial, the object, interface and member it
 // calls at `destination`, and its body's signature, empty for none; the place its body's length is written at once
 // known into `body_length_at`
 EMBED_INLINE void dbus_call_begin(const PosixPickerCtx *args)
 {
     CliDbusWritten *message = args->message;
     unsigned long long *body_length_at = args->body_length_at;
-    *message = (CliDbusWritten){args->bytes, 0ull, args->room, 1};
+    *message = (CliDbusWritten){args->bytes, 0ull, args->capacity, 1};
     static const unsigned char s_head[4] = {'l', CLI_DBUS_CALL, 0u, 1u};
-    EMBED_CALL(dbus_put, PosixPickerCtx, .message = message, .bytes_bytess = s_head, .size = sizeof(s_head));
+    EMBED_CALL(dbus_append, PosixPickerCtx, .message = message, .bytes_bytess = s_head, .size = sizeof(s_head));
     *body_length_at = message->at;
     EMBED_CALL(dbus_u32, PosixPickerCtx, .message = message, .value = 0u);
     EMBED_CALL(dbus_u32, PosixPickerCtx, .message = message, .value = args->serial);
@@ -293,7 +293,7 @@ EMBED_INLINE void dbus_call_begin(const PosixPickerCtx *args)
 // the call's body ended: its length written into its head, the head being `head` bytes
 EMBED_INLINE void dbus_call_end(const PosixPickerCtx *args)
 {
-    // a body a message holds is below its room, which 32 bits count
+    // a body a message holds is below its capacity, which 32 bits count
     EMBED_CALL(dbus_u32_at, PosixPickerCtx, .message = args->message, .at = args->body_length_at_value,
                .value = (unsigned int)(args->message->at - args->head));
 }
@@ -417,8 +417,8 @@ static int dbus_value_pass(const PosixPickerCtx *args)
     return basic && (*at <= args->size);
 }
 
-// the next message the bus sends read into `room` bytes of `bytes`, its head's fields this file reads into `message`:
-// 1, or 0 where the connection is gone or the message does not fit
+// the next message the bus sends read into `capacity` bytes of `bytes`, its head's fields this file reads into
+// `message`: 1, or 0 where the connection is gone or the message does not fit
 static int dbus_message_read(const PosixPickerCtx *args)
 {
     CliDbusMessage *message = args->message_dbus_message_pointer;
@@ -431,8 +431,9 @@ static int dbus_message_read(const PosixPickerCtx *args)
     const unsigned long long body = EMBED_CALL(dbus_u32_get, PosixPickerCtx, .bytes_read = args->bytes, .at = 4ull);
     const unsigned long long fields = EMBED_CALL(dbus_u32_get, PosixPickerCtx, .bytes_read = args->bytes, .at = 12ull);
     const unsigned long long head = (16ull + fields + 7ull) & ~7ull;
-    if ((head + body > args->room) || !EMBED_CALL(dbus_receive, PosixPickerCtx, .socket = args->socket,
-                                                  .bytes_bytess_other = args->bytes + 16, .size = head + body - 16ull))
+    if ((head + body > args->capacity) ||
+        !EMBED_CALL(dbus_receive, PosixPickerCtx, .socket = args->socket, .bytes_bytess_other = args->bytes + 16,
+                    .size = head + body - 16ull))
     {
         return 0;
     }
@@ -452,8 +453,8 @@ static int dbus_message_read(const PosixPickerCtx *args)
         if (((code == CLI_DBUS_PATH) || (code == CLI_DBUS_MEMBER)) && ((type[0] == 'o') || (type[0] == 's')))
         {
             char *const into = (code == CLI_DBUS_PATH) ? message->path : message->member;
-            const size_t into_room = (code == CLI_DBUS_PATH) ? sizeof(message->path) : sizeof(message->member);
-            VerbaLinea copied = {into, into_room, 0ull};
+            const size_t into_capacity = (code == CLI_DBUS_PATH) ? sizeof(message->path) : sizeof(message->member);
+            VerbaLinea copied = {into, into_capacity, 0ull};
             mmgr_line_put_n(&copied, (const char *)args->bytes + string_at + 4ull,
                             EMBED_CALL(dbus_u32_get, PosixPickerCtx, .bytes_read = args->bytes, .at = string_at));
             (void)mmgr_line_finish(&copied);
@@ -488,7 +489,7 @@ EMBED_INLINE int dbus_reply(const PosixPickerCtx *args)
     }
 }
 
-// a string of a body read at `*at`, its bytes into `text`, sized for `room`, the place after it into `*at`: 1, or 0
+// a string of a body read at `*at`, its bytes into `text`, sized for `capacity`, the place after it into `*at`: 1, or 0
 // where it does not fit the body
 EMBED_INLINE int dbus_body_string(const PosixPickerCtx *args)
 {
@@ -504,7 +505,7 @@ EMBED_INLINE int dbus_body_string(const PosixPickerCtx *args)
     {
         return 0;
     }
-    VerbaLinea copied = {args->text_out, args->room_size, 0ull};
+    VerbaLinea copied = {args->text_out, args->capacity_bytes, 0ull};
     mmgr_line_put_n(&copied, (const char *)args->message_dbus_message_pointer_other->body + *at + 4ull, length);
     *at += 4ull + length + 1ull;
     return mmgr_line_finish(&copied) != 0ull;
@@ -520,7 +521,7 @@ static int dbus_connect(void)
     int abstract = 0;
     VerbaLinea named = {path, sizeof(path), 0ull};
     if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "DBUS_SESSION_BUS_ADDRESS",
-                   .value_out = address, .room = sizeof(address)))
+                   .value_out = address, .capacity = sizeof(address)))
     {
         const char *const at_path =
             cellul.find(&(CatenaFinitaCfg){.src = address, .cap = sizeof(address), .other = "path=", .other_cap = 8u});
@@ -541,7 +542,7 @@ static int dbus_connect(void)
     {
         char folder[256];
         mmgr_line_put(&named, EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx,
-                                         .name = "XDG_RUNTIME_DIR", .value_out = folder, .room = sizeof(folder))
+                                         .name = "XDG_RUNTIME_DIR", .value_out = folder, .capacity = sizeof(folder))
                                   ? folder
                                   : "");
         mmgr_line_put(&named, "/bus");
@@ -603,8 +604,8 @@ static int dbus_connect(void)
     return bus;
 }
 
-// the file URI `uri` made a path into `path`, sized for `room`, its host taken off and its escapes read: 1, or 0 where
-// it is no file URI or does not fit
+// the file URI `uri` made a path into `path`, sized for `capacity`, its host taken off and its escapes read: 1, or 0
+// where it is no file URI or does not fit
 EMBED_INLINE int dbus_uri_path(const PosixPickerCtx *args)
 {
     if (!cellul.starts(&(CatenaFinitaCfg){.src = args->uri, .other = "file://", .cap = CLI_PATH_MAX_LEN}))
@@ -612,10 +613,10 @@ EMBED_INLINE int dbus_uri_path(const PosixPickerCtx *args)
         return 0;
     }
     const char *at = cellul.chr(&(CatenaFinitaCfg){.src = args->uri + 7, .cap = CLI_PATH_MAX_LEN, .byte = '/'});
-    VerbaLinea decoded = {args->path, args->room_size, 0ull};
+    VerbaLinea decoded = {args->path, args->capacity_bytes, 0ull};
     if (at != NULL)
     {
-        EMBED_CALL(cli_text_size_set.put_unescaped, CliTextSizeSetCfg, .out = &decoded, .text = at,
+        EMBED_CALL(cli_text_size_set.append_unescaped, CliTextSizeSetCfg, .out = &decoded, .text = at,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL}));
     }
     return mmgr_line_finish(&decoded) != 0ull;
@@ -640,7 +641,7 @@ EMBED_INLINE int dbus_response_read(const PosixPickerCtx *args)
         char key[64];
         if (!EMBED_CALL(dbus_body_string, PosixPickerCtx,
                         .message_dbus_message_pointer_other = args->message_dbus_message_pointer_other,
-                        .at_pointer = &at, .text_out = key, .room_size = sizeof(key)) ||
+                        .at_pointer = &at, .text_out = key, .capacity_bytes = sizeof(key)) ||
             (at >= args->message_dbus_message_pointer_other->body_size))
         {
             return 0;
@@ -658,9 +659,9 @@ EMBED_INLINE int dbus_response_read(const PosixPickerCtx *args)
                                .at = (at + 3ull) & ~3ull) > 0u) &&
                    EMBED_CALL(dbus_body_string, PosixPickerCtx,
                               .message_dbus_message_pointer_other = args->message_dbus_message_pointer_other,
-                              .at_pointer = &first, .text_out = uri, .room_size = sizeof(uri)) &&
+                              .at_pointer = &first, .text_out = uri, .capacity_bytes = sizeof(uri)) &&
                    EMBED_CALL(dbus_uri_path, PosixPickerCtx, .uri = uri, .path = args->path,
-                              .room_size = args->room_size);
+                              .capacity_bytes = args->capacity_bytes);
         }
         if (!EMBED_CALL(dbus_value_pass, PosixPickerCtx, .bytes_read = args->message_dbus_message_pointer_other->body,
                         .size = args->message_dbus_message_pointer_other->body_size, .at_pointer = &at, .type = &type,
@@ -672,9 +673,9 @@ EMBED_INLINE int dbus_response_read(const PosixPickerCtx *args)
     return 0;
 }
 
-int cli_file_pick(const CliPathRoomCtx *args)
+int cli_file_pick(const CliPathCapacityCtx *args)
 {
-    static unsigned char s_message[CLI_DBUS_MESSAGE_MOST];
+    static unsigned char s_message[CLI_DBUS_MESSAGE_MAX];
     args->path_out[0] = '\0';
     const int bus = dbus_connect();
     CliDbusWritten message;
@@ -682,16 +683,16 @@ int cli_file_pick(const CliPathRoomCtx *args)
     unsigned long long body_at = 0ull;
     int chosen = bus >= 0;
     // the connection named to the bus
-    EMBED_CALL(dbus_call_begin, PosixPickerCtx, .message = &message, .bytes = s_message, .room = sizeof(s_message),
+    EMBED_CALL(dbus_call_begin, PosixPickerCtx, .message = &message, .bytes = s_message, .capacity = sizeof(s_message),
                .serial = 1u, .destination = "org.freedesktop.DBus", .object = "/org/freedesktop/DBus",
                .interface = "org.freedesktop.DBus", .member = "Hello", .signature = "", .body_length_at = &body_at);
     EMBED_CALL(dbus_call_end, PosixPickerCtx, .message = &message, .body_length_at_value = body_at, .head = message.at);
     chosen = chosen && message.fits &&
              EMBED_CALL(dbus_send, PosixPickerCtx, .socket = bus, .bytes_bytess = s_message, .size = message.at) &&
-             EMBED_CALL(dbus_reply, PosixPickerCtx, .socket = bus, .bytes = s_message, .room = sizeof(s_message),
+             EMBED_CALL(dbus_reply, PosixPickerCtx, .socket = bus, .bytes = s_message, .capacity = sizeof(s_message),
                         .serial = 1u, .message_dbus_message_pointer = &read);
     // the portal's answers heard, every request's Response signal
-    EMBED_CALL(dbus_call_begin, PosixPickerCtx, .message = &message, .bytes = s_message, .room = sizeof(s_message),
+    EMBED_CALL(dbus_call_begin, PosixPickerCtx, .message = &message, .bytes = s_message, .capacity = sizeof(s_message),
                .serial = 2u, .destination = "org.freedesktop.DBus", .object = "/org/freedesktop/DBus",
                .interface = "org.freedesktop.DBus", .member = "AddMatch", .signature = "s", .body_length_at = &body_at);
     unsigned long long head = message.at;
@@ -700,10 +701,10 @@ int cli_file_pick(const CliPathRoomCtx *args)
     EMBED_CALL(dbus_call_end, PosixPickerCtx, .message = &message, .body_length_at_value = body_at, .head = head);
     chosen = chosen && message.fits &&
              EMBED_CALL(dbus_send, PosixPickerCtx, .socket = bus, .bytes_bytess = s_message, .size = message.at) &&
-             EMBED_CALL(dbus_reply, PosixPickerCtx, .socket = bus, .bytes = s_message, .room = sizeof(s_message),
+             EMBED_CALL(dbus_reply, PosixPickerCtx, .socket = bus, .bytes = s_message, .capacity = sizeof(s_message),
                         .serial = 2u, .message_dbus_message_pointer = &read);
     // the chooser asked for: a file to open, a folder, or a file to save
-    EMBED_CALL(dbus_call_begin, PosixPickerCtx, .message = &message, .bytes = s_message, .room = sizeof(s_message),
+    EMBED_CALL(dbus_call_begin, PosixPickerCtx, .message = &message, .bytes = s_message, .capacity = sizeof(s_message),
                .serial = 3u, .destination = "org.freedesktop.portal.Desktop",
                .object = "/org/freedesktop/portal/desktop", .interface = "org.freedesktop.portal.FileChooser",
                .member = (args->kind == CLI_PICK_SAVE) ? "SaveFile" : "OpenFile", .signature = "ssa{sv}",
@@ -735,22 +736,22 @@ int cli_file_pick(const CliPathRoomCtx *args)
     unsigned long long handle_at = 0ull;
     chosen = chosen && message.fits &&
              EMBED_CALL(dbus_send, PosixPickerCtx, .socket = bus, .bytes_bytess = s_message, .size = message.at) &&
-             EMBED_CALL(dbus_reply, PosixPickerCtx, .socket = bus, .bytes = s_message, .room = sizeof(s_message),
+             EMBED_CALL(dbus_reply, PosixPickerCtx, .socket = bus, .bytes = s_message, .capacity = sizeof(s_message),
                         .serial = 3u, .message_dbus_message_pointer = &read) &&
              EMBED_CALL(dbus_body_string, PosixPickerCtx, .message_dbus_message_pointer_other = &read,
-                        .at_pointer = &handle_at, .text_out = handle, .room_size = sizeof(handle));
+                        .at_pointer = &handle_at, .text_out = handle, .capacity_bytes = sizeof(handle));
     // the reader's answer waited for: the Response signal of the request the portal named
     while (chosen)
     {
         chosen = EMBED_CALL(dbus_message_read, PosixPickerCtx, .socket = bus, .bytes = s_message,
-                            .room = sizeof(s_message), .message_dbus_message_pointer = &read);
+                            .capacity = sizeof(s_message), .message_dbus_message_pointer = &read);
         const int answered = chosen && (read.kind == CLI_DBUS_SIGNAL) &&
                              cellul.eq(&(CatenaFinitaCfg){.src = read.member, .other = "Response", .cap = 64u}) &&
                              cellul.eq(&(CatenaFinitaCfg){.src = read.path, .other = handle, .cap = sizeof(handle)});
         if (answered)
         {
             chosen = EMBED_CALL(dbus_response_read, PosixPickerCtx, .message_dbus_message_pointer_other = &read,
-                                .path = args->path_out, .room_size = args->room_size);
+                                .path = args->path_out, .capacity_bytes = args->capacity_bytes);
             break;
         }
     }

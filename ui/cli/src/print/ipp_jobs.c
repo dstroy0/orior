@@ -78,9 +78,9 @@ EMBED_INLINE void cli_operation(const IppJobsCtx *args)
     unsigned int code = args->code;
     char user[CLI_NAME_MAX_LEN];
     if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "USERNAME",
-                    .value_out = user, .room = sizeof(user)) &&
+                    .value_out = user, .capacity = sizeof(user)) &&
         !EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "USER", .value_out = user,
-                    .room = sizeof(user)))
+                    .capacity = sizeof(user)))
     {
         memor.cpy(&(MemoriaCfg){.dst = user,
                                 .src = "orior",
@@ -132,7 +132,7 @@ EMBED_INLINE int cli_answer(const IppJobsCtx *args)
     if (EMBED_CALL(cli_ipp_name.first_text, CliIppNameCfg, .message_read = &s_answer,
                    .group = EMBED_CALL(cli_ipp_tag.group_get, CliIppTagCfg, .message_read = &s_answer,
                                        .tag = CLI_IPP_OPERATION, .after = 0u),
-                   .name = "status-message", .out = detail, .room = sizeof(detail)))
+                   .name = "status-message", .out = detail, .capacity = sizeof(detail)))
     {
         mmgr_line_put(err_msg, ": ");
         mmgr_line_put(err_msg, detail);
@@ -140,7 +140,7 @@ EMBED_INLINE int cli_answer(const IppJobsCtx *args)
     return 0;
 }
 
-// each text of an attribute into `list`, sized for CLI_IPP_LISTED: their count
+// each text of an attribute into `list`, sized for CLI_IPP_LISTING: their count
 EMBED_INLINE unsigned int cli_texts(const IppJobsCtx *args)
 {
     const CliIppGroup *group = args->group;
@@ -148,65 +148,15 @@ EMBED_INLINE unsigned int cli_texts(const IppJobsCtx *args)
     const CliIppAttribute *const attribute =
         EMBED_CALL(cli_ipp_name.get, CliIppNameCfg, .message_read = &s_answer, .group = group, .name = name);
     unsigned int count = 0u;
-    for (unsigned int at = 0u; (attribute != NULL) && (at < attribute->count) && (count < CLI_IPP_LISTED); at += 1u)
+    for (unsigned int at = 0u; (attribute != NULL) && (at < attribute->count) && (count < CLI_IPP_LISTING); at += 1u)
     {
         count += EMBED_CALL(cli_ipp_message_value.value_text, CliIppMessageValueCfg, .message_read = &s_answer,
                             .value_ipp_value_pointer = &s_answer.value[attribute->first + at], .out = args->list[count],
-                            .room = CLI_NAME_MAX_LEN)
+                            .capacity = CLI_NAME_MAX_LEN)
                      ? 1u
                      : 0u;
     }
     return count;
-}
-
-// whether an attribute's first value is the truth `truth`
-EMBED_INLINE int cli_truth(const IppJobsCtx *args)
-{
-    const CliIppGroup *group = args->group;
-    const char *name = args->name;
-    const CliIppAttribute *const attribute =
-        EMBED_CALL(cli_ipp_name.get, CliIppNameCfg, .message_read = &s_answer, .group = group, .name = name);
-    return (attribute != NULL) && (attribute->count != 0u) &&
-           (s_answer.value[attribute->first].kind == CLI_IPP_BOOLEAN) &&
-           (s_answer.value[attribute->first].low == args->truth);
-}
-
-int cli_ipp_printer(const CliIppErrMsgUriPrinterCfg *args)
-{
-    static const char *const s_wanted[7] = {
-        "printer-name",  "printer-make-and-model", "document-format-supported", "color-supported",
-        "printer-state", "printer-state-reasons",  "printer-is-accepting-jobs"};
-    EMBED_CALL(cli_operation, IppJobsCtx, .request = &s_request, .code = 0x000bu, .uri = args->uri, .with_uri = 1);
-    EMBED_CALL(cli_ipp_table.attribute, CliIppCfg, .message = &s_request, .name = "requested-attributes");
-    for (unsigned int at = 0u; at < 7u; at += 1u)
-    {
-        EMBED_CALL(cli_ipp_message_tag.text, CliIppMessageTagCfg, .message = &s_request, .tag = CLI_IPP_KEYWORD,
-                   .text = s_wanted[at]);
-    }
-    if (!EMBED_CALL(cli_answer, IppJobsCtx, .uri = args->uri, .document = NULL, .size = 0ull, .err_msg = args->err_msg))
-    {
-        cli_jobs_let_go();
-        return 0;
-    }
-    const CliIppGroup *const group =
-        EMBED_CALL(cli_ipp_tag.group_get, CliIppTagCfg, .message_read = &s_answer, .tag = CLI_IPP_PRINTER, .after = 0u);
-    memor.set(&(MemoriaCfg){.dst = args->printer, .val = 0, .bytes = sizeof(*args->printer)});
-    EMBED_CALL(cli_ipp_name.first_text, CliIppNameCfg, .message_read = &s_answer, .group = group,
-               .name = "printer-name", .out = args->printer->name, .room = sizeof(args->printer->name));
-    EMBED_CALL(cli_ipp_name.first_text, CliIppNameCfg, .message_read = &s_answer, .group = group,
-               .name = "printer-make-and-model", .out = args->printer->make, .room = sizeof(args->printer->make));
-    args->printer->format_count = EMBED_CALL(cli_texts, IppJobsCtx, .group = group, .name = "document-format-supported",
-                                             .list = args->printer->formats);
-    args->printer->color = EMBED_CALL(cli_truth, IppJobsCtx, .group = group, .name = "color-supported", .truth = 1);
-    args->printer->state = 3;
-    EMBED_CALL(cli_ipp_name.first_number, CliIppNameCfg, .message_read = &s_answer, .group = group,
-               .name = "printer-state", .number = &args->printer->state);
-    args->printer->reason_count = EMBED_CALL(cli_texts, IppJobsCtx, .group = group, .name = "printer-state-reasons",
-                                             .list = args->printer->reasons);
-    args->printer->accepting =
-        !EMBED_CALL(cli_truth, IppJobsCtx, .group = group, .name = "printer-is-accepting-jobs", .truth = 0);
-    cli_jobs_let_go();
-    return 1;
 }
 
 int cli_ipp_print(const CliIppSizeErrMsgCfg *args)
@@ -275,13 +225,13 @@ int cli_ipp_job_state(const CliIppErrMsgUriCfg *args)
     *state = 3;
     EMBED_CALL(cli_ipp_name.first_number, CliIppNameCfg, .message_read = &s_answer, .group = group, .name = "job-state",
                .number = state);
-    char listed[CLI_IPP_LISTED][CLI_NAME_MAX_LEN];
+    char list_entries[CLI_IPP_LISTING][CLI_NAME_MAX_LEN];
     const unsigned int count =
-        EMBED_CALL(cli_texts, IppJobsCtx, .group = group, .name = "job-state-reasons", .list = listed);
+        EMBED_CALL(cli_texts, IppJobsCtx, .group = group, .name = "job-state-reasons", .list = list_entries);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         mmgr_line_put(args->reasons, (at != 0u) ? ", " : "");
-        mmgr_line_put(args->reasons, listed[at]);
+        mmgr_line_put(args->reasons, list_entries[at]);
     }
     cli_jobs_let_go();
     return 1;
@@ -301,8 +251,8 @@ int cli_ipp_cancel(const CliIppErrMsgUriCfg *args)
 
 int cli_ipp_cups_printers(const CliIppErrMsgHostCfg *args)
 {
-    static const char *const s_wanted[4] = {"printer-name", "printer-uri-supported", "printer-info",
-                                            "printer-make-and-model"};
+    static const char *const s_requested[4] = {"printer-name", "printer-uri-supported", "printer-info",
+                                               "printer-make-and-model"};
     char uri[CLI_PATH_MAX_LEN];
     VerbaLinea line = {uri, sizeof(uri), 0ull};
     mmgr_line_put(&line, "ipp://");
@@ -316,7 +266,7 @@ int cli_ipp_cups_printers(const CliIppErrMsgHostCfg *args)
     for (unsigned int at = 0u; at < 4u; at += 1u)
     {
         EMBED_CALL(cli_ipp_message_tag.text, CliIppMessageTagCfg, .message = &s_request, .tag = CLI_IPP_KEYWORD,
-                   .text = s_wanted[at]);
+                   .text = s_requested[at]);
     }
     if (!EMBED_CALL(cli_answer, IppJobsCtx, .uri = uri, .document = NULL, .size = 0ull, .err_msg = args->err_msg))
     {
@@ -327,13 +277,13 @@ int cli_ipp_cups_printers(const CliIppErrMsgHostCfg *args)
     for (unsigned int at = 0u; at < s_answer.groups; at += 1u)
     {
         const CliIppGroup *const group = &s_answer.group[at];
-        if ((group->tag != CLI_IPP_PRINTER) || ((unsigned int)count >= args->room_u32))
+        if ((group->tag != CLI_IPP_PRINTER) || ((unsigned int)count >= args->capacity_u32))
         {
             continue;
         }
         CliIppShared *const one = &args->shared[count];
         if (!EMBED_CALL(cli_ipp_name.first_text, CliIppNameCfg, .message_read = &s_answer, .group = group,
-                        .name = "printer-name", .out = one->name, .room = sizeof(one->name)))
+                        .name = "printer-name", .out = one->name, .capacity = sizeof(one->name)))
         {
             continue;
         }
@@ -344,21 +294,21 @@ int cli_ipp_cups_printers(const CliIppErrMsgHostCfg *args)
         {
             found = EMBED_CALL(cli_ipp_message_value.value_text, CliIppMessageValueCfg, .message_read = &s_answer,
                                .value_ipp_value_pointer = &s_answer.value[uris->first + each], .out = one->uri,
-                               .room = sizeof(one->uri)) &&
+                               .capacity = sizeof(one->uri)) &&
                     (cellul.starts(&(CatenaFinitaCfg){.src = one->uri, .other = "ipp://", .cap = CLI_CELLS_POOL}));
         }
         if (!found && !EMBED_CALL(cli_ipp_name.first_text, CliIppNameCfg, .message_read = &s_answer, .group = group,
-                                  .name = "printer-uri-supported", .out = one->uri, .room = sizeof(one->uri)))
+                                  .name = "printer-uri-supported", .out = one->uri, .capacity = sizeof(one->uri)))
         {
             continue;
         }
         if (!EMBED_CALL(cli_ipp_name.first_text, CliIppNameCfg, .message_read = &s_answer, .group = group,
-                        .name = "printer-info", .out = one->about, .room = sizeof(one->about)) ||
+                        .name = "printer-info", .out = one->about, .capacity = sizeof(one->about)) ||
             (one->about[0] == '\0'))
         {
             one->about[0] = '\0';
             EMBED_CALL(cli_ipp_name.first_text, CliIppNameCfg, .message_read = &s_answer, .group = group,
-                       .name = "printer-make-and-model", .out = one->about, .room = sizeof(one->about));
+                       .name = "printer-make-and-model", .out = one->about, .capacity = sizeof(one->about));
         }
         count += 1;
     }

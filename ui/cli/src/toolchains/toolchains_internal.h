@@ -34,7 +34,7 @@ int cli_toolchains_path_of_shell(const CliToolchainsShellCtx *args);
 // `found` cached, where it was found by what the search reads, written at once unless a check locks the cache; and a
 // check of every tool locking the cache, which is written once as the last lets it go (toolchains_chosen.c)
 int cli_toolchains_found_cache(const CliToolchainsIdCtx *args);
-void cli_toolchains_found_put(const CliToolchainsIdPathCtx *args);
+void cli_toolchains_found_append(const CliToolchainsIdPathCtx *args);
 void cli_toolchains_found_ref(void);
 void cli_toolchains_found_let(void);
 
@@ -42,7 +42,8 @@ void cli_toolchains_found_let(void);
 // the file at `path` read into the tree in a cell sized to it, with `nodes_more` nodes and `text_more` bytes over for
 // what the caller puts in it, which cli_json_free gives back, an empty object where it is not there or does not read:
 // its node; the node written to `path` as serde_json's pretty writer lays it out, its keys in order where `sorted`, its
-// folder made: 1, or 0 with why given; and a text trimmed of ASCII's spaces at each end into `out`, sized for `room`
+// folder made: 1, or 0 with why given; and a text trimmed of ASCII's spaces at each end into `out`, sized for
+// `capacity`
 int cli_toolchains_file(const CliToolchainsCtx *args);
 unsigned int cli_toolchains_file_read(const CliToolchainsJsonCtx *args);
 int cli_toolchains_file_save(const CliToolchainsPathCtx *args);
@@ -100,7 +101,7 @@ struct CliToolchainsTextCtx
 {
     const char *text;
     char *out;
-    unsigned long long room;
+    unsigned long long capacity;
 };
 
 struct CliToolchainsCtx
@@ -159,11 +160,11 @@ EMBED_TABLE_STORAGE CliToolchainsIdNsTable cli_toolchains_id_internal EMBED_UNUS
 
 typedef struct
 {
-    void (*found_put)(const CliToolchainsIdPathCtx *args);
+    void (*found_append)(const CliToolchainsIdPathCtx *args);
 } CliToolchainsIdPathNsTable;
-EMBED_TABLE_LAYOUT(CliToolchainsIdPathNsTable, found_put);
+EMBED_TABLE_LAYOUT(CliToolchainsIdPathNsTable, found_append);
 EMBED_TABLE_STORAGE CliToolchainsIdPathNsTable cli_toolchains_id_path_internal EMBED_UNUSED = {
-    .found_put = cli_toolchains_found_put,
+    .found_append = cli_toolchains_found_append,
 };
 
 typedef struct

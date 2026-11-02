@@ -83,7 +83,7 @@ EMBED_INLINE unsigned long long cli_dollar_tag(const SqlCtx *args)
 {
     unsigned long long at = args->at_value;
     unsigned long long end = at + 1ull;
-    end = EMBED_CALL(cli_text_at_size_classes.past_class, CliTextAtSizeClassesCfg, .text = (const char *)args->bytes,
+    end = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = (const char *)args->bytes,
                      .at = end, .size = args->length, .classes = CLI_TEXT_LETTERS | CLI_TEXT_DIGITS, .set = "_");
     const int digit_first = ((at + 1ull) < args->length) && EMBED_CALL(cli_digit, SqlCtx, .byte = args->bytes[at + 1u]);
     return ((end < args->length) && (args->bytes[end] == '$') && !digit_first) ? (end - at + 1ull) : 0ull;
@@ -188,14 +188,14 @@ int cli_sql_token(const CliSqlTextLengthDialectCfg *args)
     }
     else if (EMBED_CALL(cli_alpha, SqlCtx, .byte = byte) || (byte == '_') || (byte >= 0x80u))
     {
-        *at = EMBED_CALL(cli_text_at_size_classes.past_class, CliTextAtSizeClassesCfg, .text = (const char *)bytes,
+        *at = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = (const char *)bytes,
                          .at = *at, .size = args->length,
-                         .classes = CLI_TEXT_LETTERS | CLI_TEXT_DIGITS | CLI_TEXT_PAST_ASCII, .set = "_$");
+                         .classes = CLI_TEXT_LETTERS | CLI_TEXT_DIGITS | CLI_TEXT_END_ASCII, .set = "_$");
         kind = CLI_SQL_WORD;
     }
     else if (EMBED_CALL(cli_digit, SqlCtx, .byte = byte))
     {
-        *at = EMBED_CALL(cli_text_at_size_classes.past_class, CliTextAtSizeClassesCfg, .text = (const char *)bytes,
+        *at = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = (const char *)bytes,
                          .at = *at, .size = args->length, .classes = CLI_TEXT_LETTERS | CLI_TEXT_DIGITS, .set = ".");
         kind = CLI_SQL_NUMBER;
     }

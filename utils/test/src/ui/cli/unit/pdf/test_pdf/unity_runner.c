@@ -8,10 +8,10 @@
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
 extern void tearDown(void);
-extern void test_120_lines_take_at_least_two_pages(void);
+extern void test_120_lines_alloc_at_min_two_pages(void);
 extern void test_it_starts_as_a_pdf_1_4(void);
 extern void test_it_ends_with_the_end_of_file_mark(void);
-extern void test_a_line_is_shown_as_its_text(void);
+extern void test_a_line_is_displayed_as_its_text(void);
 extern void test_the_page_tree_counts_the_pages(void);
 extern void test_each_cross_reference_offset_starts_its_object(void);
 extern void test_a_layout_that_names_one_page_prints_one(void);
@@ -76,10 +76,10 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\pdf\\test_pdf\\test_pdf.c");
-  run_test(test_120_lines_take_at_least_two_pages, "test_120_lines_take_at_least_two_pages", 76);
+  run_test(test_120_lines_alloc_at_min_two_pages, "test_120_lines_alloc_at_min_two_pages", 76);
   run_test(test_it_starts_as_a_pdf_1_4, "test_it_starts_as_a_pdf_1_4", 81);
   run_test(test_it_ends_with_the_end_of_file_mark, "test_it_ends_with_the_end_of_file_mark", 86);
-  run_test(test_a_line_is_shown_as_its_text, "test_a_line_is_shown_as_its_text", 92);
+  run_test(test_a_line_is_displayed_as_its_text, "test_a_line_is_displayed_as_its_text", 92);
   run_test(test_the_page_tree_counts_the_pages, "test_the_page_tree_counts_the_pages", 97);
   run_test(test_each_cross_reference_offset_starts_its_object, "test_each_cross_reference_offset_starts_its_object", 107);
   run_test(test_a_layout_that_names_one_page_prints_one, "test_a_layout_that_names_one_page_prints_one", 140);

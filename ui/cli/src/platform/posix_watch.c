@@ -44,7 +44,7 @@ typedef struct
     int inotify;
     int stopped;
     CliInotifyFolder *folder;
-    unsigned int folder_most;
+    unsigned int folder_max;
     char *names;
     unsigned int names_used;
     int refused;
@@ -116,7 +116,7 @@ EMBED_INLINE unsigned int inotify_watch(const PosixWatchCtx *args)
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_NAME_MAX_LEN}) + 1ull;
     // a watch's number is not negative, which the test above holds
     const unsigned int at = (unsigned int)number;
-    if ((at >= s_watch.folder_most) || ((s_watch.names_used + length) > CLI_INOTIFY_NAMES))
+    if ((at >= s_watch.folder_max) || ((s_watch.names_used + length) > CLI_INOTIFY_NAMES))
     {
         s_watch.refused = 1;
         return 0u;
@@ -242,8 +242,8 @@ static int inotify_open(void)
     {
         return 0;
     }
-    memor.set(&(MemoriaCfg){
-        .dst = s_watch.folder, .val = 0, .bytes = (size_t)s_watch.folder_most * sizeof(CliInotifyFolder)});
+    memor.set(
+        &(MemoriaCfg){.dst = s_watch.folder, .val = 0, .bytes = (size_t)s_watch.folder_max * sizeof(CliInotifyFolder)});
     s_watch.names_used = 1u;
     s_watch.names[0] = '\0';
     s_watch.refused = 0;
@@ -262,9 +262,9 @@ static int inotify_open(void)
 }
 
 // the watches on the folder `name` under `parent`, moved out of the tree, and every folder under it taken off
-static void inotify_take_off(const PosixWatchCtx *args)
+static void inotify_alloc_off(const PosixWatchCtx *args)
 {
-    for (unsigned int at = 1u; at < s_watch.folder_most; at += 1u)
+    for (unsigned int at = 1u; at < s_watch.folder_max; at += 1u)
     {
         const CliInotifyFolder *const one = &s_watch.folder[at];
         if (!one->used || (one->parent != args->parent) ||
@@ -274,7 +274,7 @@ static void inotify_take_off(const PosixWatchCtx *args)
         {
             continue;
         }
-        EMBED_CALL(inotify_take_off, PosixWatchCtx, .parent = at, .name = NULL);
+        EMBED_CALL(inotify_alloc_off, PosixWatchCtx, .parent = at, .name = NULL);
         // a number in the table came from the system, and it is an int there
         (void)inotify_rm_watch(s_watch.inotify, (int)at);
         s_watch.folder[at].used = 0;
@@ -291,7 +291,7 @@ EMBED_INLINE void inotify_record_emit(const PosixWatchCtx *args)
     }
     // a number from the system is not negative
     const unsigned int at = (unsigned int)args->record->wd;
-    if ((at == 0u) || (at >= s_watch.folder_most) || !s_watch.folder[at].used)
+    if ((at == 0u) || (at >= s_watch.folder_max) || !s_watch.folder[at].used)
     {
         return;
     }
@@ -330,7 +330,7 @@ EMBED_INLINE void inotify_record_emit(const PosixWatchCtx *args)
     {
         if (is_folder && ((args->record->mask & IN_MOVED_FROM) != 0u))
         {
-            EMBED_CALL(inotify_take_off, PosixWatchCtx, .parent = at, .name = args->record->name);
+            EMBED_CALL(inotify_alloc_off, PosixWatchCtx, .parent = at, .name = args->record->name);
         }
         EMBED_CALL(s_watch.emit, CliEachPathKindCfg, .context = s_watch.context, .path = path,
                    .kind = CLI_CHANGE_REMOVED);
@@ -358,7 +358,7 @@ static void inotify_read(void *context)
             (going && ((waits[0].revents & POLLIN) != 0)) ? read(s_watch.inotify, s_answer, sizeof(s_answer)) : 0;
         for (long at = 0; at < written;)
         {
-            // the system lays each record on its own alignment, which the answer's room starts on
+            // the system lays each record on its own alignment, which the answer's capacity starts on
             const struct inotify_event *const record = (const struct inotify_event *)(const void *)(s_answer + at);
             EMBED_CALL(inotify_record_emit, PosixWatchCtx, .record = record);
             at += (long)(sizeof(*record) + record->len);
@@ -402,7 +402,7 @@ int cli_watch_system_start(const CliRootContextCtx *args)
         return 0;
     }
     EMBED_CALL(cli_symbols_context.tree_list, CliSymbolsContextCfg, .root = root);
-    s_watch.folder_most = CLI_INOTIFY_FOLDERS;
+    s_watch.folder_max = CLI_INOTIFY_FOLDERS;
     s_watch.folder = g_cli_cells->persistent_buf_alloc(
         (unsigned long long)CLI_INOTIFY_FOLDERS * sizeof(CliInotifyFolder), &g_cli_watch_folders_cells);
     s_watch.names = g_cli_cells->persistent_buf_alloc(CLI_INOTIFY_NAMES, &g_cli_watch_folders_cells);

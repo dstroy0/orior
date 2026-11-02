@@ -56,14 +56,14 @@ typedef struct
 } CliCommand;
 
 // the most lines and bytes of them a run retains of what its steps wrote
-#define CLI_LINES_MOST 16384u
+#define CLI_LINES_MAX 16384u
 
 #define CLI_LINES_TEXT (1u << 20u)
 
-// The lines a run's steps wrote, each where it starts in the text, the oldest let go where there is no more room
+// The lines a run's steps wrote, each where it starts in the text, the oldest let go where there is no more capacity
 typedef struct
 {
-    unsigned int start[CLI_LINES_MOST];
+    unsigned int start[CLI_LINES_MAX];
     unsigned int count;
     char text[CLI_LINES_TEXT];
     unsigned int used;
@@ -78,7 +78,7 @@ enum
 };
 
 // the most pages a run's end names
-#define CLI_VIEWS_MOST 256u
+#define CLI_VIEWS_MAX 256u
 
 // What a run reports: its kind and number; for its start, its job; for a line, its stream, "stdout", "stderr" or
 // "command", and its text; for its end, its exit code where it has one, whether it was stopped, the pages it wrote by
@@ -122,7 +122,7 @@ int cli_command_sets(const CliRunnerNameCommandCfg *args);
 void cli_command_folder(const CliRunnerCommandFolderCfg *args);
 
 // a line put after the lines; and the line at `index`
-void cli_lines_put(const CliRunnerLinesCfg *args);
+void cli_lines_append(const CliRunnerLinesCfg *args);
 const char *cli_lines_at(const CliRunnerLinesIndexCfg *args);
 
 // the bash that runs the tree's scripts into `path`, sized for CLI_PATH_MAX_LEN: ORIOR_BASH, else the one Toolchains
@@ -143,7 +143,8 @@ int cli_runner_shell_words(const CliRunnerTextCfg *args);
 // given
 int cli_runner_check(const CliRunnerErrMsgCfg *args);
 int cli_runner_show(const CliRunnerErrMsgRootCfg *args);
-// the command a step runs into `command`, with the line the window shows for it into `shown`: 1, or 0 with why given
+// the command a step runs into `command`, with the line the window shows for it into `displayed`: 1, or 0 with why
+// given
 int cli_runner_command(const CliRunnerCommandCfg *args);
 // whether a step runs with these values: every param an Only names has the value it names, and every param a Given
 // names has a value
@@ -156,11 +157,6 @@ void cli_runs_attach(void);
 int cli_runs_start(const CliRunnerErrMsgCfg *args);
 void cli_runs_wait(const CliRunnerErrMsgRunNumberCfg *args);
 int cli_runs_stop(const CliRunnerErrMsgRunNumberCfg *args);
-
-// what a run reports written as the page reads it: a start as `{"run", "job"}`, a line as `{"run", "stream", "text",
-// "ms"}`, and an end as `{"run", "code", "stopped", "views", "made", "ms"}`, a code or a program it has not `null`
-// (runner_event.c)
-void cli_run_event_write(const CliRunnerEventCfg *args);
 
 struct CliRunnerErrMsgCfg
 {
@@ -181,7 +177,7 @@ struct CliRunnerCommandCfg
     const CliCatalog *catalog;
     const CliValues *values;
     const CliStep *step;
-    VerbaLinea *shown;
+    VerbaLinea *displayed;
 };
 
 struct CliRunnerErrMsgRootCfg
@@ -191,7 +187,7 @@ struct CliRunnerErrMsgRootCfg
     const CliCatalog *catalog;
     unsigned int job;
     const CliValues *values;
-    void (*each)(const CliEachShownCfg *args);
+    void (*each)(const CliEachDisplayedCfg *args);
     void *context;
 };
 
@@ -319,11 +315,11 @@ EMBED_TABLE_STORAGE CliRunnerCommandFolderNs cli_runner_command_folder EMBED_UNU
 
 typedef struct
 {
-    void (*lines_put)(const CliRunnerLinesCfg *args);
+    void (*lines_append)(const CliRunnerLinesCfg *args);
 } CliRunnerLinesNs;
-EMBED_TABLE_LAYOUT(CliRunnerLinesNs, lines_put);
+EMBED_TABLE_LAYOUT(CliRunnerLinesNs, lines_append);
 EMBED_TABLE_STORAGE CliRunnerLinesNs cli_runner_lines EMBED_UNUSED = {
-    .lines_put = cli_lines_put,
+    .lines_append = cli_lines_append,
 };
 
 typedef struct
@@ -406,15 +402,6 @@ EMBED_TABLE_LAYOUT(CliRunnerErrMsgRunNumberNs, runs_wait, runs_stop);
 EMBED_TABLE_STORAGE CliRunnerErrMsgRunNumberNs cli_runner_err_msg_run_number EMBED_UNUSED = {
     .runs_wait = cli_runs_wait,
     .runs_stop = cli_runs_stop,
-};
-
-typedef struct
-{
-    void (*run_event_write)(const CliRunnerEventCfg *args);
-} CliRunnerEventNs;
-EMBED_TABLE_LAYOUT(CliRunnerEventNs, run_event_write);
-EMBED_TABLE_STORAGE CliRunnerEventNs cli_runner_event EMBED_UNUSED = {
-    .run_event_write = cli_run_event_write,
 };
 
 #endif

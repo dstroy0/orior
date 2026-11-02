@@ -34,8 +34,8 @@ typedef struct
     unsigned int order[CLI_SYMBOLS_HEADS];
     unsigned int ordered;
     char root[CLI_PATH_MAX_LEN];
-    char sought[CLI_PATH_MAX_LEN];
-    unsigned int sought_line;
+    char needle[CLI_PATH_MAX_LEN];
+    unsigned int needle_line;
     char language[CLI_NAME_MAX_LEN];
 } CliSymbolSignature;
 // how many lines above the cursor's the call may have opened on, the most arguments read, and the most bytes of an
@@ -66,6 +66,7 @@ typedef struct
     CliSymbolType *type;
     unsigned int argument;
     VerbaLinea *out;
+    CellOwner *owner;
 } SymbolsSignatureCtx;
 // whether the file at `path` opens in the language the call is read in
 EMBED_INLINE int cli_signature_language_is(const SymbolsSignatureCtx *args)
@@ -170,7 +171,7 @@ EMBED_INLINE int cli_signature_call(const SymbolsSignatureCtx *args)
 
 // the argument of the leaves from `first` to before `end` put after the call's others, the blank and comment leaves at
 // either end of it left off
-EMBED_INLINE void cli_signature_argument_put(const SymbolsSignatureCtx *args)
+EMBED_INLINE void cli_signature_argument_append(const SymbolsSignatureCtx *args)
 {
     unsigned int first = args->first;
     unsigned int end = args->end;
@@ -221,12 +222,12 @@ EMBED_INLINE void cli_signature_arguments(const SymbolsSignatureCtx *args)
         else if ((depth == 0u) && EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = read,
                                              .leaf = leaf, .roles = CLI_LEAF_SEPARATOR))
         {
-            EMBED_CALL(cli_signature_argument_put, SymbolsSignatureCtx, .read = read, .call = args->call,
+            EMBED_CALL(cli_signature_argument_append, SymbolsSignatureCtx, .read = read, .call = args->call,
                        .first = first, .end = leaf);
             first = leaf + 1u;
         }
     }
-    EMBED_CALL(cli_signature_argument_put, SymbolsSignatureCtx, .read = read, .call = args->call, .first = first,
+    EMBED_CALL(cli_signature_argument_append, SymbolsSignatureCtx, .read = read, .call = args->call, .first = first,
                .end = leaf);
 }
 
@@ -259,7 +260,7 @@ EMBED_INLINE void cli_signature_tree_type(const SymbolsSignatureCtx *args)
     unsigned long long length = args->length;
     CliSymbolType *type = args->type;
     int seen = 0;
-    char *const scratch = cli_branch_copy_take();
+    char *const scratch = cli_branch_copy_alloc();
     for (unsigned int file = 0u; !seen && (scratch != NULL) && (file < g_cli_branch_count); file += 1u)
     {
         const CliTreeBranch *const branch = &g_cli_branches[file];
@@ -279,17 +280,17 @@ EMBED_INLINE void cli_signature_tree_type(const SymbolsSignatureCtx *args)
                     EMBED_CALL(cli_symbols_tree_branch_scratch.branch_copy_path, CliSymbolsTreeBranchScratchCfg,
                                .branch = branch, .scratch_read = scratch);
                 const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
-                memor.cpy(&(MemoriaCfg){.dst = args->signature->sought, .src = path, .bytes = (size_t)size + 1u});
-                args->signature->sought_line = symbol->line;
+                memor.cpy(&(MemoriaCfg){.dst = args->signature->needle, .src = path, .bytes = (size_t)size + 1u});
+                args->signature->needle_line = symbol->line;
             }
         }
     }
     EMBED_CALL(cli_symbols_tree_branch.branch_copy_free, CliSymbolsTreeBranchCfg, .scratch = scratch);
     char full[CLI_PATH_MAX_LEN];
-    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->signature->root, .relative = args->signature->sought,
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->signature->root, .relative = args->signature->needle,
                .joined = full);
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = seen ? EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = full,
+    const unsigned char *const bytes = seen ? EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = full,
                                                          .size_pointer = &size, .owner = &g_cli_code_cells)
                                             : NULL;
     if (bytes == NULL)
@@ -298,7 +299,7 @@ EMBED_INLINE void cli_signature_tree_type(const SymbolsSignatureCtx *args)
     }
     const char *const text = (const char *)bytes;
     unsigned long long start = 0ull;
-    for (unsigned int at = 0u; (at < args->signature->sought_line) && (start < size); at += 1u)
+    for (unsigned int at = 0u; (at < args->signature->needle_line) && (start < size); at += 1u)
     {
         start = EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = text, .at = start, .size = size).next;
     }
@@ -307,7 +308,7 @@ EMBED_INLINE void cli_signature_tree_type(const SymbolsSignatureCtx *args)
                      .set = "\n");
     CliLeafRead read;
     if (EMBED_CALL(cli_symbols_path_internal.leaves_save, CliSymbolsPathCtx, .languages = languages,
-                   .path = args->signature->sought, .state = "root", .text = text + start, .size = end - start,
+                   .path = args->signature->needle, .state = "root", .text = text + start, .size = end - start,
                    .read = &read))
     {
         for (unsigned int leaf = 0u; leaf < read.count; leaf += 1u)
@@ -386,7 +387,7 @@ EMBED_INLINE void cli_signature_heads(const SymbolsSignatureCtx *args)
     const char *name = args->name;
     unsigned long long length = args->length;
     args->signature->heads = 0u;
-    char *const scratch = cli_branch_copy_take();
+    char *const scratch = cli_branch_copy_alloc();
     for (unsigned int file = 0u; (scratch != NULL) && (file < g_cli_branch_count); file += 1u)
     {
         const CliTreeBranch *const branch = &g_cli_branches[file];
@@ -414,10 +415,10 @@ EMBED_INLINE void cli_signature_heads(const SymbolsSignatureCtx *args)
     }
     EMBED_CALL(cli_symbols_tree_branch.branch_copy_free, CliSymbolsTreeBranchCfg, .scratch = scratch);
     const CliSymbolCall *const call = &args->signature->call;
-    unsigned int given = 0u;
+    unsigned int supplied = 0u;
     for (unsigned int argument = 0u; argument < call->arguments; argument += 1u)
     {
-        given += (call->end[argument] > call->first[argument]) ? 1u : 0u;
+        supplied += (call->end[argument] > call->first[argument]) ? 1u : 0u;
     }
     args->signature->ordered = 0u;
     for (unsigned int at = 0u; at < args->signature->heads; at += 1u)
@@ -439,7 +440,7 @@ EMBED_INLINE void cli_signature_heads(const SymbolsSignatureCtx *args)
             }
         }
         const int reached = (call->active < head->params) || ((head->params == 0u) && (call->active == 0u));
-        head->counts = head->variadic || ((given <= head->params) && reached);
+        head->counts = head->variadic || ((supplied <= head->params) && reached);
         // its place put among those of the heads read before it, after each that fits as well or better
         unsigned int place = args->signature->ordered;
         while (place > 0u)
@@ -459,94 +460,50 @@ EMBED_INLINE void cli_signature_heads(const SymbolsSignatureCtx *args)
     }
 }
 
-// the signature's answer written: the call's name, the argument the cursor stands in, each argument's text and type,
-// and each declaration's head with where it stands
-EMBED_INLINE void cli_signature_write(const SymbolsSignatureCtx *args)
+// the first declaration the call may be of as a panel in one cell of `owner`, with the call's parameter and those the
+// arguments differ from: the cell, or NULL where no declaration is known or the cells cannot meet it
+EMBED_INLINE CliSignaturePanel *cli_signature_panel_alloc(const SymbolsSignatureCtx *args)
 {
-    const CliLeafRead *read = args->read;
-    VerbaLinea *out = args->out;
-    const CliSymbolCall *const call = &args->signature_read->call;
-    unsigned long long length = 0ull;
-    const char *const name = EMBED_CALL(cli_symbols_read_leaf_internal.leaf_text, CliSymbolsReadLeafCtx,
-                                        .read_read = read, .leaf = call->name, .length_pointer = &length);
-    mmgr_line_put(out, "{\"name\":");
-    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
-               .text_bytes = (const unsigned char *)name, .length = length);
-    mmgr_line_put(out, ",\"active\":");
-    mmgr_line_decimal(out, call->active, 1u);
-    mmgr_line_put(out, ",\"arguments\":[");
-    for (unsigned int argument = 0u; argument < call->arguments; argument += 1u)
+    if (args->signature_read->ordered == 0u)
     {
-        const unsigned int first = call->first[argument];
-        const unsigned int end = call->end[argument];
-        const unsigned long long from = (end > first) ? read->leaf[first].from : 0ull;
-        const unsigned long long to = (end > first) ? read->leaf[end - 1u].to : 0ull;
-        const unsigned long long size =
-            ((to - from) < CLI_SYMBOLS_ARGUMENT_TEXT) ? (to - from) : CLI_SYMBOLS_ARGUMENT_TEXT;
-        mmgr_line_put(out, (argument != 0u) ? ",{\"text\":" : "{\"text\":");
-        EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
-                   .text_bytes = (const unsigned char *)read->text + from, .length = size);
-        mmgr_line_put(out, ",\"type\":");
-        const char *const type = call->type[argument].text;
-        if (type[0] == '\0')
-        {
-            mmgr_line_put(out, "null");
-        }
-        else
-        {
-            EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
-                       .text_bytes = (const unsigned char *)type,
-                       .length = cellul.len(&(CatenaFinitaCfg){.src = type, .cap = CLI_CELLS_POOL}));
-        }
-        mmgr_line_ch(out, '}');
+        return NULL;
     }
-    mmgr_line_put(out, "],\"declarations\":[");
-    for (unsigned int at = 0u; at < args->signature_read->ordered; at += 1u)
+    const CliSymbolHead *const head = &args->signature_read->head[args->signature_read->order[0]];
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = head->label, .cap = sizeof(head->label)});
+    CliSignaturePanel *const panel =
+        g_cli_cells->persistent_buf_alloc(sizeof(*panel) + (head->params * sizeof(CliSignatureParameter)) +
+                                              (head->differing * sizeof(*panel->differs)) + length + 1ull,
+                                          args->owner);
+    if (panel == NULL)
     {
-        const CliSymbolHead *const head = &args->signature_read->head[args->signature_read->order[at]];
-        mmgr_line_put(out, (at != 0u) ? ",{\"path\":" : "{\"path\":");
-        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = head->path,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = head->path, .cap = CLI_CELLS_POOL}));
-        mmgr_line_put(out, ",\"line\":");
-        mmgr_line_decimal(out, head->line, 1u);
-        mmgr_line_put(out, ",\"label\":");
-        EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
-                   .text_bytes = (const unsigned char *)head->label,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = head->label, .cap = CLI_CELLS_POOL}));
-        mmgr_line_put(out, ",\"params\":[");
-        for (unsigned int param = 0u; param < head->params; param += 1u)
-        {
-            mmgr_line_put(out, (param != 0u) ? ",[" : "[");
-            mmgr_line_decimal(out, head->span[param][0], 1u);
-            mmgr_line_ch(out, ',');
-            mmgr_line_decimal(out, head->span[param][1], 1u);
-            mmgr_line_ch(out, ']');
-        }
-        mmgr_line_put(out, "],\"types\":[");
-        for (unsigned int param = 0u; param < head->params; param += 1u)
-        {
-            mmgr_line_put(out, (param != 0u) ? "," : "");
-            const char *const type = head->type[param].text;
-            EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
-                       .text_bytes = (const unsigned char *)type,
-                       .length = cellul.len(&(CatenaFinitaCfg){.src = type, .cap = CLI_CELLS_POOL}));
-        }
-        mmgr_line_put(out, "],\"count\":");
-        mmgr_line_put(out, head->counts ? "true" : "false");
-        mmgr_line_put(out, ",\"variadic\":");
-        mmgr_line_put(out, head->variadic ? "true" : "false");
-        mmgr_line_put(out, ",\"differs\":[");
-        for (unsigned int differs = 0u; differs < head->differing; differs += 1u)
-        {
-            mmgr_line_put(out, (differs != 0u) ? "," : "");
-            mmgr_line_decimal(out, head->differs[differs], 1u);
-        }
-        mmgr_line_put(out, "]}");
+        return NULL;
     }
-    mmgr_line_put(out, g_cli_tree_walking ? "],\"reading\":true}" : "],\"reading\":false}");
+    memor.set(&(MemoriaCfg){.dst = panel, .val = 0, .bytes = sizeof(*panel)});
+    panel->parameter = (CliSignatureParameter *)(void *)(panel + 1);
+    panel->differs = (unsigned int *)(void *)(panel->parameter + head->params);
+    char *const text = (char *)(void *)(panel->differs + head->differing);
+    memor.cpy(&(MemoriaCfg){.dst = text, .src = head->label, .bytes = length});
+    text[length] = '\0';
+    panel->label = text;
+    panel->length = length;
+    panel->doc = text + length;
+    panel->parameters = head->params;
+    for (unsigned int param = 0u; param < head->params; param += 1u)
+    {
+        panel->parameter[param] = (CliSignatureParameter){head->span[param][0], head->span[param][1]};
+    }
+    panel->differing = head->differing;
+    for (unsigned int differs = 0u; differs < head->differing; differs += 1u)
+    {
+        panel->differs[differs] = head->differs[differs];
+    }
+    const unsigned int active = args->signature_read->call.active;
+    // a parameter's place is far inside what an int represents
+    panel->active = (active < head->params) ? (int)active : -1;
+    return panel;
 }
 
-int cli_symbols_signature(const CliSymbolsPathTextSizeOutCfg *args)
+CliSignaturePanel *cli_symbols_signature_alloc(const CliSymbolsPathTextSizeOutCfg *args)
 {
     const char *path = args->path;
     CliSymbolsLanguages *const languages = cli_symbols_languages_for_call();
@@ -556,7 +513,7 @@ int cli_symbols_signature(const CliSymbolsPathTextSizeOutCfg *args)
     {
         EMBED_CALL(cli_symbols.languages_free, CliSymbolsCfg, .read = languages);
         mmgr_line_put(args->err_msg, "the cells cannot meet a signature's reading");
-        return 0;
+        return NULL;
     }
     memor.cpy(&(MemoriaCfg){.dst = signature->root, .src = g_cli_tree_root, .bytes = CLI_PATH_MAX_LEN});
     signature->language[0] = '\0';
@@ -567,6 +524,7 @@ int cli_symbols_signature(const CliSymbolsPathTextSizeOutCfg *args)
         EMBED_CALL(cli_symbols_path_internal.leaves_save, CliSymbolsPathCtx, .languages = languages, .path = path,
                    .state = args->state, .text = args->text, .size = args->size, .read = &read);
     CliSymbolCall *const call = &signature->call;
+    CliSignaturePanel *panel = NULL;
     const int called =
         saved && EMBED_CALL(cli_signature_call, SymbolsSignatureCtx, .read = &read,
                             .cursor = EMBED_CALL(cli_signature_cursor, SymbolsSignatureCtx, .text = args->text,
@@ -585,12 +543,8 @@ int cli_symbols_signature(const CliSymbolsPathTextSizeOutCfg *args)
                                             .read_read = &read, .leaf = call->name, .length_pointer = &length);
         EMBED_CALL(cli_signature_heads, SymbolsSignatureCtx, .languages = languages, .signature = signature,
                    .name = name, .length = length);
-        EMBED_CALL(cli_signature_write, SymbolsSignatureCtx, .read = &read, .signature_read = signature,
-                   .out = args->out);
-    }
-    else
-    {
-        mmgr_line_put(args->out, "null");
+        panel = EMBED_CALL(cli_signature_panel_alloc, SymbolsSignatureCtx, .signature_read = signature,
+                           .owner = args->owner);
     }
     const int refused = read.refused;
     EMBED_CALL(cli_symbols_text_internal.leaves_free, CliSymbolsTextCtx, .read = &read);
@@ -600,5 +554,5 @@ int cli_symbols_signature(const CliSymbolsPathTextSizeOutCfg *args)
     {
         mmgr_line_put(args->err_msg, "the cells cannot meet the leaves of the lines handed");
     }
-    return !refused;
+    return panel;
 }

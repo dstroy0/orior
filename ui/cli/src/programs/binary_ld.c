@@ -84,9 +84,9 @@ static unsigned int cli_ld_conf(const BinaryLdCtx *args)
         }
         char *from = line;
         char *to = line + cellul.len(&(CatenaFinitaCfg){.src = line, .cap = CLI_CELLS_POOL});
-        from += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
+        from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
                            .size = (unsigned long long)(to - from), .set = " \t\r");
-        to = from + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = from,
+        to = from + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = from,
                                .at = (unsigned long long)(to - from), .set = " \t\r");
         to[0] = '\0';
         line = next;
@@ -107,7 +107,7 @@ static unsigned int cli_ld_conf(const BinaryLdCtx *args)
             continue;
         }
         from += 7;
-        from += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
+        from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
                            .size = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL}), .set = " \t");
         char folder[CLI_PATH_MAX_LEN];
         memor.cpy(&(MemoriaCfg){.dst = folder,

@@ -71,9 +71,9 @@ EMBED_INLINE int jupyter_port_read(const JupyterDebugCtx *args)
     unsigned int *port = args->port;
     unsigned long long start = 0ull;
     unsigned long long end = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
-    start = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = text, .at = start,
+    start = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = text, .at = start,
                        .size = end, .set = " \t\n\r");
-    end = (start + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = text + start,
+    end = (start + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = text + start,
                               .at = end - start, .set = " \t\n\r"));
     start += ((start < end) && (text[start] == '+')) ? 1ull : 0ull;
     unsigned int value = 0u;
@@ -99,7 +99,7 @@ EMBED_INLINE int jupyter_reply_read(const JupyterDebugCtx *args)
 {
     CliKernel *kernel = args->kernel;
     unsigned int *port = args->port;
-    const char *const shown = EMBED_CALL(cli_jupyter.display_name, CliJupyterCfg, .kernel_read = kernel);
+    const char *const displayed = EMBED_CALL(cli_jupyter.display_name, CliJupyterCfg, .kernel_read = kernel);
     const CliJson json = *args->reply_json;
     const unsigned int content = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
                                             .object = args->root, .name = "content");
@@ -107,7 +107,7 @@ EMBED_INLINE int jupyter_reply_read(const JupyterDebugCtx *args)
                                           .first = "status", .second = NULL);
     if ((status == NULL) || (!cellul.eq(&(CatenaFinitaCfg){.src = status, .other = "ok", .cap = CLI_CELLS_POOL})))
     {
-        mmgr_line_put(args->err_msg, shown);
+        mmgr_line_put(args->err_msg, displayed);
         mmgr_line_put(args->err_msg, " cannot name a cell's code as its own file, as IPython 8 and later can: ");
         EMBED_CALL(jupyter_fail, JupyterDebugCtx, .json = &json, .node = content, .err_msg = args->err_msg);
         return 0;
@@ -136,14 +136,14 @@ EMBED_INLINE int jupyter_reply_read(const JupyterDebugCtx *args)
                                            ? EMBED_CALL(cli_jupyter_spec_internal.kernel_text, CliJupyterSpecCtx,
                                                         .spec = &kernel->spec, .at = kernel->spec.argv[0])
                                            : "python";
-            mmgr_line_put(args->err_msg, shown);
+            mmgr_line_put(args->err_msg, displayed);
             mmgr_line_put(args->err_msg, " has no debugpy: \"");
             mmgr_line_put(args->err_msg, python);
             mmgr_line_put(args->err_msg, "\" -m pip install debugpy installs it");
             return 0;
         }
         mmgr_line_put(args->err_msg, "debugpy did not listen in ");
-        mmgr_line_put(args->err_msg, shown);
+        mmgr_line_put(args->err_msg, displayed);
         mmgr_line_put(args->err_msg, ": ");
         EMBED_CALL(jupyter_fail, JupyterDebugCtx, .json = &json, .node = listened, .err_msg = args->err_msg);
         return 0;
@@ -191,7 +191,7 @@ EMBED_INLINE int jupyter_debug_request(const JupyterDebugCtx *args)
         mmgr_line_put(err_msg, " is a longer path than orior_cli supports");
         return 0;
     }
-    VerbaLinea reply = {kernel->debug_reply, sizeof(kernel->debug_reply), 0ull};
+    VerbaLinea reply = {kernel->debug_reply, CLI_KERNEL_REPLY_CAPACITY, 0ull};
     if (!EMBED_CALL(cli_jupyter_err_msg.request, CliJupyterErrMsgCfg, .kernel = kernel, .channel = "shell",
                     .msg_type = "execute_request", .content = content, .length = length, .wait = CLI_KERNEL_DEBUG_WAIT,
                     .reply = &reply, .err_msg = err_msg))
@@ -202,7 +202,7 @@ EMBED_INLINE int jupyter_debug_request(const JupyterDebugCtx *args)
     CliJson json = {0};
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea unread = {why, sizeof(why), 0ull};
-    const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg,
+    const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                          .json = &json, .text = reply.out, .size = reply.at, .nodes_more = 0u,
                                          .text_more = 0ull, .err_msg = &unread, .owner = &g_cli_notebook_cells);
     const int read = EMBED_CALL(jupyter_reply_read, JupyterDebugCtx, .kernel = kernel, .reply_json = &json,

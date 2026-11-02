@@ -17,7 +17,7 @@ extern void test_a_markdown_cell_reads_from_behind_its_comments(void);
 extern void test_a_script_writes_back_unchanged(void);
 extern void test_a_script_of_cells_is_a_notebook(void);
 extern void test_a_plain_script_is_not_a_notebook(void);
-extern void test_a_merge_takes_each_sides_changes(void);
+extern void test_a_merge_allocs_each_sides_changes(void);
 extern void test_a_merge_separates_a_cell_both_sides_changed(void);
 extern void test_a_merge_separates_a_cell_one_changed_and_the_other_deleted(void);
 extern void test_a_merges_memory_is_sized_to_its_notebooks_and_released(void);
@@ -94,7 +94,7 @@ int main(void)
   run_test(test_a_script_writes_back_unchanged, "test_a_script_writes_back_unchanged", 183);
   run_test(test_a_script_of_cells_is_a_notebook, "test_a_script_of_cells_is_a_notebook", 191);
   run_test(test_a_plain_script_is_not_a_notebook, "test_a_plain_script_is_not_a_notebook", 196);
-  run_test(test_a_merge_takes_each_sides_changes, "test_a_merge_takes_each_sides_changes", 201);
+  run_test(test_a_merge_allocs_each_sides_changes, "test_a_merge_allocs_each_sides_changes", 201);
   run_test(test_a_merge_separates_a_cell_both_sides_changed, "test_a_merge_separates_a_cell_both_sides_changed", 210);
   run_test(test_a_merge_separates_a_cell_one_changed_and_the_other_deleted, "test_a_merge_separates_a_cell_one_changed_and_the_other_deleted", 219);
   run_test(test_a_merges_memory_is_sized_to_its_notebooks_and_released, "test_a_merges_memory_is_sized_to_its_notebooks_and_released", 228);

@@ -18,9 +18,9 @@ typedef struct
     CliEntries inner;
     CliEntries files;
     CliEntries dirs[17];
-} CliCatalogJobsRoom;
+} CliCatalogJobsWorkState;
 
-static CliCatalogJobsRoom *s_jobs;
+static CliCatalogJobsWorkState *s_jobs;
 
 typedef struct
 {
@@ -72,22 +72,23 @@ EMBED_INLINE void cli_driver(const CatalogJobsCtx *args)
     char cfg[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = root,
                .name = "examples/cell_tracking/src/track_driver/track_driver.cu", .path_out = source);
-    char *const text = EMBED_CALL(cli_catalog_path_out_internal.script_take, CliCatalogPathOutCtx, .path = source);
+    char *const text = EMBED_CALL(cli_catalog_path_out_internal.script_alloc, CliCatalogPathOutCtx, .path = source);
     if (text == NULL)
     {
         return;
     }
-    (void)EMBED_CALL(cli_catalog_names_internal.names_room, CliCatalogNamesCtx, .names = &s_jobs->parts,
-                     .most = EMBED_CALL(cli_catalog_room_internal.driver_parts, CliCatalogRoomCtx, .source = text,
-                                        .parts = NULL, .room = 0u));
-    const unsigned int parts = (s_jobs->parts.name != NULL)
-                                   ? EMBED_CALL(cli_catalog_room_internal.driver_parts, CliCatalogRoomCtx,
-                                                .source = text, .parts = s_jobs->parts.name, .room = s_jobs->parts.room)
-                                   : 0u;
+    (void)EMBED_CALL(cli_catalog_names_internal.names_capacity, CliCatalogNamesCtx, .names = &s_jobs->parts,
+                     .most = EMBED_CALL(cli_catalog_capacity_internal.driver_parts, CliCatalogCapacityCtx,
+                                        .source = text, .parts = NULL, .capacity = 0u));
+    const unsigned int parts =
+        (s_jobs->parts.name != NULL)
+            ? EMBED_CALL(cli_catalog_capacity_internal.driver_parts, CliCatalogCapacityCtx, .source = text,
+                         .parts = s_jobs->parts.name, .capacity = s_jobs->parts.capacity)
+            : 0u;
     EMBED_CALL(cli_catalog_internal.text_free, CliCatalogCtx, .text = text);
     EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = root, .path = source, .relative_out = file);
-    char *const taken = EMBED_CALL(cli_catalog_path_internal.about_take, CliCatalogPathCtx, .path = source);
-    const char *const about = (taken != NULL) ? taken : "";
+    char *const reserved = EMBED_CALL(cli_catalog_path_internal.about_alloc, CliCatalogPathCtx, .path = source);
+    const char *const about = (reserved != NULL) ? reserved : "";
     EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = root,
                .name = "examples/cell_tracking", .path_out = tracker);
     EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = tracker, .name = "base.cfg",
@@ -95,7 +96,7 @@ EMBED_INLINE void cli_driver(const CatalogJobsCtx *args)
     EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = tracker, .name = "cfg",
                .path_out = cfg);
     unsigned int runs = 0u;
-    if (EMBED_CALL(cli_catalog_most_internal.paths_room, CliCatalogMostCtx, .paths = &s_jobs->runs, .most = 1u))
+    if (EMBED_CALL(cli_catalog_max_internal.paths_capacity, CliCatalogMaxCtx, .paths = &s_jobs->runs, .most = 1u))
     {
         EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = root, .path = base,
                    .relative_out = s_jobs->runs.path[0]);
@@ -181,7 +182,7 @@ EMBED_INLINE void cli_driver(const CatalogJobsCtx *args)
     EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_WORDS, .a = "arguments",
                .b = NULL, .c = NULL, .d = NULL, .separated = 0);
     EMBED_CALL(cli_set, CatalogJobsCtx, .catalog = catalog);
-    EMBED_CALL(cli_catalog_internal.text_free, CliCatalogCtx, .text = taken);
+    EMBED_CALL(cli_catalog_internal.text_free, CliCatalogCtx, .text = reserved);
 }
 
 // The other runners: the Navier-Stokes programs on their cfgs and the qasm circuits
@@ -194,18 +195,18 @@ EMBED_INLINE void cli_runners(const CatalogJobsCtx *args)
     char folder[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = root,
                .name = "examples/navier_stokes/run.sh", .path_out = navier);
-    char *const text = EMBED_CALL(cli_catalog_path_out_internal.script_take, CliCatalogPathOutCtx, .path = navier);
+    char *const text = EMBED_CALL(cli_catalog_path_out_internal.script_alloc, CliCatalogPathOutCtx, .path = navier);
     if (text != NULL)
     {
-        (void)EMBED_CALL(cli_catalog_names_internal.names_room, CliCatalogNamesCtx, .names = &s_jobs->parts,
-                         .most =
-                             EMBED_CALL(cli_catalog_text_variable_internal.case_names, CliCatalogTextVariableCtx,
-                                        .text_read = text, .variable = "PROGRAM", .names_callback = NULL, .room = 0u));
+        (void)EMBED_CALL(cli_catalog_names_internal.names_capacity, CliCatalogNamesCtx, .names = &s_jobs->parts,
+                         .most = EMBED_CALL(cli_catalog_text_variable_internal.case_names, CliCatalogTextVariableCtx,
+                                            .text_read = text, .variable = "PROGRAM", .names_callback = NULL,
+                                            .capacity = 0u));
         const unsigned int programs =
             (s_jobs->parts.name != NULL)
                 ? EMBED_CALL(cli_catalog_text_variable_internal.case_names, CliCatalogTextVariableCtx,
                              .text_read = text, .variable = "PROGRAM", .names_callback = s_jobs->parts.name,
-                             .room = s_jobs->parts.room)
+                             .capacity = s_jobs->parts.capacity)
                 : 0u;
         EMBED_CALL(cli_catalog_internal.text_free, CliCatalogCtx, .text = text);
         EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = root,
@@ -277,7 +278,7 @@ EMBED_INLINE void cli_view(const CatalogJobsCtx *args)
             return;
         }
     }
-    if (*seen < s_jobs->paths.room)
+    if (*seen < s_jobs->paths.capacity)
     {
         memor.cpy(&(MemoriaCfg){.dst = s_jobs->paths.path[*seen],
                                 .src = path,
@@ -311,38 +312,38 @@ EMBED_INLINE void cli_view(const CatalogJobsCtx *args)
 EMBED_INLINE void cli_views(const CatalogJobsCtx *args)
 {
     char examples[CLI_PATH_MAX_LEN];
-    unsigned int places = 0u;
+    unsigned int positions = 0u;
     unsigned int seen = 0u;
     EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = args->root, .name = "examples",
                .path_out = examples);
     EMBED_CALL(cli_catalog_folder_internal.entries, CliCatalogFolderCtx, .folder = examples, .folders = 1,
                .filter = NULL, .entries = &s_jobs->subjects);
-    (void)EMBED_CALL(cli_catalog_most_internal.paths_room, CliCatalogMostCtx, .paths = &s_jobs->runs,
+    (void)EMBED_CALL(cli_catalog_max_internal.paths_capacity, CliCatalogMaxCtx, .paths = &s_jobs->runs,
                      .most = 1u + (2u * s_jobs->subjects.count));
-    if (s_jobs->runs.room != 0u)
+    if (s_jobs->runs.capacity != 0u)
     {
         EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = args->root,
-                   .name = "examples/00_blob_viz_tools", .path_out = s_jobs->runs.path[places]);
-        places += 1u;
+                   .name = "examples/00_blob_viz_tools", .path_out = s_jobs->runs.path[positions]);
+        positions += 1u;
     }
-    for (unsigned int at = 0u; (at < s_jobs->subjects.count) && ((places + 2u) <= s_jobs->runs.room); at += 1u)
+    for (unsigned int at = 0u; (at < s_jobs->subjects.count) && ((positions + 2u) <= s_jobs->runs.capacity); at += 1u)
     {
         char subject[CLI_PATH_MAX_LEN];
         EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = examples,
                    .name = s_jobs->subjects.name[at], .path_out = subject);
         EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = subject, .name = "maint",
-                   .path_out = s_jobs->runs.path[places]);
-        memor.cpy(&(MemoriaCfg){.dst = s_jobs->runs.path[places + 1u],
+                   .path_out = s_jobs->runs.path[positions]);
+        memor.cpy(&(MemoriaCfg){.dst = s_jobs->runs.path[positions + 1u],
                                 .src = subject,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = subject, .cap = CLI_CELLS_POOL}) + 1u});
-        places += 2u;
+        positions += 2u;
     }
-    for (unsigned int at = 0u; at < places; at += 1u)
+    for (unsigned int at = 0u; at < positions; at += 1u)
     {
         char path[CLI_PATH_MAX_LEN];
         EMBED_CALL(cli_catalog_folder_internal.entries, CliCatalogFolderCtx, .folder = s_jobs->runs.path[at],
                    .folders = 0, .filter = cli_catalog_is_builder, .entries = &s_jobs->files);
-        (void)EMBED_CALL(cli_catalog_most_internal.paths_room, CliCatalogMostCtx, .paths = &s_jobs->paths,
+        (void)EMBED_CALL(cli_catalog_max_internal.paths_capacity, CliCatalogMaxCtx, .paths = &s_jobs->paths,
                          .most = seen + s_jobs->files.count);
         for (unsigned int each = 0u; each < s_jobs->files.count; each += 1u)
         {
@@ -353,7 +354,7 @@ EMBED_INLINE void cli_views(const CatalogJobsCtx *args)
         }
         EMBED_CALL(cli_catalog_folder_internal.entries, CliCatalogFolderCtx, .folder = s_jobs->runs.path[at],
                    .folders = 0, .filter = cli_catalog_is_figure, .entries = &s_jobs->files);
-        (void)EMBED_CALL(cli_catalog_most_internal.paths_room, CliCatalogMostCtx, .paths = &s_jobs->paths,
+        (void)EMBED_CALL(cli_catalog_max_internal.paths_capacity, CliCatalogMaxCtx, .paths = &s_jobs->paths,
                          .most = seen + s_jobs->files.count);
         for (unsigned int each = 0u; each < s_jobs->files.count; each += 1u)
         {
@@ -402,7 +403,7 @@ EMBED_INLINE void cli_stages(const CatalogJobsCtx *args)
                        .name = s_jobs->inner.name[stage], .path_out = folder);
             EMBED_CALL(cli_catalog_folder_internal.entries, CliCatalogFolderCtx, .folder = folder, .folders = 0,
                        .filter = cli_catalog_is_py, .entries = &s_jobs->files);
-            (void)EMBED_CALL(cli_catalog_most_internal.paths_room, CliCatalogMostCtx, .paths = &s_jobs->paths,
+            (void)EMBED_CALL(cli_catalog_max_internal.paths_capacity, CliCatalogMaxCtx, .paths = &s_jobs->paths,
                              .most = every + s_jobs->files.count);
             for (unsigned int each = 0u; each < s_jobs->files.count; each += 1u)
             {
@@ -415,7 +416,7 @@ EMBED_INLINE void cli_stages(const CatalogJobsCtx *args)
                            .relative_out = file);
                 EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = subject, .path = script,
                            .relative_out = title);
-                if (every < s_jobs->paths.room)
+                if (every < s_jobs->paths.capacity)
                 {
                     memor.cpy(&(MemoriaCfg){
                         .dst = s_jobs->paths.path[every],
@@ -451,7 +452,7 @@ EMBED_INLINE void cli_stages(const CatalogJobsCtx *args)
                    .name = "README.md", .path_out = readme);
         char *const about =
             EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = readme)
-                ? EMBED_CALL(cli_catalog_path_out_internal.markdown_take, CliCatalogPathOutCtx, .path = readme)
+                ? EMBED_CALL(cli_catalog_path_out_internal.markdown_alloc, CliCatalogPathOutCtx, .path = readme)
                 : NULL;
         EMBED_CALL(cli_catalog_id_group.job, CliCatalogIdGroupCfg, .catalog = catalog, .id = id, .group = "pipeline",
                    .title = name, .file = file, .about = (about != NULL) ? about : "", .opens = "");
@@ -477,7 +478,7 @@ static unsigned int cli_collect(const CatalogJobsCtx *args)
     EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = args->under, .name = name,
                .path_out = here);
     if (EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = here) &&
-        EMBED_CALL(cli_catalog_most_internal.paths_room, CliCatalogMostCtx, .paths = &s_jobs->paths,
+        EMBED_CALL(cli_catalog_max_internal.paths_capacity, CliCatalogMaxCtx, .paths = &s_jobs->paths,
                    .most = count + 1u))
     {
         memor.cpy(&(MemoriaCfg){.dst = s_jobs->paths.path[count],
@@ -489,7 +490,7 @@ static unsigned int cli_collect(const CatalogJobsCtx *args)
     {
         return count;
     }
-    // the folders read before going down, so a deeper read takes another room
+    // the folders read before going down, so a deeper read takes another work state
     EMBED_CALL(cli_catalog_folder_internal.entries, CliCatalogFolderCtx, .folder = args->under, .folders = 1,
                .filter = NULL, .entries = &s_jobs->dirs[args->depth]);
     for (unsigned int at = 0u; at < s_jobs->dirs[args->depth].count; at += 1u)
@@ -539,9 +540,9 @@ EMBED_INLINE void cli_tests(const CatalogJobsCtx *args)
 // every list of the reading given back
 static void cli_jobs_free(void)
 {
-    EMBED_CALL(cli_catalog_most_internal.paths_free, CliCatalogMostCtx, .paths = &s_jobs->runs);
+    EMBED_CALL(cli_catalog_max_internal.paths_free, CliCatalogMaxCtx, .paths = &s_jobs->runs);
     EMBED_CALL(cli_catalog_folder_internal.entries_free, CliCatalogFolderCtx, .entries = &s_jobs->parts);
-    EMBED_CALL(cli_catalog_most_internal.paths_free, CliCatalogMostCtx, .paths = &s_jobs->paths);
+    EMBED_CALL(cli_catalog_max_internal.paths_free, CliCatalogMaxCtx, .paths = &s_jobs->paths);
     EMBED_CALL(cli_catalog_folder_internal.entries_free, CliCatalogFolderCtx, .entries = &s_jobs->subjects);
     EMBED_CALL(cli_catalog_folder_internal.entries_free, CliCatalogFolderCtx, .entries = &s_jobs->inner);
     EMBED_CALL(cli_catalog_folder_internal.entries_free, CliCatalogFolderCtx, .entries = &s_jobs->files);

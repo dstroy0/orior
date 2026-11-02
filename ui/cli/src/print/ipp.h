@@ -18,7 +18,6 @@ typedef struct CliIppMessageValueCfg CliIppMessageValueCfg;
 typedef struct CliIppMessageCodeCfg CliIppMessageCodeCfg;
 typedef struct CliIppTagCfg CliIppTagCfg;
 typedef struct CliIppMessageKindCfg CliIppMessageKindCfg;
-typedef struct CliIppErrMsgUriPrinterCfg CliIppErrMsgUriPrinterCfg;
 typedef struct CliIppMessageLowCfg CliIppMessageLowCfg;
 typedef struct CliIppMessageTagCfg CliIppMessageTagCfg;
 typedef struct CliIppCfg CliIppCfg;
@@ -97,16 +96,16 @@ typedef struct
     unsigned int request_id;
     CliIppGroup *group;
     unsigned int groups;
-    unsigned int group_room;
+    unsigned int group_capacity;
     CliIppAttribute *attribute;
     unsigned int attributes;
-    unsigned int attribute_room;
+    unsigned int attribute_capacity;
     CliIppValue *value;
     unsigned int values;
-    unsigned int value_room;
+    unsigned int value_capacity;
     unsigned char *bytes;
     unsigned int used;
-    unsigned int byte_room;
+    unsigned int byte_capacity;
     const unsigned char *data;
     unsigned long long data_length;
     int full;
@@ -131,8 +130,8 @@ void cli_ipp_text(const CliIppMessageTagCfg *args);
 void cli_ipp_encode(const CliIppMessageOutVerbaLineaCfg *args);
 int cli_ipp_decode(const CliIppMessageCfg *args);
 // the first group of `tag`, NULL where none; the attribute `name` of a group, NULL where none; whether a value is a
-// text, written into `out`, sized for `room`; and the first text and the first number of an attribute: 1, or 0 where
-// it has none
+// text, written into `out`, sized for `capacity`; and the first text and the first number of an attribute: 1, or 0
+// where it has none
 const CliIppGroup *cli_ipp_group_get(const CliIppTagCfg *args);
 const CliIppAttribute *cli_ipp_get(const CliIppNameCfg *args);
 int cli_ipp_value_text(const CliIppMessageValueCfg *args);
@@ -145,22 +144,8 @@ int cli_ipp_address(const CliIppErrMsgCfg *args);
 // each read waited on 30 seconds at most: 1, or 0 with why given
 int cli_ipp_exchange(const CliIppSizeCfg *args);
 
-// What a printer reports of itself: its name, make, the formats it takes, whether it prints color, its state and why,
-// and whether it takes jobs
-#define CLI_IPP_LISTED 64u
-
-typedef struct
-{
-    char name[CLI_PATH_MAX_LEN];
-    char make[CLI_PATH_MAX_LEN];
-    char formats[CLI_IPP_LISTED][CLI_NAME_MAX_LEN];
-    unsigned int format_count;
-    int color;
-    int state;
-    char reasons[CLI_IPP_LISTED][CLI_NAME_MAX_LEN];
-    unsigned int reason_count;
-    int accepting;
-} CliIppPrinter;
+// the most texts of one attribute read
+#define CLI_IPP_LISTING 64u
 
 // How a job is printed: its name, its document's format, and the job's own settings
 typedef struct
@@ -186,11 +171,11 @@ int cli_ipp_status(const CliIppCodeCfg *args);
 // the attributes of the printer at `uri` that printing needs; `document`, `size` bytes, printed on it, the job's id
 // into `id`; a job's state, its RFC 8011 `job-state` number, 3 to 9, and why, as the
 // printer words it, joined by `, `; and a job canceled. Each 1, or 0 with why given
-int cli_ipp_printer(const CliIppErrMsgUriPrinterCfg *args);
 int cli_ipp_print(const CliIppSizeErrMsgCfg *args);
 int cli_ipp_job_state(const CliIppErrMsgUriCfg *args);
 int cli_ipp_cancel(const CliIppErrMsgUriCfg *args);
-// the printers the CUPS server at host:port shares, into `shared`, sized for `room`: their count, or -1 with why given
+// the printers the CUPS server at host:port shares, into `shared`, sized for `capacity`: their count, or -1 with why
+// given
 int cli_ipp_cups_printers(const CliIppErrMsgHostCfg *args);
 
 struct CliIppSizeCfg
@@ -209,7 +194,7 @@ struct CliIppNameCfg
     const CliIppMessage *message_read;
     const CliIppGroup *group;
     char *out;
-    unsigned long long room;
+    unsigned long long capacity;
     int *number;
 };
 
@@ -238,7 +223,7 @@ struct CliIppErrMsgHostCfg
     const char *host_read;
     unsigned int port_value;
     CliIppShared *shared;
-    unsigned int room_u32;
+    unsigned int capacity_u32;
 };
 
 struct CliIppErrMsgUriCfg
@@ -263,7 +248,7 @@ struct CliIppMessageValueCfg
     const CliIppMessage *message_read;
     const CliIppValue *value_ipp_value_pointer;
     char *out;
-    unsigned long long room;
+    unsigned long long capacity;
 };
 
 struct CliIppMessageCodeCfg
@@ -285,13 +270,6 @@ struct CliIppMessageKindCfg
     CliIppMessage *message;
     unsigned int kind;
     int value;
-};
-
-struct CliIppErrMsgUriPrinterCfg
-{
-    VerbaLinea *err_msg;
-    const char *uri;
-    CliIppPrinter *printer;
 };
 
 struct CliIppMessageLowCfg
@@ -451,15 +429,6 @@ typedef struct
 EMBED_TABLE_LAYOUT(CliIppCodeNs, status);
 EMBED_TABLE_STORAGE CliIppCodeNs cli_ipp_code EMBED_UNUSED = {
     .status = cli_ipp_status,
-};
-
-typedef struct
-{
-    int (*printer)(const CliIppErrMsgUriPrinterCfg *args);
-} CliIppErrMsgUriPrinterNs;
-EMBED_TABLE_LAYOUT(CliIppErrMsgUriPrinterNs, printer);
-EMBED_TABLE_STORAGE CliIppErrMsgUriPrinterNs cli_ipp_err_msg_uri_printer EMBED_UNUSED = {
-    .printer = cli_ipp_printer,
 };
 
 typedef struct

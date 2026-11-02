@@ -4,8 +4,8 @@
 // and publishes their problems, and no request reaches it. It runs only while it is asked: each slice it is given is an
 // ask, and a file the tree's check slices waits on it until the check lets the file go. A watcher lets it go once
 // nothing waits on it, no slice owes its diagnostics, the tree's check is not running and it has been quiet for as long
-// as its asks of the last minute earn it: CLI_SERVERS_QUIET_LEAST, and CLI_SERVERS_QUIET_EACH more for each ask,
-// CLI_SERVERS_QUIET_MOST at most. It is ended with no file closed, so what it published stands. The next slice of a
+// as its asks of the last minute earn it: CLI_SERVERS_QUIET_MIN, and CLI_SERVERS_QUIET_EACH more for each ask,
+// CLI_SERVERS_QUIET_MAX at most. It is ended with no file closed, so what it published stands. The next slice of a
 // file it was given starts it again, the file opened with its stored slice and the editor's text, the language each
 // sliced file opened as stored by its key
 #include "../command_line/cells.h"
@@ -30,10 +30,10 @@ typedef struct
     const char *path;
     char *language;
 } ServersSaveCtx;
-// the running place of `server` given the tree's slices, CLI_SERVERS_MOST where none is; with the servers' lock taken
-EMBED_INLINE unsigned int save_place(const ServersSaveCtx *args)
+// the running place of `server` given the tree's slices, CLI_SERVERS_MAX where none is; with the servers' lock taken
+EMBED_INLINE unsigned int save_position(const ServersSaveCtx *args)
 {
-    for (unsigned int at = 0u; at < CLI_SERVERS_MOST; at += 1u)
+    for (unsigned int at = 0u; at < CLI_SERVERS_MAX; at += 1u)
     {
         const CliServerRunning *const one = &g_cli_servers.running[at];
         if (one->used && (one->lsp == args->server) && one->spec.slices)
@@ -41,17 +41,19 @@ EMBED_INLINE unsigned int save_place(const ServersSaveCtx *args)
             return at;
         }
     }
-    return CLI_SERVERS_MOST;
+    return CLI_SERVERS_MAX;
 }
 
 // how many asks of the running place `one` came within the last minute, `now` the time
-EMBED_INLINE unsigned int save_asks_recent(const ServersSaveCtx *args)
+EMBED_INLINE unsigned int save_requests_recent(const ServersSaveCtx *args)
 {
-    const unsigned int saved = (args->one->asks < CLI_SERVERS_ASKS) ? (unsigned int)args->one->asks : CLI_SERVERS_ASKS;
+    const unsigned int saved = (args->one->pending_requests < CLI_SERVERS_REQUESTS)
+                                   ? (unsigned int)args->one->pending_requests
+                                   : CLI_SERVERS_REQUESTS;
     unsigned int recent = 0u;
     for (unsigned int at = 0u; at < saved; at += 1u)
     {
-        recent += ((args->now - args->one->asked[at]) <= CLI_SERVERS_ASKS_WITHIN) ? 1u : 0u;
+        recent += ((args->now - args->one->requested[at]) <= CLI_SERVERS_REQUESTS_WITHIN) ? 1u : 0u;
     }
     return recent;
 }
@@ -60,8 +62,8 @@ EMBED_INLINE unsigned int save_asks_recent(const ServersSaveCtx *args)
 EMBED_INLINE unsigned long long save_quiet(const ServersSaveCtx *args)
 {
     const unsigned long long earned =
-        CLI_SERVERS_QUIET_LEAST + ((unsigned long long)save_asks_recent(args) * CLI_SERVERS_QUIET_EACH);
-    return (earned < CLI_SERVERS_QUIET_MOST) ? earned : CLI_SERVERS_QUIET_MOST;
+        CLI_SERVERS_QUIET_MIN + ((unsigned long long)save_requests_recent(args) * CLI_SERVERS_QUIET_EACH);
+    return (earned < CLI_SERVERS_QUIET_MAX) ? earned : CLI_SERVERS_QUIET_MAX;
 }
 
 // the servers given the tree's slices that may be let go looked at every CLI_SERVERS_SAVE_LOOK, each let go once
@@ -74,14 +76,14 @@ static void save_watch(void *context)
         EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx,
                    .milliseconds = (unsigned int)CLI_SERVERS_SAVE_LOOK);
         // a slice owing its diagnostics, or the tree's check running, saves every one
-        if (cli_servers_slices_owed() || cli_servers_checking())
+        if (cli_servers_slices_pending() || cli_servers_checking())
         {
             continue;
         }
-        CliLsp *going[CLI_SERVERS_MOST];
+        CliLsp *going[CLI_SERVERS_MAX];
         unsigned int goes = 0u;
         const unsigned long long now = cli_clock_milliseconds();
-        for (unsigned int at = 0u; at < CLI_SERVERS_MOST; at += 1u)
+        for (unsigned int at = 0u; at < CLI_SERVERS_MAX; at += 1u)
         {
             CliServerRunning *const one = &g_cli_servers.running[at];
             if (one->used && one->spec.slices && (one->waits == 0u) &&
@@ -113,37 +115,37 @@ static void save_watcher_start(void)
 EMBED_INLINE void save_request(const ServersSaveCtx *args)
 {
     int waits = args->waits;
-    const unsigned int at = save_place(args);
-    if (at < CLI_SERVERS_MOST)
+    const unsigned int at = save_position(args);
+    if (at < CLI_SERVERS_MAX)
     {
         CliServerRunning *const one = &g_cli_servers.running[at];
         const unsigned long long now = cli_clock_milliseconds();
         if (waits >= 0)
         {
-            one->asked[one->asks % CLI_SERVERS_ASKS] = now;
-            one->asks += 1ull;
+            one->requested[one->pending_requests % CLI_SERVERS_REQUESTS] = now;
+            one->pending_requests += 1ull;
         }
         one->waits =
             (waits > 0) ? (one->waits + 1u) : (((waits < 0) && (one->waits > 0u)) ? (one->waits - 1u) : one->waits);
         one->quiet_from = now;
     }
-    if (at < CLI_SERVERS_MOST)
+    if (at < CLI_SERVERS_MAX)
     {
         save_watcher_start();
     }
 }
 
-void cli_servers_ask_begin(const CliServersCtx *args)
+void cli_servers_request_begin(const CliServersCtx *args)
 {
     EMBED_CALL(save_request, ServersSaveCtx, .server = args->server_read, .waits = 1);
 }
 
-void cli_servers_ask_end(const CliServersCtx *args)
+void cli_servers_request_end(const CliServersCtx *args)
 {
     EMBED_CALL(save_request, ServersSaveCtx, .server = args->server_read, .waits = -1);
 }
 
-void cli_servers_ask_note(const CliServersCtx *args)
+void cli_servers_request_note(const CliServersCtx *args)
 {
     EMBED_CALL(save_request, ServersSaveCtx, .server = args->server_read, .waits = 0);
 }
@@ -152,15 +154,15 @@ void cli_servers_language_note(const CliServersPathLanguageCtx *args)
 {
     char key[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = args->path, .key_out = key);
-    (void)EMBED_CALL(cli_keyed_key_beside.put, CliKeyedKeyBesideCfg, .keyed_out = &s_languages, .key = key,
-                     .beside_value = args->language, .text = "", .size_value = 0ull);
+    (void)EMBED_CALL(cli_keyed_key_adjacent.put, CliKeyedKeyAdjacentCfg, .keyed_out = &s_languages, .key = key,
+                     .adjacent_value = args->language, .text = "", .size_value = 0ull);
 }
 
 void cli_servers_language_forgotten(const CliServersPathLspCtx *args)
 {
     char key[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = args->path, .key_out = key);
-    EMBED_CALL(cli_keyed_key_beside.remove, CliKeyedKeyBesideCfg, .keyed_out = &s_languages, .key = key);
+    EMBED_CALL(cli_keyed_key_adjacent.remove, CliKeyedKeyAdjacentCfg, .keyed_out = &s_languages, .key = key);
 }
 
 // the language the sliced file at `path` opened as into `language`, sized for CLI_NAME_MAX_LEN: 1, or 0 where none is
@@ -172,13 +174,13 @@ EMBED_INLINE int save_language_get(const ServersSaveCtx *args)
     EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = path, .key_out = key);
     const char *named = NULL;
     unsigned long long size = 0ull;
-    const int found = (EMBED_CALL(cli_keyed_key_beside.get, CliKeyedKeyBesideCfg, .keyed = &s_languages, .key = key,
-                                  .beside = &named, .size = &size) != NULL) &&
+    const int found = (EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &s_languages, .key = key,
+                                  .adjacent = &named, .size = &size) != NULL) &&
                       (named != NULL);
     VerbaLinea line = {args->language, CLI_NAME_MAX_LEN, 0ull};
     mmgr_line_put(&line, found ? named : "");
-    const int whole = mmgr_line_finish(&line) != 0ull;
-    return found && whole;
+    const int integer = mmgr_line_finish(&line) != 0ull;
+    return found && integer;
 }
 
 CliLsp *cli_servers_owner_start(const CliServersPathLspCtx *args)
@@ -211,7 +213,7 @@ CliLsp *cli_servers_owner_start(const CliServersPathLspCtx *args)
                                              .language = language, .sink = &sink, .spec = spec, .err_msg = &err_msg)
                                 : NULL;
         unsigned long long size = 0ull;
-        char *const text = (server != NULL) ? EMBED_CALL(cli_servers_path_size_kind.text_take,
+        char *const text = (server != NULL) ? EMBED_CALL(cli_servers_path_size_kind.text_alloc,
                                                          CliServersPathSizeKindCfg, .path = path, .size_pointer = &size)
                                             : NULL;
         char id[CLI_NAME_MAX_LEN];

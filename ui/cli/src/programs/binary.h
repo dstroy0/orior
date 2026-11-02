@@ -39,7 +39,7 @@ typedef struct CliBinaryCfg CliBinaryCfg;
 // folder of the machine that built the program; or nowhere
 enum
 {
-    CLI_FOUND_BESIDE,
+    CLI_FOUND_ADJACENT,
     CLI_FOUND_SYSTEM,
     CLI_FOUND_REDISTRIBUTABLE,
     CLI_FOUND_DEBUG_RUNTIME,
@@ -83,10 +83,10 @@ void cli_binary_report_print(const CliBinaryReportCfg *args);
 int cli_binary_print(const CliBinaryPathOriorPathCountCfg *args);
 // each library the program loads through a PATH, this machine's or orior's, copied beside it, each name handed to
 // `copied`: 1, or 0 with why given
-int cli_binary_copy_beside(const CliBinaryPathCfg *args);
+int cli_binary_copy_adjacent(const CliBinaryPathCfg *args);
 
 // what binary.c and binary_elf.c share: a little-endian number read from the bytes at `at`, 0 past their end; the text
-// ended by a 0 at `at` into `out`, sized for `room`: 1, or 0 where it has no end; a Linux program's libraries read
+// ended by a 0 at `at` into `out`, sized for `capacity`: 1, or 0 where it has no end; a Linux program's libraries read
 // into the report; and the folders the Linux loader looks in after a program's own run paths into `folders`, which
 // contain CLI_BINARY_LINUX_FOLDERS, those /etc/ld.so.conf names and the files it includes, then the system's own
 // library folders: their count
@@ -96,7 +96,7 @@ int cli_binary_elf_read(const CliBinaryPathReportCfg *args);
 unsigned int cli_binary_linux_folders(const CliBinaryCfg *args);
 
 // A Windows program's machine and the DLLs it imports, the delay-loaded ones among them, each put once, case aside,
-// after the names from `count`, which are sized for `room`: the count after, or -1 with why given (binary.c)
+// after the names from `count`, which are sized for `capacity`: the count after, or -1 with why given (binary.c)
 int cli_pe_imports(const CliBinaryErrMsgCfg *args);
 
 // What a dynamic section gives: its needed libraries, its RPATH and RUNPATH, and the newest glibc it requires
@@ -121,7 +121,7 @@ struct CliBinaryErrMsgCfg
     unsigned int *machine;
     char (*names)[CLI_NAME_MAX_LEN];
     int count_i32;
-    unsigned int room_u32;
+    unsigned int capacity_u32;
 };
 
 struct CliBinaryPathCfg
@@ -157,7 +157,7 @@ struct CliBinaryBytesCfg
     unsigned long long size;
     unsigned long long at;
     char *out;
-    unsigned long long room;
+    unsigned long long capacity;
 };
 
 struct CliBinaryBytesSizeCfg
@@ -224,11 +224,11 @@ EMBED_TABLE_STORAGE CliBinaryPathOriorPathCountNs cli_binary_path_orior_path_cou
 
 typedef struct
 {
-    int (*copy_beside)(const CliBinaryPathCfg *args);
+    int (*copy_adjacent)(const CliBinaryPathCfg *args);
 } CliBinaryPathNs;
-EMBED_TABLE_LAYOUT(CliBinaryPathNs, copy_beside);
+EMBED_TABLE_LAYOUT(CliBinaryPathNs, copy_adjacent);
 EMBED_TABLE_STORAGE CliBinaryPathNs cli_binary_path EMBED_UNUSED = {
-    .copy_beside = cli_binary_copy_beside,
+    .copy_adjacent = cli_binary_copy_adjacent,
 };
 
 typedef struct

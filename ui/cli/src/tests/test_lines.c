@@ -103,7 +103,7 @@ int cli_test_unittest_line(const CliTestRunsSizeLineCtx *args)
         return 0;
     }
     const unsigned long long dotted_size =
-        EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = args->line + open + 2ull,
+        EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = args->line + open + 2ull,
                    .at = split - open - 2ull, .set = ")");
     unsigned long long tail = split + 5ull;
     unsigned long long tail_size = args->size - tail;
@@ -137,7 +137,7 @@ int cli_test_unittest_line(const CliTestRunsSizeLineCtx *args)
     *outcome = ok ? "passed" : failed ? "failed" : "skipped";
     return EMBED_CALL(cli_test_runs_length_internal.test_unittest_id, CliTestRunsLengthCtx,
                       .dotted = args->line + open + 2ull, .length = dotted_size, .id_out = args->id_out,
-                      .room = args->room);
+                      .capacity = args->capacity);
 }
 
 void cli_test_dot(const CliTestRunsCtx *args)
@@ -169,7 +169,7 @@ void cli_test_dot(const CliTestRunsCtx *args)
         rest = next;
     }
     mmgr_line_finish(&line);
-    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = args->words,
+    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
                .word = dotted);
 }
 
@@ -201,7 +201,7 @@ int cli_test_unittest_id(const CliTestRunsLengthCtx *args)
     {
         return 0;
     }
-    VerbaLinea line = {args->id_out, args->room, 0ull};
+    VerbaLinea line = {args->id_out, args->capacity, 0ull};
     for (unsigned long long at = 0ull; at + 1ull < class_start; at += 1ull)
     {
         mmgr_line_ch(&line, (args->dotted[at] == '.') ? '/' : args->dotted[at]);

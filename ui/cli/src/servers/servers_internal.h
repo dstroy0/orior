@@ -49,13 +49,13 @@ typedef struct CliServersJsonOutCtx CliServersJsonOutCtx;
 typedef struct CliServersSizeCommandCtx CliServersSizeCommandCtx;
 typedef struct CliServersPathIdCtx CliServersPathIdCtx;
 typedef struct CliServersRootOutCtx CliServersRootOutCtx;
-typedef struct CliServersReadingCtx CliServersReadingCtx;
+typedef struct CliServersReadStateCtx CliServersReadStateCtx;
 typedef struct CliServersKeyCtx CliServersKeyCtx;
 typedef struct CliServersJsonOutHelpCtx CliServersJsonOutHelpCtx;
 typedef struct CliServersPathLineCtx CliServersPathLineCtx;
 typedef struct CliServersPathLineFromCtx CliServersPathLineFromCtx;
 typedef struct CliServersJsonNodeOtherwiseCtx CliServersJsonNodeOtherwiseCtx;
-typedef struct CliServersReadingAnswerCtx CliServersReadingAnswerCtx;
+typedef struct CliServersReadStateAnswerCtx CliServersReadStateAnswerCtx;
 typedef struct CliServersServerCommandCtx CliServersServerCommandCtx;
 typedef struct CliServersUriCtx CliServersUriCtx;
 typedef struct CliServersQueueAtCtx CliServersQueueAtCtx;
@@ -81,7 +81,7 @@ typedef struct CliServersRootKindCtx CliServersRootKindCtx;
 
 // the most servers running, toolchains that failed and that ended, words a server starts with, languages and
 // extensions' names of one, and checkers named
-#define CLI_SERVERS_MOST 16u
+#define CLI_SERVERS_MAX 16u
 #define CLI_SERVERS_FAILED 64u
 #define CLI_SERVERS_ARGS 32u
 #define CLI_SERVERS_LANGUAGES 64u
@@ -117,11 +117,11 @@ typedef struct CliServersRootKindCtx CliServersRootKindCtx;
 typedef struct
 {
     CliJson json;
-} CliServersReading;
+} CliServersReadState;
 
 // a reading's lock taken; and its tree given back with the lock (servers_shapes.c)
-void cli_servers_reading_lock(const CliServersReadingAnswerCtx *args);
-void cli_servers_reading_release(const CliServersReadingAnswerCtx *args);
+void cli_servers_read_state_lock(const CliServersReadStateAnswerCtx *args);
+void cli_servers_read_state_release(const CliServersReadStateAnswerCtx *args);
 
 // A toolchain's server: its toolchain and its name, its program, the words it starts with, the languages it serves, the
 // protocol's name for each extension's language, the line that installs it, the file that marks a project, the
@@ -150,11 +150,11 @@ typedef struct
 
 // the asks a server given the tree's slices remembers the times of; and the quiet it is let go after, in
 // milliseconds: the least, what each ask of the last minute adds, the most, and the minute
-#define CLI_SERVERS_ASKS 128u
-#define CLI_SERVERS_QUIET_LEAST 2000ull
+#define CLI_SERVERS_REQUESTS 128u
+#define CLI_SERVERS_QUIET_MIN 2000ull
 #define CLI_SERVERS_QUIET_EACH 500ull
-#define CLI_SERVERS_QUIET_MOST 60000ull
-#define CLI_SERVERS_ASKS_WITHIN 60000ull
+#define CLI_SERVERS_QUIET_MAX 60000ull
+#define CLI_SERVERS_REQUESTS_WITHIN 60000ull
 
 // A server running: whether its place is taken, the server, and its spec; and for a server given the tree's slices,
 // the asks waiting on it, the times of its last asks in a ring and how many it was asked, and when it was last asked
@@ -165,8 +165,8 @@ typedef struct
     CliLsp *lsp;
     CliServerSpec spec;
     unsigned int waits;
-    unsigned long long asked[CLI_SERVERS_ASKS];
-    unsigned long long asks;
+    unsigned long long requested[CLI_SERVERS_REQUESTS];
+    unsigned long long pending_requests;
     unsigned long long quiet_from;
 } CliServerRunning;
 
@@ -175,7 +175,7 @@ typedef struct
 typedef struct
 {
     char root[CLI_PATH_MAX_LEN];
-    CliServerRunning running[CLI_SERVERS_MOST];
+    CliServerRunning running[CLI_SERVERS_MAX];
     char failed_tool[CLI_SERVERS_FAILED][CLI_NAME_MAX_LEN];
     char failed_msg[CLI_SERVERS_FAILED][1024];
     unsigned int failed;
@@ -199,18 +199,18 @@ typedef struct
     char id[CLI_NAME_MAX_LEN];
 } CliServersWaiting;
 
-// A file waiting for the tree's check: its path in the paths' room and its size, and its server and language
+// A file waiting for the tree's check: its path in the paths' capacity and its size, and its server and language
 typedef struct
 {
     unsigned long long path;
     unsigned int size;
-    unsigned int whole;
+    unsigned int integer;
     CliLsp *server;
 } CliServersQueued;
 
-// The tree's check: whether it is on, its tree, where what it reports goes; its room, four cells each with its most:
-// the tree's files' paths, where each starts, the files waiting in order from `head` in a ring, and their paths; how
-// many it was given and how many are done, and whether its threads started
+// The tree's check: whether it is on, its tree, where what it reports goes; its capacity, four cells each with its
+// most: the tree's files' paths, where each starts, the files waiting in order from `head` in a ring, and their paths;
+// how many it was given and how many are done, and whether its threads started
 typedef struct
 {
     int on;
@@ -218,32 +218,32 @@ typedef struct
     CliServersSink sink;
     int has_sink;
     char *files;
-    unsigned long long files_most;
+    unsigned long long files_max;
     unsigned long long files_used;
     unsigned long long *file_at;
-    unsigned int file_at_most;
+    unsigned int file_at_max;
     unsigned int file_count;
     CliServersQueued *waiting;
-    unsigned int waiting_most;
+    unsigned int waiting_max;
     unsigned int head;
     unsigned int count;
-    char *room;
-    unsigned long long room_most;
+    char *capacity;
+    unsigned long long capacity_max;
     unsigned long long used;
     unsigned long long total;
     unsigned long long done;
     int started;
 } CliServersQueue;
 
-// the check's room given back, where `queue` has one; taken where it has none, sized from the tree's files: 1, or 0
+// the check's capacity given back, where `queue` has one; taken where it has none, sized from the tree's files: 1, or 0
 // where the cells cannot meet it; the place of the `at`th file waiting; a file put in the queue, at its front where
-// `front`: 1, or 0 where it has no room; and the tree's files recorded, those of `files` and those recorded before.
-// Each with the queue's lock acquired (servers_check_room.c)
-void cli_servers_check_room_free(const CliServersQueueFilesCtx *args);
-int cli_servers_check_room_init(const CliServersQueueFilesCtx *args);
+// `front`: 1, or 0 where it has no capacity; and the tree's files recorded, those of `files` and those recorded before.
+// Each with the queue's lock acquired (servers_check_capacity.c)
+void cli_servers_check_work_state_free(const CliServersQueueFilesCtx *args);
+int cli_servers_check_work_state_init(const CliServersQueueFilesCtx *args);
 CliServersQueued *cli_servers_check_queued_at(const CliServersQueueAtCtx *args);
-int cli_servers_check_queue_put(const CliServersQueueCtx *args);
-void cli_servers_check_files_put(const CliServersQueueFilesCtx *args);
+int cli_servers_check_queue_append(const CliServersQueueCtx *args);
+void cli_servers_check_files_append(const CliServersQueueFilesCtx *args);
 
 // the texts of the files the editor has open, by their keys with their paths, and the parses as last read, by their
 // keys with their texts' hashes, under the texts' lock (servers_files.c)
@@ -258,11 +258,11 @@ extern CliKeyed g_cli_servers_parses;
 extern CliKeyed g_cli_servers_published;
 extern CliKeyed g_cli_servers_inspected;
 extern CliKeyed g_cli_servers_checked;
-extern CliKeyed g_cli_servers_given;
+extern CliKeyed g_cli_servers_input;
 extern CliKeyed g_cli_servers_supplied;
 
 // the most bytes of a job of the servers: a file's text and what is reported of it
-#define CLI_SERVERS_JOB_ROOM (CLI_SERVERS_LARGEST + (64ull << 10u))
+#define CLI_SERVERS_JOB_CAPACITY (CLI_SERVERS_LARGEST + (64ull << 10u))
 
 // A job of the servers done on one of their threads, from `size` bytes of it, its own copy of what it was handed
 typedef void (*CliServersJob)(const CliServersJobCfg *args);
@@ -293,9 +293,9 @@ CliLsp *cli_servers_owner_answering(const CliServersPathLspCtx *args);
 // diagnostics, the tree's check is not running and each has been quiet for as long as its asks of the last minute
 // earn it, watched on a thread of their own started with the first; the language a file given its server as a slice
 // opened as stored, for it to be opened again in the server started after it, and let go as it closes (servers_save.c)
-void cli_servers_ask_begin(const CliServersCtx *args);
-void cli_servers_ask_end(const CliServersCtx *args);
-void cli_servers_ask_note(const CliServersCtx *args);
+void cli_servers_request_begin(const CliServersCtx *args);
+void cli_servers_request_end(const CliServersCtx *args);
+void cli_servers_request_note(const CliServersCtx *args);
 void cli_servers_language_note(const CliServersPathLanguageCtx *args);
 void cli_servers_language_forgotten(const CliServersPathLspCtx *args);
 void cli_servers_id_get(const CliServersPathLanguageCtx *args);
@@ -310,19 +310,19 @@ void cli_servers_recv(const CliLspRecvCfg *args);
 // (servers_running.c)
 void cli_servers_stop_later(const CliServersPathLspCtx *args);
 
-// `size` bytes of JSON read into `reading`'s tree, taken to their size, the tree it contained given back: its root, or
-// CLI_JSON_NONE where it is no JSON or the cells cannot meet it; a server's answer read the same way and its message
+// `size` bytes of JSON read into `read_state`'s tree, taken to their size, the tree it contained given back: its root,
+// or CLI_JSON_NONE where it is no JSON or the cells cannot meet it; a server's answer read the same way and its message
 // given back; a number as a whole number, `otherwise` where the node is none or no number; and the place
 // `{"line", "character"}` (servers_shapes.c)
-unsigned int cli_servers_read(const CliServersReadingCtx *args);
-unsigned int cli_servers_answer_read(const CliServersReadingAnswerCtx *args);
+unsigned int cli_servers_read(const CliServersReadStateCtx *args);
+unsigned int cli_servers_answer_read(const CliServersReadStateAnswerCtx *args);
 // `method` sent to `server` with the params the line `params` holds, its answer handed over in `answer`: 1, or 0 with
 // why given, a line that did not fit its params refused with no server reached; and the same with the params of a
 // request about the place `line`, `col` of `path`, `added` after the place where it is given
 int cli_servers_request(const CliServersErrMsgCtx *args);
 int cli_servers_request_at(const CliServersPathCtx *args);
-unsigned long long cli_servers_whole(const CliServersJsonNodeOtherwiseCtx *args);
-CliTextPlace cli_servers_place(const CliServersJsonNodeOtherwiseCtx *args);
+unsigned long long cli_servers_json_integer(const CliServersJsonNodeOtherwiseCtx *args);
+CliTextPosition cli_servers_position(const CliServersJsonNodeOtherwiseCtx *args);
 // a path written as a JSON string as it stands in `tree` (servers_shapes.c)
 void cli_servers_path_write(const CliServersPathErrMsgCtx *args);
 // a workspace edit, in either of the shapes the protocol allows, as each file's edits, `[{"path", "edits"}]`, each
@@ -342,13 +342,11 @@ void cli_servers_item_get(const CliServersJsonOneCtx *args);
 // a call's signature written, `null` where the server gave none; a code action written, `{"orior_plugin", "action"}`
 // its raw where the server of the plugin `plugin` offers it: 1, or 0 where it has no title; and whether the span
 // `from`, `to` shares a place with `range`, a span with no width touching the other counting (servers_offers.c)
-void cli_servers_signature_get(const CliServersJsonOutHelpCtx *args);
-int cli_servers_action_get(const CliServersJsonCtx *args);
+CliSignaturePanel *cli_servers_signature_get(const CliServersJsonOutHelpCtx *args);
 int cli_servers_overlaps(const CliServersJsonFromCtx *args);
 // a diagnostic of the server's written as orior's, `{"from", "to", "severity", "message", "markdown", "source",
 // "code", "href"}`; and a location written as `{"path", "line", "col"}`: 1, or 0 where it names no file
 void cli_servers_diagnostic_get(const CliServersJsonCtx *args);
-int cli_servers_found_get(const CliServersJsonTreeCtx *args);
 
 // whether the server's capabilities name `name` as on, as neither absent, null nor false; and the spans of the
 // editor's text of `path` that contain `from` to `to` and are more than it, the least first, the tree's, read off the
@@ -358,15 +356,13 @@ int cli_servers_found_get(const CliServersJsonTreeCtx *args);
 int cli_servers_capable(const CliServersServerCtx *args);
 // whether the member `inner` of the capability `name` is true
 int cli_servers_capable_true(const CliServersServerCtx *args);
-// a member of `node` written as JSON, `null` where it has none (servers_actions.c)
-void cli_servers_member_write(const CliServersJsonNodeCtx *args);
 // whether the server runs the command `command` itself, as its executeCommandProvider lists it
 int cli_servers_capable_command(const CliServersServerCommandCtx *args);
 int cli_servers_selection(const CliServersPathErrMsgOutCtx *args);
 
 // the hash of `size` bytes of `text`, FNV-1a over its bytes, to determine whether what was read of a text is still
 // what it reads (servers_parse.c)
-unsigned long long cli_servers_hash_get(const CliServersReadingCtx *args);
+unsigned long long cli_servers_hash_get(const CliServersReadStateCtx *args);
 
 // a file the editor has open, `size` bytes of `text`, given `server` as the tree's slice for its view, the lines 0 to
 // 63 until the page hands one, as the file opened as `id` where `id` is not NULL, else as its next version, the slice's
@@ -376,7 +372,7 @@ unsigned long long cli_servers_hash_get(const CliServersReadingCtx *args);
 // (servers_slice.c)
 int cli_servers_slice_send(const CliServersPathSizeRootCtx *args);
 int cli_servers_slice(const CliServersPathLspCtx *args);
-int cli_servers_slices_owed(void);
+int cli_servers_slices_pending(void);
 void cli_servers_slice_close(const CliServersPathLspCtx *args);
 // the line of the slice of the file at `path` that came from its own line `line` into `into`: 1, or 0 where none did,
 // a file given whole its own line; and a line of the slice moved to the file and line it came from, `from` the file's
@@ -410,23 +406,13 @@ typedef int (*CliServersWindow)(const CliServersWindowCfg *args);
 int cli_servers_slices_cut(const CliServersPathSizeRootErrMsgCtx *args);
 int cli_servers_cut_send(const CliServersErrMsgServerCtx *args);
 
-// for a file at `path` its server is given as a slice, answered from the tree whose top is `tree`: the definition in
-// effect of the name at `line`, `col`, written as `[{"path", "line", "col"}]`, `[]` where the tree knows none, 1, or 0
-// with why given; the usages of the name, each `{"path", "from", "to", "text"}`; whether it can be renamed, `{"from",
-// "to", "name"}`; and the edits that rename it to `name`, each file's `{"path", "edits"}`. Each of these 1, 0 with
-// nothing written where the tree knows no definition of the name, or -1 with why given (servers_usages.c)
-int cli_servers_definition_write(const CliServersPathErrMsgCtx *args);
-int cli_servers_usages_write(const CliServersPathErrMsgCtx *args);
-int cli_servers_renamable_write(const CliServersPathErrMsgCtx *args);
-int cli_servers_rename_write(const CliServersPathErrMsgCtx *args);
-
 // a file's key and its URI, each into what is sized for CLI_PATH_MAX_LEN (servers_emit.c)
 void cli_servers_key_get(const CliServersPathKeyCtx *args);
 void cli_servers_uri_get(const CliServersPathUriCtx *args);
 // a file's diagnostics passed on whole: its server's, less its reports of an attribute a class's family sets and of a
 // name a build tool gives it, then the inspections', then each checker's; and a checker's findings stored, `[[path,
 // [diagnostic]]]`, each file's diagnostics passed on whose findings changed (servers_emit.c)
-void cli_servers_emit_whole(const CliServersSinkKeyCtx *args);
+void cli_servers_emit_file(const CliServersSinkKeyCtx *args);
 // every file it names passed on where `always`, changed or the same, as a file the editor opens receives its findings
 // (servers_findings.c)
 void cli_servers_findings_store(const CliServersSizeCtx *args);
@@ -458,13 +444,12 @@ void cli_servers_plugins_close(const CliServersPathLspCtx *args);
 // `{command, arguments}`, passed to the plugin as `orior/command` (servers_plugins.c)
 CliLsp *cli_servers_plugin_get(const CliServersErrMsgServerCtx *args);
 CliLsp *cli_servers_plugin_owner_get(const CliServersPathIdCtx *args);
-void cli_servers_plugin_command(const CliServersSizeCommandCtx *args);
 // the program a plugin's server starts as, found by its toolchain where `server` in `json` names one, into `program`,
 // and the folder it was found in into `folder`, each sized for CLI_PATH_MAX_LEN: 1, or 0 with why given; the
 // `length` bytes of `text` written into `written` with each `{folder}` in them `folder`, escaped for a JSON string
 // where `escaped`; and the arguments of `server` put into `words` the same way (servers_plugins_program.c)
 int cli_servers_plugin_program(const CliServersErrMsgJsonCtx *args);
-void cli_servers_plugin_folder_put(const CliServersTextCtx *args);
+void cli_servers_plugin_folder_append(const CliServersTextCtx *args);
 void cli_servers_plugin_args(const CliServersJsonServerCtx *args);
 // one file checked with each checker named for its language, on a thread of its own; a file orior_cli reads itself
 // checked as its text stands; and every file of the tree orior_cli reads itself checked as the disk stores it
@@ -485,7 +470,7 @@ int cli_servers_check_on(void);
 // the tree's check's queue taken to a file let go, as the editor closes one, the file taken for the check and the
 // server referenced for the queue: 1 where the check is on and took it, 0 where the caller closes it; with the taken
 // files' lock acquired (servers_check.c)
-int cli_servers_check_takes(const CliServersPathLspCtx *args);
+int cli_servers_check_allocs(const CliServersPathLspCtx *args);
 // the lock a server is written to about a file under, by the check or by the editor, which the check's taken files are
 // guarded by; whether a file is taken for the check and not for the editor; and a file taken, or let go; each with the
 // lock acquired
@@ -633,8 +618,8 @@ struct CliServersPathErrMsgOutCtx
     const char *path;
     VerbaLinea *err_msg;
     VerbaLinea *out;
-    CliTextPlace from;
-    CliTextPlace to;
+    CliTextPosition from;
+    CliTextPosition to;
     const char *key;
 };
 
@@ -680,6 +665,7 @@ struct CliServersJsonCtx
     VerbaLinea *out;
     unsigned int one;
     const char *plugin;
+    CliServerDiagnostic *diagnostic;
 };
 
 struct CliServersOnCtx
@@ -789,8 +775,8 @@ struct CliServersJsonNodeCtx
 struct CliServersJsonFromCtx
 {
     const CliJson *json;
-    CliTextPlace from;
-    CliTextPlace to;
+    CliTextPosition from;
+    CliTextPosition to;
     unsigned int range;
 };
 
@@ -903,9 +889,9 @@ struct CliServersRootOutCtx
     const char *name;
 };
 
-struct CliServersReadingCtx
+struct CliServersReadStateCtx
 {
-    CliServersReading *reading;
+    CliServersReadState *read_state;
     unsigned long long size;
     const char *text;
 };
@@ -920,8 +906,8 @@ struct CliServersKeyCtx
 struct CliServersJsonOutHelpCtx
 {
     const CliJson *json;
-    VerbaLinea *out;
     unsigned int help;
+    CellOwner *owner;
 };
 
 struct CliServersPathLineCtx
@@ -935,7 +921,7 @@ struct CliServersPathLineFromCtx
 {
     const char *path;
     unsigned int *line_pointer;
-    char *from_room;
+    char *from_capacity;
 };
 
 struct CliServersJsonNodeOtherwiseCtx
@@ -945,9 +931,9 @@ struct CliServersJsonNodeOtherwiseCtx
     unsigned long long otherwise;
 };
 
-struct CliServersReadingAnswerCtx
+struct CliServersReadStateAnswerCtx
 {
-    CliServersReading *reading;
+    CliServersReadState *read_state;
     CliLspAnswer *answer;
 };
 
@@ -1011,28 +997,28 @@ struct CliServersRootKindCtx
 
 typedef struct
 {
-    void (*reading_lock)(const CliServersReadingAnswerCtx *args);
-    void (*reading_release)(const CliServersReadingAnswerCtx *args);
-    unsigned int (*answer_read)(const CliServersReadingAnswerCtx *args);
-} CliServersReadingAnswerNs;
-EMBED_TABLE_LAYOUT(CliServersReadingAnswerNs, reading_lock, reading_release, answer_read);
-EMBED_TABLE_STORAGE CliServersReadingAnswerNs cli_servers_reading_answer_internal EMBED_UNUSED = {
-    .reading_lock = cli_servers_reading_lock,
-    .reading_release = cli_servers_reading_release,
+    void (*read_state_lock)(const CliServersReadStateAnswerCtx *args);
+    void (*read_state_release)(const CliServersReadStateAnswerCtx *args);
+    unsigned int (*answer_read)(const CliServersReadStateAnswerCtx *args);
+} CliServersReadStateAnswerNs;
+EMBED_TABLE_LAYOUT(CliServersReadStateAnswerNs, read_state_lock, read_state_release, answer_read);
+EMBED_TABLE_STORAGE CliServersReadStateAnswerNs cli_servers_read_state_answer_internal EMBED_UNUSED = {
+    .read_state_lock = cli_servers_read_state_lock,
+    .read_state_release = cli_servers_read_state_release,
     .answer_read = cli_servers_answer_read,
 };
 
 typedef struct
 {
-    void (*check_room_free)(const CliServersQueueFilesCtx *args);
-    int (*check_room_init)(const CliServersQueueFilesCtx *args);
-    void (*check_files_put)(const CliServersQueueFilesCtx *args);
+    void (*check_work_state_free)(const CliServersQueueFilesCtx *args);
+    int (*check_work_state_init)(const CliServersQueueFilesCtx *args);
+    void (*check_files_append)(const CliServersQueueFilesCtx *args);
 } CliServersQueueFilesNs;
-EMBED_TABLE_LAYOUT(CliServersQueueFilesNs, check_room_free, check_room_init, check_files_put);
+EMBED_TABLE_LAYOUT(CliServersQueueFilesNs, check_work_state_free, check_work_state_init, check_files_append);
 EMBED_TABLE_STORAGE CliServersQueueFilesNs cli_servers_queue_files_internal EMBED_UNUSED = {
-    .check_room_free = cli_servers_check_room_free,
-    .check_room_init = cli_servers_check_room_init,
-    .check_files_put = cli_servers_check_files_put,
+    .check_work_state_free = cli_servers_check_work_state_free,
+    .check_work_state_init = cli_servers_check_work_state_init,
+    .check_files_append = cli_servers_check_files_append,
 };
 
 typedef struct
@@ -1046,11 +1032,11 @@ EMBED_TABLE_STORAGE CliServersQueueAtNs cli_servers_queue_at_internal EMBED_UNUS
 
 typedef struct
 {
-    int (*check_queue_put)(const CliServersQueueCtx *args);
+    int (*check_queue_append)(const CliServersQueueCtx *args);
 } CliServersQueueNs;
-EMBED_TABLE_LAYOUT(CliServersQueueNs, check_queue_put);
+EMBED_TABLE_LAYOUT(CliServersQueueNs, check_queue_append);
 EMBED_TABLE_STORAGE CliServersQueueNs cli_servers_queue_internal EMBED_UNUSED = {
-    .check_queue_put = cli_servers_check_queue_put,
+    .check_queue_append = cli_servers_check_queue_append,
 };
 
 typedef struct
@@ -1092,10 +1078,10 @@ typedef struct
     int (*slice)(const CliServersPathLspCtx *args);
     void (*slice_close)(const CliServersPathLspCtx *args);
     void (*plugins_close)(const CliServersPathLspCtx *args);
-    int (*check_takes)(const CliServersPathLspCtx *args);
+    int (*check_allocs)(const CliServersPathLspCtx *args);
 } CliServersPathLspNs;
 EMBED_TABLE_LAYOUT(CliServersPathLspNs, owner_get, owner_start, owner_answering, language_forgotten, stop_later, slice,
-                   slice_close, plugins_close, check_takes);
+                   slice_close, plugins_close, check_allocs);
 EMBED_TABLE_STORAGE CliServersPathLspNs cli_servers_path_lsp_internal EMBED_UNUSED = {
     .owner_get = cli_servers_owner_get,
     .owner_start = cli_servers_owner_start,
@@ -1105,22 +1091,22 @@ EMBED_TABLE_STORAGE CliServersPathLspNs cli_servers_path_lsp_internal EMBED_UNUS
     .slice = cli_servers_slice,
     .slice_close = cli_servers_slice_close,
     .plugins_close = cli_servers_plugins_close,
-    .check_takes = cli_servers_check_takes,
+    .check_allocs = cli_servers_check_allocs,
 };
 
 typedef struct
 {
     int (*slicing)(const CliServersCtx *args);
-    void (*ask_begin)(const CliServersCtx *args);
-    void (*ask_end)(const CliServersCtx *args);
-    void (*ask_note)(const CliServersCtx *args);
+    void (*request_begin)(const CliServersCtx *args);
+    void (*request_end)(const CliServersCtx *args);
+    void (*request_note)(const CliServersCtx *args);
 } CliServersNsTable;
-EMBED_TABLE_LAYOUT(CliServersNsTable, slicing, ask_begin, ask_end, ask_note);
+EMBED_TABLE_LAYOUT(CliServersNsTable, slicing, request_begin, request_end, request_note);
 EMBED_TABLE_STORAGE CliServersNsTable cli_servers_internal EMBED_UNUSED = {
     .slicing = cli_servers_slicing,
-    .ask_begin = cli_servers_ask_begin,
-    .ask_end = cli_servers_ask_end,
-    .ask_note = cli_servers_ask_note,
+    .request_begin = cli_servers_request_begin,
+    .request_end = cli_servers_request_end,
+    .request_note = cli_servers_request_note,
 };
 
 typedef struct
@@ -1154,11 +1140,11 @@ EMBED_TABLE_STORAGE CliLspRecvNs cli_lsp_recv EMBED_UNUSED = {
 
 typedef struct
 {
-    unsigned int (*read)(const CliServersReadingCtx *args);
-    unsigned long long (*hash_get)(const CliServersReadingCtx *args);
-} CliServersReadingNs;
-EMBED_TABLE_LAYOUT(CliServersReadingNs, read, hash_get);
-EMBED_TABLE_STORAGE CliServersReadingNs cli_servers_reading_internal EMBED_UNUSED = {
+    unsigned int (*read)(const CliServersReadStateCtx *args);
+    unsigned long long (*hash_get)(const CliServersReadStateCtx *args);
+} CliServersReadStateNs;
+EMBED_TABLE_LAYOUT(CliServersReadStateNs, read, hash_get);
+EMBED_TABLE_STORAGE CliServersReadStateNs cli_servers_read_state_internal EMBED_UNUSED = {
     .read = cli_servers_read,
     .hash_get = cli_servers_hash_get,
 };
@@ -1183,32 +1169,23 @@ EMBED_TABLE_STORAGE CliServersPathNsTable cli_servers_path_internal EMBED_UNUSED
 
 typedef struct
 {
-    unsigned long long (*whole)(const CliServersJsonNodeOtherwiseCtx *args);
-    CliTextPlace (*place)(const CliServersJsonNodeOtherwiseCtx *args);
+    unsigned long long (*integer)(const CliServersJsonNodeOtherwiseCtx *args);
+    CliTextPosition (*place)(const CliServersJsonNodeOtherwiseCtx *args);
 } CliServersJsonNodeOtherwiseNs;
-EMBED_TABLE_LAYOUT(CliServersJsonNodeOtherwiseNs, whole, place);
+EMBED_TABLE_LAYOUT(CliServersJsonNodeOtherwiseNs, integer, place);
 EMBED_TABLE_STORAGE CliServersJsonNodeOtherwiseNs cli_servers_json_node_otherwise_internal EMBED_UNUSED = {
-    .whole = cli_servers_whole,
-    .place = cli_servers_place,
+    .integer = cli_servers_json_integer,
+    .place = cli_servers_position,
 };
 
 typedef struct
 {
     void (*path_write)(const CliServersPathErrMsgCtx *args);
-    int (*definition_write)(const CliServersPathErrMsgCtx *args);
-    int (*usages_write)(const CliServersPathErrMsgCtx *args);
-    int (*renamable_write)(const CliServersPathErrMsgCtx *args);
-    int (*rename_write)(const CliServersPathErrMsgCtx *args);
     void (*tree_path)(const CliServersPathErrMsgCtx *args);
 } CliServersPathErrMsgNs;
-EMBED_TABLE_LAYOUT(CliServersPathErrMsgNs, path_write, definition_write, usages_write, renamable_write, rename_write,
-                   tree_path);
+EMBED_TABLE_LAYOUT(CliServersPathErrMsgNs, path_write, tree_path);
 EMBED_TABLE_STORAGE CliServersPathErrMsgNs cli_servers_path_err_msg_internal EMBED_UNUSED = {
     .path_write = cli_servers_path_write,
-    .definition_write = cli_servers_definition_write,
-    .usages_write = cli_servers_usages_write,
-    .renamable_write = cli_servers_renamable_write,
-    .rename_write = cli_servers_rename_write,
     .tree_path = cli_servers_tree_path,
 };
 
@@ -1250,7 +1227,7 @@ EMBED_TABLE_STORAGE CliServersJsonOneNs cli_servers_json_one_internal EMBED_UNUS
 
 typedef struct
 {
-    void (*signature_get)(const CliServersJsonOutHelpCtx *args);
+    CliSignaturePanel *(*signature_get)(const CliServersJsonOutHelpCtx *args);
 } CliServersJsonOutHelpNs;
 EMBED_TABLE_LAYOUT(CliServersJsonOutHelpNs, signature_get);
 EMBED_TABLE_STORAGE CliServersJsonOutHelpNs cli_servers_json_out_help_internal EMBED_UNUSED = {
@@ -1259,12 +1236,10 @@ EMBED_TABLE_STORAGE CliServersJsonOutHelpNs cli_servers_json_out_help_internal E
 
 typedef struct
 {
-    int (*action_get)(const CliServersJsonCtx *args);
     void (*diagnostic_get)(const CliServersJsonCtx *args);
 } CliServersJsonNs;
-EMBED_TABLE_LAYOUT(CliServersJsonNs, action_get, diagnostic_get);
+EMBED_TABLE_LAYOUT(CliServersJsonNs, diagnostic_get);
 EMBED_TABLE_STORAGE CliServersJsonNs cli_servers_json_internal EMBED_UNUSED = {
-    .action_get = cli_servers_action_get,
     .diagnostic_get = cli_servers_diagnostic_get,
 };
 
@@ -1279,15 +1254,6 @@ EMBED_TABLE_STORAGE CliServersJsonFromNs cli_servers_json_from_internal EMBED_UN
 
 typedef struct
 {
-    int (*found_get)(const CliServersJsonTreeCtx *args);
-} CliServersJsonTreeNs;
-EMBED_TABLE_LAYOUT(CliServersJsonTreeNs, found_get);
-EMBED_TABLE_STORAGE CliServersJsonTreeNs cli_servers_json_tree_internal EMBED_UNUSED = {
-    .found_get = cli_servers_found_get,
-};
-
-typedef struct
-{
     int (*capable)(const CliServersServerCtx *args);
     int (*capable_true)(const CliServersServerCtx *args);
 } CliServersServerNs;
@@ -1295,15 +1261,6 @@ EMBED_TABLE_LAYOUT(CliServersServerNs, capable, capable_true);
 EMBED_TABLE_STORAGE CliServersServerNs cli_servers_server_internal EMBED_UNUSED = {
     .capable = cli_servers_capable,
     .capable_true = cli_servers_capable_true,
-};
-
-typedef struct
-{
-    void (*member_write)(const CliServersJsonNodeCtx *args);
-} CliServersJsonNodeNs;
-EMBED_TABLE_LAYOUT(CliServersJsonNodeNs, member_write);
-EMBED_TABLE_STORAGE CliServersJsonNodeNs cli_servers_json_node_internal EMBED_UNUSED = {
-    .member_write = cli_servers_member_write,
 };
 
 typedef struct
@@ -1411,12 +1368,12 @@ EMBED_TABLE_STORAGE CliServersPathUriNs cli_servers_path_uri_internal EMBED_UNUS
 
 typedef struct
 {
-    void (*emit_whole)(const CliServersSinkKeyCtx *args);
+    void (*emit_file)(const CliServersSinkKeyCtx *args);
     void (*emit_reporting_attributes)(const CliServersSinkKeyCtx *args);
 } CliServersSinkKeyNs;
-EMBED_TABLE_LAYOUT(CliServersSinkKeyNs, emit_whole, emit_reporting_attributes);
+EMBED_TABLE_LAYOUT(CliServersSinkKeyNs, emit_file, emit_reporting_attributes);
 EMBED_TABLE_STORAGE CliServersSinkKeyNs cli_servers_sink_key_internal EMBED_UNUSED = {
-    .emit_whole = cli_servers_emit_whole,
+    .emit_file = cli_servers_emit_file,
     .emit_reporting_attributes = cli_servers_emit_reporting_attributes,
 };
 
@@ -1477,15 +1434,6 @@ EMBED_TABLE_STORAGE CliServersPathIdNs cli_servers_path_id_internal EMBED_UNUSED
 
 typedef struct
 {
-    void (*plugin_command)(const CliServersSizeCommandCtx *args);
-} CliServersSizeCommandNs;
-EMBED_TABLE_LAYOUT(CliServersSizeCommandNs, plugin_command);
-EMBED_TABLE_STORAGE CliServersSizeCommandNs cli_servers_size_command_internal EMBED_UNUSED = {
-    .plugin_command = cli_servers_plugin_command,
-};
-
-typedef struct
-{
     int (*plugin_program)(const CliServersErrMsgJsonCtx *args);
 } CliServersErrMsgJsonNs;
 EMBED_TABLE_LAYOUT(CliServersErrMsgJsonNs, plugin_program);
@@ -1495,11 +1443,11 @@ EMBED_TABLE_STORAGE CliServersErrMsgJsonNs cli_servers_err_msg_json_internal EMB
 
 typedef struct
 {
-    void (*plugin_folder_put)(const CliServersTextCtx *args);
+    void (*plugin_folder_append)(const CliServersTextCtx *args);
 } CliServersTextNs;
-EMBED_TABLE_LAYOUT(CliServersTextNs, plugin_folder_put);
+EMBED_TABLE_LAYOUT(CliServersTextNs, plugin_folder_append);
 EMBED_TABLE_STORAGE CliServersTextNs cli_servers_text_internal EMBED_UNUSED = {
-    .plugin_folder_put = cli_servers_plugin_folder_put,
+    .plugin_folder_append = cli_servers_plugin_folder_append,
 };
 
 typedef struct

@@ -40,29 +40,29 @@ static void assert_scans_agree(const char *set, unsigned int every)
         for (unsigned int at = 0u; at <= size; at += (at < 80u) ? 1u : 29u)
         {
             unsigned int to = at;
-            unsigned int past = at;
+            unsigned int end = at;
             unsigned int back = at;
-            unsigned int back_past = at;
+            unsigned int back_end = at;
             while ((to < size) && !byte_in_set(s_text[to], set))
             {
                 to += 1u;
             }
-            while ((past < size) && byte_in_set(s_text[past], set))
+            while ((end < size) && byte_in_set(s_text[end], set))
             {
-                past += 1u;
+                end += 1u;
             }
             while ((back > 0u) && !byte_in_set(s_text[back - 1u], set))
             {
                 back -= 1u;
             }
-            while ((back_past > 0u) && byte_in_set(s_text[back_past - 1u], set))
+            while ((back_end > 0u) && byte_in_set(s_text[back_end - 1u], set))
             {
-                back_past -= 1u;
+                back_end -= 1u;
             }
             TEST_ASSERT_EQUAL_UINT64(to, EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = s_text, .at = at, .size = size, .set = set));
-            TEST_ASSERT_EQUAL_UINT64(past, EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = s_text, .at = at, .size = size, .set = set));
+            TEST_ASSERT_EQUAL_UINT64(end, EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = s_text, .at = at, .size = size, .set = set));
             TEST_ASSERT_EQUAL_UINT64(back, EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = s_text, .at = at, .set = set));
-            TEST_ASSERT_EQUAL_UINT64(back_past, EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = s_text, .at = at, .set = set));
+            TEST_ASSERT_EQUAL_UINT64(back_end, EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = s_text, .at = at, .set = set));
         }
     }
 }
@@ -87,12 +87,12 @@ void test_one_byte_is_found_at_its_first_and_last_position(void)
     assert_scans_agree("\n", 7u);
 }
 
-void test_one_byte_is_found_past_a_lanes_width(void)
+void test_one_byte_is_found_end_a_lanes_width(void)
 {
     assert_scans_agree("\n", 97u);
 }
 
-void test_a_set_of_two_scans_to_the_first_and_past_the_run(void)
+void test_a_set_of_two_scans_to_the_first_and_end_the_run(void)
 {
     assert_scans_agree(" x", 7u);
 }
@@ -102,14 +102,14 @@ void test_the_whitespace_set_agrees(void)
     assert_scans_agree(CLI_TEXT_WHITE, 31u);
 }
 
-void test_a_position_past_the_bound_stays_for_the_forward_scan(void)
+void test_a_position_end_the_bound_stays_for_the_forward_scan(void)
 {
     TEST_ASSERT_EQUAL_UINT64(9ull, EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = s_text, .at = 9u, .size = 3u, .set = "x"));
 }
 
-void test_a_position_past_the_bound_stays_for_the_past_scan(void)
+void test_a_position_end_the_bound_stays_for_the_end_scan(void)
 {
-    TEST_ASSERT_EQUAL_UINT64(9ull, EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = s_text, .at = 9u, .size = 3u, .set = "x"));
+    TEST_ASSERT_EQUAL_UINT64(9ull, EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = s_text, .at = 9u, .size = 3u, .set = "x"));
 }
 
 void test_a_line_stops_at_its_newline_and_cuts_before_its_carriage_return(void)
@@ -147,14 +147,14 @@ void test_a_last_line_with_no_newline_stops_at_the_end(void)
 void test_a_text_is_copied(void)
 {
     char copied[8];
-    EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_room = copied, .text = "ab", .otherwise = "c");
+    EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_capacity = copied, .text = "ab", .otherwise = "c");
     TEST_ASSERT_EQUAL_STRING("ab", copied);
 }
 
 void test_the_fallback_is_copied_where_the_text_is_null(void)
 {
     char copied[8];
-    EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_room = copied, .text = NULL, .otherwise = "c");
+    EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_capacity = copied, .text = NULL, .otherwise = "c");
     TEST_ASSERT_EQUAL_STRING("c", copied);
 }
 
@@ -167,9 +167,9 @@ void test_letters_are_raised_to_upper_case(void)
 
 void test_a_number_reads_its_digits_and_reports_where_they_stop(void)
 {
-    unsigned long long past = 0ull;
-    TEST_ASSERT_EQUAL_UINT64(42ull, EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = "  42x", .at = 2ull, .size = 5ull, .end = &past));
-    TEST_ASSERT_EQUAL_UINT64(4ull, past);
+    unsigned long long end = 0ull;
+    TEST_ASSERT_EQUAL_UINT64(42ull, EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = "  42x", .at = 2ull, .size = 5ull, .end = &end));
+    TEST_ASSERT_EQUAL_UINT64(4ull, end);
 }
 
 void test_a_pair_is_found_where_it_is(void)
@@ -182,7 +182,7 @@ void test_a_pair_that_is_absent_reports_the_end(void)
     TEST_ASSERT_EQUAL_UINT64(4ull, EMBED_CALL(cli_text_at_size_first.to_pair, CliTextAtSizeFirstCfg, .text = "a--b", .at = 0ull, .size = 4ull, .first = 'x', .second = 'y'));
 }
 
-void test_a_scan_past_classes_stops_at_the_first_byte_of_neither(void)
+void test_a_scan_end_classes_stops_at_the_first_byte_of_neither(void)
 {
-    TEST_ASSERT_EQUAL_UINT64(3ull, EMBED_CALL(cli_text_at_size_classes.past_class, CliTextAtSizeClassesCfg, .text = "ab1 ", .at = 0ull, .size = 4ull, .classes = CLI_TEXT_LETTERS | CLI_TEXT_DIGITS, .set = ""));
+    TEST_ASSERT_EQUAL_UINT64(3ull, EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = "ab1 ", .at = 0ull, .size = 4ull, .classes = CLI_TEXT_LETTERS | CLI_TEXT_DIGITS, .set = ""));
 }

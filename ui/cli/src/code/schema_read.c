@@ -48,7 +48,7 @@ EMBED_INLINE int read_peek(const SchemaReadCtx *args)
 EMBED_INLINE unsigned int read_store(const SchemaReadCtx *args)
 {
     const char *bytes = args->bytes;
-    if ((args->read->used + args->size + 1ull) > args->read->pool_most)
+    if ((args->read->used + args->size + 1ull) > args->read->pool_max)
     {
         args->read->full = 1;
         return CLI_SCHEMA_POOL;
@@ -86,7 +86,7 @@ EMBED_INLINE void read_blank(const SchemaReadCtx *args)
     const unsigned long long size = args->reader->read->size;
     for (;;)
     {
-        args->reader->at = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = text,
+        args->reader->at = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = text,
                                       .at = args->reader->at, .size = size, .set = " \t\n\r\f");
         unsigned long long end = 0ull;
         if (EMBED_CALL(cli_text_size_prefix.starts, CliTextSizePrefixCfg, .text = text + args->reader->at,
@@ -94,18 +94,18 @@ EMBED_INLINE void read_blank(const SchemaReadCtx *args)
         {
             args->reader->at =
                 EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = text + args->reader->at,
-                           .length_value = size - args->reader->at, .wanted = "\n", .size = 1u, .at_pointer = &end)
+                           .length_value = size - args->reader->at, .required = "\n", .size = 1u, .at_pointer = &end)
                     ? args->reader->at + end
                     : size;
         }
         else if (EMBED_CALL(cli_text_size_prefix.starts, CliTextSizePrefixCfg, .text = text + args->reader->at,
                             .size = size - args->reader->at, .prefix = "/*"))
         {
-            args->reader->at =
-                EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = text + args->reader->at + 2u,
-                           .length_value = size - args->reader->at - 2u, .wanted = "*/", .size = 2u, .at_pointer = &end)
-                    ? args->reader->at + 2u + end + 2u
-                    : size;
+            args->reader->at = EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = text + args->reader->at + 2u,
+                                          .length_value = size - args->reader->at - 2u, .required = "*/", .size = 2u,
+                                          .at_pointer = &end)
+                                   ? args->reader->at + 2u + end + 2u
+                                   : size;
         }
         else
         {
@@ -181,7 +181,7 @@ static void read_string(const SchemaReadCtx *args)
             const int spaced = (hex[0] == ' ') || ((hex[0] >= '\t') && (hex[0] <= '\r')) || (hex[0] == '-');
             if (!spaced && (left == 4u) && (end == hex + 4) && ((value < 0xd800u) || (value > 0xdfffu)))
             {
-                EMBED_CALL(cli_line_letter_internal.utf8_put, CliLineLetterCtx, .line = args->out,
+                EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = args->out,
                            .letter = (unsigned int)value);
             }
             args->reader->at += left;
@@ -203,7 +203,7 @@ EMBED_INLINE unsigned int read_node(const SchemaReadCtx *args)
     unsigned char kind = args->kind;
     unsigned long long from = args->from;
     CliSchemaRead *const read = args->reader->read;
-    if (read->nodes >= read->nodes_most)
+    if (read->nodes >= read->nodes_max)
     {
         read->full = 1;
         return CLI_SCHEMA_NONE;
@@ -298,7 +298,7 @@ static unsigned int read_members(const SchemaReadCtx *args)
                 break;
             }
         }
-        if (read->members < read->members_most)
+        if (read->members < read->members_max)
         {
             const unsigned int at = read->members;
             read->member[at] = (CliSchemaMember){key_at, (unsigned int)key_size, from, to, value, CLI_SCHEMA_NONE};
@@ -419,7 +419,7 @@ EMBED_INLINE unsigned int read_word(const SchemaReadCtx *args)
 {
     const char *const text = args->reader->read->text;
     args->reader->at =
-        EMBED_CALL(cli_text_at_size_classes.past_class, CliTextAtSizeClassesCfg, .text = text, .at = args->reader->at,
+        EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = text, .at = args->reader->at,
                    .size = args->reader->read->size, .classes = CLI_TEXT_LETTERS, .set = "");
     const unsigned long long size = args->reader->at - args->from;
     const int is_true =
@@ -449,7 +449,7 @@ EMBED_INLINE unsigned int read_number(const SchemaReadCtx *args)
 {
     const char *const text = args->reader->read->text;
     args->reader->at =
-        EMBED_CALL(cli_text_at_size_classes.past_class, CliTextAtSizeClassesCfg, .text = text, .at = args->reader->at,
+        EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = text, .at = args->reader->at,
                    .size = args->reader->read->size, .classes = CLI_TEXT_DIGITS, .set = "+-.eE");
     char raw[512];
     const unsigned long long size = args->reader->at - args->from;
@@ -556,13 +556,13 @@ void cli_schema_read(const CliSchemaReadTextCtx *args)
     const unsigned long long keyed = (size / 5ull) + 2ull;
     const unsigned long long nodes = values + keyed + CLI_SCHEMA_CHECK_NODES;
     const unsigned long long pool = (2ull * size) + CLI_SCHEMA_READ_MORE;
-    args->read_out->nodes_most = (nodes < CLI_SCHEMA_NODES) ? (unsigned int)nodes : CLI_SCHEMA_NODES;
-    args->read_out->members_most = (keyed < CLI_SCHEMA_MEMBERS) ? (unsigned int)keyed : CLI_SCHEMA_MEMBERS;
-    args->read_out->pool_most = (pool < CLI_SCHEMA_POOL) ? (unsigned int)pool : CLI_SCHEMA_POOL;
-    const unsigned long long node_bytes = (unsigned long long)args->read_out->nodes_most * sizeof(CliSchemaNode);
-    const unsigned long long member_bytes = (unsigned long long)args->read_out->members_most * sizeof(CliSchemaMember);
+    args->read_out->nodes_max = (nodes < CLI_SCHEMA_NODES) ? (unsigned int)nodes : CLI_SCHEMA_NODES;
+    args->read_out->members_max = (keyed < CLI_SCHEMA_MEMBERS) ? (unsigned int)keyed : CLI_SCHEMA_MEMBERS;
+    args->read_out->pool_max = (pool < CLI_SCHEMA_POOL) ? (unsigned int)pool : CLI_SCHEMA_POOL;
+    const unsigned long long node_bytes = (unsigned long long)args->read_out->nodes_max * sizeof(CliSchemaNode);
+    const unsigned long long member_bytes = (unsigned long long)args->read_out->members_max * sizeof(CliSchemaMember);
     char *const cell =
-        g_cli_cells->temporary_buf_alloc(node_bytes + member_bytes + args->read_out->pool_most, &g_cli_schema_cells);
+        g_cli_cells->temporary_buf_alloc(node_bytes + member_bytes + args->read_out->pool_max, &g_cli_schema_cells);
     args->read_out->node = (CliSchemaNode *)(void *)cell;
     args->read_out->member = NULL;
     args->read_out->pool = NULL;
@@ -573,9 +573,9 @@ void cli_schema_read(const CliSchemaReadTextCtx *args)
     }
     else
     {
-        args->read_out->nodes_most = 0u;
-        args->read_out->members_most = 0u;
-        args->read_out->pool_most = 0u;
+        args->read_out->nodes_max = 0u;
+        args->read_out->members_max = 0u;
+        args->read_out->pool_max = 0u;
     }
     args->read_out->text = text;
     args->read_out->size = size;

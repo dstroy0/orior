@@ -34,7 +34,7 @@ const char *cli_symbols_declares(const CliSymbolsNameCtx *args)
     {
         unsigned long long found = 0ull;
         if (!EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = args->name + from,
-                        .length_value = length - from, .wanted = s_segment, .size = size, .at_pointer = &found))
+                        .length_value = length - from, .required = s_segment, .size = size, .at_pointer = &found))
         {
             return NULL;
         }
@@ -75,7 +75,7 @@ unsigned long long cli_symbols_byte_at(const CliSymbolsSizeCtx *args)
 // of its token's name its kind
 static void cli_symbols_line(const CliLeavesEachCfg *args)
 {
-    CliSymbolsLine *const reading = (CliSymbolsLine *)args->context;
+    CliSymbolsLine *const read_state = (CliSymbolsLine *)args->context;
     const char *const line = args->leaves->line;
     const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = line, .cap = CLI_CELLS_POOL});
     unsigned long long byte = 0ull;
@@ -95,11 +95,11 @@ static void cli_symbols_line(const CliLeavesEachCfg *args)
                        .name = args->leaves->text + args->leaves->name_at[args->leaves->name[run]]);
         if ((kind != NULL) && (kind[0] != '\0') && (to > from))
         {
-            EMBED_CALL(reading->each, CliDeclaredCfg, .context = reading->context, .name = line + from,
-                       .length = to - from, .kind = kind, .line = reading->line);
+            EMBED_CALL(read_state->each, CliDeclaredCfg, .context = read_state->context, .name = line + from,
+                       .length = to - from, .kind = kind, .line = read_state->line);
         }
     }
-    reading->line += 1u;
+    read_state->line += 1u;
 }
 
 // a language plugin's grammar noted where it has one, and whether it names a declaration, in the place of one of its id
@@ -109,11 +109,11 @@ static void cli_symbols_grammar_note(const CliEachPluginCfg *args)
     CliSymbolsLanguages *const read = (CliSymbolsLanguages *)args->context;
     CliJson json;
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &json,
-               .node_json_node_pointer = NULL, .nodes_most = 0u, .text_out = NULL, .text_most = 0ull);
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
     char why[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     const unsigned int root =
-        EMBED_CALL(cli_json_tree_text_size_err_msg.json_take_temporary, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
+        EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc_temporary, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
                    .text = args->plugin->text, .size = args->plugin->size, .nodes_more = 0u, .text_more = 0ull,
                    .err_msg = &err_msg, .owner = &g_cli_code_cells);
     const char *const kind =
@@ -134,7 +134,7 @@ static void cli_symbols_grammar_note(const CliEachPluginCfg *args)
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
     unsigned long long found = 0ull;
     const int declares = grammared && EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = args->plugin->text,
-                                                 .length_value = args->plugin->size, .wanted = "declaration.",
+                                                 .length_value = args->plugin->size, .required = "declaration.",
                                                  .size = 12u, .at_pointer = &found);
     unsigned int at = 0u;
     while ((at < read->grammars) && !cellul.eq(&(CatenaFinitaCfg){
@@ -262,11 +262,11 @@ void cli_symbols_declare(const CliSymbolsPathTextSizeCfg *args)
 
 void cli_symbols_declared_in(const CliSymbolsPathReadLanguagesCtx *args)
 {
-    CliSymbolsLine reading = {args->each, args->context, 0u};
+    CliSymbolsLine read_state = {args->each, args->context, 0u};
     (void)EMBED_CALL(cli_symbols_path_read_languages_text_internal.leaves_in, CliSymbolsPathReadLanguagesTextCtx,
                      .read_symbols_languages_pointer_other = args->read_symbols_languages_pointer_other,
                      .path = args->path, .state = "root", .text = args->text, .size = args->size,
-                     .each_leaves_each = cli_symbols_line, .context = &reading);
+                     .each_leaves_each = cli_symbols_line, .context = &read_state);
 }
 
 // the leaves of `size` bytes of `text` read by the grammar at `place` among `read`'s, the first line starting in
@@ -315,11 +315,11 @@ static int cli_symbols_leaves_at(const SymbolsReadCtx *args)
         }
     }
     // the state the first line starts in, root where it is longer than a state is saved
-    const unsigned long long given = cellul.len(&(CatenaFinitaCfg){.src = state, .cap = CLI_CELLS_POOL});
+    const unsigned long long supplied = cellul.len(&(CatenaFinitaCfg){.src = state, .cap = CLI_CELLS_POOL});
     char starting[CLI_SYMBOLS_STATE] = "root";
-    if ((given != 0ull) && (given < CLI_SYMBOLS_STATE))
+    if ((supplied != 0ull) && (supplied < CLI_SYMBOLS_STATE))
     {
-        memor.cpy(&(MemoriaCfg){.dst = starting, .src = state, .bytes = (size_t)given + 1u});
+        memor.cpy(&(MemoriaCfg){.dst = starting, .src = state, .bytes = (size_t)supplied + 1u});
     }
     unsigned long long at = 0ull;
     int colored = 1;

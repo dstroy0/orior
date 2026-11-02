@@ -18,7 +18,7 @@ static char s_body[1u << 16u];
 static char s_out[16u << 20u];
 static char s_big[CLI_REQUESTS_HISTORY_BODY_MAX + 10u];
 static char s_root[CLI_PATH_MAX_LEN];
-static char s_why[1024];
+static char s_error[1024];
 static int s_home_set;
 static int s_parsed_live;
 static const CliJson *s_json;
@@ -47,7 +47,7 @@ static void text_parsed(const char *text, unsigned long long size)
 }
 
 // the folder `name` of the run's, its api/v1 made, in s_root
-static void root_made(const char *name)
+static void root_created(const char *name)
 {
     char folder[CLI_PATH_MAX_LEN];
     cli_unity_folder(name, s_root);
@@ -60,7 +60,7 @@ static void root_made(const char *name)
 // the shared and the private environment files written
 static void environments_written(void)
 {
-    root_made("requests_values");
+    root_created("requests_values");
     cli_unity_file(s_root, "api/" CLI_REQUESTS_PUBLIC, "{\"$shared\": {\"who\": \"all\"}, \"dev\": {\"host\": \"localhost:1\", \"token\": \"none\"}, "
                                                        "\"prod\": {\"host\": \"example.com\"}}");
     cli_unity_file(s_root, CLI_REQUESTS_PRIVATE, "{\"dev\": {\"token\": \"secret\"}}");
@@ -74,10 +74,10 @@ static const char *value_of(const char *name)
 }
 
 // a tree with a shared environment file and a .gitignore, and the private file made
-static void private_made(VerbaLinea *out)
+static void private_created(VerbaLinea *out)
 {
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
-    root_made("requests_private");
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
+    root_created("requests_private");
     cli_unity_file(s_root, "api/" CLI_REQUESTS_PUBLIC, "{\"local\": {}, \"stage\": {}}");
     cli_unity_file(s_root, ".gitignore", "target");
     TEST_ASSERT_TRUE(EMBED_CALL(cli_requests_text_table.private_init, CliRequestsTextCfg, .root = s_root, .path = "api/calls.http", .out = out, .err_msg = &err_msg));
@@ -111,7 +111,7 @@ static int curl_read(const char *line)
     return text != NULL;
 }
 
-// a PUT of a header and a body set in s_sent and written as a curl line into `back`, which is sized for 4096
+// a APPEND of a header and a body set in s_sent and written as a curl line into `back`, which is sized for 4096
 static void curl_write(char *back)
 {
     char written[4096];
@@ -285,14 +285,14 @@ void test_a_files_read_is_sized_to_its_parts_and_twice_its_bytes(void)
 {
     static const char s_bare[] = "http://example.com/upload";
     text_parsed(s_bare, sizeof(s_bare) - 1u);
-    TEST_ASSERT_EQUAL_UINT(1u, s_parsed.requests_room);
-    TEST_ASSERT_LESS_OR_EQUAL_UINT64((2u * sizeof(s_bare)) + 64u, s_parsed.text_room);
+    TEST_ASSERT_EQUAL_UINT(1u, s_parsed.requests_capacity);
+    TEST_ASSERT_LESS_OR_EQUAL_UINT64((2u * sizeof(s_bare)) + 64u, s_parsed.text_capacity);
 }
 
 void test_the_environments_names_and_files_are_read(void)
 {
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     environments_written();
     TEST_ASSERT_TRUE(EMBED_CALL(cli_requests_text_table.environments, CliRequestsTextCfg, .root = s_root, .path = "api/v1/calls.http", .out = &out, .err_msg = &err_msg));
     CLI_TEST_ASSERT_TEXT("{\"names\":[\"dev\",\"prod\"],\"shared\":\"api/" CLI_REQUESTS_PUBLIC "\",\"private\":\"" CLI_REQUESTS_PRIVATE "\"}", s_out, out.at);
@@ -300,7 +300,7 @@ void test_the_environments_names_and_files_are_read(void)
 
 void test_the_private_values_are_over_the_shared_and_shared_reaches_every_environment(void)
 {
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     environments_written();
     TEST_ASSERT_TRUE(EMBED_CALL(cli_requests_err_msg_root_internal.values, CliRequestsErrMsgRootCtx, .root = s_root, .path = "api/v1/calls.http", .env = "dev", .values = &s_values, .err_msg = &err_msg));
     TEST_ASSERT_EQUAL_STRING("localhost:1", value_of("host"));
@@ -311,7 +311,7 @@ void test_the_private_values_are_over_the_shared_and_shared_reaches_every_enviro
 
 void test_the_environments_and_their_values_are_read_in_cells_each_released(void)
 {
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     environments_written();
     TEST_ASSERT_TRUE(EMBED_CALL(cli_requests_err_msg_root_internal.values, CliRequestsErrMsgRootCtx, .root = s_root, .path = "api/v1/calls.http", .env = "dev", .values = &s_values, .err_msg = &err_msg));
     EMBED_CALL(cli_requests_err_msg_root_internal.values_free, CliRequestsErrMsgRootCtx, .values = &s_values);
@@ -328,11 +328,11 @@ void test_a_certificate_is_checked_unless_the_environment_specifies_not_to(void)
     TEST_ASSERT_TRUE(EMBED_CALL(cli_requests_err_msg_root_internal.verifies, CliRequestsErrMsgRootCtx, .root = s_root, .path = "api/v1/calls.http", .env = "prod"));
 }
 
-void test_a_request_made_ready_has_its_key_address_and_body_filled_in(void)
+void test_a_request_created_ready_has_its_key_address_and_body_filled_in(void)
 {
     char key[256];
     VerbaLinea key_line = {key, sizeof(key), 0ull};
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     environments_written();
     char *const body_cell = g_cli_cells->temporary_buf_alloc(4096ull, &g_checks_cells);
     VerbaLinea body = {body_cell, 4096ull, 0ull};
@@ -346,7 +346,7 @@ void test_a_request_made_ready_has_its_key_address_and_body_filled_in(void)
 
 void test_no_environment_leaves_no_host_and_the_request_is_refused(void)
 {
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     environments_written();
     char *const body_cell = g_cli_cells->temporary_buf_alloc(4096ull, &g_checks_cells);
     VerbaLinea body = {body_cell, 4096ull, 0ull};
@@ -354,15 +354,15 @@ void test_no_environment_leaves_no_host_and_the_request_is_refused(void)
     (void)mmgr_line_finish(&err_msg);
     g_cli_cells->persistent_buf_release(body.out, &g_checks_cells);
     TEST_ASSERT_FALSE(ready);
-    CLI_TEST_ASSERT_CONTAINS("{{host}}", s_why);
+    CLI_TEST_ASSERT_CONTAINS("{{host}}", s_error);
 }
 
-void test_a_uuid_is_of_version_4_beside_a_timestamp(void)
+void test_a_uuid_is_of_version_4_adjacent_a_timestamp(void)
 {
     static CliRequestsValues s_none;
     static const char s_dynamic[] = "{{$uuid}} {{$timestamp}}";
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     TEST_ASSERT_TRUE(EMBED_CALL(cli_requests_text_size_internal.fill, CliRequestsTextSizeCtx, .text = s_dynamic, .size = sizeof(s_dynamic) - 1u, .values_read = &s_none, .out = &out, .err_msg = &err_msg));
     TEST_ASSERT_GREATER_THAN_UINT64(40ull, out.at);
     TEST_ASSERT_EQUAL_CHAR('4', s_out[14]);
@@ -382,10 +382,10 @@ void test_a_later_time_is_written_in_iso_form(void)
     CLI_TEST_ASSERT_TEXT("2025-10-09T08:53:20Z", s_out, out.at);
 }
 
-void test_the_private_file_is_made_beside_the_file(void)
+void test_the_private_file_is_created_adjacent_the_file(void)
 {
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    private_made(&out);
+    private_created(&out);
     CLI_TEST_ASSERT_TEXT("\"api/" CLI_REQUESTS_PRIVATE "\"", s_out, out.at);
 }
 
@@ -393,7 +393,7 @@ void test_the_private_file_has_the_shared_files_environments(void)
 {
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     unsigned int read = CLI_JSON_NONE;
-    private_made(&out);
+    private_created(&out);
     const unsigned long long size = body_read("api/" CLI_REQUESTS_PRIVATE);
     const CliJson *const json = cli_unity_parsed(s_body, size, &read);
     out.at = 0ull;
@@ -404,16 +404,16 @@ void test_the_private_file_has_the_shared_files_environments(void)
 void test_the_private_file_is_named_in_the_gitignore(void)
 {
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    private_made(&out);
+    private_created(&out);
     const unsigned long long size = body_read(".gitignore");
     CLI_TEST_ASSERT_TEXT("target\n" CLI_REQUESTS_PRIVATE "\n", s_body, size);
 }
 
-void test_the_private_file_made_again_stores_the_one_there_and_is_named_once(void)
+void test_the_private_file_created_again_stores_the_one_there_and_is_named_once(void)
 {
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
-    private_made(&out);
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
+    private_created(&out);
     out.at = 0ull;
     TEST_ASSERT_TRUE(EMBED_CALL(cli_requests_text_table.private_init, CliRequestsTextCfg, .root = s_root, .path = "api/calls.http", .out = &out, .err_msg = &err_msg));
     CLI_TEST_ASSERT_TEXT("\"api/" CLI_REQUESTS_PRIVATE "\"", s_out, out.at);
@@ -431,7 +431,7 @@ void test_a_curl_line_becomes_a_request(void)
                              s_out);
 }
 
-void test_curl_g_puts_the_data_in_the_address(void)
+void test_curl_g_appends_the_data_in_the_address(void)
 {
     TEST_ASSERT_TRUE(curl_read("curl -G https://h/s -d q=a -d n=2"));
     TEST_ASSERT_EQUAL_STRING("GET https://h/s?q=a&n=2\n", s_out);
@@ -443,7 +443,7 @@ void test_curl_u_is_basic_authorization(void)
     TEST_ASSERT_EQUAL_STRING("DELETE http://h/x\nAuthorization: Basic bWU6cHc=\n", s_out);
 }
 
-void test_curl_f_is_a_form_a_file_read_from_beside_it(void)
+void test_curl_f_is_a_form_a_file_read_from_adjacent_it(void)
 {
     TEST_ASSERT_TRUE(curl_read("curl -F name=me -F file=@a.png http://h/up"));
     CLI_TEST_ASSERT_CONTAINS("Content-Disposition: form-data; name=\"file\"; filename=\"a.png\"\n\n< a.png\n", s_out);
@@ -483,12 +483,12 @@ void test_a_request_stores_its_last_answers_the_last_first(void)
     TEST_ASSERT_EQUAL_UINT(CLI_REQUESTS_HISTORY_MAX, s_json->node[make].count);
     for (unsigned int at = 0u; at < CLI_REQUESTS_HISTORY_MAX; at += 1u)
     {
-        char wanted[16];
-        VerbaLinea line = {wanted, sizeof(wanted), 0ull};
+        char required[16];
+        VerbaLinea line = {required, sizeof(required), 0ull};
         const unsigned int when = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = s_json, .array = make, .index = at), .name = "at");
         mmgr_line_decimal(&line, CLI_REQUESTS_HISTORY_MAX + 1u - at, 1u);
         TEST_ASSERT_NOT_EQUAL(CLI_JSON_NONE, when);
-        CLI_TEST_ASSERT_TEXT(wanted, s_json->text + s_json->node[when].text, s_json->node[when].length);
+        CLI_TEST_ASSERT_TEXT(required, s_json->text + s_json->node[when].text, s_json->node[when].length);
     }
 }
 

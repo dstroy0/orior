@@ -41,7 +41,7 @@ typedef struct
 // bytes over to begin with, an empty one where it is not there or does not read: its root, CLI_JSON_NONE where the
 // tree's cell is refused, the tree given back with cli_json_free either way; and the JSON files of `folder` into
 // `files`, by name, in order, and the cell they are stored in given back (state.c)
-unsigned int cli_state_place(const CliStateCtx *args);
+unsigned int cli_state_position(const CliStateCtx *args);
 unsigned int cli_state_map_read(const CliStateJsonCtx *args);
 void cli_state_json_files(const CliStateFolderCtx *args);
 void cli_state_json_files_free(const CliStateFolderCtx *args);
@@ -71,7 +71,7 @@ typedef struct
 } CliStateNsTable;
 EMBED_TABLE_LAYOUT(CliStateNsTable, place);
 EMBED_TABLE_STORAGE CliStateNsTable cli_state_internal EMBED_UNUSED = {
-    .place = cli_state_place,
+    .place = cli_state_position,
 };
 
 typedef struct

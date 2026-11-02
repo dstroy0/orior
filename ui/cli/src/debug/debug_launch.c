@@ -17,7 +17,7 @@ typedef struct
     const char *root;
     const CliDebugPlan *plan;
     VerbaLinea *err_msg;
-    const CliDebugSession *place_read;
+    const CliDebugSession *position_read;
     const CliDebugAnswer *answer;
     const CliJson *json;
     unsigned int options;
@@ -26,10 +26,10 @@ typedef struct
     unsigned long long milliseconds;
 } DebugLaunchCtx;
 // a place given back whose session never had an adapter
-EMBED_INLINE void launch_place_free(const DebugLaunchCtx *args)
+EMBED_INLINE void launch_position_free(const DebugLaunchCtx *args)
 {
     CliDebugSession *place = args->place;
-    EMBED_CALL(cli_debug_internal.place_free, CliDebugCtx, .place = place);
+    EMBED_CALL(cli_debug_internal.position_free, CliDebugCtx, .place = place);
 }
 
 // the adapter started as the plan specifies: run in orior_cli for a recorded run, connected to where a debugger already
@@ -63,7 +63,7 @@ EMBED_INLINE CliDap *launch_adapter(const DebugLaunchCtx *args)
         EMBED_CALL(cli_toolchains_json_count.folders_for, CliToolchainsJsonCountCfg, .json = json,
                    .by_system = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                            .object = args->plan->spec, .name = "path"),
-                   .folders = s_folders[session_at], .count = 0u, .room = CLI_DEBUG_ADAPTER_FOLDERS);
+                   .folders = s_folders[session_at], .count = 0u, .capacity = CLI_DEBUG_ADAPTER_FOLDERS);
     EMBED_CALL(cli_toolchains_count_path.run_path_with, CliToolchainsCountPathCfg,
                .ahead = (const char (*)[CLI_PATH_MAX_LEN])s_folders[session_at], .count = folders,
                .path = s_path[session_at], .size = sizeof(s_path[session_at]));
@@ -135,7 +135,7 @@ EMBED_INLINE void launch_info(const DebugLaunchCtx *args)
     const unsigned int filters = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = reply,
                                             .object = capabilities, .name = "exceptionBreakpointFilters");
     memor.set(&(MemoriaCfg){.dst = args->info, .val = 0, .bytes = sizeof(*args->info)});
-    args->info->id = args->place_read->info.id;
+    args->info->id = args->position_read->info.id;
     memor.cpy(
         &(MemoriaCfg){.dst = args->info->name,
                       .src = args->plan->name,
@@ -242,7 +242,7 @@ static void launch_configure(const DebugLaunchCtx *args)
 {
     const char *root = args->root;
     const CliJson *json = args->json;
-    static char s_placed[CLI_DEBUG_SESSIONS][1u << 16u];
+    static char s_positioned[CLI_DEBUG_SESSIONS][1u << 16u];
     const unsigned int session_at = (unsigned int)(args->place - g_cli_debug.sessions);
     const unsigned int breakpoints = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                 .json_read = json, .object = args->options, .name = "breakpoints");
@@ -253,20 +253,20 @@ static void launch_configure(const DebugLaunchCtx *args)
     for (unsigned int file = first; file != CLI_JSON_NONE; file = json->node[file].next)
     {
         const char *const path = json->text + json->node[file].key;
-        if (!EMBED_CALL(cli_debug_file_internal.takes, CliDebugFileCtx, .language = args->info_read->language,
+        if (!EMBED_CALL(cli_debug_file_internal.allocs, CliDebugFileCtx, .language = args->info_read->language,
                         .file = path))
         {
             continue;
         }
         char full[CLI_PATH_MAX_LEN];
         char why[CLI_ERR_MSG_MAX_LEN];
-        VerbaLinea placed = {s_placed[session_at], sizeof(s_placed[session_at]), 0ull};
+        VerbaLinea positioned = {s_positioned[session_at], sizeof(s_positioned[session_at]), 0ull};
         VerbaLinea err_msg = {why, sizeof(why), 0ull};
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = path, .joined = full);
         (void)EMBED_CALL(cli_debug_session_internal.set, CliDebugSessionCtx, .session = args->place, .file = full,
-                         .json = json, .breakpoints = file, .out = &placed, .err_msg = &err_msg);
+                         .json = json, .breakpoints = file, .out = &positioned, .err_msg = &err_msg);
     }
-    CliDebugAnswer *const answer = cli_debug_answer_take();
+    CliDebugAnswer *const answer = cli_debug_answer_alloc();
     mmgr_line_put(&answer->args, "{\"filters\":[");
     unsigned int written = 0u;
     for (unsigned int at = 0u; at < args->info_read->filter_count; at += 1u)
@@ -308,7 +308,7 @@ int cli_debug_start(const CliDebugRootCfg *args)
 {
     CliDebugSink sink = args->sink;
     VerbaLinea *err_msg = args->err_msg;
-    CliDebugSession *const place = cli_debug_place();
+    CliDebugSession *const place = cli_debug_position();
     if (place == NULL)
     {
         mmgr_line_put(err_msg, "four debug sessions run already; end one to start another");
@@ -319,7 +319,7 @@ int cli_debug_start(const CliDebugRootCfg *args)
                     .json = args->json, .start = args->start, .options = args->options, .plan = &plan,
                     .err_msg = err_msg))
     {
-        EMBED_CALL(launch_place_free, DebugLaunchCtx, .place = place);
+        EMBED_CALL(launch_position_free, DebugLaunchCtx, .place = place);
         return 0;
     }
     g_cli_debug.next += 1ull;
@@ -330,10 +330,10 @@ int cli_debug_start(const CliDebugRootCfg *args)
                             .err_msg = err_msg);
     if (place->dap == NULL)
     {
-        EMBED_CALL(launch_place_free, DebugLaunchCtx, .place = place);
+        EMBED_CALL(launch_position_free, DebugLaunchCtx, .place = place);
         return 0;
     }
-    CliDebugAnswer *const answer = cli_debug_answer_take();
+    CliDebugAnswer *const answer = cli_debug_answer_alloc();
     mmgr_line_put(&answer->args, "{\"clientID\":\"orior\",\"clientName\":\"orior\",\"adapterID\":");
     const char *const adapter_id =
         EMBED_CALL(cli_debug_json_node_fallback_internal.text, CliDebugJsonNodeFallbackCtx, .json = &place->start,
@@ -364,7 +364,7 @@ int cli_debug_start(const CliDebugRootCfg *args)
         return EMBED_CALL(launch_fail, DebugLaunchCtx, .place = place, .plan = &plan, .err_msg = err_msg);
     }
     CliDebugInfo info;
-    EMBED_CALL(launch_info, DebugLaunchCtx, .place_read = place, .plan = &plan, .answer = answer, .json = args->json,
+    EMBED_CALL(launch_info, DebugLaunchCtx, .position_read = place, .plan = &plan, .answer = answer, .json = args->json,
                .options = args->options, .info = &info);
     EMBED_CALL(cli_debug_session_command_internal.answer_free, CliDebugSessionCommandCtx, .answer = answer);
     // an adapter that reports it is ready before the launch, as gdb does, runs the program as the launch comes: its
@@ -406,7 +406,7 @@ int cli_debug_start(const CliDebugRootCfg *args)
         EMBED_CALL(launch_configure, DebugLaunchCtx, .place = place, .root = args->root, .json = args->json,
                    .options = args->options, .info_read = &info);
     }
-    CliDebugAnswer *const done = cli_debug_answer_take();
+    CliDebugAnswer *const done = cli_debug_answer_alloc();
     const int configured = EMBED_CALL(cli_debug_session_command_internal.request, CliDebugSessionCommandCtx,
                                       .session = place, .command = "configurationDone", .answer = done,
                                       .wait = CLI_DEBUG_REQUEST_TIMEOUT_MS, .err_msg = err_msg);
@@ -433,7 +433,7 @@ int cli_debug_start(const CliDebugRootCfg *args)
     memor.cpy(&(MemoriaCfg){.dst = place->program,
                             .src = adapter_id,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = adapter_id, .cap = CLI_CELLS_POOL}) + 1u});
-    place->listed = 1;
+    place->list_entries = 1;
     EMBED_CALL(cli_debug_info_internal.info_write, CliDebugInfoCtx, .info = &info, .out = args->out);
     return 1;
 }

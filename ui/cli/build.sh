@@ -301,7 +301,7 @@ if [ "$WINDOW" = 1 ]; then
             RESOURCES=("$OUT/$GUI_NAME.res") ;;
     esac
     listed_into "$OUT/$GUI_NAME.objects" "${OBJECTS[@]}" "$OUT/plugins_bundled.o" "${TARGET_OBJECTS[@]}" "${RESOURCES[@]}"
-    ( cd "$TOP" && "$CC" "--target=$TARGET" "${LINK_WORDS[@]}" -o "${OUT#"$TOP/"}/$GUI_NAME$SUFFIX" \
+    ( cd "$TOP" && "$CC" "--target=$TARGET" -g "${LINK_WORDS[@]}" -o "${OUT#"$TOP/"}/$GUI_NAME$SUFFIX" \
         "@${OUT#"$TOP/"}/$GUI_NAME.objects" "${LIBRARIES[@]}" "${GUI_LIBRARIES[@]}" ) \
         || { echo "  build failed: $GUI_NAME did not link"; exit 1; }
     echo "  built ${OUT#"$TOP/"}/$GUI_NAME$SUFFIX"

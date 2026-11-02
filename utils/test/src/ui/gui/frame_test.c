@@ -37,7 +37,7 @@ int main(void)
               "the work's inside is the work less its padding");
     cli_check(EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = frame.side) && (frame.side.x == 44 + 1), "no side stands in the work until one is shown");
 
-    EMBED_CALL(gui_frame_shown.side, GuiFrameShownCfg, .frame = &frame, .shown = 1);
+    EMBED_CALL(gui_frame_displayed.side, GuiFrameDisplayedCfg, .frame = &frame, .displayed = 1);
     cli_check(same(frame.side, 44 + 1, 41 + 2, 304, 920 - 41 - 27 - 3),
               "the side shown stands at the inside's left, three hundred and four wide");
     cli_check(same(frame.tabs, 44 + 1 + 304, 41 + 2, 1440 - 44 - 12 - 3 - 304, 31), "the tabs row moves past the side");
@@ -45,9 +45,9 @@ int main(void)
                   (frame.editor.y == 41 + 2 + 31),
               "the editor moves past the side");
     cli_check((frame.map.x == 1440 - 12 - 2 - 84) && (frame.map.width == 84), "the map's column stays at the right");
-    EMBED_CALL(gui_frame_shown.side, GuiFrameShownCfg, .frame = &frame, .shown = 0);
+    EMBED_CALL(gui_frame_displayed.side, GuiFrameDisplayedCfg, .frame = &frame, .displayed = 0);
     cli_check(EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = frame.side) && same(frame.tabs, 44 + 1, 41 + 2, 1440 - 44 - 12 - 3, 31),
-              "the side taken away gives the tabs row its room back");
+              "the side taken away gives the tabs row its capacity back");
 
     EMBED_CALL(gui_frame_scale.layout, GuiFrameScaleCfg, .frame = &frame, .width = 2880u, .height = 1840u, .scale = 200);
     cli_check(same(frame.bar, 0, 0, 2880, 82), "at twice the scale the bar is twice as tall");
@@ -72,16 +72,16 @@ int main(void)
     // the claim: the work takes the window less the gap, the bar, the strip and the status bar off it, the tabs row
     // and the map away
     EMBED_CALL(gui_frame_scale.layout, GuiFrameScaleCfg, .frame = &frame, .width = 1440u, .height = 920u, .scale = 100);
-    GuiClaimNumbers numbers = frame.claim;
+    GuiAutohideNumbers numbers = frame.claim;
     cli_check(EMBED_CALL(cli_frame_holes.holes, GuiFrameHolesCfg, .frame_read = &frame, .holes = NULL) == 0u, "no claim makes no holes in the work");
-    cli_check(same(frame.bar_slat, 0, 0, 1440, 41) && same(frame.strip_slat, 0, 41, 44, 920 - 41 - 27) &&
-                  same(frame.status_slat, 0, 920 - 27, 1440, 27),
+    cli_check(same(frame.bar_band, 0, 0, 1440, 41) && same(frame.strip_band, 0, 41, 44, 920 - 41 - 27) &&
+                  same(frame.status_band, 0, 920 - 27, 1440, 27),
               "outside the claim each slat is its part whole");
-    cli_check((frame.bar_edges.top == 0) && (frame.bar_edges.bottom == 41 * GUI_WHOLE) && (frame.bar_edges.left == 0) &&
-                  (frame.bar_edges.right == 1440 * GUI_WHOLE) && (frame.status_edges.top == (920 - 27) * GUI_WHOLE) &&
-                  (frame.strip_edges.right == 44 * GUI_WHOLE),
+    cli_check((frame.bar_edges.top == 0) && (frame.bar_edges.bottom == 41 * GUI_FIXED_ONE) && (frame.bar_edges.left == 0) &&
+                  (frame.bar_edges.right == 1440 * GUI_FIXED_ONE) && (frame.status_edges.top == (920 - 27) * GUI_FIXED_ONE) &&
+                  (frame.strip_edges.right == 44 * GUI_FIXED_ONE),
               "at rest each pane's edges are its rectangle's in the frame's words");
-    numbers.claim = GUI_WHOLE;
+    numbers.claim = GUI_FIXED_ONE;
     EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
     cli_check(same(frame.work, 12, 12, 1440 - 24, 920 - 24),
               "the claim standing, the work is the window less the gap on every side");
@@ -93,26 +93,26 @@ int main(void)
     cli_check(frame.pane_radius == 7u, "the panes are rounded as the work is");
     cli_check(EMBED_CALL(cli_frame_holes.holes, GuiFrameHolesCfg, .frame_read = &frame, .holes = (GuiRect[4]){{0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}}) == 0u,
               "the parts away make no holes");
-    numbers.claim = GUI_WHOLE / 2;
+    numbers.claim = GUI_FIXED_ONE / 2;
     EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
     cli_check((frame.work.x == 28) && (frame.work.y == 26) && (frame.bar.y == -21) && (frame.status.y == 920 - 27 + 14),
               "halfway through the claim's slide every edge stands halfway");
-    cli_check((frame.bar_edges.top == -(41 * GUI_WHOLE) / 2) &&
-                  (frame.bar_edges.bottom == frame.bar_edges.top + (41 * GUI_WHOLE)),
+    cli_check((frame.bar_edges.top == -(41 * GUI_FIXED_ONE) / 2) &&
+                  (frame.bar_edges.bottom == frame.bar_edges.top + (41 * GUI_FIXED_ONE)),
               "the bar's edges carry the half pixel its rectangle rounds away");
     // the head revealed: the bar comes in as a pane the gap down from the top, past the wordmark's corner; the work
-    // stays until the room is taken, then moves down under the bar
-    numbers.claim = GUI_WHOLE;
-    numbers.reveal_top = GUI_WHOLE;
-    numbers.reveal_down = GUI_WHOLE;
-    numbers.grown_top = GUI_WHOLE / 2;
+    // stays until the capacity is taken, then moves down under the bar
+    numbers.claim = GUI_FIXED_ONE;
+    numbers.reveal_top = GUI_FIXED_ONE;
+    numbers.reveal_down = GUI_FIXED_ONE;
+    numbers.grown_top = GUI_FIXED_ONE / 2;
     numbers.pulled_top = 700;
     EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
     cli_check(same(frame.bar, 44 + 24, 12, 1440 - 44 - 24 - 12, 41),
               "the bar revealed stands the gap down and in, past the wordmark's corner");
-    cli_check(frame.work.y == 12, "the work stands where it stood until the bar is given its room");
-    cli_check((frame.bar_slat.x == 700 - 344) && (frame.bar_slat.x + frame.bar_slat.width == 700 + 364) &&
-                  (frame.bar_slat.y == 12),
+    cli_check(frame.work.y == 12, "the work stands where it stood until the bar is given its capacity");
+    cli_check((frame.bar_band.x == 700 - 344) && (frame.bar_band.x + frame.bar_band.width == 700 + 364) &&
+                  (frame.bar_band.y == 12),
               "the bar's slat is grown half way from the point pulled, from the work's edge to the bar's end");
     cli_check(same(frame.controls_pane, frame.controls.x - 8, 12, frame.controls.width + 8, 41) &&
                   (frame.controls_pane_share == 0),
@@ -121,43 +121,43 @@ int main(void)
     cli_check((EMBED_CALL(cli_frame_holes.holes, GuiFrameHolesCfg, .frame_read = &frame, .holes = holes) == 1u) && (holes[0].y == 12) && (holes[0].x == 356 - 12) &&
                   (holes[0].y + holes[0].height == 12 + 41 + 12),
               "the bar's slat makes one hole in the work's head, the gap about it");
-    numbers.room_top = GUI_WHOLE;
-    numbers.grown_top = GUI_WHOLE;
+    numbers.inset_top = GUI_FIXED_ONE;
+    numbers.grown_top = GUI_FIXED_ONE;
     EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
     cli_check((frame.work.y == 12 + 41 + 12) && (frame.tabs.height == 31),
-              "the room taken, the work stands under the bar and the tabs row is back");
-    cli_check(same(frame.bar_slat, 12, 12, 1440 - 24, 41), "the bar's slat grown whole spans from the work's edge");
+              "the capacity taken, the work stands under the bar and the tabs row is back");
+    cli_check(same(frame.bar_band, 12, 12, 1440 - 24, 41), "the bar's slat grown whole spans from the work's edge");
     // the controls alone: their tab comes down the gap from the top with the bar away
     numbers.reveal_top = 0;
-    numbers.room_top = 0;
+    numbers.inset_top = 0;
     EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
-    cli_check((frame.controls.y == 12) && (frame.bar.y == -41) && (frame.controls_pane_share == GUI_WHOLE),
+    cli_check((frame.controls.y == 12) && (frame.bar.y == -41) && (frame.controls_pane_share == GUI_FIXED_ONE),
               "the controls' tab stands the gap down while the bar is away");
     cli_check((EMBED_CALL(cli_frame_holes.holes, GuiFrameHolesCfg, .frame_read = &frame, .holes = holes) == 1u) && (holes[0].x + holes[0].width == 1440 - 12) &&
                   (holes[0].y == 12),
               "the controls' tab makes a hole at the work's head, snapped to its right edge");
     // the left revealed: the strip comes in under the wordmark's corner
     numbers.reveal_down = 0;
-    numbers.reveal_left = GUI_WHOLE;
-    numbers.room_left = GUI_WHOLE;
+    numbers.reveal_left = GUI_FIXED_ONE;
+    numbers.inset_left = GUI_FIXED_ONE;
     EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
     cli_check((frame.strip.x == 12) && (frame.strip.y == 12 + 41 + 12) &&
                   (frame.strip.y + frame.strip.height == 920 - 12),
               "the strip revealed stands the gap in, under the wordmark's corner, to the work's foot");
-    cli_check(frame.work.x == 12 + 44 + 12, "the left's room taken, the work stands past the strip");
+    cli_check(frame.work.x == 12 + 44 + 12, "the left's capacity taken, the work stands past the strip");
     // the foot revealed
     numbers.reveal_left = 0;
-    numbers.room_left = 0;
-    numbers.reveal_bottom = GUI_WHOLE;
+    numbers.inset_left = 0;
+    numbers.reveal_bottom = GUI_FIXED_ONE;
     EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
     cli_check(same(frame.status, 12, 920 - 27 - 12, 1440 - 24, 27) && (frame.work.y + frame.work.height == 920 - 12),
-              "the status bar revealed stands the gap up and in, the work staying until its room is taken");
-    numbers.room_bottom = GUI_WHOLE;
+              "the status bar revealed stands the gap up and in, the work staying until its capacity is taken");
+    numbers.inset_bottom = GUI_FIXED_ONE;
     EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
     cli_check(frame.work.y + frame.work.height == 920 - 27 - 24,
-              "the foot's room taken, the work ends above the status bar");
+              "the foot's capacity taken, the work ends above the status bar");
     // the right revealed brings the map back
-    numbers.reveal_right = GUI_WHOLE;
+    numbers.reveal_right = GUI_FIXED_ONE;
     EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
     cli_check(frame.map.width == 84, "the right revealed brings the map's column back");
     return cli_on_check();

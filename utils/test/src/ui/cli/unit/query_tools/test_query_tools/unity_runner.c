@@ -13,7 +13,7 @@ extern void test_the_compiles_run_as_far_apart_as_the_interfaces_queue(void);
 extern void test_every_pattern_of_every_tool_reaches_a_file_of_the_tree(void);
 extern void test_no_two_sources_of_a_tool_share_an_object(void);
 extern void test_the_file_definitions_are_what_every_program_links(void);
-extern void test_paths_given_the_compilers_use_forward_slashes(void);
+extern void test_paths_input_the_compilers_use_forward_slashes(void);
 extern void test_a_missing_binary_is_stale(void);
 extern void test_a_binary_newer_than_every_source_is_not_stale(void);
 extern void test_a_binary_older_than_its_sources_is_stale(void);
@@ -91,7 +91,7 @@ int main(void)
   run_test(test_every_pattern_of_every_tool_reaches_a_file_of_the_tree, "test_every_pattern_of_every_tool_reaches_a_file_of_the_tree", 137);
   run_test(test_no_two_sources_of_a_tool_share_an_object, "test_no_two_sources_of_a_tool_share_an_object", 159);
   run_test(test_the_file_definitions_are_what_every_program_links, "test_the_file_definitions_are_what_every_program_links", 192);
-  run_test(test_paths_given_the_compilers_use_forward_slashes, "test_paths_given_the_compilers_use_forward_slashes", 213);
+  run_test(test_paths_input_the_compilers_use_forward_slashes, "test_paths_input_the_compilers_use_forward_slashes", 213);
   run_test(test_a_missing_binary_is_stale, "test_a_missing_binary_is_stale", 225);
   run_test(test_a_binary_newer_than_every_source_is_not_stale, "test_a_binary_newer_than_every_source_is_not_stale", 232);
   run_test(test_a_binary_older_than_its_sources_is_stale, "test_a_binary_older_than_its_sources_is_stale", 240);

@@ -32,7 +32,7 @@ static int cli_compact_value(const JsonCompactCtx *args);
 // the whitespace JSON allows passed over
 EMBED_INLINE void cli_compact_white(const JsonCompactCtx *args)
 {
-    args->read->at = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = args->read->text,
+    args->read->at = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = args->read->text,
                                 .at = args->read->at, .size = args->read->size, .set = " \t\n\r");
 }
 
@@ -67,7 +67,7 @@ EMBED_INLINE void cli_compact_letter(const JsonCompactCtx *args)
     unsigned int letter = args->letter;
     char bytes[8];
     VerbaLinea line = {bytes, sizeof(bytes), 0ull};
-    EMBED_CALL(cli_line_letter_internal.utf8_put, CliLineLetterCtx, .line = &line, .letter = letter);
+    EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &line, .letter = letter);
     EMBED_CALL(cli_json_tree_length_out.json_escaped_lossy, CliJsonTreeLengthOutCfg, .out = out,
                .text_bytes = (const unsigned char *)bytes, .length = line.at);
 }
@@ -100,18 +100,18 @@ static int cli_compact_string(const JsonCompactCtx *args)
         if (letter >= 0x80u)
         {
             unsigned int whole = 0u;
-            const unsigned long long taken =
+            const unsigned long long reserved =
                 EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
                            .text_bytes = (const unsigned char *)args->read->text, .length = args->read->size,
                            .at = args->read->at, .letter = &whole);
             if ((whole == 0xFFFDu) &&
-                ((taken != 3ull) ||
+                ((reserved != 3ull) ||
                  (memor.cmp(&(MemoriaCfg){
                       .src = args->read->text + args->read->at, .other = "\xEF\xBF\xBD", .bytes = 3u}) != 0)))
             {
                 return 0;
             }
-            args->read->at += taken;
+            args->read->at += reserved;
             continue;
         }
         if (letter != '\\')
@@ -182,7 +182,7 @@ EMBED_INLINE unsigned long long cli_compact_digits(const JsonCompactCtx *args)
 {
     unsigned long long at = args->at;
     unsigned long long count = 0ull;
-    count = EMBED_CALL(cli_text_at_size_classes.past_class, CliTextAtSizeClassesCfg, .text = args->read_read->text,
+    count = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = args->read_read->text,
                        .at = at, .size = args->read_read->size, .classes = CLI_TEXT_DIGITS, .set = "") -
             at;
     return count;
@@ -387,8 +387,8 @@ unsigned long long cli_json_value_end(const CliJsonTreeTextSizeCfg *args)
     return EMBED_CALL(cli_compact_value, JsonCompactCtx, .read = &read, .out = &none) ? read.at : args->at;
 }
 
-int cli_utf8_whole(const CliJsonTreeSizeCfg *args)
+int cli_utf8_valid(const CliJsonTreeSizeCfg *args)
 {
-    return EMBED_CALL(cli_text_size_kind.utf8_whole, CliTextSizeKindCfg,
+    return EMBED_CALL(cli_text_size_kind.utf8_valid, CliTextSizeKindCfg,
                       .text_bytes = (const unsigned char *)args->bytes, .size = args->size);
 }

@@ -110,19 +110,19 @@ int cli_region_with(const CliTransferRegionBytesCfg *args)
 {
     const void *bytes = args->bytes;
     memor.set(&(MemoriaCfg){.dst = args->region, .val = 0, .bytes = sizeof(*args->region)});
-    if (args->size > CLI_TRANSFER_MOST)
+    if (args->size > CLI_TRANSFER_MAX)
     {
         mmgr_line_decimal(args->err_msg, args->size, 1u);
         mmgr_line_put(args->err_msg, " bytes is past the most a region supports");
         return 0;
     }
-    const unsigned long long room = (args->size > 0ull) ? args->size : 1ull;
-    const int fd = EMBED_CALL(transfer_init, PosixTransferCtx, .size = room, .err_msg = args->err_msg);
+    const unsigned long long capacity = (args->size > 0ull) ? args->size : 1ull;
+    const int fd = EMBED_CALL(transfer_init, PosixTransferCtx, .size = capacity, .err_msg = args->err_msg);
     if (fd < 0)
     {
         return 0;
     }
-    void *view = mmap(NULL, (size_t)room, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    void *view = mmap(NULL, (size_t)capacity, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (view == MAP_FAILED)
     {
         EMBED_CALL(transfer_fail, PosixTransferCtx, .err_msg = args->err_msg, .what = "the system showed no region");
@@ -132,14 +132,14 @@ int cli_region_with(const CliTransferRegionBytesCfg *args)
     memor.cpy(&(MemoriaCfg){.dst = view, .src = bytes, .bytes = (size_t)args->size});
 #if defined(__linux__)
     // a region is sealed against writing only once no view of it can write
-    munmap(view, (size_t)room);
+    munmap(view, (size_t)capacity);
     if (fcntl(fd, F_ADD_SEALS, CLI_SEALED) != 0)
     {
         EMBED_CALL(transfer_fail, PosixTransferCtx, .err_msg = args->err_msg, .what = "the region was not sealed");
         close(fd);
         return 0;
     }
-    view = mmap(NULL, (size_t)room, PROT_READ, MAP_SHARED, fd, 0);
+    view = mmap(NULL, (size_t)capacity, PROT_READ, MAP_SHARED, fd, 0);
     if (view == MAP_FAILED)
     {
         EMBED_CALL(transfer_fail, PosixTransferCtx, .err_msg = args->err_msg, .what = "the system showed no region");
@@ -168,8 +168,8 @@ int cli_region_receive(const CliTransferRegionCfg *args)
     // the descriptor is the region's from now on, and closed on each path that fails
     const int fd = (int)args->handle;
     const off_t size = lseek(fd, 0, SEEK_END);
-    const unsigned long long room = (length > 0ull) ? length : 1ull;
-    if (length > CLI_TRANSFER_MOST)
+    const unsigned long long capacity = (length > 0ull) ? length : 1ull;
+    if (length > CLI_TRANSFER_MAX)
     {
         mmgr_line_decimal(args->err_msg, length, 1u);
         mmgr_line_put(args->err_msg, " bytes is past the most a region supports");
@@ -190,7 +190,7 @@ int cli_region_receive(const CliTransferRegionCfg *args)
         return EMBED_CALL(transfer_reject, PosixTransferCtx, .fd = fd);
     }
     // the view is no longer than the region, which no one can shrink
-    const void *const view = mmap(NULL, (size_t)room, PROT_READ, MAP_SHARED, fd, 0);
+    const void *const view = mmap(NULL, (size_t)capacity, PROT_READ, MAP_SHARED, fd, 0);
     if (view == MAP_FAILED)
     {
         EMBED_CALL(transfer_fail, PosixTransferCtx, .err_msg = args->err_msg, .what = "the system showed no region");
@@ -200,12 +200,12 @@ int cli_region_receive(const CliTransferRegionCfg *args)
 #else
     // the process that made the region could change it still, so it is copied whole into a region of this process's
     // own, which no one else has
-    const int own = EMBED_CALL(transfer_init, PosixTransferCtx, .size = room, .err_msg = args->err_msg);
+    const int own = EMBED_CALL(transfer_init, PosixTransferCtx, .size = capacity, .err_msg = args->err_msg);
     if (own < 0)
     {
         return EMBED_CALL(transfer_reject, PosixTransferCtx, .fd = fd);
     }
-    void *const view = mmap(NULL, (size_t)room, PROT_READ | PROT_WRITE, MAP_SHARED, own, 0);
+    void *const view = mmap(NULL, (size_t)capacity, PROT_READ | PROT_WRITE, MAP_SHARED, own, 0);
     if (view == MAP_FAILED)
     {
         EMBED_CALL(transfer_fail, PosixTransferCtx, .err_msg = args->err_msg, .what = "the system showed no region");
@@ -222,7 +222,7 @@ int cli_region_receive(const CliTransferRegionCfg *args)
             mmgr_line_put(args->err_msg, " of its ");
             mmgr_line_decimal(args->err_msg, length, 1u);
             mmgr_line_put(args->err_msg, " bytes");
-            munmap(view, (size_t)room);
+            munmap(view, (size_t)capacity);
             close(own);
             return EMBED_CALL(transfer_reject, PosixTransferCtx, .fd = fd);
         }
@@ -258,7 +258,7 @@ int cli_socket_sent_with(const CliTransferSizeCfg *args)
     }
     union {
         struct cmsghdr header;
-        unsigned char room[CMSG_SPACE(sizeof(int))];
+        unsigned char capacity[CMSG_SPACE(sizeof(int))];
     } control;
     memor.set(&(MemoriaCfg){.dst = &control, .val = 0, .bytes = sizeof(control)});
     struct iovec piece = {(void *)(uintptr_t)args->frame, 1u};
@@ -266,8 +266,8 @@ int cli_socket_sent_with(const CliTransferSizeCfg *args)
     memor.set(&(MemoriaCfg){.dst = &message, .val = 0, .bytes = sizeof(message)});
     message.msg_iov = &piece;
     message.msg_iovlen = 1;
-    message.msg_control = control.room;
-    message.msg_controllen = sizeof(control.room);
+    message.msg_control = control.capacity;
+    message.msg_controllen = sizeof(control.capacity);
     struct cmsghdr *const header = CMSG_FIRSTHDR(&message);
     header->cmsg_level = SOL_SOCKET;
     header->cmsg_type = SCM_RIGHTS;

@@ -80,7 +80,7 @@ void cli_plain_json(const CliDevcontainerTextCfg *args)
 typedef struct
 {
     const char *folder;
-    char least[CLI_PATH_MAX_LEN];
+    char min[CLI_PATH_MAX_LEN];
     int found;
 } CliDescriptionFound;
 
@@ -99,9 +99,9 @@ static void cli_description_each(const CliEachNameIsFolderCfg *args)
         return;
     }
     if (!found->found ||
-        (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = path, .other_pointer = found->least) < 0))
+        (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = path, .other_pointer = found->min) < 0))
     {
-        memor.cpy(&(MemoriaCfg){.dst = found->least,
+        memor.cpy(&(MemoriaCfg){.dst = found->min,
                                 .src = path,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
         found->found = 1;
@@ -138,8 +138,8 @@ int cli_devcontainer_find(const CliDevcontainerCfg *args)
     {
         memor.cpy(
             &(MemoriaCfg){.dst = args->file,
-                          .src = s_found.least,
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_found.least, .cap = CLI_CELLS_POOL}) + 1u});
+                          .src = s_found.min,
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_found.min, .cap = CLI_CELLS_POOL}) + 1u});
     }
     return s_found.found;
 }
@@ -148,7 +148,7 @@ void cli_devcontainer_name(const CliDevcontainerRootNameCfg *args)
 {
     // the tree's folder: its path's last part, the separators after it left off
     const char *end = args->root + cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL});
-    end = args->root + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = args->root,
+    end = args->root + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = args->root,
                                   .at = (unsigned long long)(end - args->root), .set = "/\\");
     const char *base = end;
     base = args->root + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->root,
@@ -166,15 +166,15 @@ void cli_devcontainer_name(const CliDevcontainerRootNameCfg *args)
             continue;
         }
         const char lower = ((byte >= 'A') && (byte <= 'Z')) ? (char)(byte + 32u) : (char)byte;
-        const int taken = ((lower >= 'a') && (lower <= 'z')) || ((lower >= '0') && (lower <= '9')) || (lower == '-') ||
-                          (lower == '_');
-        docker_name[length] = taken ? lower : '-';
+        const int reserved = ((lower >= 'a') && (lower <= 'z')) || ((lower >= '0') && (lower <= '9')) ||
+                             (lower == '-') || (lower == '_');
+        docker_name[length] = reserved ? lower : '-';
         length += 1ull;
     }
     unsigned long long from = 0ull;
-    from = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = docker_name, .at = from,
+    from = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = docker_name, .at = from,
                       .size = length, .set = "-");
-    length = (from + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = docker_name + from,
+    length = (from + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = docker_name + from,
                                 .at = length - from, .set = "-"));
     // FNV-1a over the path's bytes: a name the same tree is given again from one run to the next
     unsigned long long hash = 0xcbf29ce484222325ull;

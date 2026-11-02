@@ -9,12 +9,12 @@
 #include "../text/regexp.h"
 #include "../text/text.h"
 
-// The reader's plugins' ids in order, in a cell of `room`, `count` of them
+// The reader's plugins' ids in order, in a cell of `capacity`, `count` of them
 typedef struct
 {
     char (*name)[CLI_NAME_MAX_LEN];
     unsigned int count;
-    unsigned int room;
+    unsigned int capacity;
 } CliUserPlugins;
 
 typedef struct
@@ -45,10 +45,10 @@ static void cli_user_count(const CliEachNameIsFolderCfg *args)
     const char *name = args->name;
     int is_folder = args->is_folder;
     CliUserPlugins *const user = (CliUserPlugins *)args->context;
-    user->room += (EMBED_CALL(cli_user_include, PluginsCtx, .name = name, .is_folder = is_folder) &&
-                   (user->room < CLI_USER_PLUGINS))
-                      ? 1u
-                      : 0u;
+    user->capacity += (EMBED_CALL(cli_user_include, PluginsCtx, .name = name, .is_folder = is_folder) &&
+                       (user->capacity < CLI_USER_PLUGINS))
+                          ? 1u
+                          : 0u;
 }
 
 static void cli_user_each(const CliEachNameIsFolderCfg *args)
@@ -56,7 +56,8 @@ static void cli_user_each(const CliEachNameIsFolderCfg *args)
     const char *name = args->name;
     int is_folder = args->is_folder;
     CliUserPlugins *const user = (CliUserPlugins *)args->context;
-    if (!EMBED_CALL(cli_user_include, PluginsCtx, .name = name, .is_folder = is_folder) || (user->count >= user->room))
+    if (!EMBED_CALL(cli_user_include, PluginsCtx, .name = name, .is_folder = is_folder) ||
+        (user->count >= user->capacity))
     {
         return;
     }
@@ -95,10 +96,10 @@ EMBED_INLINE void cli_each_lock(const PluginsCtx *args)
     CliUserPlugins user = {NULL, 0u, 0u};
     EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = dir, .each = cli_user_count,
                .context_bytess = &user);
-    user.name = (user.room != 0u) ? g_cli_cells->persistent_buf_alloc((unsigned long long)user.room * CLI_NAME_MAX_LEN,
-                                                                      &g_cli_plugins_cells)
-                                  : NULL;
-    user.room = (user.name != NULL) ? user.room : 0u;
+    user.name = (user.capacity != 0u) ? g_cli_cells->persistent_buf_alloc(
+                                            (unsigned long long)user.capacity * CLI_NAME_MAX_LEN, &g_cli_plugins_cells)
+                                      : NULL;
+    user.capacity = (user.name != NULL) ? user.capacity : 0u;
     EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = dir, .each = cli_user_each,
                .context_bytess = &user);
     for (unsigned int at = 0u; at < user.count; at += 1u)
@@ -122,7 +123,7 @@ EMBED_INLINE void cli_each_lock(const PluginsCtx *args)
             continue;
         }
         unsigned long long size = 0ull;
-        const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = file,
+        const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = file,
                                                       .size_pointer = &size, .owner = &g_cli_plugins_cells);
         if (bytes == NULL)
         {
@@ -166,7 +167,7 @@ EMBED_INLINE void cli_map(const PluginsCtx *args)
             return;
         }
     }
-    if (args->languages->count >= args->languages->room)
+    if (args->languages->count >= args->languages->capacity)
     {
         return;
     }
@@ -184,13 +185,14 @@ EMBED_INLINE unsigned long long cli_on_lower(const PluginsCtx *args)
 {
     const char *text = args->text;
     unsigned int letters[CLI_NAME_MAX_LEN];
-    const unsigned long long count = EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = text,
-                                                .size = args->length, .letters = letters, .room_u64 = CLI_NAME_MAX_LEN);
+    const unsigned long long count =
+        EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = text, .size = args->length, .letters = letters,
+                   .capacity_u64 = CLI_NAME_MAX_LEN);
     VerbaLinea line = {args->out, CLI_NAME_MAX_LEN, 0ull};
     mmgr_line_put(&line, args->prefix);
     for (unsigned long long at = 0ull; at < count; at += 1ull)
     {
-        EMBED_CALL(cli_line_letter_internal.utf8_put, CliLineLetterCtx, .line = &line,
+        EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &line,
                    .letter = EMBED_CALL(cli_regexp_letter.lower, CliRegexpLetterCfg, .letter = letters[at]));
     }
     return mmgr_line_finish(&line);
@@ -224,7 +226,7 @@ static void cli_folder_map(const CliEachNameIsFolderCfg *args)
 {
     const char *name = args->name;
     const CliFoldersMapped *const mapped = (const CliFoldersMapped *)args->context;
-    if (!args->is_folder || !EMBED_CALL(cli_plugins_json.folder_stands, CliPluginsJsonCfg, .json = mapped->json,
+    if (!args->is_folder || !EMBED_CALL(cli_plugins_json.folder_exists, CliPluginsJsonCfg, .json = mapped->json,
                                         .each_u32 = mapped->each, .tree = mapped->tree, .name = name))
     {
         return;
@@ -252,11 +254,11 @@ static void cli_language_each(const CliEachPluginCfg *args)
     CliLanguages *const languages = (CliLanguages *)context;
     CliJson json;
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &json,
-               .node_json_node_pointer = NULL, .nodes_most = 0u, .text_out = NULL, .text_most = 0ull);
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
     char why[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     const unsigned int root =
-        EMBED_CALL(cli_json_tree_text_size_err_msg.json_take_temporary, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
+        EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc_temporary, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
                    .text = args->plugin->text, .size = args->plugin->size, .nodes_more = 0u, .text_more = 0ull,
                    .err_msg = &err_msg, .owner = &g_cli_plugins_cells);
     const char *const kind =
@@ -394,8 +396,8 @@ int cli_plugins_language_for(const CliPluginsLanguagesPathCfg *args)
             return 1;
         }
     }
-    // the path's letters are no more than its bytes, and the room a pattern is read into is taken only where a key is
-    // a pattern
+    // the path's letters are no more than its bytes, and the work state a pattern is read into is taken only where a
+    // key is a pattern
     int patterned = 0;
     for (unsigned int at = 0u; (at < args->languages_read->count) && !patterned; at += 1u)
     {
@@ -405,25 +407,26 @@ int cli_plugins_language_for(const CliPluginsLanguagesPathCfg *args)
     unsigned int *const slashed =
         patterned ? g_cli_cells->temporary_buf_alloc((bytes + 1ull) * sizeof(unsigned int), &g_cli_plugins_cells)
                   : NULL;
-    CliRegexpRoom *const room =
-        (slashed != NULL) ? g_cli_cells->temporary_buf_alloc(sizeof(CliRegexpRoom), &g_cli_plugins_cells) : NULL;
-    const unsigned long long length = (room != NULL)
+    CliRegexpWorkState *const work_state =
+        (slashed != NULL) ? g_cli_cells->temporary_buf_alloc(sizeof(CliRegexpWorkState), &g_cli_plugins_cells) : NULL;
+    const unsigned long long length = (work_state != NULL)
                                           ? EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = args->path,
-                                                       .size = bytes, .letters = slashed, .room_u64 = bytes + 1ull)
+                                                       .size = bytes, .letters = slashed, .capacity_u64 = bytes + 1ull)
                                           : 0ull;
     for (unsigned long long at = 0ull; at < length; at += 1ull)
     {
         slashed[at] = (slashed[at] == '\\') ? '/' : slashed[at];
     }
     int matched = 0;
-    for (unsigned int at = 0u; (room != NULL) && (at < args->languages_read->count) && !matched; at += 1u)
+    for (unsigned int at = 0u; (work_state != NULL) && (at < args->languages_read->count) && !matched; at += 1u)
     {
         if (args->languages_read->pair[at].key[0] != '?')
         {
             continue;
         }
         CliRegexp pattern;
-        EMBED_CALL(cli_regexp_room.room, CliRegexpRoomCfg, .regexp_out = &pattern, .room = room);
+        EMBED_CALL(cli_regexp_capacity.capacity, CliRegexpWorkStateCfg, .regexp_out = &pattern,
+                   .work_state = work_state);
         char why[CLI_PATH_MAX_LEN];
         VerbaLinea err_msg = {why, sizeof(why), 0ull};
         if (!EMBED_CALL(cli_regexp_source.read, CliRegexpSourceCfg, .regexp_out = &pattern,
@@ -446,7 +449,7 @@ int cli_plugins_language_for(const CliPluginsLanguagesPathCfg *args)
             }
         }
     }
-    g_cli_cells->persistent_buf_release(room, &g_cli_plugins_cells);
+    g_cli_cells->persistent_buf_release(work_state, &g_cli_plugins_cells);
     g_cli_cells->persistent_buf_release(slashed, &g_cli_plugins_cells);
     if (matched)
     {
@@ -565,9 +568,9 @@ void cli_plugins_slug(const CliPluginsIdNameCfg *args)
 {
     const char *from = args->name;
     const char *to = args->name + cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
-    from += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
+    from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
                        .size = (unsigned long long)(to - from), .set = CLI_TEXT_WHITE);
-    to = from + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = from,
+    to = from + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = from,
                            .at = (unsigned long long)(to - from), .set = CLI_TEXT_WHITE);
     unsigned long long length = 0ull;
     for (const char *at = from; (at < to) && ((length + 1ull) < CLI_NAME_MAX_LEN); at += 1)
@@ -587,7 +590,7 @@ void cli_plugins_slug(const CliPluginsIdNameCfg *args)
         }
         // a byte past ASCII that starts or carries a letter is no letter or digit here, and one run of them one dash
     }
-    length = EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = args->id_out, .at = length,
+    length = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = args->id_out, .at = length,
                         .set = "-");
     args->id_out[length] = '\0';
 }

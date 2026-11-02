@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// windows_door.c: the door on Windows: a named pipe of the container's own, which takes no one from another machine,
+// windows_ipc.c: the door on Windows: a named pipe of the container's own, which takes no one from another machine,
 // opened for overlapped work so that a read and a write go on at once on one end, each waited for alone. An instance
 // waits from the start, and the next is made as each is joined: a process that joins finds one ready
 #include "../comms/door_internal.h"
@@ -13,13 +13,13 @@
 
 // the bytes each instance of the pipe buffers one way, and how long a process joining waits while every instance is
 // taken, in milliseconds
-#define CLI_DOOR_PIPE_ROOM 65536u
-#define CLI_DOOR_BUSY_WAIT 5000ull
+#define CLI_IPC_PIPE_CAPACITY 65536u
+#define CLI_IPC_BUSY_WAIT 5000ull
 
 typedef struct
 {
 #if (defined(_WIN32))
-    const CliDoorListener *listener;
+    const CliIpcListener *listener;
     int first;
     HANDLE handle;
     HANDLE shut;
@@ -27,21 +27,21 @@ typedef struct
     void *bytes;
     DWORD size;
     DWORD *moved;
-    CliDoorEnd *end;
+    CliIpcEnd *end;
 #endif
 } WindowsDoorCtx;
 // an instance of the listener's pipe made, the first where `first`: INVALID_HANDLE_VALUE where none was
-EMBED_INLINE HANDLE door_instance(const WindowsDoorCtx *args)
+EMBED_INLINE HANDLE ipc_instance(const WindowsDoorCtx *args)
 {
     const DWORD mode = PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED | (args->first ? FILE_FLAG_FIRST_PIPE_INSTANCE : 0u);
     return CreateNamedPipeW(args->listener->name, mode,
                             PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS,
-                            PIPE_UNLIMITED_INSTANCES, CLI_DOOR_PIPE_ROOM, CLI_DOOR_PIPE_ROOM, 0u, NULL);
+                            PIPE_UNLIMITED_INSTANCES, CLI_IPC_PIPE_CAPACITY, CLI_IPC_PIPE_CAPACITY, 0u, NULL);
 }
 
 // one overlapped operation on `handle`, begun by `kind` (0 a read, 1 a write, 2 a join waited for) and waited for: the
 // bytes it moved into `moved`: 1, or 0 where it failed
-static int door_overlap(const WindowsDoorCtx *args)
+static int ipc_overlap(const WindowsDoorCtx *args)
 {
     void *bytes = args->bytes;
     DWORD *moved = args->moved;
@@ -81,7 +81,7 @@ static int door_overlap(const WindowsDoorCtx *args)
         const HANDLE either[2] = {work.hEvent, args->shut};
         if (WaitForMultipleObjects(2u, either, FALSE, INFINITE) != WAIT_OBJECT_0)
         {
-            // the end was shut while the work waited: the work is cancelled and seen through before its room goes
+            // the end was shut while the work waited: the work is cancelled and seen through before its capacity goes
             (void)CancelIoEx(args->handle, &work);
             (void)GetOverlappedResult(args->handle, &work, moved, TRUE);
             CloseHandle(work.hEvent);
@@ -94,7 +94,7 @@ static int door_overlap(const WindowsDoorCtx *args)
 }
 
 // an end opened on `handle`, with the event it is shut by: 1, or 0 where Windows gave no event, the handle closed
-EMBED_INLINE int door_end_open(const WindowsDoorCtx *args)
+EMBED_INLINE int ipc_end_open(const WindowsDoorCtx *args)
 {
     HANDLE handle = args->handle;
     const HANDLE shut = CreateEventW(NULL, TRUE, FALSE, NULL);
@@ -109,7 +109,7 @@ EMBED_INLINE int door_end_open(const WindowsDoorCtx *args)
     return 1;
 }
 
-int cli_door_listening(const CliDoorListenerAddressCtx *args)
+int cli_ipc_listening(const CliIpcListenerAddressCtx *args)
 {
     unsigned char secret[8];
     if (!EMBED_CALL(cli_size_bytes_internal.random_bytes, CliSizeBytesCtx, .bytes_out = secret, .size = sizeof(secret)))
@@ -128,7 +128,7 @@ int cli_door_listening(const CliDoorListenerAddressCtx *args)
     }
     mmgr_line_finish(&named);
     (void)MultiByteToWideChar(CP_UTF8, 0u, args->address, -1, args->listener->name, CLI_PATH_MAX_LEN);
-    const HANDLE waiting = EMBED_CALL(door_instance, WindowsDoorCtx, .listener = args->listener, .first = 1);
+    const HANDLE waiting = EMBED_CALL(ipc_instance, WindowsDoorCtx, .listener = args->listener, .first = 1);
     const DWORD error = GetLastError();
     args->listener->waiting = (unsigned long long)(uintptr_t)waiting;
     if (waiting == INVALID_HANDLE_VALUE)
@@ -140,19 +140,19 @@ int cli_door_listening(const CliDoorListenerAddressCtx *args)
     return 1;
 }
 
-int cli_door_accept(const CliDoorListenerCtx *args)
+int cli_ipc_accept(const CliIpcListenerCtx *args)
 {
     int *has_peer = args->has_peer;
     unsigned int *peer = args->peer;
     // the waiting instance's handle was a pointer's width when it was stored
     const HANDLE joined = (HANDLE)(uintptr_t)args->listener->waiting;
     DWORD moved = 0u;
-    const int joining = EMBED_CALL(door_overlap, WindowsDoorCtx, .handle = joined, .shut = NULL, .kind = 2,
+    const int joining = EMBED_CALL(ipc_overlap, WindowsDoorCtx, .handle = joined, .shut = NULL, .kind = 2,
                                    .bytes = NULL, .size = 0u, .moved = &moved);
     const DWORD error = GetLastError();
     // the next instance waits for the process after, whether this one was joined or not
-    args->listener->waiting = (unsigned long long)(uintptr_t)EMBED_CALL(door_instance, WindowsDoorCtx,
-                                                                        .listener = args->listener, .first = 0);
+    args->listener->waiting =
+        (unsigned long long)(uintptr_t)EMBED_CALL(ipc_instance, WindowsDoorCtx, .listener = args->listener, .first = 0);
     if (!joining)
     {
         CloseHandle(joined);
@@ -163,7 +163,7 @@ int cli_door_accept(const CliDoorListenerCtx *args)
     ULONG id = 0u;
     *has_peer = (GetNamedPipeClientProcessId(joined, &id) != FALSE);
     *peer = (unsigned int)id;
-    if (!EMBED_CALL(door_end_open, WindowsDoorCtx, .end = args->end, .handle = joined))
+    if (!EMBED_CALL(ipc_end_open, WindowsDoorCtx, .end = args->end, .handle = joined))
     {
         mmgr_line_put(args->err_msg, "Windows gave no event for the end");
         return 0;
@@ -171,18 +171,18 @@ int cli_door_accept(const CliDoorListenerCtx *args)
     return 1;
 }
 
-int cli_door_connect(const CliDoorCtx *args)
+int cli_ipc_connect(const CliIpcCtx *args)
 {
     wchar_t name[CLI_PATH_MAX_LEN];
     (void)MultiByteToWideChar(CP_UTF8, 0u, args->address_read, -1, name, CLI_PATH_MAX_LEN);
-    const unsigned long long until = cli_clock_milliseconds() + CLI_DOOR_BUSY_WAIT;
+    const unsigned long long until = cli_clock_milliseconds() + CLI_IPC_BUSY_WAIT;
     for (;;)
     {
         const HANDLE handle =
             CreateFileW(name, GENERIC_READ | GENERIC_WRITE, 0u, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
         if (handle != INVALID_HANDLE_VALUE)
         {
-            if (!EMBED_CALL(door_end_open, WindowsDoorCtx, .end = args->end, .handle = handle))
+            if (!EMBED_CALL(ipc_end_open, WindowsDoorCtx, .end = args->end, .handle = handle))
             {
                 mmgr_line_put(args->err_msg, "Windows gave no event for the end");
                 return 0;
@@ -201,7 +201,7 @@ int cli_door_connect(const CliDoorCtx *args)
     }
 }
 
-int cli_door_read(const CliDoorEndBytesCtx *args)
+int cli_ipc_read(const CliIpcEndBytesCtx *args)
 {
     unsigned char *const into = (unsigned char *)args->bytes;
     for (unsigned long long at = 0ull; at < args->size;)
@@ -210,7 +210,7 @@ int cli_door_read(const CliDoorEndBytesCtx *args)
         const unsigned long long left = args->size - at;
         // a piece is at most what a DWORD counts
         const DWORD piece = (left > 0x7fffffffull) ? 0x7fffffffu : (DWORD)left;
-        if (!EMBED_CALL(door_overlap, WindowsDoorCtx, .handle = (HANDLE)(uintptr_t)args->end->handle,
+        if (!EMBED_CALL(ipc_overlap, WindowsDoorCtx, .handle = (HANDLE)(uintptr_t)args->end->handle,
                         .shut = (HANDLE)(uintptr_t)args->end->shut, .kind = 0, .bytes = into + at, .size = piece,
                         .moved = &moved) ||
             (moved == 0u))
@@ -222,7 +222,7 @@ int cli_door_read(const CliDoorEndBytesCtx *args)
     return 1;
 }
 
-int cli_door_write(const CliDoorEndSizeCtx *args)
+int cli_ipc_write(const CliIpcEndSizeCtx *args)
 {
     // the region's handle is in the frame already: the pipe carries the frame alone
     const unsigned char *const from = (const unsigned char *)args->bytes_read;
@@ -232,7 +232,7 @@ int cli_door_write(const CliDoorEndSizeCtx *args)
         const unsigned long long left = args->size - at;
         const DWORD piece = (left > 0x7fffffffull) ? 0x7fffffffu : (DWORD)left;
         // the bytes are only read, as WriteFile takes them
-        if (!EMBED_CALL(door_overlap, WindowsDoorCtx, .handle = (HANDLE)(uintptr_t)args->end->handle,
+        if (!EMBED_CALL(ipc_overlap, WindowsDoorCtx, .handle = (HANDLE)(uintptr_t)args->end->handle,
                         .shut = (HANDLE)(uintptr_t)args->end->shut, .kind = 1, .bytes = (void *)(uintptr_t)(from + at),
                         .size = piece, .moved = &moved) ||
             (moved == 0u))
@@ -244,13 +244,13 @@ int cli_door_write(const CliDoorEndSizeCtx *args)
     return 1;
 }
 
-int cli_door_descriptor(const CliDoorErrMsgCtx *args)
+int cli_ipc_descriptor(const CliIpcErrMsgCtx *args)
 {
     (void)args;
     return -1;
 }
 
-void cli_door_shut(const CliDoorCtx *args)
+void cli_ipc_shut(const CliIpcCtx *args)
 {
     if (args->end->open)
     {
@@ -259,7 +259,7 @@ void cli_door_shut(const CliDoorCtx *args)
     }
 }
 
-void cli_door_close(const CliDoorCtx *args)
+void cli_ipc_close(const CliIpcCtx *args)
 {
     if (args->end->open)
     {

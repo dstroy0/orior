@@ -25,7 +25,7 @@ typedef struct
     const VerbaLinea *line;
     unsigned int tool;
     const char *name;
-    unsigned long long wide;
+    unsigned long long pixel_width;
     int done;
     const VerbaLinea *out;
     const VerbaLinea *err_msg;
@@ -44,8 +44,8 @@ EMBED_INLINE void toolchains_line_out(const CommandLineToolchainsCtx *args)
 typedef struct
 {
     unsigned int found;
-    unsigned long long wide;
-} CliToolchainsListed;
+    unsigned long long pixel_width;
+} CliToolchainsListing;
 
 // a string member of a toolchain found, NULL where it has none
 EMBED_INLINE const char *toolchains_text(const CommandLineToolchainsCtx *args)
@@ -64,12 +64,12 @@ EMBED_INLINE void toolchains_print(const CommandLineToolchainsCtx *args)
         {"env", "named"}, {"chosen", "chosen"}, {"path", "on PATH"}, {"found", "not on PATH"}};
     const char *const state =
         EMBED_CALL(toolchains_text, CommandLineToolchainsCtx, .tool = args->tool, .name = "state");
-    const char *shown = "missing";
+    const char *displayed = "missing";
     for (unsigned int at = 0u; (at < 4u) && (state != NULL); at += 1u)
     {
-        shown = (cellul.eq(&(CatenaFinitaCfg){.src = state, .other = s_states[at][0], .cap = CLI_CELLS_POOL}))
-                    ? s_states[at][1]
-                    : shown;
+        displayed = (cellul.eq(&(CatenaFinitaCfg){.src = state, .other = s_states[at][0], .cap = CLI_CELLS_POOL}))
+                        ? s_states[at][1]
+                        : displayed;
     }
     const char *const id = EMBED_CALL(toolchains_text, CommandLineToolchainsCtx, .tool = args->tool, .name = "id");
     const char *const program =
@@ -86,13 +86,13 @@ EMBED_INLINE void toolchains_print(const CommandLineToolchainsCtx *args)
     for (unsigned long long letters =
              EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = named,
                         .size = cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}));
-         letters < args->wide; letters += 1ull)
+         letters < args->pixel_width; letters += 1ull)
     {
         mmgr_line_ch(&line, ' ');
     }
     mmgr_line_put(&line, "  ");
-    mmgr_line_put(&line, shown);
-    for (unsigned long long letters = cellul.len(&(CatenaFinitaCfg){.src = shown, .cap = CLI_CELLS_POOL});
+    mmgr_line_put(&line, displayed);
+    for (unsigned long long letters = cellul.len(&(CatenaFinitaCfg){.src = displayed, .cap = CLI_CELLS_POOL});
          letters < 11ull; letters += 1ull)
     {
         mmgr_line_ch(&line, ' ');
@@ -119,21 +119,23 @@ EMBED_INLINE void toolchains_print(const CommandLineToolchainsCtx *args)
 // a group written, and each toolchain found in it
 static void toolchains_group(const CliEachGroupCfg *args)
 {
-    const CliToolchainsListed *const listed = args->context;
+    const CliToolchainsListing *const list_entries = args->context;
     char text[CLI_TOOLCHAINS_LINE];
     VerbaLinea line = {text, sizeof(text), 0ull};
     mmgr_line_ch(&line, '\n');
     mmgr_line_put(&line, args->group);
     EMBED_CALL(toolchains_line_out, CommandLineToolchainsCtx, .line = &line);
     int any = 0;
-    for (unsigned int tool = s_json.node[listed->found].first; tool != CLI_JSON_NONE; tool = s_json.node[tool].next)
+    for (unsigned int tool = s_json.node[list_entries->found].first; tool != CLI_JSON_NONE;
+         tool = s_json.node[tool].next)
     {
         const char *const tool_group =
             EMBED_CALL(toolchains_text, CommandLineToolchainsCtx, .tool = tool, .name = "group");
         if ((tool_group != NULL) &&
             (cellul.eq(&(CatenaFinitaCfg){.src = tool_group, .other = args->group, .cap = CLI_CELLS_POOL})))
         {
-            EMBED_CALL(toolchains_print, CommandLineToolchainsCtx, .tool = tool, .wide = listed->wide);
+            EMBED_CALL(toolchains_print, CommandLineToolchainsCtx, .tool = tool,
+                       .pixel_width = list_entries->pixel_width);
             any = 1;
         }
     }
@@ -152,27 +154,29 @@ static int toolchains_list(void)
                .context_read = NULL, .out = &found);
     const unsigned long long found_size = mmgr_line_finish(&found);
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &s_json,
-               .node_json_node_pointer = NULL, .nodes_most = 0u, .text_out = NULL, .text_most = 0ull);
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
     char why[512];
     VerbaLinea unread = {why, sizeof(why), 0ull};
-    CliToolchainsListed listed = {
-        (found_size != 0ull) ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg,
+    CliToolchainsListing list_entries = {
+        (found_size != 0ull) ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                           .json = &s_json, .text = found_text, .size = found_size, .nodes_more = 0u,
                                           .text_more = 0ull, .err_msg = &unread, .owner = &g_cli_toolchains_words_cells)
                              : CLI_JSON_NONE,
         0ull};
     g_cli_cells->persistent_buf_release(found_text, &g_cli_toolchains_words_cells);
-    if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_json, .node = listed.found,
-                   .kind = CFG_JSON_ARRAY))
+    if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_json,
+                   .node = list_entries.found, .kind = CFG_JSON_ARRAY))
     {
-        for (unsigned int tool = s_json.node[listed.found].first; tool != CLI_JSON_NONE; tool = s_json.node[tool].next)
+        for (unsigned int tool = s_json.node[list_entries.found].first; tool != CLI_JSON_NONE;
+             tool = s_json.node[tool].next)
         {
             const char *const id = EMBED_CALL(toolchains_text, CommandLineToolchainsCtx, .tool = tool, .name = "id");
             const unsigned long long size =
                 (id != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}) : 0ull;
-            listed.wide = (size > listed.wide) ? size : listed.wide;
+            list_entries.pixel_width = (size > list_entries.pixel_width) ? size : list_entries.pixel_width;
         }
-        EMBED_CALL(cli_toolchains_each.groups, CliToolchainsEachCfg, .each = toolchains_group, .context = &listed);
+        EMBED_CALL(cli_toolchains_each.groups, CliToolchainsEachCfg, .each = toolchains_group,
+                   .context = &list_entries);
     }
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &s_json);
     char folder[CLI_PATH_MAX_LEN];
@@ -242,12 +246,12 @@ EMBED_INLINE int toolchains_install(const CommandLineToolchainsCtx *args)
     {
         return EMBED_CALL(toolchains_finish, CommandLineToolchainsCtx, .done = 0, .out = out, .err_msg = err_msg);
     }
-    char shown_text[CLI_TOOLCHAINS_LINE + 2u];
-    VerbaLinea shown = {shown_text, sizeof(shown_text), 0ull};
-    mmgr_line_put(&shown, "$ ");
-    mmgr_line_put(&shown, setup_line);
-    EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = shown_text,
-               .size = mmgr_line_ok(&shown) ? shown.at : 0ull);
+    char displayed_text[CLI_TOOLCHAINS_LINE + 2u];
+    VerbaLinea displayed = {displayed_text, sizeof(displayed_text), 0ull};
+    mmgr_line_put(&displayed, "$ ");
+    mmgr_line_put(&displayed, setup_line);
+    EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = displayed_text,
+               .size = mmgr_line_ok(&displayed) ? displayed.at : 0ull);
     EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = path, .size = CLI_PATH_TEXT);
     const CliSetting setting = {"PATH", path};
     const char *const words[4] = {bash, "-c", setup_line, NULL};

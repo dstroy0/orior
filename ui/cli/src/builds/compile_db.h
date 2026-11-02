@@ -97,12 +97,12 @@ typedef struct
     int rest;
     const char *value;
     const char *node;
-} CliDefineGiven;
+} CliDefineInput;
 
 typedef struct
 {
     void *context;
-    const CliDefineGiven *define;
+    const CliDefineInput *define;
 } CliDefineEachCfg;
 
 // what each define a branch inherits is handed to

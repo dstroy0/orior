@@ -16,10 +16,6 @@ typedef struct CliDefsCfg CliDefsCfg;
 // the cells the definitions are read through, counted, each given back before cli_defs_read returns
 extern CellOwner g_cli_defs_cells;
 
-// the tree's definitions written into `out` as the window reads them: `{"types": [{"ext", "table": {"name", "path",
-// "columns", "rows"}, "header"}...], "head": {"bytes", "magic", "version"} or null, "languages": [table...]}`
-void cli_defs_read(const CliDefsCfg *args);
-
 // the most cells of a table's line read, those past it left out
 #define CLI_DEFS_CELLS 32u
 
@@ -57,15 +53,6 @@ struct CliDefsCfg
 {
     const char *root;
     VerbaLinea *out;
-};
-
-typedef struct
-{
-    void (*read)(const CliDefsCfg *args);
-} CliDefsNs;
-EMBED_TABLE_LAYOUT(CliDefsNs, read);
-EMBED_TABLE_STORAGE CliDefsNs cli_defs_table EMBED_UNUSED = {
-    .read = cli_defs_read,
 };
 
 typedef struct

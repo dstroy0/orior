@@ -4,43 +4,10 @@
 // down from the strip's head and the foot group's up from its foot, each as the page's strip lays them out
 #include "strip.h"
 
-#include "menubar.h"
-
-// the tools, the top group then the foot group, as the page's strip lists them
-static const GuiTool s_tools[] = {
-    {"explorer", "folder", "Explorer", "Ctrl+Shift+E", GUI_STRIP_TOP, 0, 1},
-    {"search", "search", "Search", "Ctrl+Shift+F", GUI_STRIP_TOP, 0, 1},
-    {"structure", "structure", "Structure", "", GUI_STRIP_TOP, 0, 1},
-    {"commit", "commit", "Commit", "", GUI_STRIP_TOP, 0, 1},
-    {"more", "more", "More Tool Windows", "", GUI_STRIP_TOP, 1, 0},
-    {"run", "run", "Run", "Ctrl+Shift+D", GUI_STRIP_FOOT, 0, 0},
-    {"debug", "debug", "Debug", "Alt+5", GUI_STRIP_FOOT, 0, 0},
-    {"terminal", "terminal", "Terminal", "Ctrl+`", GUI_STRIP_FOOT, 0, 0},
-    {"profile", "profile", "Profile", "", GUI_STRIP_FOOT, 0, 0},
-    {"containers", "containers", "Containers", "", GUI_STRIP_FOOT, 0, 0},
-    {"database", "database", "Database", "", GUI_STRIP_FOOT, 0, 0},
-    {"comms", "comms", "Comms", "", GUI_STRIP_FOOT, 0, 0},
-    {"problems", "problems", "Problems", "", GUI_STRIP_FOOT, 0, 1},
-    {"tests", "tests", "Tests", "", GUI_STRIP_FOOT, 0, 1},
-    {"git", "git", "Git", "", GUI_STRIP_FOOT, 0, 1},
-    {"runs", "runs", "Runs", "", GUI_STRIP_FOOT, 0, 1},
-};
-#define STRIP_TOOLS (sizeof(s_tools) / sizeof(s_tools[0]))
-
-void gui_strip_init(const GuiStripNameCfg *args)
+void gui_strip_init(const GuiStripInitCfg *args)
 {
     args->strip->pointed = GUI_STRIP_NONE;
-    args->strip->shown = GUI_STRIP_NONE;
-}
-
-unsigned int gui_strip_tools(void)
-{
-    return STRIP_TOOLS;
-}
-
-const GuiTool *gui_strip_tool(const GuiStripCfg *args)
-{
-    return &s_tools[(args->at < STRIP_TOOLS) ? args->at : 0u];
+    args->strip->displayed = GUI_STRIP_NONE;
 }
 
 GuiRect gui_strip_button(const GuiStripCfg *args)
@@ -51,21 +18,21 @@ GuiRect gui_strip_button(const GuiStripCfg *args)
         side + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_STRIP_BUTTON_GAP, .scale = scale);
     const int pad = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_STRIP_PAD, .scale = scale);
     const int x = args->frame->strip.x + ((args->frame->strip.width - side) / 2);
-    const GuiTool *const tool = gui_strip.tool(args);
-    if (tool->group == GUI_STRIP_TOP)
+    const CliTool *const tool = &g_cli_tools[(args->at < g_cli_tools_count) ? args->at : 0u];
+    if (tool->group == CLI_TOOL_TOP)
     {
         unsigned int before = 0u;
         for (unsigned int each = 0u; each < args->at; each += 1u)
         {
-            before += (s_tools[each].group == GUI_STRIP_TOP) ? 1u : 0u;
+            before += (g_cli_tools[each].group == CLI_TOOL_TOP) ? 1u : 0u;
         }
         // the tools before are far fewer than an int counts
         return (GuiRect){x, args->frame->strip.y + pad + ((int)before * pitch), side, side};
     }
     unsigned int after = 0u;
-    for (unsigned int each = args->at + 1u; each < STRIP_TOOLS; each += 1u)
+    for (unsigned int each = args->at + 1u; each < g_cli_tools_count; each += 1u)
     {
-        after += (s_tools[each].group == GUI_STRIP_FOOT) ? 1u : 0u;
+        after += (g_cli_tools[each].group == CLI_TOOL_FOOTER) ? 1u : 0u;
     }
     // the tools after are far fewer than an int counts
     return (GuiRect){x, args->frame->strip.y + args->frame->strip.height - pad - side - ((int)after * pitch), side,
@@ -80,7 +47,7 @@ int gui_strip_hit(const GuiStripFrameCfg *args)
     {
         return 0;
     }
-    for (unsigned int each = 0u; each < STRIP_TOOLS; each += 1u)
+    for (unsigned int each = 0u; each < g_cli_tools_count; each += 1u)
     {
         if (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg,
                        .rect = EMBED_CALL(gui_strip.button, GuiStripCfg, .frame = args->frame, .at = each),
@@ -109,55 +76,12 @@ int gui_strip_move(const GuiStripFrameXCfg *args)
     return 1;
 }
 
-void gui_strip_toggle(const GuiStripAtCfg *args)
-{
-    if ((args->at >= STRIP_TOOLS) || s_tools[args->at].menu)
-    {
-        return;
-    }
-    // the tools are fewer than an int counts
-    args->strip->shown = (args->strip->shown == (int)args->at) ? GUI_STRIP_NONE : (int)args->at;
-}
-
-int gui_strip_press(const GuiStripFrameXCfg *args)
-{
-    if (!EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = args->frame->strip, .x = args->x,
-                    .y = args->y))
-    {
-        return 0;
-    }
-    unsigned int at = 0u;
-    if (EMBED_CALL(gui_strip_frame.hit, GuiStripFrameCfg, .frame = args->frame, .x = args->x, .y = args->y,
-                   .at_pointer = &at))
-    {
-        EMBED_CALL(gui_strip_at.toggle, GuiStripAtCfg, .strip = args->strip, .at = at);
-    }
-    return 1;
-}
-
-int gui_strip_key(const GuiStripNameCfg *args)
-{
-    const char *name = args->name;
-    for (unsigned int at = 0u; at < STRIP_TOOLS; at += 1u)
-    {
-        const char *const keys = s_tools[at].keys;
-        if ((keys[0] != '\0') &&
-            EMBED_CALL(gui_menubar_name.keys_name, GuiMenubarNameCfg, .keys = keys,
-                       .keys_length = cellul.len(&(CatenaFinitaCfg){.src = keys, .cap = 32ull}), .name = name))
-        {
-            EMBED_CALL(gui_strip_at.toggle, GuiStripAtCfg, .strip = args->strip, .at = at);
-            return 1;
-        }
-    }
-    return 0;
-}
-
 void gui_strip_draw(const GuiStripFrameRasterCfg *args)
 {
     GuiIcons *icons = args->icons;
     // the strip's pane is the slat its edge shows, whole outside the claim, laid by the frame's base; the tools stand
     // in the slat
-    const GuiRect pane = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->frame->strip_slat,
+    const GuiRect pane = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->frame->strip_band,
                                     .other = args->frame->strip);
     const int scale = args->frame->scale;
     const unsigned int icon =
@@ -165,7 +89,7 @@ void gui_strip_draw(const GuiStripFrameRasterCfg *args)
     const float stroke = GUI_STRIP_STROKE * (float)icon / GUI_ICON_UNITS;
     const unsigned int radius = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                          .pixels = GUI_STRIP_BUTTON_RADIUS, .scale = scale);
-    for (unsigned int at = 0u; at < STRIP_TOOLS; at += 1u)
+    for (unsigned int at = 0u; at < g_cli_tools_count; at += 1u)
     {
         const GuiRect button = EMBED_CALL(gui_strip.button, GuiStripCfg, .frame = args->frame, .at = at);
         const GuiRect on = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = button, .other = pane);
@@ -174,24 +98,24 @@ void gui_strip_draw(const GuiStripFrameRasterCfg *args)
             continue;
         }
         // the tools are fewer than an int counts
-        const int shown = args->strip_read->shown == (int)at;
+        const int displayed = args->strip_read->displayed == (int)at;
         const int pointed = args->strip_read->pointed == (int)at;
         if (pointed)
         {
             EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = args->raster, .rect = on,
                        .radius = radius, .color = args->palette->bar_title_hover);
         }
-        else if (shown)
+        else if (displayed)
         {
             EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = args->raster, .rect = on,
                        .radius = radius, .color = args->palette->strip_on);
         }
-        const GuiMask *const mask = EMBED_CALL(cli_icons.icon, GuiIconsCfg, .icons = icons, .name = s_tools[at].glyph,
-                                               .size = icon, .stroke = stroke);
+        const GuiMask *const mask = EMBED_CALL(cli_icons.icon, GuiIconsCfg, .icons = icons,
+                                               .name = g_cli_tools[at].glyph, .size = icon, .stroke = stroke);
         if (mask != NULL)
         {
             const GuiColor color =
-                pointed ? args->palette->bar_bright : (shown ? args->palette->signal : args->palette->status_text);
+                pointed ? args->palette->bar_bright : (displayed ? args->palette->signal : args->palette->status_text);
             // the icon's side is far inside what an int represents
             EMBED_CALL(gui_raster_xy_color.mask, GuiRasterXYColorCfg, .raster = args->raster, .mask = mask,
                        .x = button.x + ((button.width - (int)icon) / 2),
@@ -199,7 +123,7 @@ void gui_strip_draw(const GuiStripFrameRasterCfg *args)
         }
         // the Problems tool's mark, a dot in the error's color at the button's top right corner
         if (args->strip_read->problems_marked &&
-            cellul.eq(&(CatenaFinitaCfg){.src = s_tools[at].name, .other = "problems", .cap = 32ull}))
+            cellul.eq(&(CatenaFinitaCfg){.src = g_cli_tools[at].name, .other = "problems", .cap = 32ull}))
         {
             const int mark =
                 EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_STRIP_MARK, .scale = scale);

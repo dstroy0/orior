@@ -19,7 +19,7 @@ int cli_test_python(const CliTestRunsCfg *args)
     }
     CliJson json;
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &json,
-               .node_json_node_pointer = NULL, .nodes_most = 0u, .text_out = NULL, .text_most = 0ull);
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
     const unsigned int manifest =
         found ? CLI_JSON_NONE
               : EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg, .json_out = &json,
@@ -41,7 +41,7 @@ int cli_test_python(const CliTestRunsCfg *args)
             continue;
         }
         unsigned int count = 0u;
-        char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&count, &g_cli_tests_cells);
+        char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_allocated(&count, &g_cli_tests_cells);
         EMBED_CALL(cli_toolchains_json.find, CliToolchainsJsonCfg, .json = &json, .tool = tool,
                    .path_callback = (const char (*)[CLI_PATH_MAX_LEN])folders, .count = count, .found = &s_found);
         g_cli_cells->persistent_buf_release(folders, &g_cli_tests_cells);
@@ -62,13 +62,13 @@ int cli_test_has_pytest(const CliTestRunsPythonCtx *args)
     EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = s_path, .size = sizeof(s_path));
     const CliSetting settings[1] = {{"PATH", s_path}};
     const char *const words[4] = {args->python, "-c", "import pytest", NULL};
-    CliRan *const ran = cli_ran_take();
+    CliRunResult *const run_result = cli_run_result_alloc();
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     const int has = EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = words, .folder = args->root,
-                               .settings = settings, .count = 1u, .ran = ran, .err_msg = &err_msg) &&
-                    (ran->code == 0ll);
-    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+                               .settings = settings, .count = 1u, .run_result = run_result, .err_msg = &err_msg) &&
+                    (run_result->code == 0ll);
+    EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
     return has;
 }
 
@@ -106,12 +106,13 @@ void cli_test_shares(const CliTestRunsRunCountCtx *args)
     unsigned int files = 0u;
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        const unsigned long long length = EMBED_CALL(test_file_length, TestPythonCtx, .id = args->run->given[at]);
+        const unsigned long long length = EMBED_CALL(test_file_length, TestPythonCtx, .id = args->run->supplied[at]);
         unsigned int file = 0u;
-        while ((file < files) &&
-               !((EMBED_CALL(test_file_length, TestPythonCtx, .id = args->run->given[s_file_first[file]]) == length) &&
-                 EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = args->run->given[s_file_first[file]],
-                            .other_pointer = args->run->given[at], .size = length)))
+        while (
+            (file < files) &&
+            !((EMBED_CALL(test_file_length, TestPythonCtx, .id = args->run->supplied[s_file_first[file]]) == length) &&
+              EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = args->run->supplied[s_file_first[file]],
+                         .other_pointer = args->run->supplied[at], .size = length)))
         {
             file += 1u;
         }
@@ -131,12 +132,12 @@ void cli_test_shares(const CliTestRunsRunCountCtx *args)
         {
             const unsigned int before = s_by_size[place - 1u];
             const unsigned long long before_length =
-                EMBED_CALL(test_file_length, TestPythonCtx, .id = args->run->given[s_file_first[before]]);
+                EMBED_CALL(test_file_length, TestPythonCtx, .id = args->run->supplied[s_file_first[before]]);
             const unsigned long long length =
-                EMBED_CALL(test_file_length, TestPythonCtx, .id = args->run->given[s_file_first[file]]);
+                EMBED_CALL(test_file_length, TestPythonCtx, .id = args->run->supplied[s_file_first[file]]);
             const embed_iword named_after =
-                memor.cmp(&(MemoriaCfg){.src = args->run->given[s_file_first[before]],
-                                        .other = args->run->given[s_file_first[file]],
+                memor.cmp(&(MemoriaCfg){.src = args->run->supplied[s_file_first[before]],
+                                        .other = args->run->supplied[s_file_first[file]],
                                         .bytes = (size_t)((before_length < length) ? before_length : length)});
             const int after = (s_file_size[before] < s_file_size[file]) ||
                               ((s_file_size[before] == s_file_size[file]) &&
@@ -159,23 +160,23 @@ void cli_test_shares(const CliTestRunsRunCountCtx *args)
     for (unsigned int at = 0u; at < files; at += 1u)
     {
         const unsigned int file = s_by_size[at];
-        unsigned int least = 0u;
+        unsigned int min = 0u;
         for (unsigned int share = 1u; share < shares; share += 1u)
         {
-            least = (sizes[share] < sizes[least]) ? share : least;
+            min = (sizes[share] < sizes[min]) ? share : min;
         }
-        share_of[file] = least;
-        sizes[least] += s_file_size[file];
+        share_of[file] = min;
+        sizes[min] += s_file_size[file];
     }
     args->run->shares = 0u;
-    unsigned int placed = 0u;
+    unsigned int positioned = 0u;
     for (unsigned int share = 0u; share < shares; share += 1u)
     {
         if (sizes[share] == 0u)
         {
             continue;
         }
-        args->run->share_from[args->run->shares] = placed;
+        args->run->share_from[args->run->shares] = positioned;
         for (unsigned int at = 0u; at < files; at += 1u)
         {
             const unsigned int file = s_by_size[at];
@@ -183,12 +184,12 @@ void cli_test_shares(const CliTestRunsRunCountCtx *args)
             {
                 if (s_file_of[one] == file)
                 {
-                    args->run->order[placed] = one;
-                    placed += 1u;
+                    args->run->order[positioned] = one;
+                    positioned += 1u;
                 }
             }
         }
-        args->run->share_size[args->run->shares] = placed - args->run->share_from[args->run->shares];
+        args->run->share_size[args->run->shares] = positioned - args->run->share_from[args->run->shares];
         args->run->shares += 1u;
     }
 }
@@ -300,7 +301,7 @@ static void python_worker(void *context)
             char id[CLI_PATH_MAX_LEN * 2u];
             const char *outcome = NULL;
             if (EMBED_CALL(cli_test_runs_size_line_internal.test_unittest_line, CliTestRunsSizeLineCtx,
-                           .line = errors + start, .size = end - start, .id_out = id, .room = sizeof(id),
+                           .line = errors + start, .size = end - start, .id_out = id, .capacity = sizeof(id),
                            .outcome_pointer = &outcome))
             {
                 EMBED_CALL(python_result_visit, TestPythonCtx, .worker = worker, .id = id,
@@ -382,7 +383,7 @@ int cli_python_workers_start(const CliTestRunsRunCtx *args)
         s_words.count = 0u;
         s_words.used = 0u;
         s_words.full = 0;
-        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+        EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
                    .word = args->python);
         if (pytest)
         {
@@ -399,7 +400,7 @@ int cli_python_workers_start(const CliTestRunsRunCtx *args)
             const char *const module[2] = {"-m", "pytest"};
             for (unsigned int at = 0u; at < (args->cover ? 4u : 2u); at += 1u)
             {
-                EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+                EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
                            .word = args->cover ? head[at] : module[at]);
             }
             // the process starts in the run's root, and pytest is bound to it as its rootdir: the ids its lines and
@@ -408,7 +409,7 @@ int cli_python_workers_start(const CliTestRunsRunCtx *args)
                 "-v", "-p", "no:cacheprovider", "--tb=short", "-o", "junit_family=xunit1", "--rootdir=.", junit};
             for (unsigned int at = 0u; at < 8u; at += 1u)
             {
-                EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+                EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
                            .word = words[at]);
             }
         }
@@ -417,16 +418,16 @@ int cli_python_workers_start(const CliTestRunsRunCtx *args)
             const char *const words[3] = {"-m", "unittest", "-v"};
             for (unsigned int at = 0u; at < 3u; at += 1u)
             {
-                EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+                EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
                            .word = words[at]);
             }
         }
         for (unsigned int at = 0u; at < run->share_size[share]; at += 1u)
         {
-            const char *const id = run->given[run->order[run->share_from[share] + at]];
+            const char *const id = run->supplied[run->order[run->share_from[share] + at]];
             if (pytest)
             {
-                EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+                EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
                            .word = id);
             }
             else

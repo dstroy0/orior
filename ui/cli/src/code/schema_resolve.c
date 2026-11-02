@@ -31,7 +31,7 @@ typedef struct
     const char *name;
     const char *base;
     const char *target;
-    char *out_room;
+    char *out_capacity;
 } SchemaResolveCtx;
 // a fragment of a reference with its `%XX` escapes read into `out`
 EMBED_INLINE void resolve_percent_decode(const SchemaResolveCtx *args)
@@ -172,10 +172,10 @@ static unsigned int resolve_anchor(const SchemaResolveCtx *args)
 static void resolve_join(const SchemaResolveCtx *args)
 {
     unsigned long long size = args->size;
-    VerbaLinea line = {args->out_room, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->out_capacity, CLI_PATH_MAX_LEN, 0ull};
     unsigned long long found = 0ull;
-    if (EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = args->target, .length_value = size, .wanted = "://",
-                   .size = 3u, .at_pointer = &found))
+    if (EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = args->target, .length_value = size,
+                   .required = "://", .size = 3u, .at_pointer = &found))
     {
         mmgr_line_put_n(&line, args->target, size);
         (void)mmgr_line_finish(&line);
@@ -194,18 +194,18 @@ static void resolve_join(const SchemaResolveCtx *args)
                          .byte = '\\');
     const char *const cut = ((back != NULL) && ((slash == NULL) || (back > slash))) ? back : slash;
     const char *rest = args->target;
-    unsigned long long rest_size = size;
+    unsigned long long remainder_size = size;
     if (!url && EMBED_CALL(cli_text_size_prefix.starts, CliTextSizePrefixCfg, .text = args->target, .size = size,
                            .prefix = "file://"))
     {
         rest += 7;
-        rest_size -= 7u;
+        remainder_size -= 7u;
     }
-    const int absolute =
-        !url && (rest_size > 0u) && ((rest[0] == '/') || (rest[0] == '\\') || ((rest_size > 1u) && (rest[1] == ':')));
+    const int absolute = !url && (remainder_size > 0u) &&
+                         ((rest[0] == '/') || (rest[0] == '\\') || ((remainder_size > 1u) && (rest[1] == ':')));
     if (absolute)
     {
-        mmgr_line_put_n(&line, rest, rest_size);
+        mmgr_line_put_n(&line, rest, remainder_size);
         (void)mmgr_line_finish(&line);
         return;
     }
@@ -216,20 +216,20 @@ static void resolve_join(const SchemaResolveCtx *args)
     unsigned int parts = 0u;
     for (unsigned long long at = 0ull; at < line.at; at += 1u)
     {
-        parts += (args->out_room[at] == '/') ? 1u : 0u;
+        parts += (args->out_capacity[at] == '/') ? 1u : 0u;
     }
-    for (unsigned long long start = 0ull; start <= rest_size;)
+    for (unsigned long long start = 0ull; start <= remainder_size;)
     {
         unsigned long long end = start;
         end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = rest, .at = start,
-                         .size = rest_size, .set = url ? "/" : "/\\");
+                         .size = remainder_size, .set = url ? "/" : "/\\");
         const unsigned long long part = end - start;
         if ((part == 2u) && (memor.cmp(&(MemoriaCfg){.src = rest + start, .other = "..", .bytes = 2u}) == 0))
         {
             if (!url || (parts + 1u > 3u))
             {
-                line.at = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->out_room,
-                                     .at = line.at, .set = "/\\");
+                line.at = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg,
+                                     .text = args->out_capacity, .at = line.at, .set = "/\\");
                 line.at -= (line.at > 0u) ? 1u : 0u;
                 parts -= (parts > 0u) ? 1u : 0u;
             }
@@ -249,7 +249,7 @@ unsigned int cli_schema_resolve(const CliSchemaSizeCtx *args)
 {
     unsigned long long hash = args->size;
     (void)EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = args->reference, .length_value = args->size,
-                     .wanted = "#", .size = 1u, .at_pointer = &hash);
+                     .required = "#", .size = 1u, .at_pointer = &hash);
     VerbaLinea line = {args->key, CLI_PATH_MAX_LEN, 0ull};
     if (hash == 0u)
     {
@@ -259,7 +259,7 @@ unsigned int cli_schema_resolve(const CliSchemaSizeCtx *args)
     else
     {
         EMBED_CALL(resolve_join, SchemaResolveCtx, .base = args->base, .target = args->reference, .size = hash,
-                   .out_room = args->key);
+                   .out_capacity = args->key);
     }
     const unsigned int doc =
         EMBED_CALL(cli_schema_store_internal.load, CliSchemaStoreCtx, .store = args->store, .key_read = args->key);
@@ -316,7 +316,7 @@ int cli_schema_on_get(const CliSchemaReadCtx *args)
             EMBED_CALL(cli_schema_read_at_internal.text, CliSchemaReadAtCtx, .read = args->read, .at = value->text_at);
         unsigned long long found = 0ull;
         if (EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = text, .length_value = value->text_size,
-                       .wanted = "://", .size = 3u, .at_pointer = &found) &&
+                       .required = "://", .size = 3u, .at_pointer = &found) &&
             !EMBED_CALL(cli_text_size_prefix.starts, CliTextSizePrefixCfg, .text = text, .size = value->text_size,
                         .prefix = "file://"))
         {
@@ -327,7 +327,7 @@ int cli_schema_on_get(const CliSchemaReadCtx *args)
         else
         {
             EMBED_CALL(resolve_join, SchemaResolveCtx, .base = args->path, .target = text, .size = value->text_size,
-                       .out_room = args->key);
+                       .out_capacity = args->key);
         }
         *named = 1;
         *from = value->from;
@@ -335,10 +335,10 @@ int cli_schema_on_get(const CliSchemaReadCtx *args)
         return 1;
     }
     const char *name = args->path;
-    const unsigned long long name_past =
+    const unsigned long long name_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
                    .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
-    name = (name_past != 0ull) ? (args->path + name_past) : name;
+    name = (name_end != 0ull) ? (args->path + name_end) : name;
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
         int same = (cellul.len(&(CatenaFinitaCfg){.src = s_known[at][0], .cap = CLI_CELLS_POOL}) ==

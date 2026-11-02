@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // json_quoting.c: a line whose bytes go into a JSON string in another line as it fills, escaped as
 // cli_json_quoted_lossy escapes them, a letter a piece ends inside of carried over to the next, so a text of any length
-// is quoted into an answer with no room of its own
+// is quoted into an answer with no capacity of its own
 #include "json_tree.h"
 
 typedef struct
@@ -21,15 +21,15 @@ EMBED_INLINE unsigned long long json_letter_bytes(const JsonQuotingCtx *args)
 
 // `size` bytes of a piece escaped into the quoting's line, the letter the last piece ended inside of made whole from
 // this one's first bytes, and the letter this one ends inside of carried over: 1, or 0 where the line is full
-static int json_quoting_put(void *context, const char *bytes, size_t size)
+static int json_quoting_append(void *context, const char *bytes, size_t size)
 {
     CliJsonQuoting *const quoting = (CliJsonQuoting *)context;
     const unsigned char *at = (const unsigned char *)bytes;
     unsigned long long left = size;
     if (quoting->count != 0u)
     {
-        const unsigned long long wanted = EMBED_CALL(json_letter_bytes, JsonQuotingCtx, .lead = quoting->pending[0]);
-        while ((quoting->count < wanted) && (left > 0ull) && ((*at & 0xc0u) == 0x80u))
+        const unsigned long long required = EMBED_CALL(json_letter_bytes, JsonQuotingCtx, .lead = quoting->pending[0]);
+        while ((quoting->count < required) && (left > 0ull) && ((*at & 0xc0u) == 0x80u))
         {
             quoting->pending[quoting->count] = *at;
             quoting->count += 1u;
@@ -71,7 +71,7 @@ void cli_json_quoting_begin(const CliJsonTreeOutCfg *args)
     args->quoting->out = out;
     args->quoting->count = 0u;
     mmgr_line_ch(out, '"');
-    *line = (VerbaLinea){args->piece, args->piece_size, 0ull, json_quoting_put, args->quoting, 0ull};
+    *line = (VerbaLinea){args->piece, args->piece_size, 0ull, json_quoting_append, args->quoting, 0ull};
 }
 
 void cli_json_quoting_end(const CliJsonTreeOutCfg *args)

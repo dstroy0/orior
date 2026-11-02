@@ -5,13 +5,13 @@
 // written into `err_msg`
 #ifndef QUERY_LOOPS_H
 #define QUERY_LOOPS_H
-typedef struct QueryLoopsWordsWordsCarrierCfg QueryLoopsWordsWordsCarrierCfg;
+typedef struct QueryLoopsWordsWordsTransportCfg QueryLoopsWordsWordsTransportCfg;
 typedef struct QueryLoopsFolderCfg QueryLoopsFolderCfg;
 typedef struct QueryLoopsContextFolderCfg QueryLoopsContextFolderCfg;
 typedef struct QueryLoopsContextErrMsgPartCfg QueryLoopsContextErrMsgPartCfg;
 typedef struct QueryLoopsErrMsgContextWordsCfg QueryLoopsErrMsgContextWordsCfg;
 typedef struct QueryLoopsContextErrMsgNameRunCfg QueryLoopsContextErrMsgNameRunCfg;
-typedef struct QueryLoopsErrMsgWordsCountGivenCfg QueryLoopsErrMsgWordsCountGivenCfg;
+typedef struct QueryLoopsErrMsgWordsCountInputCfg QueryLoopsErrMsgWordsCountInputCfg;
 typedef struct QueryLoopsContextErrMsgNameCfg QueryLoopsContextErrMsgNameCfg;
 typedef struct QueryLoopsRootKindsCfg QueryLoopsRootKindsCfg;
 typedef struct QueryLoopsContextErrMsgCfg QueryLoopsContextErrMsgCfg;
@@ -60,19 +60,18 @@ int query_context_end(const QueryLoopsContextRunCfg *args);
 
 #define QUERY_LEARN_WORK "build/engine/khw"
 
-// the most texts one list of words composes, beyond the words it points at
-#define QUERY_TEXTS_MOST 24u
+// the texts composed for lists of words standing at once, beyond the words they point at, a ring in one cell for the
+// run
+#define QUERY_WORD_TEXTS 256u
 
-// A list of words for a program: the words, NULL after the last, and the texts composed for some of them
+// A list of words for a program: the words, NULL after the last
 typedef struct
 {
-    const char *word[QUERY_WORDS_MOST + 1u];
+    const char *word[QUERY_WORDS_MAX + 1u];
     unsigned int count;
-    char text[QUERY_TEXTS_MOST][QUERY_PATH_MAX_LEN];
-    unsigned int texts;
 } QueryWords;
 
-// `word` added to `words`; a copy of `text` added to `words`, stored in their texts
+// `word` added to `words`; a copy of `text` added to `words`, stored in the ring of composed texts
 void query_words_add(const QueryLoopsWordsWordsCfg *args);
 void query_words_text(const QueryLoopsWordsWordsTextCfg *args);
 
@@ -90,7 +89,7 @@ typedef struct
 void query_files_get(const QueryLoopsRootCfg *args);
 // the carrier's words for a live pass, added to `words`: the gated list it will not reach the part without, the
 // lessons the conferences taught where `lessons`, and the airlock, the pop and the cross
-void query_carrier_words(const QueryLoopsWordsWordsCarrierCfg *args);
+void query_transport_words(const QueryLoopsWordsWordsTransportCfg *args);
 // the base source through the vendor's compiler, what it printed handed as `nvcc.txt`, its container as
 // `base_nvcc.cubin` and its listing as `base_nvcc.sass`
 int query_base_compile(const QueryLoopsContextErrMsgCfg *args);
@@ -139,7 +138,7 @@ int query_retention_run(const QueryLoopCfg *args);
 int query_sweep_run(const QueryLoopCfg *args);
 
 // the most bytes of a name the table contains whole
-#define QUERY_WHOLE_MAX_LEN 64u
+#define QUERY_NAME_MAX_LEN 64u
 
 // the writers `write` runs, by its words
 #define QUERY_WRITE_BRIDGE 0
@@ -147,19 +146,19 @@ int query_sweep_run(const QueryLoopCfg *args);
 #define QUERY_WRITE_GSM 2
 
 // the words the loops read, as their checks reach them: `--leave <word>` taken off `words`, `*count` of them, where
-// it is there, into `leave`, `given` set where it was: 1, or 0 with why given (commands.c); every name the table
+// it is there, into `leave`, `supplied` set where it was: 1, or 0 with why given (commands.c); every name the table
 // contains a file of each of `kinds` of, sorted, into `names`, its list into `named`: their count (commands_list.c);
 // the names of the course's steps joined by `, `; and the index of the step `--from` names, the first where none is
 // named: 1, or 0 with why given (course.c); the base source the cross's words name, NULL where none: 1, or 0 with why
 // given (cross.c); the reading of a pulled table the words request, its mode in `mode`: 1, or 0 where they request a
 // pull, -1 with why given (tables_pull.c); the names a query's words give and whether it is dry: 1, or 0 with why
 // given, each file missing named; and the writer `write`'s words name, -1 with why given (write.c)
-int query_leave_take(const QueryLoopsErrMsgWordsCountGivenCfg *args);
-unsigned int query_whole(const QueryLoopsRootKindsCfg *args);
+int query_leave_alloc(const QueryLoopsErrMsgWordsCountInputCfg *args);
+unsigned int query_names_of_kinds(const QueryLoopsRootKindsCfg *args);
 void query_names_join(const QueryLoopsCfg *args);
 int query_course_from(const QueryLoopsErrMsgWordsCountCfg *args);
 int query_base_get(const QueryLoopsErrMsgWordsCfg *args);
-int query_reading(const QueryLoopsErrMsgWordsCountModeCfg *args);
+int query_read_state(const QueryLoopsErrMsgWordsCountModeCfg *args);
 int query_query_words(const QueryLoopsErrMsgContextWordsCfg *args);
 int query_write_words(const QueryLoopsErrMsgWordsCfg *args);
 
@@ -185,10 +184,10 @@ void query_stick_paths(const QueryLoopsContextCfg *args);
 int query_stick_change(const QueryLoopsCuCfg *args);
 int query_stick_words(const QueryLoopsErrMsgWordsCfg *args);
 
-struct QueryLoopsWordsWordsCarrierCfg
+struct QueryLoopsWordsWordsTransportCfg
 {
     QueryWords *words_words_pointer;
-    const char *carrier;
+    const char *transport;
     const char *cross;
     const char *nvdisasm;
     const char *machine;
@@ -204,7 +203,7 @@ struct QueryLoopsFolderCfg
     const QueryWriter *writer;
     const char *crystal;
     char *found;
-    size_t room;
+    size_t capacity;
 };
 
 struct QueryLoopsContextFolderCfg
@@ -250,12 +249,12 @@ struct QueryLoopsContextErrMsgNameRunCfg
     long long *code;
 };
 
-struct QueryLoopsErrMsgWordsCountGivenCfg
+struct QueryLoopsErrMsgWordsCountInputCfg
 {
     VerbaLinea *err_msg;
     const char **words_read;
     unsigned int *count_pointer;
-    int *given;
+    int *supplied;
     QueryLeave *leave;
 };
 
@@ -273,7 +272,7 @@ struct QueryLoopsRootKindsCfg
     const char *root;
     const char *const *kinds;
     unsigned int kind_count;
-    char (*names)[QUERY_WHOLE_MAX_LEN];
+    char (*names)[QUERY_NAME_MAX_LEN];
     const char **named;
 };
 
@@ -439,11 +438,11 @@ EMBED_TABLE_STORAGE QueryLoopsRootNs query_loops_root EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*carrier_words)(const QueryLoopsWordsWordsCarrierCfg *args);
-} QueryLoopsWordsWordsCarrierNs;
-EMBED_TABLE_LAYOUT(QueryLoopsWordsWordsCarrierNs, carrier_words);
-EMBED_TABLE_STORAGE QueryLoopsWordsWordsCarrierNs query_loops_words_words_carrier EMBED_UNUSED = {
-    .carrier_words = query_carrier_words,
+    void (*transport_words)(const QueryLoopsWordsWordsTransportCfg *args);
+} QueryLoopsWordsWordsTransportNs;
+EMBED_TABLE_LAYOUT(QueryLoopsWordsWordsTransportNs, transport_words);
+EMBED_TABLE_STORAGE QueryLoopsWordsWordsTransportNs query_loops_words_words_transport EMBED_UNUSED = {
+    .transport_words = query_transport_words,
 };
 
 typedef struct
@@ -541,11 +540,11 @@ EMBED_TABLE_STORAGE QueryLoopNs query_loop EMBED_UNUSED = {
 
 typedef struct
 {
-    int (*leave_take)(const QueryLoopsErrMsgWordsCountGivenCfg *args);
-} QueryLoopsErrMsgWordsCountGivenNs;
-EMBED_TABLE_LAYOUT(QueryLoopsErrMsgWordsCountGivenNs, leave_take);
-EMBED_TABLE_STORAGE QueryLoopsErrMsgWordsCountGivenNs query_loops_err_msg_words_count_given EMBED_UNUSED = {
-    .leave_take = query_leave_take,
+    int (*leave_alloc)(const QueryLoopsErrMsgWordsCountInputCfg *args);
+} QueryLoopsErrMsgWordsCountInputNs;
+EMBED_TABLE_LAYOUT(QueryLoopsErrMsgWordsCountInputNs, leave_alloc);
+EMBED_TABLE_STORAGE QueryLoopsErrMsgWordsCountInputNs query_loops_err_msg_words_count_input EMBED_UNUSED = {
+    .leave_alloc = query_leave_alloc,
 };
 
 typedef struct
@@ -554,7 +553,7 @@ typedef struct
 } QueryLoopsRootKindsNs;
 EMBED_TABLE_LAYOUT(QueryLoopsRootKindsNs, whole);
 EMBED_TABLE_STORAGE QueryLoopsRootKindsNs query_loops_root_kinds EMBED_UNUSED = {
-    .whole = query_whole,
+    .whole = query_names_of_kinds,
 };
 
 typedef struct
@@ -590,11 +589,11 @@ EMBED_TABLE_STORAGE QueryLoopsErrMsgWordsNs query_loops_err_msg_words EMBED_UNUS
 
 typedef struct
 {
-    int (*reading)(const QueryLoopsErrMsgWordsCountModeCfg *args);
+    int (*read_state)(const QueryLoopsErrMsgWordsCountModeCfg *args);
 } QueryLoopsErrMsgWordsCountModeNs;
-EMBED_TABLE_LAYOUT(QueryLoopsErrMsgWordsCountModeNs, reading);
+EMBED_TABLE_LAYOUT(QueryLoopsErrMsgWordsCountModeNs, read_state);
 EMBED_TABLE_STORAGE QueryLoopsErrMsgWordsCountModeNs query_loops_err_msg_words_count_mode EMBED_UNUSED = {
-    .reading = query_reading,
+    .read_state = query_read_state,
 };
 
 typedef struct

@@ -6,12 +6,14 @@
 #include "../text/json_tree.h"
 #include "../text/text.h"
 #include "archive.h"
+#include "document.h"
 #include "files.h"
+#include "pages.h"
 
 // the size past which a text file opens as a window, the most bytes of a file that is not text shown, and the bytes
 // looked through for a 0 that marks a file as no text
 #define CLI_WINDOW_FROM (1024ull * 1024ull)
-#define CLI_SHOWN_BYTES (64ull * 1024ull)
+#define CLI_DISPLAYED_BYTES (64ull * 1024ull)
 #define CLI_SLICE_SLACK (1ull << 20u)
 #define CLI_PROBE_BYTES 8192ull
 
@@ -96,88 +98,6 @@ EMBED_INLINE int cli_probe_zero(const FilesReadCtx *args)
     return (look != 0ull) && (memor.chr(&(MemoriaCfg){.src = bytes, .val = 0, .bytes = look}) != NULL);
 }
 
-// a file read written as the window reads it: its path and size, its text or its first bytes, and whether it opens as
-// a window
-EMBED_INLINE void cli_opened_write(const FilesReadCtx *args)
-{
-    VerbaLinea *out = args->out;
-    const unsigned char *text = args->text;
-    unsigned long long length = args->length;
-    mmgr_line_put(out, "{\"path\":");
-    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = args->path_read,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->path_read, .cap = CLI_CELLS_POOL}));
-    mmgr_line_put(out, ",\"size\":");
-    mmgr_line_decimal(out, args->size, 0u);
-    mmgr_line_put(out, ",\"text\":");
-    if (text != NULL)
-    {
-        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out,
-                   .text = (const char *)text, .length = length);
-    }
-    else
-    {
-        mmgr_line_put(out, "null");
-    }
-    mmgr_line_put(out, ",\"bytes\":");
-    if (args->bytes != NULL)
-    {
-        mmgr_line_ch(out, '[');
-        for (unsigned long long at = 0ull; at < length; at += 1ull)
-        {
-            if (at != 0ull)
-            {
-                mmgr_line_ch(out, ',');
-            }
-            mmgr_line_decimal(out, args->bytes[at], 0u);
-        }
-        mmgr_line_ch(out, ']');
-    }
-    else
-    {
-        mmgr_line_put(out, "null");
-    }
-    mmgr_line_put(out, args->windowed ? ",\"windowed\":true}" : ",\"windowed\":false}");
-}
-
-// a file within an archive read out of it whole into a cell of its size, given back once it is written as a file read
-EMBED_INLINE int cli_archived_read(const FilesReadCtx *args)
-{
-    const char *root = args->root;
-    VerbaLinea *err_msg = args->err_msg;
-    unsigned long long size = 0ull;
-    char *const joined = EMBED_CALL(cli_archive_err_msg.take, CliArchiveErrMsgCfg, .root = root, .path = args->file,
-                                    .size_pointer = &size, .owner = &g_cli_editor_cells, .err_msg = err_msg);
-    if (joined == NULL)
-    {
-        return 0;
-    }
-    const unsigned char *const bytes = (const unsigned char *)joined;
-    // the path with the slashes at either end left off
-    const char *from = args->file;
-    from += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
-                       .size = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL}), .set = "/");
-    unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL});
-    length =
-        EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = from, .at = length, .set = "/");
-    char path[CLI_PATH_MAX_LEN];
-    const unsigned long long copied_len = (length < CLI_PATH_MAX_LEN) ? length : (CLI_PATH_MAX_LEN - 1ull);
-    memor.cpy(&(MemoriaCfg){.dst = path, .src = from, .bytes = copied_len});
-    path[copied_len] = '\0';
-    if (!EMBED_CALL(cli_probe_zero, FilesReadCtx, .bytes = bytes, .size = size) &&
-        EMBED_CALL(cli_utf8, FilesReadCtx, .bytes = bytes, .size = size, .cut = 0))
-    {
-        EMBED_CALL(cli_opened_write, FilesReadCtx, .out = args->out, .path_read = path, .size = size, .text = bytes,
-                   .bytes = NULL, .length = size, .windowed = 0);
-    }
-    else
-    {
-        EMBED_CALL(cli_opened_write, FilesReadCtx, .out = args->out, .path_read = path, .size = size, .text = NULL,
-                   .bytes = bytes, .length = (size < CLI_SHOWN_BYTES) ? size : CLI_SHOWN_BYTES, .windowed = 0);
-    }
-    g_cli_cells->persistent_buf_release(joined, &g_cli_editor_cells);
-    return 1;
-}
-
 // that a file could not be read, reported
 EMBED_INLINE void cli_unread(const FilesReadCtx *args)
 {
@@ -197,7 +117,7 @@ EMBED_INLINE const unsigned char *cli_map(const FilesReadCtx *args)
     {
         return NULL;
     }
-    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = path,
+    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                   .size_pointer = size, .owner = &g_cli_editor_cells);
     if (bytes == NULL)
     {
@@ -226,10 +146,10 @@ EMBED_INLINE const unsigned char *cli_piece(const FilesReadCtx *args)
         EMBED_CALL(cli_unread, FilesReadCtx, .file = args->file, .err_msg = err_msg);
         return NULL;
     }
-    const unsigned long long room = (from < *args->whole) ? *args->whole - from : 0ull;
-    const unsigned char *const bytes =
-        EMBED_CALL(cli_path_internal.file_piece_take, CliPathCtx, .path = path, .from = from,
-                   .count_u64 = (count < room) ? count : room, .size_pointer = args->got, .owner = &g_cli_editor_cells);
+    const unsigned long long capacity = (from < *args->whole) ? *args->whole - from : 0ull;
+    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_piece_alloc, CliPathCtx, .path = path,
+                                                  .from = from, .count_u64 = (count < capacity) ? count : capacity,
+                                                  .size_pointer = args->got, .owner = &g_cli_editor_cells);
     if (bytes == NULL)
     {
         EMBED_CALL(cli_unread, FilesReadCtx, .file = args->file, .err_msg = err_msg);
@@ -237,165 +157,82 @@ EMBED_INLINE const unsigned char *cli_piece(const FilesReadCtx *args)
     return bytes;
 }
 
-int cli_files_read(const CliFilesRootOutErrMsgFileCfg *args)
+unsigned int cli_files_open(const CliFilesOpenCfg *args)
 {
-    const char *root = args->root;
-    const char *file = args->file;
     char archive[CLI_PATH_MAX_LEN];
     char inner[CLI_PATH_MAX_LEN];
-    if (EMBED_CALL(cli_archive_root.split, CliArchiveRootCfg, .root = root, .path = file, .file = archive,
-                   .inner = inner) &&
-        (inner[0] != '\0'))
-    {
-        return EMBED_CALL(cli_archived_read, FilesReadCtx, .root = root, .file = file, .out = args->out,
-                          .err_msg = args->err_msg);
-    }
+    const int archived = EMBED_CALL(cli_archive_root.split, CliArchiveRootCfg, .root = args->root, .path = args->file,
+                                    .file = archive, .inner = inner) &&
+                         (inner[0] != '\0');
     char path[CLI_PATH_MAX_LEN];
     unsigned long long size = 0ull;
-    if (!EMBED_CALL(cli_root_internal.inside, CliRootCtx, .root = root, .relative = file, .joined = path,
-                    .err_msg = args->err_msg))
+    if (!archived)
     {
-        return 0;
-    }
-    if (!EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = path, .size_pointer = &size))
-    {
-        EMBED_CALL(cli_unread, FilesReadCtx, .file = file, .err_msg = args->err_msg);
-        return 0;
-    }
-    char shown_path[CLI_PATH_MAX_LEN];
-    EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = root, .path = path, .relative_out = shown_path);
-    if (size <= CLI_WINDOW_FROM)
-    {
-        // a file the window takes whole is stored whole
-        const unsigned char *const text = EMBED_CALL(cli_map, FilesReadCtx, .root = root, .file = file, .path = path,
-                                                     .size_pointer = &size, .err_msg = args->err_msg);
-        if (text == NULL)
+        if (!EMBED_CALL(cli_root_internal.inside, CliRootCtx, .root = args->root, .relative = args->file,
+                        .joined = path, .err_msg = args->err_msg))
         {
-            return 0;
+            return CLI_FILES_OPEN_REFUSED;
         }
-        const unsigned long long shown = (size < CLI_SHOWN_BYTES) ? size : CLI_SHOWN_BYTES;
-        if (!EMBED_CALL(cli_probe_zero, FilesReadCtx, .bytes = text, .size = size) &&
-            EMBED_CALL(cli_utf8, FilesReadCtx, .bytes = text, .size = size, .cut = 0))
+        if (!EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = path, .size_pointer = &size))
         {
-            EMBED_CALL(cli_opened_write, FilesReadCtx, .out = args->out, .path_read = shown_path, .size = size,
-                       .text = text, .bytes = NULL, .length = size, .windowed = 0);
+            EMBED_CALL(cli_unread, FilesReadCtx, .file = args->file, .err_msg = args->err_msg);
+            return CLI_FILES_OPEN_REFUSED;
         }
-        else
+        if (size > CLI_WINDOW_FROM)
         {
-            EMBED_CALL(cli_opened_write, FilesReadCtx, .out = args->out, .path_read = shown_path, .size = size,
-                       .text = NULL, .bytes = text, .length = shown, .windowed = 0);
+            // a file the window pages: its first bytes alone tell whether it is text
+            unsigned long long got = 0ull;
+            const unsigned char *const first =
+                EMBED_CALL(cli_piece, FilesReadCtx, .root = args->root, .file = args->file, .path = path, .from = 0ull,
+                           .count = CLI_DISPLAYED_BYTES, .got = &got, .whole = &size, .err_msg = args->err_msg);
+            if (first == NULL)
+            {
+                return CLI_FILES_OPEN_REFUSED;
+            }
+            const unsigned long long probe = (got < CLI_PROBE_BYTES) ? got : CLI_PROBE_BYTES;
+            const int paged_text = !EMBED_CALL(cli_probe_zero, FilesReadCtx, .bytes = first, .size = got) &&
+                                   EMBED_CALL(cli_utf8, FilesReadCtx, .bytes = first, .size = probe, .cut = 1);
+            EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = first,
+                       .owner = &g_cli_editor_cells);
+            if (!paged_text)
+            {
+                return CLI_FILES_OPEN_NOT_TEXT;
+            }
+            return EMBED_CALL(cli_pages_path.open, CliPagesPathCfg, .key = args->key, .path = path, .out = NULL,
+                              .err_msg = args->err_msg)
+                       ? CLI_FILES_OPEN_PAGED
+                       : CLI_FILES_OPEN_REFUSED;
         }
-        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = text, .owner = &g_cli_editor_cells);
-        return 1;
     }
-    // a file the window pages: its first bytes alone, read at their offset; text where they contain no 0 and read as
-    // UTF-8, a letter the cut splits aside
-    unsigned long long got = 0ull;
-    const unsigned char *const bytes =
-        EMBED_CALL(cli_piece, FilesReadCtx, .root = root, .file = file, .path = path, .from = 0ull,
-                   .count = CLI_SHOWN_BYTES, .got = &got, .whole = &size, .err_msg = args->err_msg);
+    char *const joined =
+        archived ? EMBED_CALL(cli_archive_err_msg.take, CliArchiveErrMsgCfg, .root = args->root, .path = args->file,
+                              .size_pointer = &size, .owner = &g_cli_editor_cells, .err_msg = args->err_msg)
+                 : NULL;
+    const unsigned char *const bytes = archived
+                                           ? (const unsigned char *)joined
+                                           : EMBED_CALL(cli_map, FilesReadCtx, .root = args->root, .file = args->file,
+                                                        .path = path, .size_pointer = &size, .err_msg = args->err_msg);
     if (bytes == NULL)
     {
-        return 0;
+        return CLI_FILES_OPEN_REFUSED;
     }
-    const unsigned long long probe = (got < CLI_PROBE_BYTES) ? got : CLI_PROBE_BYTES;
-    const int text = !EMBED_CALL(cli_probe_zero, FilesReadCtx, .bytes = bytes, .size = got) &&
-                     EMBED_CALL(cli_utf8, FilesReadCtx, .bytes = bytes, .size = probe, .cut = 1);
-    EMBED_CALL(cli_opened_write, FilesReadCtx, .out = args->out, .path_read = shown_path, .size = size, .text = NULL,
-               .bytes = text ? NULL : bytes, .length = text ? 0ull : got, .windowed = text);
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_editor_cells);
-    return 1;
-}
-
-// the first line start at or after `at`: `at` itself where a line ends just before it, or else just past the next
-// newline, or the end of the file
-EMBED_INLINE unsigned long long cli_line_start(const FilesReadCtx *args)
-{
-    unsigned long long at = args->at;
-    unsigned long long size = args->size;
-    if ((at == 0ull) || (at >= size))
+    const int text = !EMBED_CALL(cli_probe_zero, FilesReadCtx, .bytes = bytes, .size = size) &&
+                     EMBED_CALL(cli_utf8, FilesReadCtx, .bytes = bytes, .size = size, .cut = 0);
+    CliShape shape;
+    const int stored = text && EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = args->key,
+                                          .text = (const char *)bytes, .size = size, .shape = &shape);
+    if (archived)
     {
-        return (at < size) ? at : size;
+        g_cli_cells->persistent_buf_release(joined, &g_cli_editor_cells);
     }
-    return EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = (const char *)args->bytes, .at = at - 1ull,
-                      .size = size)
-        .next;
-}
-
-// the newlines from `from` to `to`
-EMBED_INLINE unsigned long long cli_newlines(const FilesReadCtx *args)
-{
-    unsigned long long count = 0ull;
-    for (unsigned long long at = args->from; at < args->to; at += 1ull)
+    else
     {
-        count += (args->bytes[at] == '\n') ? 1ull : 0ull;
+        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_editor_cells);
     }
-    return count;
-}
-
-// whole lines written as the window reads them: the bytes from `start` to `end` of `bytes`, which contain the file from
-// its byte `base`, the file's size, the number of the first line, and the lines in the whole file
-EMBED_INLINE void cli_slice_write(const FilesReadCtx *args)
-{
-    VerbaLinea *out = args->out;
-    mmgr_line_put(out, "{\"start\":");
-    mmgr_line_decimal(out, args->base + args->start, 0u);
-    mmgr_line_put(out, ",\"end\":");
-    mmgr_line_decimal(out, args->base + args->end, 0u);
-    mmgr_line_put(out, ",\"size\":");
-    mmgr_line_decimal(out, args->size, 0u);
-    mmgr_line_put(out, ",\"line\":");
-    mmgr_line_decimal(out, args->line, 0u);
-    mmgr_line_put(out, ",\"lines\":");
-    mmgr_line_decimal(out, args->lines, 0u);
-    mmgr_line_put(out, ",\"text\":");
-    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
-               .text_bytes = args->bytes + args->start, .length = args->end - args->start);
-    mmgr_line_ch(out, '}');
-}
-
-int cli_files_slice(const CliFilesRootOutErrMsgFileCfg *args)
-{
-    unsigned long long start = args->start;
-    unsigned long long end = args->end;
-    // the bytes about the slice, from the byte before `start` so that its line's start is read, with CLI_SLICE_SLACK
-    // past `end` for the line end there; a slice past the file's end ends at the end, and a line longer than the slack
-    // is cut where the piece ends
-    char path[CLI_PATH_MAX_LEN];
-    unsigned long long size = 0ull;
-    if (!EMBED_CALL(cli_root_internal.inside, CliRootCtx, .root = args->root, .relative = args->file, .joined = path,
-                    .err_msg = args->err_msg))
+    if (text && !stored)
     {
-        return 0;
+        mmgr_line_put(args->err_msg, args->file);
+        mmgr_line_put(args->err_msg, ": the cells cannot meet its text");
     }
-    if (!EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = path, .size_pointer = &size))
-    {
-        EMBED_CALL(cli_unread, FilesReadCtx, .file = args->file, .err_msg = args->err_msg);
-        return 0;
-    }
-    start = (start < size) ? start : size;
-    end = (end < size) ? end : size;
-    const unsigned long long base = (start > 0ull) ? start - 1ull : 0ull;
-    const unsigned long long at_end = (end > base) ? end - base : 0ull;
-    const unsigned long long left = size - base;
-    const unsigned long long count = ((at_end + CLI_SLICE_SLACK) < left) ? (at_end + CLI_SLICE_SLACK) : left;
-    unsigned long long got = 0ull;
-    const unsigned char *const bytes =
-        EMBED_CALL(cli_path_internal.file_piece_take, CliPathCtx, .path = path, .from = base, .count_u64 = count,
-                   .size_pointer = &got, .owner = &g_cli_editor_cells);
-    if (bytes == NULL)
-    {
-        EMBED_CALL(cli_unread, FilesReadCtx, .file = args->file, .err_msg = args->err_msg);
-        return 0;
-    }
-    const unsigned long long line_from =
-        EMBED_CALL(cli_line_start, FilesReadCtx, .bytes = bytes, .at = start - base, .size = got);
-    const unsigned long long from = ((line_from < got) || ((base + got) >= size)) ? line_from : (start - base);
-    const unsigned long long to_at =
-        EMBED_CALL(cli_line_start, FilesReadCtx, .bytes = bytes, .at = (at_end < got) ? at_end : got, .size = got);
-    const unsigned long long to = (to_at > from) ? to_at : from;
-    EMBED_CALL(cli_slice_write, FilesReadCtx, .out = args->out, .bytes = bytes, .base = base, .start = from, .end = to,
-               .size = size, .line = 0ull, .lines = 0ull);
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_editor_cells);
-    return 1;
+    return !text ? CLI_FILES_OPEN_NOT_TEXT : (stored ? CLI_FILES_OPEN_WHOLE : CLI_FILES_OPEN_REFUSED);
 }

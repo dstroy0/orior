@@ -65,9 +65,9 @@ void cli_deploy_jobs(const CliCatalogRootCfg *args)
         static char s_id[CLI_PATH_MAX_LEN];
         VerbaLinea id = {s_id, sizeof(s_id), 0ull};
         // the folder it sends from and each place, and the words around them
-        const unsigned long long room = ((unsigned long long)deployment->tos + 2ull) * CLI_PATH_MAX_LEN;
-        char *const about_text = g_cli_cells->temporary_buf_alloc(room, &g_cli_deploy_cells);
-        VerbaLinea about = mmgr_line_over(about_text, room);
+        const unsigned long long capacity = ((unsigned long long)deployment->tos + 2ull) * CLI_PATH_MAX_LEN;
+        char *const about_text = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_deploy_cells);
+        VerbaLinea about = mmgr_line_over(about_text, capacity);
         mmgr_line_put(&id, "deploy/");
         mmgr_line_put(&id, deployment->name);
         mmgr_line_put(&about, "sends the files of ");
@@ -79,12 +79,13 @@ void cli_deploy_jobs(const CliCatalogRootCfg *args)
             mmgr_line_put(&about, deployment->to[at]);
         }
         mmgr_line_put(&about, ", a new release at each turned to once every place has it.");
-        const int listed = (mmgr_line_finish(&id) != 0ull) && mmgr_line_ok(&about) &&
-                           (EMBED_CALL(cli_catalog_id_group.job, CliCatalogIdGroupCfg, .catalog = args->catalog,
-                                       .id = s_id, .group = "deploy", .title = deployment->name, .file = "deploy.json",
-                                       .about = about_text, .opens = "") != CLI_CATALOG_NONE);
+        const int list_entries =
+            (mmgr_line_finish(&id) != 0ull) && mmgr_line_ok(&about) &&
+            (EMBED_CALL(cli_catalog_id_group.job, CliCatalogIdGroupCfg, .catalog = args->catalog, .id = s_id,
+                        .group = "deploy", .title = deployment->name, .file = "deploy.json", .about = about_text,
+                        .opens = "") != CLI_CATALOG_NONE);
         g_cli_cells->persistent_buf_release(about_text, &g_cli_deploy_cells);
-        if (!listed)
+        if (!list_entries)
         {
             continue;
         }

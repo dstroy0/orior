@@ -32,8 +32,8 @@ static unsigned char s_run[4096];
 static char s_read[1u << 16u];
 static CliChildren s_children;
 static char s_dir[CLI_PATH_MAX_LEN];
-static char s_listed[1024];
-static char s_why[1024];
+static char s_list_result[1024];
+static char s_error[1024];
 static unsigned long long s_run_size;
 static char s_python[CLI_PATH_MAX_LEN];
 
@@ -89,7 +89,7 @@ static unsigned long long zip_written(const ArchiveEntry *entries, unsigned int 
     {
         const ArchiveEntry *const entry = &entries[index];
         const unsigned long long data_size = entry->size;
-        const unsigned long long body = entry->deflated ? EMBED_CALL(cli_archive_size.deflate, CliArchiveSizeCfg, .data = (const unsigned char *)entry->data, .size = data_size, .out = s_packed, .room = sizeof(s_packed)) : data_size;
+        const unsigned long long body = entry->deflated ? EMBED_CALL(cli_archive_size.deflate, CliArchiveSizeCfg, .data = (const unsigned char *)entry->data, .size = data_size, .out = s_packed, .capacity = sizeof(s_packed)) : data_size;
         const unsigned long long offset = at;
         head_written(s_zip, &at, entry, body, offset, 0);
         memor.cpy(&(MemoriaCfg){.dst = s_zip + at, .src = entry->deflated ? (const void *)s_packed : (const void *)entry->data, .bytes = body});
@@ -179,14 +179,14 @@ static void bytes_written(const char *name, const void *bytes, unsigned long lon
     TEST_ASSERT_TRUE_MESSAGE(EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path, .bytes = bytes, .size = size), name);
 }
 
-// what the folder `path` of s_dir contains, each child `name dir archive` joined by `|`, in s_listed: 1, or 0 where it does not list
-static int folder_listed(const char *path)
+// what the folder `path` of s_dir contains, each child `name dir archive` joined by `|`, in s_list_result: 1, or 0 where it does not list
+static int folder_listing(const char *path)
 {
     char why[1024];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    VerbaLinea line = {s_listed, sizeof(s_listed), 0ull};
-    const int listed = EMBED_CALL(cli_archive_err_msg_root.list, CliArchiveErrMsgRootCfg, .root = s_dir, .path = path, .found = &s_children, .err_msg = &err_msg);
-    for (unsigned int at = 0u; listed && (at < s_children.count); at += 1u)
+    VerbaLinea line = {s_list_result, sizeof(s_list_result), 0ull};
+    const int list_entries = EMBED_CALL(cli_archive_err_msg_root.list, CliArchiveErrMsgRootCfg, .root = s_dir, .path = path, .found = &s_children, .err_msg = &err_msg);
+    for (unsigned int at = 0u; list_entries && (at < s_children.count); at += 1u)
     {
         const CliChild *const child = &s_children.item[at];
         mmgr_line_put(&line, (at > 0u) ? "|" : "");
@@ -195,26 +195,26 @@ static int folder_listed(const char *path)
         mmgr_line_put(&line, child->archive ? " 1" : " 0");
     }
     (void)mmgr_line_finish(&line);
-    return listed;
+    return list_entries;
 }
 
-// the file `path` of s_dir read, asserted to be `wanted` with a 0 after it
-static void assert_file_reads(const char *path, const char *wanted)
+// the file `path` of s_dir read, asserted to be `required` with a 0 after it
+static void assert_file_reads(const char *path, const char *required)
 {
     char why[1024];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     unsigned long long size = 0ull;
     char *const read = EMBED_CALL(cli_archive_err_msg.take, CliArchiveErrMsgCfg, .root = s_dir, .path = path, .size_pointer = &size, .owner = &g_cli_editor_cells, .err_msg = &err_msg);
     TEST_ASSERT_NOT_NULL_MESSAGE(read, path);
-    CLI_TEST_ASSERT_TEXT(wanted, read, size);
+    CLI_TEST_ASSERT_TEXT(required, read, size);
     TEST_ASSERT_EQUAL_CHAR('\0', read[size]);
     g_cli_cells->persistent_buf_release(read, &g_cli_editor_cells);
 }
 
-// `text` saved as the file `path` of s_dir: 1, or 0 with why in s_why
+// `text` saved as the file `path` of s_dir: 1, or 0 with why in s_error
 static int text_saved(const char *path, const char *text)
 {
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     const int saved = EMBED_CALL(cli_archive_size_data.write, CliArchiveSizeDataCfg, .root = s_dir, .path = path, .data = (const unsigned char *)text, .size = CLI_UNITY_LENGTH(text), .err_msg = &err_msg);
     (void)mmgr_line_finish(&err_msg);
     return saved;
@@ -227,8 +227,8 @@ static int deflated_and_back(const unsigned char *data, unsigned long long size)
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     unsigned long long back = 0ull;
     unsigned long long used = 0ull;
-    const unsigned long long packed = EMBED_CALL(cli_archive_size.deflate, CliArchiveSizeCfg, .data = data, .size = size, .out = s_packed, .room = sizeof(s_packed));
-    return EMBED_CALL(cli_archive_size.inflate, CliArchiveSizeCfg, .data = s_packed, .size = packed, .out = s_back, .room = sizeof(s_back), .out_size = &back, .used = &used, .err_msg = &err_msg) && (back == size) && ((size == 0ull) || (memor.cmp(&(MemoriaCfg){.src = s_back, .other = data, .bytes = size}) == 0));
+    const unsigned long long packed = EMBED_CALL(cli_archive_size.deflate, CliArchiveSizeCfg, .data = data, .size = size, .out = s_packed, .capacity = sizeof(s_packed));
+    return EMBED_CALL(cli_archive_size.inflate, CliArchiveSizeCfg, .data = s_packed, .size = packed, .out = s_back, .capacity = sizeof(s_back), .out_size = &back, .used = &used, .err_msg = &err_msg) && (back == size) && ((size == 0ull) || (memor.cmp(&(MemoriaCfg){.src = s_back, .other = data, .bytes = size}) == 0));
 }
 
 // the long text of repeating words written in s_text
@@ -275,23 +275,23 @@ static void gzipped_written(void)
     static const char *const s_entries[2][2] = {{"a/b.txt", "one"}, {"c.txt", "two"}};
     cli_unity_folder("archive_gz", s_dir);
     const unsigned long long tar = tar_written(s_entries, 2u);
-    bytes_written("src.tgz", s_back, EMBED_CALL(cli_archive_size.gzip, CliArchiveSizeCfg, .data = s_tar, .size = tar, .out = s_back, .room = sizeof(s_back)));
-    bytes_written("big.log.gz", s_back, EMBED_CALL(cli_archive_size.gzip, CliArchiveSizeCfg, .data = (const unsigned char *)"line\n", .size = 5ull, .out = s_back, .room = sizeof(s_back)));
+    bytes_written("src.tgz", s_back, EMBED_CALL(cli_archive_size.gzip, CliArchiveSizeCfg, .data = s_tar, .size = tar, .out = s_back, .capacity = sizeof(s_back)));
+    bytes_written("big.log.gz", s_back, EMBED_CALL(cli_archive_size.gzip, CliArchiveSizeCfg, .data = (const unsigned char *)"line\n", .size = 5ull, .out = s_back, .capacity = sizeof(s_back)));
 }
 
-// what Python wrote out, its lines joined by `|`, into `out`, which is sized for `room`: 1, or 0 where it did not run whole
-static int python_ran(const char *code, char *out, unsigned long long room)
+// what Python wrote out, its lines joined by `|`, into `out`, which is sized for `capacity`: 1, or 0 where it did not run whole
+static int python_run_result(const char *code, char *out, unsigned long long capacity)
 {
     const char *const words[5] = {s_python, "-c", code, s_dir, NULL};
     char why[1024];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    CliRan *const ran = cli_ran_take();
-    const int whole = EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = words, .folder = NULL, .settings = NULL, .count = 0u, .ran = ran, .err_msg = &err_msg) && (ran->code == 0ll);
-    VerbaLinea line = {out, room, 0ull};
-    for (unsigned long long at = 0ull; whole && (at < ran->out_size); at += 1ull)
+    CliRunResult *const run_result = cli_run_result_alloc();
+    const int whole = EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = words, .folder = NULL, .settings = NULL, .count = 0u, .run_result = run_result, .err_msg = &err_msg) && (run_result->code == 0ll);
+    VerbaLinea line = {out, capacity, 0ull};
+    for (unsigned long long at = 0ull; whole && (at < run_result->out_size); at += 1ull)
     {
-        const char letter = ran->out[at];
-        if ((letter == '\n') && (at + 1ull < ran->out_size))
+        const char letter = run_result->out[at];
+        if ((letter == '\n') && (at + 1ull < run_result->out_size))
         {
             mmgr_line_ch(&line, '|');
         }
@@ -301,12 +301,12 @@ static int python_ran(const char *code, char *out, unsigned long long room)
         }
     }
     (void)mmgr_line_finish(&line);
-    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+    EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
     return whole;
 }
 
 // archives Python's own zipfile and tarfile write made in a fresh folder, the case ignored with no Python
-static void python_archives_made(void)
+static void python_archives_created(void)
 {
     static const char s_make[] = "import sys, zipfile, tarfile, io\nd = sys.argv[1]\nwith zipfile.ZipFile(d + '/py.zip', 'w', "
                                  "zipfile.ZIP_DEFLATED) as z:\n    z.writestr('src/m.py', 'x = 1\\n' * 500)\n    z.writestr('notes.txt', "
@@ -315,7 +315,7 @@ static void python_archives_made(void)
     char out[1024];
     cli_unity_folder("archive_python", s_dir);
     EMBED_CALL(cli_runner_name.python, CliRunnerNameCfg, .path = s_python);
-    if (!python_ran(s_make, out, sizeof(out)))
+    if (!python_run_result(s_make, out, sizeof(out)))
     {
         TEST_IGNORE_MESSAGE("no Python to write the archives with");
     }
@@ -365,7 +365,7 @@ void test_deflate_and_inflate_restore_every_byte(void)
 void test_deflate_compresses_runs_to_lengths_and_distances(void)
 {
     text_of_words();
-    TEST_ASSERT_LESS_THAN_UINT64(sizeof(s_text) / 3u, EMBED_CALL(cli_archive_size.deflate, CliArchiveSizeCfg, .data = s_text, .size = sizeof(s_text), .out = s_packed, .room = sizeof(s_packed)));
+    TEST_ASSERT_LESS_THAN_UINT64(sizeof(s_text) / 3u, EMBED_CALL(cli_archive_size.deflate, CliArchiveSizeCfg, .data = s_text, .size = sizeof(s_text), .out = s_packed, .capacity = sizeof(s_packed)));
 }
 
 void test_gzip_and_gunzip_restore_every_byte(void)
@@ -374,8 +374,8 @@ void test_gzip_and_gunzip_restore_every_byte(void)
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     unsigned long long back = 0ull;
     text_of_words();
-    const unsigned long long zipped = EMBED_CALL(cli_archive_size.gzip, CliArchiveSizeCfg, .data = s_text, .size = sizeof(s_text), .out = s_packed, .room = sizeof(s_packed));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_archive_bytes.gunzip, CliArchiveBytesCfg, .bytes = s_packed, .size = zipped, .out = s_back, .room = sizeof(s_back), .out_size = &back, .err_msg = &err_msg));
+    const unsigned long long zipped = EMBED_CALL(cli_archive_size.gzip, CliArchiveSizeCfg, .data = s_text, .size = sizeof(s_text), .out = s_packed, .capacity = sizeof(s_packed));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_archive_bytes.gunzip, CliArchiveBytesCfg, .bytes = s_packed, .size = zipped, .out = s_back, .capacity = sizeof(s_back), .out_size = &back, .err_msg = &err_msg));
     TEST_ASSERT_EQUAL_UINT64(sizeof(s_text), back);
     TEST_ASSERT_EQUAL_MEMORY(s_text, s_back, sizeof(s_text));
 }
@@ -418,14 +418,14 @@ void test_the_dos_page_reads_as_the_page_defines_it(void)
 void test_a_zip_opens_as_a_folder_a_dos_name_read_in_it(void)
 {
     jar_written();
-    TEST_ASSERT_TRUE(folder_listed("a.jar"));
-    TEST_ASSERT_EQUAL_STRING("docs 1 0|caf\xC3\xA9.txt 0 0|top.txt 0 0", s_listed);
+    TEST_ASSERT_TRUE(folder_listing("a.jar"));
+    TEST_ASSERT_EQUAL_STRING("docs 1 0|caf\xC3\xA9.txt 0 0|top.txt 0 0", s_list_result);
 }
 
 void test_a_name_not_in_utf8_stores_its_bytes(void)
 {
     jar_written();
-    TEST_ASSERT_TRUE(folder_listed("a.jar"));
+    TEST_ASSERT_TRUE(folder_listing("a.jar"));
     TEST_ASSERT_TRUE(s_children.item[1].has_raw);
     TEST_ASSERT_EQUAL_STRING("636166822e747874", s_children.text + s_children.item[1].raw);
 }
@@ -433,7 +433,7 @@ void test_a_name_not_in_utf8_stores_its_bytes(void)
 void test_a_folder_in_a_zip_lists(void)
 {
     jar_written();
-    TEST_ASSERT_TRUE(folder_listed("a.jar/docs"));
+    TEST_ASSERT_TRUE(folder_listing("a.jar/docs"));
     TEST_ASSERT_GREATER_THAN_UINT(0u, s_children.count);
     TEST_ASSERT_EQUAL_STRING("a.jar/docs/read.me", s_children.text + s_children.item[0].path);
 }
@@ -448,10 +448,10 @@ void test_a_file_saved_back_in_a_zip_reads_as_saved_and_the_others_are_unchanged
 {
     char saving[CLI_PATH_MAX_LEN];
     jar_written();
-    TEST_ASSERT_TRUE_MESSAGE(text_saved("a.jar/docs/read.me", "changed in place\n"), s_why);
+    TEST_ASSERT_TRUE_MESSAGE(text_saved("a.jar/docs/read.me", "changed in place\n"), s_error);
     assert_file_reads("a.jar/docs/read.me", "changed in place\n");
     assert_file_reads("a.jar/top.txt", "top");
-    TEST_ASSERT_TRUE(folder_listed("a.jar"));
+    TEST_ASSERT_TRUE(folder_listing("a.jar"));
     TEST_ASSERT_EQUAL_UINT(3u, s_children.count);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_dir, .relative = ".a.jar.saving", .joined = saving);
     TEST_ASSERT_FALSE(EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = saving));
@@ -465,8 +465,8 @@ void test_a_qry_is_a_runs_file_regardless_of_case(void)
 void test_a_runs_file_lists_a_name_with_slashes_in_folders_of_its_own(void)
 {
     run_written();
-    TEST_ASSERT_TRUE(folder_listed("query1-x.qry"));
-    TEST_ASSERT_EQUAL_STRING("bench 1 0|questions.txt 0 0|window.trace 0 0", s_listed);
+    TEST_ASSERT_TRUE(folder_listing("query1-x.qry"));
+    TEST_ASSERT_EQUAL_STRING("bench 1 0|questions.txt 0 0|window.trace 0 0", s_list_result);
 }
 
 void test_a_blob_of_a_runs_file_reads(void)
@@ -486,7 +486,7 @@ void test_a_runs_record_is_not_written_back_and_its_file_is_unchanged(void)
     char path[CLI_PATH_MAX_LEN];
     run_written();
     TEST_ASSERT_FALSE(text_saved("query1-x.qry/questions.txt", "changed"));
-    CLI_TEST_ASSERT_CONTAINS("not written back", s_why);
+    CLI_TEST_ASSERT_CONTAINS("not written back", s_error);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_dir, .relative = "query1-x.qry", .joined = path);
     const unsigned long long read = qry_member_file_read(path, (unsigned char *)s_read, sizeof(s_read));
     TEST_ASSERT_EQUAL_UINT64(s_run_size, read);
@@ -496,36 +496,36 @@ void test_a_runs_record_is_not_written_back_and_its_file_is_unchanged(void)
 void test_an_archive_inside_an_archive_is_a_folder_and_an_archive(void)
 {
     nested_written();
-    TEST_ASSERT_TRUE(folder_listed("outer.zip"));
-    TEST_ASSERT_EQUAL_STRING("inner.tar 1 1", s_listed);
+    TEST_ASSERT_TRUE(folder_listing("outer.zip"));
+    TEST_ASSERT_EQUAL_STRING("inner.tar 1 1", s_list_result);
 }
 
 void test_an_archive_inside_an_archive_opens_and_its_file_reads(void)
 {
     nested_written();
-    TEST_ASSERT_TRUE(folder_listed("outer.zip/inner.tar"));
-    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_listed, .other = "lib 1 ", .cap = CLI_CELLS_POOL}));
+    TEST_ASSERT_TRUE(folder_listing("outer.zip/inner.tar"));
+    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_list_result, .other = "lib 1 ", .cap = CLI_CELLS_POOL}));
     assert_file_reads("outer.zip/inner.tar/lib/x.py", "print(1)\n");
 }
 
 void test_a_file_is_saved_back_through_both_archives(void)
 {
     nested_written();
-    TEST_ASSERT_TRUE_MESSAGE(text_saved("outer.zip/inner.tar/lib/x.py", "print(2)\n"), s_why);
+    TEST_ASSERT_TRUE_MESSAGE(text_saved("outer.zip/inner.tar/lib/x.py", "print(2)\n"), s_error);
     assert_file_reads("outer.zip/inner.tar/lib/x.py", "print(2)\n");
 }
 
 void test_a_gzipped_tar_opens(void)
 {
     gzipped_written();
-    TEST_ASSERT_TRUE(folder_listed("src.tgz"));
-    TEST_ASSERT_EQUAL_STRING("a 1 0|c.txt 0 0", s_listed);
+    TEST_ASSERT_TRUE(folder_listing("src.tgz"));
+    TEST_ASSERT_EQUAL_STRING("a 1 0|c.txt 0 0", s_list_result);
 }
 
 void test_a_gzipped_tar_saves_back_and_the_other_file_is_unchanged(void)
 {
     gzipped_written();
-    TEST_ASSERT_TRUE_MESSAGE(text_saved("src.tgz/a/b.txt", "one, longer than it was"), s_why);
+    TEST_ASSERT_TRUE_MESSAGE(text_saved("src.tgz/a/b.txt", "one, longer than it was"), s_error);
     assert_file_reads("src.tgz/a/b.txt", "one, longer than it was");
     assert_file_reads("src.tgz/c.txt", "two");
 }
@@ -533,15 +533,15 @@ void test_a_gzipped_tar_saves_back_and_the_other_file_is_unchanged(void)
 void test_a_gzipped_file_opens_as_its_one_file_which_reads(void)
 {
     gzipped_written();
-    TEST_ASSERT_TRUE(folder_listed("big.log.gz"));
-    TEST_ASSERT_EQUAL_STRING("big.log 0 0", s_listed);
+    TEST_ASSERT_TRUE(folder_listing("big.log.gz"));
+    TEST_ASSERT_EQUAL_STRING("big.log 0 0", s_list_result);
     assert_file_reads("big.log.gz/big.log", "line\n");
 }
 
 void test_a_zip_python_wrote_reads(void)
 {
     static char s_lines[3001];
-    python_archives_made();
+    python_archives_created();
     for (unsigned int at = 0u; at < 500u; at += 1u)
     {
         memor.cpy(&(MemoriaCfg){.dst = s_lines + (at * 6u), .src = "x = 1\n", .bytes = 6u});
@@ -551,7 +551,7 @@ void test_a_zip_python_wrote_reads(void)
 
 void test_a_gzipped_tar_python_wrote_reads(void)
 {
-    python_archives_made();
+    python_archives_created();
     assert_file_reads("py.tar.gz/pkg/a.txt", "tar text");
 }
 
@@ -561,25 +561,25 @@ void test_python_reads_what_orior_saved_back(void)
                                   "None\nprint(z.read('notes.txt').decode())\nprint(len(z.read('src/m.py')))\nprint(tarfile.open(d + "
                                   "'/py.tar.gz').extractfile('pkg/a.txt').read().decode())\n";
     char out[1024];
-    python_archives_made();
-    TEST_ASSERT_TRUE_MESSAGE(text_saved("py.zip/notes.txt", "written by orior"), s_why);
-    TEST_ASSERT_TRUE_MESSAGE(text_saved("py.tar.gz/pkg/a.txt", "tar text, written by orior"), s_why);
-    TEST_ASSERT_TRUE(python_ran(s_check, out, sizeof(out)));
+    python_archives_created();
+    TEST_ASSERT_TRUE_MESSAGE(text_saved("py.zip/notes.txt", "written by orior"), s_error);
+    TEST_ASSERT_TRUE_MESSAGE(text_saved("py.tar.gz/pkg/a.txt", "tar text, written by orior"), s_error);
+    TEST_ASSERT_TRUE(python_run_result(s_check, out, sizeof(out)));
     TEST_ASSERT_EQUAL_STRING("written by orior|3000|tar text, written by orior", out);
 }
 
 void test_a_path_runs_into_an_archive(void)
 {
     char full[CLI_PATH_MAX_LEN];
-    char wanted[CLI_PATH_MAX_LEN];
+    char required[CLI_PATH_MAX_LEN];
     char file[CLI_PATH_MAX_LEN];
     char inner[CLI_PATH_MAX_LEN];
     split_tree_written();
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_dir, .relative = "lib/a.zip", .joined = full);
-    path_slashed(full, wanted);
+    path_slashed(full, required);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_archive_root.split, CliArchiveRootCfg, .root = s_dir, .path = "lib/a.zip/x", .file = file, .inner = inner));
     path_slashed(file, full);
-    TEST_ASSERT_EQUAL_STRING(wanted, full);
+    TEST_ASSERT_EQUAL_STRING(required, full);
     TEST_ASSERT_EQUAL_STRING("x", inner);
 }
 

@@ -40,16 +40,16 @@ static void readers_run(void *context)
         unsigned long long size = 0ull;
         if (s_readers.plain)
         {
-            // room for the whole file from the system's allocator, outside the cells
-            unsigned char *room = EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = corpus->paths[index], .size_pointer = &size) ? malloc((size_t)size + 1u) : NULL;
-            if (room != NULL)
+            // capacity for the whole file from the system's allocator, outside the cells
+            unsigned char *capacity = EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = corpus->paths[index], .size_pointer = &size) ? malloc((size_t)size + 1u) : NULL;
+            if (capacity != NULL)
             {
-                (void)EMBED_CALL(cli_path_from_internal.file_read_at, CliPathFromCtx, .path = corpus->paths[index], .from = 0ull, .bytes_bytes = room, .count_u64 = size, .got = &size);
+                (void)EMBED_CALL(cli_path_from_internal.file_read_at, CliPathFromCtx, .path = corpus->paths[index], .from = 0ull, .bytes_bytes = capacity, .count_u64 = size, .got = &size);
             }
-            free(room);
+            free(capacity);
             continue;
         }
-        const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = corpus->paths[index], .size_pointer = &size, .owner = &g_checks_cells);
+        const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = corpus->paths[index], .size_pointer = &size, .owner = &g_checks_cells);
         EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_checks_cells);
     }
     s_readers.running -= 1u;
@@ -80,9 +80,9 @@ BenchMeasure bench_files_read_by(const BenchCorpus *corpus, unsigned int threads
         {
             EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_readers.wake);
         }
-        const unsigned long long took = cli_clock_microseconds() - began;
+        const unsigned long long consumed = cli_clock_microseconds() - began;
         measure.bytes = corpus->whole;
-        measure.least = (took < measure.least) ? took : measure.least;
+        measure.min = (consumed < measure.min) ? consumed : measure.min;
     }
     return measure;
 }
@@ -108,10 +108,10 @@ BenchMeasure bench_picked(const BenchCorpus *corpus)
         CliPicked picked = {NULL, 0u};
         const unsigned long long began = cli_clock_microseconds();
         (void)EMBED_CALL(cli_files_picked_internal.pick, CliFilesPickedCtx, .picked = &picked, .root = under, .filter = picked_include, .context = NULL);
-        const unsigned long long took = cli_clock_microseconds() - began;
+        const unsigned long long consumed = cli_clock_microseconds() - began;
         EMBED_CALL(cli_files_picked_internal.picked_let, CliFilesPickedCtx, .picked = &picked);
         measure.bytes = corpus->whole;
-        measure.least = (took < measure.least) ? took : measure.least;
+        measure.min = (consumed < measure.min) ? consumed : measure.min;
     }
     return measure;
 }
@@ -121,9 +121,9 @@ BenchMeasure bench_search(const BenchCorpus *corpus, const char *needle)
     BenchMeasure measure = {0ull, ~0ull};
     char under[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = corpus->root, .relative = "ui/cli/src", .joined = under);
-    const unsigned long long out_room = 1ull << 20u;
-    char *const out_cell = g_cli_cells->temporary_buf_alloc(out_room, &g_checks_cells);
-    VerbaLinea out = mmgr_line_over(out_cell, out_room);
+    const unsigned long long out_capacity = 1ull << 20u;
+    char *const out_cell = g_cli_cells->temporary_buf_alloc(out_capacity, &g_checks_cells);
+    VerbaLinea out = mmgr_line_over(out_cell, out_capacity);
     for (unsigned int round = 0u; round < corpus->repeat; round += 1u)
     {
         char why[CLI_ERR_MSG_MAX_LEN];
@@ -136,9 +136,9 @@ BenchMeasure bench_search(const BenchCorpus *corpus, const char *needle)
         }
         const unsigned long long began = cli_clock_microseconds();
         (void)EMBED_CALL(cli_files_root_out_err_msg.search, CliFilesRootOutErrMsgCfg, .root = under, .query = needle, .how = (CliSearching){0, 0, 0}, .set = &none, .out = &out, .err_msg = &err_msg);
-        const unsigned long long took = cli_clock_microseconds() - began;
+        const unsigned long long consumed = cli_clock_microseconds() - began;
         measure.bytes = corpus->whole;
-        measure.least = (took < measure.least) ? took : measure.least;
+        measure.min = (consumed < measure.min) ? consumed : measure.min;
     }
     g_cli_cells->persistent_buf_release(out.out, &g_checks_cells);
     return measure;

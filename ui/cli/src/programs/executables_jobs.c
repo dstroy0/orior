@@ -103,7 +103,7 @@ typedef struct
     const char *zig;
     const char *language;
     const char *target;
-    unsigned long long room;
+    unsigned long long capacity;
     CliCatalog *catalog;
     const char *key;
     const char *const *choices;
@@ -144,7 +144,7 @@ EMBED_INLINE int cli_zig_target(const ExecutablesJobsCtx *args)
 // `zig cc` or `zig c++` for a Zig target, as a variable of the environment stores it, into `out`
 EMBED_INLINE void cli_zig_command(const ExecutablesJobsCtx *args)
 {
-    VerbaLinea line = {args->out, args->room, 0ull};
+    VerbaLinea line = {args->out, args->capacity, 0ull};
     mmgr_line_put(&line, args->zig);
     mmgr_line_ch(&line, ' ');
     mmgr_line_put(&line, args->language);
@@ -192,10 +192,10 @@ void cli_executables_cross_env(const CliExecutablesKindCfg *args)
             EMBED_CALL(cli_zig_target, ExecutablesJobsCtx, .system = system, .processor = processor, .out = target))
         {
             EMBED_CALL(cli_zig_command, ExecutablesJobsCtx, .zig = zig, .language = "cc", .target = target,
-                       .out = command, .room = sizeof(command));
+                       .out = command, .capacity = sizeof(command));
             EMBED_CALL(args->each, CliEachNameValueCfg, .context = args->context, .name = "CC", .value = command);
             EMBED_CALL(cli_zig_command, ExecutablesJobsCtx, .zig = zig, .language = "c++", .target = target,
-                       .out = command, .room = sizeof(command));
+                       .out = command, .capacity = sizeof(command));
             EMBED_CALL(args->each, CliEachNameValueCfg, .context = args->context, .name = "CXX", .value = command);
         }
         return;
@@ -240,7 +240,7 @@ void cli_executables_cross_env(const CliExecutablesKindCfg *args)
         (cellul.eq(&(CatenaFinitaCfg){.src = rust + length - 11ull, .other = "-linux-musl", .cap = CLI_CELLS_POOL})) &&
         !on_linux &&
         !EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = linker, .value_out = set,
-                    .room = sizeof(set)))
+                    .capacity = sizeof(set)))
     {
         EMBED_CALL(args->each, CliEachNameValueCfg, .context = args->context, .name = linker, .value = "rust-lld");
     }
@@ -269,7 +269,7 @@ void cli_executables_cross_env(const CliExecutablesKindCfg *args)
         mmgr_line_put(&name, lower);
         mmgr_line_finish(&name);
         EMBED_CALL(cli_zig_command, ExecutablesJobsCtx, .zig = zig, .language = "cc", .target = target, .out = command,
-                   .room = sizeof(command));
+                   .capacity = sizeof(command));
         EMBED_CALL(args->each, CliEachNameValueCfg, .context = args->context, .name = compiler, .value = command);
     }
 }
@@ -397,10 +397,10 @@ void cli_executables_jobs(const CliCatalogRootCfg *args)
                            .out = folder))
             {
                 base = folder;
-                const unsigned long long base_past = EMBED_CALL(
+                const unsigned long long base_end = EMBED_CALL(
                     cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = folder,
                     .at = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}), .set = "/\\");
-                base = (base_past != 0ull) ? (folder + base_past) : base;
+                base = (base_end != 0ull) ? (folder + base_end) : base;
             }
             mmgr_line_put(&line, base);
             mmgr_line_ch(&line, '/');

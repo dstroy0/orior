@@ -14,7 +14,7 @@ typedef struct
     const QueryLearnStep *step;
     VerbaLinea *err_msg;
     const char *writer;
-    const char *carrier;
+    const char *transport;
     const char *teacher;
 } LearnStepsCtx;
 
@@ -64,14 +64,14 @@ EMBED_INLINE int query_learn_clock(const LearnStepsCtx *args)
     const char *const read[1] = {args->files->costs};
     const char *const words[6] = {s_clock, args->files->costs, args->step->word, args->step->base, "10", NULL};
     long long code = -1ll;
-    const int ran = EMBED_CALL(query_count_err_msg_internal.run_read, QueryCountErrMsgCtx, .run = &s_run,
-                               .paths_letters = read, .count = 1u, .err_msg = err_msg) &&
-                    EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
-                               .context = context, .run = &s_run, .name = "orior_bus_clock", .words = words,
-                               .code = &code, .err_msg = err_msg);
+    const int run_result = EMBED_CALL(query_count_err_msg_internal.run_read, QueryCountErrMsgCtx, .run = &s_run,
+                                      .paths_letters = read, .count = 1u, .err_msg = err_msg) &&
+                           EMBED_CALL(query_loops_context_err_msg_name_run.context_teed,
+                                      QueryLoopsContextErrMsgNameRunCfg, .context = context, .run = &s_run,
+                                      .name = "orior_bus_clock", .words = words, .code = &code, .err_msg = err_msg);
     if (!EMBED_CALL(query_loops_context_run.context_end, QueryLoopsContextRunCfg, .context = context, .run_out = &s_run,
                     .err_msg = err_msg) ||
-        !ran)
+        !run_result)
     {
         return -1;
     }
@@ -85,7 +85,7 @@ EMBED_INLINE int query_learn_pass(const LearnStepsCtx *args)
     QueryContext *context = args->context;
     const QueryFiles *files = args->files;
     const char *writer = args->writer;
-    const char *carrier = args->carrier;
+    const char *transport = args->transport;
     VerbaLinea *err_msg = args->err_msg;
     static char s_cross[QUERY_PATH_MAX_LEN];
     static char s_nvdisasm[QUERY_PATH_MAX_LEN];
@@ -148,10 +148,10 @@ EMBED_INLINE int query_learn_pass(const LearnStepsCtx *args)
     {
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
                    .word = "--");
-        EMBED_CALL(query_loops_words_words_carrier.carrier_words, QueryLoopsWordsWordsCarrierCfg,
-                   .words_words_pointer = &s_words, .carrier = carrier, .cross = s_cross, .nvdisasm = s_nvdisasm,
+        EMBED_CALL(query_loops_words_words_transport.transport_words, QueryLoopsWordsWordsTransportCfg,
+                   .words_words_pointer = &s_words, .transport = transport, .cross = s_cross, .nvdisasm = s_nvdisasm,
                    .machine = files->machine, .layout = files->layout, .lessons = 1);
-        static const char *s_teacher[QUERY_WORDS_MOST + 2u];
+        static const char *s_teacher[QUERY_WORDS_MAX + 2u];
         s_teacher[0] = args->teacher;
         memor.cpy(&(MemoriaCfg){.dst = &s_teacher[1],
                                 .src = s_words.word,
@@ -177,7 +177,7 @@ EMBED_INLINE int query_learn_offline(const LearnStepsCtx *args)
     QueryContext *context = args->context;
     const QueryFiles *files = args->files;
     const char *writer = args->writer;
-    const char *carrier = args->carrier;
+    const char *transport = args->transport;
     VerbaLinea *err_msg = args->err_msg;
     static char s_cross[QUERY_PATH_MAX_LEN];
     static char s_nvdisasm[QUERY_PATH_MAX_LEN];
@@ -286,11 +286,11 @@ EMBED_INLINE int query_learn_offline(const LearnStepsCtx *args)
             EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
                        .word = "dry");
         }
-        EMBED_CALL(query_loops_words_words_carrier.carrier_words, QueryLoopsWordsWordsCarrierCfg,
-                   .words_words_pointer = &s_words, .carrier = carrier, .cross = s_cross, .nvdisasm = s_nvdisasm,
+        EMBED_CALL(query_loops_words_words_transport.transport_words, QueryLoopsWordsWordsTransportCfg,
+                   .words_words_pointer = &s_words, .transport = transport, .cross = s_cross, .nvdisasm = s_nvdisasm,
                    .machine = machine, .layout = files->layout, .lessons = 0);
     }
-    static const char *s_teacher[QUERY_WORDS_MOST + 2u];
+    static const char *s_teacher[QUERY_WORDS_MAX + 2u];
     s_teacher[0] = args->teacher;
     memor.cpy(&(MemoriaCfg){
         .dst = &s_teacher[1], .src = s_words.word, .bytes = (size_t)(s_words.count + 1u) * sizeof(s_words.word[0])});
@@ -326,13 +326,13 @@ EMBED_INLINE int query_learn_offline(const LearnStepsCtx *args)
             {
                 EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = line);
             }
-            const char *const carried[7] = {carrier,         "--dry", files->machine, files->layout, "--list",
+            const char *const carried[7] = {transport,       "--dry", files->machine, files->layout, "--list",
                                             "questions.txt", NULL};
-            long long carried_code = -1ll;
+            long long transferred_code = -1ll;
             whole = EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
                                .context = context, .run = &s_run, .name = "orior_cubin_run", .words = carried,
-                               .code = &carried_code, .err_msg = err_msg);
-            if (whole && (carried_code != 0ll))
+                               .code = &transferred_code, .err_msg = err_msg);
+            if (whole && (transferred_code != 0ll))
             {
                 mmgr_line_put(err_msg, "the carrier did not read the list");
                 whole = 0;
@@ -387,7 +387,7 @@ int query_learn_run(const QueryLoopCfg *args)
     EMBED_CALL(query_loops_root.files_get, QueryLoopsRootCfg, .root = context->root, .part = "sm_86",
                .files = &s_files);
     static char s_writer[QUERY_PATH_MAX_LEN];
-    static char s_carrier[QUERY_PATH_MAX_LEN];
+    static char s_transport[QUERY_PATH_MAX_LEN];
     static char s_teacher[QUERY_PATH_MAX_LEN];
     char work[QUERY_PATH_MAX_LEN];
     EMBED_CALL(query_context_under_internal.at, QueryContextUnderCtx, .context_read = context,
@@ -395,7 +395,7 @@ int query_learn_run(const QueryLoopCfg *args)
     if (!EMBED_CALL(query_loops_err_msg_context.context_tool, QueryLoopsErrMsgContextCfg, .context_read = context,
                     .name = "orior_khw_machine_write", .binary = s_writer, .err_msg = err_msg) ||
         !EMBED_CALL(query_loops_err_msg_context.context_tool, QueryLoopsErrMsgContextCfg, .context_read = context,
-                    .name = "orior_cubin_run", .binary = s_carrier, .err_msg = err_msg) ||
+                    .name = "orior_cubin_run", .binary = s_transport, .err_msg = err_msg) ||
         !EMBED_CALL(query_loops_err_msg_context.context_tool, QueryLoopsErrMsgContextCfg, .context_read = context,
                     .name = "orior_khw_learn", .binary = s_teacher, .err_msg = err_msg))
     {
@@ -415,8 +415,8 @@ int query_learn_run(const QueryLoopCfg *args)
     if ((step.kind == QUERY_LEARN_PASS) || (step.kind == QUERY_LEARN_SEED))
     {
         return EMBED_CALL(query_learn_pass, LearnStepsCtx, .context = context, .files = &s_files, .step = &step,
-                          .writer = s_writer, .carrier = s_carrier, .teacher = s_teacher, .err_msg = err_msg);
+                          .writer = s_writer, .transport = s_transport, .teacher = s_teacher, .err_msg = err_msg);
     }
     return EMBED_CALL(query_learn_offline, LearnStepsCtx, .context = context, .files = &s_files, .step = &step,
-                      .writer = s_writer, .carrier = s_carrier, .teacher = s_teacher, .err_msg = err_msg);
+                      .writer = s_writer, .transport = s_transport, .teacher = s_teacher, .err_msg = err_msg);
 }

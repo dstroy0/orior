@@ -7,14 +7,14 @@
 #include "../../../../../ui/gui/src/parts/statusbar.h"
 #include "../cli/cli_check.h"
 
-// whether any pixel of `rect` is not `ground`
-static int painted(const GuiRaster *raster, GuiRect rect, GuiColor ground)
+// whether any pixel of `rect` is not `background_fill`
+static int painted(const GuiRaster *raster, GuiRect rect, GuiColor background_fill)
 {
     for (int y = rect.y; y < rect.y + rect.height; y += 1)
     {
         for (int x = rect.x; x < rect.x + rect.width; x += 1)
         {
-            if (raster->pixels[((unsigned int)y * raster->width) + (unsigned int)x] != ground)
+            if (raster->pixels[((unsigned int)y * raster->width) + (unsigned int)x] != background_fill)
             {
                 return 1;
             }
@@ -39,21 +39,21 @@ static int bare(const GuiRaster *raster, GuiRect rect, const GuiRaster *base)
     return 1;
 }
 
-static int same(const char *text, const char *wanted)
+static int same(const char *text, const char *required)
 {
-    return cellul.eq(&(CatenaFinitaCfg){.src = text, .other = wanted, .cap = 64ull});
+    return cellul.eq(&(CatenaFinitaCfg){.src = text, .other = required, .cap = 64ull});
 }
 
 int main(void)
 {
     (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
-    char why_text[1024];
-    VerbaLinea why = {why_text, sizeof(why_text), 0ull};
+    char error_text[1024];
+    VerbaLinea why = {error_text, sizeof(error_text), 0ull};
     GuiGlyphs glyphs;
     if (!EMBED_CALL(cli_glyphs.init, GuiGlyphsCfg, .glyphs = &glyphs, .err_msg = &why))
     {
         mmgr_line_finish(&why);
-        cli_check(0, why_text);
+        cli_check(0, error_text);
         return cli_on_check();
     }
     GuiIcons icons;
@@ -102,35 +102,35 @@ int main(void)
     cli_check(EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 900u, .height = 300u) && EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &bare_base, .width = 900u, .height = 300u) && EMBED_CALL(gui_base_width.init, GuiBaseWidthCfg, .base = &base, .width = 900u, .height = 300u),
               "a raster for the bar, one for the base alone and the base are made");
     (void)EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &frame, .palette = palette, .controls_steady = 0);
-    EMBED_CALL(gui_base_raster.draw, GuiBaseRasterCfg, .base_read = &base, .raster = &bare_base, .ground = NULL, .color = palette->ground);
-    EMBED_CALL(gui_base_raster.draw, GuiBaseRasterCfg, .base_read = &base, .raster = &raster, .ground = NULL, .color = palette->ground);
+    EMBED_CALL(gui_base_raster.draw, GuiBaseRasterCfg, .base_read = &base, .raster = &bare_base, .background_fill = NULL, .color = palette->background_fill);
+    EMBED_CALL(gui_base_raster.draw, GuiBaseRasterCfg, .base_read = &base, .raster = &raster, .background_fill = NULL, .color = palette->background_fill);
     status.memory = 157286400ull;
     status.anchor_line = 11ull;
     status.anchor_col = 2ull;
     EMBED_CALL(gui_statusbar_status.draw, GuiStatusbarStatusCfg, .raster = &raster, .glyphs = &glyphs, .icons = &icons, .palette = palette, .frame = &frame, .status = &status);
     const GuiColor tint = raster.pixels[((unsigned int)(frame.status.y + 2) * 900u) + 30u];
-    cli_check(tint != palette->ground, "the bar is tinted over the ground");
+    cli_check(tint != palette->background_fill, "the bar is tinted over the ground");
     cli_check(painted(&raster, (GuiRect){frame.strip.width + 16, frame.status.y + 6, 120, 16}, tint), "the file's crumbs are drawn at the bar's left");
     cli_check(painted(&raster, (GuiRect){900 - 16 - 16 - 14, frame.status.y + 6, 14, 16}, tint), "the lock is drawn at the bar's right end");
     cli_check(painted(&raster, (GuiRect){900 - 16 - 16 - 14 - 18 - 60, frame.status.y + 6, 60, 16}, tint), "the indentation is drawn before the lock");
     cli_check(bare(&raster, (GuiRect){400, frame.status.y + 3, 100, 20}, &bare_base), "the bar's middle is bare");
 
-    // the claim holding with the bar come back, the crumbs stand at the bar's left with no strip's room before them
-    GuiClaimNumbers numbers = frame.claim;
-    numbers.claim = GUI_WHOLE;
-    numbers.reveal_bottom = GUI_WHOLE;
-    numbers.room_bottom = GUI_WHOLE;
-    GuiFrame claimed = frame;
-    EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &claimed, .numbers = &numbers);
-    (void)EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &claimed, .palette = palette, .controls_steady = 0);
-    EMBED_CALL(gui_base_raster.draw, GuiBaseRasterCfg, .base_read = &base, .raster = &bare_base, .ground = NULL, .color = palette->ground);
-    EMBED_CALL(gui_base_raster.draw, GuiBaseRasterCfg, .base_read = &base, .raster = &raster, .ground = NULL, .color = palette->ground);
-    EMBED_CALL(gui_statusbar_status.draw, GuiStatusbarStatusCfg, .raster = &raster, .glyphs = &glyphs, .icons = &icons, .palette = palette, .frame = &claimed, .status = &status);
-    cli_check(!bare(&raster, (GuiRect){claimed.status.x + 8, claimed.status.y + 6, 160, 16}, &bare_base), "the crumbs stand at the bar's left while the claim holds");
+    // the claim holding with the bar come back, the crumbs stand at the bar's left with no strip's capacity before them
+    GuiAutohideNumbers numbers = frame.claim;
+    numbers.claim = GUI_FIXED_ONE;
+    numbers.reveal_bottom = GUI_FIXED_ONE;
+    numbers.inset_bottom = GUI_FIXED_ONE;
+    GuiFrame autohidden = frame;
+    EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &autohidden, .numbers = &numbers);
+    (void)EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &autohidden, .palette = palette, .controls_steady = 0);
+    EMBED_CALL(gui_base_raster.draw, GuiBaseRasterCfg, .base_read = &base, .raster = &bare_base, .background_fill = NULL, .color = palette->background_fill);
+    EMBED_CALL(gui_base_raster.draw, GuiBaseRasterCfg, .base_read = &base, .raster = &raster, .background_fill = NULL, .color = palette->background_fill);
+    EMBED_CALL(gui_statusbar_status.draw, GuiStatusbarStatusCfg, .raster = &raster, .glyphs = &glyphs, .icons = &icons, .palette = palette, .frame = &autohidden, .status = &status);
+    cli_check(!bare(&raster, (GuiRect){autohidden.status.x + 8, autohidden.status.y + 6, 160, 16}, &bare_base), "the crumbs stand at the bar's left while the claim holds");
     (void)EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &frame, .palette = palette, .controls_steady = 0);
-    EMBED_CALL(gui_base_raster.draw, GuiBaseRasterCfg, .base_read = &base, .raster = &bare_base, .ground = NULL, .color = palette->ground);
+    EMBED_CALL(gui_base_raster.draw, GuiBaseRasterCfg, .base_read = &base, .raster = &bare_base, .background_fill = NULL, .color = palette->background_fill);
 
-    EMBED_CALL(gui_base_raster.draw, GuiBaseRasterCfg, .base_read = &base, .raster = &raster, .ground = NULL, .color = palette->ground);
+    EMBED_CALL(gui_base_raster.draw, GuiBaseRasterCfg, .base_read = &base, .raster = &raster, .background_fill = NULL, .color = palette->background_fill);
     status.path = "";
     status.has_cursor = 0;
     EMBED_CALL(gui_statusbar_status.draw, GuiStatusbarStatusCfg, .raster = &raster, .glyphs = &glyphs, .icons = &icons, .palette = palette, .frame = &frame, .status = &status);

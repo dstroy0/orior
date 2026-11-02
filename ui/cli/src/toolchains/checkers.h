@@ -29,7 +29,6 @@ int cli_checkers_by_name(const CliCheckersNameCfg *args);
 int cli_checkers_reads_tree(const CliCheckersCfg *args);
 int cli_checkers_reads_input(const CliCheckersCfg *args);
 int cli_checkers_checks(const CliCheckersCfg *args);
-void cli_checkers_languages(const CliCheckersOutCfg *args);
 
 // the file at `path` of the tree at `root` checked by the checker `id`, as `length` bytes of `text` where the checker
 // reads its input and `text` is given, and as the disk stores it otherwise; and the tree at `root` checked whole, where
@@ -85,13 +84,11 @@ EMBED_TABLE_STORAGE CliCheckersNs cli_checkers EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*languages)(const CliCheckersOutCfg *args);
     int (*check_file)(const CliCheckersOutCfg *args);
     int (*check_tree)(const CliCheckersOutCfg *args);
 } CliCheckersOutNs;
-EMBED_TABLE_LAYOUT(CliCheckersOutNs, languages, check_file, check_tree);
+EMBED_TABLE_LAYOUT(CliCheckersOutNs, check_file, check_tree);
 EMBED_TABLE_STORAGE CliCheckersOutNs cli_checkers_out EMBED_UNUSED = {
-    .languages = cli_checkers_languages,
     .check_file = cli_checkers_check_file,
     .check_tree = cli_checkers_check_tree,
 };

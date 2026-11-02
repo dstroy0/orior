@@ -11,7 +11,7 @@
 //
 // What the readers share, and the schemas' reader with them: a text's lines, to turn a byte into a place; the findings
 // of a file, each with the fixes it offers, an edit of the file or a line to run in the terminal; the completion
-// items of what was typed; and the names nearest one that is not known (builds.c, builds_help.c, builds_near.c,
+// items of what was typed; and the names nearest one that is not known (builds.c, builds_help.c, builds_adjacent.c,
 // version_catalog*.c, gradle*.c, maven*.c, scons*.c)
 #ifndef BUILDS_H
 #define BUILDS_H
@@ -27,7 +27,7 @@ typedef struct CliBuildsPathRootCfg CliBuildsPathRootCfg;
 typedef struct CliBuildsACfg CliBuildsACfg;
 typedef struct CliBuildsRootCfg CliBuildsRootCfg;
 typedef struct CliBuildsSizeCfg CliBuildsSizeCfg;
-typedef struct CliBuildsSizeNearCfg CliBuildsSizeNearCfg;
+typedef struct CliBuildsSizeAdjacentCfg CliBuildsSizeAdjacentCfg;
 typedef struct CliBuildsTextAtCfg CliBuildsTextAtCfg;
 typedef struct CliBuildsCfg CliBuildsCfg;
 typedef struct CliBuildsLineCfg CliBuildsLineCfg;
@@ -50,8 +50,8 @@ typedef struct CliBuildsSizeVersionCfg CliBuildsSizeVersionCfg;
 #define CLI_BUILD_NOTE 3u
 
 // the most findings of one file, the most fixes of them, the most bytes their texts take, and no finding; the findings
-// and fixes their rooms are taken with; and the bytes the texts have free past the last stored, the room a message or a
-// title is written in before it is stored
+// and fixes their capacities are taken with; and the bytes the texts have free past the last stored, the capacity a
+// message or a title is written in before it is stored
 #define CLI_BUILD_FINDINGS 4096u
 #define CLI_BUILD_FIXES 16384u
 #define CLI_BUILD_TEXT (1u << 21u)
@@ -96,15 +96,15 @@ void cli_build_lines_get(const CliBuildsTextSizeCfg *args);
 // the lines of `size` bytes of `text` indexed whole, their starts in a cell counted to g_cli_build_cells sized to
 // them: the cell, given back with g_cli_cells->persistent_buf_release once the lines are done with, or NULL with no
 // line indexed where it is refused
-unsigned int *cli_build_lines_take(const CliBuildsTextSizeCfg *args);
-CliTextPlace cli_build_place(const CliBuildsLinesAtCfg *args);
+unsigned int *cli_build_lines_alloc(const CliBuildsTextSizeCfg *args);
+CliTextPosition cli_build_position(const CliBuildsLinesAtCfg *args);
 unsigned long long cli_build_line_start(const CliBuildsLineCfg *args);
 
 // A finding in a file: its span, how bad it is, its code, and its message in Markdown, a text of its findings'
 typedef struct
 {
-    CliTextPlace from;
-    CliTextPlace to;
+    CliTextPosition from;
+    CliTextPosition to;
     unsigned int severity;
     const char *code;
     unsigned int message_at;
@@ -120,11 +120,11 @@ typedef struct
     int run;
     unsigned int title_at;
     unsigned int title_size;
-    CliTextPlace from;
-    CliTextPlace to;
+    CliTextPosition from;
+    CliTextPosition to;
     int also;
-    CliTextPlace also_from;
-    CliTextPlace also_to;
+    CliTextPosition also_from;
+    CliTextPosition also_to;
     unsigned int text_at;
     unsigned int text_size;
     unsigned int folder_at;
@@ -137,19 +137,19 @@ typedef struct
 {
     CliBuildFinding *finding;
     unsigned int count;
-    unsigned int finding_room;
+    unsigned int finding_capacity;
     CliBuildFix *fix;
     unsigned int fixes;
-    unsigned int fix_room;
+    unsigned int fix_capacity;
     char *text;
     unsigned int used;
-    unsigned int text_room;
+    unsigned int text_capacity;
     int full;
 } CliBuildFindings;
 
-// findings made empty, those allocated before given back; their cells given back; a line over the room left in their
-// texts, CLI_BUILD_MSG_MIN_LEN bytes or more, a message or a title written into it there retained by the finding or the
-// fix made of it next, one at a time; a finding of `message` over the bytes `from` to `to`: its place, or
+// findings made empty, those allocated before given back; their cells given back; a line over the capacity left in
+// their texts, CLI_BUILD_MSG_MIN_LEN bytes or more, a message or a title written into it there retained by the finding
+// or the fix made of it next, one at a time; a finding of `message` over the bytes `from` to `to`: its place, or
 // CLI_BUILD_NONE where it does not fit; a fix of the finding at `finding` that writes `size` bytes of `text` over the
 // bytes `from` to `to`; and one that runs `line` in the terminal in `folder` of the tree (builds_help.c)
 void cli_build_findings_begin(const CliBuildsLinesCfg *args);
@@ -183,17 +183,17 @@ typedef struct
 {
     const char *name;
     unsigned long long name_size;
-    const char *near[3];
-    unsigned long long near_size[3];
+    const char *adjacent[3];
+    unsigned long long adjacent_size[3];
     unsigned long long far[3];
     unsigned int count;
-} CliBuildNear;
+} CliBuildAdjacent;
 
 // the fewest edits of one letter that turn `a` into `b`; the nearest names begun for `name`; and a known name offered
 // to them
 unsigned long long cli_build_distance(const CliBuildsACfg *args);
-void cli_build_near_begin(const CliBuildsSizeCfg *args);
-void cli_build_near_offer(const CliBuildsSizeNearCfg *args);
+void cli_build_adjacent_begin(const CliBuildsSizeCfg *args);
+void cli_build_adjacent_offer(const CliBuildsSizeAdjacentCfg *args);
 
 // `folder` as a path in the tree at `root`, with forward slashes, empty for the top, into `out`, sized for
 // CLI_PATH_MAX_LEN; and whether a version is a snapshot's
@@ -292,7 +292,7 @@ struct CliBuildsPathRootCfg
     const char *path;
     const char *root;
     char *folder_out;
-    char *line_room;
+    char *line_capacity;
     VerbaLinea *err_msg;
 };
 
@@ -308,20 +308,20 @@ struct CliBuildsRootCfg
 {
     const char *root;
     const char *folder;
-    char *out_room;
+    char *out_capacity;
 };
 
 struct CliBuildsSizeCfg
 {
     unsigned long long size;
-    CliBuildNear *near;
+    CliBuildAdjacent *adjacent;
     const char *name;
 };
 
-struct CliBuildsSizeNearCfg
+struct CliBuildsSizeAdjacentCfg
 {
     unsigned long long size;
-    CliBuildNear *near;
+    CliBuildAdjacent *adjacent;
     const char *one;
 };
 
@@ -392,21 +392,21 @@ EMBED_TABLE_STORAGE CliBuildsPathRootNs cli_builds_path_root EMBED_UNUSED = {
 typedef struct
 {
     void (*build_lines_get)(const CliBuildsTextSizeCfg *args);
-    unsigned int *(*build_lines_take)(const CliBuildsTextSizeCfg *args);
+    unsigned int *(*build_lines_alloc)(const CliBuildsTextSizeCfg *args);
 } CliBuildsTextSizeNs;
-EMBED_TABLE_LAYOUT(CliBuildsTextSizeNs, build_lines_get, build_lines_take);
+EMBED_TABLE_LAYOUT(CliBuildsTextSizeNs, build_lines_get, build_lines_alloc);
 EMBED_TABLE_STORAGE CliBuildsTextSizeNs cli_builds_text_size EMBED_UNUSED = {
     .build_lines_get = cli_build_lines_get,
-    .build_lines_take = cli_build_lines_take,
+    .build_lines_alloc = cli_build_lines_alloc,
 };
 
 typedef struct
 {
-    CliTextPlace (*build_place)(const CliBuildsLinesAtCfg *args);
+    CliTextPosition (*build_position)(const CliBuildsLinesAtCfg *args);
 } CliBuildsLinesAtNs;
-EMBED_TABLE_LAYOUT(CliBuildsLinesAtNs, build_place);
+EMBED_TABLE_LAYOUT(CliBuildsLinesAtNs, build_position);
 EMBED_TABLE_STORAGE CliBuildsLinesAtNs cli_builds_lines_at EMBED_UNUSED = {
-    .build_place = cli_build_place,
+    .build_position = cli_build_position,
 };
 
 typedef struct
@@ -509,20 +509,20 @@ EMBED_TABLE_STORAGE CliBuildsANs cli_builds_a EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*build_near_begin)(const CliBuildsSizeCfg *args);
+    void (*build_adjacent_begin)(const CliBuildsSizeCfg *args);
 } CliBuildsSizeNs;
-EMBED_TABLE_LAYOUT(CliBuildsSizeNs, build_near_begin);
+EMBED_TABLE_LAYOUT(CliBuildsSizeNs, build_adjacent_begin);
 EMBED_TABLE_STORAGE CliBuildsSizeNs cli_builds_size EMBED_UNUSED = {
-    .build_near_begin = cli_build_near_begin,
+    .build_adjacent_begin = cli_build_adjacent_begin,
 };
 
 typedef struct
 {
-    void (*build_near_offer)(const CliBuildsSizeNearCfg *args);
-} CliBuildsSizeNearNs;
-EMBED_TABLE_LAYOUT(CliBuildsSizeNearNs, build_near_offer);
-EMBED_TABLE_STORAGE CliBuildsSizeNearNs cli_builds_size_near EMBED_UNUSED = {
-    .build_near_offer = cli_build_near_offer,
+    void (*build_adjacent_offer)(const CliBuildsSizeAdjacentCfg *args);
+} CliBuildsSizeAdjacentNs;
+EMBED_TABLE_LAYOUT(CliBuildsSizeAdjacentNs, build_adjacent_offer);
+EMBED_TABLE_STORAGE CliBuildsSizeAdjacentNs cli_builds_size_adjacent EMBED_UNUSED = {
+    .build_adjacent_offer = cli_build_adjacent_offer,
 };
 
 typedef struct

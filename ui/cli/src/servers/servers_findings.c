@@ -6,7 +6,7 @@
 #include "servers_internal.h"
 
 // the findings read, under the reading's lock
-static CliServersReading s_found = {0};
+static CliServersReadState s_found = {0};
 
 typedef struct
 {
@@ -44,16 +44,16 @@ EMBED_INLINE int findings_file_get(const ServersFindingsCtx *args)
 }
 
 // the findings `items` of the checker `id` stored for the file of `key` and `uri`: 1 where they changed; under the
-// checks' lock. The file's entry is read into a tree with room over for the findings copied in, their key and an
+// checks' lock. The file's entry is read into a tree with capacity over for the findings copied in, their key and an
 // object made where none was stored, and written into a cell of the most the tree writes to
-EMBED_INLINE int findings_put(const ServersFindingsCtx *args)
+EMBED_INLINE int findings_append(const ServersFindingsCtx *args)
 {
     const char *key = args->key_read;
-    const char *beside = NULL;
+    const char *adjacent = NULL;
     unsigned long long size = 0ull;
     const char *const stored =
-        EMBED_CALL(cli_keyed_key_beside.get, CliKeyedKeyBesideCfg, .keyed = &g_cli_servers_checked, .key = key,
-                   .beside = &beside, .size = &size);
+        EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &g_cli_servers_checked, .key = key,
+                   .adjacent = &adjacent, .size = &size);
     unsigned int nodes_more = 1u;
     unsigned long long text_more = cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_CELLS_POOL}) + 1ull;
     EMBED_CALL(cli_json_tree_node_nodes.json_extent, CliJsonTreeNodeNodesCfg, .json_read = &s_found.json,
@@ -62,16 +62,16 @@ EMBED_INLINE int findings_put(const ServersFindingsCtx *args)
     VerbaLinea err_msg = {quiet, sizeof(quiet), 0ull};
     CliJson json;
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &json,
-               .node_json_node_pointer = NULL, .nodes_most = 0u, .text_out = NULL, .text_most = 0ull);
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
     unsigned int entry = CLI_JSON_NONE;
     if (stored != NULL)
     {
-        entry = EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
+        entry = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
                            .text = stored, .size = size, .nodes_more = nodes_more, .text_more = text_more,
                            .err_msg = &err_msg, .owner = &g_cli_servers_cells);
     }
-    else if (!EMBED_CALL(cli_json_tree_nodes_most.json_reserve, CliJsonTreeNodesMostCfg, .json = &json,
-                         .nodes_most = nodes_more, .text_most = text_more, .what = "a file's findings",
+    else if (!EMBED_CALL(cli_json_tree_nodes_max.json_reserve, CliJsonTreeNodesMaxCfg, .json = &json,
+                         .nodes_max = nodes_more, .text_max = text_more, .what = "a file's findings",
                          .owner = &g_cli_servers_cells))
     {
         return 0;
@@ -93,16 +93,16 @@ EMBED_INLINE int findings_put(const ServersFindingsCtx *args)
                .value = EMBED_CALL(cli_json_tree_node.json_copy_from, CliJsonTreeNodeCfg, .to = &json,
                                    .from = &s_found.json, .node = args->items));
     EMBED_CALL(cli_json_tree_object_name.json_sort, CliJsonTreeObjectNameCfg, .json = &json, .object = entry);
-    const unsigned long long room =
-        EMBED_CALL(cli_json_tree_node_out.json_write_room, CliJsonTreeNodeOutCfg, .json_read = &json);
-    char *const entry_written = g_cli_cells->temporary_buf_alloc(room, &g_cli_servers_cells);
-    VerbaLinea written = mmgr_line_over(entry_written, room);
+    const unsigned long long capacity =
+        EMBED_CALL(cli_json_tree_node_out.json_write_capacity, CliJsonTreeNodeOutCfg, .json_read = &json);
+    char *const entry_written = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_servers_cells);
+    VerbaLinea written = mmgr_line_over(entry_written, capacity);
     EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = &json, .node = entry,
                .out = &written, .indent = 0u, .sorted = 1);
     if (!json.full && mmgr_line_ok(&written))
     {
-        (void)EMBED_CALL(cli_keyed_key_beside.put, CliKeyedKeyBesideCfg, .keyed_out = &g_cli_servers_checked,
-                         .key = key, .beside_value = args->uri_read, .text = written.out, .size_value = written.at);
+        (void)EMBED_CALL(cli_keyed_key_adjacent.put, CliKeyedKeyAdjacentCfg, .keyed_out = &g_cli_servers_checked,
+                         .key = key, .adjacent_value = args->uri_read, .text = written.out, .size_value = written.at);
     }
     g_cli_cells->persistent_buf_release(entry_written, &g_cli_servers_cells);
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
@@ -111,9 +111,10 @@ EMBED_INLINE int findings_put(const ServersFindingsCtx *args)
 
 void cli_servers_findings_store(const CliServersSizeCtx *args)
 {
-    EMBED_CALL(cli_servers_reading_answer_internal.reading_lock, CliServersReadingAnswerCtx, .reading = &s_found);
-    const unsigned int root = EMBED_CALL(cli_servers_reading_internal.read, CliServersReadingCtx, .reading = &s_found,
-                                         .text = args->found, .size = args->size);
+    EMBED_CALL(cli_servers_read_state_answer_internal.read_state_lock, CliServersReadStateAnswerCtx,
+               .read_state = &s_found);
+    const unsigned int root = EMBED_CALL(cli_servers_read_state_internal.read, CliServersReadStateCtx,
+                                         .read_state = &s_found, .text = args->found, .size = args->size);
     const CliJson *const json = &s_found.json;
     // the files whose findings changed, in a cell of one place for each file the findings name
     const unsigned int files = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
@@ -138,8 +139,8 @@ void cli_servers_findings_store(const CliServersSizeCtx *args)
         {
             continue;
         }
-        const int put = EMBED_CALL(findings_put, ServersFindingsCtx, .key_read = key, .uri_read = uri, .id = args->id,
-                                   .items = items);
+        const int put = EMBED_CALL(findings_append, ServersFindingsCtx, .key_read = key, .uri_read = uri,
+                                   .id = args->id, .items = items);
         if (put || args->always)
         {
             changed_files[changed] = pair;
@@ -150,10 +151,11 @@ void cli_servers_findings_store(const CliServersSizeCtx *args)
     {
         if (EMBED_CALL(findings_file_get, ServersFindingsCtx, .pair = changed_files[at], .uri = uri, .key = key))
         {
-            EMBED_CALL(cli_servers_sink_key_internal.emit_whole, CliServersSinkKeyCtx, .key = key, .uri = uri,
+            EMBED_CALL(cli_servers_sink_key_internal.emit_file, CliServersSinkKeyCtx, .key = key, .uri = uri,
                        .sink = args->sink);
         }
     }
     g_cli_cells->persistent_buf_release(changed_files, &g_cli_servers_cells);
-    EMBED_CALL(cli_servers_reading_answer_internal.reading_release, CliServersReadingAnswerCtx, .reading = &s_found);
+    EMBED_CALL(cli_servers_read_state_answer_internal.read_state_release, CliServersReadStateAnswerCtx,
+               .read_state = &s_found);
 }

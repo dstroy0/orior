@@ -117,7 +117,7 @@ EMBED_INLINE int cli_starts(const CatalogScanCtx *args)
 }
 
 // a retained line put after the paragraph, a space before each but the first
-EMBED_INLINE void cli_paragraph_put(const CatalogScanCtx *args)
+EMBED_INLINE void cli_paragraph_append(const CatalogScanCtx *args)
 {
     int *count = args->count;
     mmgr_line_put(args->out, (*count != 0) ? " " : "");
@@ -155,7 +155,7 @@ EMBED_INLINE void cli_docstring(const CatalogScanCtx *args)
         }
         if (line.length != 0ull)
         {
-            EMBED_CALL(cli_paragraph_put, CatalogScanCtx, .out = args->out, .count = &count, .text = line.at,
+            EMBED_CALL(cli_paragraph_append, CatalogScanCtx, .out = args->out, .count = &count, .text = line.at,
                        .length = line.length);
         }
         if (ended)
@@ -240,8 +240,8 @@ static void cli_about_write(const CatalogScanCtx *args)
         }
         {
             const unsigned long long lead =
-                EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = about_text.at,
-                           .at = 0ull, .size = about_text.length, .set = "!");
+                EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = about_text.at, .at = 0ull,
+                           .size = about_text.length, .set = "!");
             about_text.at += lead;
             about_text.length -= lead;
         }
@@ -254,7 +254,7 @@ static void cli_about_write(const CatalogScanCtx *args)
             }
             break;
         }
-        EMBED_CALL(cli_paragraph_put, CatalogScanCtx, .out = args->out, .count = &count, .text = about_text.at,
+        EMBED_CALL(cli_paragraph_append, CatalogScanCtx, .out = args->out, .count = &count, .text = about_text.at,
                    .length = about_text.length);
     }
 }
@@ -262,7 +262,7 @@ static void cli_about_write(const CatalogScanCtx *args)
 void cli_catalog_about(const CliCatalogCfg *args)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = args->path,
+    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->path,
                                                   .size_pointer = &size, .owner = &g_cli_catalog_cells);
     if (bytes == NULL)
     {
@@ -277,10 +277,10 @@ void cli_catalog_about(const CliCatalogCfg *args)
 
 // what a file declares of itself is the text of the lines it is read from, a space put for each line's end it passes,
 // so it is no longer than those lines
-char *cli_catalog_about_take(const CliCatalogPathCtx *args)
+char *cli_catalog_about_alloc(const CliCatalogPathCtx *args)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = args->path,
+    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->path,
                                                   .size_pointer = &size, .owner = &g_cli_catalog_cells);
     if (bytes == NULL)
     {
@@ -289,11 +289,11 @@ char *cli_catalog_about_take(const CliCatalogPathCtx *args)
     // the file's bytes read as its text
     const char *const text = (const char *)bytes;
     const char *const end = EMBED_CALL(cli_about_end, CatalogScanCtx, .text = text, .size = size);
-    const unsigned long long room = (unsigned long long)(end - text) + 1ull;
-    char *const about = g_cli_cells->persistent_buf_alloc(room, &g_cli_catalog_cells);
+    const unsigned long long capacity = (unsigned long long)(end - text) + 1ull;
+    char *const about = g_cli_cells->persistent_buf_alloc(capacity, &g_cli_catalog_cells);
     if (about != NULL)
     {
-        VerbaLinea line = {about, room, 0ull};
+        VerbaLinea line = {about, capacity, 0ull};
         EMBED_CALL(cli_about_write, CatalogScanCtx, .path = args->path, .text = text, .end = end, .out = &line);
         mmgr_line_finish(&line);
     }
@@ -349,7 +349,7 @@ unsigned int cli_catalog_case_names(const CliCatalogTextVariableCtx *args)
             {
                 count += 1u;
             }
-            else if (named && (count < args->room))
+            else if (named && (count < args->capacity))
             {
                 VerbaLinea name_line = {args->names_callback[count], CLI_NAME_MAX_LEN, 0ull};
                 mmgr_line_put_n(&name_line, name.at, name.length);
@@ -394,7 +394,7 @@ EMBED_INLINE unsigned long long cli_driver_join(const CatalogScanCtx *args)
     return length;
 }
 
-unsigned int cli_catalog_driver_parts(const CliCatalogRoomCtx *args)
+unsigned int cli_catalog_driver_parts(const CliCatalogCapacityCtx *args)
 {
     static const char s_marker[] = "in the order given:";
     const char *const found = cellul.find(
@@ -423,7 +423,7 @@ unsigned int cli_catalog_driver_parts(const CliCatalogRoomCtx *args)
             {
                 count += 1u;
             }
-            else if ((part.length != 0ull) && (count < args->room))
+            else if ((part.length != 0ull) && (count < args->capacity))
             {
                 VerbaLinea name_line = {args->parts[count], CLI_NAME_MAX_LEN, 0ull};
                 mmgr_line_put_n(&name_line, part.at, part.length);
@@ -438,10 +438,10 @@ unsigned int cli_catalog_driver_parts(const CliCatalogRoomCtx *args)
 
 // a README's first paragraph is the text of its lines, a space put for each line's end it passes, so it is no longer
 // than the README
-char *cli_catalog_markdown_take(const CliCatalogPathOutCtx *args)
+char *cli_catalog_markdown_alloc(const CliCatalogPathOutCtx *args)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = args->path,
+    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->path,
                                                   .size_pointer = &size, .owner = &g_cli_catalog_cells);
     if (bytes == NULL)
     {
@@ -472,7 +472,7 @@ char *cli_catalog_markdown_take(const CliCatalogPathOutCtx *args)
             }
             continue;
         }
-        EMBED_CALL(cli_paragraph_put, CatalogScanCtx, .out = &opened, .count = &count, .text = line.at,
+        EMBED_CALL(cli_paragraph_append, CatalogScanCtx, .out = &opened, .count = &count, .text = line.at,
                    .length = line.length);
     }
     mmgr_line_finish(&opened);

@@ -23,7 +23,7 @@ static const char *const s_entries[STATE_ENTRIES][2] = {
 static char s_folder[CLI_PATH_MAX_LEN];
 static char s_text[1u << 16u];
 static char s_read[1u << 16u];
-static char s_why[1024];
+static char s_error[1024];
 
 // whether the file `name` is in the folder
 static int file_exists(const char *name)
@@ -46,7 +46,7 @@ static void entries_saved(void)
         EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &changes, .text = s_entries[at][1], .length = CLI_UNITY_LENGTH(s_entries[at][1]));
     }
     mmgr_line_ch(&changes, '}');
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     TEST_ASSERT_TRUE(EMBED_CALL(cli_state_folder.save, CliStateFolderCfg, .folder = s_folder, .changes = s_text, .length = changes.at, .err_msg = &err_msg));
 }
 
@@ -66,7 +66,7 @@ static void entries_removed(void)
 {
     static const char s_removed[] = "{\"zoom\":null,\"themes\":\"[{\\\"name\\\":\\\"Night\\\",\\\"base\\\":\\\"dark\\\","
                                     "\\\"colors\\\":{}}]\",\"backup.D:/tree\\nsrc/a.rs\":null}";
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     TEST_ASSERT_TRUE(EMBED_CALL(cli_state_folder.save, CliStateFolderCfg, .folder = s_folder, .changes = s_removed, .length = sizeof(s_removed) - 1u, .err_msg = &err_msg));
 }
 
@@ -154,7 +154,7 @@ void test_a_save_over_a_file_that_is_not_an_object_is_refused_with_a_reason(void
 {
     static const char s_late[] = "{\"late\":\"x\"}";
     cli_unity_file(s_folder, "state.json", "not an object of entries");
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     TEST_ASSERT_FALSE(EMBED_CALL(cli_state_folder.save, CliStateFolderCfg, .folder = s_folder, .changes = s_late, .length = sizeof(s_late) - 1u, .err_msg = &err_msg));
     TEST_ASSERT_NOT_EQUAL(0ull, err_msg.at);
 }
@@ -163,7 +163,7 @@ void test_a_refused_save_leaves_the_stored_file_unchanged(void)
 {
     static const char s_late[] = "{\"late\":\"x\"}";
     cli_unity_file(s_folder, "state.json", "not an object of entries");
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     (void)EMBED_CALL(cli_state_folder.save, CliStateFolderCfg, .folder = s_folder, .changes = s_late, .length = sizeof(s_late) - 1u, .err_msg = &err_msg);
     char path[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_folder, .relative = "state.json", .joined = path);

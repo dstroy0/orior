@@ -13,23 +13,23 @@ static char s_out[1u << 20u];
 static CliJson s_step_tree;
 static CliJsonNode s_to_nodes[1024];
 static char s_to_text[1u << 14u];
-static int s_processes_ran;
+static int s_processes_run_result;
 static int s_process_started;
-static int s_own_listed;
-static int s_child_listed;
+static int s_own_listing;
+static int s_child_listing;
 static char s_child_line[4096];
 static unsigned long long s_in_use_before;
 static unsigned long long s_in_use_after;
 static unsigned long long s_high_water;
-static unsigned long long s_list_took;
+static unsigned long long s_list_consumed;
 
-// `text` read into the step tree in a cell sized to it with room for the arguments a case adds to it, the tree before it released: its root
+// `text` read into the step tree in a cell sized to it with capacity for the arguments a case adds to it, the tree before it released: its root
 static unsigned int step_tree_read(const char *text)
 {
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &s_step_tree);
-    return EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg, .json = &s_step_tree, .text = text, .size = CLI_UNITY_LENGTH(text), .nodes_more = 64u, .text_more = 4096ull, .err_msg = &err_msg, .owner = &g_checks_cells);
+    return EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &s_step_tree, .text = text, .size = CLI_UNITY_LENGTH(text), .nodes_more = 64u, .text_more = 4096ull, .err_msg = &err_msg, .owner = &g_checks_cells);
 }
 
 // node `node` of `json` written compact, its keys in order, into s_out
@@ -42,7 +42,7 @@ static const char *node_written(const CliJson *json, unsigned int node)
 }
 
 // whether the processes listed contain `pid` with a line it started with: its line into s_child_line, and whether this process is listed recorded
-static int process_listed(unsigned long long pid)
+static int process_listing(unsigned long long pid)
 {
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     EMBED_CALL(cli_debug_out_err_msg_id_step.processes, CliDebugOutErrMsgIdStepCfg, .out = &out);
@@ -60,7 +60,7 @@ static int process_listed(unsigned long long pid)
             // a digit's value is below 10
             value = (value * 10ull) + (unsigned long long)(json->text[json->node[number].text + digit] - '0');
         }
-        s_own_listed = s_own_listed || (value == cli_process_own());
+        s_own_listing = s_own_listing || (value == cli_process_own());
         if (value == pid)
         {
             const char *const command = cli_unity_member_text(one, "command");
@@ -72,7 +72,7 @@ static int process_listed(unsigned long long pid)
 }
 
 // a child process started and listed, what the list reported recorded, once for the process
-static void processes_ran(void)
+static void processes_run_result(void)
 {
 #if defined(_WIN32)
     const char *const words[8] = {"cmd", "/c", "ping", "-n", "4", "127.0.0.1", ">NUL", NULL};
@@ -82,11 +82,11 @@ static void processes_ran(void)
     CliSpawned child;
     char why[1024];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    if (s_processes_ran)
+    if (s_processes_run_result)
     {
         return;
     }
-    s_processes_ran = 1;
+    s_processes_run_result = 1;
     s_process_started = EMBED_CALL(cli_words_err_msg_internal.spawn, CliWordsErrMsgCtx, .spawned = &child, .words = words, .folder = NULL, .settings = NULL, .count = 0u, .detached = 1, .err_msg = &err_msg);
     if (!s_process_started)
     {
@@ -94,16 +94,16 @@ static void processes_ran(void)
     }
     s_in_use_before = embed_atomic_usize_load(&g_cli_debug_processes_cells.in_use);
     const unsigned long long began = cli_clock_milliseconds();
-    s_child_listed = process_listed(child.id);
-    s_list_took = cli_clock_milliseconds() - began;
+    s_child_listing = process_listing(child.id);
+    s_list_consumed = cli_clock_milliseconds() - began;
     s_in_use_after = embed_atomic_usize_load(&g_cli_debug_processes_cells.in_use);
     s_high_water = embed_atomic_usize_load(&g_cli_debug_processes_cells.hw);
     // on Linux a process has its name as its program starts and its line an instant after, once the system has mapped the program: the list is read
     // again until the line shows
-    for (unsigned int tries = 0u; !s_child_listed && (tries < 40u); tries += 1u)
+    for (unsigned int tries = 0u; !s_child_listing && (tries < 40u); tries += 1u)
     {
         EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 25u);
-        s_child_listed = process_listed(child.id);
+        s_child_listing = process_listing(child.id);
     }
     EMBED_CALL(cli_id_internal.spawn_tree_end, CliIdCtx, .id_u64 = child.id);
     (void)EMBED_CALL(cli_spawned_internal.spawn_wait, CliSpawnedCtx, .spawned = &child);
@@ -111,16 +111,16 @@ static void processes_ran(void)
 }
 
 // a session's place with 100 breakpoints and a start planned on it
-static CliDebugSession *place_planned(void)
+static CliDebugSession *position_planned(void)
 {
     static const char s_start[] = "{\"name\":\"x\"}";
     static CliDebugPlan s_plan;
-    CliDebugSession *const place = cli_debug_place();
+    CliDebugSession *const place = cli_debug_position();
     TEST_ASSERT_NOT_NULL(place);
     for (long long number = 0ll; number < 100ll; number += 1ll)
     {
-        place->placed[place->placed_count] = number;
-        place->placed_count += 1u;
+        place->positioned[place->positioned_count] = number;
+        place->positioned_count += 1u;
     }
     unsigned int read = CLI_JSON_NONE;
     const CliJson *const json = cli_unity_parsed(s_start, sizeof(s_start) - 1u, &read);
@@ -131,9 +131,9 @@ static CliDebugSession *place_planned(void)
 }
 
 // `place` freed under the debugger's lock
-static void place_freed(CliDebugSession *place)
+static void position_freed(CliDebugSession *place)
 {
-    EMBED_CALL(cli_debug_internal.place_free, CliDebugCtx, .place = place);
+    EMBED_CALL(cli_debug_internal.position_free, CliDebugCtx, .place = place);
 }
 
 // whether a tool of the manifest debugs `language`, or builds `kind`
@@ -184,9 +184,9 @@ void test_a_functions_bytecode_is_read_with_its_name_and_lines(void)
     TEST_ASSERT_TRUE(EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = file, .bytes = s_area, .size = sizeof(s_area) - 1u));
     EMBED_CALL(cli_runner_name.python, CliRunnerNameCfg, .path = python);
     const char *const version[3] = {python, "--version", NULL};
-    CliRan *const ran = cli_ran_take();
-    const int has_python = EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = version, .folder = NULL, .settings = NULL, .count = 0u, .ran = ran, .err_msg = &err_msg) && (ran->code == 0ll);
-    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+    CliRunResult *const run_result = cli_run_result_alloc();
+    const int has_python = EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = version, .folder = NULL, .settings = NULL, .count = 0u, .run_result = run_result, .err_msg = &err_msg) && (run_result->code == 0ll);
+    EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
     if (!has_python)
     {
         TEST_IGNORE_MESSAGE("no Python to compile the function with");
@@ -208,36 +208,36 @@ void test_a_functions_bytecode_is_read_with_its_name_and_lines(void)
     TEST_ASSERT_TRUE(found);
 }
 
-void test_the_machines_processes_are_listed_with_the_lines_they_started_with(void)
+void test_the_machines_processes_are_listing_with_the_lines_they_started_with(void)
 {
 #if defined(_WIN32)
     static const char s_expected[] = "127.0.0.1";
 #else
     static const char s_expected[] = "3";
 #endif
-    processes_ran();
+    processes_run_result();
     TEST_ASSERT_TRUE(s_process_started);
-    TEST_ASSERT_TRUE(s_child_listed);
+    TEST_ASSERT_TRUE(s_child_listing);
     CLI_TEST_ASSERT_CONTAINS(s_expected, s_child_line);
 }
 
-void test_this_process_is_not_listed(void)
+void test_this_process_is_not_listing(void)
 {
-    processes_ran();
-    TEST_ASSERT_FALSE(s_own_listed);
+    processes_run_result();
+    TEST_ASSERT_FALSE(s_own_listing);
 }
 
-void test_the_processes_are_listed_in_their_own_cells_released_once_written(void)
+void test_the_processes_are_listing_in_their_own_cells_released_once_written(void)
 {
-    processes_ran();
+    processes_run_result();
     TEST_ASSERT_EQUAL_UINT64(s_in_use_before, s_in_use_after);
     TEST_ASSERT_GREATER_THAN_UINT64(0ull, s_high_water);
 }
 
 void test_the_list_is_quick_enough_for_a_picker(void)
 {
-    processes_ran();
-    TEST_ASSERT_LESS_THAN_UINT64(2000ull, s_list_took);
+    processes_run_result();
+    TEST_ASSERT_LESS_THAN_UINT64(2000ull, s_list_consumed);
 }
 
 void test_launch_arguments_read_the_program_and_the_folder(void)
@@ -247,7 +247,7 @@ void test_launch_arguments_read_the_program_and_the_folder(void)
     CliJson to;
     unsigned int read = CLI_JSON_NONE;
     const CliJson *const json = cli_unity_parsed("{\"program\":\"{program}\",\"cwd\":\"{root}\",\"args\":[],\"deep\":{\"file\":\"{path}\"}}", 73ull, &read);
-    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &to, .node_json_node_pointer = s_to_nodes, .nodes_most = 1024u, .text_out = s_to_text, .text_most = sizeof(s_to_text));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &to, .node_json_node_pointer = s_to_nodes, .nodes_max = 1024u, .text_out = s_to_text, .text_max = sizeof(s_to_text));
     const unsigned int filled = EMBED_CALL(cli_debug_json_internal.fill, CliDebugJsonCtx, .to = &to, .json = json, .from = read, .names = s_names, .withs = s_withs, .count = 3u, .numbered = 0);
     TEST_ASSERT_EQUAL_STRING("{\"args\":[],\"cwd\":\"/t\",\"deep\":{\"file\":\"a.c\"},\"program\":\"a.exe\"}", node_written(&to, filled));
 }
@@ -259,7 +259,7 @@ void test_a_number_filled_in_is_a_number(void)
     CliJson to;
     unsigned int read = CLI_JSON_NONE;
     const CliJson *const json = cli_unity_parsed("{\"processId\":\"{pid}\"}", 21ull, &read);
-    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &to, .node_json_node_pointer = s_to_nodes, .nodes_most = 1024u, .text_out = s_to_text, .text_most = sizeof(s_to_text));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &to, .node_json_node_pointer = s_to_nodes, .nodes_max = 1024u, .text_out = s_to_text, .text_max = sizeof(s_to_text));
     const unsigned int filled = EMBED_CALL(cli_debug_json_internal.fill, CliDebugJsonCtx, .to = &to, .json = json, .from = read, .names = s_pid, .withs = s_number, .count = 1u, .numbered = 1);
     TEST_ASSERT_EQUAL_STRING("{\"processId\":412}", node_written(&to, filled));
 }
@@ -275,7 +275,7 @@ void test_a_frame_counts_its_line_from_zero(void)
     CLI_TEST_ASSERT_TEXT("{\"id\":7,\"name\":\"main\",\"path\":\"/t/a.c\",\"line\":5,\"col\":12,\"ip\":\"0x1000\"}", s_out, out.at);
 }
 
-void test_breakpoints_carry_their_conditions_counts_and_messages(void)
+void test_breakpoints_machine_transfer_their_conditions_counts_and_messages(void)
 {
     static const char s_sent[] = "[{\"line\":4},{\"line\":9,\"condition\":\"x > 2\",\"hits\":\">= 3\",\"log\":\"\"},{"
                                  "\"line\":11,\"log\":\"x is {x}\"}]";
@@ -290,25 +290,25 @@ void test_breakpoints_carry_their_conditions_counts_and_messages(void)
 
 void test_a_session_accepts_the_files_of_its_language(void)
 {
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_debug_file_internal.takes, CliDebugFileCtx, .language = "python", .file = "a/b.py"));
-    TEST_ASSERT_FALSE(EMBED_CALL(cli_debug_file_internal.takes, CliDebugFileCtx, .language = "python", .file = "a/b.c"));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_debug_file_internal.takes, CliDebugFileCtx, .language = "c", .file = "a/b.c"));
-    TEST_ASSERT_FALSE(EMBED_CALL(cli_debug_file_internal.takes, CliDebugFileCtx, .language = "rust", .file = "x.py"));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_debug_file_internal.allocs, CliDebugFileCtx, .language = "python", .file = "a/b.py"));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_debug_file_internal.allocs, CliDebugFileCtx, .language = "python", .file = "a/b.c"));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_debug_file_internal.allocs, CliDebugFileCtx, .language = "c", .file = "a/b.c"));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_debug_file_internal.allocs, CliDebugFileCtx, .language = "rust", .file = "x.py"));
 }
 
 void test_memory_comes_as_base64(void)
 {
     unsigned char bytes[16];
-    TEST_ASSERT_EQUAL_UINT64(5ull, EMBED_CALL(cli_debug_text_internal.base64, CliDebugTextCtx, .text = "SGVsbG8=", .size = 8ull, .out_bytes = bytes, .room = sizeof(bytes)));
+    TEST_ASSERT_EQUAL_UINT64(5ull, EMBED_CALL(cli_debug_text_internal.base64, CliDebugTextCtx, .text = "SGVsbG8=", .size = 8ull, .out_bytes = bytes, .capacity = sizeof(bytes)));
     TEST_ASSERT_EQUAL_MEMORY("Hello", bytes, 5u);
 }
 
 void test_every_byte_of_memory_comes_through_base64(void)
 {
-    static const unsigned char s_wanted[4] = {0u, 1u, 2u, 255u};
+    static const unsigned char s_requested[4] = {0u, 1u, 2u, 255u};
     unsigned char bytes[16];
-    TEST_ASSERT_EQUAL_UINT64(4ull, EMBED_CALL(cli_debug_text_internal.base64, CliDebugTextCtx, .text = "AAEC/w==", .size = 8ull, .out_bytes = bytes, .room = sizeof(bytes)));
-    TEST_ASSERT_EQUAL_MEMORY(s_wanted, bytes, 4u);
+    TEST_ASSERT_EQUAL_UINT64(4ull, EMBED_CALL(cli_debug_text_internal.base64, CliDebugTextCtx, .text = "AAEC/w==", .size = 8ull, .out_bytes = bytes, .capacity = sizeof(bytes)));
+    TEST_ASSERT_EQUAL_MEMORY(s_requested, bytes, 4u);
 }
 
 void test_debugpy_steps_only_in_the_users_code(void)
@@ -341,30 +341,30 @@ void test_lldb_avoids_the_patterns_it_is_sent(void)
     TEST_ASSERT_EQUAL_STRING("[\"x\",\"settings set target.process.thread.step-avoid-regexp ^std::|^boost::\"]", node_written(&s_step_tree, EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_step_tree, .object = arguments, .name = "initCommands")));
 }
 
-void test_a_places_breakpoints_are_in_one_cell_of_the_most_it_accepts(void)
+void test_a_positions_breakpoints_are_in_one_cell_of_the_max_it_accepts(void)
 {
-    CliDebugSession *const place = place_planned();
-    TEST_ASSERT_EQUAL_UINT(100u, place->placed_count);
-    TEST_ASSERT_EQUAL_UINT(CLI_DEBUG_PLACED, place->placed_room);
-    TEST_ASSERT_EQUAL_INT64(99ll, place->placed[99]);
-    place_freed(place);
+    CliDebugSession *const place = position_planned();
+    TEST_ASSERT_EQUAL_UINT(100u, place->positioned_count);
+    TEST_ASSERT_EQUAL_UINT(CLI_DEBUG_POSITIONED, place->positioned_capacity);
+    TEST_ASSERT_EQUAL_INT64(99ll, place->positioned[99]);
+    position_freed(place);
 }
 
-void test_a_places_start_is_a_tree_of_its_own(void)
+void test_a_positions_start_is_a_tree_of_its_own(void)
 {
-    CliDebugSession *const place = place_planned();
-    TEST_ASSERT_NOT_EQUAL(0u, place->start.nodes_most);
+    CliDebugSession *const place = position_planned();
+    TEST_ASSERT_NOT_EQUAL(0u, place->start.nodes_max);
     TEST_ASSERT_NOT_EQUAL(0ull, embed_atomic_usize_load(&g_cli_debug_cells.in_use));
-    place_freed(place);
+    position_freed(place);
 }
 
-void test_all_of_a_place_is_released_as_it_is_freed(void)
+void test_all_of_a_position_is_released_as_it_is_freed(void)
 {
-    CliDebugSession *const place = place_planned();
-    place_freed(place);
-    TEST_ASSERT_FALSE(place->taken);
-    TEST_ASSERT_NULL(place->placed);
-    TEST_ASSERT_EQUAL_UINT(0u, place->start.nodes_most);
+    CliDebugSession *const place = position_planned();
+    position_freed(place);
+    TEST_ASSERT_FALSE(place->reserved);
+    TEST_ASSERT_NULL(place->positioned);
+    TEST_ASSERT_EQUAL_UINT(0u, place->start.nodes_max);
     TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_debug_cells.in_use));
 }
 

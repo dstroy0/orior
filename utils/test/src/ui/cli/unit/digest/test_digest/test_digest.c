@@ -20,32 +20,32 @@ static const char *hex_of(const unsigned char *bytes, unsigned long long size)
     return s_hex;
 }
 
-static void assert_sha1(const char *wanted, const char *text)
+static void assert_sha1(const char *required, const char *text)
 {
     unsigned char digest[20];
     EMBED_CALL(cli_digest_bytes_size.sha1_bytes, CliDigestBytesSizeCfg, .bytes = text, .size = CLI_UNITY_LENGTH(text), .digest = digest);
-    TEST_ASSERT_EQUAL_STRING(wanted, hex_of(digest, sizeof(digest)));
+    TEST_ASSERT_EQUAL_STRING(required, hex_of(digest, sizeof(digest)));
 }
 
-static void assert_md5(const char *wanted, const char *text)
+static void assert_md5(const char *required, const char *text)
 {
     VerbaLinea line = {s_hex, sizeof(s_hex), 0ull};
     EMBED_CALL(cli_digest_bytes.md5_text, CliDigestBytesCfg, .bytes = text, .size = CLI_UNITY_LENGTH(text), .text = &line);
-    CLI_TEST_ASSERT_TEXT(wanted, s_hex, line.at);
+    CLI_TEST_ASSERT_TEXT(required, s_hex, line.at);
 }
 
-static void assert_hmac(const char *wanted, const void *key, unsigned long long key_size, const char *message)
+static void assert_hmac(const char *required, const void *key, unsigned long long key_size, const char *message)
 {
     VerbaLinea line = {s_hex, sizeof(s_hex), 0ull};
     EMBED_CALL(cli_digest_text.hmac_sha256_text, CliDigestTextCfg, .key = key, .key_size = key_size, .message = message, .message_size = CLI_UNITY_LENGTH(message), .text = &line);
-    CLI_TEST_ASSERT_TEXT(wanted, s_hex, line.at);
+    CLI_TEST_ASSERT_TEXT(required, s_hex, line.at);
 }
 
-static void assert_sha256(const char *wanted, const void *bytes, unsigned long long size)
+static void assert_sha256(const char *required, const void *bytes, unsigned long long size)
 {
     VerbaLinea line = {s_hex, sizeof(s_hex), 0ull};
     EMBED_CALL(cli_digest_bytes.sha256_text, CliDigestBytesCfg, .bytes = bytes, .size = size, .text = &line);
-    CLI_TEST_ASSERT_TEXT(wanted, s_hex, line.at);
+    CLI_TEST_ASSERT_TEXT(required, s_hex, line.at);
 }
 
 void setUp(void)

@@ -18,7 +18,7 @@ typedef struct
 } JupyterFoldersCtx;
 
 // `name` joined under `folder` into the listing's next folder, where one is left: the count after
-EMBED_INLINE unsigned int jupyter_folder_put(const JupyterFoldersCtx *args)
+EMBED_INLINE unsigned int jupyter_folder_append(const JupyterFoldersCtx *args)
 {
     if (args->count >= CLI_KERNEL_FOLDERS)
     {
@@ -135,7 +135,7 @@ unsigned int cli_kernel_data_folders(const CliJupyterPythonsPythonCountCtx *args
     unsigned int count = 0u;
     static char s_paths[CLI_PATH_TEXT];
     if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "JUPYTER_PATH",
-                   .value_out = s_paths, .room = sizeof(s_paths)))
+                   .value_out = s_paths, .capacity = sizeof(s_paths)))
     {
 #if defined(_WIN32)
         const char between = ';';
@@ -177,34 +177,34 @@ unsigned int cli_kernel_data_folders(const CliJupyterPythonsPythonCountCtx *args
     char under[CLI_PATH_MAX_LEN];
 #if defined(_WIN32)
     if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "APPDATA", .value_out = home,
-                   .room = sizeof(home)))
+                   .capacity = sizeof(home)))
     {
-        count = EMBED_CALL(jupyter_folder_put, JupyterFoldersCtx, .folders = folders, .count = count, .folder = home,
+        count = EMBED_CALL(jupyter_folder_append, JupyterFoldersCtx, .folders = folders, .count = count, .folder = home,
                            .name = "jupyter");
     }
 #elif defined(__APPLE__)
     if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "HOME", .value_out = home,
-                   .room = sizeof(home)))
+                   .capacity = sizeof(home)))
     {
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = home, .relative = "Library", .joined = under);
-        count = EMBED_CALL(jupyter_folder_put, JupyterFoldersCtx, .folders = folders, .count = count, .folder = under,
-                           .name = "Jupyter");
+        count = EMBED_CALL(jupyter_folder_append, JupyterFoldersCtx, .folders = folders, .count = count,
+                           .folder = under, .name = "Jupyter");
     }
 #else
     if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "XDG_DATA_HOME",
-                   .value_out = home, .room = sizeof(home)))
+                   .value_out = home, .capacity = sizeof(home)))
     {
-        count = EMBED_CALL(jupyter_folder_put, JupyterFoldersCtx, .folders = folders, .count = count, .folder = home,
+        count = EMBED_CALL(jupyter_folder_append, JupyterFoldersCtx, .folders = folders, .count = count, .folder = home,
                            .name = "jupyter");
     }
     else if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "HOME",
-                        .value_out = home, .room = sizeof(home)))
+                        .value_out = home, .capacity = sizeof(home)))
     {
         char local[CLI_PATH_MAX_LEN];
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = home, .relative = ".local", .joined = local);
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = local, .relative = "share", .joined = under);
-        count = EMBED_CALL(jupyter_folder_put, JupyterFoldersCtx, .folders = folders, .count = count, .folder = under,
-                           .name = "jupyter");
+        count = EMBED_CALL(jupyter_folder_append, JupyterFoldersCtx, .folders = folders, .count = count,
+                           .folder = under, .name = "jupyter");
     }
 #endif
     for (unsigned int python = 0u; python < args->python_count; python += 1u)
@@ -214,21 +214,21 @@ unsigned int cli_kernel_data_folders(const CliJupyterPythonsPythonCountCtx *args
                        .prefix = prefix))
         {
             EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = prefix, .relative = "share", .joined = under);
-            count = EMBED_CALL(jupyter_folder_put, JupyterFoldersCtx, .folders = folders, .count = count,
+            count = EMBED_CALL(jupyter_folder_append, JupyterFoldersCtx, .folders = folders, .count = count,
                                .folder = under, .name = "jupyter");
         }
     }
 #if defined(_WIN32)
     if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "PROGRAMDATA",
-                   .value_out = home, .room = sizeof(home)))
+                   .value_out = home, .capacity = sizeof(home)))
     {
-        count = EMBED_CALL(jupyter_folder_put, JupyterFoldersCtx, .folders = folders, .count = count, .folder = home,
+        count = EMBED_CALL(jupyter_folder_append, JupyterFoldersCtx, .folders = folders, .count = count, .folder = home,
                            .name = "jupyter");
     }
 #else
-    count = EMBED_CALL(jupyter_folder_put, JupyterFoldersCtx, .folders = folders, .count = count,
+    count = EMBED_CALL(jupyter_folder_append, JupyterFoldersCtx, .folders = folders, .count = count,
                        .folder = "/usr/local/share", .name = "jupyter");
-    count = EMBED_CALL(jupyter_folder_put, JupyterFoldersCtx, .folders = folders, .count = count,
+    count = EMBED_CALL(jupyter_folder_append, JupyterFoldersCtx, .folders = folders, .count = count,
                        .folder = "/usr/share", .name = "jupyter");
 #endif
     return count;

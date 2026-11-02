@@ -25,7 +25,7 @@ extern void test_mysql_an_insert_reports_the_rows_it_affected(void);
 extern void test_mysql_a_query_lists_its_columns_each_of_its_type(void);
 extern void test_mysql_a_page_of_rows_comes(void);
 extern void test_mysql_bytes_read_as_hex_and_a_null_as_none(void);
-extern void test_mysql_the_rest_of_the_rows_come(void);
+extern void test_mysql_the_remainder_of_the_rows_come(void);
 extern void test_mysql_a_transaction_is_open_until_rolled_back(void);
 extern void test_mysql_a_failure_has_the_servers_code(void);
 extern void test_mysql_a_sleep_stopped_returns_1_at_once(void);
@@ -34,7 +34,7 @@ extern void test_mariadb_an_account_signs_in(void);
 extern void test_mariadb_a_wrong_password_is_refused(void);
 extern void test_mariadb_a_query_lists_its_columns(void);
 extern void test_mariadb_a_page_of_rows_comes(void);
-extern void test_mariadb_the_rest_of_the_rows_come(void);
+extern void test_mariadb_the_remainder_of_the_rows_come(void);
 extern void test_mariadb_a_sleep_stopped_fails_at_once(void);
 extern void test_mariadb_the_connection_answers_after_a_stopped_sleep(void);
 
@@ -114,7 +114,7 @@ int main(void)
   run_test(test_mysql_a_query_lists_its_columns_each_of_its_type, "test_mysql_a_query_lists_its_columns_each_of_its_type", 516);
   run_test(test_mysql_a_page_of_rows_comes, "test_mysql_a_page_of_rows_comes", 524);
   run_test(test_mysql_bytes_read_as_hex_and_a_null_as_none, "test_mysql_bytes_read_as_hex_and_a_null_as_none", 532);
-  run_test(test_mysql_the_rest_of_the_rows_come, "test_mysql_the_rest_of_the_rows_come", 539);
+  run_test(test_mysql_the_remainder_of_the_rows_come, "test_mysql_the_remainder_of_the_rows_come", 539);
   run_test(test_mysql_a_transaction_is_open_until_rolled_back, "test_mysql_a_transaction_is_open_until_rolled_back", 546);
   run_test(test_mysql_a_failure_has_the_servers_code, "test_mysql_a_failure_has_the_servers_code", 555);
   run_test(test_mysql_a_sleep_stopped_returns_1_at_once, "test_mysql_a_sleep_stopped_returns_1_at_once", 562);
@@ -123,7 +123,7 @@ int main(void)
   run_test(test_mariadb_a_wrong_password_is_refused, "test_mariadb_a_wrong_password_is_refused", 585);
   run_test(test_mariadb_a_query_lists_its_columns, "test_mariadb_a_query_lists_its_columns", 592);
   run_test(test_mariadb_a_page_of_rows_comes, "test_mariadb_a_page_of_rows_comes", 600);
-  run_test(test_mariadb_the_rest_of_the_rows_come, "test_mariadb_the_rest_of_the_rows_come", 608);
+  run_test(test_mariadb_the_remainder_of_the_rows_come, "test_mariadb_the_remainder_of_the_rows_come", 608);
   run_test(test_mariadb_a_sleep_stopped_fails_at_once, "test_mariadb_a_sleep_stopped_fails_at_once", 615);
   run_test(test_mariadb_the_connection_answers_after_a_stopped_sleep, "test_mariadb_the_connection_answers_after_a_stopped_sleep", 623);
 

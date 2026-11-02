@@ -55,21 +55,21 @@ typedef struct
     CliDisasmInstruction *instruction;
     unsigned int count;
     int cut;
-} CliDisasmReading;
+} CliDisasmReadState;
 
 // the command: its code to exit with
 int cli_disasm_verify_words(const CliDisasmVerifyWordsCfg *args);
 
 // the functions the IR text `ir`, `size` bytes, defines, each `define` of a function that is no declaration, their
-// names into `names` up to `room`: how many, those past the room left out (disasm_verify_read.c)
+// names into `names` up to `capacity`: how many, those past the capacity left out (disasm_verify_read.c)
 unsigned int cli_disasm_functions_define(const CliDisasmVerifyIrSizeCfg *args);
 // the symbol of `name` in the program's symbols as llvm-nm lists them, `text` of `size` bytes: `name` itself where the
 // program defines it, else `name` with the suffix link-time optimization gives a promoted local, as name.llvm.1234;
 // into `symbol`, sized for CLI_NAME_MAX_LEN: 1, or 0 where the program has no such symbol
 int cli_disasm_symbol_get(const CliDisasmVerifySizeTextCfg *args);
 // the instructions of the function `symbol` read from llvm-objdump's output with each instruction's bytes shown, `text`
-// of `size` bytes, into `reading`, whose cell is sized for CLI_DISASM_INSTRUCTIONS: 1, or 0 where the output contains
-// no such function
+// of `size` bytes, into `read_state`, whose cell is sized for CLI_DISASM_INSTRUCTIONS: 1, or 0 where the output
+// contains no such function
 int cli_disasm_objdump_read(const CliDisasmVerifySizeCfg *args);
 // the units of the function from the file the plugin's script wrote, `text` of `size` bytes: its instructions, and the
 // runs of bytes Ghidra left raw
@@ -92,7 +92,7 @@ int cli_disasm_path(const CliDisasmVerifyCfg *args);
 // first
 void cli_disasm_steps_begin(void);
 // a program of `names` beside the compiler at `compiler`, into `path`: 1, or 0 with which given
-int cli_disasm_beside(const CliDisasmVerifyPathCfg *args);
+int cli_disasm_adjacent(const CliDisasmVerifyPathCfg *args);
 // the tree's command line built with link-time optimization for `target` by build.sh, run with `compiler` as its CC:
 // 1, or 0 with why given
 int cli_disasm_build(const CliDisasmVerifyCompilerCfg *args);
@@ -105,7 +105,7 @@ unsigned int cli_disasm_functions(const CliDisasmVerifyIrCfg *args);
 unsigned int cli_disasm_symbols(const CliDisasmVerifyCountErrMsgListerCfg *args);
 // the symbols' instructions read from `program` by `disassembler`, Intel's syntax with each instruction's bytes, as
 // text the readers take, written to `into`: what the run gave, or NULL with why given
-CliRan *cli_disasm_disassemble(const CliDisasmVerifyCountErrMsgCfg *args);
+CliRunResult *cli_disasm_disassemble(const CliDisasmVerifyCountErrMsgCfg *args);
 // Ghidra's analyzer run headless over `program`, loaded as `loader` specifies and analyzed by the script alone, in a
 // project under `folder`, the plugin's script read from the tree at `top` and run with the symbols' names, its lines
 // written to `into`: the file's bytes, `size` of them, or NULL with why given
@@ -178,7 +178,7 @@ struct CliDisasmVerifyIrSizeCfg
     const char *ir;
     unsigned long long size;
     char (*names)[CLI_NAME_MAX_LEN];
-    unsigned int room;
+    unsigned int capacity;
 };
 
 struct CliDisasmVerifySizeCfg
@@ -186,13 +186,13 @@ struct CliDisasmVerifySizeCfg
     unsigned long long size;
     const char *text;
     const char *symbol;
-    CliDisasmReading *reading;
+    CliDisasmReadState *read_state;
 };
 
 struct CliDisasmVerifyOneCfg
 {
-    const CliDisasmReading *one;
-    const CliDisasmReading *other;
+    const CliDisasmReadState *one;
+    const CliDisasmReadState *other;
     unsigned int *at;
     unsigned int *other_at;
 };
@@ -275,11 +275,11 @@ EMBED_TABLE_STORAGE CliDisasmVerifyNs cli_disasm_verify EMBED_UNUSED = {
 
 typedef struct
 {
-    int (*disasm_beside)(const CliDisasmVerifyPathCfg *args);
+    int (*disasm_adjacent)(const CliDisasmVerifyPathCfg *args);
 } CliDisasmVerifyPathNs;
-EMBED_TABLE_LAYOUT(CliDisasmVerifyPathNs, disasm_beside);
+EMBED_TABLE_LAYOUT(CliDisasmVerifyPathNs, disasm_adjacent);
 EMBED_TABLE_STORAGE CliDisasmVerifyPathNs cli_disasm_verify_path EMBED_UNUSED = {
-    .disasm_beside = cli_disasm_beside,
+    .disasm_adjacent = cli_disasm_adjacent,
 };
 
 typedef struct
@@ -311,7 +311,7 @@ EMBED_TABLE_STORAGE CliDisasmVerifyCountErrMsgListerNs cli_disasm_verify_count_e
 
 typedef struct
 {
-    CliRan *(*disasm_disassemble)(const CliDisasmVerifyCountErrMsgCfg *args);
+    CliRunResult *(*disasm_disassemble)(const CliDisasmVerifyCountErrMsgCfg *args);
     int (*disasm_execute)(const CliDisasmVerifyCountErrMsgCfg *args);
 } CliDisasmVerifyCountErrMsgNs;
 EMBED_TABLE_LAYOUT(CliDisasmVerifyCountErrMsgNs, disasm_disassemble, disasm_execute);

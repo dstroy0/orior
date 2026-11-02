@@ -17,7 +17,7 @@ typedef struct
 typedef struct
 {
     unsigned long long bytes;
-    unsigned long long least;
+    unsigned long long min;
 } BenchMeasure;
 
 // The corpus: the tree's top, each file's path and its bytes loaded, how many, their bytes together, and how many times

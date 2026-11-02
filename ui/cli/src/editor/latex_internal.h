@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// latex_internal.h: what the LaTeX sources share: the room a make reads into under its lock, the names the engine
+// latex_internal.h: what the LaTeX sources share: the work state a make reads into under its lock, the names the engine
 // writes read as the tree's files, and what a make leaves read: its log's errors, its pages, and its SyncTeX boxes
 #ifndef LATEX_INTERNAL_H
 #define LATEX_INTERNAL_H
@@ -32,7 +32,7 @@ typedef struct CliLatexCtx CliLatexCtx;
 #define CLI_LATEX_INPUT_TEXT (1u << 20u)
 
 // A box open in a SyncTeX file: its point and its width, height and depth in the file's own units, and the first of
-// the marks in the room that are its
+// the marks in the work state that are its
 typedef struct
 {
     long long x;
@@ -49,7 +49,7 @@ typedef struct
     unsigned long long line;
 } CliTexMark;
 
-// A file a SyncTeX file names by its tag: whether it is a file of the tree, and where in the room its path starts
+// A file a SyncTeX file names by its tag: whether it is a file of the tree, and where in the work state its path starts
 typedef struct
 {
     unsigned int tag;
@@ -57,8 +57,9 @@ typedef struct
     unsigned int at;
 } CliTexInput;
 
-// The room a make reads into: the toolchains, the PATH's folders, the tool found, the PATH and TEXINPUTS a program
-// runs with, the SVG with its ids made the preview's own, the SyncTeX file unzipped, and its boxes, marks and files
+// The work state a make reads into: the toolchains, the PATH's folders, the tool found, the PATH and TEXINPUTS a
+// program runs with, the SVG with its ids made the preview's own, the SyncTeX file unzipped, and its boxes, marks and
+// files
 typedef struct
 {
     CliFound found;
@@ -70,11 +71,12 @@ typedef struct
     CliTexMark marks[CLI_LATEX_MARKS];
     CliTexInput files[CLI_LATEX_INPUTS];
     char names[CLI_LATEX_INPUT_TEXT];
-} CliLatexRoom;
+} CliLatexWorkState;
 
-// the room, a cell taken with the lock makes are read under and given back with it; and the lock taken with the room:
-// 1, or 0 with the lock given back where the cells cannot meet it; and the room given back with the lock (latex.c)
-extern CliLatexRoom *g_cli_latex;
+// the work state, a cell taken with the lock makes are read under and given back with it; and the lock taken with the
+// work state: 1, or 0 with the lock given back where the cells cannot meet it; and the work state given back with the
+// lock (latex.c)
+extern CliLatexWorkState *g_cli_latex;
 int cli_latex_lock(void);
 void cli_latex_release(void);
 
@@ -104,17 +106,6 @@ int cli_tex_sign(const CliLatexTextLengthValueI64sCtx *args);
 // `length` bytes of a name stand for into `file`, sized for CLI_PATH_MAX_LEN: 1, or 0 where they stand for none
 void cli_tex_names_init(const CliLatexNamesRootCtx *args);
 int cli_tex_names_get(const CliLatexLengthCtx *args);
-
-// the errors a log names, as `file:line: text` with -file-line-error, the first CLI_LATEX_ERRORS of them, written as
-// JSON objects one after another, a comma before each but the first: their count; and the SVG pdftocairo draws, which
-// is UTF-8, written as `"defs": ..., "pages": [...]`, every id in it written with `tex-` before it so that none meets
-// an id of the window's: 1, or 0 where it is larger than the room fits (latex_read.c)
-unsigned int cli_tex_errors_write(const CliLatexNamesLogCtx *args);
-int cli_tex_pages_write(const CliLatexSizeCtx *args);
-
-// the boxes of text a SyncTeX file reports each page contains, each with the lines of a file of the tree that set it,
-// written as a JSON array (latex_sync.c)
-void cli_tex_boxes_write(const CliLatexNamesCtx *args);
 
 // the name a file is made under into `job`, sized for CLI_PATH_MAX_LEN: its own where that is a plain one, of ASCII
 // letters, digits, - and _, which preserves \jobname and the bibliography made beside it, and `preview` for any other
@@ -280,33 +271,6 @@ typedef struct
 EMBED_TABLE_LAYOUT(CliLatexLengthNs, tex_names_get);
 EMBED_TABLE_STORAGE CliLatexLengthNs cli_latex_length_internal EMBED_UNUSED = {
     .tex_names_get = cli_tex_names_get,
-};
-
-typedef struct
-{
-    unsigned int (*tex_errors_write)(const CliLatexNamesLogCtx *args);
-} CliLatexNamesLogNs;
-EMBED_TABLE_LAYOUT(CliLatexNamesLogNs, tex_errors_write);
-EMBED_TABLE_STORAGE CliLatexNamesLogNs cli_latex_names_log_internal EMBED_UNUSED = {
-    .tex_errors_write = cli_tex_errors_write,
-};
-
-typedef struct
-{
-    int (*tex_pages_write)(const CliLatexSizeCtx *args);
-} CliLatexSizeNs;
-EMBED_TABLE_LAYOUT(CliLatexSizeNs, tex_pages_write);
-EMBED_TABLE_STORAGE CliLatexSizeNs cli_latex_size_internal EMBED_UNUSED = {
-    .tex_pages_write = cli_tex_pages_write,
-};
-
-typedef struct
-{
-    void (*tex_boxes_write)(const CliLatexNamesCtx *args);
-} CliLatexNamesNs;
-EMBED_TABLE_LAYOUT(CliLatexNamesNs, tex_boxes_write);
-EMBED_TABLE_STORAGE CliLatexNamesNs cli_latex_names_internal EMBED_UNUSED = {
-    .tex_boxes_write = cli_tex_boxes_write,
 };
 
 typedef struct

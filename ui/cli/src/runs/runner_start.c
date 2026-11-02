@@ -19,7 +19,7 @@ EMBED_INLINE void *run_part(const RunnerStartCtx *args)
     return part;
 }
 
-int cli_run_cells_take(const CliRunnerRunCtx *args)
+int cli_run_cells_alloc(const CliRunnerRunCtx *args)
 {
     CliCatalogExtent extent;
     EMBED_CALL(cli_catalog_from_index.job_extent, CliCatalogFromIndexCfg, .from = args->catalog, .index = args->job,
@@ -55,10 +55,10 @@ int cli_run_cells_take(const CliRunnerRunCtx *args)
                                            .bytes = (unsigned long long)extent.lists * sizeof(unsigned int));
     char *const text = EMBED_CALL(run_part, RunnerStartCtx, .at = &at, .bytes = extent.text);
     // the job's text is below an unsigned int's reach, as checked above
-    EMBED_CALL(cli_catalog_jobs_most.begin, CliCatalogJobsMostCfg, .catalog = &args->run->catalog, .jobs = jobs,
-               .jobs_most = 1u, .params = params, .params_most = extent.params, .steps = steps,
-               .steps_most = extent.steps, .request = arguments, .args_most = extent.args, .lists = lists,
-               .lists_most = extent.lists, .text_out = text, .text_most = (unsigned int)extent.text);
+    EMBED_CALL(cli_catalog_jobs_max.begin, CliCatalogJobsMaxCfg, .catalog = &args->run->catalog, .jobs = jobs,
+               .jobs_max = 1u, .params = params, .params_max = extent.params, .steps = steps, .steps_max = extent.steps,
+               .request = arguments, .args_max = extent.args, .lists = lists, .lists_max = extent.lists,
+               .text_out = text, .text_max = (unsigned int)extent.text);
     if (EMBED_CALL(cli_catalog_from.copy, CliCatalogFromCfg, .from = args->catalog, .index = args->job,
                    .to = &args->run->catalog) == CLI_CATALOG_NONE)
     {
@@ -95,19 +95,19 @@ int cli_runs_start(const CliRunnerErrMsgCfg *args)
     for (unsigned int at = 0u; at < job_at->steps; at += 1u)
     {
         const CliStep *const step = &args->catalog->step[job_at->step_first + at];
-        VerbaLinea shown = {s_shown, sizeof(s_shown), 0ull};
-        if ((step->program != CLI_PROGRAM_MADE) &&
+        VerbaLinea displayed = {s_shown, sizeof(s_shown), 0ull};
+        if ((step->program != CLI_PROGRAM_CREATED) &&
             EMBED_CALL(cli_runner_command_table.runs, CliRunnerCommandCfg, .catalog = args->catalog, .step = step,
                        .values = args->values) &&
             !EMBED_CALL(cli_runner_command_table.command, CliRunnerCommandCfg, .root = args->root,
                         .catalog = args->catalog, .step = step, .values = args->values, .command = &s_checked,
-                        .shown = &shown, .err_msg = args->err_msg))
+                        .displayed = &displayed, .err_msg = args->err_msg))
         {
             return 0;
         }
     }
     CliRun *run = NULL;
-    for (unsigned int at = 0u; (run == NULL) && (at < CLI_RUNS_MOST); at += 1u)
+    for (unsigned int at = 0u; (run == NULL) && (at < CLI_RUNS_MAX); at += 1u)
     {
         run = (!g_cli_runs[at].used || g_cli_runs[at].ended) ? &g_cli_runs[at] : NULL;
     }
@@ -116,7 +116,7 @@ int cli_runs_start(const CliRunnerErrMsgCfg *args)
         mmgr_line_put(args->err_msg, "more runs go at once than orior_cli supports");
         return 0;
     }
-    if (!EMBED_CALL(cli_runner_run_internal.run_cells_take, CliRunnerRunCtx, .run = run, .catalog = args->catalog,
+    if (!EMBED_CALL(cli_runner_run_internal.run_cells_alloc, CliRunnerRunCtx, .run = run, .catalog = args->catalog,
                     .job = args->job, .err_msg = args->err_msg))
     {
         return 0;
@@ -167,7 +167,7 @@ void cli_runs_wait(const CliRunnerErrMsgRunNumberCfg *args)
     for (;;)
     {
         int going = 0;
-        for (unsigned int at = 0u; at < CLI_RUNS_MOST; at += 1u)
+        for (unsigned int at = 0u; at < CLI_RUNS_MAX; at += 1u)
         {
             going = going || (g_cli_runs[at].used && (g_cli_runs[at].run == args->run_number) && !g_cli_runs[at].ended);
         }
@@ -183,7 +183,7 @@ int cli_runs_stop(const CliRunnerErrMsgRunNumberCfg *args)
 {
     unsigned long long process = 0ull;
     unsigned long long group = 0ull;
-    for (unsigned int at = 0u; at < CLI_RUNS_MOST; at += 1u)
+    for (unsigned int at = 0u; at < CLI_RUNS_MAX; at += 1u)
     {
         if (g_cli_runs[at].used && (g_cli_runs[at].run == args->run_number))
         {

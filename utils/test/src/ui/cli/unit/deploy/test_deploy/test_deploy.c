@@ -32,12 +32,12 @@ static const char *release_named(unsigned long long seconds)
 }
 
 // whether `text` reads as a local place, 1, or a machine, 0; -1 where it reads as neither
-static int place_is_local(const char *text)
+static int position_is_local(const char *text)
 {
-    CliDeployPlace place;
+    CliDeployPosition place;
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    return EMBED_CALL(cli_deploy_text_internal.place, CliDeployTextCtx, .text = text, .root = "C:/tree", .place_out = &place, .err_msg = &err_msg) ? place.here : -1;
+    return EMBED_CALL(cli_deploy_text_internal.place, CliDeployTextCtx, .text = text, .root = "C:/tree", .position_out = &place, .err_msg = &err_msg) ? place.here : -1;
 }
 
 // a line the run prints appended to the others, `|` between them
@@ -145,24 +145,24 @@ void test_a_release_is_named_to_the_second(void)
     TEST_ASSERT_EQUAL_STRING("20261010-224453", release_named(1791672293ull));
 }
 
-void test_a_place_on_a_machine_is_not_local(void)
+void test_a_position_on_a_machine_is_not_local(void)
 {
-    TEST_ASSERT_EQUAL_INT(0, place_is_local("me@web1:/srv/site"));
+    TEST_ASSERT_EQUAL_INT(0, position_is_local("me@web1:/srv/site"));
 }
 
-void test_a_place_in_a_container_is_not_local(void)
+void test_a_position_in_a_container_is_not_local(void)
 {
-    TEST_ASSERT_EQUAL_INT(0, place_is_local("docker:web:/srv"));
+    TEST_ASSERT_EQUAL_INT(0, position_is_local("docker:web:/srv"));
 }
 
-void test_a_folder_is_a_local_place(void)
+void test_a_folder_is_a_local_position(void)
 {
-    TEST_ASSERT_EQUAL_INT(1, place_is_local("C:/www/site"));
+    TEST_ASSERT_EQUAL_INT(1, position_is_local("C:/www/site"));
 }
 
-void test_a_folder_under_the_tree_is_a_local_place(void)
+void test_a_folder_under_the_tree_is_a_local_position(void)
 {
-    TEST_ASSERT_EQUAL_INT(1, place_is_local("./out"));
+    TEST_ASSERT_EQUAL_INT(1, position_is_local("./out"));
 }
 
 void test_a_files_header_names_it_and_its_mode(void)
@@ -195,7 +195,7 @@ void test_a_long_name_goes_in_a_pax_header(void)
     TEST_ASSERT_TRUE(named);
 }
 
-void test_a_tar_stream_is_whole_blocks(void)
+void test_a_tar_stream_is_complete_blocks(void)
 {
     TEST_ASSERT_EQUAL_UINT64(0ull, tar_written() % 512ull);
 }

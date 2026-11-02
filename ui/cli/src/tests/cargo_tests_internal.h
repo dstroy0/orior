@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // cargo_tests_internal.h: what the cargo test sources share: one file's text read as the search for tests reads it,
-// and the room the search stores what files contain in
+// and the capacity the search stores what files contain in
 #ifndef CARGO_TESTS_INTERNAL_H
 #define CARGO_TESTS_INTERNAL_H
 typedef struct CliCargoTestsACtx CliCargoTestsACtx;
@@ -14,9 +14,9 @@ typedef struct CliCargoTestsCtx CliCargoTestsCtx;
 #include "cargo_tests.h"
 #include "embed_dispatch_layout.h"
 
-// the cells the search for Rust's tests occupies; and a cell of `most` of `width` bytes, or of twice `*room` where that
-// is more, containing the `*room` of `cell`, `cell` given back and `*room` raised: the cell, or NULL where it is
-// refused and `cell` is retained (cargo_scan.c)
+// the cells the search for Rust's tests occupies; and a cell of `most` of `width` bytes, or of twice `*capacity` where
+// that is more, containing the `*capacity` of `cell`, `cell` given back and `*capacity` raised: the cell, or NULL where
+// it is refused and `cell` is retained (cargo_scan.c)
 extern CellOwner g_cli_cargo_cells;
 
 // what a token of Rust's text is: a word, `::`, or a sign
@@ -35,9 +35,9 @@ typedef struct
     unsigned int line;
 } CliRustToken;
 
-// What one file contains for the search: a test, or a module the file names with `mod name;`: where in the room's names
-// the modules written in the file it stands in start, joined by `::`, and its name, and the line a test's name stands
-// on
+// What one file contains for the search: a test, or a module the file names with `mod name;`: where in the capacity's
+// names the modules written in the file it stands in start, joined by `::`, and its name, and the line a test's name
+// stands on
 typedef struct
 {
     int test;
@@ -53,13 +53,13 @@ typedef struct
 {
     CliRustToken *tokens;
     unsigned int token_count;
-    unsigned long long token_room;
+    unsigned long long token_capacity;
     CliRustItem *items;
     unsigned int item_count;
-    unsigned long long item_room;
+    unsigned long long item_capacity;
     char *names;
     unsigned long long name_used;
-    unsigned long long name_room;
+    unsigned long long name_capacity;
 } CliCargoScan;
 
 extern CliCargoScan g_cli_cargo_scan;
@@ -74,7 +74,7 @@ typedef struct
 
 // the next line of `size` bytes from `at`, trimmed, as its start and length: 1, or 0 where none is left; the name of
 // the package a Cargo.toml describes into `name`, sized for CLI_NAME_MAX_LEN: 1, or 0 where it describes none; `a`
-// and `b` joined by `between`, either of them left out where it is empty, into `out`, sized for `room`; and the
+// and `b` joined by `between`, either of them left out where it is empty, into `out`, sized for `capacity`; and the
 // targets of the package a Cargo.toml in `folder` describes, `package` its name, each with its first file: the
 // library, the binaries and the tests, as Cargo finds them, their count into `count` (cargo_targets.c)
 int cli_cargo_line(const CliCargoTestsTextCtx *args);
@@ -98,7 +98,7 @@ struct CliCargoTestsACtx
     const char *b;
     const char *between;
     char *out;
-    unsigned long long room;
+    unsigned long long capacity;
 };
 
 struct CliCargoTestsTextCtx

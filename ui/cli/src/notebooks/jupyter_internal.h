@@ -25,8 +25,8 @@ typedef struct CliJupyterKeyCtx CliJupyterKeyCtx;
 // each contains, half for the frames read and half for the message written, the longest line a kernel writes of itself,
 // the most frames a message has, and the most nodes and bytes of a header read
 #define CLI_KERNEL_WAITERS 16u
-#define CLI_KERNEL_IOPUB_ROOM (1u << 22u)
-#define CLI_KERNEL_REPLY_ROOM (1u << 19u)
+#define CLI_KERNEL_IOPUB_CAPACITY (1u << 22u)
+#define CLI_KERNEL_REPLY_CAPACITY (1u << 19u)
 #define CLI_KERNEL_LINE (1u << 16u)
 #define CLI_KERNEL_FRAMES 64u
 #define CLI_KERNEL_HEADER_NODES 512u
@@ -50,16 +50,16 @@ typedef struct
     int answered;
 } CliKernelWaiter;
 
-// A reader of a kernel's: the kernel, the channel it reads, its socket or its pipe, its room and the room's size,
-// whether what it reads are replies, and its thread
+// A reader of a kernel's: the kernel, the channel it reads, its socket or its pipe, its capacity and the capacity's
+// size, whether what it reads are replies, and its thread
 typedef struct
 {
     CliKernel *kernel;
     const char *channel;
     const CliSocket *socket;
     unsigned long long pipe;
-    unsigned char *room;
-    unsigned long long room_size;
+    unsigned char *capacity;
+    unsigned long long capacity_bytes;
     int replies;
     CliThread thread;
     CliJsonNode nodes[CLI_KERNEL_HEADER_NODES];
@@ -73,10 +73,10 @@ typedef struct
 // behind it, each its id, its size and its message whole, a line read from `shell_queue_from`, under the shell's lock;
 // its key, session and connection file; the requests waiting on replies, its readers still reading, under its lock and
 // woken by its wake; the port debugpy listens at, under a lock of its own; its interrupt event on Windows; who receives
-// it; its readers and their rooms
+// it; its readers and their capacities
 struct CliKernel
 {
-    int taken;
+    int reserved;
     unsigned int refs;
     CliKernelSpec spec;
     CliWords words;
@@ -96,21 +96,21 @@ struct CliKernel
     char session[24];
     char connection[CLI_PATH_MAX_LEN];
     CliKernelWaiter waiters[CLI_KERNEL_WAITERS];
-    unsigned int reading;
+    unsigned int read_state;
     CliWake wake;
     unsigned int debug_port;
     int listening;
     unsigned long long interrupt_event;
     CliKernelRecvFn recv;
     void *context;
-    char content[CLI_KERNEL_CONTENT];
-    char debug_reply[CLI_KERNEL_REPLY_ROOM];
+    char *content;
+    char *debug_reply;
     CliKernelReader readers[CLI_KERNEL_READERS];
-    unsigned char iopub_room[CLI_KERNEL_IOPUB_ROOM];
-    unsigned char shell_room[CLI_KERNEL_REPLY_ROOM];
-    unsigned char control_room[CLI_KERNEL_REPLY_ROOM];
-    unsigned char out_room[CLI_KERNEL_LINE * 8u];
-    unsigned char err_room[CLI_KERNEL_LINE * 8u];
+    unsigned char *iopub_capacity;
+    unsigned char *shell_capacity;
+    unsigned char *control_capacity;
+    unsigned char *out_capacity;
+    unsigned char *err_capacity;
 };
 
 // the lock a kernel's references are counted under; each kernel is a cell of its own, taken as it starts and given back

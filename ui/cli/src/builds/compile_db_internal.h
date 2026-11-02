@@ -23,7 +23,7 @@ typedef struct CliCompileDbCtx CliCompileDbCtx;
 #include "embed_dispatch_layout.h"
 
 // how deep below build/cmake and build/meson a build is looked for; the most files a look reads; the most folders a
-// search below a build finds; and the files and folders their rooms are taken with
+// search below a build finds; and the files and folders their capacities are taken with
 #define CLI_COMPILE_DEPTH 6u
 #define CLI_COMPILE_INPUTS 1024u
 #define CLI_COMPILE_FOUND 1024u
@@ -46,7 +46,7 @@ typedef struct
     int own;
     CliStamped *file;
     unsigned int count;
-    unsigned int room;
+    unsigned int capacity;
 } CliInputs;
 
 // Folders a search below a build finds, in a cell at their most, given back with cli_compile_found_free
@@ -54,14 +54,14 @@ typedef struct
 {
     char (*path)[CLI_PATH_MAX_LEN];
     unsigned int count;
-    unsigned int room;
+    unsigned int capacity;
 } CliFoundFolders;
 
 // the cells of what a look read, and of the folders a search found, given back, each left empty; and the folders' cell
-// taken at their most, the list with no room where it is refused (compile_db.c)
+// taken at their most, the list with no capacity where it is refused (compile_db.c)
 void cli_compile_inputs_free(const CliCompileDbInputsCtx *args);
 void cli_compile_found_free(const CliCompileDbFoundTopCtx *args);
-void cli_compile_found_take(const CliCompileDbFoundTopCtx *args);
+void cli_compile_found_alloc(const CliCompileDbFoundTopCtx *args);
 
 // the file at `path` with when it last changed into `stamped`: 1, or 0 where it is not there; each folder below `top`,
 // at most CLI_COMPILE_DEPTH down, that ends in the folders `tail`, `count` of them, into `found`; each file named
@@ -87,12 +87,12 @@ void cli_compile_inputs(const CliCompileDbInputsCtx *args);
 
 // the nodes and bytes the entries gathered are taken with, the most projects, languages and flags of one compile group,
 // and the bytes the database and a compile group's flags are written in
-#define CLI_GATHER_NODES_ROOM (1u << 18u)
-#define CLI_GATHER_TEXT_ROOM (16ull << 20u)
+#define CLI_GATHER_NODES_CAPACITY (1u << 18u)
+#define CLI_GATHER_TEXT_CAPACITY (16ull << 20u)
 #define CLI_GATHER_PROJECTS 256u
 #define CLI_GATHER_LANGUAGES 16u
 #define CLI_GATHER_FLAGS 4096u
-#define CLI_GATHER_FLAGS_ROOM (1ull << 20u)
+#define CLI_GATHER_FLAGS_CAPACITY (1ull << 20u)
 
 // A project's entries: its folder, when its configuration was written, and its entries in the gathered tree
 typedef struct
@@ -222,13 +222,13 @@ EMBED_TABLE_STORAGE CliCompileDbInputsNs cli_compile_db_inputs_internal EMBED_UN
 typedef struct
 {
     void (*compile_found_free)(const CliCompileDbFoundTopCtx *args);
-    void (*compile_found_take)(const CliCompileDbFoundTopCtx *args);
+    void (*compile_found_alloc)(const CliCompileDbFoundTopCtx *args);
     void (*compile_files_by_name)(const CliCompileDbFoundTopCtx *args);
 } CliCompileDbFoundTopNs;
-EMBED_TABLE_LAYOUT(CliCompileDbFoundTopNs, compile_found_free, compile_found_take, compile_files_by_name);
+EMBED_TABLE_LAYOUT(CliCompileDbFoundTopNs, compile_found_free, compile_found_alloc, compile_files_by_name);
 EMBED_TABLE_STORAGE CliCompileDbFoundTopNs cli_compile_db_found_top_internal EMBED_UNUSED = {
     .compile_found_free = cli_compile_found_free,
-    .compile_found_take = cli_compile_found_take,
+    .compile_found_alloc = cli_compile_found_alloc,
     .compile_files_by_name = cli_compile_files_by_name,
 };
 

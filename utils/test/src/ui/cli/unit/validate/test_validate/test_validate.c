@@ -131,7 +131,7 @@ void test_each_flag_has_its_position_and_severity(void)
     TEST_ASSERT_EQUAL_UINT(3u, g_cli_validate->findings[3].severity);
 }
 
-void test_theorems_take_their_namespaces(void)
+void test_theorems_alloc_their_namespaces(void)
 {
     code_read("namespace A\ntheorem one : True := trivial\nnamespace B\nlemma two : True := trivial\nend B\nsection\ntheorem three : True := trivial\nend\nend A\ntheorem four : True := trivial");
     cli_validate_theorems_in();

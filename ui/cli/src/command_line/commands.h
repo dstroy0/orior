@@ -6,7 +6,7 @@
 #define COMMANDS_H
 typedef struct CliCommandsMenuCfg CliCommandsMenuCfg;
 typedef struct CliCommandsMenuGroupsCfg CliCommandsMenuGroupsCfg;
-typedef struct CliCommandsMenuRoomCfg CliCommandsMenuRoomCfg;
+typedef struct CliCommandsMenuCapacityCfg CliCommandsMenuCapacityCfg;
 typedef struct CliCommandsWordCfg CliCommandsWordCfg;
 typedef struct CliCommandsMenuSplitCfg CliCommandsMenuSplitCfg;
 typedef struct CliCommandsMenuTitleCfg CliCommandsMenuTitleCfg;
@@ -19,21 +19,27 @@ typedef struct CliCommandsItemCfg CliCommandsItemCfg;
 #include "embed_dispatch_layout.h"
 
 // the most menus, the most items of one menu, and the longest label, command, keys or words of one
-#define CLI_MENUS_MOST 32u
+#define CLI_MENUS_MAX 32u
 
-#define CLI_ITEMS_MOST 512u
+#define CLI_ITEMS_MAX 512u
 
 #define CLI_LABEL_MAX_LEN 256u
 
-// One item of a menu: its label, the command it runs, the keys that run it in the window, the words it takes after
-// its name, and 1 where the command line runs it in the terminal
+// One row of a menu: its label, the command it runs, the keys that run it in the window, the words it takes after its
+// name, what it needs before it can be chosen, 1 where the command line runs it in the terminal, whether it is a line,
+// hidden, or filled in as its menu opens, and the list of the rows under it, 0 where it has none
 typedef struct
 {
-    char label[CLI_LABEL_MAX_LEN];
-    char command[CLI_LABEL_MAX_LEN];
-    char keys[CLI_LABEL_MAX_LEN];
-    char args[CLI_LABEL_MAX_LEN];
+    const char *label;
+    const char *command;
+    const char *keys;
+    const char *args;
+    const char *needs;
     int console;
+    int line;
+    int hidden;
+    int fill;
+    unsigned int list;
 } CliItem;
 
 // the bytes of commands.json as built into the program (plugins_bundled.c, written as the program is built)
@@ -50,7 +56,13 @@ void cli_menu_word(const CliCommandsMenuWordCfg *args);
 void cli_menu_split(const CliCommandsMenuSplitCfg *args);
 unsigned int cli_menu_groups(const CliCommandsMenuGroupsCfg *args);
 // every item of the menu, those of its groups among them, in order: their count
-unsigned int cli_menu_items(const CliCommandsMenuRoomCfg *args);
+unsigned int cli_menu_items(const CliCommandsMenuCapacityCfg *args);
+// the rows of the list `list`, a row's own or a menu's, in order and as they stand: their count; the list of a menu's
+// own rows; and whether a menu takes a title on the window's bar: it has rows, and it is neither the strip's nor a
+// popup
+unsigned int cli_menu_rows(unsigned int list, CliItem *items, unsigned int capacity);
+unsigned int cli_menu_list(unsigned int menu);
+int cli_menu_shown(unsigned int menu);
 // the item of the menu whose command is `word`: 1, or 0 where it has none; and the words an item must be given, each
 // `<word>` of its args outside a bracket
 int cli_menu_command(const CliCommandsMenuCfg *args);
@@ -71,13 +83,13 @@ struct CliCommandsMenuGroupsCfg
 {
     unsigned int menu;
     char (*groups)[CLI_LABEL_MAX_LEN];
-    unsigned int room;
+    unsigned int capacity;
 };
 
-struct CliCommandsMenuRoomCfg
+struct CliCommandsMenuCapacityCfg
 {
     unsigned int menu;
-    unsigned int room;
+    unsigned int capacity;
     CliItem *items;
 };
 
@@ -167,10 +179,10 @@ EMBED_TABLE_STORAGE CliCommandsMenuGroupsNs cli_commands_menu_groups EMBED_UNUSE
 
 typedef struct
 {
-    unsigned int (*menu_items)(const CliCommandsMenuRoomCfg *args);
-} CliCommandsMenuRoomNs;
-EMBED_TABLE_LAYOUT(CliCommandsMenuRoomNs, menu_items);
-EMBED_TABLE_STORAGE CliCommandsMenuRoomNs cli_commands_menu_room EMBED_UNUSED = {
+    unsigned int (*menu_items)(const CliCommandsMenuCapacityCfg *args);
+} CliCommandsMenuCapacityNs;
+EMBED_TABLE_LAYOUT(CliCommandsMenuCapacityNs, menu_items);
+EMBED_TABLE_STORAGE CliCommandsMenuCapacityNs cli_commands_menu_capacity EMBED_UNUSED = {
     .menu_items = cli_menu_items,
 };
 

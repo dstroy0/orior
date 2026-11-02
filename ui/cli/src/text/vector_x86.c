@@ -87,8 +87,8 @@ int cli_vector_avx2_present(void)
 // Each unit of a block of eight folded: A to Z to a to z, `ſ` to s and the Kelvin sign to k
 EMBED_INLINE __m128i cli_fold8(const VectorX86Ctx *args)
 {
-    const __m128i past = _mm_sub_epi16(args->block, _mm_set1_epi16(0x41));
-    const __m128i upper = _mm_cmpeq_epi16(_mm_subs_epu16(past, _mm_set1_epi16(25)), _mm_setzero_si128());
+    const __m128i end = _mm_sub_epi16(args->block, _mm_set1_epi16(0x41));
+    const __m128i upper = _mm_cmpeq_epi16(_mm_subs_epu16(end, _mm_set1_epi16(25)), _mm_setzero_si128());
     __m128i lowered = _mm_or_si128(args->block, _mm_and_si128(upper, _mm_set1_epi16(0x20)));
     const __m128i long_s = _mm_cmpeq_epi16(args->block, _mm_set1_epi16(CLI_LONG_S));
     const __m128i kelvin = _mm_cmpeq_epi16(args->block, _mm_set1_epi16(CLI_KELVIN));
@@ -98,8 +98,8 @@ EMBED_INLINE __m128i cli_fold8(const VectorX86Ctx *args)
 
 CLI_AVX2_TARGET static __m256i cli_fold16(const VectorX86Ctx *args)
 {
-    const __m256i past = _mm256_sub_epi16(args->block_m256i, _mm256_set1_epi16(0x41));
-    const __m256i upper = _mm256_cmpeq_epi16(_mm256_subs_epu16(past, _mm256_set1_epi16(25)), _mm256_setzero_si256());
+    const __m256i end = _mm256_sub_epi16(args->block_m256i, _mm256_set1_epi16(0x41));
+    const __m256i upper = _mm256_cmpeq_epi16(_mm256_subs_epu16(end, _mm256_set1_epi16(25)), _mm256_setzero_si256());
     __m256i lowered = _mm256_or_si256(args->block_m256i, _mm256_and_si256(upper, _mm256_set1_epi16(0x20)));
     const __m256i long_s = _mm256_cmpeq_epi16(args->block_m256i, _mm256_set1_epi16(CLI_LONG_S));
     const __m256i kelvin = _mm256_cmpeq_epi16(args->block_m256i, _mm256_set1_epi16(CLI_KELVIN));
@@ -110,13 +110,13 @@ CLI_AVX2_TARGET static __m256i cli_fold16(const VectorX86Ctx *args)
 unsigned long long cli_vector_find_unit_sse2(const CliVectorUnitCfg *args)
 {
     // a unit is set in each of a block's lanes as the 16 bits it is
-    const __m128i wanted = _mm_set1_epi16((short)args->unit);
+    const __m128i required = _mm_set1_epi16((short)args->unit);
     unsigned long long at = 0ull;
     while ((at + 8ull) <= args->length)
     {
         const __m128i block = _mm_loadu_si128((const __m128i *)(const void *)(args->text + at));
         // the movemask of a block is its 16 bits
-        const unsigned int mask = (unsigned int)_mm_movemask_epi8(_mm_cmpeq_epi16(block, wanted));
+        const unsigned int mask = (unsigned int)_mm_movemask_epi8(_mm_cmpeq_epi16(block, required));
         if (mask != 0u)
         {
             return at + (EMBED_CALL(cli_lowest, VectorX86Ctx, .mask = mask) / 2u);
@@ -136,13 +136,13 @@ unsigned long long cli_vector_find_unit_sse2(const CliVectorUnitCfg *args)
 CLI_AVX2_TARGET unsigned long long cli_vector_find_unit_avx2(const CliVectorUnitCfg *args)
 {
     // a unit is set in each of a block's lanes as the 16 bits it is
-    const __m256i wanted = _mm256_set1_epi16((short)args->unit);
+    const __m256i required = _mm256_set1_epi16((short)args->unit);
     unsigned long long at = 0ull;
     while ((at + 16ull) <= args->length)
     {
         const __m256i block = _mm256_loadu_si256((const __m256i *)(const void *)(args->text + at));
         // the movemask of a block is its 32 bits
-        const unsigned int mask = (unsigned int)_mm256_movemask_epi8(_mm256_cmpeq_epi16(block, wanted));
+        const unsigned int mask = (unsigned int)_mm256_movemask_epi8(_mm256_cmpeq_epi16(block, required));
         if (mask != 0u)
         {
             return at + (EMBED_CALL(cli_lowest, VectorX86Ctx, .mask = mask) / 2u);
@@ -235,12 +235,12 @@ CLI_AVX2_TARGET int cli_vector_same_avx2(const CliVectorLengthACfg *args)
 // `folded` is 1, checked whole; past the last whole block, the plain loop
 unsigned long long cli_vector_find_sse2(const CliVectorTextLengthCfg *args)
 {
-    const unsigned long long span = args->sought_length - 1ull;
+    const unsigned long long span = args->needle_length - 1ull;
     const unsigned short head_unit =
-        args->folded ? EMBED_CALL(cli_vector_unit.fold, CliVectorUnitCfg, .unit = args->sought[0]) : args->sought[0];
+        args->folded ? EMBED_CALL(cli_vector_unit.fold, CliVectorUnitCfg, .unit = args->needle[0]) : args->needle[0];
     const unsigned short tail_unit =
-        args->folded ? EMBED_CALL(cli_vector_unit.fold, CliVectorUnitCfg, .unit = args->sought[span])
-                     : args->sought[span];
+        args->folded ? EMBED_CALL(cli_vector_unit.fold, CliVectorUnitCfg, .unit = args->needle[span])
+                     : args->needle[span];
     // a unit is set in each lane as the 16 bits it is
     const __m128i first = _mm_set1_epi16((short)head_unit);
     const __m128i last = _mm_set1_epi16((short)tail_unit);
@@ -260,8 +260,8 @@ unsigned long long cli_vector_find_sse2(const CliVectorTextLengthCfg *args)
         while (mask != 0u)
         {
             const unsigned long long place = at + (EMBED_CALL(cli_lowest, VectorX86Ctx, .mask = mask) / 2u);
-            if (EMBED_CALL(cli_vector_text_sought.stands_at, CliVectorTextSoughtCfg, .text = args->text,
-                           .sought = args->sought, .sought_length = args->sought_length, .at = place,
+            if (EMBED_CALL(cli_vector_text_needle.exists_at, CliVectorTextNeedleCfg, .text = args->text,
+                           .needle = args->needle, .needle_length = args->needle_length, .at = place,
                            .folded = args->folded))
             {
                 return place;
@@ -271,18 +271,18 @@ unsigned long long cli_vector_find_sse2(const CliVectorTextLengthCfg *args)
         at += 8ull;
     }
     return EMBED_CALL(cli_vector_text_length.plain_find, CliVectorTextLengthCfg, .text = args->text,
-                      .length = args->length, .sought = args->sought, .sought_length = args->sought_length,
+                      .length = args->length, .needle = args->needle, .needle_length = args->needle_length,
                       .folded = args->folded, .start = at);
 }
 
 CLI_AVX2_TARGET unsigned long long cli_vector_find_avx2(const CliVectorTextLengthCfg *args)
 {
-    const unsigned long long span = args->sought_length - 1ull;
+    const unsigned long long span = args->needle_length - 1ull;
     const unsigned short head_unit =
-        args->folded ? EMBED_CALL(cli_vector_unit.fold, CliVectorUnitCfg, .unit = args->sought[0]) : args->sought[0];
+        args->folded ? EMBED_CALL(cli_vector_unit.fold, CliVectorUnitCfg, .unit = args->needle[0]) : args->needle[0];
     const unsigned short tail_unit =
-        args->folded ? EMBED_CALL(cli_vector_unit.fold, CliVectorUnitCfg, .unit = args->sought[span])
-                     : args->sought[span];
+        args->folded ? EMBED_CALL(cli_vector_unit.fold, CliVectorUnitCfg, .unit = args->needle[span])
+                     : args->needle[span];
     // a unit is set in each lane as the 16 bits it is
     const __m256i first = _mm256_set1_epi16((short)head_unit);
     const __m256i last = _mm256_set1_epi16((short)tail_unit);
@@ -302,8 +302,8 @@ CLI_AVX2_TARGET unsigned long long cli_vector_find_avx2(const CliVectorTextLengt
         while (mask != 0u)
         {
             const unsigned long long place = at + (EMBED_CALL(cli_lowest, VectorX86Ctx, .mask = mask) / 2u);
-            if (EMBED_CALL(cli_vector_text_sought.stands_at, CliVectorTextSoughtCfg, .text = args->text,
-                           .sought = args->sought, .sought_length = args->sought_length, .at = place,
+            if (EMBED_CALL(cli_vector_text_needle.exists_at, CliVectorTextNeedleCfg, .text = args->text,
+                           .needle = args->needle, .needle_length = args->needle_length, .at = place,
                            .folded = args->folded))
             {
                 return place;
@@ -312,9 +312,10 @@ CLI_AVX2_TARGET unsigned long long cli_vector_find_avx2(const CliVectorTextLengt
         }
         at += 16ull;
     }
-    const unsigned long long found = EMBED_CALL(
-        cli_vector_text_length_x86.find_sse2, CliVectorTextLengthCfg, .text = args->text + at, .length = args->length - at,
-        .sought = args->sought, .sought_length = args->sought_length, .folded = args->folded);
+    const unsigned long long found =
+        EMBED_CALL(cli_vector_text_length_x86.find_sse2, CliVectorTextLengthCfg, .text = args->text + at,
+                   .length = args->length - at, .needle = args->needle, .needle_length = args->needle_length,
+                   .folded = args->folded);
     return (found == CLI_VECTOR_NONE) ? found : (at + found);
 }
 

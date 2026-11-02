@@ -12,20 +12,20 @@
 typedef struct
 {
     unsigned int file;
-    CliTextPlace from;
-    CliTextPlace to;
+    CliTextPosition from;
+    CliTextPosition to;
     unsigned int text;
     unsigned int order;
 } CliServersEdit;
-// The edits of one workspace edit and the paths of its files, `edit_room` and `file_room` of them in one cell
+// The edits of one workspace edit and the paths of its files, `edit_capacity` and `file_capacity` of them in one cell
 typedef struct
 {
     CliServersEdit *edit;
     unsigned int edits;
-    unsigned int edit_room;
+    unsigned int edit_capacity;
     char (*edited)[CLI_PATH_MAX_LEN];
     unsigned int files;
-    unsigned int file_room;
+    unsigned int file_capacity;
 } CliServersEditing;
 // the most files one workspace edit changes
 #define CLI_SERVERS_EDITED 1024u
@@ -39,8 +39,8 @@ typedef struct
     const char *path;
     const char *uri;
     unsigned long long length;
-    CliTextPlace one;
-    CliTextPlace other;
+    CliTextPosition one;
+    CliTextPosition other;
     unsigned int edit;
 } ServersEditsCtx;
 // the edits of an array, CLI_TEXT_EDITS at the most counted with those before
@@ -59,8 +59,8 @@ EMBED_INLINE unsigned int edits_on_count(const ServersEditsCtx *args)
     return count;
 }
 
-// the place of the file at `path` among those edited, put after them where it is not among them: `file_room` where no
-// room for it is left
+// the place of the file at `path` among those edited, put after them where it is not among them: `file_capacity` where
+// no capacity for it is left
 EMBED_INLINE unsigned int edits_file(const ServersEditsCtx *args)
 {
     unsigned int file = 0u;
@@ -72,9 +72,9 @@ EMBED_INLINE unsigned int edits_file(const ServersEditsCtx *args)
     }
     if (file == args->editing->files)
     {
-        if (args->editing->files == args->editing->file_room)
+        if (args->editing->files == args->editing->file_capacity)
         {
-            return args->editing->file_room;
+            return args->editing->file_capacity;
         }
         memor.cpy(
             &(MemoriaCfg){.dst = args->editing->edited[file],
@@ -98,7 +98,7 @@ static void edits_add(const ServersEditsCtx *args)
         return;
     }
     const unsigned int file = EMBED_CALL(edits_file, ServersEditsCtx, .editing = args->editing, .path = path);
-    if (file == args->editing->file_room)
+    if (file == args->editing->file_capacity)
     {
         return;
     }
@@ -106,15 +106,15 @@ static void edits_add(const ServersEditsCtx *args)
                                        .node = edits, .kind = CFG_JSON_ARRAY)
                                 ? json->node[edits].first
                                 : CLI_JSON_NONE;
-         (one != CLI_JSON_NONE) && (args->editing->edits < args->editing->edit_room); one = json->node[one].next)
+         (one != CLI_JSON_NONE) && (args->editing->edits < args->editing->edit_capacity); one = json->node[one].next)
     {
         const unsigned int range = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                               .object = one, .name = "range");
-        CliTextPlace from =
+        CliTextPosition from =
             EMBED_CALL(cli_servers_json_node_otherwise_internal.place, CliServersJsonNodeOtherwiseCtx, .json = json,
                        .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                           .object = range, .name = "start"));
-        CliTextPlace to =
+        CliTextPosition to =
             EMBED_CALL(cli_servers_json_node_otherwise_internal.place, CliServersJsonNodeOtherwiseCtx, .json = json,
                        .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                           .object = range, .name = "end"));
@@ -122,11 +122,11 @@ static void edits_add(const ServersEditsCtx *args)
         char moved[CLI_PATH_MAX_LEN];
         const unsigned int rows = (to.line > from.line) ? (to.line - from.line) : 0u;
         const int where = EMBED_CALL(cli_servers_path_line_from_internal.slice_out, CliServersPathLineFromCtx,
-                                     .path = path, .line_pointer = &from.line, .from_room = moved);
+                                     .path = path, .line_pointer = &from.line, .from_capacity = moved);
         to.line = from.line + rows;
         const unsigned int target =
             (where == 2) ? EMBED_CALL(edits_file, ServersEditsCtx, .editing = args->editing, .path = moved) : file;
-        if ((where == 0) || (target == args->editing->file_room))
+        if ((where == 0) || (target == args->editing->file_capacity))
         {
             continue;
         }
@@ -140,7 +140,7 @@ static void edits_add(const ServersEditsCtx *args)
 }
 
 // two places in the order they stand in a text
-EMBED_INLINE int edits_place_order(const ServersEditsCtx *args)
+EMBED_INLINE int edits_position_order(const ServersEditsCtx *args)
 {
     if (args->one.line != args->other.line)
     {
@@ -158,12 +158,12 @@ static int edits_order(const void *one, const void *other)
     {
         return (left->file < right->file) ? -1 : 1;
     }
-    const int from = EMBED_CALL(edits_place_order, ServersEditsCtx, .one = left->from, .other = right->from);
+    const int from = EMBED_CALL(edits_position_order, ServersEditsCtx, .one = left->from, .other = right->from);
     if (from != 0)
     {
         return from;
     }
-    const int to = EMBED_CALL(edits_place_order, ServersEditsCtx, .one = left->to, .other = right->to);
+    const int to = EMBED_CALL(edits_position_order, ServersEditsCtx, .one = left->to, .other = right->to);
     if (to != 0)
     {
         return to;
@@ -171,25 +171,26 @@ static int edits_order(const void *one, const void *other)
     return (left->order < right->order) ? -1 : 1;
 }
 
-// the room the edits of `edits` for the file of `uri`, `length` bytes, take counted with that before: one file, and in
-// a file given its server as a slice a file more for each edit, as each may stand on a line of another file
-EMBED_INLINE void edits_room_count(const ServersEditsCtx *args)
+// the capacity the edits of `edits` for the file of `uri`, `length` bytes, take counted with that before: one file, and
+// in a file given its server as a slice a file more for each edit, as each may stand on a line of another file
+EMBED_INLINE void edits_capacity_count(const ServersEditsCtx *args)
 {
     const char *uri = args->uri;
     unsigned long long length = args->length;
-    const unsigned int before = args->editing->edit_room;
-    args->editing->edit_room = EMBED_CALL(edits_on_count, ServersEditsCtx, .json = args->json, .edits = args->edits,
-                                          .before = args->editing->edit_room);
+    const unsigned int before = args->editing->edit_capacity;
+    args->editing->edit_capacity = EMBED_CALL(edits_on_count, ServersEditsCtx, .json = args->json, .edits = args->edits,
+                                              .before = args->editing->edit_capacity);
     char path[CLI_PATH_MAX_LEN];
     const int sliced =
         EMBED_CALL(cli_lsp_length_uri.path_get, CliLspLengthUriCfg, .uri = uri, .length = length, .path_out = path) &&
         EMBED_CALL(cli_servers_path_lsp_internal.slice, CliServersPathLspCtx, .path = path);
-    const unsigned int files = args->editing->file_room + 1u + (sliced ? (args->editing->edit_room - before) : 0u);
-    args->editing->file_room = (files < CLI_SERVERS_EDITED) ? files : CLI_SERVERS_EDITED;
+    const unsigned int files =
+        args->editing->file_capacity + 1u + (sliced ? (args->editing->edit_capacity - before) : 0u);
+    args->editing->file_capacity = (files < CLI_SERVERS_EDITED) ? files : CLI_SERVERS_EDITED;
 }
 
 // each file's edits of a workspace edit put, from its document changes or its changes, into `editing`; where
-// `editing` has no room, they are only counted, its rooms the counts after
+// `editing` has no capacity, they are only counted, its capacities the counts after
 static void edits_walk(const ServersEditsCtx *args)
 {
     const CliJson *json = args->json;
@@ -217,7 +218,7 @@ static void edits_walk(const ServersEditsCtx *args)
                                                   .json_read = json, .object = change, .name = "edits");
             if ((uri != NULL) && counting)
             {
-                EMBED_CALL(edits_room_count, ServersEditsCtx, .editing = args->editing, .json = json, .uri = uri,
+                EMBED_CALL(edits_capacity_count, ServersEditsCtx, .editing = args->editing, .json = json, .uri = uri,
                            .length = length, .edits = edits);
             }
             else if (uri != NULL)
@@ -235,7 +236,7 @@ static void edits_walk(const ServersEditsCtx *args)
             const char *const uri = json->text + json->node[change].key;
             if (counting)
             {
-                EMBED_CALL(edits_room_count, ServersEditsCtx, .editing = args->editing, .json = json, .uri = uri,
+                EMBED_CALL(edits_capacity_count, ServersEditsCtx, .editing = args->editing, .json = json, .uri = uri,
                            .length = cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}),
                            .edits = change);
                 continue;
@@ -252,9 +253,9 @@ void cli_servers_workspace_edit_get(const CliServersJsonTreeOutCtx *args)
     CliServersEditing editing = {NULL, 0u, 0u, NULL, 0u, 0u};
     EMBED_CALL(edits_walk, ServersEditsCtx, .editing = &editing, .json = args->json, .edit = edit);
     // the edits, on a boundary of their own, and the paths after them
-    const unsigned long long edit_bytes = (unsigned long long)editing.edit_room * sizeof(CliServersEdit);
+    const unsigned long long edit_bytes = (unsigned long long)editing.edit_capacity * sizeof(CliServersEdit);
     char *const cell = g_cli_cells->temporary_buf_alloc(
-        edit_bytes + ((unsigned long long)editing.file_room * CLI_PATH_MAX_LEN) + 1ull, &g_cli_servers_edits_cells);
+        edit_bytes + ((unsigned long long)editing.file_capacity * CLI_PATH_MAX_LEN) + 1ull, &g_cli_servers_edits_cells);
     if (cell != NULL)
     {
         editing.edit = (CliServersEdit *)(void *)cell;

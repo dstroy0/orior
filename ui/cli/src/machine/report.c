@@ -64,18 +64,18 @@ EMBED_INLINE int cli_settings_path(const ReportCtx *args)
     return mmgr_line_finish(&line) != 0ull;
 }
 
-// settings.json read, the lock acquired, into a tree of its own sized to it, with room over for a copy of it and the
-// answer where `copied` is 1: its object, or CLI_JSON_NONE where it is not there or does not read, the tree then
-// reserving room for the answer alone where `copied` is 1; the tree given back with cli_json_free
+// settings.json read, the lock acquired, into a tree of its own sized to it, with capacity over for a copy of it and
+// the answer where `copied` is 1: its object, or CLI_JSON_NONE where it is not there or does not read, the tree then
+// reserving capacity for the answer alone where `copied` is 1; the tree given back with cli_json_free
 EMBED_INLINE unsigned int cli_settings(const ReportCtx *args)
 {
     CliJson *json = args->json;
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = json, .node_json_node_pointer = NULL,
-               .nodes_most = 0u, .text_out = NULL, .text_most = 0ull);
+               .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
     char path[CLI_PATH_MAX_LEN];
     unsigned long long size = 0ull;
     const unsigned char *const bytes = EMBED_CALL(cli_settings_path, ReportCtx, .path = path)
-                                           ? EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = path,
+                                           ? EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                         .size_pointer = &size, .owner = &g_cli_machine_cells)
                                            : NULL;
     // the file's bytes are read as its text
@@ -87,7 +87,7 @@ EMBED_INLINE unsigned int cli_settings(const ReportCtx *args)
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea reason = {why, sizeof(why), 0ull};
     const unsigned int read = (bytes != NULL)
-                                  ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg,
+                                  ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                                .json = json, .text = text, .size = size,
                                                .nodes_more = args->copied ? (tokens + CLI_REPORT_ANSWER_NODES) : 0u,
                                                .text_more = args->copied ? (size + CLI_REPORT_ANSWER_TEXT) : 0ull,
@@ -101,8 +101,8 @@ EMBED_INLINE unsigned int cli_settings(const ReportCtx *args)
     if (args->copied && (root == CLI_JSON_NONE))
     {
         EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = json);
-        (void)EMBED_CALL(cli_json_tree_nodes_most.json_reserve, CliJsonTreeNodesMostCfg, .json = json,
-                         .nodes_most = CLI_REPORT_ANSWER_NODES, .text_most = CLI_REPORT_ANSWER_TEXT,
+        (void)EMBED_CALL(cli_json_tree_nodes_max.json_reserve, CliJsonTreeNodesMaxCfg, .json = json,
+                         .nodes_max = CLI_REPORT_ANSWER_NODES, .text_max = CLI_REPORT_ANSWER_TEXT,
                          .what = "the settings", .owner = &g_cli_machine_cells);
     }
     return root;
@@ -131,7 +131,7 @@ int cli_report_auto(void)
     char none[CLI_NAME_MAX_LEN];
     int on = 0;
     return !EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_NO_REPORTS",
-                       .value_out = none, .room = sizeof(none)) &&
+                       .value_out = none, .capacity = sizeof(none)) &&
            EMBED_CALL(cli_answer, ReportCtx, .on = &on) && on;
 }
 
@@ -146,7 +146,7 @@ void cli_report_prompt_once(void)
     char none[CLI_NAME_MAX_LEN];
     if (cli_report_prompt() ||
         EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_NO_REPORTS",
-                   .value_out = none, .room = sizeof(none)) ||
+                   .value_out = none, .capacity = sizeof(none)) ||
         !query_terminal_is() || !cli_errors_terminal())
     {
         return;
@@ -155,15 +155,15 @@ void cli_report_prompt_once(void)
     EMBED_CALL(query_errors_internal.terminal_write, QueryErrorsCtx, .errors = 1, .text = s_prompt,
                .length = sizeof(s_prompt) - 1u);
     char answer[CLI_NAME_MAX_LEN];
-    const unsigned long long length = EMBED_CALL(query_room_line_internal.terminal_line_read, QueryRoomLineCtx,
-                                                 .line = answer, .room = sizeof(answer));
+    const unsigned long long length = EMBED_CALL(query_capacity_line_internal.terminal_line_read, QueryCapacityLineCtx,
+                                                 .line = answer, .capacity = sizeof(answer));
     if (length == QRY_MEMBER_UNREAD)
     {
         return;
     }
     const char *from = answer;
     from +=
-        EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
+        EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL}), .set = CLI_TEXT_WHITE);
     const int on = !((from[0] == 'n') || (from[0] == 'N'));
     char why[CLI_PATH_MAX_LEN];
@@ -212,10 +212,10 @@ int cli_report_set_auto(const CliReportOnCfg *args)
                        .value = EMBED_CALL(cli_json_tree.json_copy, CliJsonTreeCfg, .json = &json, .node = member));
         }
     }
-    const unsigned long long out_room =
-        EMBED_CALL(cli_json_tree_node_out.json_pretty_room, CliJsonTreeNodeOutCfg, .json_read = &json, .indent = 2u);
-    char *const out_cell = g_cli_cells->temporary_buf_alloc(out_room, &g_cli_machine_cells);
-    VerbaLinea out = mmgr_line_over(out_cell, out_room);
+    const unsigned long long out_capacity = EMBED_CALL(cli_json_tree_node_out.json_pretty_capacity,
+                                                       CliJsonTreeNodeOutCfg, .json_read = &json, .indent = 2u);
+    char *const out_cell = g_cli_cells->temporary_buf_alloc(out_capacity, &g_cli_machine_cells);
+    VerbaLinea out = mmgr_line_over(out_cell, out_capacity);
     const int begun = out.out != NULL;
     EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = &json, .node = made, .out = &out,
                .indent = 2u, .sorted = 0);
@@ -230,12 +230,6 @@ int cli_report_set_auto(const CliReportOnCfg *args)
         mmgr_line_put(args->err_msg, ": it could not be written");
     }
     return written;
-}
-
-// a letter in lower case, ASCII's
-EMBED_INLINE char cli_lower(const ReportCtx *args)
-{
-    return ((args->letter >= 'A') && (args->letter <= 'Z')) ? (char)(args->letter + ('a' - 'A')) : args->letter;
 }
 
 // `text` with every `found` in it, ASCII's case aside, put as `put`, into `out`
@@ -291,11 +285,11 @@ EMBED_INLINE void cli_strike(const ReportCtx *args)
         // every place the form stands puts `put` in its stead, a form of at least 3 bytes standing at most once in
         // each 3 of the text
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
-        const unsigned long long room =
+        const unsigned long long capacity =
             length + ((length / 3ull) * cellul.len(&(CatenaFinitaCfg){.src = args->put, .cap = CLI_CELLS_POOL})) +
             CLI_REPORT_STRUCK_MORE;
-        char *const out_cell = g_cli_cells->temporary_buf_alloc(room, &g_cli_machine_cells);
-        VerbaLinea out = mmgr_line_over(out_cell, room);
+        char *const out_cell = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_machine_cells);
+        VerbaLinea out = mmgr_line_over(out_cell, capacity);
         EMBED_CALL(cli_on_replace, ReportCtx, .text = text, .found = forms[form], .put = args->put, .out = &out);
         g_cli_cells->persistent_buf_release(*struck, &g_cli_machine_cells);
         *struck = mmgr_line_ok(&out) ? out_cell : NULL;
@@ -323,7 +317,7 @@ void cli_report_scrub(const CliReportTextCfg *args)
     {
         char home[CLI_PATH_MAX_LEN];
         if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = s_homes[at],
-                       .value_out = home, .room = sizeof(home)))
+                       .value_out = home, .capacity = sizeof(home)))
         {
             EMBED_CALL(cli_strike, ReportCtx, .struck = &struck, .found = home, .put = "~");
         }
@@ -333,7 +327,7 @@ void cli_report_scrub(const CliReportTextCfg *args)
     {
         char name[CLI_NAME_MAX_LEN];
         if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = s_users[at],
-                        .value_out = name, .room = sizeof(name)))
+                        .value_out = name, .capacity = sizeof(name)))
         {
             continue;
         }
@@ -373,7 +367,7 @@ void cli_report_fingerprint(const CliReportCategoryTextCfg *args)
             hash = (hash ^ (unsigned char)at[0]) * 0x100000001b3ull;
         }
     }
-    VerbaLinea line = {args->out_room, 17u, 0ull};
+    VerbaLinea line = {args->out_capacity, 17u, 0ull};
     mmgr_line_hex(&line, hash, 16u);
     mmgr_line_finish(&line);
 }

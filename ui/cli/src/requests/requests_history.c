@@ -12,7 +12,7 @@
 // the most one answer stored takes, written, and the bytes the answers are buffered in before each piece is added to
 // the file
 #define CLI_REQUESTS_PIECE (16u << 20u)
-#define CLI_REQUESTS_ROOM 16384u
+#define CLI_REQUESTS_CAPACITY 16384u
 
 // The file the answers are added to as their line fills: its path, and whether the next piece makes it anew
 typedef struct
@@ -129,7 +129,7 @@ EMBED_INLINE int history_read(const RequestsHistoryCtx *args)
     const unsigned char **bytes = args->bytes_u8s;
     unsigned long long *size = args->size_pointer;
     unsigned long long *first = args->first;
-    *bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = args->file_read, .size_pointer = size,
+    *bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->file_read, .size_pointer = size,
                         .owner = &g_cli_requests_cells);
     VerbaLinea none = {NULL, 0ull, 0ull};
     unsigned long long at = 0ull;
@@ -203,10 +203,10 @@ int cli_requests_history_save(const CliRequestsErrMsgCtx *args)
     unsigned long long first = 0ull;
     const int before = made && EMBED_CALL(history_read, RequestsHistoryCtx, .file_read = file, .bytes_u8s = &bytes,
                                           .size_pointer = &size, .first = &first);
-    // the answers written into a room of their own, each piece added to the file as the room fills
-    char room[CLI_REQUESTS_ROOM];
+    // the answers written into a capacity of their own, each piece added to the file as the capacity fills
+    char capacity[CLI_REQUESTS_CAPACITY];
     CliStateWriting target = {writing, 1};
-    VerbaLinea piece = {room, sizeof(room), 0ull, history_append, &target, 0ull};
+    VerbaLinea piece = {capacity, sizeof(capacity), 0ull, history_append, &target, 0ull};
     int done = made;
     if (done)
     {

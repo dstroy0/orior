@@ -21,8 +21,8 @@ typedef struct CliSiftLengthCfg CliSiftLengthCfg;
 typedef struct CliSiftLengthFoldCfg CliSiftLengthFoldCfg;
 typedef struct CliSiftWindowFoldCfg CliSiftWindowFoldCfg;
 typedef struct CliSiftWindowLengthFoldCfg CliSiftWindowLengthFoldCfg;
-typedef struct CliSiftWindowLengthFoldCensusCfg CliSiftWindowLengthFoldCensusCfg;
-typedef struct CliSiftLengthCensusCfg CliSiftLengthCensusCfg;
+typedef struct CliSiftWindowLengthFoldHistogramCfg CliSiftWindowLengthFoldHistogramCfg;
+typedef struct CliSiftLengthHistogramCfg CliSiftLengthHistogramCfg;
 typedef struct CliSiftCfg CliSiftCfg;
 typedef struct CliSiftFoldCfg CliSiftFoldCfg;
 
@@ -41,16 +41,16 @@ typedef struct
 {
     unsigned long long occurrences[256];
     unsigned long long total;
-} CliCensus;
+} CliHistogram;
 
 // the census of a window, of every so many of its bytes as bounds the count
-void cli_sift_census(const CliSiftWindowLengthFoldCensusCfg *args);
+void cli_sift_histogram(const CliSiftWindowLengthFoldHistogramCfg *args);
 // a census stored with a text: every byte of `bytes` counted into it as they enter the text, and counted out of it as
 // they leave, so the text's census stands without a count over the text; and the census as a search without case
 // reads it, each capital's count joined to its small letter's
-void cli_sift_census_count(const CliSiftLengthCensusCfg *args);
-void cli_sift_census_uncounted(const CliSiftLengthCensusCfg *args);
-void cli_sift_census_fold(const CliSiftCfg *args);
+void cli_sift_histogram_count(const CliSiftLengthHistogramCfg *args);
+void cli_sift_histogram_uncounted(const CliSiftLengthHistogramCfg *args);
+void cli_sift_histogram_fold(const CliSiftCfg *args);
 // the anchors placed on a needle for a window into `anchors`, sized for CLI_SIFT_ANCHORS: offsets into the needle,
 // the first refuting most; their count
 unsigned int cli_sift_plan(const CliSiftWindowLengthFoldCfg *args);
@@ -61,7 +61,7 @@ unsigned long long cli_sift_find_all(const CliSiftLengthCfg *args);
 // plan made: their count; what cli_sift_find_all takes for such a text
 unsigned long long cli_sift_horspool(const CliSiftLengthCfg *args);
 unsigned long long cli_sift_find_all_on(const CliSiftLengthCfg *args);
-// the same, each window's plan ranked by `census`, the text's stored census as the search reads it, folded where the
+// the same, each window's plan ranked by `histogram`, the text's stored census as the search reads it, folded where the
 // search folds, in place of a count over the window
 unsigned int cli_sift_plan_with(const CliSiftWindowLengthFoldCfg *args);
 unsigned long long cli_sift_find_all_with(const CliSiftLengthFoldCfg *args);
@@ -126,7 +126,7 @@ struct CliSiftLengthFoldCfg
     const unsigned char *text;
     void (*found)(const CliEachAtCfg *args);
     void *context;
-    const CliCensus *census_read;
+    const CliHistogram *histogram_read;
 };
 
 struct CliSiftWindowFoldCfg
@@ -149,28 +149,28 @@ struct CliSiftWindowLengthFoldCfg
     const unsigned char *needle;
     unsigned long long needle_length;
     unsigned long long *anchors_out;
-    const CliCensus *census_read;
+    const CliHistogram *histogram_read;
 };
 
-struct CliSiftWindowLengthFoldCensusCfg
+struct CliSiftWindowLengthFoldHistogramCfg
 {
     const unsigned char *window;
     unsigned long long length;
     int fold;
-    CliCensus *census;
+    CliHistogram *histogram;
 };
 
-struct CliSiftLengthCensusCfg
+struct CliSiftLengthHistogramCfg
 {
     unsigned long long length;
-    CliCensus *census;
+    CliHistogram *histogram;
     const unsigned char *bytes;
 };
 
 struct CliSiftCfg
 {
-    const CliCensus *exact;
-    CliCensus *folded;
+    const CliHistogram *exact;
+    CliHistogram *folded;
 };
 
 struct CliSiftFoldCfg
@@ -181,31 +181,31 @@ struct CliSiftFoldCfg
 
 typedef struct
 {
-    void (*census)(const CliSiftWindowLengthFoldCensusCfg *args);
-} CliSiftWindowLengthFoldCensusNs;
-EMBED_TABLE_LAYOUT(CliSiftWindowLengthFoldCensusNs, census);
-EMBED_TABLE_STORAGE CliSiftWindowLengthFoldCensusNs cli_sift_window_length_fold_census EMBED_UNUSED = {
-    .census = cli_sift_census,
+    void (*histogram)(const CliSiftWindowLengthFoldHistogramCfg *args);
+} CliSiftWindowLengthFoldHistogramNs;
+EMBED_TABLE_LAYOUT(CliSiftWindowLengthFoldHistogramNs, histogram);
+EMBED_TABLE_STORAGE CliSiftWindowLengthFoldHistogramNs cli_sift_window_length_fold_histogram EMBED_UNUSED = {
+    .histogram = cli_sift_histogram,
 };
 
 typedef struct
 {
-    void (*census_count)(const CliSiftLengthCensusCfg *args);
-    void (*census_uncounted)(const CliSiftLengthCensusCfg *args);
-} CliSiftLengthCensusNs;
-EMBED_TABLE_LAYOUT(CliSiftLengthCensusNs, census_count, census_uncounted);
-EMBED_TABLE_STORAGE CliSiftLengthCensusNs cli_sift_length_census EMBED_UNUSED = {
-    .census_count = cli_sift_census_count,
-    .census_uncounted = cli_sift_census_uncounted,
+    void (*histogram_count)(const CliSiftLengthHistogramCfg *args);
+    void (*histogram_uncounted)(const CliSiftLengthHistogramCfg *args);
+} CliSiftLengthHistogramNs;
+EMBED_TABLE_LAYOUT(CliSiftLengthHistogramNs, histogram_count, histogram_uncounted);
+EMBED_TABLE_STORAGE CliSiftLengthHistogramNs cli_sift_length_histogram EMBED_UNUSED = {
+    .histogram_count = cli_sift_histogram_count,
+    .histogram_uncounted = cli_sift_histogram_uncounted,
 };
 
 typedef struct
 {
-    void (*census_fold)(const CliSiftCfg *args);
+    void (*histogram_fold)(const CliSiftCfg *args);
 } CliSiftNs;
-EMBED_TABLE_LAYOUT(CliSiftNs, census_fold);
+EMBED_TABLE_LAYOUT(CliSiftNs, histogram_fold);
 EMBED_TABLE_STORAGE CliSiftNs cli_sift EMBED_UNUSED = {
-    .census_fold = cli_sift_census_fold,
+    .histogram_fold = cli_sift_histogram_fold,
 };
 
 typedef struct

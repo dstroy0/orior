@@ -23,7 +23,7 @@ typedef struct CliPatternsPartCfg CliPatternsPartCfg;
 #include "embed_dispatch_layout.h"
 
 // the most patterns of each kind a set contains, and the most letters all of them take
-#define CLI_PATTERNS_MOST 256u
+#define CLI_PATTERNS_MAX 256u
 
 #define CLI_PATTERN_LETTERS 16384u
 
@@ -40,9 +40,9 @@ typedef struct
 // they take, each as a pattern compares it
 typedef struct
 {
-    CliPattern hide[CLI_PATTERNS_MOST];
+    CliPattern hide[CLI_PATTERNS_MAX];
     unsigned int hides;
-    CliPattern include[CLI_PATTERNS_MOST];
+    CliPattern include[CLI_PATTERNS_MAX];
     unsigned int includes;
     unsigned int letters[CLI_PATTERN_LETTERS];
     unsigned int used;

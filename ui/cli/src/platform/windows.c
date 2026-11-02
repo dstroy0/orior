@@ -98,7 +98,7 @@ unsigned int cli_container_members(const CliIdsCtx *args)
     {
         return 0u;
     }
-    // room for 4096 ids after the list's two counts
+    // capacity for 4096 ids after the list's two counts
     static ULONG_PTR s_list[4096u + 2u];
     JOBOBJECT_BASIC_PROCESS_ID_LIST *const list = (JOBOBJECT_BASIC_PROCESS_ID_LIST *)s_list;
     if (!QueryInformationJobObject(s_job, JobObjectBasicProcessIdList, list, sizeof(s_list), NULL))
@@ -107,7 +107,7 @@ unsigned int cli_container_members(const CliIdsCtx *args)
     }
     const DWORD own = GetCurrentProcessId();
     unsigned int count = 0u;
-    for (DWORD at = 0u; (at < list->NumberOfProcessIdsInList) && (count < args->room_u32); at += 1u)
+    for (DWORD at = 0u; (at < list->NumberOfProcessIdsInList) && (count < args->capacity_u32); at += 1u)
     {
         // a process id fits the 32 bits the system gives it
         const unsigned int id = (unsigned int)list->ProcessIdList[at];
@@ -120,7 +120,7 @@ unsigned int cli_container_members(const CliIdsCtx *args)
     return count;
 }
 
-unsigned int cli_processes_list(const CliRoomProcessesCtx *args)
+unsigned int cli_processes_list(const CliCapacityProcessesCtx *args)
 {
     const HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0u);
     if (snapshot == INVALID_HANDLE_VALUE)
@@ -132,7 +132,7 @@ unsigned int cli_processes_list(const CliRoomProcessesCtx *args)
     entry.dwSize = sizeof(entry);
     unsigned int count = 0u;
     BOOL more = Process32FirstW(snapshot, &entry);
-    while (more && (count < args->room_u32))
+    while (more && (count < args->capacity_u32))
     {
         args->processes[count].id = entry.th32ProcessID;
         args->processes[count].parent = entry.th32ParentProcessID;
@@ -147,7 +147,7 @@ void cli_container_members_end(void)
 {
     static unsigned int s_ids[4096];
     const unsigned int count =
-        EMBED_CALL(cli_ids_internal.container_members, CliIdsCtx, .ids = s_ids, .room_u32 = 4096u);
+        EMBED_CALL(cli_ids_internal.container_members, CliIdsCtx, .ids = s_ids, .capacity_u32 = 4096u);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         const HANDLE process = OpenProcess(PROCESS_TERMINATE, FALSE, s_ids[at]);
@@ -164,11 +164,11 @@ unsigned int cli_process_own(void)
     return GetCurrentProcessId();
 }
 
-int cli_program_own(const CliPathRoomCtx *args)
+int cli_program_own(const CliPathCapacityCtx *args)
 {
-    // a room is far below what a DWORD counts
-    const DWORD length = GetModuleFileNameA(NULL, args->path_out, (DWORD)args->room_size);
-    return (length != 0u) && (length < args->room_size);
+    // a capacity is far below what a DWORD counts
+    const DWORD length = GetModuleFileNameA(NULL, args->path_out, (DWORD)args->capacity_bytes);
+    return (length != 0u) && (length < args->capacity_bytes);
 }
 
 int cli_errors_terminal(void)
@@ -181,31 +181,31 @@ int cli_output_terminal(void)
     return GetFileType(GetStdHandle(STD_OUTPUT_HANDLE)) == FILE_TYPE_CHAR;
 }
 
-unsigned int cli_arguments(const CliRoomCountCtx *args)
+unsigned int cli_arguments(const CliCapacityCountCtx *args)
 {
     static char s_text[1u << 16u];
     int wide_count = 0;
-    LPWSTR *const wide = CommandLineToArgvW(GetCommandLineW(), &wide_count);
-    if (wide == NULL)
+    LPWSTR *const pixel_width = CommandLineToArgvW(GetCommandLineW(), &wide_count);
+    if (pixel_width == NULL)
     {
         return 0u;
     }
-    unsigned int taken = 0u;
+    unsigned int reserved = 0u;
     int used = 0;
-    for (int at = 1; (at < wide_count) && (taken < args->room_u32); at += 1)
+    for (int at = 1; (at < wide_count) && (reserved < args->capacity_u32); at += 1)
     {
         const int size =
-            WideCharToMultiByte(CP_UTF8, 0, wide[at], -1, s_text + used, (int)sizeof(s_text) - used, NULL, NULL);
+            WideCharToMultiByte(CP_UTF8, 0, pixel_width[at], -1, s_text + used, (int)sizeof(s_text) - used, NULL, NULL);
         if (size <= 0)
         {
             break;
         }
-        args->words_read[taken] = s_text + used;
-        taken += 1u;
+        args->words_read[reserved] = s_text + used;
+        reserved += 1u;
         used += size;
     }
-    LocalFree(wide);
-    return taken;
+    LocalFree(pixel_width);
+    return reserved;
 }
 
 void cli_console_let_go(void)
@@ -217,11 +217,11 @@ void cli_console_let_go(void)
     }
 }
 
-int cli_folder_current(const CliPathRoomCtx *args)
+int cli_folder_current(const CliPathCapacityCtx *args)
 {
-    // a room is far below what a DWORD counts
-    const DWORD length = GetCurrentDirectoryA((DWORD)args->room_size, args->path_out);
-    return (length != 0u) && (length < args->room_size);
+    // a capacity is far below what a DWORD counts
+    const DWORD length = GetCurrentDirectoryA((DWORD)args->capacity_bytes, args->path_out);
+    return (length != 0u) && (length < args->capacity_bytes);
 }
 
 int cli_file_runnable(const CliPathFileCtx *args)
@@ -250,8 +250,8 @@ int cli_raised_platform(const CliErrMsgFromCtx *args)
     mmgr_line_put(&line, "\" \"");
     mmgr_line_put(&line, args->to);
     mmgr_line_ch(&line, '"');
-    if (!EMBED_CALL(cli_path_room_internal.program_own, CliPathRoomCtx, .path_out = program,
-                    .room_size = sizeof(program)) ||
+    if (!EMBED_CALL(cli_path_capacity_internal.program_own, CliPathCapacityCtx, .path_out = program,
+                    .capacity_bytes = sizeof(program)) ||
         (mmgr_line_finish(&line) == 0ull))
     {
         mmgr_line_put(args->err_msg, "orior's own program could not be named");
@@ -394,10 +394,10 @@ int cli_socket_read(const CliSizeBytesCtx *args)
     return 1;
 }
 
-long long cli_socket_some(const CliRoomCtx *args)
+long long cli_socket_some(const CliCapacityCtx *args)
 {
     // a piece is at most a gibibyte, which an int counts
-    const int piece = (int)((args->room < (1ull << 30u)) ? args->room : (1ull << 30u));
+    const int piece = (int)((args->capacity < (1ull << 30u)) ? args->capacity : (1ull << 30u));
     const int read = recv((SOCKET)(args->sock->handle - 1ull), (char *)args->bytes_out, piece, 0);
     if (read > 0)
     {

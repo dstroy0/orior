@@ -56,7 +56,7 @@ static int cli_settings_off(void)
     mmgr_line_put(&line, "/settings.json");
     unsigned long long size = 0ull;
     const unsigned char *const bytes = (mmgr_line_finish(&line) != 0ull)
-                                           ? EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = path,
+                                           ? EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                         .size_pointer = &size, .owner = &g_cli_machine_cells)
                                            : NULL;
     if (bytes == NULL)
@@ -135,9 +135,9 @@ int cli_net_local(const CliNetHostCfg *args)
     char lower[CLI_PATH_MAX_LEN];
     const char *from = args->host_read;
     const char *to = args->host_read + cellul.len(&(CatenaFinitaCfg){.src = args->host_read, .cap = CLI_CELLS_POOL});
-    from += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
+    from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
                        .size = (unsigned long long)(to - from), .set = CLI_TEXT_WHITE);
-    to = from + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = from,
+    to = from + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = from,
                            .at = (unsigned long long)(to - from), .set = CLI_TEXT_WHITE);
     unsigned long long length = 0ull;
     for (const char *at = from; (at < to) && (length + 1ull < sizeof(lower)); at += 1)
@@ -185,9 +185,9 @@ EMBED_INLINE void net_log(const NetCtx *args)
     EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = folder);
     unsigned long long log_size = 0ull;
     (void)EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = path, .size_pointer = &log_size);
-    const unsigned long long line_room = log_size + CLI_NET_LINE_MORE;
-    char *const line_cell = g_cli_cells->temporary_buf_alloc(line_room, &g_cli_machine_cells);
-    VerbaLinea line = mmgr_line_over(line_cell, line_room);
+    const unsigned long long line_capacity = log_size + CLI_NET_LINE_MORE;
+    char *const line_cell = g_cli_cells->temporary_buf_alloc(line_capacity, &g_cli_machine_cells);
+    VerbaLinea line = mmgr_line_over(line_cell, line_capacity);
     if (line.out == NULL)
     {
         return;
@@ -246,74 +246,4 @@ int cli_net_reach(const CliNetAddressCfg *args)
     }
     EMBED_CALL(net_log, NetCtx, .address = args->address, .purpose = args->purpose);
     return 1;
-}
-
-void cli_net_on_reach(const CliNetMostCfg *args)
-{
-    char folder[CLI_PATH_MAX_LEN];
-    char path[CLI_PATH_MAX_LEN];
-    mmgr_line_ch(args->out, '[');
-    VerbaLinea named = {path, sizeof(path), 0ull};
-    const int homed = EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = folder);
-    mmgr_line_put(&named, folder);
-    mmgr_line_put(&named, "/network.jsonl");
-    unsigned long long size = 0ull;
-    const unsigned char *const bytes = (homed && (mmgr_line_finish(&named) != 0ull))
-                                           ? EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = path,
-                                                        .size_pointer = &size, .owner = &g_cli_machine_cells)
-                                           : NULL;
-    const char *const log_text = (const char *)bytes;
-    // every line's tokens are at most the file's, and one cell of the file's fits any line's
-    unsigned int count = 0u;
-    CfgJsonToken *const tokens =
-        (bytes != NULL) ? EMBED_CALL(cli_net_tokens, NetCtx, .text = log_text, .size = size, .count = &count) : NULL;
-    unsigned int written = 0u;
-    unsigned long long end = (tokens != NULL) ? size : 0ull;
-    while ((end > 0ull) && (written < args->most))
-    {
-        unsigned long long start = end;
-        start = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = log_text, .at = start,
-                           .set = "\n");
-        unsigned long long stop = end;
-        stop -= ((stop > start) && (log_text[stop - 1u] == '\n')) ? 1ull : 0ull;
-        stop -= ((stop > start) && (log_text[stop - 1u] == '\r')) ? 1ull : 0ull;
-        // a line read as one address reached where it is one, written again as it reads
-        CfgJsonParse parse = {0u, 0u, 0u, NULL};
-        char address[CLI_PATH_MAX_LEN];
-        char purpose[CLI_PATH_MAX_LEN];
-        unsigned long long at = 0ull;
-        if ((stop > start) && cfg_json_parse_metadata(log_text + start, stop - start, tokens, count, &parse))
-        {
-            const unsigned int when = cfg_json_member(log_text + start, tokens, 0u, "at");
-            const unsigned int where = cfg_json_member(log_text + start, tokens, 0u, "address");
-            const unsigned int why = cfg_json_member(log_text + start, tokens, 0u, "for");
-            if ((when != 0u) && (where != 0u) && (why != 0u) &&
-                cfg_json_unsigned(log_text + start, &tokens[when], &at) &&
-                cfg_json_string(log_text + start, &tokens[where], address, sizeof(address)) &&
-                cfg_json_string(log_text + start, &tokens[why], purpose, sizeof(purpose)))
-            {
-                mmgr_line_put(args->out, (written != 0u) ? ",{\"at\":" : "{\"at\":");
-                mmgr_line_decimal(args->out, at, 1u);
-                mmgr_line_put(args->out, ",\"address\":");
-                EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
-                           .text = address,
-                           .length = cellul.len(&(CatenaFinitaCfg){.src = address, .cap = CLI_CELLS_POOL}));
-                mmgr_line_put(args->out, ",\"for\":");
-                EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
-                           .text = purpose,
-                           .length = cellul.len(&(CatenaFinitaCfg){.src = purpose, .cap = CLI_CELLS_POOL}));
-                mmgr_line_ch(args->out, '}');
-                written += 1u;
-            }
-        }
-        if (start == 0ull)
-        {
-            break;
-        }
-        // the line before ends at this one's start, its line end left off
-        end = start - 1ull;
-    }
-    g_cli_cells->persistent_buf_release(tokens, &g_cli_machine_cells);
-    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_machine_cells);
-    mmgr_line_ch(args->out, ']');
 }

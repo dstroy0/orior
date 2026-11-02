@@ -16,7 +16,7 @@ extern void test_a_value_completes_after_what_was_typed(void);
 extern void test_every_value_completes_when_nothing_is_typed(void);
 extern void test_a_value_completes_after_a_dot(void);
 extern void test_a_position_counts_its_column_in_utf16(void);
-extern void test_a_near_name_is_offered(void);
+extern void test_a_adjacent_name_is_offered(void);
 extern void test_a_far_name_is_not_offered(void);
 
 
@@ -88,7 +88,7 @@ int main(void)
   run_test(test_every_value_completes_when_nothing_is_typed, "test_every_value_completes_when_nothing_is_typed", 91);
   run_test(test_a_value_completes_after_a_dot, "test_a_value_completes_after_a_dot", 96);
   run_test(test_a_position_counts_its_column_in_utf16, "test_a_position_counts_its_column_in_utf16", 101);
-  run_test(test_a_near_name_is_offered, "test_a_near_name_is_offered", 117);
+  run_test(test_a_adjacent_name_is_offered, "test_a_adjacent_name_is_offered", 117);
   run_test(test_a_far_name_is_not_offered, "test_a_far_name_is_not_offered", 123);
 
   return UNITY_END();

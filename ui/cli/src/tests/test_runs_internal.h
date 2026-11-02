@@ -11,7 +11,7 @@ typedef struct CliTestRunsTextSizeCtx CliTestRunsTextSizeCtx;
 typedef struct CliTestRunsSizeCtx CliTestRunsSizeCtx;
 typedef struct CliTestRunsRunLengthCtx CliTestRunsRunLengthCtx;
 typedef struct CliTestRunsSizeLineCtx CliTestRunsSizeLineCtx;
-typedef struct CliTestRunsRunGivenCtx CliTestRunsRunGivenCtx;
+typedef struct CliTestRunsRunInputCtx CliTestRunsRunInputCtx;
 typedef struct CliTestRunsLengthCtx CliTestRunsLengthCtx;
 typedef struct CliTestRunsTextLengthCtx CliTestRunsTextLengthCtx;
 typedef struct CliTestRunsLengthPathCtx CliTestRunsLengthPathCtx;
@@ -109,7 +109,7 @@ struct CliTestRun
     unsigned int worker_count;
     CliTestNamed named[CLI_TEST_NAMED];
     unsigned int named_count;
-    const char *given[CLI_TEST_NAMED];
+    const char *supplied[CLI_TEST_NAMED];
     unsigned int order[CLI_TEST_NAMED];
     unsigned int share_from[CLI_TEST_WORKERS];
     unsigned int share_size[CLI_TEST_WORKERS];
@@ -120,7 +120,7 @@ struct CliTestRun
     const char *seen_outcome[CLI_TEST_SEEN_MAX];
     char seen_text[CLI_TEST_SEEN_TEXT_MAX];
     unsigned long long seen_used;
-    CliThread ender;
+    CliThread terminator;
 };
 
 // whether the run going was stopped, under the runs' lock (test_runs.c)
@@ -131,7 +131,7 @@ extern int g_cli_test_stopped;
 // its name: 1 where it is new, 0 where it was received before, its first outcome recorded; the outcome a process
 // received of a name, NULL for none; and whether a process received any result (test_runs.c)
 int cli_test_stop(void);
-const char *cli_test_put(const CliTestRunsRunTextCtx *args);
+const char *cli_test_append(const CliTestRunsRunTextCtx *args);
 void cli_test_outcome_count(const CliTestRunsRunLengthCtx *args);
 void cli_test_message_set(const CliTestRunsRunTextCtx *args);
 int cli_test_visit(const CliTestRunsRunLengthCtx *args);
@@ -156,9 +156,9 @@ void cli_test_errors_wait(const CliTestRunsWorkerLineCtx *args);
 const char *cli_test_file_read(const CliTestRunsPathCtx *args);
 void cli_test_file_let_go(const CliTestRunsTextWorkerCtx *args);
 
-// the cargo processes a run starts for the Rust tests `given`, `count` of them, each with a thread of its own: 1, or 0
-// with why given (cargo_run.c)
-int cli_cargo_workers_start(const CliTestRunsRunGivenCtx *args);
+// the cargo processes a run starts for the Rust tests `supplied`, `count` of them, each with a thread of its own: 1, or
+// 0 with why given (cargo_run.c)
+int cli_cargo_workers_start(const CliTestRunsRunInputCtx *args);
 
 // whether `python` has pytest, queried in the tree at `root`; and the shares the Python tests given, `count` of them,
 // are spread over, at most `most`: whole files to a share, the files of most first, each to the share that has the
@@ -166,8 +166,8 @@ int cli_cargo_workers_start(const CliTestRunsRunGivenCtx *args);
 int cli_test_has_pytest(const CliTestRunsPythonCtx *args);
 void cli_test_shares(const CliTestRunsRunCountCtx *args);
 
-// the Python processes a run starts, a share of `given` to each, with pytest where `pytest` and coverage where `cover`:
-// 1, or 0 with why given (test_python.c)
+// the Python processes a run starts, a share of `supplied` to each, with pytest where `pytest` and coverage where
+// `cover`: 1, or 0 with why given (test_python.c)
 int cli_python_workers_start(const CliTestRunsRunCtx *args);
 
 // the outcomes of pytest's report in JUnit's form each reported, and the cells the report's tags and texts occupy
@@ -177,7 +177,7 @@ void cli_test_report_emit(const CliTestRunsWorkerCtx *args);
 void cli_test_unittest_failures_emit(const CliTestRunsTextWorkerCtx *args);
 // where `needle` is first found in `length` bytes of `text`, `length` where it is not; a whole text read as a 32-bit
 // count, a + before it as Rust takes one: 1, or 0 where it is none; whether `length` bytes of a path, its backslashes
-// read as slashes, end with `wanted`; the next line of `size` bytes from `at`, a "\r" before its "\n" taken off: 1
+// read as slashes, end with `required`; the next line of `size` bytes from `at`, a "\r" before its "\n" taken off: 1
 // with its start and end, or 0 where none is left; and the last line of a text that is not blank, trimmed, a line of
 // `---` passed over where `skip_rules`, as its start and size: 1, or 0 where every line is blank (test_reports.c)
 unsigned long long cli_report_find(const CliTestRunsTextLengthNeedleCtx *args);
@@ -187,9 +187,9 @@ int cli_report_line(const CliTestRunsTextSizeCtx *args);
 int cli_report_last_line(const CliTestRunsTextCtx *args);
 // a line pytest prints in its verbose report as a test ends: the test's name, its start and size in the line, and its
 // outcome: 1, or 0 where the line is no such line; a line unittest prints so, `test_x (pkg.test_a.Case.test_x) ...
-// ok`: the test's name as pytest gives it into `id`, sized for `room`, and its outcome, the same way; a pytest
+// ok`: the test's name as pytest gives it into `id`, sized for `capacity`, and its outcome, the same way; a pytest
 // name as unittest takes it, `pkg/test_a.py::Case::test_x` as `pkg.test_a.Case.test_x`, put after the words; and a
-// unittest name, `pkg.test_a.Case.test_x`, as pytest names it, into `id`, sized for `room`: 1, or 0 where it has
+// unittest name, `pkg.test_a.Case.test_x`, as pytest names it, into `id`, sized for `capacity`: 1, or 0 where it has
 // no class (test_lines.c)
 int cli_test_pytest_line(const CliTestRunsSizeCtx *args);
 int cli_test_unittest_line(const CliTestRunsSizeLineCtx *args);
@@ -264,13 +264,13 @@ struct CliTestRunsSizeLineCtx
     const char *line;
     const char **outcome_pointer;
     char *id_out;
-    unsigned long long room;
+    unsigned long long capacity;
 };
 
-struct CliTestRunsRunGivenCtx
+struct CliTestRunsRunInputCtx
 {
     CliTestRun *run;
-    const char *const *given;
+    const char *const *supplied;
     unsigned int count;
     VerbaLinea *err_msg;
 };
@@ -279,7 +279,7 @@ struct CliTestRunsLengthCtx
 {
     unsigned long long length;
     char *id_out;
-    unsigned long long room;
+    unsigned long long capacity;
     const char *dotted;
 };
 
@@ -294,7 +294,7 @@ struct CliTestRunsLengthPathCtx
 {
     unsigned long long length;
     const char *path;
-    const char *wanted;
+    const char *required;
 };
 
 struct CliTestRunsTextLengthNeedleCtx
@@ -358,13 +358,13 @@ struct CliTestRunsWorkerLineCtx
 
 typedef struct
 {
-    const char *(*test_put)(const CliTestRunsRunTextCtx *args);
+    const char *(*test_append)(const CliTestRunsRunTextCtx *args);
     void (*test_message_set)(const CliTestRunsRunTextCtx *args);
     void (*test_coverage_emit)(const CliTestRunsRunTextCtx *args);
 } CliTestRunsRunTextNs;
-EMBED_TABLE_LAYOUT(CliTestRunsRunTextNs, test_put, test_message_set, test_coverage_emit);
+EMBED_TABLE_LAYOUT(CliTestRunsRunTextNs, test_append, test_message_set, test_coverage_emit);
 EMBED_TABLE_STORAGE CliTestRunsRunTextNs cli_test_runs_run_text_internal EMBED_UNUSED = {
-    .test_put = cli_test_put,
+    .test_append = cli_test_append,
     .test_message_set = cli_test_message_set,
     .test_coverage_emit = cli_test_coverage_emit,
 };
@@ -428,10 +428,10 @@ EMBED_TABLE_STORAGE CliTestRunsTextWorkerNs cli_test_runs_text_worker_internal E
 
 typedef struct
 {
-    int (*cargo_workers_start)(const CliTestRunsRunGivenCtx *args);
-} CliTestRunsRunGivenNs;
-EMBED_TABLE_LAYOUT(CliTestRunsRunGivenNs, cargo_workers_start);
-EMBED_TABLE_STORAGE CliTestRunsRunGivenNs cli_test_runs_run_given_internal EMBED_UNUSED = {
+    int (*cargo_workers_start)(const CliTestRunsRunInputCtx *args);
+} CliTestRunsRunInputNs;
+EMBED_TABLE_LAYOUT(CliTestRunsRunInputNs, cargo_workers_start);
+EMBED_TABLE_STORAGE CliTestRunsRunInputNs cli_test_runs_run_input_internal EMBED_UNUSED = {
     .cargo_workers_start = cli_cargo_workers_start,
 };
 

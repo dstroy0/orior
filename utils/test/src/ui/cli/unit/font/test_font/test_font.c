@@ -25,7 +25,7 @@ static void square_rasterized(float left, float bottom, float right, float top, 
     s_contours.y[2] = top;
     s_contours.x[3] = left;
     s_contours.y[3] = top;
-    EMBED_CALL(cli_font_contours.rasterize, CliFontContoursCfg, .contours = &s_contours, .mask = mask, .cover = s_cover, .room = sizeof(s_cover) / sizeof(s_cover[0]));
+    EMBED_CALL(cli_font_contours.rasterize, CliFontContoursCfg, .contours = &s_contours, .mask = mask, .cover = s_cover, .capacity = sizeof(s_cover) / sizeof(s_cover[0]));
 }
 
 // the system's monospace font read into s_font, the test ignored where the system has none
@@ -75,7 +75,7 @@ void test_a_pixel_inside_is_fully_covered(void)
     TEST_ASSERT_FLOAT_WITHIN(1e-4f, 1.0f, mask.cover[mask.width + 1u]);
 }
 
-void test_a_pixel_past_the_edge_is_not_covered(void)
+void test_a_pixel_end_the_edge_is_not_covered(void)
 {
     CliMask mask;
     square_rasterized(0.0f, 0.0f, 4.0f, 4.0f, &mask);
@@ -107,14 +107,14 @@ void test_h_draws_ink_and_not_everywhere(void)
     outlined(EMBED_CALL(cli_font.glyph, CliFontCfg, .font = &s_font, .letter = 'H'));
     TEST_ASSERT_GREATER_OR_EQUAL_UINT(1u, s_contours.contours);
     CliMask mask;
-    EMBED_CALL(cli_font_contours.rasterize, CliFontContoursCfg, .contours = &s_contours, .mask = &mask, .cover = s_cover, .room = sizeof(s_cover) / sizeof(s_cover[0]));
-    unsigned long long inked = 0ull;
+    EMBED_CALL(cli_font_contours.rasterize, CliFontContoursCfg, .contours = &s_contours, .mask = &mask, .cover = s_cover, .capacity = sizeof(s_cover) / sizeof(s_cover[0]));
+    unsigned long long painted = 0ull;
     for (unsigned long long at = 0ull; at < mask.width * mask.height; at += 1ull)
     {
-        inked += (mask.cover[at] > 0.5f) ? 1ull : 0ull;
+        painted += (mask.cover[at] > 0.5f) ? 1ull : 0ull;
     }
-    TEST_ASSERT_GREATER_THAN_UINT64(20ull, inked);
-    TEST_ASSERT_LESS_THAN_UINT64(mask.width * mask.height, inked);
+    TEST_ASSERT_GREATER_THAN_UINT64(20ull, painted);
+    TEST_ASSERT_LESS_THAN_UINT64(mask.width * mask.height, painted);
 }
 
 void test_a_character_the_font_lacks_has_no_glyph(void)

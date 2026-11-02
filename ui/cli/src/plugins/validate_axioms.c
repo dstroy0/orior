@@ -54,7 +54,7 @@ unsigned int cli_validate_mathematics(void)
         const CliFinding finding = {
             message->line, message->col, message->end_line, message->end_col, message->severity, "math", -1,
             0ull,          0ull};
-        EMBED_CALL(cli_validate_length_internal.finding_put, CliValidateLengthCtx, .finding = &finding,
+        EMBED_CALL(cli_validate_length_internal.finding_append, CliValidateLengthCtx, .finding = &finding,
                    .message_text = last->text + message->text, .length = message->text_size, .lifted = NULL);
     }
     return answers;
@@ -232,7 +232,7 @@ void cli_validate_axioms_report(const CliValidateAnswersCtx *args)
         mmgr_line_put(&message_line, " rests on ");
         mmgr_line_put_n(&message_line, msg_buf, msg.at);
         const CliFinding finding = {line, col, line, col + letters, any_gap ? 1u : 2u, "axiom", -1, 0ull, 0ull};
-        EMBED_CALL(cli_validate_length_internal.finding_put, CliValidateLengthCtx, .finding = &finding,
+        EMBED_CALL(cli_validate_length_internal.finding_append, CliValidateLengthCtx, .finding = &finding,
                    .message_text = message, .length = message_line.at, .lifted = NULL);
     }
 }

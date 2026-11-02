@@ -269,14 +269,6 @@ def cmd_check(a):
     return code or (1 if (failed or failing) else 0)
 
 
-def cmd_bench(a):
-    """The frame bench, utils/test/src/ui/gui/frame_bench.c, built as a check is and run: the milliseconds a frame of
-    the window takes at a monitor's size, and a blend of the whole raster alone."""
-    import harness_cli
-
-    return harness_cli.streamed([harness_cli.bash(), GUI_CHECKS, "frame_bench"])
-
-
 def cmd_icon(a):
     """The program's icon file: utils/test/src/ui/gui/icon_file.c built as a check is and run, its orior.ico copied to
     ui/gui/src beside orior.rc, which the window's build on Windows compiles into the program."""
@@ -888,7 +880,7 @@ def cmd_dump(a):
         return 1
     import harness_window_test as suite
 
-    symbols = ";".join([os.path.join(suite.APP_TARGET, suite.APP_PROFILE), os.path.join(ROOT, "build", "cargo", "release"), os.path.join(ROOT, "build", "cargo", "debug")])
+    symbols = ";".join([os.path.dirname(program()), os.path.join(ROOT, "build", "cargo", "debug")])
     log = os.path.join(HARNESS_BUILD, "window_dump.txt")
     with open(log, "wb") as out:
         subprocess.run([CDB, "-z", path, "-y", symbols, "-c", ".lines; .ecxr; kc 40; ~*kc 12; q"], cwd=ROOT, stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT)
@@ -903,7 +895,7 @@ def cmd_debug(a):
     if not windows_only():
         return 1
     log = os.path.join(HARNESS_BUILD, "window_debug.txt")
-    release = os.path.join(ROOT, "build", "cargo", "release")
+    release = os.path.dirname(program())
     windows_ended()
     with open(log, "wb") as out:
         process = subprocess.Popen([CDB, "-y", release, "-g", "-G", "-c", "g; .lines; kc 25; q", program()], cwd=ROOT, stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT)
@@ -1228,8 +1220,6 @@ def register(sub):
     p.add_argument("--sanitize", choices=("address", "thread"), default="", help="the checks built and run under this sanitizer, a report failing its check")
     p.add_argument("--owners", action="store_true", help="each check's end prints MMgr's owner table, every owner's bytes now and its peak")
     p.set_defaults(fn=cmd_check)
-    p = window.add_parser("bench", help="the frame bench: a monitor-sized frame of the window drawn without a display, timed")
-    p.set_defaults(fn=cmd_bench)
     p = window.add_parser("icon", help="the program's icon file written from the eye: ui/gui/src/orior.ico, built into the window on Windows")
     p.set_defaults(fn=cmd_icon)
     p = window.add_parser("session", help="the tree's kept session in orior's state: written from the tabs given, or printed")

@@ -101,15 +101,15 @@ unsigned long long cli_symbols_byte_at(const CliSymbolsSizeCtx *args);
 // `unary`, an operator before a value; `choice`, one of the two choosing between two values, the second naming
 // `otherwise` as well; `prefix`, a number's prefix; `memory`, an operator on what a name holds or where; and in a
 // string's name `include`, the file an include reaches, looked for beside the file including it first where it names
-// `beside` as well
-#define CLI_LEAF_REST 0x800000ull
+// `adjacent` as well
+#define CLI_LEAF_REMAINDER 0x800000ull
 #define CLI_LEAF_JOIN 0x1000000ull
 #define CLI_LEAF_QUOTE 0x2000000ull
 #define CLI_LEAF_UNARY 0x4000000ull
 #define CLI_LEAF_CHOICE 0x8000000ull
 #define CLI_LEAF_PREFIX 0x10000000ull
 #define CLI_LEAF_INCLUDED 0x20000000ull
-#define CLI_LEAF_BESIDE 0x40000000ull
+#define CLI_LEAF_ADJACENT 0x40000000ull
 #define CLI_LEAF_OTHERWISE 0x100000000ull
 // and the structure a grammar names: `open` and `close`, a bracket that opens or closes a pair; `region`, a bracket
 // whose pair encloses a region of statements; `statement`, the mark that ends a statement; `separator`, the mark
@@ -166,15 +166,15 @@ typedef struct
     unsigned char does;
 } CliLeaf;
 
-// A text's leaves saved: the text, its leaves in a cell at their most, how many, the room, the lines read, whether the
-// cells refused a leaf, and where each declaration a leaf names goes as it is saved, NULL for nowhere; and whether the
-// leaves' first cell is taken on the lane the thread is on, for a read given back before the lane is rewound
+// A text's leaves saved: the text, its leaves in a cell at their most, how many, the capacity, the lines read, whether
+// the cells refused a leaf, and where each declaration a leaf names goes as it is saved, NULL for nowhere; and whether
+// the leaves' first cell is taken on the lane the thread is on, for a read given back before the lane is rewound
 typedef struct
 {
     const char *text;
     CliLeaf *leaf;
     unsigned int count;
-    unsigned int room;
+    unsigned int capacity;
     unsigned int lines;
     const char *first;
     int refused;
@@ -253,9 +253,9 @@ int cli_symbols_head_read(const CliSymbolsLanguagesCtx *args);
 // through, and the line of a define the compilation database gives
 #define CLI_EFFECT_DEPTH 64u
 #define CLI_EFFECT_DIRECTIVE_LINES 64u
-#define CLI_EFFECT_SOUGHT 64u
+#define CLI_EFFECT_NEEDLE 64u
 #define CLI_EFFECT_THROUGH 16u
-#define CLI_EFFECT_GIVEN 0xffffffffu
+#define CLI_EFFECT_INPUT 0xffffffffu
 
 // One leaf as the condition reader reads it: its text and length, and what it is, how tightly it binds, its digits'
 // base and the operation it does, as its leaf was
@@ -282,7 +282,7 @@ typedef struct
 } CliEffectValueLeaf;
 
 // One macro met: its name and value's text, places among the walk's texts, and where it was met, its branch a place
-// among the texts and its line, CLI_EFFECT_GIVEN for a define the database gives; whether it was undefined there;
+// among the texts and its line, CLI_EFFECT_INPUT for a define the database gives; whether it was undefined there;
 // whether it is called with arguments, and if so its parameters' names, each ended by a zero, a place among the texts,
 // how many, and whether it takes the arguments past them; its value's leaves, a run among the walk's value leaves;
 // and its directive among what a slice's walk met, CLI_JSON_NONE where the walk is no slice's or the database gives it
@@ -356,7 +356,7 @@ typedef struct
 // one leaf of the branch a walk starts from that names the name sought, in an active region, handed on as the walk
 // passes its line: the branch's leaves and the leaf, and the definition of the name in effect there as a usage knows
 // it, the define in effect, else the first declaration of it the walk met: its branch's path as the tree holds it and
-// its line, CLI_EFFECT_GIVEN for a define the database gives, the path NULL for none
+// its line, CLI_EFFECT_INPUT for a define the database gives, the path NULL for none
 typedef void (*CliEffectNoted)(const CliEffectNotedCfg *args);
 typedef struct
 {
@@ -389,16 +389,16 @@ typedef struct
     VerbaLinea text;
     CliEffectMacro *macro;
     unsigned int macros;
-    unsigned int macro_room;
+    unsigned int macro_capacity;
     CliEffectValueLeaf *value_leaf;
     unsigned int value_leaves;
-    unsigned int value_leaf_room;
+    unsigned int value_leaf_capacity;
     unsigned int *walked;
     unsigned int walks;
-    unsigned int walk_room;
+    unsigned int walk_capacity;
     CliEffectInclude *include;
     unsigned int includes;
-    unsigned int include_room;
+    unsigned int include_capacity;
     const char *name;
     unsigned long long length;
     unsigned int found_path;
@@ -411,10 +411,10 @@ typedef struct
     int slicing;
     CliEffectBranchRead *branch_read;
     unsigned int branches_read;
-    unsigned int branch_read_room;
+    unsigned int branch_read_capacity;
     CliEffectSeen *seen;
     unsigned int seens;
-    unsigned int seen_room;
+    unsigned int seen_capacity;
     CliEffectNoted noted;
     void *noted_context;
     CliEffectReached reached;
@@ -427,17 +427,17 @@ typedef struct
 // zero after them, their place, or CLI_JSON_NONE with the walk refused where the line is full (symbols_effect.c)
 const char *cli_effect_text(const CliSymbolsCtx *args);
 unsigned int cli_effect_macro(const CliSymbolsNameCtx *args);
-unsigned int cli_effect_put(const CliSymbolsTextLengthCtx *args);
+unsigned int cli_effect_append(const CliSymbolsTextLengthCtx *args);
 // the most entries a walk's list takes, and its values' and one branch's declarations'
-#define CLI_EFFECT_LIST_MOST (1u << 15u)
-#define CLI_EFFECT_VALUES_MOST (1u << 17u)
-#define CLI_EFFECT_DECLARED_MOST 4096u
+#define CLI_EFFECT_LIST_MAX (1u << 15u)
+#define CLI_EFFECT_VALUES_MAX (1u << 17u)
+#define CLI_EFFECT_DECLARED_MAX 4096u
 // a walk made for the tree's file at `path` and the name `name`, a slice's walk where `slicing` is 1: the walk, or NULL
 // with why given where the cells cannot meet it; the walk taken from the file's first line to before line `line`, the
 // defines and include folders the compilation database gives the file first and the files it includes before its
 // first line walked before it; and the walk's cells given back (symbols_effect.c)
 CliEffect *cli_effect_init(const CliSymbolsPathNameCtx *args);
-void cli_effect_take(const CliSymbolsPathEffectCtx *args);
+void cli_effect_alloc(const CliSymbolsPathEffectCtx *args);
 void cli_effect_input_back(const CliSymbolsTextLengthCtx *args);
 // the integer the `count` leaves `token` of a condition give, read by the roles their grammar names: a number in the
 // base its leaf names, a prefix passed over; an operator by how tightly it binds, one named `unary` or any before a
@@ -733,12 +733,12 @@ EMBED_TABLE_STORAGE CliSymbolsNsTable cli_symbols_internal EMBED_UNUSED = {
 
 typedef struct
 {
-    unsigned int (*effect_put)(const CliSymbolsTextLengthCtx *args);
+    unsigned int (*effect_append)(const CliSymbolsTextLengthCtx *args);
     void (*effect_input_back)(const CliSymbolsTextLengthCtx *args);
 } CliSymbolsTextLengthNs;
-EMBED_TABLE_LAYOUT(CliSymbolsTextLengthNs, effect_put, effect_input_back);
+EMBED_TABLE_LAYOUT(CliSymbolsTextLengthNs, effect_append, effect_input_back);
 EMBED_TABLE_STORAGE CliSymbolsTextLengthNs cli_symbols_text_length_internal EMBED_UNUSED = {
-    .effect_put = cli_effect_put,
+    .effect_append = cli_effect_append,
     .effect_input_back = cli_effect_input_back,
 };
 
@@ -753,11 +753,11 @@ EMBED_TABLE_STORAGE CliSymbolsPathNameNsTable cli_symbols_path_name_internal EMB
 
 typedef struct
 {
-    void (*effect_take)(const CliSymbolsPathEffectCtx *args);
+    void (*effect_alloc)(const CliSymbolsPathEffectCtx *args);
 } CliSymbolsPathEffectNs;
-EMBED_TABLE_LAYOUT(CliSymbolsPathEffectNs, effect_take);
+EMBED_TABLE_LAYOUT(CliSymbolsPathEffectNs, effect_alloc);
 EMBED_TABLE_STORAGE CliSymbolsPathEffectNs cli_symbols_path_effect_internal EMBED_UNUSED = {
-    .effect_take = cli_effect_take,
+    .effect_alloc = cli_effect_alloc,
 };
 
 typedef struct

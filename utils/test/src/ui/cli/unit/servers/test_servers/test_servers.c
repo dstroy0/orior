@@ -17,7 +17,7 @@ static unsigned int s_event_count;
 static const CliJson *s_json;
 static CliServersSink s_sink;
 
-static int s_release_ran;
+static int s_release_run_result;
 static int s_release_woken;
 static char s_passed_on_after_clear[256];
 static unsigned int s_release_items;
@@ -152,7 +152,7 @@ static void passed_on_counts(char *out)
 }
 
 // a file's checker woken, the file released, and its diagnostics published again, what each passed on recorded once for the process
-static void release_ran(void)
+static void release_run_result(void)
 {
 #if defined(_WIN32)
     static const char s_uri[] = "file:///C:/t/a.c";
@@ -162,11 +162,11 @@ static void release_ran(void)
     static const char s_written[] = "file:///t/a.c";
 #endif
     char key[CLI_PATH_MAX_LEN];
-    if (s_release_ran)
+    if (s_release_run_result)
     {
         return;
     }
-    s_release_ran = 1;
+    s_release_run_result = 1;
     EMBED_CALL(cli_lsp_length.key_get, CliLspLengthCfg, .uri = s_uri, .length = sizeof(s_uri) - 1u, .key = key);
     s_event_count = 0u;
     EMBED_CALL(cli_servers_key_checker_internal.wait_on, CliServersKeyCheckerCtx, .checker = 0u, .key = key);
@@ -176,9 +176,9 @@ static void release_ran(void)
     diagnostics_published(s_uri, 1u);
     diagnostics_published(s_written, 0u);
     passed_on_counts(s_passed_on_after_clear);
-    const char *beside = NULL;
+    const char *adjacent = NULL;
     unsigned long long size = 0ull;
-    const char *const published = EMBED_CALL(cli_keyed_key_beside.get, CliKeyedKeyBesideCfg, .keyed = &g_cli_servers_published, .key = key, .beside = &beside, .size = &size);
+    const char *const published = EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &g_cli_servers_published, .key = key, .adjacent = &adjacent, .size = &size);
     if (published != NULL)
     {
         unsigned int read = CLI_JSON_NONE;
@@ -210,7 +210,7 @@ static int text_names(const char *text, const char *stem)
 void setUp(void)
 {
     cli_unity_begun();
-    s_sink = (CliServersSink){event_recorded, NULL, ""};
+    s_sink = (CliServersSink){.emit = event_recorded};
     s_event_count = 0u;
 }
 
@@ -233,16 +233,16 @@ void test_params_that_did_not_fit_their_line_are_refused_with_no_server_reached(
 
 void test_the_projects_a_server_is_sent_are_found_to_six_folders_down_in_order(void)
 {
-    static const char *const s_made[6] = {"b/Cargo.toml", "a/x/Cargo.toml", "target/Cargo.toml", "c/d/e/f/g/h/i/Cargo.toml", ".hidden/Cargo.toml", "Cargo.toml"};
+    static const char *const s_created[6] = {"b/Cargo.toml", "a/x/Cargo.toml", "target/Cargo.toml", "c/d/e/f/g/h/i/Cargo.toml", ".hidden/Cargo.toml", "Cargo.toml"};
     static const char *const s_found[3] = {"Cargo.toml", "a/x/Cargo.toml", "b/Cargo.toml"};
     char root[CLI_PATH_MAX_LEN];
     char path[CLI_PATH_MAX_LEN];
-    char listed[4096];
-    char wanted[4096];
+    char list_entries[4096];
+    char required[4096];
     cli_unity_folder("servers_projects", root);
     for (unsigned int at = 0u; at < 6u; at += 1u)
     {
-        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = s_made[at], .joined = path);
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = s_created[at], .joined = path);
         for (char *step = path + CLI_UNITY_LENGTH(root) + 1u; step[0] != '\0'; step += 1)
         {
             if (step[0] == '/')
@@ -252,11 +252,11 @@ void test_the_projects_a_server_is_sent_are_found_to_six_folders_down_in_order(v
                 step[0] = '/';
             }
         }
-        TEST_ASSERT_TRUE_MESSAGE(EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path, .bytes = "", .size = 0ull), s_made[at]);
+        TEST_ASSERT_TRUE_MESSAGE(EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path, .bytes = "", .size = 0ull), s_created[at]);
     }
-    VerbaLinea out = {listed, sizeof(listed), 0ull};
+    VerbaLinea out = {list_entries, sizeof(list_entries), 0ull};
     EMBED_CALL(cli_servers_root_out_internal.projects_in, CliServersRootOutCtx, .root = root, .name = "Cargo.toml", .out = &out);
-    VerbaLinea want = {wanted, sizeof(wanted), 0ull};
+    VerbaLinea want = {required, sizeof(required), 0ull};
     mmgr_line_ch(&want, '[');
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
@@ -266,7 +266,7 @@ void test_the_projects_a_server_is_sent_are_found_to_six_folders_down_in_order(v
     }
     mmgr_line_ch(&want, ']');
     (void)mmgr_line_finish(&want);
-    CLI_TEST_ASSERT_TEXT(wanted, listed, out.at);
+    CLI_TEST_ASSERT_TEXT(required, list_entries, out.at);
     TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_servers_launch_cells.in_use));
 }
 
@@ -354,7 +354,7 @@ void test_a_workspace_edits_changes_read_the_first_edit_first(void)
     TEST_ASSERT_EQUAL_STRING(":a,b", files_edited(s_edit));
 }
 
-void test_a_workspace_edits_document_changes_read_a_file_made_not_among_them(void)
+void test_a_workspace_edits_document_changes_read_a_file_created_not_among_them(void)
 {
     static char s_edit[4096];
     char uri[CLI_PATH_MAX_LEN];
@@ -384,7 +384,7 @@ void test_a_workspace_edit_is_in_a_cell_counted_to_its_files_and_edits_and_relea
     (void)files_edited(s_edit);
     TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_servers_edits_cells.in_use));
     TEST_ASSERT_NOT_EQUAL(0ull, embed_atomic_usize_load(&g_cli_servers_edits_cells.hw));
-    // the workspace edits read are a few files of a few edits each, far below the room of every edit and file
+    // the workspace edits read are a few files of a few edits each, far below the capacity of every edit and file
     TEST_ASSERT_LESS_THAN_UINT64(16384ull, embed_atomic_usize_load(&g_cli_servers_edits_cells.hw));
 }
 
@@ -398,27 +398,6 @@ void test_edits_are_written_by_utf16_columns_the_line_ends_preserved(void)
     CLI_TEST_ASSERT_TEXT("a\xF0\x9F\x98\x80"
                          "B !\r\nsecond yy\r\n",
                          s_out, out.at);
-}
-
-void test_a_signature_names_each_parameter_by_its_span(void)
-{
-    char params[256];
-    unsigned int read = text_parsed("{\"signatures\":[{\"label\":\"twice(int x, int y) -> int\",\"parameters\":[{\"label\":\"int "
-                                    "x\"},{\"label\":[13,"
-                                    "18]}],\"documentation\":{\"kind\":\"markdown\",\"value\":\"Doubles.\"}}],\"activeSignature\":0,"
-                                    "\"activeParameter\":1}");
-    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    EMBED_CALL(cli_servers_json_out_help_internal.signature_get, CliServersJsonOutHelpCtx, .json = s_json, .help = read, .out = &out);
-    (void)mmgr_line_finish(&out);
-    read = text_parsed(s_out);
-    VerbaLinea line = {params, sizeof(params), 0ull};
-    EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = s_json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = read, .name = "params"), .out = &line, .indent = 0u, .sorted = 0);
-    (void)mmgr_line_finish(&line);
-    const unsigned int active = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = read, .name = "active");
-    TEST_ASSERT_EQUAL_STRING("[[6,11],[13,18]]", params);
-    TEST_ASSERT_NOT_EQUAL(CLI_JSON_NONE, active);
-    TEST_ASSERT_EQUAL_CHAR('1', s_json->text[s_json->node[active].text]);
-    TEST_ASSERT_EQUAL_STRING("Doubles.", cli_unity_member_text(read, "doc"));
 }
 
 void test_a_completion_is_named_by_what_it_inserts(void)
@@ -470,25 +449,25 @@ void test_an_edit_the_server_requests_is_applied_and_passed_on(void)
 
 void test_a_files_diagnostics_wake_the_checker_waiting_on_it(void)
 {
-    release_ran();
+    release_run_result();
     TEST_ASSERT_TRUE(s_release_woken);
 }
 
 void test_diagnostics_after_a_release_pass_on_and_its_clearing_does_not_however_its_uri_is_written(void)
 {
-    release_ran();
+    release_run_result();
     TEST_ASSERT_EQUAL_STRING("1,1", s_passed_on_after_clear);
 }
 
 void test_a_released_files_diagnostics_are_stored(void)
 {
-    release_ran();
+    release_run_result();
     TEST_ASSERT_EQUAL_UINT(1u, s_release_items);
 }
 
 void test_a_clearing_after_the_release_ends_passes_on(void)
 {
-    release_ran();
+    release_run_result();
     TEST_ASSERT_EQUAL_STRING("1,1,0", s_passed_on_final);
 }
 

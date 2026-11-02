@@ -43,9 +43,6 @@ extern CellOwner g_cli_trust_cells;
 // the reader's answer for `tree`, the answer stored for the nearest folder that is the tree or contains it: 1 with
 // whether it is trusted into `trusted`, or 0 where no answer is stored
 int cli_trust_answer(const CliTrustTreeCfg *args);
-// the answer for `folder` and every tree under it stored, in place of those stored for it and the folders under it
-// before: 1, or 0 with why given
-int cli_trust_set(const CliTrustFolderCfg *args);
 // the files of `tree` its tools run as code as they read it into `code`, cached for ten seconds before the tree is
 // looked through again: 1, or 0 with none into `code` where the cellblock could not meet them; and their cell given
 // back, `code` left containing none
@@ -58,10 +55,6 @@ int cli_trust_prettier_block(const CliTrustTreeWordsCfg *args);
 // the words git is started with in `tree` into `words`, sized for 2: that it run no fsmonitor hook, where the
 // configuration of the repository containing the tree names one and the tree is not trusted: their count
 unsigned int cli_trust_git_words(const CliTrustTreeWordsCfg *args);
-// what the window is sent of `tree` written as JSON into `out`: the answer stored, the code it contains, the tree, and
-// the folder above it, for an answer that applies to every tree there
-void cli_trust_state_write(const CliTrustTreeOutCfg *args);
-
 // what the checks check: whether git's `core.fsmonitor`, as `config` sets it, names a program to run, and not git's own
 // monitor or none; whether `inner` is `folder` or under it; the answer `tree` has by the file of answers at `path`; the
 // answer for `folder` stored in the file at `path`; and the files of `tree` its tools run as code, looked for now, into
@@ -69,7 +62,6 @@ void cli_trust_state_write(const CliTrustTreeOutCfg *args);
 int cli_trust_names_a_hook(const CliTrustCfg *args);
 int cli_trust_under(const CliTrustFolderInnerCfg *args);
 int cli_trust_answer_in(const CliTrustTreeCfg *args);
-int cli_trust_set_in(const CliTrustFolderCfg *args);
 int cli_trust_looked_for(const CliTrustTreeCodeCfg *args);
 
 struct CliTrustFolderCfg
@@ -129,17 +121,6 @@ EMBED_TABLE_STORAGE CliTrustTreeNs cli_trust_tree EMBED_UNUSED = {
 
 typedef struct
 {
-    int (*set)(const CliTrustFolderCfg *args);
-    int (*set_in)(const CliTrustFolderCfg *args);
-} CliTrustFolderNs;
-EMBED_TABLE_LAYOUT(CliTrustFolderNs, set, set_in);
-EMBED_TABLE_STORAGE CliTrustFolderNs cli_trust_folder EMBED_UNUSED = {
-    .set = cli_trust_set,
-    .set_in = cli_trust_set_in,
-};
-
-typedef struct
-{
     int (*own_code)(const CliTrustTreeCodeCfg *args);
     void (*code_free)(const CliTrustTreeCodeCfg *args);
     int (*looked_for)(const CliTrustTreeCodeCfg *args);
@@ -162,15 +143,6 @@ EMBED_TABLE_STORAGE CliTrustTreeWordsNs cli_trust_tree_words EMBED_UNUSED = {
     .block = cli_trust_block,
     .prettier_block = cli_trust_prettier_block,
     .git_words = cli_trust_git_words,
-};
-
-typedef struct
-{
-    void (*state_write)(const CliTrustTreeOutCfg *args);
-} CliTrustTreeOutNs;
-EMBED_TABLE_LAYOUT(CliTrustTreeOutNs, state_write);
-EMBED_TABLE_STORAGE CliTrustTreeOutNs cli_trust_tree_out EMBED_UNUSED = {
-    .state_write = cli_trust_state_write,
 };
 
 typedef struct

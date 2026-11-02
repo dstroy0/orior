@@ -7,7 +7,7 @@
 extern void setUp(void);
 extern void tearDown(void);
 extern void test_a_gsm_written_in_pieces_holds_its_bytes(void);
-extern void test_the_seal_beside_it_holds_the_root_of_those_bytes(void);
+extern void test_the_seal_adjacent_it_holds_the_root_of_those_bytes(void);
 extern void test_a_markdown_file_is_written_with_no_seal(void);
 extern void test_writing_again_replaces_the_bytes_and_the_root(void);
 extern void test_sealed_kinds_are_g_gsm_and_the_k_files(void);
@@ -75,7 +75,7 @@ int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\file_writing\\test_file_writing\\test_file_writing.c");
   run_test(test_a_gsm_written_in_pieces_holds_its_bytes, "test_a_gsm_written_in_pieces_holds_its_bytes", 70);
-  run_test(test_the_seal_beside_it_holds_the_root_of_those_bytes, "test_the_seal_beside_it_holds_the_root_of_those_bytes", 75);
+  run_test(test_the_seal_adjacent_it_holds_the_root_of_those_bytes, "test_the_seal_adjacent_it_holds_the_root_of_those_bytes", 75);
   run_test(test_a_markdown_file_is_written_with_no_seal, "test_a_markdown_file_is_written_with_no_seal", 80);
   run_test(test_writing_again_replaces_the_bytes_and_the_root, "test_writing_again_replaces_the_bytes_and_the_root", 92);
   run_test(test_sealed_kinds_are_g_gsm_and_the_k_files, "test_sealed_kinds_are_g_gsm_and_the_k_files", 101);

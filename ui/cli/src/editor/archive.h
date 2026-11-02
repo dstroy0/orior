@@ -40,9 +40,9 @@ enum
     CLI_ARCHIVE_NONE
 };
 
-// the most bytes a room of the archives a path runs through is given; the most members of one archive; the most bytes
-// of their names; and the most children a folder within one lists
-#define CLI_ARCHIVE_MOST (1ull << 28u)
+// the most bytes a capacity of the archives a path runs through is given; the most members of one archive; the most
+// bytes of their names; and the most children a folder within one lists
+#define CLI_ARCHIVE_MAX (1ull << 28u)
 
 #define CLI_ARCHIVE_MEMBERS 16384u
 
@@ -93,15 +93,15 @@ typedef struct
 
 // the kind of archive a file is by its name, CLI_ARCHIVE_NONE for none
 unsigned int cli_archive_kind_get(const CliArchiveCfg *args);
-// the CRC-32 of `size` bytes; the bytes deflated `data` contains into `out`, sized for `room`, their count into
+// the CRC-32 of `size` bytes; the bytes deflated `data` contains into `out`, sized for `capacity`, their count into
 // `out_size` and the bytes of `data` it took into `used`: 1, or 0 with why given; `size` bytes of `data` deflated, in
 // one block of the fixed codes, each run seen in the 32 KiB before it sent as a length and a distance back, into `out`,
-// sized for `room`: their count, or 0 where they do not fit (archive_deflate.c)
+// sized for `capacity`: their count, or 0 where they do not fit (archive_deflate.c)
 unsigned int cli_crc32(const CliArchiveBytesSizeCfg *args);
 int cli_inflate(const CliArchiveSizeCfg *args);
 unsigned long long cli_deflate(const CliArchiveSizeCfg *args);
-// what a gzip contains, unzipped, into `out`, sized for `room`, its count into `out_size`: 1, or 0 with why given; and
-// `size` bytes of `data` gzipped into `out`: their count, or 0 where they do not fit (archive_tar.c)
+// what a gzip contains, unzipped, into `out`, sized for `capacity`, its count into `out_size`: 1, or 0 with why given;
+// and `size` bytes of `data` gzipped into `out`: their count, or 0 where they do not fit (archive_tar.c)
 int cli_gunzip(const CliArchiveBytesCfg *args);
 unsigned long long cli_gzip(const CliArchiveSizeCfg *args);
 // `size` bytes read in the old DOS page, 437, written as UTF-8 after `out` (archive_zip.c)
@@ -115,7 +115,7 @@ void cli_dos(const CliArchiveBytesSizeCfg *args);
 // (archive_path.c)
 int cli_archive_split(const CliArchiveRootCfg *args);
 int cli_archive_list(const CliArchiveErrMsgRootCfg *args);
-char *cli_archive_take(const CliArchiveErrMsgCfg *args);
+char *cli_archive_alloc(const CliArchiveErrMsgCfg *args);
 int cli_archive_write(const CliArchiveSizeDataCfg *args);
 
 struct CliArchiveSizeCfg
@@ -123,7 +123,7 @@ struct CliArchiveSizeCfg
     unsigned long long size;
     const unsigned char *data;
     unsigned char *out;
-    unsigned long long room;
+    unsigned long long capacity;
     unsigned long long *out_size;
     unsigned long long *used;
     VerbaLinea *err_msg;
@@ -134,7 +134,7 @@ struct CliArchiveBytesCfg
     const unsigned char *bytes;
     unsigned long long size;
     unsigned char *out;
-    unsigned long long room;
+    unsigned long long capacity;
     unsigned long long *out_size;
     VerbaLinea *err_msg;
 };
@@ -251,7 +251,7 @@ typedef struct
 } CliArchiveErrMsgNs;
 EMBED_TABLE_LAYOUT(CliArchiveErrMsgNs, take);
 EMBED_TABLE_STORAGE CliArchiveErrMsgNs cli_archive_err_msg EMBED_UNUSED = {
-    .take = cli_archive_take,
+    .take = cli_archive_alloc,
 };
 
 typedef struct

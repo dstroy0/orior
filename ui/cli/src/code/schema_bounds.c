@@ -31,33 +31,33 @@ void cli_schema_number_check(const CliSchemaBaseMapCtx *args)
     const CliJson *const json = &args->check->store->json;
     const CliSchemaNode *const one = &args->check->read->node[args->node];
     const double number = one->number;
-    const int draft4_least = EMBED_CALL(cli_schema_json_node_internal.schema_true, CliSchemaJsonNodeCtx, .json = json,
-                                        .node = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json,
-                                                           .map = args->map, .name = "exclusiveMinimum"));
-    const int draft4_most = EMBED_CALL(cli_schema_json_node_internal.schema_true, CliSchemaJsonNodeCtx, .json = json,
-                                       .node = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json,
-                                                          .map = args->map, .name = "exclusiveMaximum"));
+    const int draft4_min = EMBED_CALL(cli_schema_json_node_internal.schema_true, CliSchemaJsonNodeCtx, .json = json,
+                                      .node = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json,
+                                                         .map = args->map, .name = "exclusiveMinimum"));
+    const int draft4_max = EMBED_CALL(cli_schema_json_node_internal.schema_true, CliSchemaJsonNodeCtx, .json = json,
+                                      .node = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json,
+                                                         .map = args->map, .name = "exclusiveMaximum"));
     VerbaLinea msg = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = args->check->found);
     double bound = 0.0;
     if (EMBED_CALL(cli_schema_json_node_internal.number, CliSchemaJsonNodeCtx, .json = json,
                    .node = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json, .map = args->map,
                                       .name = "minimum"),
                    .value_f64s = &bound) &&
-        ((number < bound) || (draft4_least && (number == bound))))
+        ((number < bound) || (draft4_min && (number == bound))))
     {
         EMBED_CALL(bounds_msg_write, SchemaBoundsCtx, .msg = &msg, .number = number,
                    .between = " is below the least the schema allows, ", .bound = bound,
-                   .after = draft4_least ? ", itself left out" : "");
+                   .after = draft4_min ? ", itself left out" : "");
     }
     if (EMBED_CALL(cli_schema_json_node_internal.number, CliSchemaJsonNodeCtx, .json = json,
                    .node = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json, .map = args->map,
                                       .name = "maximum"),
                    .value_f64s = &bound) &&
-        ((number > bound) || (draft4_most && (number == bound))))
+        ((number > bound) || (draft4_max && (number == bound))))
     {
         EMBED_CALL(bounds_msg_write, SchemaBoundsCtx, .msg = &msg, .number = number,
                    .between = " is above the most the schema allows, ", .bound = bound,
-                   .after = draft4_most ? ", itself left out" : "");
+                   .after = draft4_max ? ", itself left out" : "");
     }
     if (EMBED_CALL(cli_schema_json_node_internal.number, CliSchemaJsonNodeCtx, .json = json,
                    .node = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json, .map = args->map,

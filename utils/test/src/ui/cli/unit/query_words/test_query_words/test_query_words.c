@@ -13,7 +13,7 @@ static char s_root[QUERY_PATH_MAX_LEN];
 static char s_printed[QUERY_LINE_MAX_LEN];
 static unsigned long long s_printed_size;
 static int s_ready;
-static char s_why[1024];
+static char s_error[1024];
 static char s_query_root[QUERY_PATH_MAX_LEN];
 static char s_out[1024];
 
@@ -26,7 +26,7 @@ static void line_recorded(const CliEachLineSizeCfg *args)
 }
 
 // nothing is found, each reported by its name
-static int nothing_found(const QueryEachRolePathRoomErrMsgCfg *args)
+static int nothing_found(const QueryEachRolePathCapacityErrMsgCfg *args)
 {
     QueryRole role = args->role;
     args->path[0] = '\0';
@@ -58,9 +58,9 @@ static void table_written(const char *root, const char *const *files, unsigned i
 }
 
 // the whole names the table contains of `kinds`, joined by `,`
-static const char *whole_names(const char *root, const char *const *kinds, unsigned int count)
+static const char *joined_names(const char *root, const char *const *kinds, unsigned int count)
 {
-    static char s_names[64][QUERY_WHOLE_MAX_LEN];
+    static char s_names[64][QUERY_NAME_MAX_LEN];
     static const char *s_named[64];
     static char s_joined[512];
     const unsigned int named = EMBED_CALL(query_loops_root_kinds.whole, QueryLoopsRootKindsCfg, .root = root, .kinds = kinds, .kind_count = count, .names = s_names, .named = s_named);
@@ -75,7 +75,7 @@ static const char *whole_names(const char *root, const char *const *kinds, unsig
 }
 
 // the reading `text`'s words request: 1 with its mode into `mode`, 0 for a pull, -1 refused
-static int reading_of(const char *text, const char **mode)
+static int read_state_of(const char *text, const char **mode)
 {
     static char s_text[256];
     static const char *s_words[16];
@@ -102,15 +102,15 @@ static int reading_of(const char *text, const char **mode)
     }
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     *mode = NULL;
-    return EMBED_CALL(query_loops_err_msg_words_count_mode.reading, QueryLoopsErrMsgWordsCountModeCfg, .words = s_words, .count = count, .mode = mode, .err_msg = &err_msg);
+    return EMBED_CALL(query_loops_err_msg_words_count_mode.read_state, QueryLoopsErrMsgWordsCountModeCfg, .words = s_words, .count = count, .mode = mode, .err_msg = &err_msg);
 }
 
 // a table of whole languages and parts written at s_query_root
 static void query_table_written(void)
 {
-    static const char *const s_whole[9] = {"Lstar.klq", "cu.klm", "cu.krs", "sass.klm", "sass.krs", "sm_86.khw", "sm_86.kqr", "sm_86.ksc", "c.krs"};
+    static const char *const s_coordinates[9] = {"Lstar.klq", "cu.klm", "cu.krs", "sass.klm", "sass.krs", "sm_86.khw", "sm_86.kqr", "sm_86.ksc", "c.krs"};
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = "build/query_test/query_values", .joined = s_query_root);
-    table_written(s_query_root, s_whole, 9u);
+    table_written(s_query_root, s_coordinates, 9u);
 }
 
 // the query's words read at s_query_root: 1 with its names joined by `,` and `dry` after a `|` in s_out, or 0 with why in s_out
@@ -182,8 +182,8 @@ void test_leave_is_read_off_the_words(void)
     unsigned int left = 5u;
     int sent = 0;
     QueryLeave leave = QUERY_LEAVE_ALL;
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
-    TEST_ASSERT_TRUE(EMBED_CALL(query_loops_err_msg_words_count_given.leave_take, QueryLoopsErrMsgWordsCountGivenCfg, .words_read = words, .count_pointer = &left, .given = &sent, .leave = &leave, .err_msg = &err_msg));
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
+    TEST_ASSERT_TRUE(EMBED_CALL(query_loops_err_msg_words_count_input.leave_alloc, QueryLoopsErrMsgWordsCountInputCfg, .words_read = words, .count_pointer = &left, .supplied = &sent, .leave = &leave, .err_msg = &err_msg));
     TEST_ASSERT_TRUE(sent);
     TEST_ASSERT_EQUAL_INT(QUERY_LEAVE_NONE, leave);
     TEST_ASSERT_EQUAL_UINT(3u, left);
@@ -198,8 +198,8 @@ void test_an_unknown_leave_is_refused(void)
     unsigned int left = 2u;
     int sent = 0;
     QueryLeave leave = QUERY_LEAVE_ALL;
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
-    TEST_ASSERT_FALSE(EMBED_CALL(query_loops_err_msg_words_count_given.leave_take, QueryLoopsErrMsgWordsCountGivenCfg, .words_read = bad, .count_pointer = &left, .given = &sent, .leave = &leave, .err_msg = &err_msg));
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
+    TEST_ASSERT_FALSE(EMBED_CALL(query_loops_err_msg_words_count_input.leave_alloc, QueryLoopsErrMsgWordsCountInputCfg, .words_read = bad, .count_pointer = &left, .supplied = &sent, .leave = &leave, .err_msg = &err_msg));
 }
 
 void test_no_leave_sent_is_none(void)
@@ -208,19 +208,19 @@ void test_no_leave_sent_is_none(void)
     unsigned int left = 1u;
     int sent = 0;
     QueryLeave leave = QUERY_LEAVE_ALL;
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
-    TEST_ASSERT_TRUE(EMBED_CALL(query_loops_err_msg_words_count_given.leave_take, QueryLoopsErrMsgWordsCountGivenCfg, .words_read = none, .count_pointer = &left, .given = &sent, .leave = &leave, .err_msg = &err_msg));
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
+    TEST_ASSERT_TRUE(EMBED_CALL(query_loops_err_msg_words_count_input.leave_alloc, QueryLoopsErrMsgWordsCountInputCfg, .words_read = none, .count_pointer = &left, .supplied = &sent, .leave = &leave, .err_msg = &err_msg));
     TEST_ASSERT_FALSE(sent);
 }
 
 void test_a_loop_missing_a_program_reports_it_and_starts_no_run(void)
 {
-    static unsigned long long s_numbers[QUERY_RUNS_MOST];
-    static char s_paths[QUERY_RUNS_MOST][QUERY_PATH_MAX_LEN];
+    static unsigned long long s_numbers[QUERY_RUNS_MAX];
+    static char s_paths[QUERY_RUNS_MAX][QUERY_PATH_MAX_LEN];
     static const char *const s_learn[2] = {"learn", "turns"};
     char folder[QUERY_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = QUERY_LEARN_FOLDER, .joined = folder);
-    const unsigned int before = EMBED_CALL(query_folder_number_internal.runs_each, QueryFolderNumberCtx, .folder = folder, .number = s_numbers, .path_callback = s_paths, .room_u32 = QUERY_RUNS_MOST);
+    const unsigned int before = EMBED_CALL(query_folder_number_internal.runs_each, QueryFolderNumberCtx, .folder = folder, .number = s_numbers, .path_callback = s_paths, .capacity_u32 = QUERY_RUNS_MAX);
     const QueryPrograms nothing = {nothing_found, empty_path, NULL};
     const QuerySink sink = {line_recorded, NULL};
     s_printed_size = 0ull;
@@ -228,7 +228,7 @@ void test_a_loop_missing_a_program_reports_it_and_starts_no_run(void)
     const int not_found = cellul.find(&(CatenaFinitaCfg){.src = s_printed, .cap = CLI_CELLS_POOL, .other = "is not found", .other_cap = CLI_CELLS_POOL}) != NULL;
     const int no_disassembler = cellul.find(&(CatenaFinitaCfg){.src = s_printed, .cap = CLI_CELLS_POOL, .other = "no nvdisasm", .other_cap = CLI_CELLS_POOL}) != NULL;
     TEST_ASSERT_TRUE(not_found || no_disassembler);
-    TEST_ASSERT_EQUAL_UINT(before, EMBED_CALL(query_folder_number_internal.runs_each, QueryFolderNumberCtx, .folder = folder, .number = s_numbers, .path_callback = s_paths, .room_u32 = QUERY_RUNS_MOST));
+    TEST_ASSERT_EQUAL_UINT(before, EMBED_CALL(query_folder_number_internal.runs_each, QueryFolderNumberCtx, .folder = folder, .number = s_numbers, .path_callback = s_paths, .capacity_u32 = QUERY_RUNS_MAX));
 }
 
 void test_an_unknown_command_is_refused_with_the_list(void)
@@ -251,7 +251,7 @@ void test_no_command_is_refused_with_the_list(void)
     CLI_TEST_ASSERT_CONTAINS("learn", s_printed);
 }
 
-void test_the_tables_whole_names_are_those_with_every_kind(void)
+void test_the_tables_complete_names_are_those_with_every_kind(void)
 {
     static const char *const s_files[9] = {"cu.klm", "cu.krs", "sass.klm", "sass.krs", "c.krs", "sm_86.khw", "sm_86.kqr", "sm_86.ksc", "sm_89.khw"};
     static const char *const s_languages[2] = {"klm", "krs"};
@@ -259,8 +259,8 @@ void test_the_tables_whole_names_are_those_with_every_kind(void)
     char root[QUERY_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = "build/query_test/whole", .joined = root);
     table_written(root, s_files, 9u);
-    TEST_ASSERT_EQUAL_STRING("cu,sass", whole_names(root, s_languages, 2u));
-    TEST_ASSERT_EQUAL_STRING("sm_86", whole_names(root, s_parts, 3u));
+    TEST_ASSERT_EQUAL_STRING("cu,sass", joined_names(root, s_languages, 2u));
+    TEST_ASSERT_EQUAL_STRING("sm_86", joined_names(root, s_parts, 3u));
 }
 
 void test_the_steps_run_the_protocol_in_order(void)
@@ -276,7 +276,7 @@ void test_the_steps_run_the_protocol_in_order(void)
 void test_the_course_starts_at_the_first_step_where_none_is_named(void)
 {
     unsigned int first = 9u;
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     TEST_ASSERT_TRUE(EMBED_CALL(query_loops_err_msg_words_count.course_from, QueryLoopsErrMsgWordsCountCfg, .words = NULL, .count = 0u, .first = &first, .err_msg = &err_msg));
     TEST_ASSERT_EQUAL_UINT(0u, first);
 }
@@ -285,7 +285,7 @@ void test_the_course_starts_at_a_step_by_its_name(void)
 {
     static const char *const s_costs[2] = {"--from", "costs"};
     unsigned int first = 9u;
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     TEST_ASSERT_TRUE(EMBED_CALL(query_loops_err_msg_words_count.course_from, QueryLoopsErrMsgWordsCountCfg, .words = s_costs, .count = 2u, .first = &first, .err_msg = &err_msg));
     TEST_ASSERT_EQUAL_UINT(8u, first);
 }
@@ -294,7 +294,7 @@ void test_a_name_two_steps_share_names_the_first(void)
 {
     static const char *const s_krs[2] = {"--from", "write krs"};
     unsigned int first = 9u;
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     TEST_ASSERT_TRUE(EMBED_CALL(query_loops_err_msg_words_count.course_from, QueryLoopsErrMsgWordsCountCfg, .words = s_krs, .count = 2u, .first = &first, .err_msg = &err_msg));
     TEST_ASSERT_EQUAL_UINT(4u, first);
 }
@@ -303,7 +303,7 @@ void test_a_from_flag_with_no_name_is_refused(void)
 {
     static const char *const s_bare[1] = {"--from"};
     unsigned int first = 9u;
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     TEST_ASSERT_FALSE(EMBED_CALL(query_loops_err_msg_words_count.course_from, QueryLoopsErrMsgWordsCountCfg, .words = s_bare, .count = 1u, .first = &first, .err_msg = &err_msg));
 }
 
@@ -311,16 +311,16 @@ void test_a_from_name_no_step_has_is_refused(void)
 {
     static const char *const s_fly[2] = {"--from", "fly"};
     unsigned int first = 9u;
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     TEST_ASSERT_FALSE(EMBED_CALL(query_loops_err_msg_words_count.course_from, QueryLoopsErrMsgWordsCountCfg, .words = s_fly, .count = 2u, .first = &first, .err_msg = &err_msg));
     (void)mmgr_line_finish(&err_msg);
-    CLI_TEST_ASSERT_CONTAINS("no step of the course is fly", s_why);
+    CLI_TEST_ASSERT_CONTAINS("no step of the course is fly", s_error);
 }
 
 void test_the_cross_has_no_base_where_none_is_named(void)
 {
     const char *base = "x";
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     TEST_ASSERT_TRUE(EMBED_CALL(query_loops_err_msg_words.base_get, QueryLoopsErrMsgWordsCfg, .words = NULL, .count = 0u, .base_pointer = &base, .err_msg = &err_msg));
     TEST_ASSERT_NULL(base);
 }
@@ -329,7 +329,7 @@ void test_the_cross_reads_its_base(void)
 {
     static const char *const s_base[2] = {"--base", "a.cu"};
     const char *base = "x";
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     TEST_ASSERT_TRUE(EMBED_CALL(query_loops_err_msg_words.base_get, QueryLoopsErrMsgWordsCfg, .words = s_base, .count = 2u, .base_pointer = &base, .err_msg = &err_msg));
     TEST_ASSERT_EQUAL_STRING("a.cu", base);
 }
@@ -339,7 +339,7 @@ void test_a_base_not_written_as_the_cross_reads_it_is_refused(void)
     static const char *const s_base[2] = {"--base", "a.cu"};
     static const char *const s_word[1] = {"a.cu"};
     const char *base = "x";
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     TEST_ASSERT_FALSE(EMBED_CALL(query_loops_err_msg_words.base_get, QueryLoopsErrMsgWordsCfg, .words = s_word, .count = 1u, .base_pointer = &base, .err_msg = &err_msg));
     TEST_ASSERT_FALSE(EMBED_CALL(query_loops_err_msg_words.base_get, QueryLoopsErrMsgWordsCfg, .words = s_base, .count = 1u, .base_pointer = &base, .err_msg = &err_msg));
 }
@@ -347,40 +347,40 @@ void test_a_base_not_written_as_the_cross_reads_it_is_refused(void)
 void test_architectures_alone_or_nothing_request_a_pull(void)
 {
     const char *mode = NULL;
-    TEST_ASSERT_EQUAL_INT(0, reading_of("sm_86 sm_90", &mode));
-    TEST_ASSERT_EQUAL_INT(0, reading_of("", &mode));
+    TEST_ASSERT_EQUAL_INT(0, read_state_of("sm_86 sm_90", &mode));
+    TEST_ASSERT_EQUAL_INT(0, read_state_of("", &mode));
 }
 
-void test_the_fields_of_a_table_are_a_reading_of_one_architecture(void)
+void test_the_fields_of_a_table_are_a_read_state_of_one_architecture(void)
 {
     const char *mode = NULL;
-    TEST_ASSERT_EQUAL_INT(1, reading_of("fields sm_86", &mode));
+    TEST_ASSERT_EQUAL_INT(1, read_state_of("fields sm_86", &mode));
     TEST_ASSERT_EQUAL_STRING("spans", mode);
-    TEST_ASSERT_EQUAL_INT(-1, reading_of("fields sm_86 extra", &mode));
-    TEST_ASSERT_EQUAL_INT(-1, reading_of("fields", &mode));
+    TEST_ASSERT_EQUAL_INT(-1, read_state_of("fields sm_86 extra", &mode));
+    TEST_ASSERT_EQUAL_INT(-1, read_state_of("fields", &mode));
 }
 
-void test_a_reading_of_encodings_is_of_two_words_and_a_banks_size(void)
+void test_a_read_state_of_encodings_is_of_two_words_and_a_banks_size(void)
 {
     const char *mode = NULL;
-    TEST_ASSERT_EQUAL_INT(1, reading_of("read sm_86 --bank 0x174 0000460000047ab9 000fc80000000a00", &mode));
+    TEST_ASSERT_EQUAL_INT(1, read_state_of("read sm_86 --bank 0x174 0000460000047ab9 000fc80000000a00", &mode));
     TEST_ASSERT_EQUAL_STRING("class", mode);
-    TEST_ASSERT_EQUAL_INT(-1, reading_of("read sm_86 0000460000047ab9", &mode));
-    TEST_ASSERT_EQUAL_INT(-1, reading_of("read sm_86 --bank", &mode));
+    TEST_ASSERT_EQUAL_INT(-1, read_state_of("read sm_86 0000460000047ab9", &mode));
+    TEST_ASSERT_EQUAL_INT(-1, read_state_of("read sm_86 --bank", &mode));
 }
 
 void test_the_version_is_read_off_nvcc(void)
 {
     static const char s_version[] = "Cuda compilation tools, release 13.3, V13.3.73\nBuild cuda_13.3.r13.3/compiler.38244171_0";
     char version[64];
-    TEST_ASSERT_TRUE(EMBED_CALL(query_tables_output_internal.version_get, QueryTablesOutputCtx, .output = (const unsigned char *)s_version, .size = sizeof(s_version) - 1u, .version = version, .room = sizeof(version)));
+    TEST_ASSERT_TRUE(EMBED_CALL(query_tables_output_internal.version_get, QueryTablesOutputCtx, .output = (const unsigned char *)s_version, .size = sizeof(s_version) - 1u, .version = version, .capacity = sizeof(version)));
     TEST_ASSERT_EQUAL_STRING("13.3.73", version);
 }
 
 void test_no_version_is_read_off_nothing(void)
 {
     char version[64];
-    TEST_ASSERT_FALSE(EMBED_CALL(query_tables_output_internal.version_get, QueryTablesOutputCtx, .output = (const unsigned char *)"nothing", .size = 7ull, .version = version, .room = sizeof(version)));
+    TEST_ASSERT_FALSE(EMBED_CALL(query_tables_output_internal.version_get, QueryTablesOutputCtx, .output = (const unsigned char *)"nothing", .size = 7ull, .version = version, .capacity = sizeof(version)));
 }
 
 void test_the_architectures_are_read_off_nvcc(void)
@@ -396,7 +396,7 @@ void test_the_architectures_are_read_off_nvcc(void)
 void test_the_vendors_archive_is_named_by_version(void)
 {
     char archive[128];
-    EMBED_CALL(query_tables_room_internal.archive_by_name, QueryTablesRoomCtx, .version_read = "13.3.73", .archive = archive, .room = sizeof(archive));
+    EMBED_CALL(query_tables_capacity_internal.archive_by_name, QueryTablesCapacityCtx, .version_read = "13.3.73", .archive = archive, .capacity = sizeof(archive));
     TEST_ASSERT_EQUAL_STRING("cuda_nvdisasm-linux-x86_64-13.3.73-archive", archive);
 }
 
@@ -476,7 +476,7 @@ void test_a_languages_files_not_there_are_reported(void)
 void test_the_bridges_writer_is_over_the_rulesets_named_or_all(void)
 {
     static const char *const s_bridge[3] = {"bridge", "cu.krs", "c.krs"};
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     TEST_ASSERT_EQUAL_INT(QUERY_WRITE_BRIDGE, EMBED_CALL(query_loops_err_msg_words.write_words, QueryLoopsErrMsgWordsCfg, .words = s_bridge, .count = 1u, .err_msg = &err_msg));
     TEST_ASSERT_EQUAL_INT(QUERY_WRITE_BRIDGE, EMBED_CALL(query_loops_err_msg_words.write_words, QueryLoopsErrMsgWordsCfg, .words = s_bridge, .count = 3u, .err_msg = &err_msg));
 }
@@ -485,7 +485,7 @@ void test_the_rulesets_and_the_machine_files_writers_are_read(void)
 {
     static const char *const s_krs[2] = {"krs", "more"};
     static const char *const s_gsm[1] = {"gsm"};
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     TEST_ASSERT_EQUAL_INT(QUERY_WRITE_KRS, EMBED_CALL(query_loops_err_msg_words.write_words, QueryLoopsErrMsgWordsCfg, .words = s_krs, .count = 1u, .err_msg = &err_msg));
     TEST_ASSERT_EQUAL_INT(QUERY_WRITE_GSM, EMBED_CALL(query_loops_err_msg_words.write_words, QueryLoopsErrMsgWordsCfg, .words = s_gsm, .count = 1u, .err_msg = &err_msg));
 }
@@ -494,7 +494,7 @@ void test_no_other_writer_is_read(void)
 {
     static const char *const s_krs[2] = {"krs", "more"};
     static const char *const s_kdm[1] = {"kdm"};
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     TEST_ASSERT_LESS_THAN_INT(0, EMBED_CALL(query_loops_err_msg_words.write_words, QueryLoopsErrMsgWordsCfg, .words = s_krs, .count = 2u, .err_msg = &err_msg));
     TEST_ASSERT_LESS_THAN_INT(0, EMBED_CALL(query_loops_err_msg_words.write_words, QueryLoopsErrMsgWordsCfg, .words = s_kdm, .count = 1u, .err_msg = &err_msg));
     TEST_ASSERT_LESS_THAN_INT(0, EMBED_CALL(query_loops_err_msg_words.write_words, QueryLoopsErrMsgWordsCfg, .words = NULL, .count = 0u, .err_msg = &err_msg));

@@ -4,7 +4,7 @@
 // reaches: a status's letter and the graph laid out
 #ifndef GIT_INTERNAL_H
 #define GIT_INTERNAL_H
-typedef struct CliGitGaveCtx CliGitGaveCtx;
+typedef struct CliGitResultCtx CliGitResultCtx;
 typedef struct CliGitRootCtx CliGitRootCtx;
 typedef struct CliGitRootErrMsgCtx CliGitRootErrMsgCtx;
 typedef struct CliGitLengthCtx CliGitLengthCtx;
@@ -32,29 +32,29 @@ typedef struct CliGitFoundCtx CliGitFoundCtx;
 
 #define CLI_GIT_PROMPT_OFF 2u
 
-// What git gave: what it wrote, `out_size` bytes of CLI_GIT_OUT, ended by a 0, and 0 in `out_whole` where more came
-// than is stored; what it reported went wrong, the same of CLI_GIT_ERR; and whether it ended with success
+// What git gave: what it wrote, `out_size` bytes of CLI_GIT_OUT, ended by a 0, and 0 in `out_untruncated` where more
+// came than is stored; what it reported went wrong, the same of CLI_GIT_ERR; and whether it ended with success
 typedef struct
 {
     char *out;
     unsigned long long out_size;
-    int out_whole;
+    int out_untruncated;
     char *err;
     unsigned long long err_size;
     int ok;
-} CliGitGave;
+} CliGitResult;
 
 // what one run of git gave, in a cell taken for the run, and given back; where the cells cannot meet a run, an empty
 // one every run of git refuses
-CliGitGave *cli_git_take(void);
-void cli_git_free(const CliGitGaveCtx *args);
+CliGitResult *cli_git_alloc(void);
+void cli_git_free(const CliGitResultCtx *args);
 // git at `root` started with the words trust gives, then `args`, `count` of them, as `how` specifies, with
 // GIT_INDEX_FILE set to `index` where it is given, and `length` bytes of `input` on its standard input where it is
-// given, else nothing: what it gave into `gave`, 1, or 0 with why it did not start given
-int cli_git_gave(const CliGitGaveCtx *args);
+// given, else nothing: what it gave into `result`, 1, or 0 with why it did not start given
+int cli_git_result(const CliGitResultCtx *args);
 // git at `root` sent a question that changes nothing, `args`, `count` of them, with no lock taken: what it wrote into
-// `gave`, 1, or 0 where it failed or wrote more than is stored
-int cli_git_query(const CliGitGaveCtx *args);
+// `result`, 1, or 0 where it failed or wrote more than is stored
+int cli_git_query(const CliGitResultCtx *args);
 // git at `root` run with `args`, with nothing to answer a prompt with, an index of its own where `index` is given and
 // `input` on its standard input where it is given: what it wrote and reported, trimmed, into `out`, 1, or 0 with what
 // it reported went wrong, trimmed, or that it failed where it reported nothing
@@ -72,9 +72,9 @@ int cli_git_seconds(const CliGitLengthTextCtx *args);
 // whether `id` is a commit's id as written: not empty and only hex digits
 int cli_git_is_id(const CliGitCtx *args);
 // the folder git is queried about a file from into `folder`, and the file's path from there, `./` before it, into
-// `shown`, each sized for CLI_PATH_MAX_LEN: the file's own folder, or the nearest one above it that is there where that
-// one is gone. 1, or 0 with why given where the file is not inside the tree
-int cli_git_beside(const CliGitRootErrMsgCtx *args);
+// `displayed`, each sized for CLI_PATH_MAX_LEN: the file's own folder, or the nearest one above it that is there where
+// that one is gone. 1, or 0 with why given where the file is not inside the tree
+int cli_git_adjacent(const CliGitRootErrMsgCtx *args);
 // the state letter for a porcelain status's two columns (git.c)
 char cli_git_state_get(const CliGitIndexCtx *args);
 // each commit of the graph given its column, its color and the strokes of its row (git_graph.c)
@@ -85,9 +85,9 @@ void cli_git_layout_out(const CliGitFoundCtx *args);
 void cli_git_commit_line(const CliGitLengthOutCtx *args);
 void cli_git_failed_after(const CliGitLengthCtx *args);
 
-struct CliGitGaveCtx
+struct CliGitResultCtx
 {
-    CliGitGave *gave;
+    CliGitResult *result;
     const char *root;
     const char *const *request;
     unsigned int count;
@@ -116,7 +116,7 @@ struct CliGitRootErrMsgCtx
     VerbaLinea *err_msg;
     const char *file;
     char *folder;
-    char *shown;
+    char *displayed;
 };
 
 struct CliGitLengthCtx
@@ -182,14 +182,14 @@ struct CliGitFoundCtx
 
 typedef struct
 {
-    void (*free)(const CliGitGaveCtx *args);
-    int (*gave)(const CliGitGaveCtx *args);
-    int (*query)(const CliGitGaveCtx *args);
-} CliGitGaveNs;
-EMBED_TABLE_LAYOUT(CliGitGaveNs, free, gave, query);
-EMBED_TABLE_STORAGE CliGitGaveNs cli_git_gave_internal EMBED_UNUSED = {
+    void (*free)(const CliGitResultCtx *args);
+    int (*result)(const CliGitResultCtx *args);
+    int (*query)(const CliGitResultCtx *args);
+} CliGitResultNs;
+EMBED_TABLE_LAYOUT(CliGitResultNs, free, result, query);
+EMBED_TABLE_STORAGE CliGitResultNs cli_git_result_internal EMBED_UNUSED = {
     .free = cli_git_free,
-    .gave = cli_git_gave,
+    .result = cli_git_result,
     .query = cli_git_query,
 };
 
@@ -249,11 +249,11 @@ EMBED_TABLE_STORAGE CliGitNsTable cli_git_internal EMBED_UNUSED = {
 
 typedef struct
 {
-    int (*beside)(const CliGitRootErrMsgCtx *args);
+    int (*adjacent)(const CliGitRootErrMsgCtx *args);
 } CliGitRootErrMsgNsTable;
-EMBED_TABLE_LAYOUT(CliGitRootErrMsgNsTable, beside);
+EMBED_TABLE_LAYOUT(CliGitRootErrMsgNsTable, adjacent);
 EMBED_TABLE_STORAGE CliGitRootErrMsgNsTable cli_git_root_err_msg_internal EMBED_UNUSED = {
-    .beside = cli_git_beside,
+    .adjacent = cli_git_adjacent,
 };
 
 typedef struct

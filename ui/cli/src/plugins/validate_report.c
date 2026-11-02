@@ -9,7 +9,7 @@
 
 static CliFinding s_sorting[CLI_VALIDATE_FINDINGS];
 
-void cli_validate_finding_put(const CliValidateLengthCtx *args)
+void cli_validate_finding_append(const CliValidateLengthCtx *args)
 {
     const char *message = args->message_text;
     const char *lifted = args->lifted;
@@ -125,7 +125,7 @@ static void report_barriers(void)
         const CliFinding finding = {
             message->line, message->col, message->end_line, message->end_col, still ? 1u : 3u, "barrier", barrier,
             0ull,          0ull};
-        EMBED_CALL(cli_validate_length_internal.finding_put, CliValidateLengthCtx, .finding = &finding,
+        EMBED_CALL(cli_validate_length_internal.finding_append, CliValidateLengthCtx, .finding = &finding,
                    .message_text = msg_buf, .length = msg.at, .lifted = lifted);
     }
 }
@@ -293,12 +293,12 @@ EMBED_INLINE void report_finding_write(const ValidateReportCtx *args)
 {
     VerbaLinea *out = args->out;
     static const char *const keys[4] = {"{\"line\":", ",\"col\":", ",\"end_line\":", ",\"end_col\":"};
-    const unsigned int places[4] = {args->finding->line, args->finding->col, args->finding->end_line,
-                                    args->finding->end_col};
+    const unsigned int positions[4] = {args->finding->line, args->finding->col, args->finding->end_line,
+                                       args->finding->end_col};
     for (unsigned int at = 0u; at < 4u; at += 1u)
     {
         mmgr_line_put(out, keys[at]);
-        mmgr_line_decimal(out, places[at], 1u);
+        mmgr_line_decimal(out, positions[at], 1u);
     }
     mmgr_line_put(out, ",\"severity\":");
     mmgr_line_decimal(out, args->finding->severity, 1u);

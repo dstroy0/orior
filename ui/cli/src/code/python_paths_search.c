@@ -172,7 +172,7 @@ EMBED_INLINE void cli_script_read(const PythonPathsSearchCtx *args)
     {
         return;
     }
-    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = path,
+    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                   .size_pointer = &size, .owner = &g_cli_python_cells);
     if (bytes == NULL)
     {
@@ -187,9 +187,9 @@ EMBED_INLINE void cli_script_read(const PythonPathsSearchCtx *args)
         {
             char folder[CLI_PATH_MAX_LEN];
             const int full = EMBED_CALL(
-                query_room_path_internal.path_full, QueryRoomPathCtx,
+                query_capacity_path_internal.path_full, QueryCapacityPathCtx,
                 .path = EMBED_CALL(cli_python_paths_at_internal.py_text, CliPythonPathsAtCtx, .at = g_cli_py.found[at]),
-                .full = folder, .room = sizeof(folder));
+                .full = folder, .capacity = sizeof(folder));
             if (full && EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = folder) &&
                 EMBED_CALL(cli_files_path_folder_internal.paste_under, CliFilesPathFolderCtx, .folder = args->top,
                            .path = folder) &&
@@ -198,7 +198,7 @@ EMBED_INLINE void cli_script_read(const PythonPathsSearchCtx *args)
                 EMBED_CALL(cli_on_count, PythonPathsSearchCtx, .folder = folder);
             }
         }
-        cli_py_reading_free();
+        cli_py_read_state_free();
         cli_seen_count();
     }
     EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_python_cells);
@@ -213,8 +213,8 @@ unsigned int cli_python_paths(const CliPythonPathsCfg *args)
     if (!fresh)
     {
         char top[CLI_PATH_MAX_LEN];
-        if (!EMBED_CALL(query_room_path_internal.path_full, QueryRoomPathCtx, .path = root, .full = top,
-                        .room = sizeof(top)))
+        if (!EMBED_CALL(query_capacity_path_internal.path_full, QueryCapacityPathCtx, .path = root, .full = top,
+                        .capacity = sizeof(top)))
         {
             memor.cpy(&(MemoriaCfg){.dst = top,
                                     .src = root,

@@ -12,7 +12,7 @@ typedef struct
 } DbLinkCtx;
 
 // whether a path is whole, from a root or a drive, and not by its place in the tree
-EMBED_INLINE int link_whole(const DbLinkCtx *args)
+EMBED_INLINE int link_path_is_absolute(const DbLinkCtx *args)
 {
     const int drive =
         (((args->path[0] >= 'A') && (args->path[0] <= 'Z')) || ((args->path[0] >= 'a') && (args->path[0] <= 'z'))) &&
@@ -79,7 +79,7 @@ int cli_db_link_open(const CliDbLinkCtx *args)
     if (cellul.eq(&(CatenaFinitaCfg){.src = args->config->kind, .other = "sqlite", .cap = CLI_CELLS_POOL}))
     {
         char file[CLI_PATH_MAX_LEN];
-        if (EMBED_CALL(link_whole, DbLinkCtx, .path = args->config->file))
+        if (EMBED_CALL(link_path_is_absolute, DbLinkCtx, .path = args->config->file))
         {
             memor.cpy(&(MemoriaCfg){
                 .dst = file,
@@ -188,7 +188,7 @@ const char *cli_db_link_transaction(const CliDbCtx *args)
     return args->link_read->lite->in_transaction ? "open" : "idle";
 }
 
-int cli_db_link_stopper(const CliDbCtx *args)
+int cli_db_link_cancel_thread(const CliDbCtx *args)
 {
     memor.set(&(MemoriaCfg){.dst = args->stop, .val = 0, .bytes = sizeof(*args->stop)});
     args->stop->kind = args->link_read->kind;

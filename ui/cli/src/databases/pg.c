@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// pg.c: a PostgreSQL connection's messages, read off the socket through a room of their own and sent whole; a
+// pg.c: a PostgreSQL connection's messages, read off the socket through a capacity of their own and sent whole; a
 // statement started by the simple query protocol, its rows read a page at a time, and a statement running stopped by
 // a cancel request
 #include "../command_line/cells.h"
@@ -16,15 +16,16 @@ typedef struct
     unsigned char *out;
     unsigned long long size;
 } PgCtx;
-// `size` bytes read whole off the connection, through its room: 1, or 0 where it broke
+// `size` bytes read whole off the connection, through its capacity: 1, or 0 where it broke
 EMBED_INLINE int pg_read(const PgCtx *args)
 {
     for (unsigned long long at = 0ull; at < args->size;)
     {
         if (args->pg->start == args->pg->end)
         {
-            const long long got = EMBED_CALL(cli_room_internal.socket_some, CliRoomCtx, .sock = &args->pg->socket,
-                                             .bytes_out = args->pg->in, .room = sizeof(args->pg->in));
+            const long long got =
+                EMBED_CALL(cli_capacity_internal.socket_some, CliCapacityCtx, .sock = &args->pg->socket,
+                           .bytes_out = args->pg->in, .capacity = sizeof(args->pg->in));
             if (got <= 0ll)
             {
                 return 0;
@@ -61,13 +62,13 @@ int cli_pg_message(const CliPgKindCtx *args)
     const unsigned long long size = (length > 4ull) ? length - 4ull : 0ull;
     if (size > sizeof(args->pg->message))
     {
-        // a message past the room is read past, so that the connection reads on from the next
+        // a message past the capacity is read past, so that the connection reads on from the next
         (void)EMBED_CALL(pg_read, PgCtx, .pg = args->pg, .out = NULL, .size = size);
         char msg_buf[160];
         VerbaLinea line = {msg_buf, sizeof(msg_buf), 0ull};
         mmgr_line_put(&line, "a message of ");
         mmgr_line_decimal(&line, size, 1u);
-        mmgr_line_put(&line, " bytes is past the room orior_cli reads one in");
+        mmgr_line_put(&line, " bytes is past the capacity of the buffer orior_cli reads one in");
         mmgr_line_finish(&line);
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure, .message = msg_buf);
         return 0;
@@ -124,11 +125,11 @@ void cli_pg_failure_get(const CliPgCtx *args)
                                 : (args->body[at] == 'D') ? args->failure->detail
                                 : (args->body[at] == 'H') ? args->failure->hint
                                                           : NULL;
-            const unsigned long long room =
+            const unsigned long long capacity =
                 (args->body[at] == 'C') ? sizeof(args->failure->code) : sizeof(args->failure->message);
             if (field != NULL)
             {
-                VerbaLinea line = {field, room, 0ull};
+                VerbaLinea line = {field, capacity, 0ull};
                 EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &line,
                            .text_bytes = args->body + at + 1u, .length = end - at - 1u);
                 mmgr_line_finish(&line);
@@ -238,7 +239,7 @@ CliPg *cli_pg_connect(const CliPgHostCfg *args)
     pg->status = 'I';
     pg->parameters = 0u;
     pg->notice_count = 0u;
-    pg->reading = 0;
+    pg->read_state = 0;
     pg->has_failed = 0;
     // the wait is at most what a socket's wait counts, in milliseconds
     const unsigned int within = (args->wait > 0xffffffffull) ? 0xffffffffu : (unsigned int)args->wait;

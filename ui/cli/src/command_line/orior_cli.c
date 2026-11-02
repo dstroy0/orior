@@ -6,10 +6,10 @@
 #include "command_line.h"
 #include "command_line_internal.h"
 
-static const char *s_given[CLI_LAUNCH_ARGS];
+static const char *s_input[CLI_LAUNCH_ARGS];
 static CliOutcome s_outcome;
 
-int main(int count, char **given)
+int main(int count, char **supplied)
 {
     (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
     // inside a Flatpak's sandbox the machine's own programs run on the machine
@@ -26,10 +26,11 @@ int main(int count, char **given)
     }
     // every process a command starts stands under this one, and ends with it
     (void)cli_container_init();
-    const unsigned int words = EMBED_CALL(cli_room_count_internal.arguments, CliRoomCountCtx, .count_i32 = count,
-                                          .given = given, .words_read = s_given, .room_u32 = CLI_LAUNCH_ARGS);
+    const unsigned int words =
+        EMBED_CALL(cli_capacity_count_internal.arguments, CliCapacityCountCtx, .count_i32 = count, .supplied = supplied,
+                   .words_read = s_input, .capacity_u32 = CLI_LAUNCH_ARGS);
     // the one command this process runs is one lane's: its own cells are the lane's and are rewound as it ends
-    EMBED_CALL(cli_command_line_given.run, CliCommandLineGivenCfg, .given = s_given, .count = words,
+    EMBED_CALL(cli_command_line_input.run, CliCommandLineInputCfg, .supplied = s_input, .count = words,
                .outcome = &s_outcome);
     cli_cells_peaks_report();
     if (!s_outcome.window)

@@ -504,7 +504,7 @@ EMBED_INLINE unsigned long long family_supplied_count(const InspectTreeFamilyCtx
 
 // `size` bytes of `name` put among the names of the round `round` in `table`, `buckets` of them: 1 where it was not
 // among them
-EMBED_INLINE int family_supplied_put(const InspectTreeFamilyCtx *args)
+EMBED_INLINE int family_supplied_append(const InspectTreeFamilyCtx *args)
 {
     unsigned int bucket = 2166136261u;
     for (unsigned int at = 0u; at < args->size_u32; at += 1u)
@@ -571,7 +571,7 @@ void cli_inspect_tree_supplied(const CliInspectTreeContextEachSuppliedCfg *args)
                 for (unsigned int at = 0u; at < sets->has; at += 1u)
                 {
                     const CliInspectText name = facts->name[sets->has_first + at].name;
-                    if (EMBED_CALL(family_supplied_put, InspectTreeFamilyCtx, .table = table, .buckets = buckets,
+                    if (EMBED_CALL(family_supplied_append, InspectTreeFamilyCtx, .table = table, .buckets = buckets,
                                    .round = round, .name = facts->text + name.at, .size_u32 = name.size))
                     {
                         EMBED_CALL(args->each_inspect_supplied, CliInspectSuppliedCfg, .context = args->context,

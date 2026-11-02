@@ -18,7 +18,7 @@ static CliXml s_xml;
 static CliMavenModel s_model;
 
 // the properties Maven gives that a POM is offered
-static const char *const s_maven_given[6] = {
+static const char *const s_maven_input[6] = {
     "basedir", "maven.build.timestamp", "env.", "settings.localRepository", "java.version", "user.home"};
 
 // whether a letter goes in an element's name, and in a word
@@ -77,8 +77,8 @@ EMBED_INLINE void complete_properties(const MavenCompleteCtx *args)
     for (unsigned int at = 0u; at < 6u; at += 1u)
     {
         EMBED_CALL(cli_builds_items.build_relative, CliBuildsItemsCfg, .items = items, .token = token,
-                   .token_size = token_size, .value = s_maven_given[at],
-                   .value_size = cellul.len(&(CatenaFinitaCfg){.src = s_maven_given[at], .cap = CLI_CELLS_POOL}),
+                   .token_size = token_size, .value = s_maven_input[at],
+                   .value_size = cellul.len(&(CatenaFinitaCfg){.src = s_maven_input[at], .cap = CLI_CELLS_POOL}),
                    .kind = "constant", .detail = "Maven", .detail_size = 5u);
     }
 }
@@ -153,7 +153,7 @@ EMBED_INLINE void complete_elements(const MavenCompleteCtx *args)
         mmgr_line_ch(&insert, '>');
         const CliCompletion pivot = *item;
         items->count = first;
-        (void)EMBED_CALL(cli_edits_items.completion_put, CliEditsItemsCfg, .items = items,
+        (void)EMBED_CALL(cli_edits_items.completion_append, CliEditsItemsCfg, .items = items,
                          .label = items->text + pivot.label_at, .label_size = pivot.label_size, .kind = pivot.kind,
                          .detail = items->text + pivot.detail_at, .detail_size = pivot.detail_size, .insert = s_insert,
                          .insert_size = insert.at, .snippet = 1);
@@ -246,7 +246,7 @@ EMBED_INLINE void complete_coordinates(const MavenCompleteCtx *args)
     const char *text = args->text;
     const char *name = args->name;
     char repository[CLI_PATH_MAX_LEN];
-    if (!EMBED_CALL(cli_maven_out_internal.local_repository, CliMavenOutCtx, .out_room = repository))
+    if (!EMBED_CALL(cli_maven_out_internal.local_repository, CliMavenOutCtx, .out_capacity = repository))
     {
         return;
     }
@@ -363,15 +363,16 @@ void cli_maven_complete(const CliMavenTextSizeCtx *args)
     line_start = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->text,
                             .at = line_start, .set = "\n");
     const char *const lead = args->text + line_start;
-    const unsigned long long lead_size = token - line_start;
+    const unsigned long long comment_prefix_size = token - line_start;
     const char *const typed = args->text + token;
     const unsigned long long typed_size = args->at_u64 - token;
-    if (EMBED_CALL(cli_text_size_suffix.ends, CliTextSizeSuffixCfg, .text = lead, .size = lead_size, .suffix = "${"))
+    if (EMBED_CALL(cli_text_size_suffix.ends, CliTextSizeSuffixCfg, .text = lead, .size = comment_prefix_size,
+                   .suffix = "${"))
     {
         EMBED_CALL(complete_properties, MavenCompleteCtx, .path = args->path, .text = args->text, .size = args->size,
                    .token = typed, .token_size = typed_size, .items = args->items);
     }
-    else if (EMBED_CALL(cli_text_size_suffix.ends, CliTextSizeSuffixCfg, .text = lead, .size = lead_size,
+    else if (EMBED_CALL(cli_text_size_suffix.ends, CliTextSizeSuffixCfg, .text = lead, .size = comment_prefix_size,
                         .suffix = "</"))
     {
         EMBED_CALL(cli_maven_xml_text_internal.xml_free, CliMavenXmlTextCtx, .xml_out = &s_xml);
@@ -384,13 +385,13 @@ void cli_maven_complete(const CliMavenTextSizeCtx *args)
             VerbaLinea insert = {s_insert, sizeof(s_insert), 0ull};
             mmgr_line_put_n(&insert, args->text + open->from, open->to - open->from);
             mmgr_line_ch(&insert, '>');
-            (void)EMBED_CALL(cli_edits_items.completion_put, CliEditsItemsCfg, .items = args->items,
+            (void)EMBED_CALL(cli_edits_items.completion_append, CliEditsItemsCfg, .items = args->items,
                              .label = args->text + open->from, .label_size = open->to - open->from, .kind = "keyword",
                              .detail = "close", .detail_size = 5u, .insert = s_insert, .insert_size = insert.at,
                              .snippet = 0);
         }
     }
-    else if (EMBED_CALL(cli_text_size_suffix.ends, CliTextSizeSuffixCfg, .text = lead, .size = lead_size,
+    else if (EMBED_CALL(cli_text_size_suffix.ends, CliTextSizeSuffixCfg, .text = lead, .size = comment_prefix_size,
                         .suffix = "<"))
     {
         EMBED_CALL(complete_elements, MavenCompleteCtx, .text = args->text, .end = token - 1u, .token = typed,
@@ -399,19 +400,20 @@ void cli_maven_complete(const CliMavenTextSizeCtx *args)
     }
     else
     {
-        unsigned long long tag = lead_size;
+        unsigned long long tag = comment_prefix_size;
         tag =
             EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = lead, .at = tag, .set = "<");
-        if ((tag > 0u) && (tag < lead_size) && (lead[tag] != '/') &&
-            (memor.chr(&(MemoriaCfg){.src = lead + tag, .val = '>', .bytes = (size_t)(lead_size - tag)}) != NULL))
+        if ((tag > 0u) && (tag < comment_prefix_size) && (lead[tag] != '/') &&
+            (memor.chr(&(MemoriaCfg){.src = lead + tag, .val = '>', .bytes = (size_t)(comment_prefix_size - tag)}) !=
+             NULL))
         {
             unsigned long long name_end = tag;
-            while (name_end < lead_size)
+            while (name_end < comment_prefix_size)
             {
                 unsigned long long length = 0ull;
                 if (!EMBED_CALL(cli_maven_internal.xml_name_letter, CliMavenCtx,
-                                .letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = lead, .size = lead_size,
-                                                     .at = name_end, .length = &length)))
+                                .letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = lead,
+                                                     .size = comment_prefix_size, .at = name_end, .length = &length)))
                 {
                     break;
                 }

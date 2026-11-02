@@ -14,7 +14,7 @@ static int cli_needs_vsenv(void)
 #if defined(_WIN32)
     char include[CLI_PATH_MAX_LEN];
     if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "INCLUDE",
-                   .value_out = include, .room = sizeof(include)))
+                   .value_out = include, .capacity = sizeof(include)))
     {
         return 0;
     }
@@ -355,7 +355,7 @@ EMBED_INLINE void cli_go_steps(const ExecutablesStepsCtx *args)
     {
         EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = "-C");
         EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = catalog, .text = args->folder);
-        (void)EMBED_CALL(cli_text_from.put_swap, CliTextFromCfg, .out = &line, .text = args->root, .from = '\\',
+        (void)EMBED_CALL(cli_text_from.append_swap, CliTextFromCfg, .out = &line, .text = args->root, .from = '\\',
                          .to = '/');
         mmgr_line_ch(&line, '/');
     }
@@ -533,11 +533,11 @@ void cli_executables_steps(const CliExecutablesRootCtx *args)
         EMBED_CALL(cli_npm_steps, ExecutablesStepsCtx, .exe = args->exe, .catalog = args->catalog);
     }
     EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = args->catalog,
-               .program = CLI_PROGRAM_MADE, .text = NULL, .tool_program = NULL, .system = 0);
+               .program = CLI_PROGRAM_CREATED, .text = NULL, .tool_program = NULL, .system = 0);
     EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = args->catalog, .kind_u32 = CLI_ARG_ONLY, .a = "then",
                .b = "run", .c = NULL, .d = NULL, .separated = 0);
     EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = args->catalog,
-               .program = CLI_PROGRAM_MADE, .text = NULL, .tool_program = NULL, .system = 1);
+               .program = CLI_PROGRAM_CREATED, .text = NULL, .tool_program = NULL, .system = 1);
     EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = args->catalog, .kind_u32 = CLI_ARG_ONLY, .a = "then",
                .b = "run as the system runs it", .c = NULL, .d = NULL, .separated = 0);
 }

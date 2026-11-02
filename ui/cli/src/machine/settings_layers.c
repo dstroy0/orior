@@ -43,7 +43,7 @@ void cli_settings_layers_free(const CliSettingsRootCfg *args)
     g_cli_cells->persistent_buf_release(args->layers->text, &g_cli_settings_cells);
     args->layers->text = NULL;
     args->layers->used = 0ull;
-    args->layers->room = 0ull;
+    args->layers->capacity = 0ull;
 }
 
 unsigned int cli_settings_text_store(const CliSettingsTextLengthCtx *args)
@@ -54,14 +54,14 @@ unsigned int cli_settings_text_store(const CliSettingsTextLengthCtx *args)
     {
         return 0u;
     }
-    if (args->layers->room == 0ull)
+    if (args->layers->capacity == 0ull)
     {
         args->layers->text = g_cli_cells->persistent_buf_alloc(CLI_SETTINGS_TEXT, &g_cli_settings_cells);
         if (args->layers->text == NULL)
         {
             return 0u;
         }
-        args->layers->room = CLI_SETTINGS_TEXT;
+        args->layers->capacity = CLI_SETTINGS_TEXT;
     }
     // a place is below CLI_SETTINGS_TEXT, which an unsigned int stores
     const unsigned int at = (unsigned int)args->layers->used;
@@ -189,15 +189,15 @@ static void cli_json_expand(const SettingsLayersCtx *args)
     if (node->kind == CFG_JSON_STRING)
     {
         static char s_text[CLI_SETTINGS_NAMES_DEEP + 1u][CLI_LAYER_VALUE];
-        char *const room = s_text[s_names.depth];
-        VerbaLinea line = {room, CLI_LAYER_VALUE, 0ull};
+        char *const capacity = s_text[s_names.depth];
+        VerbaLinea line = {capacity, CLI_LAYER_VALUE, 0ull};
         unsigned long long length = 0ull;
         const char *const text =
             EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &args->chain->json,
                        .node = args->value, .length_pointer = &length);
         EMBED_CALL(cli_settings_text_internal.expand, CliSettingsTextCtx, .text = text, .length = length,
                    .look = cli_look, .context = &s_names, .out_verba_linea_pointer = &line);
-        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = room,
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = capacity,
                    .length = mmgr_line_ok(&line) ? line.at : 0ull);
         return;
     }
@@ -287,7 +287,7 @@ EMBED_INLINE int cli_set_before(const SettingsLayersCtx *args)
 }
 
 // a part that sets `key` put after `from`
-EMBED_INLINE void cli_source_put(const SettingsLayersCtx *args)
+EMBED_INLINE void cli_source_append(const SettingsLayersCtx *args)
 {
     CliLayers *layers = args->layers;
     unsigned int text = args->text;
@@ -412,13 +412,13 @@ void cli_settings_layers(const CliSettingsRootCfg *args)
                     EMBED_CALL(cli_text_set, SettingsLayersCtx, .layers = args->layers, .texts = args->layers->over,
                                .count = &args->layers->overs, .key = value->key, .text = text);
                 }
-                if ((part->rank == CLI_RANK_OWN) && named && (args->layers->owns < CLI_LAYERS_KEYS))
+                if ((part->rank == CLI_RANK_OWN) && named && (args->layers->owner < CLI_LAYERS_KEYS))
                 {
-                    args->layers->own[args->layers->owns] =
+                    args->layers->own[args->layers->owner] =
                         EMBED_CALL(cli_settings_text_length_internal.text_store, CliSettingsTextLengthCtx,
                                    .layers = args->layers, .text = value->key,
                                    .length = cellul.len(&(CatenaFinitaCfg){.src = value->key, .cap = CLI_CELLS_POOL}));
-                    args->layers->owns += 1u;
+                    args->layers->owner += 1u;
                 }
                 if (part->rank == CLI_RANK_UNDER)
                 {
@@ -426,7 +426,7 @@ void cli_settings_layers(const CliSettingsRootCfg *args)
                                .count = &args->layers->unders, .key = value->key, .text = text);
                 }
             }
-            EMBED_CALL(cli_source_put, SettingsLayersCtx, .layers = args->layers, .key = value->key, .file = file,
+            EMBED_CALL(cli_source_append, SettingsLayersCtx, .layers = args->layers, .key = value->key, .file = file,
                        .part = part->part, .text = text);
         }
     }
@@ -490,7 +490,7 @@ void cli_settings_layers(const CliSettingsRootCfg *args)
             mmgr_line_ch(&named, ' ');
             mmgr_line_put(&named, key);
             mmgr_line_finish(&named);
-            EMBED_CALL(cli_source_put, SettingsLayersCtx, .layers = args->layers, .key = from, .file = file,
+            EMBED_CALL(cli_source_append, SettingsLayersCtx, .layers = args->layers, .key = from, .file = file,
                        .part = NULL, .text = text);
         }
     }

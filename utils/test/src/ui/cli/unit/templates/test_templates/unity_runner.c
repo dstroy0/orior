@@ -8,7 +8,6 @@
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
 extern void tearDown(void);
-extern void test_templates_list_in_order(void);
 extern void test_a_project_has_its_name_substituted_everywhere(void);
 extern void test_a_binary_file_copies_unchanged(void);
 extern void test_an_existing_folder_is_not_overwritten(void);
@@ -76,13 +75,12 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\templates\\test_templates\\test_templates.c");
-  run_test(test_templates_list_in_order, "test_templates_list_in_order", 43);
-  run_test(test_a_project_has_its_name_substituted_everywhere, "test_a_project_has_its_name_substituted_everywhere", 51);
-  run_test(test_a_binary_file_copies_unchanged, "test_a_binary_file_copies_unchanged", 62);
-  run_test(test_an_existing_folder_is_not_overwritten, "test_an_existing_folder_is_not_overwritten", 72);
-  run_test(test_a_template_name_that_escapes_its_folder_is_refused, "test_a_template_name_that_escapes_its_folder_is_refused", 78);
-  run_test(test_a_project_name_that_escapes_its_folder_is_refused, "test_a_project_name_that_escapes_its_folder_is_refused", 83);
-  run_test(test_every_allocation_is_released, "test_every_allocation_is_released", 88);
+  run_test(test_a_project_has_its_name_substituted_everywhere, "test_a_project_has_its_name_substituted_everywhere", 43);
+  run_test(test_a_binary_file_copies_unchanged, "test_a_binary_file_copies_unchanged", 54);
+  run_test(test_an_existing_folder_is_not_overwritten, "test_an_existing_folder_is_not_overwritten", 64);
+  run_test(test_a_template_name_that_escapes_its_folder_is_refused, "test_a_template_name_that_escapes_its_folder_is_refused", 70);
+  run_test(test_a_project_name_that_escapes_its_folder_is_refused, "test_a_project_name_that_escapes_its_folder_is_refused", 75);
+  run_test(test_every_allocation_is_released, "test_every_allocation_is_released", 80);
 
   return UNITY_END();
 }

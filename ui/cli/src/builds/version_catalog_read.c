@@ -59,7 +59,7 @@ EMBED_INLINE unsigned int read_text_store(const VersionCatalogReadCtx *args)
 {
     const char *bytes = args->bytes;
     CliVersionsParsed *const parsed = &g_cli_versions;
-    if (args->size + 1u > parsed->pool_room - parsed->used)
+    if (args->size + 1u > parsed->pool_capacity - parsed->used)
     {
         parsed->full = 1;
         return CLI_VERSIONS_POOL;
@@ -76,7 +76,7 @@ EMBED_INLINE void read_error(const VersionCatalogReadCtx *args)
 {
     CliVersionsParsed *const parsed = &g_cli_versions;
     const unsigned int at = read_text_store(args);
-    if ((parsed->errors == parsed->errors_room) || (at == CLI_VERSIONS_POOL))
+    if ((parsed->errors == parsed->errors_capacity) || (at == CLI_VERSIONS_POOL))
     {
         parsed->full = 1;
         return;
@@ -134,7 +134,7 @@ EMBED_INLINE void read_blank(const VersionCatalogReadCtx *args)
 // spaces and tabs on the line passed
 EMBED_INLINE void read_spaces(const VersionCatalogReadCtx *args)
 {
-    args->read->at = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = args->read->text,
+    args->read->at = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = args->read->text,
                                 .at = args->read->at, .size = args->read->size, .set = " \t");
 }
 
@@ -146,7 +146,7 @@ EMBED_INLINE void read_skip_line(const VersionCatalogReadCtx *args)
 }
 
 // what follows a value on its line, a comment or nothing, passed with the line
-EMBED_INLINE void read_rest_of_line(const VersionCatalogReadCtx *args)
+EMBED_INLINE void read_remainder_of_line(const VersionCatalogReadCtx *args)
 {
     read_spaces(args);
     if (args->read->at < args->read->size)
@@ -244,11 +244,11 @@ EMBED_INLINE int read_key(const VersionCatalogReadCtx *args)
         }
         else
         {
-            const unsigned long long end =
+            const unsigned long long line_end =
                 EMBED_CALL(read_find, VersionCatalogReadCtx, .read_read = args->read, .stops = "\n");
-            const unsigned long long past = (end > args->read->at + 1u) ? end : args->read->at + 1u;
+            const unsigned long long end = (line_end > args->read->at + 1u) ? line_end : args->read->at + 1u;
             EMBED_CALL(read_error_text, VersionCatalogReadCtx, .from = args->read->at,
-                       .to = (past < args->read->size) ? past : args->read->size,
+                       .to = (end < args->read->size) ? end : args->read->size,
                        .message = "An entry starts with its name");
             return 0;
         }
@@ -359,7 +359,7 @@ EMBED_INLINE int read_list(const VersionCatalogReadCtx *args)
             }
             const unsigned int at =
                 EMBED_CALL(read_text_store, VersionCatalogReadCtx, .bytes = parsed->line, .size = text.at);
-            if ((parsed->items < parsed->items_room) && (at != CLI_VERSIONS_POOL) &&
+            if ((parsed->items < parsed->items_capacity) && (at != CLI_VERSIONS_POOL) &&
                 (parsed->items == args->field->first + args->field->count))
             {
                 parsed->item[parsed->items] = (CliVersionsItem){at, (unsigned int)text.at, from, to};
@@ -448,7 +448,7 @@ static unsigned int read_field(const VersionCatalogReadCtx *args)
     }
     args->read->at += 1u;
     read_spaces(args);
-    if (parsed->fields == parsed->fields_room)
+    if (parsed->fields == parsed->fields_capacity)
     {
         parsed->full = 1;
         return CLI_VERSIONS_NONE;
@@ -479,7 +479,7 @@ EMBED_INLINE void read_section(const VersionCatalogReadCtx *args)
         unsigned long long name_to = 0ull;
         EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = args->read->text + from,
                    .size = end - from, .from_u64s = &name_from, .to_u64s = &name_to);
-        if (parsed->sections < parsed->sections_room)
+        if (parsed->sections < parsed->sections_capacity)
         {
             const unsigned int name =
                 EMBED_CALL(read_text_store, VersionCatalogReadCtx, .bytes = args->read->text + from + name_from,
@@ -509,7 +509,7 @@ int cli_versions_parse(const CliVersionCatalogTextCtx *args)
     parsed->errors = 0u;
     parsed->used = 0u;
     parsed->full = 0;
-    if (!cli_version_catalog_text_internal.versions_take(args))
+    if (!cli_version_catalog_text_internal.versions_alloc(args))
     {
         parsed->full = 1;
         return 0;
@@ -525,7 +525,7 @@ int cli_versions_parse(const CliVersionCatalogTextCtx *args)
         if (args->text[read.at] == '[')
         {
             EMBED_CALL(read_section, VersionCatalogReadCtx, .read = &read);
-            EMBED_CALL(read_rest_of_line, VersionCatalogReadCtx, .read = &read);
+            EMBED_CALL(read_remainder_of_line, VersionCatalogReadCtx, .read = &read);
             continue;
         }
         const unsigned long long start = read.at;
@@ -547,6 +547,6 @@ int cli_versions_parse(const CliVersionCatalogTextCtx *args)
             EMBED_CALL(read_link, VersionCatalogReadCtx, .first = &section->first, .last = &section->last,
                        .count = &section->count, .field_u32 = field);
         }
-        EMBED_CALL(read_rest_of_line, VersionCatalogReadCtx, .read = &read);
+        EMBED_CALL(read_remainder_of_line, VersionCatalogReadCtx, .read = &read);
     }
 }

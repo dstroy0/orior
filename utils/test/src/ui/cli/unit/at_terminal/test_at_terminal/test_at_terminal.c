@@ -20,18 +20,18 @@ static char s_root[CLI_PATH_MAX_LEN];
 static char s_text[64];
 
 // git run in s_root with its words, ended by NULL, asserted to have ended well
-static void git_ran(const char *const *words)
+static void git_run_result(const char *const *words)
 {
-    CliRan *const ran = cli_ran_take();
+    CliRunResult *const run_result = cli_run_result_alloc();
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    TEST_ASSERT_TRUE_MESSAGE(EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = words, .folder = s_root, .settings = NULL, .count = 0u, .ran = ran, .err_msg = &err_msg), words[1]);
-    TEST_ASSERT_EQUAL_INT_MESSAGE(0, ran->code, words[1]);
-    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+    TEST_ASSERT_TRUE_MESSAGE(EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = words, .folder = s_root, .settings = NULL, .count = 0u, .run_result = run_result, .err_msg = &err_msg), words[1]);
+    TEST_ASSERT_EQUAL_INT_MESSAGE(0, run_result->code, words[1]);
+    EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
 }
 
 // a repository `name` at s_root with one commit of a.txt, a commit here not signed whatever the machine's configuration
-static void repository_made(const char *name)
+static void repository_created(const char *name)
 {
     static const char *const s_setup[6][7] = {{"git", "init", "-q", "-b", "main", NULL},
                                               {"git", "config", "user.name", "t", NULL},
@@ -42,22 +42,22 @@ static void repository_made(const char *name)
     cli_unity_folder(name, s_root);
     for (unsigned int at = 0u; at < 4u; at += 1u)
     {
-        git_ran(s_setup[at]);
+        git_run_result(s_setup[at]);
     }
     cli_unity_file(s_root, "a.txt", "one\n");
-    git_ran(s_setup[4]);
-    git_ran(s_setup[5]);
+    git_run_result(s_setup[4]);
+    git_run_result(s_setup[5]);
 }
 
 // `command` with `count` words run on the tree at s_root: 1 with what it printed in s_out, or 0 with why in s_err_buf, each ended by a 0
-static int command_ran(const char *command, const char *const *args, unsigned int count)
+static int command_run_result(const char *command, const char *const *args, unsigned int count)
 {
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
-    const int ran = EMBED_CALL(cli_at_terminal_command.run, CliAtTerminalCommandCfg, .root = s_root, .command = command, .request = args, .count = count, .out = &out, .err_msg = &err_msg);
+    const int run_result = EMBED_CALL(cli_at_terminal_command.run, CliAtTerminalCommandCfg, .root = s_root, .command = command, .request = args, .count = count, .out = &out, .err_msg = &err_msg);
     (void)mmgr_line_finish(&out);
     (void)mmgr_line_finish(&err_msg);
-    return ran;
+    return run_result;
 }
 
 // the text of the file `name` under `root`, empty where it has none, in s_text
@@ -73,7 +73,7 @@ static const char *file_text(const char *root, const char *name)
 // whether the listed branches name `text`
 static int branches_contain(const char *text)
 {
-    TEST_ASSERT_TRUE(command_ran("branches", NULL, 0u));
+    TEST_ASSERT_TRUE(command_run_result("branches", NULL, 0u));
     return cellul.find(&(CatenaFinitaCfg){.src = s_out, .cap = CLI_CELLS_POOL, .other = text, .other_cap = CLI_CELLS_POOL}) != NULL;
 }
 
@@ -95,7 +95,7 @@ static void settings_sent(char *base, char *there, char *between)
     TEST_ASSERT_TRUE(EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path, .bytes = "body { color: red; }\n", .size = 21ull));
     VerbaLinea out = {s_sent_out, sizeof(s_sent_out), 0ull};
     VerbaLinea err_msg = {s_sent_err, sizeof(s_sent_err), 0ull};
-    (void)EMBED_CALL(cli_carry_home_to.send, CliCarryHomeToCfg, .home = here, .to = between, .out = &out, .err_msg = &err_msg);
+    (void)EMBED_CALL(cli_machine_transfer_home_to.send, CliMachineTransferHomeToCfg, .home = here, .to = between, .out = &out, .err_msg = &err_msg);
 }
 
 // the sent settings read in on `there`: 1 with what it printed in s_out, or 0
@@ -110,19 +110,19 @@ static int settings_read(const char *there, const char *between)
 }
 
 // a repository with the branch side one commit past main, on main; the commit's id in `commit`, which is sized for 64
-static void side_made(char *commit)
+static void side_created(char *commit)
 {
     static const char *const s_side[1] = {"side"};
     static const char *const s_main[1] = {"main"};
     static const char *const s_add[4] = {"git", "add", ".", NULL};
     static const char *const s_commit[6] = {"git", "commit", "-q", "-m", "on the side", NULL};
-    repository_made("at_terminal_unmerged");
-    (void)command_ran("new-branch", s_side, 1u);
+    repository_created("at_terminal_unmerged");
+    (void)command_run_result("new-branch", s_side, 1u);
     cli_unity_file(s_root, "b.txt", "side\n");
-    git_ran(s_add);
-    git_ran(s_commit);
-    (void)command_ran("branch-switch", s_main, 1u);
-    TEST_ASSERT_TRUE(command_ran("cherry-pick", NULL, 0u));
+    git_run_result(s_add);
+    git_run_result(s_commit);
+    (void)command_run_result("branch-switch", s_main, 1u);
+    TEST_ASSERT_TRUE(command_run_result("cherry-pick", NULL, 0u));
     commit[0] = '\0';
     for (unsigned int at = 0u; (at + 1u < 64u) && (s_out[at] > ' '); at += 1u)
     {
@@ -140,7 +140,7 @@ void tearDown(void)
 {
 }
 
-void test_gits_tests_and_carried_settings_commands_run_at_the_terminal(void)
+void test_gits_tests_and_transferred_settings_commands_run_at_the_terminal(void)
 {
     TEST_ASSERT_TRUE(EMBED_CALL(cli_at_terminal_command.runs, CliAtTerminalCommandCfg, .command = "push"));
     TEST_ASSERT_TRUE(EMBED_CALL(cli_at_terminal_command.runs, CliAtTerminalCommandCfg, .command = "branch-switch"));
@@ -158,87 +158,87 @@ void test_the_windows_own_commands_do_not_run_at_the_terminal(void)
 
 void test_word_wrap_reports_it_runs_in_a_window(void)
 {
-    repository_made("at_terminal_refused");
-    TEST_ASSERT_FALSE(command_ran("word-wrap", NULL, 0u));
+    repository_created("at_terminal_refused");
+    TEST_ASSERT_FALSE(command_run_result("word-wrap", NULL, 0u));
     TEST_ASSERT_EQUAL_STRING("word-wrap runs in a window", s_err_buf);
 }
 
 void test_branch_switch_reports_it_needs_a_branch(void)
 {
-    repository_made("at_terminal_refused");
-    TEST_ASSERT_FALSE(command_ran("branch-switch", NULL, 0u));
+    repository_created("at_terminal_refused");
+    TEST_ASSERT_FALSE(command_run_result("branch-switch", NULL, 0u));
     TEST_ASSERT_EQUAL_STRING("branch-switch takes a branch", s_err_buf);
 }
 
 void test_a_new_branch_is_the_one_the_tree_is_on(void)
 {
-    static const char *const s_made[1] = {"made"};
-    repository_made("at_terminal_git");
-    (void)command_ran("new-branch", s_made, 1u);
+    static const char *const s_created[1] = {"made"};
+    repository_created("at_terminal_git");
+    (void)command_run_result("new-branch", s_created, 1u);
     TEST_ASSERT_TRUE(branches_contain("* made"));
 }
 
 void test_a_branch_is_renamed(void)
 {
-    static const char *const s_made[1] = {"made"};
+    static const char *const s_created[1] = {"made"};
     static const char *const s_main[1] = {"main"};
     static const char *const s_rename[2] = {"made", "named"};
-    repository_made("at_terminal_git");
-    (void)command_ran("new-branch", s_made, 1u);
-    (void)command_ran("branch-switch", s_main, 1u);
-    (void)command_ran("branch-rename", s_rename, 2u);
+    repository_created("at_terminal_git");
+    (void)command_run_result("new-branch", s_created, 1u);
+    (void)command_run_result("branch-switch", s_main, 1u);
+    (void)command_run_result("branch-rename", s_rename, 2u);
     TEST_ASSERT_TRUE(branches_contain("named"));
 }
 
 void test_a_branch_is_deleted(void)
 {
-    static const char *const s_made[1] = {"made"};
+    static const char *const s_created[1] = {"made"};
     static const char *const s_main[1] = {"main"};
-    repository_made("at_terminal_git");
-    (void)command_ran("new-branch", s_made, 1u);
-    (void)command_ran("branch-switch", s_main, 1u);
-    (void)command_ran("branch-delete", s_made, 1u);
+    repository_created("at_terminal_git");
+    (void)command_run_result("new-branch", s_created, 1u);
+    (void)command_run_result("branch-switch", s_main, 1u);
+    (void)command_run_result("branch-delete", s_created, 1u);
     TEST_ASSERT_FALSE(branches_contain("made"));
 }
 
 void test_a_change_is_stashed(void)
 {
-    static const char *const s_put[2] = {"put", "aside"};
-    repository_made("at_terminal_stash");
+    static const char *const s_append[2] = {"put", "aside"};
+    repository_created("at_terminal_stash");
     cli_unity_file(s_root, "a.txt", "two\n");
-    (void)command_ran("stash", s_put, 2u);
+    (void)command_run_result("stash", s_append, 2u);
     TEST_ASSERT_EQUAL_STRING("one\n", file_text(s_root, "a.txt"));
 }
 
-void test_a_stash_is_listed(void)
+void test_a_stash_is_listing(void)
 {
-    static const char *const s_put[2] = {"put", "aside"};
-    repository_made("at_terminal_stash");
+    static const char *const s_append[2] = {"put", "aside"};
+    repository_created("at_terminal_stash");
     cli_unity_file(s_root, "a.txt", "two\n");
-    (void)command_ran("stash", s_put, 2u);
-    TEST_ASSERT_TRUE(command_ran("stashes", NULL, 0u));
+    (void)command_run_result("stash", s_append, 2u);
+    TEST_ASSERT_TRUE(command_run_result("stashes", NULL, 0u));
     TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_out, .other = "stash@{0}", .cap = CLI_CELLS_POOL}));
 }
 
 void test_a_stash_popped_restores_the_change_and_leaves_the_list(void)
 {
-    static const char *const s_put[2] = {"put", "aside"};
+    static const char *const s_append[2] = {"put", "aside"};
     static const char *const s_stash[1] = {"stash@{0}"};
-    repository_made("at_terminal_stash");
+    repository_created("at_terminal_stash");
     cli_unity_file(s_root, "a.txt", "two\n");
-    (void)command_ran("stash", s_put, 2u);
-    (void)command_ran("stash-pop", s_stash, 1u);
+    (void)command_run_result("stash", s_append, 2u);
+    (void)command_run_result("stash-pop", s_stash, 1u);
     TEST_ASSERT_EQUAL_STRING("two\n", file_text(s_root, "a.txt"));
-    TEST_ASSERT_TRUE(command_ran("stashes", NULL, 0u));
+    TEST_ASSERT_TRUE(command_run_result("stashes", NULL, 0u));
     TEST_ASSERT_EQUAL_STRING("", s_out);
 }
 
 void test_a_test_run_reports_each_failure_and_the_counts(void)
 {
     static const char *const s_here[1] = {"test_here.py"};
-    repository_made("at_terminal_tests");
+    repository_created("at_terminal_tests");
     cli_unity_file(s_root, "test_here.py", s_test_here);
-    TEST_ASSERT_FALSE(command_ran("test-run", s_here, 1u));
+    TEST_ASSERT_FALSE(command_run_result("test-run", s_here, 1u));
     CLI_TEST_ASSERT_CONTAINS("FAILED ", s_err_buf);
     CLI_TEST_ASSERT_CONTAINS("test_fails", s_err_buf);
     CLI_TEST_ASSERT_CONTAINS("1 passed, 1 failed", s_err_buf);
@@ -247,18 +247,18 @@ void test_a_test_run_reports_each_failure_and_the_counts(void)
 void test_a_test_run_with_none_failed_reports_its_counts(void)
 {
     static const char *const s_good[1] = {"test_good.py"};
-    repository_made("at_terminal_tests");
+    repository_created("at_terminal_tests");
     cli_unity_file(s_root, "test_good.py", s_test_good);
-    TEST_ASSERT_TRUE(command_ran("test-run", s_good, 1u));
+    TEST_ASSERT_TRUE(command_run_result("test-run", s_good, 1u));
     TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_out, .other = "1 passed, 0 failed", .cap = CLI_CELLS_POOL}));
 }
 
-void test_a_test_run_that_ran_no_test_fails(void)
+void test_a_test_run_that_run_result_no_test_fails(void)
 {
     static const char *const s_none[1] = {"test_none.py"};
-    repository_made("at_terminal_tests");
+    repository_created("at_terminal_tests");
     cli_unity_file(s_root, "test_none.py", "x = 1\n");
-    TEST_ASSERT_FALSE(command_ran("test-run", s_none, 1u));
+    TEST_ASSERT_FALSE(command_run_result("test-run", s_none, 1u));
     TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_err_buf, .other = "0 passed, 0 failed", .cap = CLI_CELLS_POOL}));
 }
 
@@ -278,15 +278,15 @@ void test_settings_read_again_change_nothing(void)
     char base[CLI_PATH_MAX_LEN];
     char there[CLI_PATH_MAX_LEN];
     char between[CLI_PATH_MAX_LEN];
-    char wanted[CLI_PATH_MAX_LEN + 64u];
+    char required[CLI_PATH_MAX_LEN + 64u];
     settings_sent(base, there, between);
     TEST_ASSERT_TRUE(settings_read(there, between));
-    VerbaLinea line = {wanted, sizeof(wanted), 0ull};
+    VerbaLinea line = {required, sizeof(required), 0ull};
     mmgr_line_put(&line, between);
     mmgr_line_put(&line, " contains the settings this machine has.");
     (void)mmgr_line_finish(&line);
     TEST_ASSERT_TRUE(settings_read(there, between));
-    TEST_ASSERT_EQUAL_STRING(wanted, s_out);
+    TEST_ASSERT_EQUAL_STRING(required, s_out);
 }
 
 void test_settings_read_in_are_undone(void)
@@ -315,9 +315,9 @@ void test_settings_read_in_are_undone(void)
 void test_a_git_command_with_no_window_runs_at_the_terminal_and_makes_its_branch(void)
 {
     static CliOutcome s_outcome;
-    repository_made("at_terminal_command_line");
+    repository_created("at_terminal_command_line");
     const char *const branch[5] = {"--root", s_root, "git", "new-branch", "from-the-terminal"};
-    EMBED_CALL(cli_command_line_given.run, CliCommandLineGivenCfg, .given = branch, .count = 5u, .outcome = &s_outcome);
+    EMBED_CALL(cli_command_line_input.run, CliCommandLineInputCfg, .supplied = branch, .count = 5u, .outcome = &s_outcome);
     TEST_ASSERT_FALSE(s_outcome.window);
     TEST_ASSERT_EQUAL_INT(0, s_outcome.code);
     TEST_ASSERT_TRUE(branches_contain("* from-the-terminal"));
@@ -326,16 +326,16 @@ void test_a_git_command_with_no_window_runs_at_the_terminal_and_makes_its_branch
 void test_a_window_command_with_no_window_opens_a_window(void)
 {
     static CliOutcome s_outcome;
-    repository_made("at_terminal_command_line");
+    repository_created("at_terminal_command_line");
     const char *const wrap[5] = {"--root", s_root, "view", "word-wrap", "on"};
-    EMBED_CALL(cli_command_line_given.run, CliCommandLineGivenCfg, .given = wrap, .count = 5u, .outcome = &s_outcome);
+    EMBED_CALL(cli_command_line_input.run, CliCommandLineInputCfg, .supplied = wrap, .count = 5u, .outcome = &s_outcome);
     TEST_ASSERT_TRUE(s_outcome.window);
 }
 
-void test_a_side_branchs_commit_is_listed_to_cherry_pick(void)
+void test_a_side_branchs_commit_is_listing_to_cherry_pick(void)
 {
     char commit[64];
-    side_made(commit);
+    side_created(commit);
     const unsigned long long size = CLI_UNITY_LENGTH(s_out);
     TEST_ASSERT_GREATER_OR_EQUAL_UINT64(11ull, size);
     TEST_ASSERT_EQUAL_STRING("on the side", s_out + size - 11u);
@@ -346,10 +346,10 @@ void test_a_branch_with_its_own_commits_is_deleted_only_when_forced(void)
     static const char *const s_side[1] = {"side"};
     static const char *const s_forced[2] = {"side", "--force"};
     char commit[64];
-    side_made(commit);
-    TEST_ASSERT_FALSE(command_ran("branch-delete", s_side, 1u));
+    side_created(commit);
+    TEST_ASSERT_FALSE(command_run_result("branch-delete", s_side, 1u));
     CLI_TEST_ASSERT_CONTAINS("--force", s_err_buf);
-    (void)command_ran("branch-delete", s_forced, 2u);
+    (void)command_run_result("branch-delete", s_forced, 2u);
     TEST_ASSERT_FALSE(branches_contain("side"));
 }
 
@@ -357,9 +357,9 @@ void test_a_commit_is_cherry_picked_onto_main(void)
 {
     char commit[64];
     char path[CLI_PATH_MAX_LEN];
-    side_made(commit);
+    side_created(commit);
     const char *const pick[1] = {commit};
-    (void)command_ran("cherry-pick", pick, 1u);
+    (void)command_run_result("cherry-pick", pick, 1u);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = "b.txt", .joined = path);
     TEST_ASSERT_TRUE(EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = path));
 }

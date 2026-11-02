@@ -12,13 +12,13 @@
 
 // the PATH's folders for one call, and the folders a tool's places name, under the lock
 char (*g_cli_toolchains_path)[CLI_PATH_MAX_LEN];
-static char s_places[64][CLI_PATH_MAX_LEN];
+static char s_positions[64][CLI_PATH_MAX_LEN];
 
 unsigned int cli_toolchains_find_path(void)
 {
     unsigned int count = 0u;
     g_cli_cells->persistent_buf_release(g_cli_toolchains_path, &g_cli_toolchains_cells);
-    g_cli_toolchains_path = cli_toolchains_path_taken(&count, &g_cli_toolchains_cells);
+    g_cli_toolchains_path = cli_toolchains_path_allocated(&count, &g_cli_toolchains_cells);
     return count;
 }
 
@@ -139,7 +139,7 @@ void cli_toolchains_find(const CliToolchainsJsonCfg *args)
                                       .object = tool, .name = "env"),
                    .length_pointer = NULL);
     if ((env != NULL) && EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = env,
-                                    .value_out = program, .room = sizeof(program)))
+                                    .value_out = program, .capacity = sizeof(program)))
     {
         EMBED_CALL(cli_set, ToolchainsFindCtx, .found = found, .state = "env", .program = program);
         return;
@@ -168,8 +168,8 @@ void cli_toolchains_find(const CliToolchainsJsonCfg *args)
                    .dir = chosen, .path = program))
     {
         EMBED_CALL(cli_set, ToolchainsFindCtx, .found = found, .state = "chosen", .program = program);
-        EMBED_CALL(cli_toolchains_id_path_internal.found_put, CliToolchainsIdPathCtx, .id = id, .path_callback = path,
-                   .count = count, .found_read = found);
+        EMBED_CALL(cli_toolchains_id_path_internal.found_append, CliToolchainsIdPathCtx, .id = id,
+                   .path_callback = path, .count = count, .found_read = found);
         return;
     }
     const unsigned int programs = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
@@ -190,31 +190,31 @@ void cli_toolchains_find(const CliToolchainsJsonCfg *args)
                            .count = 1u, .path = program))
             {
                 EMBED_CALL(cli_set, ToolchainsFindCtx, .found = found, .state = "path", .program = program);
-                EMBED_CALL(cli_toolchains_id_path_internal.found_put, CliToolchainsIdPathCtx, .id = id,
+                EMBED_CALL(cli_toolchains_id_path_internal.found_append, CliToolchainsIdPathCtx, .id = id,
                            .path_callback = path, .count = count, .found_read = found);
                 return;
             }
         }
     }
-    const unsigned int places =
+    const unsigned int positions =
         EMBED_CALL(cli_toolchains_json_count.folders_for, CliToolchainsJsonCountCfg, .json = json,
                    .by_system = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                            .object = tool, .name = "places"),
-                   .folders = s_places, .count = 0u, .room = 64u);
-    for (unsigned int at = 0u; at < places; at += 1u)
+                   .folders = s_positions, .count = 0u, .capacity = 64u);
+    for (unsigned int at = 0u; at < positions; at += 1u)
     {
-        if (!EMBED_CALL(cli_passed_over, ToolchainsFindCtx, .json = json, .tool = tool, .dir = s_places[at]) &&
-            EMBED_CALL(cli_dir_has_tool, ToolchainsFindCtx, .json = json, .tool = tool, .dir = s_places[at]) &&
+        if (!EMBED_CALL(cli_passed_over, ToolchainsFindCtx, .json = json, .tool = tool, .dir = s_positions[at]) &&
+            EMBED_CALL(cli_dir_has_tool, ToolchainsFindCtx, .json = json, .tool = tool, .dir = s_positions[at]) &&
             EMBED_CALL(cli_toolchains_json_dir.tool_program_in, CliToolchainsJsonDirCfg, .json = json, .tool = tool,
-                       .dir = s_places[at], .path = program))
+                       .dir = s_positions[at], .path = program))
         {
             EMBED_CALL(cli_set, ToolchainsFindCtx, .found = found, .state = "found", .program = program);
-            EMBED_CALL(cli_toolchains_id_path_internal.found_put, CliToolchainsIdPathCtx, .id = id,
+            EMBED_CALL(cli_toolchains_id_path_internal.found_append, CliToolchainsIdPathCtx, .id = id,
                        .path_callback = path, .count = count, .found_read = found);
             return;
         }
     }
-    EMBED_CALL(cli_toolchains_id_path_internal.found_put, CliToolchainsIdPathCtx, .id = id, .path_callback = path,
+    EMBED_CALL(cli_toolchains_id_path_internal.found_append, CliToolchainsIdPathCtx, .id = id, .path_callback = path,
                .count = count, .found_read = found);
 }
 
@@ -305,8 +305,8 @@ static int cli_version_get(const ToolchainsFindCtx *args)
         for (;;)
         {
             const unsigned long long got =
-                EMBED_CALL(cli_room_pipe_handle_internal.spawn_read, CliRoomPipeHandleCtx, .pipe_handle = pipe,
-                           .piece = s_output_buf + read, .room = sizeof(s_output_buf) - read - 2ull);
+                EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx, .pipe_handle = pipe,
+                           .piece = s_output_buf + read, .capacity = sizeof(s_output_buf) - read - 2ull);
             if (got == 0ull)
             {
                 break;
@@ -330,9 +330,9 @@ static int cli_version_get(const ToolchainsFindCtx *args)
                           .size = cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}), .set = "\n");
         const char *from = at;
         const char *to = end;
-        from += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
+        from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
                            .size = (unsigned long long)(to - from), .set = CLI_TEXT_WHITE);
-        to = from + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = from,
+        to = from + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = from,
                                .at = (unsigned long long)(to - from), .set = CLI_TEXT_WHITE);
         if ((to > from) && (first == NULL))
         {
@@ -614,7 +614,7 @@ int cli_toolchains_open_install(const CliToolchainsIdErrMsgCfg *args)
         mmgr_line_put(args->err_msg, " has no install page for ");
         mmgr_line_put(args->err_msg, cli_toolchains_system());
     }
-    EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_room = url, .text = page, .otherwise = "");
+    EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_capacity = url, .text = page, .otherwise = "");
     EMBED_CALL(cli_toolchains_json_internal.find_release, CliToolchainsJsonCtx, .json = &json);
     if (page == NULL)
     {

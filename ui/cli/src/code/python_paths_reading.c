@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// python_paths_reading.c: one script's reading stored in a cell taken for the script, each list of it sized to the
+// python_paths_read_state.c: one script's reading stored in a cell taken for the script, each list of it sized to the
 // script's bytes within the most a reading contains, and given back once what it found is read
 #include "python_paths_internal.h"
 
@@ -12,8 +12,8 @@
 
 CliPy g_cli_py;
 
-// the reading's cell, taken by cli_py_reading_take
-static unsigned char *s_reading;
+// the reading's cell, taken by cli_py_read_state_alloc
+static unsigned char *s_read_state;
 
 typedef struct
 {
@@ -25,9 +25,9 @@ EMBED_INLINE unsigned long long cli_py_align(const PythonPathsReadingCtx *args)
     return (args->at + 7ull) & ~7ull;
 }
 
-int cli_py_reading_take(const CliPythonPathsSizeCtx *args)
+int cli_py_read_state_alloc(const CliPythonPathsSizeCtx *args)
 {
-    cli_py_reading_free();
+    cli_py_read_state_free();
     // a script is no more than CLI_PY_LETTERS bytes of letters, and a reading of one no more than the most of each
     const unsigned long long bytes = (args->size < CLI_PY_LETTERS) ? args->size : CLI_PY_LETTERS;
     const unsigned int exprs =
@@ -35,7 +35,7 @@ int cli_py_reading_take(const CliPythonPathsSizeCtx *args)
     const unsigned int items =
         (unsigned int)(((bytes + CLI_PY_SLACK) < CLI_PY_ITEMS) ? (bytes + CLI_PY_SLACK) : CLI_PY_ITEMS);
     const unsigned long long texts = (CLI_PY_TEXT_EACH * bytes) + CLI_PY_TEXT_ANY;
-    const unsigned int text_most = (unsigned int)((texts < CLI_PY_TEXT) ? texts : CLI_PY_TEXT);
+    const unsigned int text_max = (unsigned int)((texts < CLI_PY_TEXT) ? texts : CLI_PY_TEXT);
     // a logical line is no longer than the script with a space joining each of its lines, and its letters no more
     const unsigned int line_text = (unsigned int)((2ull * bytes) + 2ull);
     const unsigned int letters = line_text;
@@ -64,38 +64,38 @@ int cli_py_reading_take(const CliPythonPathsSizeCtx *args)
     const unsigned long long length_at = at;
     at = EMBED_CALL(cli_py_align, PythonPathsReadingCtx, .at = at + ((unsigned long long)lines * sizeof(unsigned int)));
     const unsigned long long text_at = at;
-    at += text_most;
+    at += text_max;
     const unsigned long long line_text_at = at;
     at += line_text;
-    s_reading = g_cli_cells->persistent_buf_alloc(at, &g_cli_python_cells);
-    if (s_reading == NULL)
+    s_read_state = g_cli_cells->persistent_buf_alloc(at, &g_cli_python_cells);
+    if (s_read_state == NULL)
     {
         return 0;
     }
-    g_cli_py.expr = (CliExpr *)(void *)(s_reading + expr_at);
-    g_cli_py.exprs_most = exprs;
-    g_cli_py.item = (unsigned int *)(void *)(s_reading + item_at);
-    g_cli_py.stack = (unsigned int *)(void *)(s_reading + stack_at);
-    g_cli_py.range = (CliValues *)(void *)(s_reading + range_at);
-    g_cli_py.items_most = items;
-    g_cli_py.letter = (unsigned int *)(void *)(s_reading + letter_at);
-    g_cli_py.letters_most = letters;
-    g_cli_py.value = (unsigned int *)(void *)(s_reading + value_at);
-    g_cli_py.found = (unsigned int *)(void *)(s_reading + found_at);
-    g_cli_py.text = (char *)(s_reading + text_at);
-    g_cli_py.text_most = text_most;
-    EMBED_CALL(cli_python_paths_text_text_most_internal.py_lines_place, CliPythonPathsTextTextMostCtx,
-               .text_out = (char *)(s_reading + line_text_at), .text_most = line_text,
-               .start = (unsigned int *)(void *)(s_reading + start_at),
-               .length_u32s = (unsigned int *)(void *)(s_reading + length_at), .lines_most = lines);
+    g_cli_py.expr = (CliExpr *)(void *)(s_read_state + expr_at);
+    g_cli_py.exprs_max = exprs;
+    g_cli_py.item = (unsigned int *)(void *)(s_read_state + item_at);
+    g_cli_py.stack = (unsigned int *)(void *)(s_read_state + stack_at);
+    g_cli_py.range = (CliValues *)(void *)(s_read_state + range_at);
+    g_cli_py.items_max = items;
+    g_cli_py.letter = (unsigned int *)(void *)(s_read_state + letter_at);
+    g_cli_py.letters_max = letters;
+    g_cli_py.value = (unsigned int *)(void *)(s_read_state + value_at);
+    g_cli_py.found = (unsigned int *)(void *)(s_read_state + found_at);
+    g_cli_py.text = (char *)(s_read_state + text_at);
+    g_cli_py.text_max = text_max;
+    EMBED_CALL(cli_python_paths_text_text_max_internal.py_lines_position, CliPythonPathsTextTextMaxCtx,
+               .text_out = (char *)(s_read_state + line_text_at), .text_max = line_text,
+               .start = (unsigned int *)(void *)(s_read_state + start_at),
+               .length_u32s = (unsigned int *)(void *)(s_read_state + length_at), .lines_max = lines);
     return 1;
 }
 
-void cli_py_reading_free(void)
+void cli_py_read_state_free(void)
 {
-    g_cli_cells->persistent_buf_release(s_reading, &g_cli_python_cells);
-    s_reading = NULL;
+    g_cli_cells->persistent_buf_release(s_read_state, &g_cli_python_cells);
+    s_read_state = NULL;
     memor.set(&(MemoriaCfg){.dst = &g_cli_py, .val = 0, .bytes = sizeof(g_cli_py)});
-    EMBED_CALL(cli_python_paths_text_text_most_internal.py_lines_place, CliPythonPathsTextTextMostCtx, .text_out = NULL,
-               .text_most = 0u, .start = NULL, .length_u32s = NULL, .lines_most = 0u);
+    EMBED_CALL(cli_python_paths_text_text_max_internal.py_lines_position, CliPythonPathsTextTextMaxCtx,
+               .text_out = NULL, .text_max = 0u, .start = NULL, .length_u32s = NULL, .lines_max = 0u);
 }

@@ -51,7 +51,7 @@ EMBED_INLINE int answer_body(const RequestsAnswerCtx *args)
     while (bytes < args->answer->size)
     {
         unsigned int letter = 0u;
-        const unsigned long long taken =
+        const unsigned long long reserved =
             EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg, .text_bytes = args->answer->body,
                        .length = args->answer->size, .at = bytes, .letter = &letter);
         if (text + EMBED_CALL(answer_letter_size, RequestsAnswerCtx, .letter = letter) > args->most)
@@ -59,7 +59,7 @@ EMBED_INLINE int answer_body(const RequestsAnswerCtx *args)
             break;
         }
         text += EMBED_CALL(answer_letter_size, RequestsAnswerCtx, .letter = letter);
-        bytes += taken;
+        bytes += reserved;
     }
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
                .text_bytes = args->answer->body, .length = bytes);

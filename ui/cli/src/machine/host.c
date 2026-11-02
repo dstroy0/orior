@@ -36,7 +36,7 @@ EMBED_INLINE void cli_shell_word(const HostCtx *args)
 {
     const char *text = args->text;
     mmgr_line_ch(args->line, '\'');
-    EMBED_CALL(cli_text_set_table.put_replace, CliTextSetCfg, .out = args->line, .text = text, .set = "'",
+    EMBED_CALL(cli_text_set_table.append_replace, CliTextSetCfg, .out = args->line, .text = text, .set = "'",
                .with = "'\\''");
     mmgr_line_ch(args->line, '\'');
 }
@@ -72,9 +72,9 @@ EMBED_INLINE int cli_host_folder(const HostCtx *args)
 {
     char base[CLI_PATH_MAX_LEN];
     if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "XDG_RUNTIME_DIR",
-                    .value_out = base, .room = sizeof(base)) &&
+                    .value_out = base, .capacity = sizeof(base)) &&
         !EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "TMPDIR", .value_out = base,
-                    .room = sizeof(base)))
+                    .capacity = sizeof(base)))
     {
         memor.cpy(&(MemoriaCfg){.dst = base,
                                 .src = "/tmp",
@@ -154,8 +154,8 @@ long long cli_host_prepare(const CliHostIntoCfg *args)
     const char *const listing[5] = {"flatpak-spawn", "--host", "sh", "-c",
                                     "IFS=:; for dir in $PATH; do ls -1 \"$dir\" 2>/dev/null; done"};
     const char *const words[6] = {listing[0], listing[1], listing[2], listing[3], listing[4], NULL};
-    QueryProcess listed;
-    if (!EMBED_CALL(query_started_internal.process_start, QueryStartedCtx, .started = &listed, .words = words,
+    QueryProcess list_entries;
+    if (!EMBED_CALL(query_started_internal.process_start, QueryStartedCtx, .started = &list_entries, .words = words,
                     .folder = NULL, .output = QUERY_OUTPUT_PIPED))
     {
         mmgr_line_put(args->err_msg, "flatpak-spawn: it could not be started");
@@ -166,8 +166,8 @@ long long cli_host_prepare(const CliHostIntoCfg *args)
     for (;;)
     {
         const unsigned long long got =
-            EMBED_CALL(query_process_piece_internal.process_read, QueryProcessPieceCtx, .process = &listed,
-                       .piece = s_names + length, .room_u64 = sizeof(s_names) - 1u - length);
+            EMBED_CALL(query_process_piece_internal.process_read, QueryProcessPieceCtx, .process = &list_entries,
+                       .piece = s_names + length, .capacity_u64 = sizeof(s_names) - 1u - length);
         if (got == 0ull)
         {
             break;
@@ -175,7 +175,7 @@ long long cli_host_prepare(const CliHostIntoCfg *args)
         length += got;
     }
     s_names[length] = '\0';
-    if (EMBED_CALL(query_process_internal.process_wait, QueryProcessCtx, .process_out = &listed) != 0ll)
+    if (EMBED_CALL(query_process_internal.process_wait, QueryProcessCtx, .process_out = &list_entries) != 0ll)
     {
         mmgr_line_put(args->err_msg, "flatpak-spawn --host: it did not list the machine's programs");
         return -1ll;
@@ -195,7 +195,7 @@ long long cli_host_prepare(const CliHostIntoCfg *args)
         VerbaLinea path = {s_path, sizeof(s_path), 0ull};
         mmgr_line_put(&path, into);
         if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "PATH",
-                       .value_out = s_old, .room = sizeof(s_old)))
+                       .value_out = s_old, .capacity = sizeof(s_old)))
         {
             mmgr_line_ch(&path, ':');
             mmgr_line_put(&path, s_old);

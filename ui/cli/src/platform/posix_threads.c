@@ -80,10 +80,10 @@ void cli_wake_all(const CliWakeCtx *args)
 #endif
 }
 
-static void *cli_thread_entry(void *given)
+static void *cli_thread_entry(void *supplied)
 {
     // the thread is handed what it runs, which its starter retains for as long as the thread lives
-    const CliThread *const thread = (const CliThread *)given;
+    const CliThread *const thread = (const CliThread *)supplied;
     EMBED_CALL(cli_words_err_msg_internal.priority_own, CliWordsErrMsgCtx, .priority = thread->priority);
     thread->run(thread->context);
     return NULL;

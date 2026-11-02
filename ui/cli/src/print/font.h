@@ -84,8 +84,8 @@ int cli_font_i16(const CliFontAtCfg *args);
 // y' = b x + d y + f (font_outline.c)
 void cli_font_outline(const CliFontGlyphMatrixCfg *args);
 // `contours`, in pixels with y going up from the baseline, drawn as coverage into `mask`, its cover in `cover`, which
-// sized for `room`; a mask too large for the room drawn as none; and with `cover` NULL the mask measured alone, its
-// size and place set and nothing drawn, so a cover of `width` by `height` and four more can be taken for it
+// sized for `capacity`; a mask too large for the capacity drawn as none; and with `cover` NULL the mask measured alone,
+// its size and place set and nothing drawn, so a cover of `width` by `height` and four more can be taken for it
 void cli_font_rasterize(const CliFontContoursCfg *args);
 // the first family of `families`, `count` of them, whose regular face the system's font folders hold, each family its
 // files regular, bold, italic and bold italic, an empty name for a face it lacks: each face's path into `paths`, which
@@ -116,7 +116,7 @@ struct CliFontContoursCfg
     const CliContours *contours;
     CliMask *mask;
     float *cover;
-    unsigned long long room;
+    unsigned long long capacity;
 };
 
 struct CliFontDataCfg

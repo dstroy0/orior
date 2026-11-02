@@ -73,16 +73,16 @@ EMBED_INLINE void serve_line_emit(const RecordingServeCtx *args)
     (void)EMBED_CALL(cli_dap_message.send, CliDapMessageCfg, .dap = s_dap, .message = out.out, .size = out.at);
 }
 
-// what the run writes to one pipe read until it ends, a line at a time, a line longer than the room sent in pieces
+// what the run writes to one pipe read until it ends, a line at a time, a line longer than the capacity sent in pieces
 EMBED_INLINE void serve_lines(const RecordingServeCtx *args)
 {
     char piece[4096];
     unsigned long long used = 0ull;
     for (unsigned long long count =
-             EMBED_CALL(cli_room_pipe_handle_internal.spawn_read, CliRoomPipeHandleCtx,
-                        .pipe_handle = args->reader->pipe, .piece = piece, .room = sizeof(piece));
-         count > 0ull; count = EMBED_CALL(cli_room_pipe_handle_internal.spawn_read, CliRoomPipeHandleCtx,
-                                          .pipe_handle = args->reader->pipe, .piece = piece, .room = sizeof(piece)))
+             EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx,
+                        .pipe_handle = args->reader->pipe, .piece = piece, .capacity = sizeof(piece));
+         count > 0ull; count = EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx,
+                                          .pipe_handle = args->reader->pipe, .piece = piece, .capacity = sizeof(piece)))
     {
         for (unsigned long long at = 0ull; at < count; at += 1ull)
         {
@@ -181,7 +181,7 @@ int cli_recording_run(const CliRecordingDapCtx *args)
     const char *const words[5] = {python, "-", s_out, g_cli_replay->root, g_cli_replay->program};
     for (unsigned int at = 0u; at < 5u; at += 1u)
     {
-        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+        EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
                    .word = words[at]);
     }
     memor.set(&(MemoriaCfg){.dst = &s_running, .val = 0, .bytes = sizeof(s_running)});
@@ -193,12 +193,12 @@ int cli_recording_run(const CliRecordingDapCtx *args)
         mmgr_line_put(args->err_msg, python);
         return 0;
     }
-    const int given =
+    const int supplied =
         EMBED_CALL(cli_pipe_handle_internal.spawn_write, CliPipeHandleCtx, .pipe_handle = s_running.in,
                    .bytes = g_cli_recording_shim,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = g_cli_recording_shim, .cap = CLI_CELLS_POOL}));
     EMBED_CALL(cli_spawned_internal.spawn_input_close, CliSpawnedCtx, .spawned = &s_running);
-    if (!given)
+    if (!supplied)
     {
         EMBED_CALL(cli_cols_internal.spawn_kill, CliColsCtx, .spawned_read = &s_running);
         (void)EMBED_CALL(cli_spawned_internal.spawn_wait, CliSpawnedCtx, .spawned = &s_running);

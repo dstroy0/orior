@@ -24,11 +24,11 @@ int cli_validate_code_get(const CliValidateTextCtx *args)
     while (at < args->size)
     {
         unsigned int letter = 0u;
-        const unsigned long long taken = EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
-                                                    .text_bytes = (const unsigned char *)args->text,
-                                                    .length = args->size, .at = at, .letter = &letter);
+        const unsigned long long reserved = EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+                                                       .text_bytes = (const unsigned char *)args->text,
+                                                       .length = args->size, .at = at, .letter = &letter);
         const char c = args->text[at];
-        const char next = (at + taken < args->size) ? args->text[at + taken] : '\0';
+        const char next = (at + reserved < args->size) ? args->text[at + reserved] : '\0';
         const char blank = (c == '\n') ? '\n' : ' ';
         if (in_line)
         {
@@ -94,10 +94,10 @@ int cli_validate_code_get(const CliValidateTextCtx *args)
         }
         else
         {
-            memor.cpy(&(MemoriaCfg){.dst = out + used, .src = args->text + at, .bytes = taken});
-            used += taken;
+            memor.cpy(&(MemoriaCfg){.dst = out + used, .src = args->text + at, .bytes = reserved});
+            used += reserved;
         }
-        at += taken;
+        at += reserved;
     }
     g_cli_validate->code_size = used;
     return 1;
@@ -156,25 +156,25 @@ void cli_validate_words_get(void)
             continue;
         }
         unsigned int letter = 0u;
-        unsigned long long taken =
+        unsigned long long reserved =
             EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
                        .text_bytes = (const unsigned char *)code, .length = size, .at = at, .letter = &letter);
         if (!EMBED_CALL(code_word_letter, ValidateCodeCtx, .letter = letter))
         {
             col += 1u;
-            at += taken;
+            at += reserved;
             continue;
         }
         const unsigned long long start = at;
         const unsigned int start_col = col;
         while ((at < size) && EMBED_CALL(code_word_letter, ValidateCodeCtx, .letter = letter))
         {
-            at += taken;
+            at += reserved;
             col += 1u;
-            taken = (at < size) ? EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
-                                             .text_bytes = (const unsigned char *)code, .length = size, .at = at,
-                                             .letter = &letter)
-                                : 0ull;
+            reserved = (at < size) ? EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+                                                .text_bytes = (const unsigned char *)code, .length = size, .at = at,
+                                                .letter = &letter)
+                                   : 0ull;
         }
         if (g_cli_validate->word_count < CLI_VALIDATE_WORDS)
         {
@@ -286,7 +286,7 @@ void cli_validate_flags_in(void)
         const char *bare = g_cli_validate->code + word->start;
         unsigned long long size = word->size;
         {
-            const unsigned long long lead = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg,
+            const unsigned long long lead = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg,
                                                        .text = bare, .at = 0ull, .size = size, .set = "@");
             bare += lead;
             size -= lead;
@@ -321,7 +321,7 @@ void cli_validate_flags_in(void)
             const CliFinding finding = {
                 word->line, word->col, word->line, word->col + word->letters, flagged->severity, "flag",
                 -1,         0ull,      0ull};
-            EMBED_CALL(cli_validate_length_internal.finding_put, CliValidateLengthCtx, .finding = &finding,
+            EMBED_CALL(cli_validate_length_internal.finding_append, CliValidateLengthCtx, .finding = &finding,
                        .message_text = message, .length = line.at, .lifted = NULL);
             break;
         }

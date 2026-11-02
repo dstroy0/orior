@@ -29,8 +29,8 @@ typedef struct GuiGlyphsCfg GuiGlyphsCfg;
 #define GUI_GLYPH_CACHE_ENTRIES 4096u
 // the stem darkening: how far a stroke's side is pushed out, most at the small sizes and least at the large, in pixels;
 // and the gamma the coverage is lifted through as a glyph is laid for the blend
-#define GUI_DARKEN_MOST 0.2f
-#define GUI_DARKEN_LEAST 0.06f
+#define GUI_DARKEN_MAX 0.2f
+#define GUI_DARKEN_MIN 0.06f
 #define GUI_DARKEN_SMALL 12u
 #define GUI_DARKEN_LARGE 32u
 #define GUI_TEXT_GAMMA 1.4f

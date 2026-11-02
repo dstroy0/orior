@@ -14,13 +14,13 @@ typedef struct QueryRetentionContextCtx QueryRetentionContextCtx;
 typedef struct QueryRetentionRootCtx QueryRetentionRootCtx;
 typedef struct QueryRetentionContextErrMsgCtx QueryRetentionContextErrMsgCtx;
 typedef struct QueryRetentionCtx QueryRetentionCtx;
-typedef struct QueryRetentionGivenCtx QueryRetentionGivenCtx;
+typedef struct QueryRetentionInputCtx QueryRetentionInputCtx;
 
 #include "../query_loops.h"
 #include "embed_dispatch_layout.h"
 
 // A writer's account of its run, its last record (qry_writer.c): the records it put, their bytes, the records that did
-// not match their CRC, those the run had no room for, the panics, and the milliseconds it ran
+// not match their CRC, those the run had no capacity for, the panics, and the milliseconds it ran
 typedef struct
 {
     unsigned long long records;
@@ -46,16 +46,16 @@ void query_crystals(const QueryRetentionContextOwnCtx *args);
 
 // what the stores' checks reach: the folder's median rate over the runs' rates reported, and every run under half
 // of it; every folder under `root` containing a run's .qry, .git and every `restored` pruned, sorted into `found`,
-// which is sized for `room`, or counted where `found` is NULL: their count; one folder of runs retained; and why no run
-// is stored as its crystal reported, where none is (retention.c); whether a line of nvidia-smi's processes names a
-// program under `root`; and the part's allowed use in percent `given` reads, 10 where it is NULL or no number
+// which is sized for `capacity`, or counted where `found` is NULL: their count; one folder of runs retained; and why no
+// run is stored as its crystal reported, where none is (retention.c); whether a line of nvidia-smi's processes names a
+// program under `root`; and the part's allowed use in percent `supplied` reads, 10 where it is NULL or no number
 // (retention_part.c)
 void query_median_print(const QueryRetentionContextFolderCtx *args);
 unsigned int query_folders_with_runs(const QueryRetentionRootFoundCtx *args);
 void query_retention_folder(const QueryRetentionContextOwnCtx *args);
 void query_crystals_reject(const QueryRetentionContextFreePartCtx *args);
 int query_on_the_part(const QueryRetentionRootCtx *args);
-long long query_part_used_most(const QueryRetentionGivenCtx *args);
+long long query_part_used_max(const QueryRetentionInputCtx *args);
 // a writer for the run at `qry`, in the image of `own`, this process no member of it (retention.c); and the host swept
 // once more where no sweep of it is newer than QRY_SWEEP_HOURS, 12 where it is not set (sweep.c)
 void query_writer_get(const QueryRetentionOwnCtx *args);
@@ -98,7 +98,7 @@ struct QueryRetentionRootFoundCtx
 {
     const char *root;
     char (*found)[QUERY_PATH_MAX_LEN];
-    unsigned int room;
+    unsigned int capacity;
 };
 
 struct QueryRetentionOwnCtx
@@ -131,9 +131,9 @@ struct QueryRetentionCtx
     const QueryAccount *account_read;
 };
 
-struct QueryRetentionGivenCtx
+struct QueryRetentionInputCtx
 {
-    const char *given;
+    const char *supplied;
 };
 
 typedef struct
@@ -223,11 +223,11 @@ EMBED_TABLE_STORAGE QueryRetentionRootNs query_retention_root_internal EMBED_UNU
 
 typedef struct
 {
-    long long (*part_used_most)(const QueryRetentionGivenCtx *args);
-} QueryRetentionGivenNs;
-EMBED_TABLE_LAYOUT(QueryRetentionGivenNs, part_used_most);
-EMBED_TABLE_STORAGE QueryRetentionGivenNs query_retention_given_internal EMBED_UNUSED = {
-    .part_used_most = query_part_used_most,
+    long long (*part_used_max)(const QueryRetentionInputCtx *args);
+} QueryRetentionInputNs;
+EMBED_TABLE_LAYOUT(QueryRetentionInputNs, part_used_max);
+EMBED_TABLE_STORAGE QueryRetentionInputNs query_retention_input_internal EMBED_UNUSED = {
+    .part_used_max = query_part_used_max,
 };
 
 typedef struct

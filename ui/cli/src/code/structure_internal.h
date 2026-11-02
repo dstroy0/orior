@@ -27,7 +27,7 @@ typedef struct CliStructureCtx CliStructureCtx;
 
 // the most edits either comparison makes before the texts read as too far apart, and the fewest tokens a line contains
 // for it to read as moved
-#define CLI_MOST_EDITS 1500u
+#define CLI_MAX_EDITS 1500u
 
 #define CLI_MOVED_TOKENS 2u
 
@@ -76,10 +76,10 @@ typedef struct
 
 // the tokens of `size` bytes of `text`, line by line, into the side: 1, or 0 where it contains more than a side stores
 int cli_structure_lex(const CliStructureTextCtx *args);
-// the shortest edit from `a` to `b`, the ends they share set aside first, into `steps`, sized for `room`: their
-// count, or CLI_STRUCTURE_NONE past CLI_MOST_EDITS or past the room
+// the shortest edit from `a` to `b`, the ends they share set aside first, into `steps`, sized for `capacity`: their
+// count, or CLI_STRUCTURE_NONE past CLI_MAX_EDITS or past the capacity
 unsigned int cli_structure_shortest(const CliStructureACtx *args);
-// each token and each line of both sides numbered, the same text the same number: 1, or 0 past the names' room
+// each token and each line of both sides numbered, the same text the same number: 1, or 0 past the names' capacity
 int cli_structure_by_name(const CliStructureOldCtx *args);
 // whether a token's text starts a name
 int cli_structure_starts_name(const CliStructureSideCtx *args);
@@ -124,8 +124,8 @@ typedef struct
 // Myers' frontier for each edit, and the names' buckets
 typedef struct
 {
-    int frontier[(2u * CLI_MOST_EDITS) + 3u];
-    int trace[(CLI_MOST_EDITS + 2u) * (CLI_MOST_EDITS + 2u)];
+    int frontier[(2u * CLI_MAX_EDITS) + 3u];
+    int trace[(CLI_MAX_EDITS + 2u) * (CLI_MAX_EDITS + 2u)];
     CliNameBucket token_names[CLI_STRUCTURE_NAMES];
     CliNameBucket line_names[CLI_STRUCTURE_NAMES];
     CliSide old;
@@ -172,7 +172,6 @@ void cli_structure_moved_mark(const CliStructureCtx *args);
 void cli_structure_touched_mark(const CliStructureCtx *args);
 void cli_structure_lines_kind(const CliStructureCtx *args);
 int cli_structure_mark_order(const CliStructureOneCtx *args);
-void cli_structure_write(const CliStructureCompareRenamesCtx *args);
 
 struct CliStructureACtx
 {
@@ -181,7 +180,7 @@ struct CliStructureACtx
     const unsigned int *b;
     unsigned int m;
     CliStep *steps;
-    unsigned int room;
+    unsigned int capacity;
 };
 
 struct CliStructureTextCtx
@@ -260,12 +259,10 @@ EMBED_TABLE_STORAGE CliStructureSideNs cli_structure_side_internal EMBED_UNUSED 
 typedef struct
 {
     unsigned int (*renames_find)(const CliStructureCompareRenamesCtx *args);
-    void (*write)(const CliStructureCompareRenamesCtx *args);
 } CliStructureCompareRenamesNs;
-EMBED_TABLE_LAYOUT(CliStructureCompareRenamesNs, renames_find, write);
+EMBED_TABLE_LAYOUT(CliStructureCompareRenamesNs, renames_find);
 EMBED_TABLE_STORAGE CliStructureCompareRenamesNs cli_structure_compare_renames_internal EMBED_UNUSED = {
     .renames_find = cli_structure_renames_find,
-    .write = cli_structure_write,
 };
 
 typedef struct

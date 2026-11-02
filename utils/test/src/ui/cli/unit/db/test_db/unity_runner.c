@@ -4,27 +4,26 @@
 #include "unity.h"
 #include "ui/cli/src/databases/db_internal.h"
 #include "ui/cli/src/tests/test_runs.h"
-#include "ui/cli/src/window/serve_internal.h"
 
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
 extern void tearDown(void);
 extern void test_connections_are_stored_each_by_its_name(void);
 extern void test_a_name_another_connection_has_is_refused(void);
-extern void test_a_connection_renamed_stays_in_its_place(void);
+extern void test_a_connection_renamed_stays_in_its_position(void);
 extern void test_no_password_is_stored_in_the_file(void);
 extern void test_a_connection_is_removed(void);
 extern void test_a_connections_account_names_its_server_and_its_tunnel(void);
 extern void test_the_keychain_stores_a_password_and_forgets_it(void);
 extern void test_a_sqlite_database_opens_with_its_version(void);
 extern void test_an_insert_reports_what_it_did(void);
-extern void test_a_querys_first_page_comes_the_rest_waiting(void);
+extern void test_a_querys_first_page_comes_the_remainder_waiting(void);
 extern void test_a_numbers_column_is_numeric(void);
 extern void test_each_value_is_written_as_the_window_shows_it(void);
 extern void test_a_later_page_is_read_from_the_run(void);
 extern void test_a_delete_of_every_row_prompts_first_with_its_count_and_does_nothing(void);
 extern void test_a_transaction_is_open_until_it_is_rolled_back(void);
-extern void test_a_failure_reports_why(void);
+extern void test_a_failure_reports_error(void);
 extern void test_the_schema_is_main(void);
 extern void test_the_schema_lists_its_objects(void);
 extern void test_a_table_lists_its_columns_and_indexes(void);
@@ -36,7 +35,6 @@ extern void test_a_statement_that_shapes_the_schema_names_its_object(void);
 extern void test_a_slow_statement_is_stopped_at_once_and_the_connection_answers_after(void);
 extern void test_a_refused_postgres_connection_stores_no_password_in_a_cell(void);
 extern void test_a_refused_mysql_connection_stores_no_password_in_a_cell(void);
-extern void test_a_calls_arguments_store_no_password_in_a_cell(void);
 extern void test_every_connection_closed_is_released(void);
 
 
@@ -99,35 +97,34 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\db\\test_db\\test_db.c");
-  run_test(test_connections_are_stored_each_by_its_name, "test_connections_are_stored_each_by_its_name", 216);
-  run_test(test_a_name_another_connection_has_is_refused, "test_a_name_another_connection_has_is_refused", 222);
-  run_test(test_a_connection_renamed_stays_in_its_place, "test_a_connection_renamed_stays_in_its_place", 232);
-  run_test(test_no_password_is_stored_in_the_file, "test_no_password_is_stored_in_the_file", 243);
-  run_test(test_a_connection_is_removed, "test_a_connection_is_removed", 254);
-  run_test(test_a_connections_account_names_its_server_and_its_tunnel, "test_a_connections_account_names_its_server_and_its_tunnel", 262);
-  run_test(test_the_keychain_stores_a_password_and_forgets_it, "test_the_keychain_stores_a_password_and_forgets_it", 271);
-  run_test(test_a_sqlite_database_opens_with_its_version, "test_a_sqlite_database_opens_with_its_version", 291);
-  run_test(test_an_insert_reports_what_it_did, "test_an_insert_reports_what_it_did", 297);
-  run_test(test_a_querys_first_page_comes_the_rest_waiting, "test_a_querys_first_page_comes_the_rest_waiting", 303);
-  run_test(test_a_numbers_column_is_numeric, "test_a_numbers_column_is_numeric", 312);
-  run_test(test_each_value_is_written_as_the_window_shows_it, "test_each_value_is_written_as_the_window_shows_it", 320);
-  run_test(test_a_later_page_is_read_from_the_run, "test_a_later_page_is_read_from_the_run", 328);
-  run_test(test_a_delete_of_every_row_prompts_first_with_its_count_and_does_nothing, "test_a_delete_of_every_row_prompts_first_with_its_count_and_does_nothing", 342);
-  run_test(test_a_transaction_is_open_until_it_is_rolled_back, "test_a_transaction_is_open_until_it_is_rolled_back", 354);
-  run_test(test_a_failure_reports_why, "test_a_failure_reports_why", 365);
-  run_test(test_the_schema_is_main, "test_the_schema_is_main", 372);
-  run_test(test_the_schema_lists_its_objects, "test_the_schema_lists_its_objects", 379);
-  run_test(test_a_table_lists_its_columns_and_indexes, "test_a_table_lists_its_columns_and_indexes", 388);
-  run_test(test_each_column_has_its_type_and_default, "test_each_column_has_its_type_and_default", 406);
-  run_test(test_a_csv_export_writes_every_row_with_its_head, "test_a_csv_export_writes_every_row_with_its_head", 414);
-  run_test(test_a_json_export_writes_each_row_an_object_of_its_columns, "test_a_json_export_writes_each_row_an_object_of_its_columns", 437);
-  run_test(test_each_statement_is_recorded_in_the_history, "test_each_statement_is_recorded_in_the_history", 451);
-  run_test(test_a_statement_that_shapes_the_schema_names_its_object, "test_a_statement_that_shapes_the_schema_names_its_object", 461);
-  run_test(test_a_slow_statement_is_stopped_at_once_and_the_connection_answers_after, "test_a_slow_statement_is_stopped_at_once_and_the_connection_answers_after", 468);
-  run_test(test_a_refused_postgres_connection_stores_no_password_in_a_cell, "test_a_refused_postgres_connection_stores_no_password_in_a_cell", 495);
-  run_test(test_a_refused_mysql_connection_stores_no_password_in_a_cell, "test_a_refused_mysql_connection_stores_no_password_in_a_cell", 500);
-  run_test(test_a_calls_arguments_store_no_password_in_a_cell, "test_a_calls_arguments_store_no_password_in_a_cell", 505);
-  run_test(test_every_connection_closed_is_released, "test_every_connection_closed_is_released", 526);
+  run_test(test_connections_are_stored_each_by_its_name, "test_connections_are_stored_each_by_its_name", 207);
+  run_test(test_a_name_another_connection_has_is_refused, "test_a_name_another_connection_has_is_refused", 213);
+  run_test(test_a_connection_renamed_stays_in_its_position, "test_a_connection_renamed_stays_in_its_position", 223);
+  run_test(test_no_password_is_stored_in_the_file, "test_no_password_is_stored_in_the_file", 234);
+  run_test(test_a_connection_is_removed, "test_a_connection_is_removed", 245);
+  run_test(test_a_connections_account_names_its_server_and_its_tunnel, "test_a_connections_account_names_its_server_and_its_tunnel", 253);
+  run_test(test_the_keychain_stores_a_password_and_forgets_it, "test_the_keychain_stores_a_password_and_forgets_it", 262);
+  run_test(test_a_sqlite_database_opens_with_its_version, "test_a_sqlite_database_opens_with_its_version", 282);
+  run_test(test_an_insert_reports_what_it_did, "test_an_insert_reports_what_it_did", 288);
+  run_test(test_a_querys_first_page_comes_the_remainder_waiting, "test_a_querys_first_page_comes_the_remainder_waiting", 294);
+  run_test(test_a_numbers_column_is_numeric, "test_a_numbers_column_is_numeric", 303);
+  run_test(test_each_value_is_written_as_the_window_shows_it, "test_each_value_is_written_as_the_window_shows_it", 311);
+  run_test(test_a_later_page_is_read_from_the_run, "test_a_later_page_is_read_from_the_run", 319);
+  run_test(test_a_delete_of_every_row_prompts_first_with_its_count_and_does_nothing, "test_a_delete_of_every_row_prompts_first_with_its_count_and_does_nothing", 333);
+  run_test(test_a_transaction_is_open_until_it_is_rolled_back, "test_a_transaction_is_open_until_it_is_rolled_back", 345);
+  run_test(test_a_failure_reports_error, "test_a_failure_reports_error", 356);
+  run_test(test_the_schema_is_main, "test_the_schema_is_main", 363);
+  run_test(test_the_schema_lists_its_objects, "test_the_schema_lists_its_objects", 370);
+  run_test(test_a_table_lists_its_columns_and_indexes, "test_a_table_lists_its_columns_and_indexes", 379);
+  run_test(test_each_column_has_its_type_and_default, "test_each_column_has_its_type_and_default", 397);
+  run_test(test_a_csv_export_writes_every_row_with_its_head, "test_a_csv_export_writes_every_row_with_its_head", 405);
+  run_test(test_a_json_export_writes_each_row_an_object_of_its_columns, "test_a_json_export_writes_each_row_an_object_of_its_columns", 428);
+  run_test(test_each_statement_is_recorded_in_the_history, "test_each_statement_is_recorded_in_the_history", 442);
+  run_test(test_a_statement_that_shapes_the_schema_names_its_object, "test_a_statement_that_shapes_the_schema_names_its_object", 452);
+  run_test(test_a_slow_statement_is_stopped_at_once_and_the_connection_answers_after, "test_a_slow_statement_is_stopped_at_once_and_the_connection_answers_after", 459);
+  run_test(test_a_refused_postgres_connection_stores_no_password_in_a_cell, "test_a_refused_postgres_connection_stores_no_password_in_a_cell", 486);
+  run_test(test_a_refused_mysql_connection_stores_no_password_in_a_cell, "test_a_refused_mysql_connection_stores_no_password_in_a_cell", 491);
+  run_test(test_every_connection_closed_is_released, "test_every_connection_closed_is_released", 496);
 
   return UNITY_END();
 }

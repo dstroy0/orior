@@ -8,13 +8,13 @@
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
 extern void tearDown(void);
-extern void test_an_expression_placeholder_matches_each_whole_call(void);
+extern void test_an_expression_placeholder_matches_each_complete_call(void);
 extern void test_an_expression_placeholder_writes_its_text_back(void);
 extern void test_a_name_placeholder_matches_one_name_and_the_same_both_times(void);
 extern void test_an_expression_named_twice_matches_the_same_text_both_times(void);
-extern void test_statements_match_past_spaces_and_comments(void);
+extern void test_statements_match_end_spaces_and_comments(void);
 extern void test_statements_are_written_back_unchanged(void);
-extern void test_an_expression_last_in_a_pattern_takes_the_rest_of_its_statement(void);
+extern void test_an_expression_last_in_a_pattern_allocs_the_remainder_of_its_statement(void);
 extern void test_a_string_is_one_token(void);
 extern void test_a_search_sizes_its_memory_to_its_text_and_releases_it(void);
 
@@ -78,13 +78,13 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\shape\\test_shape\\test_shape.c");
-  run_test(test_an_expression_placeholder_matches_each_whole_call, "test_an_expression_placeholder_matches_each_whole_call", 64);
+  run_test(test_an_expression_placeholder_matches_each_complete_call, "test_an_expression_placeholder_matches_each_complete_call", 64);
   run_test(test_an_expression_placeholder_writes_its_text_back, "test_an_expression_placeholder_writes_its_text_back", 78);
   run_test(test_a_name_placeholder_matches_one_name_and_the_same_both_times, "test_a_name_placeholder_matches_one_name_and_the_same_both_times", 83);
   run_test(test_an_expression_named_twice_matches_the_same_text_both_times, "test_an_expression_named_twice_matches_the_same_text_both_times", 88);
-  run_test(test_statements_match_past_spaces_and_comments, "test_statements_match_past_spaces_and_comments", 93);
+  run_test(test_statements_match_end_spaces_and_comments, "test_statements_match_end_spaces_and_comments", 93);
   run_test(test_statements_are_written_back_unchanged, "test_statements_are_written_back_unchanged", 98);
-  run_test(test_an_expression_last_in_a_pattern_takes_the_rest_of_its_statement, "test_an_expression_last_in_a_pattern_takes_the_rest_of_its_statement", 104);
+  run_test(test_an_expression_last_in_a_pattern_allocs_the_remainder_of_its_statement, "test_an_expression_last_in_a_pattern_allocs_the_remainder_of_its_statement", 104);
   run_test(test_a_string_is_one_token, "test_a_string_is_one_token", 109);
   run_test(test_a_search_sizes_its_memory_to_its_text_and_releases_it, "test_a_search_sizes_its_memory_to_its_text_and_releases_it", 114);
 

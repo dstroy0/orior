@@ -56,7 +56,7 @@ int cli_py_contains(const CliInspectPySrcWordCfg *args);
 int cli_py_depth_at(const CliInspectPySrcToksCfg *args);
 // the span from the start of the line `from` to the end of the line `to` whole, its line end with it where another
 // line follows, as a fix takes lines out (inspect_py_unread.c)
-void cli_py_whole_lines(const CliInspectPySrcCfg *args);
+void cli_py_full_line_span(const CliInspectPySrcCfg *args);
 
 // the names a function sets and never reads, for the function whose header is the line at `at`; and the code after a
 // return, a raise, a break or a continue in the same block, which no path reaches (inspect_py_unread.c,
@@ -80,8 +80,8 @@ struct CliInspectPySrcCfg
     unsigned long long size;
     unsigned int from;
     unsigned int to;
-    CliInspectPlace *start;
-    CliInspectPlace *end;
+    CliInspectPosition *start;
+    CliInspectPosition *end;
 };
 
 struct CliInspectPySrcWordCfg
@@ -209,11 +209,11 @@ EMBED_TABLE_STORAGE CliInspectPySrcToksNs cli_inspect_py_src_toks EMBED_UNUSED =
 
 typedef struct
 {
-    void (*py_whole_lines)(const CliInspectPySrcCfg *args);
+    void (*py_full_line_span)(const CliInspectPySrcCfg *args);
 } CliInspectPySrcNs;
-EMBED_TABLE_LAYOUT(CliInspectPySrcNs, py_whole_lines);
+EMBED_TABLE_LAYOUT(CliInspectPySrcNs, py_full_line_span);
 EMBED_TABLE_STORAGE CliInspectPySrcNs cli_inspect_py_src EMBED_UNUSED = {
-    .py_whole_lines = cli_py_whole_lines,
+    .py_full_line_span = cli_py_full_line_span,
 };
 
 typedef struct

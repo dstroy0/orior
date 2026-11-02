@@ -22,11 +22,11 @@ typedef struct
     const CliRegexpThen *then;
 } RegexpMatchCtx;
 
-// room for one more end in the run's ends, moved once into a cell at their most where they fill the match's own stack:
-// 1, or 0 where they contain the most or the cellblock cannot meet the cell
-EMBED_INLINE int match_end_room(const RegexpMatchCtx *args)
+// capacity for one more end in the run's ends, moved once into a cell at their most where they fill the match's own
+// stack: 1, or 0 where they contain the most or the cellblock cannot meet the cell
+EMBED_INLINE int match_end_capacity(const RegexpMatchCtx *args)
 {
-    if (args->run->ends_top < args->run->ends_room)
+    if (args->run->ends_top < args->run->ends_capacity)
     {
         return 1;
     }
@@ -34,7 +34,7 @@ EMBED_INLINE int match_end_room(const RegexpMatchCtx *args)
     unsigned int *const cell =
         args->run->ends_reserved
             ? NULL
-            : g_cli_cells->temporary_buf_alloc(CLI_REGEXP_ENDS_MOST * sizeof(unsigned int), &g_cli_text_cells);
+            : g_cli_cells->temporary_buf_alloc(CLI_REGEXP_ENDS_MAX * sizeof(unsigned int), &g_cli_text_cells);
     if (cell == NULL)
     {
         return 0;
@@ -42,7 +42,7 @@ EMBED_INLINE int match_end_room(const RegexpMatchCtx *args)
     memor.cpy(&(MemoriaCfg){
         .dst = cell, .src = args->run->ends, .bytes = (size_t)(args->run->ends_top * sizeof(unsigned int))});
     args->run->ends = cell;
-    args->run->ends_room = CLI_REGEXP_ENDS_MOST;
+    args->run->ends_capacity = CLI_REGEXP_ENDS_MAX;
     args->run->ends_reserved = 1;
     return 1;
 }
@@ -176,7 +176,7 @@ EMBED_INLINE int cli_again(const RegexpMatchCtx *args)
     const char mark = 0;
     const uintptr_t here = (uintptr_t)&mark;
     const uintptr_t depth = (here > run->base) ? (here - run->base) : (run->base - here);
-    if (depth > CLI_REGEXP_STACK_MOST)
+    if (depth > CLI_REGEXP_STACK_MAX)
     {
         // given up as STEPS gives up: no step after it goes on
         run->steps = CLI_REGEXP_STEPS + 1ull;
@@ -277,7 +277,7 @@ int cli_regexp_count(const CliRegexpMatchThenCtx *args)
 int cli_regexp_on_pass(const CliRegexpMatchThenCtx *args)
 {
     const unsigned long long begun = args->run->ends_top;
-    if (!EMBED_CALL(match_end_room, RegexpMatchCtx, .run = args->run))
+    if (!EMBED_CALL(match_end_capacity, RegexpMatchCtx, .run = args->run))
     {
         args->run->steps = CLI_REGEXP_STEPS + 1ull;
         return 0;
@@ -288,7 +288,7 @@ int cli_regexp_on_pass(const CliRegexpMatchThenCtx *args)
     while (((args->run->ends_top - begun - 1ull) < args->repeat->max) || (args->repeat->max == CLI_REGEXP_UNBOUNDED))
     {
         args->run->steps += 1ull;
-        if ((args->run->steps > CLI_REGEXP_STEPS) || !EMBED_CALL(match_end_room, RegexpMatchCtx, .run = args->run))
+        if ((args->run->steps > CLI_REGEXP_STEPS) || !EMBED_CALL(match_end_capacity, RegexpMatchCtx, .run = args->run))
         {
             args->run->ends_top = begun;
             args->run->steps = CLI_REGEXP_STEPS + 1ull;

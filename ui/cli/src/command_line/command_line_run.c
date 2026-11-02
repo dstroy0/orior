@@ -1,11 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// command_line_run.c: the words given on the command line run: --root and --remote taken out of them, then the help,
+// command_line_run.c: the words given on the command line run: --root taken out of them, then the help,
 // the completions, the words after a menu, the version and the programs of their own; then the commands the terminal
 // runs here and the menus, a command that acts in the window sent to a window open on the tree, run here where the
 // terminal can do it and no window is open, or the window opened to run it; and a word that names a file of the tree
 // opened in the window
-#include "../comms/link.h"
 #include "../machine/reach.h"
 #include "../machine/report.h"
 #include "../text/text.h"
@@ -14,8 +13,8 @@
 #include "commands.h"
 
 // the bytes what a command run at the terminal writes and the help are written in
-#define CLI_RUN_OUT_ROOM (64ull << 20u)
-#define CLI_RUN_HELP_ROOM (1ull << 20u)
+#define CLI_RUN_OUT_CAPACITY (64ull << 20u)
+#define CLI_RUN_HELP_CAPACITY (1ull << 20u)
 
 static char s_msg_buf[1u << 14u];
 static const char *s_words[CLI_LAUNCH_ARGS];
@@ -25,10 +24,9 @@ typedef struct
     CliOutcome *outcome;
     int code;
     char *into;
-    size_t room;
+    size_t capacity;
     const char *text;
     const char *root;
-    const char *remote;
     const char *menu;
     const char *command;
     const char *const *request;
@@ -44,10 +42,10 @@ EMBED_INLINE void run_exit(const CommandLineRunCtx *args)
     args->outcome->code = code;
 }
 
-// `text` copied into `into`, sized for `room`, cut where it does not fit
+// `text` copied into `into`, sized for `capacity`, cut where it does not fit
 EMBED_INLINE void run_copy(const CommandLineRunCtx *args)
 {
-    VerbaLinea line = {args->into, args->room, 0ull};
+    VerbaLinea line = {args->into, args->capacity, 0ull};
     mmgr_line_put(&line, args->text);
     if (mmgr_line_finish(&line) == 0ull)
     {
@@ -55,22 +53,19 @@ EMBED_INLINE void run_copy(const CommandLineRunCtx *args)
     }
 }
 
-// the outcome made the window to open, on the tree at `root` or on the one `remote` names where either is given, with
-// the command of its menus to run once it is up and its words
+// the outcome made the window to open, on the tree at `root` where one is given, with the command of its menus to run
+// once it is up and its words
 EMBED_INLINE void run_launch(const CommandLineRunCtx *args)
 {
     const char *const *arguments = args->request;
     args->outcome->window = 1;
     args->outcome->code = 0;
     args->outcome->has_root = (args->root != NULL);
-    EMBED_CALL(run_copy, CommandLineRunCtx, .into = args->outcome->root, .room = sizeof(args->outcome->root),
+    EMBED_CALL(run_copy, CommandLineRunCtx, .into = args->outcome->root, .capacity = sizeof(args->outcome->root),
                .text = (args->root != NULL) ? args->root : "");
-    args->outcome->has_remote = (args->remote != NULL);
-    EMBED_CALL(run_copy, CommandLineRunCtx, .into = args->outcome->remote, .room = sizeof(args->outcome->remote),
-               .text = (args->remote != NULL) ? args->remote : "");
-    EMBED_CALL(run_copy, CommandLineRunCtx, .into = args->outcome->menu, .room = sizeof(args->outcome->menu),
+    EMBED_CALL(run_copy, CommandLineRunCtx, .into = args->outcome->menu, .capacity = sizeof(args->outcome->menu),
                .text = args->menu);
-    EMBED_CALL(run_copy, CommandLineRunCtx, .into = args->outcome->command, .room = sizeof(args->outcome->command),
+    EMBED_CALL(run_copy, CommandLineRunCtx, .into = args->outcome->command, .capacity = sizeof(args->outcome->command),
                .text = args->command);
     args->outcome->args = 0u;
     args->outcome->used = 0u;
@@ -112,9 +107,8 @@ void cli_launch_words(const CliCommandLineLaunchOutCfg *args)
     }
 }
 
-// the window a command of its menus opens: on another machine where --remote names one; else sent to a window open on
-// the tree, which runs the command itself, as reach.h specifies; else run here where the terminal can do it, as
-// at_terminal.h specifies; else the window opened to run it
+// the window a command of its menus opens: sent to a window open on the tree, which runs the command itself, as reach.h
+// specifies; else run here where the terminal can do it, as at_terminal.h specifies; else the window opened to run it
 static void run_window(const CommandLineRunCtx *args)
 {
     const char *named = args->named;
@@ -123,21 +117,6 @@ static void run_window(const CommandLineRunCtx *args)
     const char *const *arguments = args->request;
     unsigned int count = args->count;
     VerbaLinea err_msg = {s_msg_buf, sizeof(s_msg_buf), 0ull};
-    if (args->remote != NULL)
-    {
-        static CliLinkAddress s_address;
-        if (!EMBED_CALL(cli_link_text.address_parse, CliLinkTextCfg, .text = args->remote, .address_out = &s_address,
-                        .err_msg = &err_msg))
-        {
-            EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = s_msg_buf,
-                       .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
-            EMBED_CALL(run_exit, CommandLineRunCtx, .outcome = args->outcome, .code = CLI_WRONG);
-            return;
-        }
-        EMBED_CALL(run_launch, CommandLineRunCtx, .outcome = args->outcome, .root = NULL, .remote = args->remote,
-                   .menu = menu, .command = command, .request = arguments, .count = count);
-        return;
-    }
     static char s_found[CLI_PATH_MAX_LEN];
     const int found = (named != NULL) ? EMBED_CALL(cli_command_line_named.tree, CliCommandLineNamedCfg, .named = named,
                                                    .root = s_found, .err_msg = &err_msg)
@@ -175,31 +154,31 @@ static void run_window(const CommandLineRunCtx *args)
     }
     if (EMBED_CALL(cli_at_terminal_command.runs, CliAtTerminalCommandCfg, .command = command))
     {
-        if (!found && !EMBED_CALL(cli_path_room_internal.folder_current, CliPathRoomCtx, .path_out = s_found,
-                                  .room_size = sizeof(s_found)))
+        if (!found && !EMBED_CALL(cli_path_capacity_internal.folder_current, CliPathCapacityCtx, .path_out = s_found,
+                                  .capacity_bytes = sizeof(s_found)))
         {
             EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx, .text = "orior_cli finds no folder to run in");
             EMBED_CALL(run_exit, CommandLineRunCtx, .outcome = args->outcome, .code = CLI_WRONG);
             return;
         }
-        char *const out_cell = g_cli_cells->temporary_buf_alloc(CLI_RUN_OUT_ROOM, &g_cli_command_line_cells);
-        VerbaLinea out = mmgr_line_over(out_cell, CLI_RUN_OUT_ROOM);
+        char *const out_cell = g_cli_cells->temporary_buf_alloc(CLI_RUN_OUT_CAPACITY, &g_cli_command_line_cells);
+        VerbaLinea out = mmgr_line_over(out_cell, CLI_RUN_OUT_CAPACITY);
         err_msg.at = 0ull;
-        const int ran =
+        const int run_result =
             EMBED_CALL(cli_at_terminal_command.run, CliAtTerminalCommandCfg, .root = s_found, .command = command,
                        .request = arguments, .count = count, .out = &out, .err_msg = &err_msg);
-        if (!ran)
+        if (!run_result)
         {
             EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = s_msg_buf,
                        .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
         }
-        if (ran && mmgr_line_ok(&out) && (out.at > 0ull))
+        if (run_result && mmgr_line_ok(&out) && (out.at > 0ull))
         {
             EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = out.out,
                        .size = out.at);
         }
         g_cli_cells->persistent_buf_release(out.out, &g_cli_command_line_cells);
-        EMBED_CALL(run_exit, CommandLineRunCtx, .outcome = args->outcome, .code = ran ? 0 : CLI_WRONG);
+        EMBED_CALL(run_exit, CommandLineRunCtx, .outcome = args->outcome, .code = run_result ? 0 : CLI_WRONG);
         return;
     }
     static char s_root[CLI_PATH_MAX_LEN];
@@ -213,14 +192,14 @@ static void run_window(const CommandLineRunCtx *args)
         return;
     }
     EMBED_CALL(run_launch, CommandLineRunCtx, .outcome = args->outcome, .root = (named != NULL) ? s_root : NULL,
-               .remote = NULL, .menu = menu, .command = command, .request = arguments, .count = count);
+               .menu = menu, .command = command, .request = arguments, .count = count);
 }
 
 // the help written to the output, its spaces at the end not
 static void run_help(void)
 {
-    char *const help_cell = g_cli_cells->temporary_buf_alloc(CLI_RUN_HELP_ROOM, &g_cli_command_line_cells);
-    VerbaLinea help = mmgr_line_over(help_cell, CLI_RUN_HELP_ROOM);
+    char *const help_cell = g_cli_cells->temporary_buf_alloc(CLI_RUN_HELP_CAPACITY, &g_cli_command_line_cells);
+    VerbaLinea help = mmgr_line_over(help_cell, CLI_RUN_HELP_CAPACITY);
     EMBED_CALL(cli_command_line_out_err_msg_shell_internal.help, CliCommandLineOutErrMsgShellCtx, .out = &help);
     const unsigned long long size = mmgr_line_ok(&help) ? help.at : 0ull;
     EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = help.out,
@@ -230,8 +209,8 @@ static void run_help(void)
     g_cli_cells->persistent_buf_release(help.out, &g_cli_command_line_cells);
 }
 
-// the words run as the menus run them, a command that acts in the window opened on the tree `remote` names where it
-// names one; the words before the menus were the command line's, and each still names what it named
+// the words run as the menus run them; the words before the menus were the command line's, and each still names what it
+// named
 EMBED_INLINE void run_menus(const CommandLineRunCtx *args)
 {
     const char *named = args->named;
@@ -259,8 +238,8 @@ EMBED_INLINE void run_menus(const CommandLineRunCtx *args)
         {
             (void)mmgr_line_finish(&file);
             const char *const opened[1] = {s_file};
-            EMBED_CALL(run_window, CommandLineRunCtx, .outcome = args->outcome, .named = named, .remote = args->remote,
-                       .menu = "go", .command = "file", .request = opened, .count = 1u);
+            EMBED_CALL(run_window, CommandLineRunCtx, .outcome = args->outcome, .named = named, .menu = "go",
+                       .command = "file", .request = opened, .count = 1u);
             return;
         }
         if (named_file == 0)
@@ -316,8 +295,8 @@ EMBED_INLINE void run_menus(const CommandLineRunCtx *args)
             EMBED_CALL(run_exit, CommandLineRunCtx, .outcome = args->outcome, .code = CLI_WRONG);
             return;
         }
-        EMBED_CALL(run_window, CommandLineRunCtx, .outcome = args->outcome, .named = named, .remote = args->remote,
-                   .menu = word, .command = s_item.command, .request = words + 2, .count = count - 2u);
+        EMBED_CALL(run_window, CommandLineRunCtx, .outcome = args->outcome, .named = named, .menu = word,
+                   .command = s_item.command, .request = words + 2, .count = count - 2u);
         return;
     }
     char group[1][CLI_LABEL_MAX_LEN];
@@ -329,7 +308,7 @@ EMBED_INLINE void run_menus(const CommandLineRunCtx *args)
         return;
     }
     if (EMBED_CALL(cli_commands_menu_groups.menu_groups, CliCommandsMenuGroupsCfg, .menu = menu, .groups = group,
-                   .room = 1u) > 0u)
+                   .capacity = 1u) > 0u)
     {
         EMBED_CALL(run_exit, CommandLineRunCtx, .outcome = args->outcome,
                    .code =
@@ -411,46 +390,36 @@ EMBED_INLINE int run_own(const CommandLineRunCtx *args)
     return 0;
 }
 
-void cli_command_line_run(const CliCommandLineGivenCfg *args)
+void cli_command_line_run(const CliCommandLineInputCfg *args)
 {
     const char *named = NULL;
-    const char *remote = NULL;
     unsigned int words = 0u;
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        const char *const word = args->given[at];
+        const char *const word = args->supplied[at];
         if (cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "--", .cap = CLI_CELLS_POOL}))
         {
             for (; (at < args->count) && (words < CLI_LAUNCH_ARGS); at += 1u)
             {
-                s_words[words] = args->given[at];
+                s_words[words] = args->supplied[at];
                 words += 1u;
             }
             break;
         }
-        if ((cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "--root", .cap = CLI_CELLS_POOL})) ||
-            (cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "--remote", .cap = CLI_CELLS_POOL})))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "--root", .cap = CLI_CELLS_POOL}))
         {
-            const int root = (cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "--root", .cap = CLI_CELLS_POOL}));
             if (at + 1u >= args->count)
             {
-                EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx,
-                           .text = root ? "--root needs a folder"
-                                        : "--remote needs an address: user@host:folder, docker:container:folder or "
-                                          "wsl:distribution:folder");
+                EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx, .text = "--root needs a folder");
                 EMBED_CALL(run_exit, CommandLineRunCtx, .outcome = args->outcome, .code = CLI_WRONG);
                 return;
             }
             at += 1u;
-            *(root ? &named : &remote) = args->given[at];
+            named = args->supplied[at];
         }
         else if (cellul.starts(&(CatenaFinitaCfg){.src = word, .other = "--root=", .cap = CLI_CELLS_POOL}))
         {
             named = word + 7;
-        }
-        else if (cellul.starts(&(CatenaFinitaCfg){.src = word, .other = "--remote=", .cap = CLI_CELLS_POOL}))
-        {
-            remote = word + 9;
         }
         else if (words < CLI_LAUNCH_ARGS)
         {
@@ -468,10 +437,10 @@ void cli_command_line_run(const CliCommandLineGivenCfg *args)
     }
     if (words == 0u)
     {
-        if ((named != NULL) || (remote != NULL))
+        if (named != NULL)
         {
-            EMBED_CALL(run_window, CommandLineRunCtx, .outcome = args->outcome, .named = named, .remote = remote,
-                       .menu = "", .command = "", .request = NULL, .count = 0u);
+            EMBED_CALL(run_window, CommandLineRunCtx, .outcome = args->outcome, .named = named, .menu = "",
+                       .command = "", .request = NULL, .count = 0u);
             return;
         }
         run_help();
@@ -490,6 +459,6 @@ void cli_command_line_run(const CliCommandLineGivenCfg *args)
     {
         cli_report_prompt_once();
     }
-    EMBED_CALL(run_menus, CommandLineRunCtx, .outcome = args->outcome, .named = named, .remote = remote,
-               .words = s_words, .count = words);
+    EMBED_CALL(run_menus, CommandLineRunCtx, .outcome = args->outcome, .named = named, .words = s_words,
+               .count = words);
 }

@@ -19,7 +19,7 @@ typedef struct
 typedef int (*CliKernelEach)(const CliKernelEachCfg *args);
 // the most kernels listed and entries of a kernels folder, the longest name of an entry, and the most nodes and
 // bytes of a spec read
-#define CLI_KERNEL_LISTED 256u
+#define CLI_KERNEL_LISTING 256u
 #define CLI_KERNEL_ENTRIES 1024u
 #define CLI_KERNEL_ENTRY 256u
 #define CLI_KERNEL_SPEC_NODES 4096u
@@ -31,9 +31,9 @@ typedef struct
 {
     char folders[CLI_KERNEL_FOLDERS][CLI_PATH_MAX_LEN];
     char pythons[CLI_KERNEL_PYTHONS][CLI_PATH_MAX_LEN];
-    char names[CLI_KERNEL_LISTED][CLI_KERNEL_ENTRY];
-    char programs[CLI_KERNEL_LISTED][CLI_PATH_MAX_LEN];
-    unsigned int listed;
+    char (*names)[CLI_KERNEL_ENTRY];
+    char (*programs)[CLI_PATH_MAX_LEN];
+    unsigned int list_entries;
     char entries[CLI_KERNEL_ENTRIES][CLI_KERNEL_ENTRY];
     unsigned int entry_count;
     CliJsonNode nodes[CLI_KERNEL_SPEC_NODES];
@@ -68,7 +68,7 @@ typedef struct
     int has_environment;
 } JupyterSpecsCtx;
 // `length` bytes put in the spec's texts: their place, CLI_KERNEL_NONE where they do not fit
-EMBED_INLINE unsigned int jupyter_put(const JupyterSpecsCtx *args)
+EMBED_INLINE unsigned int jupyter_append(const JupyterSpecsCtx *args)
 {
     if ((args->spec->used + args->length + 1ull > CLI_KERNEL_TEXT) ||
         (memor.chr(&(MemoriaCfg){.src = args->text, .val = '\0', .bytes = args->length}) != NULL))
@@ -116,7 +116,7 @@ EMBED_INLINE int jupyter_member(const JupyterSpecsCtx *args)
                                         .json_read = &s_listing.json, .node = member, .length_pointer = &length);
     if ((member == CLI_JSON_NONE) && (args->fallback != NULL))
     {
-        *at = EMBED_CALL(jupyter_put, JupyterSpecsCtx, .spec = args->spec, .text = args->fallback,
+        *at = EMBED_CALL(jupyter_append, JupyterSpecsCtx, .spec = args->spec, .text = args->fallback,
                          .length = cellul.len(&(CatenaFinitaCfg){.src = args->fallback, .cap = CLI_CELLS_POOL}));
         return *at != CLI_KERNEL_NONE;
     }
@@ -124,7 +124,7 @@ EMBED_INLINE int jupyter_member(const JupyterSpecsCtx *args)
     {
         return 0;
     }
-    *at = EMBED_CALL(jupyter_put, JupyterSpecsCtx, .spec = args->spec, .text = text, .length = length);
+    *at = EMBED_CALL(jupyter_append, JupyterSpecsCtx, .spec = args->spec, .text = text, .length = length);
     return *at != CLI_KERNEL_NONE;
 }
 
@@ -136,7 +136,7 @@ EMBED_INLINE int jupyter_spec_read(const JupyterSpecsCtx *args)
     const char *folder = args->folder;
     CliKernelSpec *const spec = &s_listing.spec;
     memor.set(&(MemoriaCfg){.dst = spec, .val = 0, .bytes = sizeof(*spec)});
-    spec->name = EMBED_CALL(jupyter_put, JupyterSpecsCtx, .spec = spec, .text = name,
+    spec->name = EMBED_CALL(jupyter_append, JupyterSpecsCtx, .spec = spec, .text = name,
                             .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
     if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_listing.json,
                     .node = args->root, .kind = CFG_JSON_OBJECT) ||
@@ -174,7 +174,7 @@ EMBED_INLINE int jupyter_spec_read(const JupyterSpecsCtx *args)
             return 0;
         }
         spec->argv[spec->argv_count] =
-            EMBED_CALL(jupyter_put, JupyterSpecsCtx, .spec = spec, .text = word, .length = length);
+            EMBED_CALL(jupyter_append, JupyterSpecsCtx, .spec = spec, .text = word, .length = length);
         spec->argv_count += 1u;
     }
     const unsigned int env = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
@@ -196,10 +196,10 @@ EMBED_INLINE int jupyter_spec_read(const JupyterSpecsCtx *args)
         }
         const char *const key = s_listing.json.text + s_listing.json.node[member].key;
         spec->env_name[spec->env_count] =
-            EMBED_CALL(jupyter_put, JupyterSpecsCtx, .spec = spec, .text = key,
+            EMBED_CALL(jupyter_append, JupyterSpecsCtx, .spec = spec, .text = key,
                        .length = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}));
         spec->env_value[spec->env_count] =
-            EMBED_CALL(jupyter_put, JupyterSpecsCtx, .spec = spec, .text = value, .length = length);
+            EMBED_CALL(jupyter_append, JupyterSpecsCtx, .spec = spec, .text = value, .length = length);
         spec->env_count += 1u;
     }
     const unsigned int install = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
@@ -213,7 +213,7 @@ EMBED_INLINE int jupyter_spec_read(const JupyterSpecsCtx *args)
     {
         return 0;
     }
-    spec->folder = EMBED_CALL(jupyter_put, JupyterSpecsCtx, .spec = spec, .text = folder,
+    spec->folder = EMBED_CALL(jupyter_append, JupyterSpecsCtx, .spec = spec, .text = folder,
                               .length = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}));
     return !spec->full;
 }
@@ -221,19 +221,19 @@ EMBED_INLINE int jupyter_spec_read(const JupyterSpecsCtx *args)
 // the spec listed: its name and first word recorded, and handed on: 1 to go on, 0 to stop
 EMBED_INLINE int jupyter_list(const JupyterSpecsCtx *args)
 {
-    if (s_listing.listed < CLI_KERNEL_LISTED)
+    if (s_listing.list_entries < CLI_KERNEL_LISTING)
     {
-        VerbaLinea name = {s_listing.names[s_listing.listed], CLI_KERNEL_ENTRY, 0ull};
+        VerbaLinea name = {s_listing.names[s_listing.list_entries], CLI_KERNEL_ENTRY, 0ull};
         mmgr_line_put(&name, EMBED_CALL(cli_jupyter_spec_internal.kernel_text, CliJupyterSpecCtx,
                                         .spec = &s_listing.spec, .at = s_listing.spec.name));
         mmgr_line_finish(&name);
-        VerbaLinea program = {s_listing.programs[s_listing.listed], CLI_PATH_MAX_LEN, 0ull};
+        VerbaLinea program = {s_listing.programs[s_listing.list_entries], CLI_PATH_MAX_LEN, 0ull};
         mmgr_line_put(&program, (s_listing.spec.argv_count > 0u)
                                     ? EMBED_CALL(cli_jupyter_spec_internal.kernel_text, CliJupyterSpecCtx,
                                                  .spec = &s_listing.spec, .at = s_listing.spec.argv[0])
                                     : "");
         mmgr_line_finish(&program);
-        s_listing.listed += 1u;
+        s_listing.list_entries += 1u;
     }
     return EMBED_CALL(args->each, CliKernelEachCfg, .context = args->context, .spec = &s_listing.spec);
 }
@@ -252,7 +252,7 @@ EMBED_INLINE int jupyter_folder_specs(const JupyterSpecsCtx *args)
     {
         const char *const name = s_listing.entries[entry];
         int seen = 0;
-        for (unsigned int one = 0u; (one < s_listing.listed) && !seen; one += 1u)
+        for (unsigned int one = 0u; (one < s_listing.list_entries) && !seen; one += 1u)
         {
             seen = (cellul.eq(&(CatenaFinitaCfg){.src = s_listing.names[one], .other = name, .cap = CLI_CELLS_POOL}));
         }
@@ -262,23 +262,23 @@ EMBED_INLINE int jupyter_folder_specs(const JupyterSpecsCtx *args)
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = "kernel.json", .joined = file);
         unsigned long long size = 0ull;
         const unsigned char *const bytes = seen ? NULL
-                                                : EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = file,
+                                                : EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = file,
                                                              .size_pointer = &size, .owner = &g_cli_notebook_cells);
         if (bytes == NULL)
         {
             continue;
         }
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &s_listing.json,
-                   .node_json_node_pointer = s_listing.nodes, .nodes_most = CLI_KERNEL_SPEC_NODES,
-                   .text_out = s_listing.text, .text_most = CLI_KERNEL_SPEC_TEXT);
+                   .node_json_node_pointer = s_listing.nodes, .nodes_max = CLI_KERNEL_SPEC_NODES,
+                   .text_out = s_listing.text, .text_max = CLI_KERNEL_SPEC_TEXT);
         char why[CLI_ERR_MSG_MAX_LEN];
         VerbaLinea unread = {why, sizeof(why), 0ull};
         // a spec is read as a text, which is UTF-8 whole
         const unsigned int root =
-            EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg, .bytes = (const char *)bytes, .size = size)
+            EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = (const char *)bytes, .size = size)
                 ? EMBED_CALL(cli_json_tree_text_size_tokens.json_read, CliJsonTreeTextSizeTokensCfg,
                              .json = &s_listing.json, .text = (const char *)bytes, .size = size,
-                             .tokens = s_listing.tokens, .tokens_most = CLI_KERNEL_SPEC_NODES, .err_msg = &unread)
+                             .tokens = s_listing.tokens, .tokens_max = CLI_KERNEL_SPEC_NODES, .err_msg = &unread)
                 : CLI_JSON_NONE;
         const int read = (root != CLI_JSON_NONE) &&
                          EMBED_CALL(jupyter_spec_read, JupyterSpecsCtx, .root = root, .name = name, .folder = folder);
@@ -312,29 +312,31 @@ EMBED_INLINE void jupyter_python_specs(const JupyterSpecsCtx *args)
             mmgr_line_decimal(&name_line, index + 1u, 1u);
         }
         mmgr_line_finish(&name_line);
-        char shown[CLI_PATH_MAX_LEN + 16u];
-        VerbaLinea shown_line = {shown, sizeof(shown), 0ull};
-        mmgr_line_put(&shown_line, "Python (");
-        mmgr_line_put(&shown_line, python);
-        mmgr_line_put(&shown_line, ")");
-        mmgr_line_finish(&shown_line);
+        char displayed[CLI_PATH_MAX_LEN + 16u];
+        VerbaLinea displayed_line = {displayed, sizeof(displayed), 0ull};
+        mmgr_line_put(&displayed_line, "Python (");
+        mmgr_line_put(&displayed_line, python);
+        mmgr_line_put(&displayed_line, ")");
+        mmgr_line_finish(&displayed_line);
         static const char *const words[4] = {"-m", "ipykernel_launcher", "-f", "{connection_file}"};
-        spec->name = EMBED_CALL(jupyter_put, JupyterSpecsCtx, .spec = spec, .text = name,
+        spec->name = EMBED_CALL(jupyter_append, JupyterSpecsCtx, .spec = spec, .text = name,
                                 .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
-        spec->display_name = EMBED_CALL(jupyter_put, JupyterSpecsCtx, .spec = spec, .text = shown,
-                                        .length = cellul.len(&(CatenaFinitaCfg){.src = shown, .cap = CLI_CELLS_POOL}));
-        spec->language = EMBED_CALL(jupyter_put, JupyterSpecsCtx, .spec = spec, .text = "python", .length = 6u);
-        spec->argv[0] = EMBED_CALL(jupyter_put, JupyterSpecsCtx, .spec = spec, .text = python,
+        spec->display_name =
+            EMBED_CALL(jupyter_append, JupyterSpecsCtx, .spec = spec, .text = displayed,
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = displayed, .cap = CLI_CELLS_POOL}));
+        spec->language = EMBED_CALL(jupyter_append, JupyterSpecsCtx, .spec = spec, .text = "python", .length = 6u);
+        spec->argv[0] = EMBED_CALL(jupyter_append, JupyterSpecsCtx, .spec = spec, .text = python,
                                    .length = cellul.len(&(CatenaFinitaCfg){.src = python, .cap = CLI_CELLS_POOL}));
         for (unsigned int word = 0u; word < 4u; word += 1u)
         {
             spec->argv[word + 1u] =
-                EMBED_CALL(jupyter_put, JupyterSpecsCtx, .spec = spec, .text = words[word],
+                EMBED_CALL(jupyter_append, JupyterSpecsCtx, .spec = spec, .text = words[word],
                            .length = cellul.len(&(CatenaFinitaCfg){.src = words[word], .cap = CLI_CELLS_POOL}));
         }
         spec->argv_count = 5u;
-        spec->interrupt_mode = EMBED_CALL(jupyter_put, JupyterSpecsCtx, .spec = spec, .text = "signal", .length = 6u);
-        spec->folder = EMBED_CALL(jupyter_put, JupyterSpecsCtx, .spec = spec, .text = "", .length = 0ull);
+        spec->interrupt_mode =
+            EMBED_CALL(jupyter_append, JupyterSpecsCtx, .spec = spec, .text = "signal", .length = 6u);
+        spec->folder = EMBED_CALL(jupyter_append, JupyterSpecsCtx, .spec = spec, .text = "", .length = 0ull);
         spec->install = CLI_KERNEL_NONE;
         if (!EMBED_CALL(cli_jupyter_internal.kernel_has_ipykernel, CliJupyterCtx, .python = python))
         {
@@ -344,11 +346,11 @@ EMBED_INLINE void jupyter_python_specs(const JupyterSpecsCtx *args)
             mmgr_line_put(&line, python);
             mmgr_line_put(&line, "\" -m pip install ipykernel");
             mmgr_line_finish(&line);
-            spec->install = EMBED_CALL(jupyter_put, JupyterSpecsCtx, .spec = spec, .text = install,
+            spec->install = EMBED_CALL(jupyter_append, JupyterSpecsCtx, .spec = spec, .text = install,
                                        .length = cellul.len(&(CatenaFinitaCfg){.src = install, .cap = CLI_CELLS_POOL}));
         }
         int runs = 0;
-        for (unsigned int one = 0u; (one < s_listing.listed) && !runs; one += 1u)
+        for (unsigned int one = 0u; (one < s_listing.list_entries) && !runs; one += 1u)
         {
             runs =
                 (cellul.eq(&(CatenaFinitaCfg){.src = s_listing.programs[one], .other = python, .cap = CLI_CELLS_POOL}));
@@ -363,7 +365,14 @@ EMBED_INLINE void jupyter_python_specs(const JupyterSpecsCtx *args)
 // every spec the machine has, each handed to `each` in Jupyter's order, under the listing's lock
 EMBED_INLINE void jupyter_specs_each(const JupyterSpecsCtx *args)
 {
-    s_listing.listed = 0u;
+    s_listing.list_entries = 0u;
+    s_listing.names = g_cli_cells->persistent_buf_alloc(
+        (unsigned long long)CLI_KERNEL_LISTING * (CLI_KERNEL_ENTRY + CLI_PATH_MAX_LEN), &g_cli_notebook_cells);
+    if (s_listing.names == NULL)
+    {
+        return;
+    }
+    s_listing.programs = (char (*)[CLI_PATH_MAX_LEN])(void *)(s_listing.names + CLI_KERNEL_LISTING);
     int has_environment = 0;
     const unsigned int pythons = EMBED_CALL(cli_jupyter_pythons_internal.kernel_pythons, CliJupyterPythonsCtx,
                                             .pythons = s_listing.pythons, .has_environment = &has_environment);
@@ -382,6 +391,9 @@ EMBED_INLINE void jupyter_specs_each(const JupyterSpecsCtx *args)
         EMBED_CALL(jupyter_python_specs, JupyterSpecsCtx, .pythons = pythons, .has_environment = has_environment,
                    .each = args->each, .context = args->context);
     }
+    g_cli_cells->persistent_buf_release(s_listing.names, &g_cli_notebook_cells);
+    s_listing.names = NULL;
+    s_listing.programs = NULL;
 }
 
 // a spec written as serde writes one, a comma before it where it is not the first
@@ -482,27 +494,27 @@ typedef struct
     const char *name;
     CliKernelSpec *spec;
     int found;
-} CliKernelSought;
+} CliKernelNeedle;
 
 static int jupyter_spec_find(const CliKernelEachCfg *args)
 {
     const CliKernelSpec *spec = args->spec;
-    CliKernelSought *const sought = (CliKernelSought *)args->context;
+    CliKernelNeedle *const needle = (CliKernelNeedle *)args->context;
     if (!cellul.eq(&(CatenaFinitaCfg){
             .src = EMBED_CALL(cli_jupyter_spec_internal.kernel_text, CliJupyterSpecCtx, .spec = spec, .at = spec->name),
-            .other = sought->name,
+            .other = needle->name,
             .cap = CLI_CELLS_POOL}))
     {
         return 1;
     }
-    memor.cpy(&(MemoriaCfg){.dst = sought->spec, .src = spec, .bytes = sizeof(*spec)});
-    sought->found = 1;
+    memor.cpy(&(MemoriaCfg){.dst = needle->spec, .src = spec, .bytes = sizeof(*spec)});
+    needle->found = 1;
     return 0;
 }
 
 int cli_jupyter_spec_by_name(const CliJupyterNameCfg *args)
 {
-    CliKernelSought sought = {args->name, args->spec, 0};
-    EMBED_CALL(jupyter_specs_each, JupyterSpecsCtx, .each = jupyter_spec_find, .context = &sought);
-    return sought.found;
+    CliKernelNeedle needle = {args->name, args->spec, 0};
+    EMBED_CALL(jupyter_specs_each, JupyterSpecsCtx, .each = jupyter_spec_find, .context = &needle);
+    return needle.found;
 }

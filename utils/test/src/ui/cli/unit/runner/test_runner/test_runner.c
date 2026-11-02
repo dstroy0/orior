@@ -21,7 +21,7 @@ static char s_words_text[256];
 // the catalog emptied
 static CliCatalog *catalog_emptied(void)
 {
-    EMBED_CALL(cli_catalog_jobs_most.begin, CliCatalogJobsMostCfg, .catalog = &s_catalog, .jobs = s_jobs, .jobs_most = 256u, .params = s_params, .params_most = 1024u, .steps = s_steps, .steps_most = 256u, .request = s_args, .args_most = 2048u, .lists = s_lists, .lists_most = 4096u, .text_out = s_text, .text_most = sizeof(s_text));
+    EMBED_CALL(cli_catalog_jobs_max.begin, CliCatalogJobsMaxCfg, .catalog = &s_catalog, .jobs = s_jobs, .jobs_max = 256u, .params = s_params, .params_max = 1024u, .steps = s_steps, .steps_max = 256u, .request = s_args, .args_max = 2048u, .lists = s_lists, .lists_max = 4096u, .text_out = s_text, .text_max = sizeof(s_text));
     return &s_catalog;
 }
 
@@ -44,17 +44,17 @@ static void bash_required(void)
 }
 
 // the command of the catalog's first step with the values, its line into s_shown
-static void command_made(void)
+static void command_created(void)
 {
     VerbaLinea line = {s_shown, sizeof(s_shown), 0ull};
     char why[512];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_runner_command_table.command, CliRunnerCommandCfg, .root = ".", .catalog = &s_catalog, .step = &s_catalog.step[0], .values = &s_values, .command = &s_command, .shown = &line, .err_msg = &err_msg));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_runner_command_table.command, CliRunnerCommandCfg, .root = ".", .catalog = &s_catalog, .step = &s_catalog.step[0], .values = &s_values, .command = &s_command, .displayed = &line, .err_msg = &err_msg));
     (void)mmgr_line_finish(&line);
 }
 
 // a job of a step with a value and two settings, the first given
-static void setting_job_made(void)
+static void setting_job_created(void)
 {
     (void)EMBED_CALL(cli_catalog_id_group.job, CliCatalogIdGroupCfg, .catalog = catalog_emptied(), .id = "run", .group = "build", .title = "run", .file = "run.sh", .about = "", .opens = "");
     EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = &s_catalog, .program = CLI_PROGRAM_BASH, .text = "run.sh", .tool_program = NULL, .system = 0);
@@ -62,18 +62,18 @@ static void setting_job_made(void)
     EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = &s_catalog, .kind_u32 = CLI_ARG_ENV, .a = "KLQ_SEED", .b = NULL, .c = NULL, .d = NULL, .separated = 0);
     EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = &s_catalog, .kind_u32 = CLI_ARG_ENV, .a = "KLQ_TRACE", .b = NULL, .c = NULL, .d = NULL, .separated = 0);
     EMBED_CALL(cli_catalog_key_values.values_begin, CliCatalogKeyValuesCfg, .values_out = &s_values);
-    EMBED_CALL(cli_catalog_key_values.values_put, CliCatalogKeyValuesCfg, .values_out = &s_values, .key = "mode", .value = "pair");
-    EMBED_CALL(cli_catalog_key_values.values_put, CliCatalogKeyValuesCfg, .values_out = &s_values, .key = "KLQ_SEED", .value = "2");
+    EMBED_CALL(cli_catalog_key_values.values_append, CliCatalogKeyValuesCfg, .values_out = &s_values, .key = "mode", .value = "pair");
+    EMBED_CALL(cli_catalog_key_values.values_append, CliCatalogKeyValuesCfg, .values_out = &s_values, .key = "KLQ_SEED", .value = "2");
 }
 
 // a job of a step whose variable is set when the param `trace` is verbose, the param set to `trace`
-static void conditional_job_made(const char *trace)
+static void conditional_job_created(const char *trace)
 {
     (void)EMBED_CALL(cli_catalog_id_group.job, CliCatalogIdGroupCfg, .catalog = catalog_emptied(), .id = "build", .group = "build", .title = "build", .file = "build.sh", .about = "", .opens = "");
     EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = &s_catalog, .program = CLI_PROGRAM_BASH, .text = "build.sh", .tool_program = NULL, .system = 0);
     EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = &s_catalog, .kind_u32 = CLI_ARG_SET_WHEN, .a = "trace", .b = "verbose", .c = "SHELLOPTS", .d = "xtrace", .separated = 0);
     EMBED_CALL(cli_catalog_key_values.values_begin, CliCatalogKeyValuesCfg, .values_out = &s_values);
-    EMBED_CALL(cli_catalog_key_values.values_put, CliCatalogKeyValuesCfg, .values_out = &s_values, .key = "trace", .value = trace);
+    EMBED_CALL(cli_catalog_key_values.values_append, CliCatalogKeyValuesCfg, .values_out = &s_values, .key = "trace", .value = trace);
 }
 
 // the words of `text` split, `|` between them, into s_words_text: 1, 0 where they do not split, -1 where there are none
@@ -124,8 +124,8 @@ void test_stop_ends_a_build_at_once(void)
     const unsigned int job = EMBED_CALL(cli_catalog_id.find, CliCatalogIdCfg, .catalog_read = &s_catalog, .id = "build/src/build_slow.sh");
     TEST_ASSERT_NOT_EQUAL(CLI_CATALOG_NONE, job);
     EMBED_CALL(cli_catalog_key_values.values_begin, CliCatalogKeyValuesCfg, .values_out = &s_values);
-    EMBED_CALL(cli_catalog_key_values.values_put, CliCatalogKeyValuesCfg, .values_out = &s_values, .key = "arguments", .value = "");
-    EMBED_CALL(cli_catalog_key_values.values_put, CliCatalogKeyValuesCfg, .values_out = &s_values, .key = "trace", .value = "quiet");
+    EMBED_CALL(cli_catalog_key_values.values_append, CliCatalogKeyValuesCfg, .values_out = &s_values, .key = "arguments", .value = "");
+    EMBED_CALL(cli_catalog_key_values.values_append, CliCatalogKeyValuesCfg, .values_out = &s_values, .key = "trace", .value = "quiet");
     unsigned long long run = 0ull;
     const CliRunSink sink = {run_ended, NULL};
     TEST_ASSERT_TRUE(EMBED_CALL(cli_runner_err_msg.runs_start, CliRunnerErrMsgCfg, .sink = sink, .root = root, .catalog = &s_catalog, .job = job, .values = &s_values, .run_number_pointer = &run, .err_msg = &err_msg));
@@ -139,8 +139,8 @@ void test_stop_ends_a_build_at_once(void)
 void test_a_setting_is_set_in_the_steps_environment(void)
 {
     bash_required();
-    setting_job_made();
-    command_made();
+    setting_job_created();
+    command_created();
     TEST_ASSERT_EQUAL_UINT(1u, s_command.settings);
     TEST_ASSERT_EQUAL_STRING("KLQ_SEED", s_command.setting[0].name);
     TEST_ASSERT_EQUAL_STRING("2", s_command.setting[0].value);
@@ -149,16 +149,16 @@ void test_a_setting_is_set_in_the_steps_environment(void)
 void test_a_setting_leads_the_steps_line(void)
 {
     bash_required();
-    setting_job_made();
-    command_made();
+    setting_job_created();
+    command_created();
     TEST_ASSERT_EQUAL_STRING("KLQ_SEED=2 bash run.sh pair", s_shown);
 }
 
 void test_a_variable_is_set_when_its_param_has_its_value(void)
 {
     bash_required();
-    conditional_job_made("verbose");
-    command_made();
+    conditional_job_created("verbose");
+    command_created();
     TEST_ASSERT_EQUAL_UINT(1u, s_command.settings);
     TEST_ASSERT_EQUAL_STRING("SHELLOPTS", s_command.setting[0].name);
     TEST_ASSERT_EQUAL_STRING("xtrace", s_command.setting[0].value);
@@ -168,8 +168,8 @@ void test_a_variable_is_set_when_its_param_has_its_value(void)
 void test_a_variable_is_not_set_for_another_value(void)
 {
     bash_required();
-    conditional_job_made("quiet");
-    command_made();
+    conditional_job_created("quiet");
+    command_created();
     TEST_ASSERT_EQUAL_UINT(0u, s_command.settings);
     TEST_ASSERT_EQUAL_STRING("bash build.sh", s_shown);
 }

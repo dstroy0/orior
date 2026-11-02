@@ -26,7 +26,7 @@ typedef struct
 } CliSha256;
 
 void cli_sha256_begin(const CliDigestCfg *args);
-void cli_sha256_take(const CliDigestShaCfg *args);
+void cli_sha256_alloc(const CliDigestShaCfg *args);
 void cli_sha256_end(const CliDigestCfg *args);
 // the SHA-256 of `size` bytes, its 32 bytes, and as the 64 lowercase hex digits `sha256sum` writes
 void cli_sha256_bytes(const CliDigestBytesSizeCfg *args);
@@ -110,11 +110,11 @@ EMBED_TABLE_STORAGE CliDigestNs cli_digest EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*sha256_take)(const CliDigestShaCfg *args);
+    void (*sha256_alloc)(const CliDigestShaCfg *args);
 } CliDigestShaNs;
-EMBED_TABLE_LAYOUT(CliDigestShaNs, sha256_take);
+EMBED_TABLE_LAYOUT(CliDigestShaNs, sha256_alloc);
 EMBED_TABLE_STORAGE CliDigestShaNs cli_digest_sha EMBED_UNUSED = {
-    .sha256_take = cli_sha256_take,
+    .sha256_alloc = cli_sha256_alloc,
 };
 
 typedef struct

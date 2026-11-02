@@ -67,7 +67,7 @@ void cli_db_remembered(const CliDbStatementCtx *args)
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &entry,
                .text_bytes = (const unsigned char *)args->statement, .length = args->size);
     mmgr_line_put(&entry, ",\"ms\":");
-    mmgr_line_decimal(&entry, args->took, 1u);
+    mmgr_line_decimal(&entry, args->consumed, 1u);
     mmgr_line_put(&entry, args->failed ? ",\"failed\":" : ",\"result\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &entry,
                .text_bytes = (const unsigned char *)args->err_text,
@@ -75,7 +75,7 @@ void cli_db_remembered(const CliDbStatementCtx *args)
     mmgr_line_put(&entry, "}\n");
     // the history's newest lines but one retained, then the entry after them
     unsigned long long history_size = 0ull;
-    const unsigned char *const history = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = path,
+    const unsigned char *const history = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                     .size_pointer = &history_size, .owner = &g_cli_db_cells);
     // each newline before the last line's end starts one more line retained, counted back from the end
     unsigned long long start = 0ull;
@@ -118,7 +118,7 @@ void cli_db_history(const CliDbOutCountCfg *args)
     char path[CLI_PATH_MAX_LEN];
     unsigned long long size = 0ull;
     const unsigned char *const bytes = EMBED_CALL(history_file, DbHistoryCtx, .open = args->open, .path = path)
-                                           ? EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = path,
+                                           ? EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                         .size_pointer = &size, .owner = &g_cli_db_cells)
                                            : NULL;
     mmgr_line_ch(args->out, '[');

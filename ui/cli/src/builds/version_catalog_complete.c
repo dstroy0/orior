@@ -87,8 +87,8 @@ EMBED_INLINE void complete_names(const VersionCatalogCompleteCtx *args)
     // a description names texts of the catalog's, with a few bytes between them and two a string of a list
     const int read = EMBED_CALL(cli_version_catalog_text_internal.versions_parse, CliVersionCatalogTextCtx,
                                 .text = text, .size = size);
-    const unsigned long long room = g_cli_versions.used + 16ull + (2ull * g_cli_versions.items);
-    char *const about_text = read ? g_cli_cells->temporary_buf_alloc(room, &g_cli_versions_cells) : NULL;
+    const unsigned long long capacity = g_cli_versions.used + 16ull + (2ull * g_cli_versions.items);
+    char *const about_text = read ? g_cli_cells->temporary_buf_alloc(capacity, &g_cli_versions_cells) : NULL;
     for (unsigned int at = 0u; (about_text != NULL) && (at < g_cli_versions.sections); at += 1u)
     {
         const CliVersionsSection *const section = &g_cli_versions.section[at];
@@ -102,7 +102,7 @@ EMBED_INLINE void complete_names(const VersionCatalogCompleteCtx *args)
         for (unsigned int entry = section->first; entry != CLI_VERSIONS_NONE; entry = g_cli_versions.field[entry].next)
         {
             const CliVersionsField *const field = &g_cli_versions.field[entry];
-            VerbaLinea about = {about_text, room, 0ull};
+            VerbaLinea about = {about_text, capacity, 0ull};
             EMBED_CALL(cli_version_catalog_field_out_internal.versions_describe, CliVersionCatalogFieldOutCtx,
                        .field = field, .out = &about);
             EMBED_CALL(cli_builds_items.build_relative, CliBuildsItemsCfg, .items = items, .token = token,
@@ -155,13 +155,13 @@ void cli_versions_complete(const CliVersionCatalogTextSizeAtCtx *args)
     if ((quotes % 2u) == 1u)
     {
         unsigned long long opened = token - line_start;
-        opened = EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = before, .at = opened,
+        opened = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = before, .at = opened,
                             .set = "\"'");
         opened = EMBED_CALL(cli_text_size_byte.trimmed_end, CliTextSizeByteCfg, .text = before, .size = opened);
         if ((opened > 0u) && (before[opened - 1u] == '='))
         {
             unsigned long long named = opened;
-            named = EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = before, .at = named,
+            named = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = before, .at = named,
                                .set = "=");
             named = EMBED_CALL(cli_text_size_byte.trimmed_end, CliTextSizeByteCfg, .text = before, .size = named);
             if (EMBED_CALL(cli_text_size_suffix.ends, CliTextSizeSuffixCfg, .text = before, .size = named,

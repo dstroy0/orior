@@ -34,22 +34,22 @@ EMBED_INLINE void report_failure_emit(const TestUnittestReportCtx *args)
     if (dotted_end > (open + 2ull))
     {
         dotted_end =
-            (open + 2ull) + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg,
+            (open + 2ull) + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg,
                                        .text = args->block + open + 2ull, .at = dotted_end - (open + 2ull), .set = ")");
     }
     char id[CLI_PATH_MAX_LEN * 2u];
     if (!EMBED_CALL(cli_test_runs_length_internal.test_unittest_id, CliTestRunsLengthCtx,
                     .dotted = args->block + open + 2ull, .length = dotted_end - open - 2ull, .id_out = id,
-                    .room = sizeof(id)))
+                    .capacity = sizeof(id)))
     {
         return;
     }
-    char wanted[CLI_PATH_MAX_LEN];
+    char required[CLI_PATH_MAX_LEN];
     const char *const path =
         cellul.find(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL, .other = "::", .other_cap = CLI_CELLS_POOL});
     memor.cpy(&(MemoriaCfg){
-        .dst = wanted, .src = id, .bytes = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}) + 1u});
-    wanted[(path != NULL) ? (size_t)(path - id) : cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL})] =
+        .dst = required, .src = id, .bytes = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}) + 1u});
+    required[(path != NULL) ? (size_t)(path - id) : cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL})] =
         '\0';
     unsigned long long body = size;
     unsigned long long body_end = size;
@@ -109,7 +109,7 @@ EMBED_INLINE void report_failure_emit(const TestUnittestReportCtx *args)
                                 .text = args->block + number, .length = end - number, .needle = ",");
         long long value = 0ll;
         if (EMBED_CALL(cli_test_runs_length_path_internal.report_ends_with, CliTestRunsLengthPathCtx,
-                       .path = args->block + start + 6ull, .length = quote - start - 6ull, .wanted = wanted) &&
+                       .path = args->block + start + 6ull, .length = quote - start - 6ull, .required = required) &&
             EMBED_CALL(cli_test_runs_text_length_internal.report_count, CliTestRunsTextLengthCtx,
                        .text = args->block + number, .length = number_end - number, .value = &value))
         {
@@ -123,7 +123,7 @@ EMBED_INLINE void report_failure_emit(const TestUnittestReportCtx *args)
                    .size = body_end - body, .skip_rules = 1, .last = &last, .last_size = &last_size);
     EMBED_CALL(cli_test_runs_outcome_internal.test_result_emit, CliTestRunsOutcomeCtx, .worker = worker, .id = id,
                .outcome = "failed", .message = found ? args->block + body + last : "",
-               .message_size = found ? last_size : 0ull, .file = wanted, .line_i64 = line, .seconds = 0.0);
+               .message_size = found ? last_size : 0ull, .file = required, .line_i64 = line, .seconds = 0.0);
 }
 
 void cli_test_unittest_failures_emit(const CliTestRunsTextWorkerCtx *args)

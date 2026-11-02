@@ -22,8 +22,8 @@ static char s_out[1u << 18u];
 static char s_text[1u << 18u];
 static char s_shown[1u << 16u];
 static char s_root[CLI_PATH_MAX_LEN];
-static char s_wanted[128];
-static char s_why[1024];
+static char s_requested[128];
+static char s_error[1024];
 static VerbaLinea s_err_msg;
 static RankWindow s_window;
 static RankWindow s_nearby;
@@ -31,50 +31,8 @@ static unsigned int s_hits[CLI_FUZZY_LETTERS];
 static unsigned long long s_window_line;
 static unsigned long long s_window_size;
 
-// the paths a ranking wrote, joined by `|`, its first's hits after a `#`, and whether it was reading into `reading`
-static const char *ranked_paths(unsigned long long size, int *reading)
-{
-    unsigned int read = CLI_JSON_NONE;
-    const CliJson *const json = cli_unity_parsed(s_out, size, &read);
-    const unsigned int found = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = read, .name = "found");
-    *reading = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = read, .name = "reading"), .kind = CFG_JSON_TRUE);
-    VerbaLinea line = {s_shown, sizeof(s_shown), 0ull};
-    for (unsigned int at = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = json, .array = found, .index = at) != CLI_JSON_NONE; at += 1u)
-    {
-        mmgr_line_put(&line, (at > 0u) ? "|" : "");
-        mmgr_line_put(&line, cli_unity_member_text(EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = json, .array = found, .index = at), "path"));
-    }
-    const unsigned int hits = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = json, .array = found, .index = 0u), .name = "hits");
-    mmgr_line_ch(&line, '#');
-    for (unsigned int at = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = json, .array = hits, .index = at) != CLI_JSON_NONE; at += 1u)
-    {
-        const unsigned int hit = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = json, .array = hits, .index = at);
-        mmgr_line_put(&line, (at > 0u) ? "," : "");
-        mmgr_line_put_n(&line, json->text + json->node[hit].text, json->node[hit].length);
-    }
-    (void)mmgr_line_finish(&line);
-    return s_shown;
-}
-
-// `query` ranked over the `count` paths of `files`: the paths found and the first's hits
-static const char *ranked_in(const char *const *files, unsigned int count, const char *query, const char *const *recent, unsigned int recents, int fuzzy)
-{
-    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    EMBED_CALL(cli_files_count_out.ranked_in, CliFilesCountOutCfg, .files_letters = files, .count = count, .query = query, .recent = recent, .recents = recents, .most = 10u, .fuzzy = fuzzy, .out = &out);
-    int reading = 0;
-    return ranked_paths(out.at, &reading);
-}
-
-// a tree of two files
-static void small_tree_written(void)
-{
-    cli_unity_folder("files_reading", s_root);
-    cli_unity_file(s_root, "alpha.txt", "one");
-    cli_unity_file(s_root, "apple.txt", "two");
-}
-
 // a whole number member of the shared tree's node
-static unsigned long long whole_member(const CliJson *json, unsigned int node, const char *name)
+static unsigned long long integer_member(const CliJson *json, unsigned int node, const char *name)
 {
     const unsigned int member = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = node, .name = name);
     unsigned long long value = 0ull;
@@ -92,9 +50,9 @@ static void slice_read(unsigned long long from, unsigned long long to, RankWindo
     TEST_ASSERT_TRUE(EMBED_CALL(cli_files_root_out_err_msg_file.slice, CliFilesRootOutErrMsgFileCfg, .root = s_root, .file = "lines.txt", .start = from, .end = to, .out = &out, .err_msg = &s_err_msg));
     unsigned int read = CLI_JSON_NONE;
     const CliJson *const json = cli_unity_parsed(s_out, out.at, &read);
-    window->start = whole_member(json, read, "start");
-    window->end = whole_member(json, read, "end");
-    window->size = whole_member(json, read, "size");
+    window->start = integer_member(json, read, "start");
+    window->end = integer_member(json, read, "end");
+    window->size = integer_member(json, read, "size");
     const char *const text = cli_unity_member_text(read, "text");
     memor.cpy(&(MemoriaCfg){.dst = window->text, .src = text, .bytes = CLI_UNITY_LENGTH(text) + 1ull});
 }
@@ -133,8 +91,8 @@ static void lines_sliced(void)
     s_window_size = CLI_UNITY_LENGTH(s_window.text);
 }
 
-// `query` matches `text` past `from` with the hits `wanted`
-static void assert_hits(const char *wanted, const char *query, const char *text, unsigned long long from)
+// `query` matches `text` past `from` with the hits `required`
+static void assert_hits(const char *required, const char *query, const char *text, unsigned long long from)
 {
     double score = 0.0;
     unsigned int count = 0u;
@@ -147,16 +105,16 @@ static void assert_hits(const char *wanted, const char *query, const char *text,
         mmgr_line_decimal(&line, s_hits[at], 1u);
     }
     (void)mmgr_line_finish(&line);
-    TEST_ASSERT_EQUAL_STRING(wanted, hits);
+    TEST_ASSERT_EQUAL_STRING(required, hits);
 }
 
-// `query` matches `text` past `from` with the score `wanted`
-static void assert_score(double wanted, const char *query, const char *text, unsigned long long from)
+// `query` matches `text` past `from` with the score `required`
+static void assert_score(double required, const char *query, const char *text, unsigned long long from)
 {
     double score = 0.0;
     unsigned int count = 0u;
     TEST_ASSERT_TRUE(EMBED_CALL(cli_files_query.fuzzy, CliFilesQueryCfg, .query = query, .text = text, .from_u64 = from, .score = &score, .hits = s_hits, .count_pointer = &count));
-    TEST_ASSERT_DOUBLE_WITHIN(1e-9, wanted, score);
+    TEST_ASSERT_DOUBLE_WITHIN(1e-9, required, score);
 }
 
 // `query` does not match `text` past `from`
@@ -170,67 +128,11 @@ static void assert_no_fuzzy_match(const char *query, const char *text, unsigned 
 void setUp(void)
 {
     cli_unity_begun();
-    s_err_msg = (VerbaLinea){s_why, sizeof(s_why), 0ull};
+    s_err_msg = (VerbaLinea){s_error, sizeof(s_error), 0ull};
 }
 
 void tearDown(void)
 {
-}
-
-void test_a_name_as_typed_ranks_first_with_or_without_its_extension(void)
-{
-    static const char *const s_files[4] = {"src/view_tests/view_helpers.rs", "src/review.rs", "docs/view.md", "src/view.rs"};
-    static const char *const s_recent[2] = {"src/review.rs", "src/view_tests/view_helpers.rs"};
-    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = ranked_in(s_files, 4u, "view", s_recent, 2u, 1), .other = "src/view.rs|docs/view.md|", .cap = CLI_CELLS_POOL}));
-}
-
-void test_fuzzy_matching_takes_the_letters_in_order_anywhere(void)
-{
-    const char *const fuzzy = ranked_in(s_typed, 3u, "view", NULL, 0u, 1);
-    unsigned int paths = 1u;
-    for (const char *at = fuzzy; (at[0] != '\0') && (at[0] != '#'); at += 1)
-    {
-        paths += (at[0] == '|') ? 1u : 0u;
-    }
-    TEST_ASSERT_EQUAL_UINT(3u, paths);
-}
-
-void test_with_fuzzy_matching_off_only_the_text_as_typed_answers(void)
-{
-    TEST_ASSERT_EQUAL_STRING("src/view.rs|src/review.rs#4,5,6,7", ranked_in(s_typed, 3u, "view", NULL, 0u, 0));
-}
-
-void test_until_the_tree_is_read_the_recent_files_answer(void)
-{
-    static const char *const s_recent[1] = {"apple.txt"};
-    int reading = 0;
-    small_tree_written();
-    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    EMBED_CALL(cli_files_root_out.rank, CliFilesRootOutCfg, .root = s_root, .query = "a", .recent = s_recent, .recents = 1u, .most = 10u, .fuzzy = 1, .out = &out);
-    const char *const first = ranked_paths(out.at, &reading);
-    TEST_ASSERT_TRUE(reading);
-    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = first, .other = "apple.txt#", .cap = CLI_CELLS_POOL}));
-    for (unsigned int tries = 0u; EMBED_CALL(cli_files_root_paths.unread, CliFilesRootPathsCfg, .root = s_root) && (tries < 100u); tries += 1u)
-    {
-        EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 50u);
-    }
-}
-
-void test_once_the_tree_is_read_it_answers(void)
-{
-    int reading = 1;
-    small_tree_written();
-    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    EMBED_CALL(cli_files_root_out.rank, CliFilesRootOutCfg, .root = s_root, .query = "alpha", .recent = NULL, .recents = 0u, .most = 10u, .fuzzy = 1, .out = &out);
-    for (unsigned int tries = 0u; EMBED_CALL(cli_files_root_paths.unread, CliFilesRootPathsCfg, .root = s_root) && (tries < 100u); tries += 1u)
-    {
-        EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 50u);
-    }
-    out.at = 0ull;
-    EMBED_CALL(cli_files_root_out.rank, CliFilesRootOutCfg, .root = s_root, .query = "alpha", .recent = NULL, .recents = 0u, .most = 10u, .fuzzy = 1, .out = &out);
-    const char *const read = ranked_paths(out.at, &reading);
-    TEST_ASSERT_FALSE(reading);
-    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = read, .other = "alpha.txt", .cap = CLI_CELLS_POOL}));
 }
 
 void test_a_slice_is_read_about_its_bytes(void)
@@ -241,12 +143,12 @@ void test_a_slice_is_read_about_its_bytes(void)
     TEST_ASSERT_GREATER_THAN_UINT64(s_window.start, s_window.end);
 }
 
-void test_a_slice_is_whole_lines_from_a_lines_first_byte(void)
+void test_a_slice_is_complete_lines_from_a_lines_first_byte(void)
 {
     lines_sliced();
-    VerbaLinea first = {s_wanted, sizeof(s_wanted), 0ull};
+    VerbaLinea first = {s_requested, sizeof(s_requested), 0ull};
     line_written(&first, s_window_line);
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = s_window.text, .other_pointer = s_wanted, .size = first.at));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = s_window.text, .other_pointer = s_requested, .size = first.at));
     TEST_ASSERT_TRUE((s_window.start == 0ull) || (s_text[s_window.start - 1ull] == '\n'));
     TEST_ASSERT_GREATER_THAN_UINT64(0ull, s_window_size);
     TEST_ASSERT_EQUAL_CHAR('\n', s_window.text[s_window_size - 1u]);
@@ -262,11 +164,11 @@ void test_the_slice_below_starts_where_it_ends_with_the_line_after_its_last(void
     {
         lines += (s_window.text[at] == '\n') ? 1ull : 0ull;
     }
-    VerbaLinea next = {s_wanted, sizeof(s_wanted), 0ull};
+    VerbaLinea next = {s_requested, sizeof(s_requested), 0ull};
     mmgr_line_put(&next, "line ");
     mmgr_line_decimal(&next, s_window_line + lines, 1u);
     mmgr_line_ch(&next, ' ');
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = s_nearby.text, .other_pointer = s_wanted, .size = next.at));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = s_nearby.text, .other_pointer = s_requested, .size = next.at));
 }
 
 void test_the_slice_above_ends_where_it_starts_with_the_line_before_its_first(void)
@@ -274,14 +176,14 @@ void test_the_slice_above_ends_where_it_starts_with_the_line_before_its_first(vo
     lines_sliced();
     slice_read((s_window.start > 2000ull) ? (s_window.start - 2000ull) : 0ull, s_window.start, &s_nearby);
     TEST_ASSERT_EQUAL_UINT64(s_window.start, s_nearby.end);
-    VerbaLinea before = {s_wanted, sizeof(s_wanted), 0ull};
+    VerbaLinea before = {s_requested, sizeof(s_requested), 0ull};
     line_written(&before, s_window_line - 1ull);
     const unsigned long long above = CLI_UNITY_LENGTH(s_nearby.text);
     TEST_ASSERT_GREATER_OR_EQUAL_UINT64(before.at, above);
-    TEST_ASSERT_EQUAL_MEMORY(s_wanted, s_nearby.text + above - before.at, before.at);
+    TEST_ASSERT_EQUAL_MEMORY(s_requested, s_nearby.text + above - before.at, before.at);
 }
 
-void test_a_slice_past_the_end_ends_at_the_files_end(void)
+void test_a_slice_end_the_end_ends_at_the_files_end(void)
 {
     lines_sliced();
     slice_read(999999ull, 1000099ull, &s_nearby);

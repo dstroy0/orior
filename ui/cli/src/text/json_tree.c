@@ -10,15 +10,15 @@
 void cli_json_begin(const CliJsonTreeNodeNodeCfg *args)
 {
     CliJsonNode *node = args->node_json_node_pointer;
-    unsigned int nodes_most = args->nodes_most;
+    unsigned int nodes_max = args->nodes_max;
     char *text = args->text_out;
-    unsigned long long text_most = args->text_most;
+    unsigned long long text_max = args->text_max;
     args->json->node = node;
     args->json->nodes = 0u;
-    args->json->nodes_most = nodes_most;
+    args->json->nodes_max = nodes_max;
     args->json->text = text;
     args->json->used = 0ull;
-    args->json->text_most = text_most;
+    args->json->text_max = text_max;
     args->json->full = 0;
     args->json->what = NULL;
 }
@@ -44,7 +44,7 @@ EMBED_INLINE unsigned long long cli_text_store(const JsonTreeCtx *args)
 {
     CliJson *json = args->json;
     const char *text = args->text;
-    if (!EMBED_CALL(cli_json_tree_nodes.json_room, CliJsonTreeNodesCfg, .json = json, .nodes = 0u,
+    if (!EMBED_CALL(cli_json_tree_nodes.json_capacity, CliJsonTreeNodesCfg, .json = json, .nodes = 0u,
                     .text_u64 = args->length + 1ull))
     {
         return 0ull;
@@ -58,7 +58,7 @@ EMBED_INLINE unsigned long long cli_text_store(const JsonTreeCtx *args)
 
 unsigned int cli_json_init(const CliJsonTreeKindCfg *args)
 {
-    if (!EMBED_CALL(cli_json_tree_nodes.json_room, CliJsonTreeNodesCfg, .json = args->json, .nodes = 1u,
+    if (!EMBED_CALL(cli_json_tree_nodes.json_capacity, CliJsonTreeNodesCfg, .json = args->json, .nodes = 1u,
                     .text_u64 = 0ull))
     {
         return CLI_JSON_NONE;
@@ -164,7 +164,7 @@ int cli_json_is(const CliJsonTreeNodeKindCfg *args)
 }
 
 // `value` put after the last child of `parent`
-EMBED_INLINE void cli_put_last(const JsonTreeCtx *args)
+EMBED_INLINE void cli_append_last(const JsonTreeCtx *args)
 {
     CliJsonNode *const node = &args->json->node[args->parent];
     args->json->node[args->value].next = CLI_JSON_NONE;
@@ -181,7 +181,7 @@ EMBED_INLINE void cli_put_last(const JsonTreeCtx *args)
 }
 
 // `value` put as the member of `object` whose key starts at `key` in the tree's texts
-EMBED_INLINE void cli_put_key(const JsonTreeCtx *args)
+EMBED_INLINE void cli_append_key(const JsonTreeCtx *args)
 {
     unsigned long long key = args->key;
     if ((args->object == CLI_JSON_NONE) || (args->value == CLI_JSON_NONE) ||
@@ -195,7 +195,7 @@ EMBED_INLINE void cli_put_key(const JsonTreeCtx *args)
     args->json->node[args->value].key = key;
     if (had == CLI_JSON_NONE)
     {
-        EMBED_CALL(cli_put_last, JsonTreeCtx, .json = args->json, .parent = args->object, .value = args->value);
+        EMBED_CALL(cli_append_last, JsonTreeCtx, .json = args->json, .parent = args->object, .value = args->value);
         return;
     }
     args->json->node[args->value].next = args->json->node[had].next;
@@ -225,7 +225,7 @@ void cli_json_set(const CliJsonTreeObjectNameCfg *args)
                          .length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}));
     if (!args->json->full)
     {
-        EMBED_CALL(cli_put_key, JsonTreeCtx, .json = args->json, .object = args->object, .key = key,
+        EMBED_CALL(cli_append_key, JsonTreeCtx, .json = args->json, .object = args->object, .key = key,
                    .value = args->value);
     }
 }
@@ -260,7 +260,7 @@ void cli_json_append(const CliJsonTreeArrayCfg *args)
         (args->json->node[args->array].kind == CFG_JSON_ARRAY))
     {
         args->json->node[args->value].key = CLI_JSON_NO_KEY;
-        EMBED_CALL(cli_put_last, JsonTreeCtx, .json = args->json, .parent = args->array, .value = args->value);
+        EMBED_CALL(cli_append_last, JsonTreeCtx, .json = args->json, .parent = args->array, .value = args->value);
     }
 }
 
@@ -333,7 +333,7 @@ unsigned int cli_json_copy(const CliJsonTreeCfg *args)
         {
             return CLI_JSON_NONE;
         }
-        EMBED_CALL(cli_put_last, JsonTreeCtx, .json = args->json, .parent = made, .value = copied);
+        EMBED_CALL(cli_append_last, JsonTreeCtx, .json = args->json, .parent = made, .value = copied);
         args->json->node[copied].key = args->json->node[child].key;
     }
     return made;
@@ -376,11 +376,11 @@ unsigned int cli_json_copy_from(const CliJsonTreeNodeCfg *args)
             {
                 return CLI_JSON_NONE;
             }
-            EMBED_CALL(cli_put_key, JsonTreeCtx, .json = args->to, .object = made, .key = at, .value = copied);
+            EMBED_CALL(cli_append_key, JsonTreeCtx, .json = args->to, .object = made, .key = at, .value = copied);
         }
         else
         {
-            EMBED_CALL(cli_put_last, JsonTreeCtx, .json = args->to, .parent = made, .value = copied);
+            EMBED_CALL(cli_append_last, JsonTreeCtx, .json = args->to, .parent = made, .value = copied);
         }
     }
     return made;
@@ -439,13 +439,13 @@ static unsigned int cli_convert(const JsonTreeCtx *args)
     if (at->kind == CFG_JSON_STRING)
     {
         // a string's letters as stored are at most its letters as written
-        if (!EMBED_CALL(cli_json_tree_nodes.json_room, CliJsonTreeNodesCfg, .json = json, .nodes = 0u,
+        if (!EMBED_CALL(cli_json_tree_nodes.json_capacity, CliJsonTreeNodesCfg, .json = json, .nodes = 0u,
                         .text_u64 = (unsigned long long)(at->end - at->start) + 1ull))
         {
             return CLI_JSON_NONE;
         }
-        const unsigned long long room = json->text_most - json->used;
-        if (!cfg_json_string(text, at, json->text + json->used, (size_t)room))
+        const unsigned long long capacity = json->text_max - json->used;
+        if (!cfg_json_string(text, at, json->text + json->used, (size_t)capacity))
         {
             json->full = 1;
             return CLI_JSON_NONE;
@@ -476,7 +476,7 @@ static unsigned int cli_convert(const JsonTreeCtx *args)
                 return CLI_JSON_NONE;
             }
             // the key's node stands for its text alone, and is let go of
-            EMBED_CALL(cli_put_key, JsonTreeCtx, .json = json, .object = made, .key = json->node[named].text,
+            EMBED_CALL(cli_append_key, JsonTreeCtx, .json = json, .object = made, .key = json->node[named].text,
                        .value = value);
             json->nodes -= (named == (json->nodes - 1u)) ? 1u : 0u;
             key = args->tokens[key + 1u].next;
@@ -493,7 +493,7 @@ static unsigned int cli_convert(const JsonTreeCtx *args)
             {
                 return CLI_JSON_NONE;
             }
-            EMBED_CALL(cli_put_last, JsonTreeCtx, .json = json, .parent = made, .value = value);
+            EMBED_CALL(cli_append_last, JsonTreeCtx, .json = json, .parent = made, .value = value);
             item = args->tokens[item].next;
         }
     }
@@ -503,7 +503,7 @@ static unsigned int cli_convert(const JsonTreeCtx *args)
 unsigned int cli_json_read(const CliJsonTreeTextSizeTokensCfg *args)
 {
     CfgJsonParse parse = {0u, 0u, 0u, NULL};
-    if (!cfg_json_parse_metadata(args->text, (size_t)args->size, args->tokens, args->tokens_most, &parse))
+    if (!cfg_json_parse_metadata(args->text, (size_t)args->size, args->tokens, args->tokens_max, &parse))
     {
         mmgr_line_put(args->err_msg, (parse.reason != NULL) ? parse.reason : "it is not JSON");
         mmgr_line_put(args->err_msg, " at line ");

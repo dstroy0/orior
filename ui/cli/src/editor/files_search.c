@@ -13,7 +13,7 @@
 // the bytes past which a search of a tree git cannot read passes a file over; the most workers a search starts; and
 // the bytes a file's start is looked through for a 0 that marks it as no text
 #define CLI_SEARCHED_BYTES (4ull * 1024ull * 1024ull)
-#define CLI_WORKERS_MOST 256u
+#define CLI_WORKERS_MAX 256u
 #define CLI_BINARY_LOOK 8192ull
 
 // One search: the files searched, picked off the tree for the search's length, and the most bytes of one
@@ -24,13 +24,13 @@ typedef struct
     const char *root;
     CliPicked paths;
     unsigned long long most;
-    CliSought sought;
+    CliNeedle needle;
     unsigned int lower[CLI_FUZZY_LETTERS];
     unsigned int next;
     unsigned int workers;
     CliWake wake;
     CliSearchHits hits;
-    CliThread worker_thread[CLI_WORKERS_MOST];
+    CliThread worker_thread[CLI_WORKERS_MAX];
 } CliSearch;
 
 static CliSearch s_search = {.wake = CLI_WAKE_INIT};
@@ -42,12 +42,12 @@ typedef struct
     unsigned int order;
 } CliFileHits;
 
-// a line found put among those stored (files_search_hits.c); where no room for it is given it is let go
-static void cli_hit_put(const CliHitPutCfg *args)
+// a line found put among those stored (files_search_hits.c); where no capacity for it is given it is let go
+static void cli_hit_append(const CliHitAppendCfg *args)
 {
     CliFileHits *const file = (CliFileHits *)args->context;
     CliSearchHit *const hit =
-        EMBED_CALL(cli_files_search_hits.hits_take, CliFilesSearchHitsCfg, .hits = &s_search.hits);
+        EMBED_CALL(cli_files_search_hits.hits_alloc, CliFilesSearchHitsCfg, .hits = &s_search.hits);
     if (hit != NULL)
     {
         // a hit's bytes are at most CLI_HIT_BYTES, which an unsigned int stores
@@ -78,7 +78,7 @@ EMBED_INLINE void cli_search(const FilesSearchCtx *args)
     {
         CliFileHits file = {args->index, 0u};
         EMBED_CALL(cli_files_context_internal.hits_in, CliFilesContextCtx, .bytes_bytes = bytes, .size = size,
-                   .sought = &s_search.sought, .put = cli_hit_put, .context = &file);
+                   .needle = &s_search.needle, .put = cli_hit_append, .context = &file);
     }
 }
 
@@ -107,8 +107,8 @@ static void cli_worker(void *context)
         {
             unsigned long long got = 0ull;
             const unsigned char *const bytes =
-                EMBED_CALL(cli_path_internal.file_piece_take, CliPathCtx, .path = full, .from = 0ull, .count_u64 = size,
-                           .size_pointer = &got, .owner = &g_cli_editor_cells);
+                EMBED_CALL(cli_path_internal.file_piece_alloc, CliPathCtx, .path = full, .from = 0ull,
+                           .count_u64 = size, .size_pointer = &got, .owner = &g_cli_editor_cells);
             if (bytes != NULL)
             {
                 EMBED_CALL(cli_search, FilesSearchCtx, .bytes = bytes, .size = got, .index = index);
@@ -162,7 +162,7 @@ EMBED_INLINE void cli_search_run(const FilesSearchCtx *args)
     const unsigned int files = (s_search.paths.count > 1u) ? s_search.paths.count : 1u;
     unsigned int workers = (budget < 1u) ? 1u : budget;
     workers = (workers > files) ? files : workers;
-    workers = (workers > CLI_WORKERS_MOST) ? CLI_WORKERS_MOST : workers;
+    workers = (workers > CLI_WORKERS_MAX) ? CLI_WORKERS_MAX : workers;
     unsigned int started = 0u;
     for (unsigned int at = 0u; at < workers; at += 1u)
     {
@@ -185,9 +185,9 @@ EMBED_INLINE void cli_search_run(const FilesSearchCtx *args)
     }
     CliSearchHits *const hits = &s_search.hits;
     EMBED_CALL(cli_files_search_hits.hits_sort, CliFilesSearchHitsCfg, .hits = hits);
-    const unsigned int shown = (hits->lives < CLI_HITS_MOST) ? hits->lives : CLI_HITS_MOST;
+    const unsigned int displayed = (hits->lives < CLI_HITS_MAX) ? hits->lives : CLI_HITS_MAX;
     mmgr_line_ch(out, '[');
-    for (unsigned int at = 0u; at < shown; at += 1u)
+    for (unsigned int at = 0u; at < displayed; at += 1u)
     {
         const CliSearchHit *const hit = &hits->pool[hits->live[at]];
         EMBED_CALL(cli_files_path_internal.hit_write, CliFilesPathCtx, .out = out, .first = at == 0u,
@@ -219,18 +219,20 @@ int cli_files_search(const CliFilesRootOutErrMsgCfg *args)
     }
     if (s_specs.count == 0u)
     {
-        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_specs, .word = ".");
+        EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_specs,
+                   .word = ".");
     }
     EMBED_CALL(cli_patterns.hidden_specs, CliPatternsCfg, .patterns = &s_patterns, .words = &s_specs);
     EMBED_CALL(cli_patterns.hidden_specs, CliPatternsCfg, .patterns = args->set, .words = &s_specs);
     if (args->how.regex)
     {
-        const int came = EMBED_CALL(cli_files_root_internal.search_by_git, CliFilesRootCtx, .root = root,
-                                    .query = args->query, .how = args->how, .specs = &s_specs, .patterns = &s_patterns,
-                                    .set = args->set, .out = args->out, .err_msg = args->err_msg);
-        if (came != CLI_GIT_SEARCH_NONE)
+        const int received =
+            EMBED_CALL(cli_files_root_internal.search_by_git, CliFilesRootCtx, .root = root, .query = args->query,
+                       .how = args->how, .specs = &s_specs, .patterns = &s_patterns, .set = args->set, .out = args->out,
+                       .err_msg = args->err_msg);
+        if (received != CLI_GIT_SEARCH_NONE)
         {
-            return came == CLI_GIT_SEARCH_FOUND;
+            return received == CLI_GIT_SEARCH_FOUND;
         }
     }
     s_search.root = root;
@@ -239,7 +241,7 @@ int cli_files_search(const CliFilesRootOutErrMsgCfg *args)
     const unsigned int letters =
         (unsigned int)EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = args->query,
                                  .size = cellul.len(&(CatenaFinitaCfg){.src = args->query, .cap = CLI_CELLS_POOL}),
-                                 .letters = s_search.lower, .room_u64 = CLI_FUZZY_LETTERS);
+                                 .letters = s_search.lower, .capacity_u64 = CLI_FUZZY_LETTERS);
     int ascii = 1;
     ascii = ascii && EMBED_CALL(cli_text_size_byte.ascii, CliTextSizeByteCfg, .text = args->query,
                                 .size = cellul.len(&(CatenaFinitaCfg){.src = args->query, .cap = CLI_CELLS_POOL}));
@@ -247,8 +249,8 @@ int cli_files_search(const CliFilesRootOutErrMsgCfg *args)
     {
         s_search.lower[at] = EMBED_CALL(cli_regexp_letter.lower, CliRegexpLetterCfg, .letter = s_search.lower[at]);
     }
-    s_search.sought =
-        (CliSought){args->query, cellul.len(&(CatenaFinitaCfg){.src = args->query, .cap = CLI_CELLS_POOL}),
+    s_search.needle =
+        (CliNeedle){args->query, cellul.len(&(CatenaFinitaCfg){.src = args->query, .cap = CLI_CELLS_POOL}),
                     ascii,       s_search.lower,
                     letters,     args->how};
     s_search.next = 0u;

@@ -10,7 +10,7 @@
 #define NET_H
 typedef struct CliNetAddressCfg CliNetAddressCfg;
 typedef struct CliNetAddressHostCfg CliNetAddressHostCfg;
-typedef struct CliNetMostCfg CliNetMostCfg;
+typedef struct CliNetMaxCfg CliNetMaxCfg;
 typedef struct CliNetCfg CliNetCfg;
 typedef struct CliNetHostCfg CliNetHostCfg;
 
@@ -31,9 +31,6 @@ int cli_net_path(const CliNetAddressCfg *args);
 // `address` requested to be reached for `purpose`: 1 where it may be, logged where orior_cli is let on; 0 with why
 // given where orior_cli is blocked. This machine's own addresses and paths are let on and not logged
 int cli_net_reach(const CliNetAddressCfg *args);
-// the addresses reached, the last first, `most` of them at most, written as `[{"at", "address", "for"}...]`
-void cli_net_on_reach(const CliNetMostCfg *args);
-
 struct CliNetAddressCfg
 {
     const char *address;
@@ -47,7 +44,7 @@ struct CliNetAddressHostCfg
     char *host;
 };
 
-struct CliNetMostCfg
+struct CliNetMaxCfg
 {
     unsigned int most;
     VerbaLinea *out;
@@ -99,15 +96,6 @@ EMBED_TABLE_LAYOUT(CliNetAddressNs, path, reach);
 EMBED_TABLE_STORAGE CliNetAddressNs cli_net_address EMBED_UNUSED = {
     .path = cli_net_path,
     .reach = cli_net_reach,
-};
-
-typedef struct
-{
-    void (*reach)(const CliNetMostCfg *args);
-} CliNetMostNs;
-EMBED_TABLE_LAYOUT(CliNetMostNs, reach);
-EMBED_TABLE_STORAGE CliNetMostNs cli_net_most EMBED_UNUSED = {
-    .reach = cli_net_on_reach,
 };
 
 #endif

@@ -128,9 +128,9 @@ int query_course_run(const QueryLoopCfg *args)
         EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = line);
         char step_err_buf[QUERY_LINE_MAX_LEN];
         VerbaLinea step_err_msg = {step_err_buf, sizeof(step_err_buf), 0ull};
-        const char *const given[1] = {s_steps[index].word};
-        const int code = EMBED_CALL(s_steps[index].loop, QueryLoopCfg, .context = context, .words = given, .count = 1u,
-                                    .err_msg = &step_err_msg);
+        const char *const supplied[1] = {s_steps[index].word};
+        const int code = EMBED_CALL(s_steps[index].loop, QueryLoopCfg, .context = context, .words = supplied,
+                                    .count = 1u, .err_msg = &step_err_msg);
         // a step that joined the run parts from it as it ends: the course is the run's member again
         EMBED_CALL(query_err_msg_writer_internal.writer_join, QueryErrMsgWriterCtx, .writer_out = &s_run.writer);
         if (code == 0)

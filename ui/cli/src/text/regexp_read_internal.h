@@ -6,7 +6,7 @@
 #define REGEXP_READ_INTERNAL_H
 typedef struct CliRegexpReadKindCtx CliRegexpReadKindCtx;
 typedef struct CliRegexpReadCtx CliRegexpReadCtx;
-typedef struct CliRegexpReadWhyCtx CliRegexpReadWhyCtx;
+typedef struct CliRegexpReadErrorCtx CliRegexpReadErrorCtx;
 typedef struct CliRegexpReadLetterCtx CliRegexpReadLetterCtx;
 typedef struct CliRegexpReadValueCtx CliRegexpReadValueCtx;
 typedef struct CliRegexpReadLetterKindCtx CliRegexpReadLetterKindCtx;
@@ -15,7 +15,7 @@ typedef struct CliRegexpReadLetterKindCtx CliRegexpReadLetterKindCtx;
 #include "regexp.h"
 
 // the most alternatives, parts of a sequence and items of a class read at one level
-#define CLI_REGEXP_LEVEL_MOST 256u
+#define CLI_REGEXP_LEVEL_MAX 256u
 
 #define CLI_REGEXP_FAILED 0xffffffffu
 
@@ -35,7 +35,7 @@ typedef struct
 } CliRegexpReader;
 
 // a failure reported, `/<source>/: <why> at <place>`: CLI_REGEXP_FAILED
-unsigned int cli_fail(const CliRegexpReadWhyCtx *args);
+unsigned int cli_fail(const CliRegexpReadErrorCtx *args);
 // the letter where reading stands, the letter taken, and the letter taken where it is the one wanted
 int cli_peek(const CliRegexpReadLetterKindCtx *args);
 int cli_next(const CliRegexpReadLetterCtx *args);
@@ -60,10 +60,10 @@ struct CliRegexpReadKindCtx
 struct CliRegexpReadCtx
 {
     CliRegexpReader *reader;
-    unsigned int wanted;
+    unsigned int required;
 };
 
-struct CliRegexpReadWhyCtx
+struct CliRegexpReadErrorCtx
 {
     CliRegexpReader *reader;
     const char *why;
@@ -89,10 +89,10 @@ struct CliRegexpReadLetterKindCtx
 
 typedef struct
 {
-    unsigned int (*fail)(const CliRegexpReadWhyCtx *args);
-} CliRegexpReadWhyNs;
-EMBED_TABLE_LAYOUT(CliRegexpReadWhyNs, fail);
-EMBED_TABLE_STORAGE CliRegexpReadWhyNs cli_regexp_read_why_internal EMBED_UNUSED = {
+    unsigned int (*fail)(const CliRegexpReadErrorCtx *args);
+} CliRegexpReadErrorNs;
+EMBED_TABLE_LAYOUT(CliRegexpReadErrorNs, fail);
+EMBED_TABLE_STORAGE CliRegexpReadErrorNs cli_regexp_read_error_internal EMBED_UNUSED = {
     .fail = cli_fail,
 };
 

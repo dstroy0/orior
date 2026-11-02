@@ -9,7 +9,7 @@
 typedef struct
 {
     CliFoundFolders folders;
-    char wanted[CLI_PATH_MAX_LEN];
+    char required[CLI_PATH_MAX_LEN];
     int found;
     int debugging;
     unsigned long long time;
@@ -37,7 +37,7 @@ typedef struct
     unsigned long long item;
     const char *source;
     unsigned long long root;
-    char *program_room;
+    char *program_capacity;
     const CliReply *chains_file;
     unsigned long long chains;
     const char *language;
@@ -83,7 +83,7 @@ EMBED_INLINE int cli_one_get(const CompileDbProgramCtx *args)
 }
 
 // a program found retained where it ranks as high as the best yet: with debugging information first, then the later
-EMBED_INLINE void cli_program_put(const CompileDbProgramCtx *args)
+EMBED_INLINE void cli_program_append(const CompileDbProgramCtx *args)
 {
     int debugging = args->debugging;
     unsigned long long time = args->time;
@@ -146,7 +146,7 @@ EMBED_INLINE int cli_source_want(const CompileDbProgramCtx *args)
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->source, .relative = path, .joined = full);
     }
     EMBED_CALL(cli_same, CompileDbProgramCtx, .path = full, .out = compared);
-    return cellul.eq(&(CatenaFinitaCfg){.src = compared, .other = s_search.wanted, .cap = CLI_CELLS_POOL});
+    return cellul.eq(&(CatenaFinitaCfg){.src = compared, .other = s_search.required, .cap = CLI_CELLS_POOL});
 }
 
 // the first artifact of the target that is a program, not its symbols or import library, into `program`: 1, or 0
@@ -161,17 +161,18 @@ EMBED_INLINE int cli_target_program(const CompileDbProgramCtx *args)
         if (!EMBED_CALL(cli_reply_at_out.string, CliReplyAtOutCfg, .reply = args->target,
                         .at = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = args->target,
                                          .object = at, .key = "path"),
-                        .out = args->program_room, .capacity = CLI_PATH_MAX_LEN))
+                        .out = args->program_capacity, .capacity = CLI_PATH_MAX_LEN))
         {
             continue;
         }
         const unsigned long long length =
-            cellul.len(&(CatenaFinitaCfg){.src = args->program_room, .cap = CLI_CELLS_POOL});
-        const int skipped = (length >= 4ull) &&
-                            ((cellul.eq(&(CatenaFinitaCfg){
-                                 .src = args->program_room + length - 4ull, .other = ".pdb", .cap = CLI_CELLS_POOL})) ||
-                             (cellul.eq(&(CatenaFinitaCfg){
-                                 .src = args->program_room + length - 4ull, .other = ".lib", .cap = CLI_CELLS_POOL})));
+            cellul.len(&(CatenaFinitaCfg){.src = args->program_capacity, .cap = CLI_CELLS_POOL});
+        const int skipped =
+            (length >= 4ull) &&
+            ((cellul.eq(&(CatenaFinitaCfg){
+                 .src = args->program_capacity + length - 4ull, .other = ".pdb", .cap = CLI_CELLS_POOL})) ||
+             (cellul.eq(&(CatenaFinitaCfg){
+                 .src = args->program_capacity + length - 4ull, .other = ".lib", .cap = CLI_CELLS_POOL})));
         if (!skipped)
         {
             return 1;
@@ -206,7 +207,7 @@ EMBED_INLINE void cli_chain_compiler(const CompileDbProgramCtx *args)
     }
 }
 
-// one executable target of a CMake build put among those found where it makes `wanted` from a source
+// one executable target of a CMake build put among those found where it makes `required` from a source
 EMBED_INLINE void cli_cmake_target(const CompileDbProgramCtx *args)
 {
     const unsigned long long root = EMBED_CALL(cli_reply.root, CliReplyCfg, .reply = args->target);
@@ -232,7 +233,7 @@ EMBED_INLINE void cli_cmake_target(const CompileDbProgramCtx *args)
     }
     CliProgram found;
     if ((matched == CLI_REPLY_NONE) || !EMBED_CALL(cli_target_program, CompileDbProgramCtx, .target = args->target,
-                                                   .root = root, .program_room = found.program))
+                                                   .root = root, .program_capacity = found.program))
     {
         return;
     }
@@ -275,13 +276,13 @@ EMBED_INLINE void cli_cmake_target(const CompileDbProgramCtx *args)
     }
     EMBED_CALL(cli_chain_compiler, CompileDbProgramCtx, .chains_file = args->chains_file, .chains = args->chains,
                .language = language, .compiler = found.compiler);
-    EMBED_CALL(cli_program_put, CompileDbProgramCtx,
+    EMBED_CALL(cli_program_append, CompileDbProgramCtx,
                .debugging = EMBED_CALL(cli_one_get, CompileDbProgramCtx, .text = args->config, .one = "debug",
                                        .other = "relwithdebinfo"),
                .time = args->time, .program = &found);
 }
 
-// the executable targets of one CMake build that make `wanted` from a source, each put among those found
+// the executable targets of one CMake build that make `required` from a source, each put among those found
 EMBED_INLINE void cli_cmake_programs(const CompileDbProgramCtx *args)
 {
     char index[CLI_PATH_MAX_LEN];
@@ -329,10 +330,10 @@ EMBED_INLINE void cli_cmake_programs(const CompileDbProgramCtx *args)
     {
         // the configuration the build's folder is named for, or the first
         const char *named = build;
-        const unsigned long long named_past =
+        const unsigned long long named_end =
             EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = build,
                        .at = cellul.len(&(CatenaFinitaCfg){.src = build, .cap = CLI_CELLS_POOL}), .set = "/\\");
-        named = (named_past != 0ull) ? (build + named_past) : named;
+        named = (named_end != 0ull) ? (build + named_end) : named;
         const unsigned long long configurations =
             EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = &model,
                        .object = EMBED_CALL(cli_reply.root, CliReplyCfg, .reply = &model), .key = "configurations");
@@ -385,10 +386,10 @@ EMBED_INLINE const char *cli_meson_compiler_kind(const CompileDbProgramCtx *args
 {
     char stem[CLI_NAME_MAX_LEN] = "";
     const char *name = args->compiler_read;
-    const unsigned long long name_past =
+    const unsigned long long name_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = name,
                    .at = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .set = "/\\");
-    name = (name_past != 0ull) ? (name + name_past) : name;
+    name = (name_end != 0ull) ? (name + name_end) : name;
     EMBED_CALL(cli_copy, CompileDbProgramCtx, .out = stem, .size = sizeof(stem), .text = name);
     char *const dot =
         EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = stem,
@@ -409,7 +410,7 @@ EMBED_INLINE const char *cli_meson_compiler_kind(const CompileDbProgramCtx *args
                : "GNU";
 }
 
-// the executables of one Meson build that make `wanted` from a source, each put among those found
+// the executables of one Meson build that make `required` from a source, each put among those found
 EMBED_INLINE void cli_meson_programs(const CompileDbProgramCtx *args)
 {
     char targets_path[CLI_PATH_MAX_LEN];
@@ -426,10 +427,10 @@ EMBED_INLINE void cli_meson_programs(const CompileDbProgramCtx *args)
         return;
     }
     const char *config = build;
-    const unsigned long long config_past =
+    const unsigned long long config_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = build,
                    .at = cellul.len(&(CatenaFinitaCfg){.src = build, .cap = CLI_CELLS_POOL}), .set = "/\\");
-    config = (config_past != 0ull) ? (build + config_past) : config;
+    config = (config_end != 0ull) ? (build + config_end) : config;
     for (unsigned long long target = EMBED_CALL(cli_reply_array.first, CliReplyArrayCfg, .reply = &reply,
                                                 .array = EMBED_CALL(cli_reply.root, CliReplyCfg, .reply = &reply));
          target != CLI_REPLY_NONE; target = EMBED_CALL(cli_reply.next, CliReplyCfg, .reply = &reply, .item = target))
@@ -464,7 +465,7 @@ EMBED_INLINE void cli_meson_programs(const CompileDbProgramCtx *args)
                     continue;
                 }
                 EMBED_CALL(cli_same, CompileDbProgramCtx, .path = path, .out = compared);
-                if (cellul.eq(&(CatenaFinitaCfg){.src = compared, .other = s_search.wanted, .cap = CLI_CELLS_POOL}))
+                if (cellul.eq(&(CatenaFinitaCfg){.src = compared, .other = s_search.required, .cap = CLI_CELLS_POOL}))
                 {
                     group = one;
                     break;
@@ -504,7 +505,7 @@ EMBED_INLINE void cli_meson_programs(const CompileDbProgramCtx *args)
         EMBED_CALL(cli_copy, CompileDbProgramCtx, .out = found.config, .size = sizeof(found.config), .text = config);
         EMBED_CALL(cli_copy, CompileDbProgramCtx, .out = found.compiler, .size = sizeof(found.compiler),
                    .text = EMBED_CALL(cli_meson_compiler_kind, CompileDbProgramCtx, .compiler_read = compiler));
-        EMBED_CALL(cli_program_put, CompileDbProgramCtx,
+        EMBED_CALL(cli_program_append, CompileDbProgramCtx,
                    .debugging = EMBED_CALL(cli_one_get, CompileDbProgramCtx, .text = config, .one = "debug",
                                            .other = "debugoptimized"),
                    .time = stamped.time, .program = &found);
@@ -517,9 +518,9 @@ int cli_compile_db_program_get(const CliCompileDbRootFileCfg *args)
     CliProgram *program = args->program;
     static const char *const s_reply[4] = {".cmake", "api", "v1", "reply"};
     static const char *const s_info[1] = {"meson-info"};
-    EMBED_CALL(cli_same, CompileDbProgramCtx, .path = args->file, .out = s_search.wanted);
+    EMBED_CALL(cli_same, CompileDbProgramCtx, .path = args->file, .out = s_search.required);
     s_search.found = 0;
-    EMBED_CALL(cli_compile_db_found_top_internal.compile_found_take, CliCompileDbFoundTopCtx,
+    EMBED_CALL(cli_compile_db_found_top_internal.compile_found_alloc, CliCompileDbFoundTopCtx,
                .found = &s_search.folders);
     char top[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->root, .relative = "build/cmake", .joined = top);

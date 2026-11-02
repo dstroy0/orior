@@ -27,8 +27,8 @@ typedef struct CliShapeCfg CliShapeCfg;
 // writes in its place where one is given
 typedef struct
 {
-    CliTextPlace from;
-    CliTextPlace to;
+    CliTextPosition from;
+    CliTextPosition to;
     const char *line;
     unsigned long long line_size;
     const char *with;
@@ -49,9 +49,6 @@ typedef void (*CliShapeEach)(const CliShapeEachCfg *args);
 // `each` under the search's lock with what `template_text` writes in its place, where it is not NULL; a match whose
 // written text does not fit 1 MiB is handed on without it. A language none of `languages` reads has no match
 void cli_shape_search(const CliShapeLanguagesCfg *args);
-
-// a match of the file at `path` written as the page reads one, `{"path", "from", "to", "line", "with"}`
-void cli_shape_found_write(const CliShapeCfg *args);
 
 struct CliShapeLanguagesCfg
 {
@@ -79,15 +76,6 @@ typedef struct
 EMBED_TABLE_LAYOUT(CliShapeLanguagesNs, search);
 EMBED_TABLE_STORAGE CliShapeLanguagesNs cli_shape_languages EMBED_UNUSED = {
     .search = cli_shape_search,
-};
-
-typedef struct
-{
-    void (*found_write)(const CliShapeCfg *args);
-} CliShapeNs;
-EMBED_TABLE_LAYOUT(CliShapeNs, found_write);
-EMBED_TABLE_STORAGE CliShapeNs cli_shape_table EMBED_UNUSED = {
-    .found_write = cli_shape_found_write,
 };
 
 #endif

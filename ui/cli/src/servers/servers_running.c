@@ -10,7 +10,7 @@
 #include "servers_internal.h"
 
 // the servers taken out of the running ones, under the servers' lock and then their own
-static CliLsp *s_taken[CLI_SERVERS_MOST];
+static CliLsp *s_allocated[CLI_SERVERS_MAX];
 
 // A server to stop
 typedef struct
@@ -41,44 +41,27 @@ void cli_servers_stop_later(const CliServersPathLspCtx *args)
 
 // every server taken out of the running ones into the taken, and the toolchains that failed and ended forgotten:
 // their count; with the taken's lock acquired
-static unsigned int running_take_all(void)
+static unsigned int running_alloc_all(void)
 {
     unsigned int count = 0u;
     g_cli_servers.failed = 0u;
     g_cli_servers.restarted = 0u;
-    for (unsigned int at = 0u; at < CLI_SERVERS_MOST; at += 1u)
+    for (unsigned int at = 0u; at < CLI_SERVERS_MAX; at += 1u)
     {
         if (g_cli_servers.running[at].used)
         {
             g_cli_servers.running[at].used = 0;
-            s_taken[count] = g_cli_servers.running[at].lsp;
+            s_allocated[count] = g_cli_servers.running[at].lsp;
             count += 1u;
         }
     }
     return count;
 }
 
-// a path a server has open written as a JSON string after those written
-static void running_file_write(const CliEachPathTextLengthCfg *args)
-{
-    const char *text = args->text;
-    unsigned long long length = args->length;
-    (void)text;
-    (void)length;
-    VerbaLinea *const out = args->context;
-    if ((out->at > 0ull) && (out->out[out->at - 1ull] != '['))
-    {
-        mmgr_line_ch(out, ',');
-    }
-    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = out,
-               .text_bytes = (const unsigned char *)args->path,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}));
-}
-
 unsigned int cli_servers_list(const CliServersCfg *args)
 {
     unsigned int count = 0u;
-    for (unsigned int at = 0u; (at < CLI_SERVERS_MOST) && (count < args->room); at += 1u)
+    for (unsigned int at = 0u; (at < CLI_SERVERS_MAX) && (count < args->capacity); at += 1u)
     {
         const CliServerRunning *const one = &g_cli_servers.running[at];
         if (!one->used)
@@ -100,11 +83,11 @@ unsigned int cli_servers_list(const CliServersCfg *args)
     return count;
 }
 
-unsigned int cli_servers_tools_for(const CliServersRoomCfg *args)
+unsigned int cli_servers_tools_for(const CliServersCapacityCfg *args)
 {
     static CliServerSpec s_spec;
     unsigned int found = 0u;
-    for (unsigned int at = 0u; (at < args->count) && (found < args->room); at += 1u)
+    for (unsigned int at = 0u; (at < args->count) && (found < args->capacity); at += 1u)
     {
         if (EMBED_CALL(cli_servers_language_internal.spec_for, CliServersLanguageCtx, .language = args->languages[at],
                        .spec = &s_spec))
@@ -118,43 +101,13 @@ unsigned int cli_servers_tools_for(const CliServersRoomCfg *args)
     return found;
 }
 
-void cli_servers_stop(const CliServersOutCfg *args)
-{
-    unsigned int taken = 0u;
-    for (unsigned int tool = 0u; tool < args->count; tool += 1u)
-    {
-        for (unsigned int at = 0u; at < CLI_SERVERS_MOST; at += 1u)
-        {
-            CliServerRunning *const one = &g_cli_servers.running[at];
-            if (one->used && (cellul.eq(&(CatenaFinitaCfg){
-                                 .src = one->spec.tool, .other = args->tools_letters[tool], .cap = CLI_CELLS_POOL})))
-            {
-                one->used = 0;
-                s_taken[taken] = one->lsp;
-                taken += 1u;
-            }
-        }
-    }
-    mmgr_line_ch(args->out, '[');
-    for (unsigned int at = 0u; at < taken; at += 1u)
-    {
-        EMBED_CALL(cli_lsp_context.open_each, CliLspContextCfg, .lsp = s_taken[at], .each = running_file_write,
-                   .context = args->out);
-    }
-    mmgr_line_ch(args->out, ']');
-    for (unsigned int at = 0u; at < taken; at += 1u)
-    {
-        EMBED_CALL(cli_servers_path_lsp_internal.stop_later, CliServersPathLspCtx, .lsp = s_taken[at]);
-    }
-}
-
 void cli_servers_stop_all(void)
 {
-    const unsigned int taken = running_take_all();
-    for (unsigned int at = 0u; at < taken; at += 1u)
+    const unsigned int reserved = running_alloc_all();
+    for (unsigned int at = 0u; at < reserved; at += 1u)
     {
-        EMBED_CALL(cli_lsp_context.stop, CliLspContextCfg, .lsp = s_taken[at]);
-        EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = s_taken[at]);
+        EMBED_CALL(cli_lsp_context.stop, CliLspContextCfg, .lsp = s_allocated[at]);
+        EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = s_allocated[at]);
     }
 }
 
@@ -166,33 +119,9 @@ void cli_servers_let_go(void)
     EMBED_CALL(cli_keyed_name.clear, CliKeyedNameCfg, .keyed_out = &g_cli_servers_parses);
     EMBED_CALL(cli_keyed_name.clear, CliKeyedNameCfg, .keyed_out = &g_cli_servers_inspected);
     cli_servers_inspect_let_go();
-    const unsigned int taken = running_take_all();
-    for (unsigned int at = 0u; at < taken; at += 1u)
+    const unsigned int reserved = running_alloc_all();
+    for (unsigned int at = 0u; at < reserved; at += 1u)
     {
-        EMBED_CALL(cli_servers_path_lsp_internal.stop_later, CliServersPathLspCtx, .lsp = s_taken[at]);
-    }
-}
-
-void cli_servers_settings_change(void)
-{
-    unsigned int count = 0u;
-    for (unsigned int at = 0u; at < CLI_SERVERS_MOST; at += 1u)
-    {
-        if (g_cli_servers.running[at].used)
-        {
-            s_taken[count] = g_cli_servers.running[at].lsp;
-            EMBED_CALL(cli_lsp_context.ref, CliLspContextCfg, .lsp = s_taken[count]);
-            count += 1u;
-        }
-    }
-    static const char s_settings[] = "{\"settings\":null}";
-    for (unsigned int at = 0u; at < count; at += 1u)
-    {
-        char quiet[256];
-        VerbaLinea ignored = {quiet, sizeof(quiet), 0ull};
-        (void)EMBED_CALL(cli_lsp_err_msg_length.notify, CliLspErrMsgLengthCfg, .lsp = s_taken[at],
-                         .method = "workspace/didChangeConfiguration", .params = s_settings,
-                         .length = sizeof(s_settings) - 1u, .err_msg = &ignored);
-        EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = s_taken[at]);
+        EMBED_CALL(cli_servers_path_lsp_internal.stop_later, CliServersPathLspCtx, .lsp = s_allocated[at]);
     }
 }

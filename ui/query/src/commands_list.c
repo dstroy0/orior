@@ -7,9 +7,9 @@
 #include "query_loops.h"
 
 // the most names the bridge's folder contains whole of one set of kinds, and the longest one
-#define QUERY_WHOLE_MOST 64u
+#define QUERY_NAMES_MAX 64u
 
-#define QUERY_WHOLE_MAX_LEN 64u
+#define QUERY_NAME_MAX_LEN 64u
 
 // What the walk for the names the folder contains whole records: the folder, the kinds, the names found and their count
 typedef struct
@@ -17,24 +17,24 @@ typedef struct
     const char *folder;
     const char *const *kinds;
     unsigned int kind_count;
-    char (*names)[QUERY_WHOLE_MAX_LEN];
+    char (*names)[QUERY_NAME_MAX_LEN];
     unsigned int count;
-} QueryWholeWalk;
+} QueryNamesWalk;
 
-static void query_whole_walk(const CliEachNameIsFolderCfg *args)
+static void query_names_walk(const CliEachNameIsFolderCfg *args)
 {
-    QueryWholeWalk *const walk = (QueryWholeWalk *)args->context;
+    QueryNamesWalk *const walk = (QueryNamesWalk *)args->context;
     const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
     const size_t kind = cellul.len(&(CatenaFinitaCfg){.src = walk->kinds[0], .cap = CLI_CELLS_POOL});
-    if (args->is_folder || (walk->count >= QUERY_WHOLE_MOST) || (length <= (kind + 1u)) ||
+    if (args->is_folder || (walk->count >= QUERY_NAMES_MAX) || (length <= (kind + 1u)) ||
         (args->name[length - kind - 1u] != '.') ||
         (!cellul.eq(
             &(CatenaFinitaCfg){.src = args->name + length - kind, .other = walk->kinds[0], .cap = CLI_CELLS_POOL})) ||
-        ((length - kind - 1u) >= QUERY_WHOLE_MAX_LEN))
+        ((length - kind - 1u) >= QUERY_NAME_MAX_LEN))
     {
         return;
     }
-    char stem[QUERY_WHOLE_MAX_LEN];
+    char stem[QUERY_NAME_MAX_LEN];
     memor.cpy(&(MemoriaCfg){.dst = stem, .src = args->name, .bytes = length - kind - 1u});
     stem[length - kind - 1u] = '\0';
     // every kind of the stem a file of the folder
@@ -57,26 +57,26 @@ static void query_whole_walk(const CliEachNameIsFolderCfg *args)
     while ((at > 0u) && (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = walk->names[at - 1u],
                                     .other_pointer = stem) > 0))
     {
-        memor.cpy(&(MemoriaCfg){.dst = walk->names[at], .src = walk->names[at - 1u], .bytes = QUERY_WHOLE_MAX_LEN});
+        memor.cpy(&(MemoriaCfg){.dst = walk->names[at], .src = walk->names[at - 1u], .bytes = QUERY_NAME_MAX_LEN});
         at -= 1u;
     }
-    memor.cpy(&(MemoriaCfg){.dst = walk->names[at], .src = stem, .bytes = QUERY_WHOLE_MAX_LEN});
+    memor.cpy(&(MemoriaCfg){.dst = walk->names[at], .src = stem, .bytes = QUERY_NAME_MAX_LEN});
     walk->count += 1u;
 }
 
 // Every name the table contains a file of each of `kinds` of, sorted, into `names`, its list into `named`: their count
-unsigned int query_whole(const QueryLoopsRootKindsCfg *args)
+unsigned int query_names_of_kinds(const QueryLoopsRootKindsCfg *args)
 {
     char folder[QUERY_PATH_MAX_LEN];
     VerbaLinea line = {folder, sizeof(folder), 0ull};
     mmgr_line_put(&line, args->root);
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, QUERY_TABLE);
-    QueryWholeWalk walk = {folder, args->kinds, args->kind_count, args->names, 0u};
+    QueryNamesWalk walk = {folder, args->kinds, args->kind_count, args->names, 0u};
     if (mmgr_line_finish(&line) != 0ull)
     {
         EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = folder,
-                   .each = query_whole_walk, .context_bytess = &walk);
+                   .each = query_names_walk, .context_bytess = &walk);
     }
     for (unsigned int at = 0u; at < walk.count; at += 1u)
     {
@@ -85,10 +85,10 @@ unsigned int query_whole(const QueryLoopsRootKindsCfg *args)
     return walk.count;
 }
 
-static char s_languages[QUERY_WHOLE_MOST][QUERY_WHOLE_MAX_LEN];
-static const char *s_language[QUERY_WHOLE_MOST];
-static char s_parts[QUERY_WHOLE_MOST][QUERY_WHOLE_MAX_LEN];
-static const char *s_part[QUERY_WHOLE_MOST];
+static char s_languages[QUERY_NAMES_MAX][QUERY_NAME_MAX_LEN];
+static const char *s_language[QUERY_NAMES_MAX];
+static char s_parts[QUERY_NAMES_MAX][QUERY_NAME_MAX_LEN];
+static const char *s_part[QUERY_NAMES_MAX];
 
 static const char *const s_leave_choices[] = {"all", "none"};
 static const char *const s_dry_choices[] = {"dry"};

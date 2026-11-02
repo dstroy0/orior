@@ -8,8 +8,8 @@
 
 CliLevels *g_cli_archive_levels;
 
-// the rooms of the levels, in one list
-#define CLI_ARCHIVE_ROOMS ((3u * CLI_ARCHIVE_DEPTH) - 1u + 1u)
+// the capacities of the levels, in one list
+#define CLI_ARCHIVE_BUFFERS ((3u * CLI_ARCHIVE_DEPTH) - 1u + 1u)
 
 typedef struct
 {
@@ -24,7 +24,7 @@ typedef struct
     const CliParts *parts;
     const char *prefix;
 } ArchivePathCtx;
-EMBED_INLINE CliRoom *cli_archive_rooms(const ArchivePathCtx *args)
+EMBED_INLINE CliByteBuffer *cli_archive_buffers(const ArchivePathCtx *args)
 {
     CliLevels *const levels = g_cli_archive_levels;
     return (args->at < CLI_ARCHIVE_DEPTH)                 ? &levels->unpacked[args->at]
@@ -41,32 +41,32 @@ int cli_archive_lock(const CliArchiveErrMsgPartsCtx *args)
         mmgr_line_put(args->err_msg, "the archives a path runs through could not be taken");
         return 0;
     }
-    for (unsigned int at = 0u; at < CLI_ARCHIVE_ROOMS; at += 1u)
+    for (unsigned int at = 0u; at < CLI_ARCHIVE_BUFFERS; at += 1u)
     {
-        *EMBED_CALL(cli_archive_rooms, ArchivePathCtx, .at = at) = (CliRoom){NULL, 0ull};
+        *EMBED_CALL(cli_archive_buffers, ArchivePathCtx, .at = at) = (CliByteBuffer){NULL, 0ull};
     }
     return 1;
 }
 
 void cli_archive_release(void)
 {
-    for (unsigned int at = 0u; at < CLI_ARCHIVE_ROOMS; at += 1u)
+    for (unsigned int at = 0u; at < CLI_ARCHIVE_BUFFERS; at += 1u)
     {
-        g_cli_cells->persistent_buf_release(EMBED_CALL(cli_archive_rooms, ArchivePathCtx, .at = at)->bytes,
+        g_cli_cells->persistent_buf_release(EMBED_CALL(cli_archive_buffers, ArchivePathCtx, .at = at)->bytes,
                                             &g_cli_editor_cells);
     }
     g_cli_cells->persistent_buf_release(g_cli_archive_levels, &g_cli_editor_cells);
     g_cli_archive_levels = NULL;
 }
 
-int cli_archive_room(const CliArchiveErrMsgRoomCtx *args)
+int cli_archive_buffer_reserve(const CliArchiveErrMsgBufferCtx *args)
 {
-    CliRoom *room = args->room_room_pointer;
-    if (args->need <= room->room)
+    CliByteBuffer *buffer = args->buffer_pointer;
+    if (args->need <= buffer->capacity)
     {
         return 1;
     }
-    if (args->need > CLI_ARCHIVE_MOST)
+    if (args->need > CLI_ARCHIVE_MAX)
     {
         mmgr_line_put(args->err_msg, args->what);
         mmgr_line_put(args->err_msg, " is larger than orior_cli supports");
@@ -79,9 +79,9 @@ int cli_archive_room(const CliArchiveErrMsgRoomCtx *args)
         mmgr_line_put(args->err_msg, " could not be taken");
         return 0;
     }
-    g_cli_cells->persistent_buf_release(room->bytes, &g_cli_editor_cells);
-    room->bytes = cell;
-    room->room = args->need;
+    g_cli_cells->persistent_buf_release(buffer->bytes, &g_cli_editor_cells);
+    buffer->bytes = cell;
+    buffer->capacity = args->need;
     return 1;
 }
 
@@ -111,7 +111,7 @@ void cli_archive_parts_get(const CliArchiveErrMsgCtx *args)
 
 void cli_archive_join(const CliArchiveOutCtx *args)
 {
-    VerbaLinea line = {args->out_room, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->out_capacity, CLI_PATH_MAX_LEN, 0ull};
     for (unsigned int at = args->from; at < args->to; at += 1u)
     {
         mmgr_line_put(&line, (at != args->from) ? "/" : "");
@@ -201,7 +201,7 @@ int cli_archive_descend(const CliArchiveErrMsgPartsCtx *args)
         char inner[CLI_NAME_MAX_LEN];
         unsigned long long unpacked = 0ull;
         EMBED_CALL(cli_archive_name_out_internal.gz_inner, CliArchiveNameOutCtx, .name = args->descent->name,
-                   .out_room = inner);
+                   .out_capacity = inner);
         if (!EMBED_CALL(cli_archive_bytes_size_err_msg_internal.members_get, CliArchiveBytesSizeErrMsgCtx,
                         .bytes = args->descent->bytes, .size = args->descent->size, .kind = args->descent->kind,
                         .inner = inner, .members = &g_cli_archive_levels->members[0],
@@ -215,7 +215,7 @@ int cli_archive_descend(const CliArchiveErrMsgPartsCtx *args)
         {
             char path[CLI_PATH_MAX_LEN];
             EMBED_CALL(cli_archive_out_internal.join, CliArchiveOutCtx, .parts_read = args->parts_read,
-                       .from = args->descent->left, .to = cut, .out_room = path);
+                       .from = args->descent->left, .to = cut, .out_capacity = path);
             const CliMember *const member = EMBED_CALL(cli_archive_internal.file_by_name, CliArchiveCtx,
                                                        .members_read = &g_cli_archive_levels->members[0], .name = path);
             const unsigned int nested = EMBED_CALL(cli_archive.kind_get, CliArchiveCfg, .name = path);
@@ -228,7 +228,7 @@ int cli_archive_descend(const CliArchiveErrMsgPartsCtx *args)
                             .size = args->descent->size, .kind = args->descent->kind,
                             .unpacked_bytes = g_cli_archive_levels->unpacked[0].bytes, .unpacked_size_value = unpacked,
                             .members_read = &g_cli_archive_levels->members[0], .member = member,
-                            .out_room_pointer = &g_cli_archive_levels->inner[buffer], .out_size = &size,
+                            .out_buffer_pointer = &g_cli_archive_levels->inner[buffer], .out_size = &size,
                             .err_msg = args->err_msg))
             {
                 return 0;
@@ -368,7 +368,7 @@ EMBED_INLINE void cli_children(const ArchivePathCtx *args)
             const char *const raw = members->text + member->raw;
             const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = raw, .cap = CLI_CELLS_POOL});
             unsigned long long end = length;
-            end = EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = raw, .at = end,
+            end = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = raw, .at = end,
                              .set = "/");
             unsigned long long start = end;
             start = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = raw, .at = start,
@@ -432,7 +432,7 @@ int cli_archive_open(const CliArchiveErrMsgCtx *args)
                1)
             : file;
     args->descent->kind = EMBED_CALL(cli_archive.kind_get, CliArchiveCfg, .name = base);
-    args->descent->bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = file,
+    args->descent->bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = file,
                                       .size_pointer = &args->descent->size, .owner = &g_cli_editor_cells);
     if (args->descent->bytes == NULL)
     {
@@ -476,7 +476,7 @@ int cli_archive_list(const CliArchiveErrMsgRootCfg *args)
                           .src = args->path,
                           .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1u});
         unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = prefix, .cap = CLI_CELLS_POOL});
-        length = EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = prefix, .at = length,
+        length = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = prefix, .at = length,
                             .set = "/");
         prefix[length] = '\0';
         EMBED_CALL(cli_children, ArchivePathCtx, .descent = &descent, .parts = &s_parts, .prefix = prefix,
@@ -487,7 +487,7 @@ int cli_archive_list(const CliArchiveErrMsgRootCfg *args)
     return done;
 }
 
-char *cli_archive_take(const CliArchiveErrMsgCfg *args)
+char *cli_archive_alloc(const CliArchiveErrMsgCfg *args)
 {
     unsigned long long *size = args->size_pointer;
     static CliParts s_parts;
@@ -508,25 +508,27 @@ char *cli_archive_take(const CliArchiveErrMsgCfg *args)
     const unsigned long long mapped_size = descent.size;
     int done = EMBED_CALL(cli_archive_err_msg_parts_internal.descend, CliArchiveErrMsgPartsCtx, .descent = &descent,
                           .parts_read = &s_parts, .err_msg = args->err_msg);
-    char wanted[CLI_PATH_MAX_LEN];
+    char required[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_archive_out_internal.join, CliArchiveOutCtx, .parts_read = &s_parts, .from = descent.left,
-               .to = s_parts.count, .out_room = wanted);
+               .to = s_parts.count, .out_capacity = required);
     char inner[CLI_NAME_MAX_LEN];
-    EMBED_CALL(cli_archive_name_out_internal.gz_inner, CliArchiveNameOutCtx, .name = descent.name, .out_room = inner);
+    EMBED_CALL(cli_archive_name_out_internal.gz_inner, CliArchiveNameOutCtx, .name = descent.name,
+               .out_capacity = inner);
     unsigned long long unpacked = 0ull;
     done =
         done && EMBED_CALL(cli_archive_bytes_size_err_msg_internal.members_get, CliArchiveBytesSizeErrMsgCtx,
                            .bytes = descent.bytes, .size = descent.size, .kind = descent.kind, .inner = inner,
                            .members = &g_cli_archive_levels->members[0], .unpacked = &g_cli_archive_levels->unpacked[0],
                            .unpacked_size = &unpacked, .err_msg = args->err_msg);
-    const CliMember *const member = done ? EMBED_CALL(cli_archive_internal.file_by_name, CliArchiveCtx,
-                                                      .members_read = &g_cli_archive_levels->members[0], .name = wanted)
-                                         : NULL;
+    const CliMember *const member =
+        done ? EMBED_CALL(cli_archive_internal.file_by_name, CliArchiveCtx,
+                          .members_read = &g_cli_archive_levels->members[0], .name = required)
+             : NULL;
     if (done && (member == NULL))
     {
         mmgr_line_put(args->err_msg, descent.name);
         mmgr_line_put(args->err_msg, " contains no ");
-        mmgr_line_put(args->err_msg, wanted);
+        mmgr_line_put(args->err_msg, required);
         done = 0;
     }
     unsigned long long data_size = 0ull;
@@ -534,7 +536,7 @@ char *cli_archive_take(const CliArchiveErrMsgCfg *args)
                               .size = descent.size, .kind = descent.kind,
                               .unpacked_bytes = g_cli_archive_levels->unpacked[0].bytes,
                               .unpacked_size_value = unpacked, .members_read = &g_cli_archive_levels->members[0],
-                              .member = member, .out_room_pointer = &g_cli_archive_levels->written[0],
+                              .member = member, .out_buffer_pointer = &g_cli_archive_levels->written[0],
                               .out_size = &data_size, .err_msg = args->err_msg);
     char *const cell = done ? g_cli_cells->temporary_buf_alloc(data_size + 1ull, args->owner) : NULL;
     if (cell != NULL)

@@ -102,21 +102,21 @@ unsigned int query_learn_lines(const QueryLearnCtx *args)
     unsigned long long at = 0ull;
     while (at < size)
     {
-        const unsigned char *const end = (const unsigned char *)memor.chr(
+        const unsigned char *const newline = (const unsigned char *)memor.chr(
             &(MemoriaCfg){.src = bytes + at, .val = '\n', .bytes = (size_t)(size - at)});
-        const unsigned long long past = (end != NULL) ? (unsigned long long)(end - bytes) : size;
+        const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - bytes) : size;
         int blank = 1;
-        for (unsigned long long letter = at; letter < past; letter += 1ull)
+        for (unsigned long long letter = at; letter < end; letter += 1ull)
         {
             blank = blank && ((bytes[letter] == ' ') || (bytes[letter] == '\t') || (bytes[letter] == '\r'));
         }
         lines += blank ? 0u : 1u;
-        at = past + 1ull;
+        at = end + 1ull;
     }
     return lines;
 }
 
-int query_learn_carry(const QueryLearnErrMsgCtx *args)
+int query_learn_machine_transfer(const QueryLearnErrMsgCtx *args)
 {
     QueryContext *context = args->context;
     QueryRun *run = args->run_out;
@@ -139,11 +139,11 @@ int query_learn_carry(const QueryLearnErrMsgCtx *args)
     mmgr_line_finish(&forms_line);
     const char *const files[4] = {forms_work, forms, "faulted.txt", "overseer.txt"};
     char crystal[QUERY_PATH_MAX_LEN];
-    const int has_crystal = EMBED_CALL(query_room_root_internal.crystal, QueryRoomRootCtx, .root = context->root,
-                                       .program = crystal, .room = sizeof(crystal));
-    return EMBED_CALL(query_count_folder_internal.run_carry, QueryCountFolderCtx, .run = run, .folder = folder,
-                      .files = files, .count = args->lessons ? 4u : 3u, .crystal = has_crystal ? crystal : NULL,
-                      .err_msg = err_msg);
+    const int has_crystal = EMBED_CALL(query_capacity_root_internal.crystal, QueryCapacityRootCtx,
+                                       .root = context->root, .program = crystal, .capacity = sizeof(crystal));
+    return EMBED_CALL(query_count_folder_internal.run_machine_transfer, QueryCountFolderCtx, .run = run,
+                      .folder = folder, .files = files, .count = args->lessons ? 4u : 3u,
+                      .crystal = has_crystal ? crystal : NULL, .err_msg = err_msg);
 }
 
 void query_teacher_words(const QueryLearnWordsWordsCtx *args)
@@ -167,7 +167,7 @@ void query_verdicts_print(const QueryLearnRunCtx *args)
 {
     QueryContext *context = args->context;
     unsigned long long dry_size = 0ull;
-    char *const dry = EMBED_CALL(query_count_name_internal.writer_read_take, QueryCountNameCtx,
+    char *const dry = EMBED_CALL(query_count_name_internal.writer_read_alloc, QueryCountNameCtx,
                                  .writer = &args->run->writer, .name = "dry.txt", .size_pointer = &dry_size);
     if (dry == NULL)
     {
@@ -197,15 +197,15 @@ void query_verdicts_print(const QueryLearnRunCtx *args)
             continue;
         }
         // the verdict: its lower-case letters, spaces, commas and colons, its end trimmed
-        unsigned long long taken = 0ull;
-        const unsigned long long room = length - (unsigned long long)(found - line);
-        taken = EMBED_CALL(cli_text_at_size_classes.past_class, CliTextAtSizeClassesCfg, .text = found, .at = 0ull,
-                           .size = (room < 127ull) ? room : 127ull, .classes = CLI_TEXT_LOWER, .set = " ,:");
-        taken = EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = found, .at = taken,
-                           .set = " ");
+        unsigned long long reserved = 0ull;
+        const unsigned long long capacity = length - (unsigned long long)(found - line);
+        reserved = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = found, .at = 0ull,
+                              .size = (capacity < 127ull) ? capacity : 127ull, .classes = CLI_TEXT_LOWER, .set = " ,:");
+        reserved = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = found, .at = reserved,
+                              .set = " ");
         char verdict[128];
-        memor.cpy(&(MemoriaCfg){.dst = verdict, .src = found, .bytes = (size_t)taken});
-        verdict[taken] = '\0';
+        memor.cpy(&(MemoriaCfg){.dst = verdict, .src = found, .bytes = (size_t)reserved});
+        verdict[reserved] = '\0';
         unsigned int place = 0u;
         while ((place < verdicts) && (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = s_verdicts[place],
                                                  .other_pointer = verdict) < 0))
@@ -262,7 +262,7 @@ int query_bar0_driver_runs(void)
     {
         const unsigned long long got =
             EMBED_CALL(query_process_piece_internal.process_read, QueryProcessPieceCtx, .process = &child,
-                       .piece = s_output + length, .room_u64 = sizeof(s_output) - 1u - length);
+                       .piece = s_output + length, .capacity_u64 = sizeof(s_output) - 1u - length);
         if (got == 0ull)
         {
             break;

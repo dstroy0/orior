@@ -7,20 +7,20 @@
 #include "../text/text.h"
 #include "dap_internal.h"
 
-CliDap g_cli_daps[CLI_DAPS_MOST];
+CliDap g_cli_daps[CLI_DAPS_MAX];
 
 // the sequence number the adapter's own requests are refused from, past any the client sends
 #define CLI_DAP_REFUSED 1000000ull
 
-CliDap *cli_dap_place_take(void)
+CliDap *cli_dap_position_alloc(void)
 {
     CliDap *dap = NULL;
-    for (unsigned int at = 0u; (at < CLI_DAPS_MOST) && (dap == NULL); at += 1u)
+    for (unsigned int at = 0u; (at < CLI_DAPS_MAX) && (dap == NULL); at += 1u)
     {
-        if (!g_cli_daps[at].taken)
+        if (!g_cli_daps[at].reserved)
         {
             dap = &g_cli_daps[at];
-            dap->taken = 1;
+            dap->reserved = 1;
             dap->refs = 1u;
         }
     }
@@ -33,7 +33,7 @@ CliDap *cli_dap_place_take(void)
         dap->next = 1ull;
         memor.set(&(MemoriaCfg){.dst = dap->waiters, .val = 0, .bytes = sizeof(dap->waiters)});
         dap->complaint_size = 0ull;
-        dap->reading = 0u;
+        dap->read_state = 0u;
     }
     return dap;
 }
@@ -44,7 +44,7 @@ typedef struct
     unsigned long long length;
     const char *name;
     char *out;
-    unsigned long long room;
+    unsigned long long capacity;
     CliDap *dap;
     unsigned long long seq;
     char *message;
@@ -55,26 +55,26 @@ typedef struct
     const char *line;
     unsigned long long used;
 } DapCtx;
-// the string of a member of a JSON object of `length` bytes into `out`, sized for `room`: 1, or 0 where it has none
+// the string of a member of a JSON object of `length` bytes into `out`, sized for `capacity`: 1, or 0 where it has none
 EMBED_INLINE int dap_member_string(const DapCtx *args)
 {
     unsigned long long length = args->length;
     const char *name = args->name;
     char *out = args->out;
-    unsigned long long room = args->room;
+    unsigned long long capacity = args->capacity;
     unsigned long long at = 0ull;
     unsigned long long size = 0ull;
     return EMBED_CALL(cli_lsp_body.member, CliLspBodyCfg, .body = args->object, .size_value = length, .name = name,
                       .start = &at, .length_pointer = &size) &&
-           EMBED_CALL(cli_lsp_room.string, CliLspRoomCfg, .text = args->object + at, .length = size, .out_room = out,
-                      .room = room);
+           EMBED_CALL(cli_lsp_capacity.string, CliLspCapacityCfg, .text = args->object + at, .length = size,
+                      .out_capacity = out, .capacity = capacity);
 }
 
 // a response handed to the request of `seq` that waits on it: `message` with its body in it, or its error: 1 where the
 // message went to the request, which gives it back
 EMBED_INLINE int dap_answer(const DapCtx *args)
 {
-    int handed = 0;
+    int transferred = 0;
     for (unsigned int at = 0u; at < CLI_DAP_WAITERS; at += 1u)
     {
         CliDapWaiter *const waiter = &args->dap->waiters[at];
@@ -90,14 +90,14 @@ EMBED_INLINE int dap_answer(const DapCtx *args)
             else
             {
                 waiter->answer = (CliLspAnswer){args->message, args->body, args->length};
-                handed = 1;
+                transferred = 1;
             }
             waiter->answered = 1;
             EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &args->dap->wake);
             break;
         }
     }
-    return handed;
+    return transferred;
 }
 
 // a response read: its request's sequence number, and its body where it succeeded, else its error, from the body's
@@ -148,9 +148,9 @@ EMBED_INLINE int dap_response(const DapCtx *args)
         EMBED_CALL(cli_lsp_body.member, CliLspBodyCfg, .body = args->message + body, .size_value = body_size,
                    .name = "error", .start = &inner, .length_pointer = &inner_size) &&
         EMBED_CALL(dap_member_string, DapCtx, .object = args->message + body + inner, .length = inner_size,
-                   .name = "format", .out = error, .room = sizeof(error));
+                   .name = "format", .out = error, .capacity = sizeof(error));
     if (!formatted && !EMBED_CALL(dap_member_string, DapCtx, .object = args->message, .length = size, .name = "message",
-                                  .out = error, .room = sizeof(error)))
+                                  .out = error, .capacity = sizeof(error)))
     {
         memor.cpy(&(MemoriaCfg){
             .dst = error,
@@ -201,13 +201,13 @@ static void dap_read(void *context)
     unsigned long long size = 0ull;
     char *message = NULL;
     // each message read into a cell of its length, given back here unless it went with an answer
-    while ((message = EMBED_CALL(cli_lsp_reader_size.message_take, CliLspReaderSizeCfg, .reader = &dap->reader,
+    while ((message = EMBED_CALL(cli_lsp_reader_size.message_alloc, CliLspReaderSizeCfg, .reader = &dap->reader,
                                  .size = &size, .owner = &g_cli_debug_cells)) != NULL)
     {
-        int handed = 0;
+        int transferred = 0;
         char kind[32];
         if (!EMBED_CALL(dap_member_string, DapCtx, .object = message, .length = size, .name = "type", .out = kind,
-                        .room = sizeof(kind)))
+                        .capacity = sizeof(kind)))
         {
             kind[0] = '\0';
         }
@@ -215,7 +215,7 @@ static void dap_read(void *context)
         {
             char event[256] = "";
             if (!EMBED_CALL(dap_member_string, DapCtx, .object = message, .length = size, .name = "event", .out = event,
-                            .room = sizeof(event)))
+                            .capacity = sizeof(event)))
             {
                 event[0] = '\0';
             }
@@ -227,14 +227,14 @@ static void dap_read(void *context)
         }
         else if (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "response", .cap = CLI_CELLS_POOL}))
         {
-            handed = EMBED_CALL(dap_response, DapCtx, .dap = dap, .message = message, .size = size);
+            transferred = EMBED_CALL(dap_response, DapCtx, .dap = dap, .message = message, .size = size);
         }
         else if (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "request", .cap = CLI_CELLS_POOL}))
         {
             refused += 1ull;
             EMBED_CALL(dap_reject, DapCtx, .dap = dap, .message_read = message, .size = size, .seq = refused);
         }
-        if (!handed)
+        if (!transferred)
         {
             g_cli_cells->persistent_buf_release(message, &g_cli_debug_cells);
         }
@@ -252,7 +252,7 @@ static void dap_read(void *context)
     }
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &dap->wake);
     dap->emit(dap->context, "adapterStopped", "null", 4ull);
-    dap->reading -= 1u;
+    dap->read_state -= 1u;
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &dap->wake);
 }
 
@@ -290,8 +290,8 @@ EMBED_INLINE void dap_complaint_store(const DapCtx *args)
     }
 }
 
-// what the program adapter writes to its errors read until it ends, line by line, a line longer than the room stored in
-// pieces of the room's length
+// what the program adapter writes to its errors read until it ends, line by line, a line longer than the capacity
+// stored in pieces of the capacity's length
 static void dap_complaints_read(void *context)
 {
     CliDap *const dap = (CliDap *)context;
@@ -301,8 +301,8 @@ static void dap_complaints_read(void *context)
     for (;;)
     {
         const unsigned long long count =
-            EMBED_CALL(cli_room_pipe_handle_internal.spawn_read, CliRoomPipeHandleCtx, .pipe_handle = dap->spawned.err,
-                       .piece = piece, .room = sizeof(piece));
+            EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx,
+                       .pipe_handle = dap->spawned.err, .piece = piece, .capacity = sizeof(piece));
         if (count == 0ull)
         {
             break;
@@ -325,7 +325,7 @@ static void dap_complaints_read(void *context)
     {
         EMBED_CALL(dap_complaint_store, DapCtx, .dap = dap, .line = line, .used = used);
     }
-    dap->reading -= 1u;
+    dap->read_state -= 1u;
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &dap->wake);
 }
 
@@ -335,7 +335,7 @@ void cli_dap_readers_start(const CliDapCtx *args)
     void (*const runs[2])(void *context) = {dap_read, dap_complaints_read};
     for (unsigned int at = 0u; at < (args->complaints ? 2u : 1u); at += 1u)
     {
-        args->dap->reading += 1u;
+        args->dap->read_state += 1u;
         *threads[at] = (CliThread){runs[at], args->dap};
         if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = threads[at]))
         {
@@ -509,12 +509,12 @@ void cli_dap_unref(const CliDapCfg *args)
     }
     EMBED_CALL(cli_dap_internal.end, CliDapCtx, .dap = args->dap);
     const unsigned long long until = cli_clock_milliseconds() + 5000ull;
-    while ((args->dap->reading > 0u) && (cli_clock_milliseconds() < until))
+    while ((args->dap->read_state > 0u) && (cli_clock_milliseconds() < until))
     {
         (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &args->dap->wake,
                          .milliseconds_u64 = until - cli_clock_milliseconds());
     }
-    const int read = (args->dap->reading == 0u);
+    const int read = (args->dap->read_state == 0u);
     if (!read)
     {
         return;
@@ -530,5 +530,5 @@ void cli_dap_unref(const CliDapCfg *args)
     {
         EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &args->dap->spawned);
     }
-    args->dap->taken = 0;
+    args->dap->reserved = 0;
 }

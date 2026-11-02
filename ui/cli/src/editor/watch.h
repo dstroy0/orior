@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// watch.h: changes to the tree's files made outside the window, gathered in batches for the window to take: the
+// watch.h: changes to the tree's files made outside the window, gathered in batches for the controller to take: the
 // folders whose entries changed, the files whose text did, and whether git's view did.
 //
 // On Windows the system reports each change as it is made, through ReadDirectoryChangesW over the whole tree.
@@ -13,13 +13,16 @@
 #ifndef WATCH_H
 #define WATCH_H
 typedef struct CliWatchCfg CliWatchCfg;
+typedef struct CliWatchBatchCfg CliWatchBatchCfg;
 
 #include "../command_line/callback_cfg.h"
 #include "../command_line/cli_internal.h"
 #include "embed_dispatch_layout.h"
+#include "files.h"
 
-// a batch handed to the window, written as `{"folders", "files", "git", "lost"}`, `size` bytes
-typedef void (*CliTake)(const CliEachBatchSizeCfg *args);
+// a batch taken: the folders whose entries changed and the files whose text did, each from the tree's top and valid
+// while the call runs; whether git's view changed, and whether changes were lost
+typedef void (*CliWatchTake)(const CliWatchBatchCfg *args);
 
 // the tree at `root` watched, each batch of changes handed to `take` on a thread of the watch's own, any watch before
 // it stopped first; and the watch stopped, its threads waited for
@@ -29,8 +32,17 @@ void cli_watch_stop(void);
 struct CliWatchCfg
 {
     const char *root;
-    CliTake take;
+    CliWatchTake take;
     void *context;
+};
+
+struct CliWatchBatchCfg
+{
+    void *context;
+    const CliFiles *folders;
+    const CliFiles *files;
+    int git;
+    int lost;
 };
 
 typedef struct

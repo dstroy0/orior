@@ -13,16 +13,16 @@ unsigned int *g_cli_js_within;
 // the open brackets of the reading, a list of the reading's cell
 static unsigned int *s_stack;
 
-void cli_inspect_js_lex_layout(const CliInspectCarveCtx *args)
+void cli_inspect_js_lex_layout(const CliInspectPartitionCtx *args)
 {
     const unsigned long long tokens = CLI_INSPECT_TOKENS;
-    g_cli_js_pair = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
-                               .bytes = tokens * sizeof(unsigned int));
-    g_cli_js_brace =
-        EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve, .bytes = tokens);
-    g_cli_js_within = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
-                                 .bytes = tokens * sizeof(unsigned int));
-    s_stack = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
+    g_cli_js_pair = EMBED_CALL(cli_inspect_partition_internal.partition, CliInspectPartitionCtx,
+                               .partition = args->partition, .bytes = tokens * sizeof(unsigned int));
+    g_cli_js_brace = EMBED_CALL(cli_inspect_partition_internal.partition, CliInspectPartitionCtx,
+                                .partition = args->partition, .bytes = tokens);
+    g_cli_js_within = EMBED_CALL(cli_inspect_partition_internal.partition, CliInspectPartitionCtx,
+                                 .partition = args->partition, .bytes = tokens * sizeof(unsigned int));
+    s_stack = EMBED_CALL(cli_inspect_partition_internal.partition, CliInspectPartitionCtx, .partition = args->partition,
                          .bytes = tokens * sizeof(unsigned int));
 }
 
@@ -117,7 +117,7 @@ EMBED_INLINE int lex_value_expected(const InspectJsLexCtx *args)
 EMBED_INLINE void lex_block_comment(const InspectJsLexCtx *args)
 {
     CliInspectScan *scan = args->scan;
-    const CliInspectPlace from = EMBED_CALL(cli_inspect_scan_internal.place, CliInspectScanCtx, .scan = scan);
+    const CliInspectPosition from = EMBED_CALL(cli_inspect_scan_internal.place, CliInspectScanCtx, .scan = scan);
     (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
     (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
     for (unsigned int letter = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan);
@@ -133,7 +133,7 @@ EMBED_INLINE void lex_block_comment(const InspectJsLexCtx *args)
         }
         (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
     }
-    EMBED_CALL(cli_inspect_from_to_internal.comment_put, CliInspectFromToCtx, .from = from,
+    EMBED_CALL(cli_inspect_from_to_internal.comment_append, CliInspectFromToCtx, .from = from,
                .to = EMBED_CALL(cli_inspect_scan_internal.place, CliInspectScanCtx, .scan = scan));
 }
 
@@ -142,7 +142,7 @@ EMBED_INLINE void lex_regex(const InspectJsLexCtx *args)
 {
     CliInspectScan *scan = args->scan;
     const unsigned long long start = scan->pos;
-    const CliInspectPlace from = EMBED_CALL(cli_inspect_scan_internal.place, CliInspectScanCtx, .scan = scan);
+    const CliInspectPosition from = EMBED_CALL(cli_inspect_scan_internal.place, CliInspectScanCtx, .scan = scan);
     (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
     int in_class = 0;
     for (unsigned int letter = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan);
@@ -172,8 +172,8 @@ EMBED_INLINE void lex_regex(const InspectJsLexCtx *args)
     {
         (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
     }
-    EMBED_CALL(cli_inspect_scan_internal.tok_put, CliInspectScanCtx, .scan = scan, .kind = CLI_JS_REGEX, .start = start,
-               .from = from, .field = 0);
+    EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .kind = CLI_JS_REGEX,
+               .start = start, .from = from, .field = 0);
 }
 
 // punctuation, the longest that matches, else the one letter
@@ -181,7 +181,7 @@ EMBED_INLINE void lex_punct(const InspectJsLexCtx *args)
 {
     CliInspectScan *scan = args->scan;
     const unsigned long long start = scan->pos;
-    const CliInspectPlace from = EMBED_CALL(cli_inspect_scan_internal.place, CliInspectScanCtx, .scan = scan);
+    const CliInspectPosition from = EMBED_CALL(cli_inspect_scan_internal.place, CliInspectScanCtx, .scan = scan);
     size_t length = 1u;
     for (unsigned int at = 0u; at < 52u; at += 1u)
     {
@@ -197,8 +197,8 @@ EMBED_INLINE void lex_punct(const InspectJsLexCtx *args)
     {
         (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
     }
-    EMBED_CALL(cli_inspect_scan_internal.tok_put, CliInspectScanCtx, .scan = scan, .kind = CLI_JS_PUNCT, .start = start,
-               .from = from, .field = 0);
+    EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .kind = CLI_JS_PUNCT,
+               .start = start, .from = from, .field = 0);
 }
 
 // tokens read until the text ends or, `inside` a template's `${`, until its `}`
@@ -211,7 +211,7 @@ static void lex(const InspectJsLexCtx *args)
          letter = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan))
     {
         const unsigned long long start = scan->pos;
-        const CliInspectPlace from = EMBED_CALL(cli_inspect_scan_internal.place, CliInspectScanCtx, .scan = scan);
+        const CliInspectPosition from = EMBED_CALL(cli_inspect_scan_internal.place, CliInspectScanCtx, .scan = scan);
         const unsigned int next =
             EMBED_CALL(cli_inspect_scan_ahead_internal.peek_at, CliInspectScanAheadCtx, .scan = scan, .ahead = 1u);
         if ((letter == ' ') || (letter == '\t') || (letter == '\r') || (letter == '\n') || (letter == 0xfeffu) ||
@@ -245,7 +245,7 @@ static void lex(const InspectJsLexCtx *args)
                     break;
                 }
             }
-            EMBED_CALL(cli_inspect_scan_internal.tok_put, CliInspectScanCtx, .scan = scan, .kind = CLI_JS_STR,
+            EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .kind = CLI_JS_STR,
                        .start = start, .from = from, .field = 0);
         }
         else if (letter == '`')
@@ -278,7 +278,7 @@ static void lex(const InspectJsLexCtx *args)
                     (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
                 }
             }
-            EMBED_CALL(cli_inspect_scan_internal.tok_put, CliInspectScanCtx, .scan = scan, .kind = CLI_JS_STR,
+            EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .kind = CLI_JS_STR,
                        .start = start, .from = from, .field = 0);
         }
         else if ((letter == '/') && EMBED_CALL(lex_value_expected, InspectJsLexCtx, .src = scan->src))
@@ -294,7 +294,7 @@ static void lex(const InspectJsLexCtx *args)
             {
                 (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
             }
-            EMBED_CALL(cli_inspect_scan_internal.tok_put, CliInspectScanCtx, .scan = scan, .kind = CLI_JS_NAME,
+            EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .kind = CLI_JS_NAME,
                        .start = start, .from = from, .field = 0);
         }
         else if (((letter >= '0') && (letter <= '9')) || ((letter == '.') && (next >= '0') && (next <= '9')))
@@ -308,7 +308,7 @@ static void lex(const InspectJsLexCtx *args)
             {
                 (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
             }
-            EMBED_CALL(cli_inspect_scan_internal.tok_put, CliInspectScanCtx, .scan = scan, .kind = CLI_JS_NUMBER,
+            EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .kind = CLI_JS_NUMBER,
                        .start = start, .from = from, .field = 0);
         }
         else if ((letter == '(') || (letter == '[') || (letter == '{') || (letter == ')') || (letter == ']') ||
@@ -321,7 +321,7 @@ static void lex(const InspectJsLexCtx *args)
             }
             depth += ((letter == '(') || (letter == '[') || (letter == '{')) ? 1 : -1;
             (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
-            EMBED_CALL(cli_inspect_scan_internal.tok_put, CliInspectScanCtx, .scan = scan, .kind = CLI_JS_PUNCT,
+            EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .kind = CLI_JS_PUNCT,
                        .start = start, .from = from, .field = 0);
         }
         else

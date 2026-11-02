@@ -22,24 +22,26 @@ static unsigned int s_scopes;
 static unsigned int *s_params;
 static unsigned int s_param_count;
 
-void cli_inspect_js_parse_layout(const CliInspectCarveCtx *args)
+void cli_inspect_js_parse_layout(const CliInspectPartitionCtx *args)
 {
-    EMBED_CALL(cli_inspect_carve_set_internal.set_layout, CliInspectCarveSetCtx, .set = &s_classes,
-               .carve = args->carve);
-    EMBED_CALL(cli_inspect_carve_set_internal.set_layout, CliInspectCarveSetCtx, .set = &s_names, .carve = args->carve);
-    EMBED_CALL(cli_inspect_carve_set_internal.set_layout, CliInspectCarveSetCtx, .set = &s_scope_names,
-               .carve = args->carve);
+    EMBED_CALL(cli_inspect_partition_set_internal.set_layout, CliInspectPartitionSetCtx, .set = &s_classes,
+               .partition = args->partition);
+    EMBED_CALL(cli_inspect_partition_set_internal.set_layout, CliInspectPartitionSetCtx, .set = &s_names,
+               .partition = args->partition);
+    EMBED_CALL(cli_inspect_partition_set_internal.set_layout, CliInspectPartitionSetCtx, .set = &s_scope_names,
+               .partition = args->partition);
     const unsigned long long scopes = CLI_JS_SCOPES;
-    s_scope_from = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
-                              .bytes = scopes * sizeof(unsigned int));
-    s_scope_to = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
-                            .bytes = scopes * sizeof(unsigned int));
-    s_scope_first = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
-                               .bytes = scopes * sizeof(unsigned int));
-    s_scope_count = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
-                               .bytes = scopes * sizeof(unsigned int));
-    s_params = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
-                          .bytes = (unsigned long long)CLI_JS_PARAMS * sizeof(unsigned int));
+    s_scope_from = EMBED_CALL(cli_inspect_partition_internal.partition, CliInspectPartitionCtx,
+                              .partition = args->partition, .bytes = scopes * sizeof(unsigned int));
+    s_scope_to = EMBED_CALL(cli_inspect_partition_internal.partition, CliInspectPartitionCtx,
+                            .partition = args->partition, .bytes = scopes * sizeof(unsigned int));
+    s_scope_first = EMBED_CALL(cli_inspect_partition_internal.partition, CliInspectPartitionCtx,
+                               .partition = args->partition, .bytes = scopes * sizeof(unsigned int));
+    s_scope_count = EMBED_CALL(cli_inspect_partition_internal.partition, CliInspectPartitionCtx,
+                               .partition = args->partition, .bytes = scopes * sizeof(unsigned int));
+    s_params =
+        EMBED_CALL(cli_inspect_partition_internal.partition, CliInspectPartitionCtx, .partition = args->partition,
+                   .bytes = (unsigned long long)CLI_JS_PARAMS * sizeof(unsigned int));
 }
 
 unsigned int cli_js_parameters(const CliInspectJsOpenCfg *args)
@@ -83,7 +85,7 @@ unsigned int cli_js_parameters(const CliInspectJsOpenCfg *args)
     if (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = args->src, .at = before, .word = "=>") &&
         (last == first + 1u) && (g_cli_inspect_tok[first].kind == CLI_JS_NAME))
     {
-        EMBED_CALL(cli_inspect_set_internal.set_put, CliInspectSetCtx, .set = args->names,
+        EMBED_CALL(cli_inspect_set_internal.set_append, CliInspectSetCtx, .set = args->names,
                    .at = args->src + g_cli_inspect_tok[first].start,
                    .size_u32 = g_cli_inspect_tok[first].end - g_cli_inspect_tok[first].start);
         return first;
@@ -100,7 +102,7 @@ unsigned int cli_js_parameters(const CliInspectJsOpenCfg *args)
             EMBED_CALL(cli_inspect_js_at.js_one_get, CliInspectJsAtCfg, .src = args->src, .at = at + 1u,
                        .words = s_after, .count = 3u))
         {
-            EMBED_CALL(cli_inspect_set_internal.set_put, CliInspectSetCtx, .set = args->names,
+            EMBED_CALL(cli_inspect_set_internal.set_append, CliInspectSetCtx, .set = args->names,
                        .at = args->src + g_cli_inspect_tok[at].start,
                        .size_u32 = g_cli_inspect_tok[at].end - g_cli_inspect_tok[at].start);
         }
@@ -119,14 +121,14 @@ EMBED_INLINE void parse_scopes(const InspectJsParseCtx *args)
     const char *src = args->src;
     s_scopes = 0u;
     s_param_count = 0u;
-    EMBED_CALL(cli_inspect_carve_set_internal.set_clear, CliInspectCarveSetCtx, .set = &s_names);
+    EMBED_CALL(cli_inspect_partition_set_internal.set_clear, CliInspectPartitionSetCtx, .set = &s_names);
     for (unsigned int open = 0u; (open < g_cli_inspect_toks) && (s_scopes < CLI_JS_SCOPES); open += 1u)
     {
         if (g_cli_js_brace[open] != CLI_JS_FUNCTION)
         {
             continue;
         }
-        EMBED_CALL(cli_inspect_carve_set_internal.set_clear, CliInspectCarveSetCtx, .set = &s_scope_names);
+        EMBED_CALL(cli_inspect_partition_set_internal.set_clear, CliInspectPartitionSetCtx, .set = &s_scope_names);
         const unsigned int first = EMBED_CALL(cli_inspect_js_open.js_parameters, CliInspectJsOpenCfg, .src = src,
                                               .open = open, .names = &s_scope_names);
         s_scope_from[s_scopes] = first;
@@ -142,8 +144,8 @@ EMBED_INLINE void parse_scopes(const InspectJsParseCtx *args)
             {
                 s_params[s_param_count] = at;
                 s_param_count += 1u;
-                EMBED_CALL(cli_inspect_set_internal.set_put, CliInspectSetCtx, .set = &s_names, .at = src + tok->start,
-                           .size_u32 = tok->end - tok->start);
+                EMBED_CALL(cli_inspect_set_internal.set_append, CliInspectSetCtx, .set = &s_names,
+                           .at = src + tok->start, .size_u32 = tok->end - tok->start);
             }
         }
         s_scope_count[s_scopes] = s_param_count - s_scope_first[s_scopes];
@@ -262,9 +264,9 @@ void cli_inspect_js_parse(const CliInspectSizeSrcParsedCtx *args)
         const CliInspectSpan comment = g_cli_inspect_comment[at];
         EMBED_CALL(cli_inspect_from_to_internal.paint, CliInspectFromToCtx, .from = comment.from, .to = comment.to,
                    .class_of = CLI_INSPECT_COMMENT);
-        EMBED_CALL(cli_inspect_parsed_internal.fold_put, CliInspectParsedCtx, .parsed = args->parsed,
+        EMBED_CALL(cli_inspect_parsed_internal.fold_append, CliInspectParsedCtx, .parsed = args->parsed,
                    .first = comment.from.line, .last = comment.to.line);
-        EMBED_CALL(cli_inspect_from_to_parsed_internal.range_put, CliInspectFromToParsedCtx, .parsed = args->parsed,
+        EMBED_CALL(cli_inspect_from_to_parsed_internal.range_append, CliInspectFromToParsedCtx, .parsed = args->parsed,
                    .from = comment.from, .to = comment.to);
     }
     // strings first, as a template's own code is read inside it and drawn over it
@@ -277,25 +279,25 @@ void cli_inspect_js_parse(const CliInspectSizeSrcParsedCtx *args)
         }
         EMBED_CALL(cli_inspect_from_to_internal.paint, CliInspectFromToCtx, .from = tok->from, .to = tok->to,
                    .class_of = CLI_INSPECT_STRING);
-        EMBED_CALL(cli_inspect_parsed_internal.fold_put, CliInspectParsedCtx, .parsed = args->parsed,
+        EMBED_CALL(cli_inspect_parsed_internal.fold_append, CliInspectParsedCtx, .parsed = args->parsed,
                    .first = tok->from.line, .last = tok->to.line);
-        EMBED_CALL(cli_inspect_from_to_parsed_internal.range_put, CliInspectFromToParsedCtx, .parsed = args->parsed,
+        EMBED_CALL(cli_inspect_from_to_parsed_internal.range_append, CliInspectFromToParsedCtx, .parsed = args->parsed,
                    .from = tok->from, .to = tok->to);
         if ((tok->end - tok->start >= 2u) && (tok->kind == CLI_JS_STR))
         {
-            EMBED_CALL(cli_inspect_from_to_parsed_internal.range_put, CliInspectFromToParsedCtx, .parsed = args->parsed,
-                       .from = (CliInspectPlace){tok->from.line, tok->from.col + 1u},
-                       .to = (CliInspectPlace){tok->to.line, (tok->to.col > 0u) ? (tok->to.col - 1u) : 0u});
+            EMBED_CALL(cli_inspect_from_to_parsed_internal.range_append, CliInspectFromToParsedCtx,
+                       .parsed = args->parsed, .from = (CliInspectPosition){tok->from.line, tok->from.col + 1u},
+                       .to = (CliInspectPosition){tok->to.line, (tok->to.col > 0u) ? (tok->to.col - 1u) : 0u});
         }
     }
-    EMBED_CALL(cli_inspect_carve_set_internal.set_clear, CliInspectCarveSetCtx, .set = &s_classes);
+    EMBED_CALL(cli_inspect_partition_set_internal.set_clear, CliInspectPartitionSetCtx, .set = &s_classes);
     for (unsigned int at = 1u; at < g_cli_inspect_toks; at += 1u)
     {
         if (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = args->src, .at = at - 1u,
                        .word = "class") &&
             (g_cli_inspect_tok[at].kind == CLI_JS_NAME))
         {
-            EMBED_CALL(cli_inspect_set_internal.set_put, CliInspectSetCtx, .set = &s_classes,
+            EMBED_CALL(cli_inspect_set_internal.set_append, CliInspectSetCtx, .set = &s_classes,
                        .at = args->src + g_cli_inspect_tok[at].start,
                        .size_u32 = g_cli_inspect_tok[at].end - g_cli_inspect_tok[at].start);
         }
@@ -326,11 +328,11 @@ void cli_inspect_js_parse(const CliInspectSizeSrcParsedCtx *args)
             if ((close != CLI_JS_NO) && opens && (close > at))
             {
                 const CliInspectTok *const closed = &g_cli_inspect_tok[close];
-                EMBED_CALL(cli_inspect_from_to_parsed_internal.range_put, CliInspectFromToParsedCtx,
+                EMBED_CALL(cli_inspect_from_to_parsed_internal.range_append, CliInspectFromToParsedCtx,
                            .parsed = args->parsed, .from = tok->to, .to = closed->from);
-                EMBED_CALL(cli_inspect_from_to_parsed_internal.range_put, CliInspectFromToParsedCtx,
+                EMBED_CALL(cli_inspect_from_to_parsed_internal.range_append, CliInspectFromToParsedCtx,
                            .parsed = args->parsed, .from = tok->from, .to = closed->to);
-                EMBED_CALL(cli_inspect_parsed_internal.fold_put, CliInspectParsedCtx, .parsed = args->parsed,
+                EMBED_CALL(cli_inspect_parsed_internal.fold_append, CliInspectParsedCtx, .parsed = args->parsed,
                            .first = tok->from.line, .last = closed->to.line);
             }
             class_of = EMBED_CALL(cli_inspect_js_at.js_one_get, CliInspectJsAtCfg, .src = args->src, .at = at,
@@ -363,7 +365,7 @@ void cli_inspect_js_parse(const CliInspectSizeSrcParsedCtx *args)
         {
             first -= 1u;
         }
-        EMBED_CALL(cli_inspect_from_to_parsed_internal.range_put, CliInspectFromToParsedCtx, .parsed = args->parsed,
+        EMBED_CALL(cli_inspect_from_to_parsed_internal.range_append, CliInspectFromToParsedCtx, .parsed = args->parsed,
                    .from = g_cli_inspect_tok[first].from, .to = g_cli_inspect_tok[close].to);
     }
     cli_inspect_size_src_parsed_internal.paint_runs(args);

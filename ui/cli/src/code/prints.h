@@ -18,12 +18,6 @@ typedef struct CliPrintsPathCfg CliPrintsPathCfg;
 // change of the tree `root` against its last commit added, by path and then line, each once, written as
 // `[{"path", "line", "text"}]`, the line counted from 0
 int cli_prints_line(const CliPrintsPathCfg *args);
-int cli_prints_add(const CliPrintsCfg *args);
-// the prints the lines `size` bytes of a unified diff with no lines of context put in, each by its path, its line in
-// the file as it stands and its text, written as cli_prints_add writes them; each 1, or 0 with why given where no
-// room for the prints is left
-int cli_prints_put_in(const CliPrintsOutCfg *args);
-
 struct CliPrintsOutCfg
 {
     VerbaLinea *out;
@@ -53,24 +47,6 @@ typedef struct
 EMBED_TABLE_LAYOUT(CliPrintsPathNs, line);
 EMBED_TABLE_STORAGE CliPrintsPathNs cli_prints_path EMBED_UNUSED = {
     .line = cli_prints_line,
-};
-
-typedef struct
-{
-    int (*add)(const CliPrintsCfg *args);
-} CliPrintsNs;
-EMBED_TABLE_LAYOUT(CliPrintsNs, add);
-EMBED_TABLE_STORAGE CliPrintsNs cli_prints EMBED_UNUSED = {
-    .add = cli_prints_add,
-};
-
-typedef struct
-{
-    int (*put_in)(const CliPrintsOutCfg *args);
-} CliPrintsOutNs;
-EMBED_TABLE_LAYOUT(CliPrintsOutNs, put_in);
-EMBED_TABLE_STORAGE CliPrintsOutNs cli_prints_out EMBED_UNUSED = {
-    .put_in = cli_prints_put_in,
 };
 
 #endif

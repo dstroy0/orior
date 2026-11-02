@@ -34,9 +34,9 @@ typedef struct CliDebugCtx CliDebugCtx;
 // the most sessions at once, one adapter each; the exceptions one adapter can stop on; the most breakpoints the reader
 // placed that a session stores, and its data breakpoints, and those each list is taken with; and the nodes and bytes
 // over an event's own its tree is read with, for what a stop rewritten adds
-#define CLI_DEBUG_SESSIONS CLI_DAPS_MOST
+#define CLI_DEBUG_SESSIONS CLI_DAPS_MAX
 #define CLI_DEBUG_FILTERS 32u
-#define CLI_DEBUG_PLACED 4096u
+#define CLI_DEBUG_POSITIONED 4096u
 #define CLI_DEBUG_DATA 256u
 #define CLI_DEBUG_EVENT_MORE_NODES 8u
 #define CLI_DEBUG_EVENT_MORE_TEXT 64u
@@ -45,7 +45,7 @@ typedef struct CliDebugCtx CliDebugCtx;
 #define CLI_DEBUG_START_NODES 8192u
 #define CLI_DEBUG_START_TEXT (1u << 18u)
 
-// the cells the sessions' places occupy: their lists and the trees they start with (debug_place.c)
+// the cells the sessions' places occupy: their lists and the trees they start with (debug_position.c)
 extern CellOwner g_cli_debug_cells;
 
 // how long, in milliseconds, the adapter has to start, to be ready for breakpoints, and to launch the program; a
@@ -103,8 +103,8 @@ typedef struct
 // is made in. The two lists are cells at their most, and they and the tree are given back with the place
 typedef struct
 {
-    int taken;
-    int listed;
+    int reserved;
+    int list_entries;
     int adapter_ended;
     unsigned int users;
     CliDebugInfo info;
@@ -112,10 +112,10 @@ typedef struct
     char program[CLI_PATH_MAX_LEN];
     char (*data)[CLI_NAME_MAX_LEN];
     unsigned int data_count;
-    unsigned int data_room;
-    long long *placed;
-    unsigned int placed_count;
-    unsigned int placed_room;
+    unsigned int data_capacity;
+    long long *positioned;
+    unsigned int positioned_count;
+    unsigned int positioned_capacity;
     int watching;
     int scripted;
     int has_across;
@@ -123,16 +123,16 @@ typedef struct
     unsigned long long pid;
     int initialized;
     CliDebugSink sink;
-    CliThread giver;
-    int giving;
+    CliThread provider;
+    int releasing;
     CliThread clearer;
     int clearing;
     unsigned long long cleared;
     CliJson start;
 } CliDebugSession;
 
-// a place freed, its lists and its tree given back, under the sessions' lock (debug_place.c)
-void cli_debug_place_free(const CliDebugCtx *args);
+// a place freed, its lists and its tree given back, under the sessions' lock (debug_position.c)
+void cli_debug_position_free(const CliDebugCtx *args);
 
 // The sessions, the number the next takes, their lock and the wake of a session's adapter reporting it is initialized
 typedef struct
@@ -140,24 +140,24 @@ typedef struct
     CliDebugSession sessions[CLI_DEBUG_SESSIONS];
     unsigned long long next;
     CliWake wake;
-} CliDebugRoom;
+} CliDebugWorkState;
 
-extern CliDebugRoom g_cli_debug;
+extern CliDebugWorkState g_cli_debug;
 
 // A request sent to an adapter: whether it is taken; the line its arguments are written on, over a cell of the most
 // they hold; and the answer's body read as a tree taken to its size, its root
 typedef struct
 {
-    int taken;
+    int reserved;
     VerbaLinea args;
     CliJson json;
     unsigned int root;
 } CliDebugAnswer;
 
-// a request's room taken, waiting while every one is in use, its arguments empty to write into `answer`; `command`
-// sent to the session taken with those arguments, an empty object where none are written, its answer waited for up
-// to `wait` milliseconds and read: 1, or 0 with why given; and the room given back (debug_session.c)
-CliDebugAnswer *cli_debug_answer_take(void);
+// a request's work state taken, waiting while every one is in use, its arguments empty to write into `answer`;
+// `command` sent to the session taken with those arguments, an empty object where none are written, its answer waited
+// for up to `wait` milliseconds and read: 1, or 0 with why given; and the work state given back (debug_session.c)
+CliDebugAnswer *cli_debug_answer_alloc(void);
 int cli_debug_request(const CliDebugSessionCommandCtx *args);
 void cli_debug_answer_free(const CliDebugSessionCommandCtx *args);
 
@@ -165,9 +165,9 @@ void cli_debug_answer_free(const CliDebugSessionCommandCtx *args);
 // is not listed; a session taken let go, its adapter given back, its place freed where it was the last use of a session
 // no longer listed whose adapter ended; a free place taken for a session, NULL where every one is taken; and what a
 // session is written as the window reads it (debug_session.c)
-CliDebugSession *cli_debug_take(const CliDebugErrMsgIdCtx *args);
+CliDebugSession *cli_debug_alloc(const CliDebugErrMsgIdCtx *args);
 void cli_debug_let_go(const CliDebugSessionErrMsgCtx *args);
-CliDebugSession *cli_debug_place(void);
+CliDebugSession *cli_debug_position(void);
 void cli_debug_info_write(const CliDebugInfoCtx *args);
 // the native session debugging the same process as Python session `id`, taken, NULL where there is none
 CliDebugSession *cli_debug_native_get(const CliDebugErrMsgIdCtx *args);
@@ -178,7 +178,7 @@ int cli_debug_set(const CliDebugSessionCtx *args);
 
 // whether node `node` of `json` is a whole number, it into `value`, and the same of one at least 0; whether it is
 // true; the text of a string node, `fallback` where it is none; whether a session in `language` debugs the file at
-// `file`; `bytes` from base64, `size` of them, into `out`, sized for `room`: their count; the node `from` of `json`
+// `file`; `bytes` from base64, `size` of them, into `out`, sized for `capacity`: their count; the node `from` of `json`
 // made in `to` with each "{name}" in its strings filled in from `names` and `withs`, `count` of them, and each string
 // of digits alone made a number where `numbered`; the arguments that set stepping for a session in `language` put in
 // the object `arguments` of `to`, as the object `stepping` of `json` specifies; and the breakpoints of the array
@@ -187,7 +187,7 @@ int cli_debug_sign(const CliDebugJsonNodeCtx *args);
 int cli_debug_unsigned(const CliDebugJsonNodeValueU64sCtx *args);
 int cli_debug_true(const CliDebugJsonNodeCtx *args);
 const char *cli_debug_text(const CliDebugJsonNodeFallbackCtx *args);
-int cli_debug_takes(const CliDebugFileCtx *args);
+int cli_debug_allocs(const CliDebugFileCtx *args);
 unsigned long long cli_debug_base64(const CliDebugTextCtx *args);
 unsigned int cli_debug_fill(const CliDebugJsonCtx *args);
 void cli_debug_step_arguments(const CliDebugJsonLanguageCtx *args);
@@ -295,7 +295,7 @@ struct CliDebugTextCtx
     const char *text;
     unsigned long long size;
     unsigned char *out_bytes;
-    unsigned long long room;
+    unsigned long long capacity;
 };
 
 struct CliDebugSessionErrMsgCtx
@@ -359,11 +359,11 @@ struct CliDebugCtx
 
 typedef struct
 {
-    void (*place_free)(const CliDebugCtx *args);
+    void (*position_free)(const CliDebugCtx *args);
 } CliDebugNsTable;
-EMBED_TABLE_LAYOUT(CliDebugNsTable, place_free);
+EMBED_TABLE_LAYOUT(CliDebugNsTable, position_free);
 EMBED_TABLE_STORAGE CliDebugNsTable cli_debug_internal EMBED_UNUSED = {
-    .place_free = cli_debug_place_free,
+    .position_free = cli_debug_position_free,
 };
 
 typedef struct
@@ -384,7 +384,7 @@ typedef struct
 } CliDebugErrMsgIdNs;
 EMBED_TABLE_LAYOUT(CliDebugErrMsgIdNs, take, native_get);
 EMBED_TABLE_STORAGE CliDebugErrMsgIdNs cli_debug_err_msg_id_internal EMBED_UNUSED = {
-    .take = cli_debug_take,
+    .take = cli_debug_alloc,
     .native_get = cli_debug_native_get,
 };
 
@@ -452,11 +452,11 @@ EMBED_TABLE_STORAGE CliDebugJsonNodeFallbackNs cli_debug_json_node_fallback_inte
 
 typedef struct
 {
-    int (*takes)(const CliDebugFileCtx *args);
+    int (*allocs)(const CliDebugFileCtx *args);
 } CliDebugFileNs;
-EMBED_TABLE_LAYOUT(CliDebugFileNs, takes);
+EMBED_TABLE_LAYOUT(CliDebugFileNs, allocs);
 EMBED_TABLE_STORAGE CliDebugFileNs cli_debug_file_internal EMBED_UNUSED = {
-    .takes = cli_debug_takes,
+    .allocs = cli_debug_allocs,
 };
 
 typedef struct

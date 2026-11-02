@@ -62,24 +62,25 @@ EMBED_INLINE void pages_cells_free(const PagesCtx *args)
     args->one->index.line = NULL;
 }
 
-EMBED_INLINE int pages_cells_take(const PagesCtx *args)
+EMBED_INLINE int pages_cells_alloc(const PagesCtx *args)
 {
     // a file of `size` bytes has no more than size + 1 lines, and the index contains no more than size / CLI_PAGE_STEP
     // starts recorded by their lines, size / CLI_PAGE_SPAN by their bytes, and the first
     const unsigned long long starts = (args->size / CLI_PAGE_STEP) + (args->size / CLI_PAGE_SPAN) + 2ull;
-    args->one->index.starts_most = (starts < CLI_PAGE_STARTS) ? starts : CLI_PAGE_STARTS;
+    args->one->index.starts_max = (starts < CLI_PAGE_STARTS) ? starts : CLI_PAGE_STARTS;
     args->one->index.start = g_cli_cells->persistent_buf_alloc(
-        args->one->index.starts_most * sizeof(args->one->index.start[0]), &g_cli_editor_cells);
+        args->one->index.starts_max * sizeof(args->one->index.start[0]), &g_cli_editor_cells);
     args->one->index.line = g_cli_cells->persistent_buf_alloc(
-        args->one->index.starts_most * sizeof(args->one->index.line[0]), &g_cli_editor_cells);
+        args->one->index.starts_max * sizeof(args->one->index.line[0]), &g_cli_editor_cells);
     args->one->piece =
         g_cli_cells->persistent_buf_alloc(CLI_PAGE_PIECES * sizeof(args->one->piece[0]), &g_cli_editor_cells);
-    const int taken = (args->one->index.start != NULL) && (args->one->index.line != NULL) && (args->one->piece != NULL);
-    if (!taken)
+    const int reserved =
+        (args->one->index.start != NULL) && (args->one->index.line != NULL) && (args->one->piece != NULL);
+    if (!reserved)
     {
         pages_cells_free(args);
     }
-    return taken;
+    return reserved;
 }
 
 // a paged text let go: taken off the texts stored, its index stopped before its cells are given back since its reader
@@ -96,7 +97,7 @@ EMBED_INLINE void pages_let_go(const PagesCtx *args)
         *link = args->one->next;
     }
     args->one->index.cancel = 1;
-    while (args->one->index.reading)
+    while (args->one->index.read_state)
     {
         EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &g_cli_index_wake);
     }
@@ -154,7 +155,7 @@ static void cli_index_read(void *context)
     {
         unsigned long long len = 0ull;
         const unsigned char *const chunk =
-            EMBED_CALL(cli_path_internal.file_piece_take, CliPathCtx, .path = index->path, .from = offset,
+            EMBED_CALL(cli_path_internal.file_piece_alloc, CliPathCtx, .path = index->path, .from = offset,
                        .count_u64 = CLI_PAGE_CHUNK, .size_pointer = &len, .owner = &g_cli_editor_cells);
         const unsigned long long end = offset + len;
         for (unsigned long long at = offset; (chunk != NULL) && (at < end);)
@@ -171,7 +172,7 @@ static void cli_index_read(void *context)
             const unsigned long long last = index->starts - 1ull;
             const int far =
                 ((lines - index->line[last]) >= CLI_PAGE_STEP) || ((at - index->start[last]) >= CLI_PAGE_SPAN);
-            if (far && (index->starts < index->starts_most))
+            if (far && (index->starts < index->starts_max))
             {
                 index->start[index->starts] = at;
                 index->line[index->starts] = lines;
@@ -185,7 +186,7 @@ static void cli_index_read(void *context)
     }
     index->lines = lines;
     index->done = 1;
-    index->reading = 0;
+    index->read_state = 0;
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &g_cli_index_wake);
 }
 
@@ -195,7 +196,7 @@ EMBED_INLINE const char *cli_eol_get(const PagesCtx *args)
     const char *path = args->path;
     unsigned long long size = 0ull;
     const unsigned char *const bytes =
-        EMBED_CALL(cli_path_internal.file_piece_take, CliPathCtx, .path = path, .from = 0ull,
+        EMBED_CALL(cli_path_internal.file_piece_alloc, CliPathCtx, .path = path, .from = 0ull,
                    .count_u64 = CLI_PAGE_HEAD, .size_pointer = &size, .owner = &g_cli_editor_cells);
     const unsigned char *const newline =
         (bytes != NULL) ? memor.chr(&(MemoriaCfg){.src = bytes, .val = '\n', .bytes = size}) : NULL;
@@ -221,6 +222,10 @@ EMBED_INLINE unsigned long long pages_total(const PagesCtx *args)
 
 void cli_page_shape_write(const CliPagesOneCtx *args)
 {
+    if (args->out == NULL)
+    {
+        return;
+    }
     int done = 0;
     const unsigned long long lines = EMBED_CALL(pages_total, PagesCtx, .one = args->one, .done = &done);
     mmgr_line_put(args->out, "{\"lines\":");
@@ -230,7 +235,7 @@ void cli_page_shape_write(const CliPagesOneCtx *args)
     mmgr_line_ch(args->out, '}');
 }
 
-int cli_page_open_reading(const CliPagesErrMsgCtx *args)
+int cli_page_open_read_state(const CliPagesErrMsgCtx *args)
 {
     unsigned long long size = 0ull;
     if (!EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = args->path, .size_pointer = &size))
@@ -257,7 +262,7 @@ int cli_page_open_reading(const CliPagesErrMsgCtx *args)
         return 0;
     }
     memor.set(&(MemoriaCfg){.dst = one, .val = 0, .bytes = sizeof(*one)});
-    if (!EMBED_CALL(pages_cells_take, PagesCtx, .one = one, .size = size))
+    if (!EMBED_CALL(pages_cells_alloc, PagesCtx, .one = one, .size = size))
     {
         g_cli_cells->persistent_buf_release(one, &g_cli_editor_cells);
         mmgr_line_put(args->err_msg, "the paged text's cells could not be taken");
@@ -267,7 +272,7 @@ int cli_page_open_reading(const CliPagesErrMsgCtx *args)
     one->index.line[0] = 0ull;
     one->index.starts = 1ull;
     one->index.lines = 1ull;
-    one->index.reading = 1;
+    one->index.read_state = 1;
     memor.cpy(&(MemoriaCfg){.dst = one->index.path,
                             .src = args->path,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1u});
@@ -277,8 +282,8 @@ int cli_page_open_reading(const CliPagesErrMsgCtx *args)
     memor.cpy(&(MemoriaCfg){.dst = one->path,
                             .src = args->path,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1u});
-    EMBED_CALL(cli_pages_path_internal.page_beside, CliPagesPathCtx, .path = args->path, .ending = CLI_PAGE_SHADOW,
-               .beside = one->shadow);
+    EMBED_CALL(cli_pages_path_internal.page_adjacent, CliPagesPathCtx, .path = args->path, .ending = CLI_PAGE_SHADOW,
+               .adjacent = one->shadow);
     one->size = size;
     one->eol = EMBED_CALL(cli_eol_get, PagesCtx, .path = args->path);
     one->piece[0] = (CliPagePiece){0, 0ull, 0ull, 1, 0ull};
@@ -296,7 +301,7 @@ int cli_page_open_reading(const CliPagesErrMsgCtx *args)
 
 int cli_pages_open(const CliPagesPathCfg *args)
 {
-    const int opened = EMBED_CALL(cli_pages_err_msg_internal.page_open_reading, CliPagesErrMsgCtx, .key = args->key,
+    const int opened = EMBED_CALL(cli_pages_err_msg_internal.page_open_read_state, CliPagesErrMsgCtx, .key = args->key,
                                   .path = args->path, .behind = 1, .out = args->out, .err_msg = args->err_msg);
     return opened;
 }
@@ -313,7 +318,7 @@ int cli_pages_shape(const CliPagesPathCfg *args)
 }
 
 // the last start the index records at or before `from` and the line it starts: 1, or 0 where it records none
-EMBED_INLINE int cli_index_near(const PagesCtx *args)
+EMBED_INLINE int cli_index_adjacent(const PagesCtx *args)
 {
     unsigned long long *start = args->start;
     unsigned long long *first_line = args->first_line;
@@ -363,7 +368,7 @@ EMBED_INLINE unsigned long long cli_index_end(const PagesCtx *args)
     {
         end = index->start[low];
     }
-    else if (!index->done && (index->starts != 0ull) && (index->starts < index->starts_most))
+    else if (!index->done && (index->starts != 0ull) && (index->starts < index->starts_max))
     {
         end = index->start[index->starts - 1ull] + CLI_PAGE_SPAN;
     }
@@ -382,7 +387,7 @@ EMBED_INLINE int cli_file_lines(const PagesCtx *args)
     }
     unsigned long long start = 0ull;
     unsigned long long first_line = 0ull;
-    if (!EMBED_CALL(cli_index_near, PagesCtx, .one = args->one, .from = from, .start = &start,
+    if (!EMBED_CALL(cli_index_adjacent, PagesCtx, .one = args->one, .from = from, .start = &start,
                     .first_line = &first_line))
     {
         mmgr_line_put(args->err_msg, "the index has not read that far yet");
@@ -401,7 +406,7 @@ EMBED_INLINE int cli_file_lines(const PagesCtx *args)
     const unsigned long long window = (end_at > begin) ? (end_at - begin) : 0ull;
     unsigned long long size = 0ull;
     const unsigned char *const bytes =
-        EMBED_CALL(cli_path_internal.file_piece_take, CliPathCtx, .path = args->one->path, .from = begin,
+        EMBED_CALL(cli_path_internal.file_piece_alloc, CliPathCtx, .path = args->one->path, .from = begin,
                    .count_u64 = window, .size_pointer = &size, .owner = &g_cli_editor_cells);
     if (bytes == NULL)
     {
@@ -423,10 +428,10 @@ EMBED_INLINE int cli_file_lines(const PagesCtx *args)
         // the line read as UTF-8 straight after the lines read, a byte that starts no whole letter written as U+FFFD,
         // three bytes
         if ((line >= from) && !lines->full &&
-            EMBED_CALL(cli_pages_lines_lines_more_internal.page_lines_room, CliPagesLinesLinesMoreCtx, .lines = lines,
-                       .lines_more = 1ull, .text_more = 3ull * length))
+            EMBED_CALL(cli_pages_lines_lines_more_internal.page_lines_capacity, CliPagesLinesLinesMoreCtx,
+                       .lines = lines, .lines_more = 1ull, .text_more = 3ull * length))
         {
-            VerbaLinea lossy = {lines->text + lines->used, lines->text_most - lines->used, 0ull};
+            VerbaLinea lossy = {lines->text + lines->used, lines->text_max - lines->used, 0ull};
             EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &lossy, .text_bytes = bytes + at,
                        .length = length);
             lines->full = lines->full || !mmgr_line_ok(&lossy);
@@ -444,7 +449,7 @@ EMBED_INLINE int cli_file_lines(const PagesCtx *args)
     EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_editor_cells);
     while (((lines->count - first) < (args->to - from)) && !lines->full)
     {
-        EMBED_CALL(cli_pages_lines_bytes_internal.page_lines_put, CliPagesLinesBytesCtx, .lines = lines, .bytes = "",
+        EMBED_CALL(cli_pages_lines_bytes_internal.page_lines_append, CliPagesLinesBytesCtx, .lines = lines, .bytes = "",
                    .size = 0ull);
     }
     return 1;
@@ -459,7 +464,7 @@ EMBED_INLINE int cli_write_lines(const PagesCtx *args)
     // the piece stored in a cell, from its start, its bytes counted from there
     unsigned long long size = 0ull;
     const unsigned char *const bytes = EMBED_CALL(
-        cli_path_internal.file_piece_take, CliPathCtx, .path = args->one_read->shadow, .from = args->piece->from,
+        cli_path_internal.file_piece_alloc, CliPathCtx, .path = args->one_read->shadow, .from = args->piece->from,
         .count_u64 = args->piece->to - args->piece->from, .size_pointer = &size, .owner = &g_cli_editor_cells);
     if ((bytes == NULL) || (size < (args->piece->to - args->piece->from)))
     {
@@ -477,7 +482,7 @@ EMBED_INLINE int cli_write_lines(const PagesCtx *args)
         const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - bytes) : size;
         if (line >= args->skip)
         {
-            EMBED_CALL(cli_pages_lines_bytes_internal.page_lines_put, CliPagesLinesBytesCtx, .lines = lines,
+            EMBED_CALL(cli_pages_lines_bytes_internal.page_lines_append, CliPagesLinesBytesCtx, .lines = lines,
                        .bytes = (const char *)bytes + at, .size = end - at);
         }
         at = (end < size) ? (end + 1ull) : size;
@@ -509,12 +514,12 @@ EMBED_INLINE unsigned long long pages_reach(const PagesCtx *args)
         }
         else if (start < end)
         {
-            unsigned long long near = 0ull;
+            unsigned long long adjacent = 0ull;
             unsigned long long first_line = 0ull;
-            (void)EMBED_CALL(cli_index_near, PagesCtx, .one = one, .from = piece->from + start - at, .start = &near,
-                             .first_line = &first_line);
-            bytes +=
-                EMBED_CALL(cli_index_end, PagesCtx, .one = one, .to = piece->from + end - at, .whole = whole) - near;
+            (void)EMBED_CALL(cli_index_adjacent, PagesCtx, .one = one, .from = piece->from + start - at,
+                             .start = &adjacent, .first_line = &first_line);
+            bytes += EMBED_CALL(cli_index_end, PagesCtx, .one = one, .to = piece->from + end - at, .whole = whole) -
+                     adjacent;
         }
         at += count;
     }
@@ -577,7 +582,7 @@ int cli_page_lines_get(const CliPagesLinesErrMsgCtx *args)
     const unsigned long long count = (args->to_value > args->from) ? (args->to_value - args->from) : 1ull;
     const unsigned long long bytes =
         (3ull * EMBED_CALL(pages_reach, PagesCtx, .one = args->one, .from = args->from, .to = args->to_value)) + 1ull;
-    if (((args->lines->lines_most < count) || (args->lines->text_most < bytes)) &&
+    if (((args->lines->lines_max < count) || (args->lines->text_max < bytes)) &&
         !EMBED_CALL(pages_lines_resize, PagesCtx, .lines = args->lines, .count = count, .bytes = bytes,
                     .err_msg = args->err_msg))
     {
@@ -610,68 +615,6 @@ EMBED_INLINE unsigned long long pages_cut_bytes(const PagesCtx *args)
     return bytes;
 }
 
-int cli_pages_read(const CliPagesOutCfg *args)
-{
-    unsigned long long *cut = args->cut;
-    const unsigned long long letters = (cut != NULL) ? *cut : 0ull;
-    int any = 0;
-    // the index read as far as `to`, or whole, the text found again each turn since it may be let go meanwhile
-    for (;;)
-    {
-        CliPaged *const one = EMBED_CALL(cli_pages_err_msg_internal.paged_get, CliPagesErrMsgCtx, .key = args->key,
-                                         .err_msg = args->err_msg);
-        int far = 0;
-        if (one != NULL)
-        {
-            far = (one->index.lines >= args->to) || one->index.done;
-        }
-        if (one == NULL)
-        {
-            return 0;
-        }
-        if (far)
-        {
-            break;
-        }
-        EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 10u);
-    }
-    CliPageLines lines = {0};
-    CliPaged *const one =
-        EMBED_CALL(cli_pages_err_msg_internal.paged_get, CliPagesErrMsgCtx, .key = args->key, .err_msg = args->err_msg);
-    const int read = (one != NULL) &&
-                     EMBED_CALL(cli_pages_lines_err_msg_internal.page_lines_get, CliPagesLinesErrMsgCtx, .one = one,
-                                .from = args->from, .to_value = args->to, .lines = &lines, .err_msg = args->err_msg);
-    if (read)
-    {
-        // a line of no room stands where no lengths are asked for
-        VerbaLinea no_lengths = mmgr_line_over(NULL, 0u);
-        VerbaLinea *const listed = (args->lengths != NULL) ? args->lengths : &no_lengths;
-        mmgr_line_ch(args->out, '[');
-        mmgr_line_ch(listed, '[');
-        for (unsigned long long at = 0ull; at < lines.count; at += 1ull)
-        {
-            unsigned long long units = 0ull;
-            const char *const text = lines.text + lines.start[at];
-            const unsigned long long bytes = EMBED_CALL(pages_cut_bytes, PagesCtx, .text = text,
-                                                        .size = lines.length[at], .cut = letters, .units = &units);
-            any = any || (bytes < lines.length[at]);
-            mmgr_line_put(args->out, (at != 0ull) ? "," : "");
-            EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out, .text = text,
-                       .length = bytes);
-            mmgr_line_put(listed, (at != 0ull) ? "," : "");
-            mmgr_line_decimal(listed, units, 1u);
-        }
-        mmgr_line_ch(args->out, ']');
-        mmgr_line_ch(listed, ']');
-        if (cut != NULL)
-        {
-            *cut = any ? letters : 0ull;
-        }
-    }
-    EMBED_CALL(cli_pages_lines_lines_first_internal.page_lines_free, CliPagesLinesLinesFirstCtx, .lines = &lines);
-    return read;
-}
-
 int cli_pages_count(const CliPagesCfg *args)
 {
     unsigned long long *lines = args->lines;
@@ -686,13 +629,13 @@ int cli_pages_count(const CliPagesCfg *args)
     return one != NULL;
 }
 
-char *cli_pages_lines_take(const CliPagesFromCfg *args)
+char *cli_pages_lines_alloc(const CliPagesFromCfg *args)
 {
     unsigned long long *count = args->count;
     *count = 0ull;
     char why[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    const unsigned long long wanted = (args->to > args->from) ? (args->to - args->from) : 1ull;
+    const unsigned long long required = (args->to > args->from) ? (args->to - args->from) : 1ull;
     CliPageLines lines = {0};
     CliPaged *const one =
         EMBED_CALL(cli_pages_err_msg_internal.paged_get, CliPagesErrMsgCtx, .key = args->key, .err_msg = &err_msg);
@@ -702,9 +645,9 @@ char *cli_pages_lines_take(const CliPagesFromCfg *args)
                      !lines.full;
     // each line's bytes and its NUL
     char *const text = read ? g_cli_cells->persistent_buf_alloc(lines.used + lines.count + 1ull, args->owner) : NULL;
-    const unsigned long long taken = (lines.count < wanted) ? lines.count : wanted;
+    const unsigned long long reserved = (lines.count < required) ? lines.count : required;
     unsigned long long at = 0ull;
-    for (unsigned long long each = 0ull; (text != NULL) && (each < taken); each += 1ull)
+    for (unsigned long long each = 0ull; (text != NULL) && (each < reserved); each += 1ull)
     {
         args->line[each] = text + at;
         memor.cpy(&(MemoriaCfg){.dst = text + at, .src = lines.text + lines.start[each], .bytes = lines.length[each]});
@@ -712,19 +655,19 @@ char *cli_pages_lines_take(const CliPagesFromCfg *args)
         text[at] = '\0';
         at += 1ull;
     }
-    *count = (text != NULL) ? taken : 0ull;
+    *count = (text != NULL) ? reserved : 0ull;
     EMBED_CALL(cli_pages_lines_lines_first_internal.page_lines_free, CliPagesLinesLinesFirstCtx, .lines = &lines);
     return text;
 }
 
 // the lesser of two lines
-EMBED_INLINE unsigned long long pages_least(const PagesCtx *args)
+EMBED_INLINE unsigned long long pages_min(const PagesCtx *args)
 {
     return (args->one_u64 < args->other) ? args->one_u64 : args->other;
 }
 
 // the greater of two lines
-EMBED_INLINE unsigned long long pages_most(const PagesCtx *args)
+EMBED_INLINE unsigned long long pages_max(const PagesCtx *args)
 {
     return (args->one_u64 > args->other) ? args->one_u64 : args->other;
 }
@@ -735,9 +678,9 @@ EMBED_INLINE unsigned long long pages_step(const PagesCtx *args)
 {
     const unsigned long long whole = (args->total != 0ull) ? ((args->one_read->size / args->total) + 1ull) : 1ull;
     const unsigned long long each = ((args->cut != 0ull) && ((args->cut + 1ull) < whole)) ? (args->cut + 1ull) : whole;
-    return EMBED_CALL(pages_least, PagesCtx,
-                      .one_u64 = EMBED_CALL(pages_most, PagesCtx, .one_u64 = CLI_PAGE_REST_BYTES / each,
-                                            .other = CLI_PAGE_REST_LEAST),
+    return EMBED_CALL(pages_min, PagesCtx,
+                      .one_u64 = EMBED_CALL(pages_max, PagesCtx, .one_u64 = CLI_PAGE_REMAINDER_BYTES / each,
+                                            .other = CLI_PAGE_REMAINDER_MIN),
                       .other = CLI_PAGE_SAVED / 2ull);
 }
 
@@ -753,7 +696,7 @@ EMBED_INLINE unsigned long long pages_rows_get(const PagesCtx *args)
 
 // the lines of `one` from `from` to before `to` read into `lines`, reserved for them first: 1 where every one was read
 // whole, else 0, `lines` to be given back either way; under the pages' lock
-EMBED_INLINE int pages_placed_read(const PagesCtx *args)
+EMBED_INLINE int pages_positioned_read(const PagesCtx *args)
 {
     CliPaged *one = args->one;
     unsigned long long from = args->from;
@@ -761,11 +704,11 @@ EMBED_INLINE int pages_placed_read(const PagesCtx *args)
     CliPageLines *lines = args->lines;
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    const unsigned long long wanted = to - from;
+    const unsigned long long required = to - from;
     *lines = (CliPageLines){0};
     return EMBED_CALL(cli_pages_lines_err_msg_internal.page_lines_get, CliPagesLinesErrMsgCtx, .one = one, .from = from,
                       .to_value = to, .lines = lines, .err_msg = &err_msg) &&
-           !lines->full && (lines->count == wanted);
+           !lines->full && (lines->count == required);
 }
 
 // the lines of `one` from `*from` to before `*to`, placed about the line `pivot` for a view that wraps at `width`
@@ -778,7 +721,8 @@ EMBED_INLINE void pages_rows_trim(const PagesCtx *args)
     unsigned long long *to = args->to_pointer;
     const int about = (args->width != 0ull) && (args->pivot >= *from) && (args->pivot < *to);
     CliPageLines lines;
-    if (about && EMBED_CALL(pages_placed_read, PagesCtx, .one = args->one, .from = *from, .to = *to, .lines = &lines))
+    if (about &&
+        EMBED_CALL(pages_positioned_read, PagesCtx, .one = args->one, .from = *from, .to = *to, .lines = &lines))
     {
         unsigned long long first = args->pivot;
         for (unsigned long long rows = 0ull; (first > *from) && (rows < (args->pivot - *from)); first -= 1ull)
@@ -801,36 +745,36 @@ EMBED_INLINE void pages_rows_trim(const PagesCtx *args)
 }
 
 // the lines of `one` from `*from` to before `*to`, a step toward the ends of the page's lines below them where `below`
-// is 1 and above where 0, trimmed to those from the page's side that CLI_PAGE_REST_BYTES of their bytes reach, a line
-// cut after `cut` letters counting no more than those, and where the view moves and wraps at `width` letters, that fill
-// the rows placed, a line as many rows as its letters fill; one line at the least. As placed where the lines cannot be
-// read whole; under the pages' lock
+// is 1 and above where 0, trimmed to those from the page's side that CLI_PAGE_REMAINDER_BYTES of their bytes reach, a
+// line cut after `cut` letters counting no more than those, and where the view moves and wraps at `width` letters, that
+// fill the rows placed, a line as many rows as its letters fill; one line at the least. As placed where the lines
+// cannot be read whole; under the pages' lock
 EMBED_INLINE void pages_step_trim(const PagesCtx *args)
 {
     unsigned long long *from = args->from_pointer;
     unsigned long long *to = args->to_pointer;
     CliPageLines lines;
-    const unsigned long long wanted = *to - *from;
-    if ((wanted != 0ull) &&
-        EMBED_CALL(pages_placed_read, PagesCtx, .one = args->one, .from = *from, .to = *to, .lines = &lines))
+    const unsigned long long required = *to - *from;
+    if ((required != 0ull) &&
+        EMBED_CALL(pages_positioned_read, PagesCtx, .one = args->one, .from = *from, .to = *to, .lines = &lines))
     {
         const int by_rows = args->moving && (args->width != 0ull);
-        unsigned long long taken = 0ull;
+        unsigned long long reserved = 0ull;
         unsigned long long bytes = 0ull;
         unsigned long long rows = 0ull;
-        while ((taken < wanted) &&
-               ((taken == 0ull) || ((bytes < CLI_PAGE_REST_BYTES) && (!by_rows || (rows < wanted)))))
+        while ((reserved < required) &&
+               ((reserved == 0ull) || ((bytes < CLI_PAGE_REMAINDER_BYTES) && (!by_rows || (rows < required)))))
         {
-            const unsigned long long at = args->below ? taken : (wanted - 1ull - taken);
+            const unsigned long long at = args->below ? reserved : (required - 1ull - reserved);
             bytes += ((args->cut != 0ull) && (args->cut < lines.length[at])) ? args->cut : lines.length[at];
             rows += by_rows ? EMBED_CALL(pages_rows_get, PagesCtx, .lines_read = &lines, .at = at, .width = args->width)
                             : 1ull;
-            taken += 1ull;
+            reserved += 1ull;
         }
-        *to = args->below ? (*from + taken) : *to;
-        *from = args->below ? *from : (*to - taken);
+        *to = args->below ? (*from + reserved) : *to;
+        *from = args->below ? *from : (*to - reserved);
     }
-    if (wanted != 0ull)
+    if (required != 0ull)
     {
         EMBED_CALL(cli_pages_lines_lines_first_internal.page_lines_free, CliPagesLinesLinesFirstCtx, .lines = &lines);
     }
@@ -840,13 +784,13 @@ EMBED_INLINE void pages_step_trim(const PagesCtx *args)
 // page's lines meet the rows it needs, its rows where it stands and where it will stand a report later as far on the
 // way it went as it went since `last` where the report follows it, EDGE and a SPREADth of that step about them, no more
 // than the lines a step reads on either side: a step of lines past the page's on the side it goes once those rows come
-// within NEAR lines of their end, or past their end; else nothing. Where they do not meet, as a view that jumped away,
-// those rows alone, only those of where it will stand where it went farther than its rows. It saves half of SAVED lines
-// on either side of its rows and every line it is answered. A view that wraps is answered the lines its rows take of
-// those about them, and a step as many lines as fill its rows and CLI_PAGE_REST_BYTES of their bytes reach
-EMBED_INLINE CliPagesPlaced pages_move_place(const PagesCtx *args)
+// within ADJACENT lines of their end, or past their end; else nothing. Where they do not meet, as a view that jumped
+// away, those rows alone, only those of where it will stand where it went farther than its rows. It saves half of SAVED
+// lines on either side of its rows and every line it is answered. A view that wraps is answered the lines its rows take
+// of those about them, and a step as many lines as fill its rows and CLI_PAGE_REMAINDER_BYTES of their bytes reach
+EMBED_INLINE CliPagesPositioned pages_move_position(const PagesCtx *args)
 {
-    const unsigned long long top = EMBED_CALL(pages_least, PagesCtx, .one_u64 = args->view->top,
+    const unsigned long long top = EMBED_CALL(pages_min, PagesCtx, .one_u64 = args->view->top,
                                               .other = (args->total != 0ull) ? (args->total - 1ull) : 0ull);
     const unsigned long long down = (args->follows && (top > args->last)) ? (top - args->last) : 0ull;
     const unsigned long long up = (args->follows && (top < args->last)) ? (args->last - top) : 0ull;
@@ -857,117 +801,118 @@ EMBED_INLINE CliPagesPlaced pages_move_place(const PagesCtx *args)
     const unsigned long long step =
         EMBED_CALL(pages_step, PagesCtx, .one_read = args->one, .total = args->total, .cut = args->view->columns);
     const unsigned long long spread =
-        CLI_PAGE_EDGE + EMBED_CALL(pages_least, PagesCtx, .one_u64 = (down + up) / CLI_PAGE_SPREAD, .other = step);
+        CLI_PAGE_EDGE + EMBED_CALL(pages_min, PagesCtx, .one_u64 = (down + up) / CLI_PAGE_SPREAD, .other = step);
     const unsigned long long first =
-        EMBED_CALL(pages_least, PagesCtx, .one_u64 = (low > spread) ? (low - spread) : 0ull, .other = args->total);
+        EMBED_CALL(pages_min, PagesCtx, .one_u64 = (low > spread) ? (low - spread) : 0ull, .other = args->total);
     const unsigned long long end =
-        EMBED_CALL(pages_least, PagesCtx, .one_u64 = args->total, .other = high + args->view->rows + spread);
+        EMBED_CALL(pages_min, PagesCtx, .one_u64 = args->total, .other = high + args->view->rows + spread);
     const int reaches = (args->view->cached_cut == 0ull) || (args->view->cached_cut >= args->view->columns);
     const int meets = reaches && (args->view->cached_to > args->view->cached_from) &&
                       (args->view->cached_from <= end) && (args->view->cached_to >= first);
     const unsigned long long saved_from = (top > (CLI_PAGE_SAVED / 2ull)) ? (top - (CLI_PAGE_SAVED / 2ull)) : 0ull;
-    const unsigned long long saved_to = EMBED_CALL(pages_least, PagesCtx, .one_u64 = args->total,
+    const unsigned long long saved_to = EMBED_CALL(pages_min, PagesCtx, .one_u64 = args->total,
                                                    .other = top + args->view->rows + (CLI_PAGE_SAVED / 2ull));
-    CliPagesPlaced placed = {first, first, args->view->columns, saved_from, saved_to};
+    CliPagesPositioned positioned = {first, first, args->view->columns, saved_from, saved_to};
     const int below =
-        (up == 0ull) && (args->view->cached_to < args->total) && (args->view->cached_to < (end + CLI_PAGE_NEAR));
+        (up == 0ull) && (args->view->cached_to < args->total) && (args->view->cached_to < (end + CLI_PAGE_ADJACENT));
     const int above =
-        (up != 0ull) && (args->view->cached_from > 0ull) && ((args->view->cached_from + CLI_PAGE_NEAR) > first);
+        (up != 0ull) && (args->view->cached_from > 0ull) && ((args->view->cached_from + CLI_PAGE_ADJACENT) > first);
     if (!meets)
     {
-        placed.to = end;
-        placed.save_from = first;
-        placed.save_to = end;
+        positioned.to = end;
+        positioned.save_from = first;
+        positioned.save_to = end;
         EMBED_CALL(pages_rows_trim, PagesCtx, .one = args->one, .width = args->view->width, .pivot = low,
-                   .from_pointer = &placed.from, .to_pointer = &placed.to);
+                   .from_pointer = &positioned.from, .to_pointer = &positioned.to);
     }
     else if (below || (args->view->cached_to < end))
     {
-        placed.from = args->view->cached_to;
-        placed.to = EMBED_CALL(
-            pages_least, PagesCtx, .one_u64 = args->total,
-            .other = EMBED_CALL(pages_most, PagesCtx, .one_u64 = end, .other = args->view->cached_to + step));
-        placed.save_to = EMBED_CALL(pages_most, PagesCtx, .one_u64 = saved_to, .other = placed.to);
+        positioned.from = args->view->cached_to;
+        positioned.to =
+            EMBED_CALL(pages_min, PagesCtx, .one_u64 = args->total,
+                       .other = EMBED_CALL(pages_max, PagesCtx, .one_u64 = end, .other = args->view->cached_to + step));
+        positioned.save_to = EMBED_CALL(pages_max, PagesCtx, .one_u64 = saved_to, .other = positioned.to);
         EMBED_CALL(pages_step_trim, PagesCtx, .one = args->one, .below = 1, .moving = 1, .cut = args->view->columns,
-                   .width = args->view->width, .from_pointer = &placed.from, .to_pointer = &placed.to);
+                   .width = args->view->width, .from_pointer = &positioned.from, .to_pointer = &positioned.to);
     }
     else if (above || (args->view->cached_from > first))
     {
-        placed.from = EMBED_CALL(pages_least, PagesCtx, .one_u64 = first,
-                                 .other = (args->view->cached_from > step) ? (args->view->cached_from - step) : 0ull);
-        placed.to = args->view->cached_from;
-        placed.save_from = EMBED_CALL(pages_least, PagesCtx, .one_u64 = saved_from, .other = placed.from);
+        positioned.from =
+            EMBED_CALL(pages_min, PagesCtx, .one_u64 = first,
+                       .other = (args->view->cached_from > step) ? (args->view->cached_from - step) : 0ull);
+        positioned.to = args->view->cached_from;
+        positioned.save_from = EMBED_CALL(pages_min, PagesCtx, .one_u64 = saved_from, .other = positioned.from);
         EMBED_CALL(pages_step_trim, PagesCtx, .one = args->one, .below = 0, .moving = 1, .cut = args->view->columns,
-                   .width = args->view->width, .from_pointer = &placed.from, .to_pointer = &placed.to);
+                   .width = args->view->width, .from_pointer = &positioned.from, .to_pointer = &positioned.to);
     }
-    return placed;
+    return positioned;
 }
 
 // a resting view of `one`, a text of `total` lines, placed: its rows whole, EDGE about them, where the page does not
 // hold them whole; then the lines it wants below them, then above, a step at a time; nothing where it holds them all.
-// It wants NEAR lines about its rows and the minimap's lines, within half of SAVED on either side of its rows, and
+// It wants ADJACENT lines about its rows and the minimap's lines, within half of SAVED on either side of its rows, and
 // saves those and every line within half of SAVED. Its rows, where it wraps, are the lines they take of those about
-// them; its rows whole come from their first a step at a time, and each step is as many lines as CLI_PAGE_REST_BYTES of
-// their bytes reach
-EMBED_INLINE CliPagesPlaced pages_rest_place(const PagesCtx *args)
+// them; its rows whole come from their first a step at a time, and each step is as many lines as
+// CLI_PAGE_REMAINDER_BYTES of their bytes reach
+EMBED_INLINE CliPagesPositioned pages_remainder_position(const PagesCtx *args)
 {
-    const unsigned long long top = EMBED_CALL(pages_least, PagesCtx, .one_u64 = args->view->top,
+    const unsigned long long top = EMBED_CALL(pages_min, PagesCtx, .one_u64 = args->view->top,
                                               .other = (args->total != 0ull) ? (args->total - 1ull) : 0ull);
     const unsigned long long rows_end =
-        EMBED_CALL(pages_least, PagesCtx, .one_u64 = args->total, .other = top + args->view->rows);
+        EMBED_CALL(pages_min, PagesCtx, .one_u64 = args->total, .other = top + args->view->rows);
     const unsigned long long saved_from = (top > (CLI_PAGE_SAVED / 2ull)) ? (top - (CLI_PAGE_SAVED / 2ull)) : 0ull;
     const unsigned long long saved_to =
-        EMBED_CALL(pages_least, PagesCtx, .one_u64 = args->total, .other = rows_end + (CLI_PAGE_SAVED / 2ull));
-    const unsigned long long near_from = (top > CLI_PAGE_NEAR) ? (top - CLI_PAGE_NEAR) : 0ull;
+        EMBED_CALL(pages_min, PagesCtx, .one_u64 = args->total, .other = rows_end + (CLI_PAGE_SAVED / 2ull));
+    const unsigned long long adjacent_from = (top > CLI_PAGE_ADJACENT) ? (top - CLI_PAGE_ADJACENT) : 0ull;
     const unsigned long long want_from =
-        EMBED_CALL(pages_most, PagesCtx,
-                   .one_u64 = EMBED_CALL(pages_least, PagesCtx, .one_u64 = near_from, .other = args->view->map_from),
+        EMBED_CALL(pages_max, PagesCtx,
+                   .one_u64 = EMBED_CALL(pages_min, PagesCtx, .one_u64 = adjacent_from, .other = args->view->map_from),
                    .other = saved_from);
-    const unsigned long long want_to = EMBED_CALL(
-        pages_least, PagesCtx,
-        .one_u64 = EMBED_CALL(pages_most, PagesCtx, .one_u64 = rows_end + CLI_PAGE_NEAR, .other = args->view->map_to),
-        .other = saved_to);
+    const unsigned long long want_to =
+        EMBED_CALL(pages_min, PagesCtx,
+                   .one_u64 = EMBED_CALL(pages_max, PagesCtx, .one_u64 = rows_end + CLI_PAGE_ADJACENT,
+                                         .other = args->view->map_to),
+                   .other = saved_to);
     unsigned long long first = (top > CLI_PAGE_EDGE) ? (top - CLI_PAGE_EDGE) : 0ull;
-    unsigned long long end =
-        EMBED_CALL(pages_least, PagesCtx, .one_u64 = args->total, .other = rows_end + CLI_PAGE_EDGE);
+    unsigned long long end = EMBED_CALL(pages_min, PagesCtx, .one_u64 = args->total, .other = rows_end + CLI_PAGE_EDGE);
     EMBED_CALL(pages_rows_trim, PagesCtx, .one = args->one, .width = args->view->width, .pivot = top,
                .from_pointer = &first, .to_pointer = &end);
     const unsigned long long step =
         EMBED_CALL(pages_step, PagesCtx, .one_read = args->one, .total = args->total, .cut = 0ull);
-    CliPagesPlaced placed = {first, first, 0ull, saved_from, saved_to};
+    CliPagesPositioned positioned = {first, first, 0ull, saved_from, saved_to};
     if ((args->view->cached_cut != 0ull) || (args->view->cached_from > first) || (args->view->cached_to <= first))
     {
-        placed.to = end;
+        positioned.to = end;
         EMBED_CALL(pages_step_trim, PagesCtx, .one = args->one, .below = 1, .moving = 0, .cut = 0ull, .width = 0ull,
-                   .from_pointer = &placed.from, .to_pointer = &placed.to);
+                   .from_pointer = &positioned.from, .to_pointer = &positioned.to);
     }
     else if (args->view->cached_to < end)
     {
-        placed.from = args->view->cached_to;
-        placed.to = end;
+        positioned.from = args->view->cached_to;
+        positioned.to = end;
         EMBED_CALL(pages_step_trim, PagesCtx, .one = args->one, .below = 1, .moving = 0, .cut = 0ull, .width = 0ull,
-                   .from_pointer = &placed.from, .to_pointer = &placed.to);
+                   .from_pointer = &positioned.from, .to_pointer = &positioned.to);
     }
     else if (args->view->cached_to < want_to)
     {
-        placed.from = args->view->cached_to;
-        placed.to = EMBED_CALL(pages_least, PagesCtx, .one_u64 = want_to, .other = args->view->cached_to + step);
+        positioned.from = args->view->cached_to;
+        positioned.to = EMBED_CALL(pages_min, PagesCtx, .one_u64 = want_to, .other = args->view->cached_to + step);
         EMBED_CALL(pages_step_trim, PagesCtx, .one = args->one, .below = 1, .moving = 0, .cut = 0ull,
-                   .width = args->view->width, .from_pointer = &placed.from, .to_pointer = &placed.to);
+                   .width = args->view->width, .from_pointer = &positioned.from, .to_pointer = &positioned.to);
     }
     else if (args->view->cached_from > want_from)
     {
-        placed.from = ((args->view->cached_from - want_from) > step) ? (args->view->cached_from - step) : want_from;
-        placed.to = args->view->cached_from;
+        positioned.from = ((args->view->cached_from - want_from) > step) ? (args->view->cached_from - step) : want_from;
+        positioned.to = args->view->cached_from;
         EMBED_CALL(pages_step_trim, PagesCtx, .one = args->one, .below = 0, .moving = 0, .cut = 0ull,
-                   .width = args->view->width, .from_pointer = &placed.from, .to_pointer = &placed.to);
+                   .width = args->view->width, .from_pointer = &positioned.from, .to_pointer = &positioned.to);
     }
-    return placed;
+    return positioned;
 }
 
 int cli_pages_on_view(const CliPagesViewCfg *args)
 {
-    CliPagesPlaced *placed = args->placed;
+    CliPagesPositioned *positioned = args->positioned;
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     CliPaged *const one =
@@ -979,9 +924,10 @@ int cli_pages_on_view(const CliPagesViewCfg *args)
         const unsigned long long now = cli_clock_milliseconds();
         const int follows = one->viewed && ((now - one->view_at) <= CLI_PAGE_STILL);
         const int rests = !follows || (args->view->top == one->view_top);
-        *placed = rests ? EMBED_CALL(pages_rest_place, PagesCtx, .one = one, .view = args->view, .total = total)
-                        : EMBED_CALL(pages_move_place, PagesCtx, .one = one, .view = args->view, .last = one->view_top,
-                                     .follows = follows, .total = total);
+        *positioned =
+            rests ? EMBED_CALL(pages_remainder_position, PagesCtx, .one = one, .view = args->view, .total = total)
+                  : EMBED_CALL(pages_move_position, PagesCtx, .one = one, .view = args->view, .last = one->view_top,
+                               .follows = follows, .total = total);
         one->viewed = 1;
         one->view_top = args->view->top;
         one->view_at = now;

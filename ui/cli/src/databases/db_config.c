@@ -18,7 +18,7 @@ typedef struct
 } CliDbConfigWriting;
 // the most connections a tree names that are read, and the bytes databases.json is written in
 #define CLI_DB_CONNECTIONS 256u
-#define CLI_DB_CONFIG_ROOM (1ull << 20u)
+#define CLI_DB_CONFIG_CAPACITY (1ull << 20u)
 
 // the connections read, a cell of their count and one more for one saved, guarded under the lock from the read to
 // config_release
@@ -66,7 +66,7 @@ typedef struct
     unsigned int node;
     const char *name;
     char *out;
-    unsigned long long room;
+    unsigned long long capacity;
     const char *root;
     VerbaLinea *err_msg;
     CliDbConfigWriting *writing;
@@ -78,8 +78,8 @@ typedef struct
     VerbaLinea *out_verba_linea_pointer;
     unsigned int count;
 } DbConfigCtx;
-// a string member of the connection into `out`, sized for `room`, empty where it is none: 0 where it is there and is
-// no string
+// a string member of the connection into `out`, sized for `capacity`, empty where it is none: 0 where it is there and
+// is no string
 EMBED_INLINE int config_text(const DbConfigCtx *args)
 {
     const CliJson *json = args->json;
@@ -90,7 +90,7 @@ EMBED_INLINE int config_text(const DbConfigCtx *args)
                                            .object = node, .name = name);
     const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                         .json_read = json, .node = member, .length_pointer = NULL);
-    EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_room = out, .text = text, .otherwise = "");
+    EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_capacity = out, .text = text, .otherwise = "");
     return (member == CLI_JSON_NONE) || (text != NULL);
 }
 
@@ -126,21 +126,21 @@ int cli_db_connection_get(const CliDbConnectionErrMsgCfg *args)
                                             .json_read = args->json, .object = args->node, .name = "matters");
     const int texts =
         EMBED_CALL(config_text, DbConfigCtx, .json = args->json, .node = args->node, .name = "name",
-                   .out = args->connection_out->name, .room = sizeof(args->connection_out->name)) &&
+                   .out = args->connection_out->name, .capacity = sizeof(args->connection_out->name)) &&
         EMBED_CALL(config_text, DbConfigCtx, .json = args->json, .node = args->node, .name = "kind",
-                   .out = args->connection_out->kind, .room = sizeof(args->connection_out->kind)) &&
+                   .out = args->connection_out->kind, .capacity = sizeof(args->connection_out->kind)) &&
         EMBED_CALL(config_text, DbConfigCtx, .json = args->json, .node = args->node, .name = "host",
-                   .out = args->connection_out->host, .room = sizeof(args->connection_out->host)) &&
+                   .out = args->connection_out->host, .capacity = sizeof(args->connection_out->host)) &&
         EMBED_CALL(config_text, DbConfigCtx, .json = args->json, .node = args->node, .name = "user",
-                   .out = args->connection_out->user, .room = sizeof(args->connection_out->user)) &&
+                   .out = args->connection_out->user, .capacity = sizeof(args->connection_out->user)) &&
         EMBED_CALL(config_text, DbConfigCtx, .json = args->json, .node = args->node, .name = "database",
-                   .out = args->connection_out->database, .room = sizeof(args->connection_out->database)) &&
+                   .out = args->connection_out->database, .capacity = sizeof(args->connection_out->database)) &&
         EMBED_CALL(config_text, DbConfigCtx, .json = args->json, .node = args->node, .name = "file",
-                   .out = args->connection_out->file, .room = sizeof(args->connection_out->file)) &&
+                   .out = args->connection_out->file, .capacity = sizeof(args->connection_out->file)) &&
         EMBED_CALL(config_text, DbConfigCtx, .json = args->json, .node = args->node, .name = "ssh",
-                   .out = args->connection_out->ssh, .room = sizeof(args->connection_out->ssh)) &&
+                   .out = args->connection_out->ssh, .capacity = sizeof(args->connection_out->ssh)) &&
         EMBED_CALL(config_text, DbConfigCtx, .json = args->json, .node = args->node, .name = "guard",
-                   .out = args->connection_out->guard, .room = sizeof(args->connection_out->guard));
+                   .out = args->connection_out->guard, .capacity = sizeof(args->connection_out->guard));
     if (!texts || !whole || (value > 65535ull) ||
         ((matters != CLI_JSON_NONE) &&
          !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json, .node = matters,
@@ -167,14 +167,14 @@ static int config_read(const DbConfigCtx *args)
     char path[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = "databases.json", .joined = path);
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = path,
+    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                   .size_pointer = &size, .owner = &g_cli_db_cells);
     CliJson json = {0};
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea read_err_msg = {why, sizeof(why), 0ull};
     // the file's bytes read as the text they are
     const unsigned int root_node =
-        (bytes != NULL) ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg,
+        (bytes != NULL) ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                      .json = &json, .text = (const char *)bytes, .size = size, .nodes_more = 0u,
                                      .text_more = 0ull, .err_msg = &read_err_msg, .owner = &g_cli_db_cells)
                         : CLI_JSON_NONE;
@@ -303,8 +303,8 @@ EMBED_INLINE int config_write(const DbConfigCtx *args)
     const char *root = args->root;
     char path[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = "databases.json", .joined = path);
-    char *const out_cell = g_cli_cells->temporary_buf_alloc(CLI_DB_CONFIG_ROOM, &g_cli_db_cells);
-    VerbaLinea out = mmgr_line_over(out_cell, CLI_DB_CONFIG_ROOM);
+    char *const out_cell = g_cli_cells->temporary_buf_alloc(CLI_DB_CONFIG_CAPACITY, &g_cli_db_cells);
+    VerbaLinea out = mmgr_line_over(out_cell, CLI_DB_CONFIG_CAPACITY);
     mmgr_line_put(&out, (args->count == 0u) ? "{\n  \"connections\": []\n}\n" : "{\n  \"connections\": [\n");
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
@@ -470,10 +470,10 @@ int cli_db_list(const CliDbOutRootCfg *args)
         EMBED_CALL(cli_db_connection_out_kind.account, CliDbConnectionOutKindCfg, .connection = connection,
                    .out = &account_line);
         mmgr_line_finish(&account_line);
-        const int listed =
+        const int list_entries =
             (!cellul.eq(&(CatenaFinitaCfg){.src = connection->kind, .other = "sqlite", .cap = CLI_CELLS_POOL})) &&
             EMBED_CALL(cli_service_internal.keychain_read, CliServiceCtx, .service = "database", .account = account,
-                       .out = password, .room = sizeof(password));
+                       .out = password, .capacity = sizeof(password));
         mmgr_line_put(args->out, (at > 0) ? ",{\"connection\":" : "{\"connection\":");
         EMBED_CALL(config_on_write, DbConfigCtx, .connection = connection, .pretty = 0, .indent = "",
                    .out_verba_linea_pointer = args->out);
@@ -500,7 +500,7 @@ int cli_db_list(const CliDbOutRootCfg *args)
         {
             mmgr_line_put(args->out, ",\"transaction\":null,\"zone\":null");
         }
-        mmgr_line_put(args->out, listed ? ",\"passwordKept\":true}" : ",\"passwordKept\":false}");
+        mmgr_line_put(args->out, list_entries ? ",\"passwordKept\":true}" : ",\"passwordKept\":false}");
     }
     mmgr_line_ch(args->out, ']');
     config_release();

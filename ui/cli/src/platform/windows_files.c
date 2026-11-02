@@ -19,7 +19,7 @@ void cli_system_reason(const CliErrorCtx *args)
     char reason[512];
     DWORD size = FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, args->error, 0u,
                                 reason, sizeof(reason), NULL);
-    size = EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = reason, .at = size,
+    size = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = reason, .at = size,
                       .set = "\r\n ");
     mmgr_line_put(args->err_msg, ": ");
     mmgr_line_put_n(args->err_msg, reason, size);
@@ -57,8 +57,8 @@ EMBED_INLINE void file_read_from(const WindowsFilesCtx *args)
     unsigned char *bytes = args->bytes;
     unsigned long long *got = args->got;
     *got = 0ull;
-    int reading = 1;
-    while (reading && (*got < args->count))
+    int read_state = 1;
+    while (read_state && (*got < args->count))
     {
         OVERLAPPED at;
         memor.set(&(MemoriaCfg){.dst = &at, .val = 0, .bytes = sizeof(at)});
@@ -70,7 +70,7 @@ EMBED_INLINE void file_read_from(const WindowsFilesCtx *args)
         DWORD read = 0u;
         const BOOL done = ReadFile(args->file, bytes + *got, chunk, &read, &at);
         // a read past the file's end is the file's end
-        reading = (done || (GetLastError() == ERROR_HANDLE_EOF)) && (read != 0u);
+        read_state = (done || (GetLastError() == ERROR_HANDLE_EOF)) && (read != 0u);
         *got += read;
     }
 }
@@ -141,12 +141,12 @@ int cli_move(const CliErrMsgFromCtx *args)
 
 int cli_file_append(const CliPathBytesCtx *args)
 {
-    wchar_t wide[CLI_PATH_MAX_LEN];
-    if (MultiByteToWideChar(CP_UTF8, 0, args->path, -1, wide, CLI_PATH_MAX_LEN) == 0)
+    wchar_t pixel_width[CLI_PATH_MAX_LEN];
+    if (MultiByteToWideChar(CP_UTF8, 0, args->path, -1, pixel_width, CLI_PATH_MAX_LEN) == 0)
     {
         return 0;
     }
-    const HANDLE file = CreateFileW(wide, args->fresh ? GENERIC_WRITE : FILE_APPEND_DATA, 0u, NULL,
+    const HANDLE file = CreateFileW(pixel_width, args->fresh ? GENERIC_WRITE : FILE_APPEND_DATA, 0u, NULL,
                                     args->fresh ? CREATE_ALWAYS : OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     if (file == INVALID_HANDLE_VALUE)
     {
@@ -169,9 +169,9 @@ int cli_file_append(const CliPathBytesCtx *args)
 
 int cli_resource_add(const CliPathErrMsgCtx *args)
 {
-    wchar_t wide[CLI_PATH_MAX_LEN];
+    wchar_t pixel_width[CLI_PATH_MAX_LEN];
     wchar_t named[CLI_NAME_MAX_LEN];
-    if ((MultiByteToWideChar(CP_UTF8, 0, args->path, -1, wide, CLI_PATH_MAX_LEN) == 0) ||
+    if ((MultiByteToWideChar(CP_UTF8, 0, args->path, -1, pixel_width, CLI_PATH_MAX_LEN) == 0) ||
         (MultiByteToWideChar(CP_UTF8, 0, args->name, -1, named, CLI_NAME_MAX_LEN) == 0))
     {
         mmgr_line_put(args->err_msg, args->path);
@@ -183,7 +183,7 @@ int cli_resource_add(const CliPathErrMsgCtx *args)
         mmgr_line_put(args->err_msg, "the blob is past 4 GB");
         return 0;
     }
-    const HANDLE update = BeginUpdateResourceW(wide, FALSE);
+    const HANDLE update = BeginUpdateResourceW(pixel_width, FALSE);
     if (update == NULL)
     {
         mmgr_line_put(args->err_msg, args->path);

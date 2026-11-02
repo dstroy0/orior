@@ -22,7 +22,6 @@ typedef struct CliPicksCfg CliPicksCfg;
 // or 0 with why given where no list is stored under `id`
 unsigned long long cli_picks_store(const CliPicksCfg *args);
 void cli_picks_forget(const CliPicksIdCfg *args);
-int cli_picks_find(const CliPicksIdCfg *args);
 
 struct CliPicksIdCfg
 {
@@ -51,12 +50,10 @@ EMBED_TABLE_STORAGE CliPicksNs cli_picks EMBED_UNUSED = {
 typedef struct
 {
     void (*forget)(const CliPicksIdCfg *args);
-    int (*find)(const CliPicksIdCfg *args);
 } CliPicksIdNs;
-EMBED_TABLE_LAYOUT(CliPicksIdNs, forget, find);
+EMBED_TABLE_LAYOUT(CliPicksIdNs, forget);
 EMBED_TABLE_STORAGE CliPicksIdNs cli_picks_id EMBED_UNUSED = {
     .forget = cli_picks_forget,
-    .find = cli_picks_find,
 };
 
 #endif

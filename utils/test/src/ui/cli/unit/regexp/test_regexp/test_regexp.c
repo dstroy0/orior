@@ -10,7 +10,7 @@
 static const char s_string[] = "\"(?:[^\"\\\\]|\\\\.)*\"";
 static const char s_keyed[] = "\"(?:[^\"\\\\]|\\\\.)*\"(?=\\s*:)";
 
-static CliRegexpRoom s_room;
+static CliRegexpWorkState s_work_state;
 static CliRegexp s_regexp;
 static unsigned int s_letters[1u << 18u];
 static unsigned long long s_offset[(1u << 18u) + 1u];
@@ -23,7 +23,7 @@ static int regexp_read(const char *source, const char *flags)
 {
     char why[512];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    EMBED_CALL(cli_regexp_room.room, CliRegexpRoomCfg, .regexp_out = &s_regexp, .room = &s_room);
+    EMBED_CALL(cli_regexp_capacity.capacity, CliRegexpWorkStateCfg, .regexp_out = &s_regexp, .work_state = &s_work_state);
     return EMBED_CALL(cli_regexp_source.read, CliRegexpSourceCfg, .regexp_out = &s_regexp, .source = source, .flags = flags, .err_msg = &err_msg);
 }
 
@@ -31,7 +31,7 @@ static int regexp_read(const char *source, const char *flags)
 static unsigned long long letters_of(const char *text)
 {
     const unsigned long long size = CLI_UNITY_LENGTH(text);
-    const unsigned long long count = EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = text, .size = size, .letters = s_letters, .room_u64 = sizeof(s_letters) / sizeof(s_letters[0]));
+    const unsigned long long count = EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = text, .size = size, .letters = s_letters, .capacity_u64 = sizeof(s_letters) / sizeof(s_letters[0]));
     unsigned long long letter = 0ull;
     for (unsigned long long at = 0ull; at < size; at += 1ull)
     {

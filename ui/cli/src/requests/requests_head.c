@@ -65,7 +65,7 @@ typedef struct
     VerbaLinea *out;
     const CliRequestsAnswer *answer;
     const CliRequestsText *value_requests_text_pointer;
-    CliRequestsRoom *room;
+    CliRequestsWorkState *work_state;
     unsigned long long bytes;
     VerbaLinea *err_msg;
 } RequestsHeadCtx;
@@ -161,36 +161,36 @@ EMBED_INLINE int head_is(const RequestsHeadCtx *args)
                       .size = args->value_requests_text_pointer->size, .needle = args->lower);
 }
 
-// the room's unpacked body a cell of `bytes`, CLI_REQUESTS_BODY at the most, the one before given back where it is
-// smaller: 1, or 0 with why given where the cell is refused
-EMBED_INLINE int head_unpacked_room(const RequestsHeadCtx *args)
+// the work state's unpacked body a cell of `bytes`, CLI_REQUESTS_BODY at the most, the one before given back where it
+// is smaller: 1, or 0 with why given where the cell is refused
+EMBED_INLINE int head_unpacked_capacity(const RequestsHeadCtx *args)
 {
-    const unsigned long long wanted =
+    const unsigned long long required =
         (args->bytes < 1ull) ? 1ull : ((args->bytes > CLI_REQUESTS_BODY) ? CLI_REQUESTS_BODY : args->bytes);
-    if ((args->room->unpacked != NULL) && (args->room->unpacked_room >= wanted))
+    if ((args->work_state->unpacked != NULL) && (args->work_state->unpacked_capacity >= required))
     {
         return 1;
     }
-    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(wanted, &g_cli_requests_cells);
+    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(required, &g_cli_requests_cells);
     if (cell == NULL)
     {
         mmgr_line_put(args->err_msg, "the answer's body undone could not be stored");
         return 0;
     }
-    g_cli_cells->persistent_buf_release(args->room->unpacked, &g_cli_requests_cells);
-    args->room->unpacked = cell;
-    args->room->unpacked_room = wanted;
+    g_cli_cells->persistent_buf_release(args->work_state->unpacked, &g_cli_requests_cells);
+    args->work_state->unpacked = cell;
+    args->work_state->unpacked_capacity = required;
     return 1;
 }
 
 int cli_requests_decode(const CliRequestsSizeErrMsgCtx *args)
 {
     unsigned long long size = args->size;
-    CliRequestsAnswer *const answer = &args->room->answer;
+    CliRequestsAnswer *const answer = &args->work_state->answer;
     const CliRequestsText *const encoding =
         EMBED_CALL(cli_requests_name_answer_internal.header, CliRequestsNameAnswerCtx, .answer = answer,
                    .name = "Content-Encoding");
-    const unsigned char *const raw = (const unsigned char *)args->room->raw.out;
+    const unsigned char *const raw = (const unsigned char *)args->work_state->raw.out;
     unsigned long long unpacked = 0ull;
     answer->body = raw;
     answer->size = size;
@@ -199,17 +199,17 @@ int cli_requests_decode(const CliRequestsSizeErrMsgCtx *args)
         EMBED_CALL(head_is, RequestsHeadCtx, .answer = answer, .value_requests_text_pointer = encoding,
                    .lower = "x-gzip"))
     {
-        // a gzip ends with its unpacked size, and the room is taken once at that size
+        // a gzip ends with its unpacked size, and the work state is taken once at that size
         const unsigned long long unpacked_size =
             (size >= 4ull)
                 ? ((unsigned long long)raw[size - 4ull] | ((unsigned long long)raw[size - 3ull] << 8u) |
                    ((unsigned long long)raw[size - 2ull] << 16u) | ((unsigned long long)raw[size - 1ull] << 24u))
                 : 0ull;
-        if (!EMBED_CALL(head_unpacked_room, RequestsHeadCtx, .room = args->room, .bytes = unpacked_size,
+        if (!EMBED_CALL(head_unpacked_capacity, RequestsHeadCtx, .work_state = args->work_state, .bytes = unpacked_size,
                         .err_msg = args->err_msg) ||
             !EMBED_CALL(cli_archive_bytes.gunzip, CliArchiveBytesCfg, .bytes = raw, .size = size,
-                        .out = args->room->unpacked, .room = args->room->unpacked_room, .out_size = &unpacked,
-                        .err_msg = args->err_msg))
+                        .out = args->work_state->unpacked, .capacity = args->work_state->unpacked_capacity,
+                        .out_size = &unpacked, .err_msg = args->err_msg))
         {
             return 0;
         }
@@ -217,15 +217,15 @@ int cli_requests_decode(const CliRequestsSizeErrMsgCtx *args)
     else if (EMBED_CALL(head_is, RequestsHeadCtx, .answer = answer, .value_requests_text_pointer = encoding,
                         .lower = "deflate"))
     {
-        // a deflate gives no size: the room is taken at the most a body holds
+        // a deflate gives no size: the work state is taken at the most a body holds
         const int zlib =
             (size > 2u) && ((raw[0] & 0x0fu) == 8u) && ((((unsigned int)raw[0] << 8u) | raw[1]) % 31u == 0u);
         unsigned long long used = 0ull;
-        if (!EMBED_CALL(head_unpacked_room, RequestsHeadCtx, .room = args->room, .bytes = CLI_REQUESTS_BODY,
-                        .err_msg = args->err_msg) ||
+        if (!EMBED_CALL(head_unpacked_capacity, RequestsHeadCtx, .work_state = args->work_state,
+                        .bytes = CLI_REQUESTS_BODY, .err_msg = args->err_msg) ||
             !EMBED_CALL(cli_archive_size.inflate, CliArchiveSizeCfg, .data = zlib ? (raw + 2) : raw,
-                        .size = zlib ? (size - 2u) : size, .out = args->room->unpacked,
-                        .room = args->room->unpacked_room, .out_size = &unpacked, .used = &used,
+                        .size = zlib ? (size - 2u) : size, .out = args->work_state->unpacked,
+                        .capacity = args->work_state->unpacked_capacity, .out_size = &unpacked, .used = &used,
                         .err_msg = args->err_msg))
         {
             return 0;
@@ -235,7 +235,7 @@ int cli_requests_decode(const CliRequestsSizeErrMsgCtx *args)
     {
         return 1;
     }
-    answer->body = args->room->unpacked;
+    answer->body = args->work_state->unpacked;
     answer->size = unpacked;
     return 1;
 }
@@ -282,7 +282,7 @@ int cli_requests_is_text(const CliRequestsNameAnswerCtx *args)
     {
         return 0;
     }
-    return EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg, .bytes = (const char *)args->answer->body,
+    return EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = (const char *)args->answer->body,
                       .size = args->answer->size) &&
            (memor.chr(&(MemoriaCfg){.src = args->answer->body, .val = 0, .bytes = (size_t)args->answer->size}) == NULL);
 }

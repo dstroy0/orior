@@ -31,10 +31,10 @@ int cli_symbols_score(const CliSymbolsQueryCfg *args)
     }
     const unsigned long long query_count =
         EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = args->query, .size = query_length,
-                   .letters = query_letters, .room_u64 = CLI_SCORED_LETTERS);
+                   .letters = query_letters, .capacity_u64 = CLI_SCORED_LETTERS);
     const unsigned long long count =
         EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = args->name, .size = args->name_length,
-                   .letters = letters, .room_u64 = CLI_SCORED_LETTERS);
+                   .letters = letters, .capacity_u64 = CLI_SCORED_LETTERS);
     for (unsigned long long at = 0ull; at < query_count; at += 1ull)
     {
         query_letters[at] = EMBED_CALL(cli_regexp_letter.lower, CliRegexpLetterCfg, .letter = query_letters[at]);
@@ -102,9 +102,9 @@ int cli_symbols_score(const CliSymbolsQueryCfg *args)
         return 1;
     }
     unsigned long long at = 0ull;
-    for (unsigned long long wanted = 0ull; wanted < query_count; wanted += 1ull)
+    for (unsigned long long required = 0ull; required < query_count; required += 1ull)
     {
-        while ((at < count) && (lower[at] != query_letters[wanted]))
+        while ((at < count) && (lower[at] != query_letters[required]))
         {
             at += 1ull;
         }

@@ -11,7 +11,7 @@
 #include "files_internal.h"
 
 // the most entries a folder lists
-#define CLI_LIST_MOST 65536u
+#define CLI_LIST_MAX 65536u
 
 // An entry of a folder: its name and path, places in the texts, whether it is a folder, whether the tree's ignore
 // files leave it out, whether it is an archive, which opens as a folder, and its name's own bytes in hex where they are
@@ -33,10 +33,10 @@ typedef struct
 {
     CliEntry *item;
     unsigned int count;
-    unsigned int item_room;
+    unsigned int item_capacity;
     char *text;
     unsigned long long used;
-    unsigned long long text_room;
+    unsigned long long text_capacity;
     CliFiles folders;
     CliPatterns patterns;
     CliChildren children;
@@ -57,12 +57,13 @@ typedef struct
     const char *other;
     VerbaLinea *out;
     const char *root;
+    CellOwner *owner;
 } FilesListCtx;
 // a text put in the entries' texts: its place
 EMBED_INLINE unsigned int cli_entry_text_store(const FilesListCtx *args)
 {
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL});
-    if ((s_listing->used + length + 1ull) > s_listing->text_room)
+    if ((s_listing->used + length + 1ull) > s_listing->text_capacity)
     {
         return 0u;
     }
@@ -74,9 +75,9 @@ EMBED_INLINE unsigned int cli_entry_text_store(const FilesListCtx *args)
 }
 
 // an entry put after the entries
-EMBED_INLINE void cli_entry_put(const FilesListCtx *args)
+EMBED_INLINE void cli_entry_append(const FilesListCtx *args)
 {
-    if (s_listing->count >= s_listing->item_room)
+    if (s_listing->count >= s_listing->item_capacity)
     {
         return;
     }
@@ -107,10 +108,10 @@ EMBED_INLINE int cli_before(const FilesListCtx *args)
     }
 }
 
-// the entries written as the window reads them, folders first, then by name, case aside
-EMBED_INLINE void cli_entries_write(const FilesListCtx *args)
+// the entries in the order the explorer shows them: folders first, then by name, case aside
+EMBED_INLINE void cli_entries_sort(const FilesListCtx *args)
 {
-    VerbaLinea *out = args->out;
+    (void)args;
     for (unsigned int at = 1u; at < s_listing->count; at += 1u)
     {
         const CliEntry swap = s_listing->item[at];
@@ -131,32 +132,40 @@ EMBED_INLINE void cli_entries_write(const FilesListCtx *args)
         }
         s_listing->item[place] = swap;
     }
-    mmgr_line_ch(out, '[');
+}
+
+// the entries read into one cell of `owner`, sized to them: the cell, or NULL where the cells cannot meet it
+EMBED_INLINE CliFileEntries *cli_entries_alloc(const FilesListCtx *args)
+{
+    unsigned long long bytes = 0ull;
     for (unsigned int at = 0u; at < s_listing->count; at += 1u)
     {
         const CliEntry *const one = &s_listing->item[at];
-        mmgr_line_put(out, (at != 0u) ? ",{\"name\":" : "{\"name\":");
-        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out,
-                   .text = s_listing->text + one->name,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = s_listing->text + one->name, .cap = CLI_CELLS_POOL}));
-        mmgr_line_put(out, ",\"path\":");
-        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out,
-                   .text = s_listing->text + one->path,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = s_listing->text + one->path, .cap = CLI_CELLS_POOL}));
-        mmgr_line_put(out, one->dir ? ",\"dir\":true" : ",\"dir\":false");
-        mmgr_line_put(out, one->ignored ? ",\"ignored\":true" : ",\"ignored\":false");
-        mmgr_line_put(out, one->archive ? ",\"archive\":true" : ",\"archive\":false");
-        if (one->has_raw)
-        {
-            mmgr_line_put(out, ",\"raw\":");
-            EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out,
-                       .text = s_listing->text + one->raw,
-                       .length =
-                           cellul.len(&(CatenaFinitaCfg){.src = s_listing->text + one->raw, .cap = CLI_CELLS_POOL}));
-        }
-        mmgr_line_ch(out, '}');
+        bytes += cellul.len(&(CatenaFinitaCfg){.src = s_listing->text + one->name, .cap = CLI_CELLS_POOL}) +
+                 cellul.len(&(CatenaFinitaCfg){.src = s_listing->text + one->path, .cap = CLI_CELLS_POOL}) + 2ull;
     }
-    mmgr_line_ch(out, ']');
+    CliFileEntries *const entries = g_cli_cells->persistent_buf_alloc(
+        sizeof(*entries) + (s_listing->count * sizeof(CliFileEntry)) + bytes, args->owner);
+    if (entries == NULL)
+    {
+        return NULL;
+    }
+    entries->count = s_listing->count;
+    entries->entry = (CliFileEntry *)(void *)(entries + 1);
+    char *text = (char *)(void *)(entries->entry + s_listing->count);
+    for (unsigned int at = 0u; at < s_listing->count; at += 1u)
+    {
+        const CliEntry *const one = &s_listing->item[at];
+        const unsigned long long name =
+            cellul.len(&(CatenaFinitaCfg){.src = s_listing->text + one->name, .cap = CLI_CELLS_POOL}) + 1ull;
+        const unsigned long long full =
+            cellul.len(&(CatenaFinitaCfg){.src = s_listing->text + one->path, .cap = CLI_CELLS_POOL}) + 1ull;
+        memor.cpy(&(MemoriaCfg){.dst = text, .src = s_listing->text + one->name, .bytes = name});
+        memor.cpy(&(MemoriaCfg){.dst = text + name, .src = s_listing->text + one->path, .bytes = full});
+        entries->entry[at] = (CliFileEntry){text, text + name, one->dir, one->ignored};
+        text += name + full;
+    }
+    return entries;
 }
 
 // every folder of the view's files that contains a file the patterns leave, counted on a first pass, the containing
@@ -211,23 +220,23 @@ typedef struct
     const char *folder;
     int git;
     int include_only;
-} CliListed;
+} CliListResult;
 
-static void cli_listed_each(const CliEachNameIsFolderCfg *args)
+static void cli_listing_each(const CliEachNameIsFolderCfg *args)
 {
     const char *name = args->name;
-    const CliListed *const listed = (const CliListed *)args->context;
+    const CliListResult *const list_entries = (const CliListResult *)args->context;
     char full[CLI_PATH_MAX_LEN];
     char path[CLI_PATH_MAX_LEN];
     VerbaLinea line = {full, sizeof(full), 0ull};
-    mmgr_line_put(&line, listed->folder);
+    mmgr_line_put(&line, list_entries->folder);
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, name);
     if (mmgr_line_finish(&line) == 0ull)
     {
         return;
     }
-    EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = listed->root, .path = full,
+    EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = list_entries->root, .path = full,
                .relative_out = path);
     if ((args->is_folder && (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = ".git", .cap = CLI_CELLS_POOL}))) ||
         EMBED_CALL(cli_patterns_path.hides, CliPatternsPathCfg, .patterns = &s_listing->patterns, .path = path,
@@ -235,7 +244,7 @@ static void cli_listed_each(const CliEachNameIsFolderCfg *args)
     {
         return;
     }
-    if (listed->include_only && args->is_folder &&
+    if (list_entries->include_only && args->is_folder &&
         !EMBED_CALL(cli_files_path_kind.contains, CliFilesPathKindCfg, .files = &s_listing->folders, .path = path) &&
         !EMBED_CALL(cli_patterns_path.include_folder, CliPatternsPathCfg, .patterns = &s_listing->patterns,
                     .path = path))
@@ -243,7 +252,7 @@ static void cli_listed_each(const CliEachNameIsFolderCfg *args)
         return;
     }
     int ignored = 0;
-    if (listed->git)
+    if (list_entries->git)
     {
         ignored = args->is_folder
                       ? !EMBED_CALL(cli_symbols_path_name.tree_has_folder, CliSymbolsPathNameCfg, .path = path)
@@ -257,7 +266,7 @@ static void cli_listed_each(const CliEachNameIsFolderCfg *args)
     }
     const int archive =
         !args->is_folder && (EMBED_CALL(cli_archive.kind_get, CliArchiveCfg, .name = name) != CLI_ARCHIVE_NONE);
-    EMBED_CALL(cli_entry_put, FilesListCtx, .name = name, .path = path, .dir = args->is_folder || archive,
+    EMBED_CALL(cli_entry_append, FilesListCtx, .name = name, .path = path, .dir = args->is_folder || archive,
                .ignored = ignored, .archive = archive, .raw = NULL);
 }
 
@@ -270,7 +279,7 @@ static void list_release(void)
     s_listing = NULL;
 }
 
-int cli_files_list(const CliFilesRootOutDirCfg *args)
+CliFileEntries *cli_files_entries_alloc(const CliFilesEntriesCfg *args)
 {
     const char *root = args->root;
     VerbaLinea *err_msg = args->err_msg;
@@ -278,81 +287,53 @@ int cli_files_list(const CliFilesRootOutDirCfg *args)
     if (s_listing == NULL)
     {
         mmgr_line_put(err_msg, "a folder's listing could not be taken");
-        return 0;
+        return NULL;
     }
-    const unsigned long long item_bytes = (unsigned long long)CLI_LIST_MOST * sizeof(*s_listing->item);
+    const unsigned long long item_bytes = (unsigned long long)CLI_LIST_MAX * sizeof(*s_listing->item);
     char *const lists = g_cli_cells->temporary_buf_alloc(item_bytes + CLI_FILES_TEXT, &g_cli_editor_cells);
     s_listing->item = NULL;
     s_listing->count = 0u;
-    s_listing->item_room = 0u;
+    s_listing->item_capacity = 0u;
     s_listing->text = NULL;
     s_listing->used = 0ull;
-    s_listing->text_room = 0ull;
+    s_listing->text_capacity = 0ull;
     if (lists != NULL)
     {
         s_listing->item = (CliEntry *)(void *)lists;
-        s_listing->item_room = CLI_LIST_MOST;
+        s_listing->item_capacity = CLI_LIST_MAX;
         s_listing->text = lists + item_bytes;
-        s_listing->text_room = CLI_FILES_TEXT;
+        s_listing->text_capacity = CLI_FILES_TEXT;
     }
     s_listing->folders = (CliFiles){NULL, 0u, 0u, NULL, 0ull, 0ull};
-    // an archive, and a folder within one, lists what the archive contains
+    CliFileEntries *entries = NULL;
+    // an archive, and a folder within one, lists what the archive contains, in its own order
     char file[CLI_PATH_MAX_LEN];
     char inner[CLI_PATH_MAX_LEN];
     if (EMBED_CALL(cli_archive_root.split, CliArchiveRootCfg, .root = root, .path = args->dir, .file = file,
                    .inner = inner))
     {
-        const int listed = EMBED_CALL(cli_archive_err_msg_root.list, CliArchiveErrMsgRootCfg, .root = root,
-                                      .path = args->dir, .found = &s_listing->children, .err_msg = err_msg);
-        for (unsigned int at = 0u; listed && (at < s_listing->children.count); at += 1u)
+        if (EMBED_CALL(cli_archive_err_msg_root.list, CliArchiveErrMsgRootCfg, .root = root, .path = args->dir,
+                       .found = &s_listing->children, .err_msg = err_msg))
         {
-            const CliChild *const child = &s_listing->children.item[at];
-            const char *const text = s_listing->children.text;
-            EMBED_CALL(cli_entry_put, FilesListCtx, .name = text + child->name, .path = text + child->path,
-                       .dir = child->dir, .ignored = 0, .archive = child->archive,
-                       .raw = child->has_raw ? (text + child->raw) : NULL);
-        }
-        if (listed)
-        {
-            // the archive lists its children in its own order, retained
-            mmgr_line_ch(args->out, '[');
-            for (unsigned int at = 0u; at < s_listing->count; at += 1u)
+            for (unsigned int at = 0u; at < s_listing->children.count; at += 1u)
             {
-                const CliEntry *const one = &s_listing->item[at];
-                mmgr_line_put(args->out, (at != 0u) ? ",{\"name\":" : "{\"name\":");
-                EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
-                           .text = s_listing->text + one->name,
-                           .length = cellul.len(
-                               &(CatenaFinitaCfg){.src = s_listing->text + one->name, .cap = CLI_CELLS_POOL}));
-                mmgr_line_put(args->out, ",\"path\":");
-                EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
-                           .text = s_listing->text + one->path,
-                           .length = cellul.len(
-                               &(CatenaFinitaCfg){.src = s_listing->text + one->path, .cap = CLI_CELLS_POOL}));
-                mmgr_line_put(args->out,
-                              one->dir ? ",\"dir\":true,\"ignored\":false" : ",\"dir\":false,\"ignored\":false");
-                mmgr_line_put(args->out, one->archive ? ",\"archive\":true" : ",\"archive\":false");
-                if (one->has_raw)
-                {
-                    mmgr_line_put(args->out, ",\"raw\":");
-                    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
-                               .text = s_listing->text + one->raw,
-                               .length = cellul.len(
-                                   &(CatenaFinitaCfg){.src = s_listing->text + one->raw, .cap = CLI_CELLS_POOL}));
-                }
-                mmgr_line_ch(args->out, '}');
+                const CliChild *const child = &s_listing->children.item[at];
+                const char *const text = s_listing->children.text;
+                EMBED_CALL(cli_entry_append, FilesListCtx, .name = text + child->name, .path = text + child->path,
+                           .dir = child->dir, .ignored = 0, .archive = child->archive,
+                           .raw = child->has_raw ? (text + child->raw) : NULL);
             }
-            mmgr_line_ch(args->out, ']');
+            entries = EMBED_CALL(cli_entries_alloc, FilesListCtx, .owner = args->owner);
         }
         list_release();
-        return listed;
+        return entries;
     }
     char folder[CLI_PATH_MAX_LEN];
     if (!EMBED_CALL(cli_root_internal.inside, CliRootCtx, .root = root, .relative = args->dir, .joined = folder,
                     .err_msg = err_msg))
     {
         list_release();
-        return 0;
+        return NULL;
     }
     EMBED_CALL(cli_patterns_part.get, CliPatternsPartCfg, .part = CLI_PART_EXPLORER,
                .patterns_out = &s_listing->patterns);
@@ -363,17 +344,18 @@ int cli_files_list(const CliFilesRootOutDirCfg *args)
         EMBED_CALL(cli_folders_collect, FilesListCtx, .root = root);
     }
     // a tree git cannot read marks nothing as left out
-    CliListed listed = {root, folder, cli_tree_git(), include_only};
+    CliListResult list_entries = {root, folder, cli_tree_git(), include_only};
     const int read = EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = folder,
-                                .each = cli_listed_each, .context_bytess = &listed);
+                                .each = cli_listing_each, .context_bytess = &list_entries);
     if (!read)
     {
         mmgr_line_put(err_msg, args->dir);
         mmgr_line_put(err_msg, ": it could not be read");
         list_release();
-        return 0;
+        return NULL;
     }
-    EMBED_CALL(cli_entries_write, FilesListCtx, .out = args->out);
+    EMBED_CALL(cli_entries_sort, FilesListCtx, .owner = NULL);
+    entries = EMBED_CALL(cli_entries_alloc, FilesListCtx, .owner = args->owner);
     list_release();
-    return 1;
+    return entries;
 }

@@ -6,15 +6,15 @@
 #include "../../../../../ui/gui/src/glyphs.h"
 #include "../cli/cli_check.h"
 
-// whether any pixel of `rect` on the raster is not `ground`
-static int painted(const GuiRaster *raster, GuiRect rect, GuiColor ground)
+// whether any pixel of `rect` on the raster is not `background_fill`
+static int painted(const GuiRaster *raster, GuiRect rect, GuiColor background_fill)
 {
     for (int y = rect.y; y < rect.y + rect.height; y += 1)
     {
         for (int x = rect.x; x < rect.x + rect.width; x += 1)
         {
             if (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = (GuiRect){0, 0, (int)raster->width, (int)raster->height}, .x = x, .y = y) &&
-                (raster->pixels[((unsigned int)y * raster->width) + (unsigned int)x] != ground))
+                (raster->pixels[((unsigned int)y * raster->width) + (unsigned int)x] != background_fill))
             {
                 return 1;
             }
@@ -31,27 +31,27 @@ static float off(float one, float other)
 int main(void)
 {
     (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
-    char why_text[1024];
-    VerbaLinea why = {why_text, sizeof(why_text), 0ull};
+    char error_text[1024];
+    VerbaLinea why = {error_text, sizeof(error_text), 0ull};
     GuiGlyphs glyphs;
     const int made = EMBED_CALL(cli_glyphs.init, GuiGlyphsCfg, .glyphs = &glyphs, .err_msg = &why);
     cli_check(made, "the system's fonts are read");
     if (!made)
     {
         mmgr_line_finish(&why);
-        cli_check(0, why_text);
+        cli_check(0, error_text);
         return cli_on_check();
     }
     cli_check(glyphs.has[GUI_FACE_CODE], "the code face is read");
     cli_check(EMBED_CALL(gui_glyphs_face.face_had, GuiGlyphsFaceCfg, .glyphs_read = &glyphs, .face = GUI_FACE_CODE_BOLD) < GUI_FACES, "a face asked for is answered with one read");
     cli_check(EMBED_CALL(gui_glyphs_face.face_had, GuiGlyphsFaceCfg, .glyphs_read = &glyphs, .face = GUI_FACE_HEAD_BOLD) != GUI_FACE_HEAD_BOLD, "the interface's bold is not read until it is asked for");
-    float regular_wide = 0.0f;
-    (void)EMBED_CALL(gui_glyphs_face_letter.glyph, GuiGlyphsFaceLetterCfg, .glyphs = &glyphs, .face = GUI_FACE_HEAD, .letter = (unsigned int)'o', .size = 88u, .advance = &regular_wide);
+    float regular_width = 0.0f;
+    (void)EMBED_CALL(gui_glyphs_face_letter.glyph, GuiGlyphsFaceLetterCfg, .glyphs = &glyphs, .face = GUI_FACE_HEAD, .letter = (unsigned int)'o', .size = 88u, .advance = &regular_width);
     const int bold_read = EMBED_CALL(cli_glyphs.head_bold_read, GuiGlyphsCfg, .glyphs = &glyphs);
     cli_check(!bold_read || (EMBED_CALL(gui_glyphs_face.face_had, GuiGlyphsFaceCfg, .glyphs_read = &glyphs, .face = GUI_FACE_HEAD_BOLD) == GUI_FACE_HEAD_BOLD), "asked for, it is read where the system has it");
-    float bold_wide = 0.0f;
-    (void)EMBED_CALL(gui_glyphs_face_letter.glyph, GuiGlyphsFaceLetterCfg, .glyphs = &glyphs, .face = GUI_FACE_HEAD_BOLD, .letter = (unsigned int)'o', .size = 88u, .advance = &bold_wide);
-    cli_check(!bold_read || (bold_wide > regular_wide), "the bold's letters stand wider than the regular's");
+    float bold_width = 0.0f;
+    (void)EMBED_CALL(gui_glyphs_face_letter.glyph, GuiGlyphsFaceLetterCfg, .glyphs = &glyphs, .face = GUI_FACE_HEAD_BOLD, .letter = (unsigned int)'o', .size = 88u, .advance = &bold_width);
+    cli_check(!bold_read || (bold_width > regular_width), "the bold's letters stand wider than the regular's");
     if (bold_read)
     {
         EMBED_CALL(cli_glyphs.head_bold_free, GuiGlyphsCfg, .glyphs = &glyphs);

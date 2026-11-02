@@ -108,7 +108,7 @@ unsigned int cli_toolchains_for_system(const CliToolchainsJsonMapCfg *args);
 int cli_toolchains_program_in(const CliToolchainsDirCfg *args);
 int cli_toolchains_tool_program_in(const CliToolchainsJsonDirCfg *args);
 // the folders a pattern of toolchains.json names, newest first where a * stands for a version, each that is a folder
-// into `folders` from `count`, sized for `room`: the count after
+// into `folders` from `count`, sized for `capacity`: the count after
 unsigned int cli_toolchains_folders_get(const CliToolchainsCountCfg *args);
 // a folder as PATH entries are compared into `key`, sized for CLI_PATH_MAX_LEN: without a trailing separator, and
 // case aside on Windows
@@ -142,21 +142,21 @@ int cli_toolchains_chosen_program(const CliToolchainsIdPathCfg *args);
 #define CLI_TREE_TOOLS 2u
 
 // `root` made the tree whose own tools come first on the PATH; the tree's own tools' folders that are there,
-// node_modules/.bin for npm's and vendor/bin for Composer's, into `folders`, sized for `room`: their count; the
+// node_modules/.bin for npm's and vendor/bin for Composer's, into `folders`, sized for `capacity`: their count; the
 // tree's environment set, or none where `environment` is NULL; and the tree's environment into `environment`: 1, or 0
 // where none is set (toolchains_path.c)
 void cli_toolchains_set_tree(const CliToolchainsRootCfg *args);
 unsigned int cli_toolchains_tree_tools(const CliToolchainsCountCfg *args);
 void cli_toolchains_set_environment(const CliToolchainsEnvironmentCfg *args);
 int cli_toolchains_environment(const CliToolchainsCfg *args);
-// the PATH's folders, in order and each once, into `folders`, sized for `room`: their count. The tree's own tools'
+// the PATH's folders, in order and each once, into `folders`, sized for `capacity`: their count. The tree's own tools'
 // folders, then on Windows the system's and the reader's as the registry stores them now, then the PATH orior_cli
 // started with, then the folders the login shell's PATH adds, once it has been read
 unsigned int cli_toolchains_path_folders(const CliToolchainsCountCfg *args);
 // the PATH's folders as cli_toolchains_path_folders reads them, in a cell counted to `owner` sized to the most their
 // texts name, which persistent_buf_release gives back: the folders, their count into `count`, or NULL with 0 where the
 // cell cannot be taken
-char (*cli_toolchains_path_taken(unsigned int *count, CellOwner *owner))[CLI_PATH_MAX_LEN];
+char (*cli_toolchains_path_allocated(unsigned int *count, CellOwner *owner))[CLI_PATH_MAX_LEN];
 // the first of `count` program `names` found in the PATH's folders, in their order, into `program`, sized for
 // CLI_PATH_MAX_LEN: 1, or 0 where none contains one
 int cli_toolchains_on_path(const CliToolchainsNamesCfg *args);
@@ -169,7 +169,7 @@ unsigned int cli_toolchains_system_path(const CliToolchainsCountCfg *args);
 // front of it
 void cli_toolchains_run_path(const CliToolchainsCountPathCfg *args);
 void cli_toolchains_run_path_with(const CliToolchainsCountPathCfg *args);
-// the folders that exist of those written by system as `places` writes them, each pattern's in order, put into
+// the folders that exist of those written by system as `positions` writes them, each pattern's in order, put into
 // `folders` from `count`: the count after
 unsigned int cli_toolchains_folders_for(const CliToolchainsJsonCountCfg *args);
 // `path` with `folder` added at its end into `out`, sized for `size`: 1, or 0 where it is there already
@@ -209,7 +209,7 @@ struct CliToolchainsJsonCountCfg
     const CliJson *json;
     unsigned int count;
     char (*folders)[CLI_PATH_MAX_LEN];
-    unsigned int room;
+    unsigned int capacity;
     unsigned int by_system;
 };
 
@@ -217,7 +217,7 @@ struct CliToolchainsErrMsgCfg
 {
     VerbaLinea *err_msg;
     unsigned int tool;
-    const CliJson *given;
+    const CliJson *supplied;
     char *id_out;
 };
 
@@ -242,7 +242,7 @@ struct CliToolchainsCountCfg
     unsigned int count;
     const char *pattern;
     char (*folders)[CLI_PATH_MAX_LEN];
-    unsigned int room;
+    unsigned int capacity;
 };
 
 struct CliToolchainsFolderCfg
@@ -250,7 +250,7 @@ struct CliToolchainsFolderCfg
     const char *folder_read;
     unsigned long long size;
     const char *path_read;
-    char *out_room;
+    char *out_capacity;
 };
 
 struct CliToolchainsDirCfg

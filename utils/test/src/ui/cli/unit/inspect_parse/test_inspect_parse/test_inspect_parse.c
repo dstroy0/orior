@@ -24,7 +24,7 @@ static char s_word[256];
 // `text` in `language` parsed into s_parsed
 static void parsed(const char *language, const char *text)
 {
-    EMBED_CALL(cli_inspect_parsed.parsed_begin, CliInspectParsedCfg, .parsed = &s_parsed, .runs = s_runs, .runs_most = 4096u, .line_first = s_line_first, .line_runs = s_line_runs, .lines_most = 256u, .fold_first = s_fold_first, .fold_last = s_fold_last, .folds_most = 256u, .ranges = s_ranges, .ranges_most = 4096u);
+    EMBED_CALL(cli_inspect_parsed.parsed_begin, CliInspectParsedCfg, .parsed = &s_parsed, .runs = s_runs, .runs_max = 4096u, .line_first = s_line_first, .line_runs = s_line_runs, .lines_max = 256u, .fold_first = s_fold_first, .fold_last = s_fold_last, .folds_max = 256u, .ranges = s_ranges, .ranges_max = 4096u);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_inspect_language_text.parse, CliInspectLanguageTextCfg, .language = language, .text = text, .size = CLI_UNITY_LENGTH(text), .parsed = &s_parsed));
 }
 
@@ -86,12 +86,12 @@ static const char *word_at(const char *classes, unsigned int index)
     return s_word;
 }
 
-// whether `classes` contains the word `wanted`
-static int contains_word(const char *classes, const char *wanted)
+// whether `classes` contains the word `required`
+static int contains_word(const char *classes, const char *required)
 {
     for (unsigned int index = 0u; index < 64u; index += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = word_at(classes, index), .other = wanted, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = word_at(classes, index), .other = required, .cap = CLI_CELLS_POOL}))
         {
             return 1;
         }
@@ -119,17 +119,17 @@ static const char *spans_at(unsigned int line, unsigned int col, unsigned int mo
 {
     static CliInspectSpan s_spans[64];
     static const char *const s_marks[4] = {"", ":", "-", ":"};
-    const CliInspectPlace place = {line, col};
+    const CliInspectPosition place = {line, col};
     const unsigned int count = EMBED_CALL(cli_inspect_ranges.ranges_at, CliInspectRangesCfg, .ranges_read = s_parsed.range, .count = s_parsed.ranges, .from = place, .to = place, .out_inspect_span_pointer = s_spans, .most = 64u);
     VerbaLinea out = {s_classes, sizeof(s_classes), 0ull};
     for (unsigned int at = 0u; (at < count) && (at < most); at += 1u)
     {
-        const unsigned int places[4] = {s_spans[at].from.line, s_spans[at].from.col, s_spans[at].to.line, s_spans[at].to.col};
+        const unsigned int positions[4] = {s_spans[at].from.line, s_spans[at].from.col, s_spans[at].to.line, s_spans[at].to.col};
         mmgr_line_put(&out, (at > 0u) ? "|" : "");
         for (unsigned int part = 0u; part < 4u; part += 1u)
         {
             mmgr_line_put(&out, s_marks[part]);
-            mmgr_line_decimal(&out, places[part], 1u);
+            mmgr_line_decimal(&out, positions[part], 1u);
         }
     }
     (void)mmgr_line_finish(&out);

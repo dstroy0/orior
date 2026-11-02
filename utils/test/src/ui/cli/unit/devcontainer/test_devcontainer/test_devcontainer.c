@@ -11,7 +11,7 @@ static CliWords s_words;
 static char s_dir[CLI_PATH_MAX_LEN];
 static char s_base[CLI_PATH_MAX_LEN];
 static char s_named[CLI_PATH_MAX_LEN];
-static char s_why[512];
+static char s_error[512];
 static VerbaLinea s_err_msg;
 
 // the folder `folder` with `description` written at `at` in it, its path into s_dir and its last name into s_base
@@ -113,14 +113,14 @@ static void compose_planned(void)
 void setUp(void)
 {
     cli_unity_begun();
-    s_err_msg = (VerbaLinea){s_why, sizeof(s_why), 0ull};
+    s_err_msg = (VerbaLinea){s_error, sizeof(s_error), 0ull};
 }
 
 void tearDown(void)
 {
 }
 
-void test_the_container_is_made_from_its_image(void)
+void test_the_container_is_created_from_its_image(void)
 {
     image_planned();
     TEST_ASSERT_EQUAL_INT(CLI_SOURCE_IMAGE, s_plan.source);
@@ -212,13 +212,13 @@ void test_the_container_is_named_for_the_tree(void)
 void test_the_image_is_named_for_the_container(void)
 {
     char image[CLI_PATH_MAX_LEN];
-    char wanted[CLI_PATH_MAX_LEN];
+    char required[CLI_PATH_MAX_LEN];
     build_planned(image);
-    VerbaLinea line = {wanted, sizeof(wanted), 0ull};
+    VerbaLinea line = {required, sizeof(required), 0ull};
     mmgr_line_put(&line, EMBED_CALL(cli_devcontainer_plan_at.plan_text, CliDevcontainerPlanAtCfg, .plan = &s_plan, .at = s_plan.name));
     mmgr_line_put(&line, "-image");
     (void)mmgr_line_finish(&line);
-    TEST_ASSERT_EQUAL_STRING(wanted, image);
+    TEST_ASSERT_EQUAL_STRING(required, image);
 }
 
 void test_the_image_is_built_from_its_dockerfile(void)
@@ -263,7 +263,7 @@ void test_the_tree_is_in_the_folder_the_description_names(void)
     TEST_ASSERT_EQUAL_STRING("/src", EMBED_CALL(cli_devcontainer_plan_at.plan_text, CliDevcontainerPlanAtCfg, .plan = &s_plan, .at = s_plan.folder));
 }
 
-void test_a_compose_description_names_its_files_beside_it(void)
+void test_a_compose_description_names_its_files_adjacent_it(void)
 {
     char path[CLI_PATH_MAX_LEN];
     compose_planned();
@@ -280,7 +280,7 @@ void test_a_compose_description_names_its_project(void)
     TEST_ASSERT_EQUAL_STRING(EMBED_CALL(cli_devcontainer_plan_at.plan_text, CliDevcontainerPlanAtCfg, .plan = &s_plan, .at = s_plan.name), s_words.word[s_words.count - 1u]);
 }
 
-void test_a_compose_description_brings_up_its_service(void)
+void test_a_compose_description_fetches_up_its_service(void)
 {
     compose_planned();
     TEST_ASSERT_EQUAL_INT(CLI_SOURCE_COMPOSE, s_plan.source);
@@ -292,7 +292,7 @@ void test_a_description_with_nothing_to_build_reports_it(void)
     tree_written("devcontainer_empty", "{ \"name\": \"empty\" }", ".devcontainer/devcontainer.json");
     TEST_ASSERT_FALSE(EMBED_CALL(cli_devcontainer_root.plan, CliDevcontainerRootCfg, .root = s_dir, .plan_out = &s_plan, .err_msg = &s_err_msg));
     TEST_ASSERT_GREATER_THAN_UINT64(0ull, mmgr_line_finish(&s_err_msg));
-    CLI_TEST_ASSERT_CONTAINS("names no image", s_why);
+    CLI_TEST_ASSERT_CONTAINS("names no image", s_error);
 }
 
 void test_a_description_uses_memory_sized_to_it_and_releases_it(void)

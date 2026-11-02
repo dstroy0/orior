@@ -9,10 +9,11 @@
 // is gone is gone with it.
 //
 // A catalog stores its jobs, their params, steps and arguments, and every text they contain in the storage its holder
-// hands it, so the whole catalog and a run's one job are each stored in a room of their own and nothing is allocated
+// hands it, so the whole catalog and a run's one job are each stored in a capacity of their own and nothing is
+// allocated
 #ifndef CATALOG_H
 #define CATALOG_H
-typedef struct CliCatalogJobsMostCfg CliCatalogJobsMostCfg;
+typedef struct CliCatalogJobsMaxCfg CliCatalogJobsMaxCfg;
 typedef struct CliCatalogKindCfg CliCatalogKindCfg;
 typedef struct CliCatalogIdGroupCfg CliCatalogIdGroupCfg;
 typedef struct CliCatalogTextProgramCfg CliCatalogTextProgramCfg;
@@ -58,7 +59,7 @@ typedef struct CliCatalogTextValuesCfg CliCatalogTextValuesCfg;
 //   SET_WHEN param value variable setting   no argument: the variable set where the param's value is the value named
 //   UNPATH name       no argument: the step's PATH without the folders that contain the program named
 //   ONLY key value    no argument: the step runs only where the param's value is the value named
-//   GIVEN key         no argument: the step runs only where a value of the param is given
+//   INPUT key         no argument: the step runs only where a value of the param is given
 //   SET_FROM variable key     no argument: the value of a param, where one is given, set under the variable named
 //   FORMAT text       the text with each {key} in it filled with that param's value, as one word
 //   FLAG_BUT flag key but     a flag and then the value of a param, where one is given other than the value named
@@ -83,7 +84,7 @@ enum
     CLI_ARG_SET_WHEN,
     CLI_ARG_UNPATH,
     CLI_ARG_ONLY,
-    CLI_ARG_GIVEN,
+    CLI_ARG_INPUT,
     CLI_ARG_SET_FROM,
     CLI_ARG_FORMAT,
     CLI_ARG_FLAG_BUT,
@@ -104,7 +105,7 @@ enum
     CLI_PROGRAM_BUILT,
     CLI_PROGRAM_TOOL,
     CLI_PROGRAM_ORIOR,
-    CLI_PROGRAM_MADE
+    CLI_PROGRAM_CREATED
 };
 
 // An argument: its kind, its texts as its kind names them, whether WORDS requires the separator, and the words WHEN
@@ -166,22 +167,22 @@ typedef struct
 {
     CliJob *job;
     unsigned int jobs;
-    unsigned int jobs_most;
+    unsigned int jobs_max;
     CliParam *param;
     unsigned int params;
-    unsigned int params_most;
+    unsigned int params_max;
     CliStep *step;
     unsigned int steps;
-    unsigned int steps_most;
+    unsigned int steps_max;
     CliArg *arg;
     unsigned int args;
-    unsigned int args_most;
+    unsigned int args_max;
     unsigned int *list;
     unsigned int lists;
-    unsigned int lists_most;
+    unsigned int lists_max;
     char *text;
     unsigned int used;
-    unsigned int text_most;
+    unsigned int text_max;
     int full;
     CellOwner *cells;
 } CliCatalog;
@@ -206,12 +207,12 @@ typedef struct
     unsigned int used;
 } CliValues;
 
-// a catalog made empty whose lists and texts are taken at their most in one cell counted to `cells`, `jobs_most` jobs
+// a catalog made empty whose lists and texts are taken at their most in one cell counted to `cells`, `jobs_max` jobs
 // at the most; and its cell given back, the catalog left empty and containing nothing
-void cli_catalog_take(const CliCatalogCellsCfg *args);
+void cli_catalog_alloc(const CliCatalogCellsCfg *args);
 void cli_catalog_free(const CliCatalogChoiceCfg *args);
 // a catalog made empty over the storage handed it
-void cli_catalog_begin(const CliCatalogJobsMostCfg *args);
+void cli_catalog_begin(const CliCatalogJobsMaxCfg *args);
 // a text stored in the catalog: where it starts; and the text at a place, the empty text for none
 unsigned int cli_catalog_text(const CliCatalogTextProgramCfg *args);
 const char *cli_catalog_at(const CliCatalogTextCfg *args);
@@ -231,7 +232,7 @@ void cli_catalog_trace(const CliCatalogChoiceCfg *args);
 // there, CLI_CATALOG_NONE where it does not fit
 unsigned int cli_catalog_find(const CliCatalogIdCfg *args);
 unsigned int cli_catalog_copy(const CliCatalogFromCfg *args);
-// The room a job copied takes: its params, steps, args and list entries, and the bytes of its texts
+// The capacity a job copied takes: its params, steps, args and list entries, and the bytes of its texts
 typedef struct
 {
     unsigned int params;
@@ -240,16 +241,12 @@ typedef struct
     unsigned int lists;
     unsigned long long text;
 } CliCatalogExtent;
-// the room the job at `index` of `from` takes copied into a catalog of its own
+// the capacity the job at `index` of `from` takes copied into a catalog of its own
 void cli_catalog_job_extent(const CliCatalogFromIndexCfg *args);
-// the job at `index` written as the window reads it: `{"id", "group", "title", "file", "about", "params": [{"key",
-// "kind", "choices", "default", "required"}], "opens"}`
-void cli_catalog_job_write(const CliCatalogIndexCfg *args);
-
 // the values made empty; `value` put after the values of `key`; the values of `key`, `count` of them into `count`,
 // NULL where it has none; and the first value of `key`, NULL where it has none
 void cli_values_begin(const CliCatalogKeyValuesCfg *args);
-void cli_values_put(const CliCatalogKeyValuesCfg *args);
+void cli_values_append(const CliCatalogKeyValuesCfg *args);
 const unsigned int *cli_values_get(const CliCatalogKeyCfg *args);
 const char *cli_values_first(const CliCatalogKeyCfg *args);
 const char *cli_values_at(const CliCatalogTextValuesCfg *args);
@@ -265,21 +262,21 @@ void cli_executables_jobs(const CliCatalogRootCfg *args);
 void cli_deploy_jobs(const CliCatalogRootCfg *args);
 void cli_query_jobs(const CliCatalogRootCfg *args);
 
-struct CliCatalogJobsMostCfg
+struct CliCatalogJobsMaxCfg
 {
     CliCatalog *catalog;
-    unsigned int jobs_most;
+    unsigned int jobs_max;
     CliJob *jobs;
     CliParam *params;
-    unsigned int params_most;
+    unsigned int params_max;
     CliStep *steps;
-    unsigned int steps_most;
+    unsigned int steps_max;
     CliArg *request;
-    unsigned int args_most;
+    unsigned int args_max;
     unsigned int *lists;
-    unsigned int lists_most;
+    unsigned int lists_max;
     char *text_out;
-    unsigned int text_most;
+    unsigned int text_max;
 };
 
 struct CliCatalogKindCfg
@@ -346,7 +343,7 @@ struct CliCatalogCellsCfg
 {
     CliCatalog *catalog;
     CellOwner *cells;
-    unsigned int jobs_most;
+    unsigned int jobs_max;
 };
 
 struct CliCatalogKeyCfg
@@ -411,7 +408,7 @@ typedef struct
 } CliCatalogCellsNs;
 EMBED_TABLE_LAYOUT(CliCatalogCellsNs, take);
 EMBED_TABLE_STORAGE CliCatalogCellsNs cli_catalog_cells EMBED_UNUSED = {
-    .take = cli_catalog_take,
+    .take = cli_catalog_alloc,
 };
 
 typedef struct
@@ -431,10 +428,10 @@ EMBED_TABLE_STORAGE CliCatalogChoiceNs cli_catalog_choice_table EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*begin)(const CliCatalogJobsMostCfg *args);
-} CliCatalogJobsMostNs;
-EMBED_TABLE_LAYOUT(CliCatalogJobsMostNs, begin);
-EMBED_TABLE_STORAGE CliCatalogJobsMostNs cli_catalog_jobs_most EMBED_UNUSED = {
+    void (*begin)(const CliCatalogJobsMaxCfg *args);
+} CliCatalogJobsMaxNs;
+EMBED_TABLE_LAYOUT(CliCatalogJobsMaxNs, begin);
+EMBED_TABLE_STORAGE CliCatalogJobsMaxNs cli_catalog_jobs_max EMBED_UNUSED = {
     .begin = cli_catalog_begin,
 };
 
@@ -523,22 +520,13 @@ EMBED_TABLE_STORAGE CliCatalogFromIndexNs cli_catalog_from_index EMBED_UNUSED = 
 
 typedef struct
 {
-    void (*job_write)(const CliCatalogIndexCfg *args);
-} CliCatalogIndexNs;
-EMBED_TABLE_LAYOUT(CliCatalogIndexNs, job_write);
-EMBED_TABLE_STORAGE CliCatalogIndexNs cli_catalog_index EMBED_UNUSED = {
-    .job_write = cli_catalog_job_write,
-};
-
-typedef struct
-{
     void (*values_begin)(const CliCatalogKeyValuesCfg *args);
-    void (*values_put)(const CliCatalogKeyValuesCfg *args);
+    void (*values_append)(const CliCatalogKeyValuesCfg *args);
 } CliCatalogKeyValuesNs;
-EMBED_TABLE_LAYOUT(CliCatalogKeyValuesNs, values_begin, values_put);
+EMBED_TABLE_LAYOUT(CliCatalogKeyValuesNs, values_begin, values_append);
 EMBED_TABLE_STORAGE CliCatalogKeyValuesNs cli_catalog_key_values EMBED_UNUSED = {
     .values_begin = cli_values_begin,
-    .values_put = cli_values_put,
+    .values_append = cli_values_append,
 };
 
 typedef struct

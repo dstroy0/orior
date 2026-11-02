@@ -7,7 +7,7 @@
 // own is locked here: each store owns its own lock (keyed.c)
 #ifndef KEYED_H
 #define KEYED_H
-typedef struct CliKeyedKeyBesideCfg CliKeyedKeyBesideCfg;
+typedef struct CliKeyedKeyAdjacentCfg CliKeyedKeyAdjacentCfg;
 typedef struct CliKeyedKeyCfg CliKeyedKeyCfg;
 typedef struct CliKeyedNameCfg CliKeyedNameCfg;
 typedef struct CliKeyedEachCfg CliKeyedEachCfg;
@@ -26,7 +26,7 @@ typedef struct
     char *cell;
     unsigned long long size;
     unsigned int key_size;
-    unsigned int beside_size;
+    unsigned int adjacent_size;
 } CliKeyedEntry;
 
 // the entries a page of a store's contains, and the most pages a store takes
@@ -41,37 +41,37 @@ typedef struct
     const char *name;
     CliKeyedEntry *page[CLI_KEYED_PAGES];
     unsigned int entries;
-    unsigned int entries_most;
+    unsigned int entries_max;
 } CliKeyed;
 
 // the entry at the place `at`, below the places ever taken
 CliKeyedEntry *cli_keyed_entry(const CliKeyedCfg *args);
 
-// the texts made empty, at most `entries_most` of them; `size` bytes of `text` stored under `key` with `beside`, in
+// the texts made empty, at most `entries_max` of them; `size` bytes of `text` stored under `key` with `adjacent`, in
 // place of what it contained: 1, or 0, reported, where they do not fit; the text stored under `key`, its size into
-// `size` and the text beside it into `beside`: NULL where none is stored, each good until the texts next change; the
+// `size` and the text beside it into `adjacent`: NULL where none is stored, each good until the texts next change; the
 // text under `key` taken out; every text taken out; each key handed to `each` with its texts; and the bytes of every
 // key and the text beside it, each ended by a 0
 void cli_keyed_begin(const CliKeyedNameCfg *args);
-int cli_keyed_put(const CliKeyedKeyBesideCfg *args);
-const char *cli_keyed_get(const CliKeyedKeyBesideCfg *args);
+int cli_keyed_append(const CliKeyedKeyAdjacentCfg *args);
+const char *cli_keyed_get(const CliKeyedKeyAdjacentCfg *args);
 // the hash a key is found by, for a key looked up more than once; and the same get with that hash
-unsigned int cli_keyed_hash(const CliKeyedKeyBesideCfg *args);
+unsigned int cli_keyed_hash(const CliKeyedKeyAdjacentCfg *args);
 const char *cli_keyed_get_hash(const CliKeyedKeyCfg *args);
-void cli_keyed_remove(const CliKeyedKeyBesideCfg *args);
+void cli_keyed_remove(const CliKeyedKeyAdjacentCfg *args);
 void cli_keyed_clear(const CliKeyedNameCfg *args);
 void cli_keyed_each(const CliKeyedEachCfg *args);
-unsigned long long cli_keyed_listed_size(const CliKeyedCfg *args);
+unsigned long long cli_keyed_listing_size(const CliKeyedCfg *args);
 
-struct CliKeyedKeyBesideCfg
+struct CliKeyedKeyAdjacentCfg
 {
     const CliKeyed *keyed;
     CliKeyed *keyed_out;
     const char *key;
-    const char *beside_value;
+    const char *adjacent_value;
     const char *text;
     unsigned long long size_value;
-    const char **beside;
+    const char **adjacent;
     unsigned long long *size;
 };
 
@@ -79,7 +79,7 @@ struct CliKeyedKeyCfg
 {
     const CliKeyed *keyed;
     const char *key;
-    const char **beside;
+    const char **adjacent;
     unsigned long long *size;
     unsigned int hash;
 };
@@ -88,13 +88,13 @@ struct CliKeyedNameCfg
 {
     CliKeyed *keyed_out;
     const char *name;
-    unsigned int entries_most;
+    unsigned int entries_max;
 };
 
 struct CliKeyedEachCfg
 {
     const CliKeyed *keyed;
-    void (*each)(const CliEachKeyBesideTextSizeCfg *args);
+    void (*each)(const CliEachKeyAdjacentTextSizeCfg *args);
     void *context;
 };
 
@@ -112,7 +112,7 @@ typedef struct
 EMBED_TABLE_LAYOUT(CliKeyedNs, entry, listed_size);
 EMBED_TABLE_STORAGE CliKeyedNs cli_keyed_table EMBED_UNUSED = {
     .entry = cli_keyed_entry,
-    .listed_size = cli_keyed_listed_size,
+    .listed_size = cli_keyed_listing_size,
 };
 
 typedef struct
@@ -128,14 +128,14 @@ EMBED_TABLE_STORAGE CliKeyedNameNs cli_keyed_name EMBED_UNUSED = {
 
 typedef struct
 {
-    int (*put)(const CliKeyedKeyBesideCfg *args);
-    const char *(*get)(const CliKeyedKeyBesideCfg *args);
-    unsigned int (*hash)(const CliKeyedKeyBesideCfg *args);
-    void (*remove)(const CliKeyedKeyBesideCfg *args);
-} CliKeyedKeyBesideNs;
-EMBED_TABLE_LAYOUT(CliKeyedKeyBesideNs, put, get, hash, remove);
-EMBED_TABLE_STORAGE CliKeyedKeyBesideNs cli_keyed_key_beside EMBED_UNUSED = {
-    .put = cli_keyed_put,
+    int (*put)(const CliKeyedKeyAdjacentCfg *args);
+    const char *(*get)(const CliKeyedKeyAdjacentCfg *args);
+    unsigned int (*hash)(const CliKeyedKeyAdjacentCfg *args);
+    void (*remove)(const CliKeyedKeyAdjacentCfg *args);
+} CliKeyedKeyAdjacentNs;
+EMBED_TABLE_LAYOUT(CliKeyedKeyAdjacentNs, put, get, hash, remove);
+EMBED_TABLE_STORAGE CliKeyedKeyAdjacentNs cli_keyed_key_adjacent EMBED_UNUSED = {
+    .put = cli_keyed_append,
     .get = cli_keyed_get,
     .hash = cli_keyed_hash,
     .remove = cli_keyed_remove,

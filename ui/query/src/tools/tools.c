@@ -15,12 +15,12 @@ QueryPaths g_query_cxx_sources;
 QueryPaths g_query_tool_sources;
 QueryPaths g_query_objects;
 
-int query_paths_take(const QueryPathsCtx *args)
+int query_paths_alloc(const QueryPathsCtx *args)
 {
     query_paths_internal.paths_free(args);
     args->paths->path =
         g_cli_cells->persistent_buf_alloc((unsigned long long)args->count * QUERY_PATH_MAX_LEN, &g_query_cells);
-    args->paths->room = (args->paths->path != NULL) ? args->count : 0u;
+    args->paths->capacity = (args->paths->path != NULL) ? args->count : 0u;
     return args->paths->path != NULL;
 }
 
@@ -56,10 +56,10 @@ typedef struct
 EMBED_INLINE int query_extension_is(const ToolsCtx *args)
 {
     const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
-    const size_t wanted = cellul.len(&(CatenaFinitaCfg){.src = args->extension, .cap = CLI_CELLS_POOL});
-    return (length > (wanted + 1u)) && (args->name[length - wanted - 1u] == '.') &&
-           cellul.eq(
-               &(CatenaFinitaCfg){.src = args->name + length - wanted, .other = args->extension, .cap = wanted + 1u});
+    const size_t required = cellul.len(&(CatenaFinitaCfg){.src = args->extension, .cap = CLI_CELLS_POOL});
+    return (length > (required + 1u)) && (args->name[length - required - 1u] == '.') &&
+           cellul.eq(&(CatenaFinitaCfg){
+               .src = args->name + length - required, .other = args->extension, .cap = required + 1u});
 }
 
 // 1 where the path `one` sorts after the path `other`, byte by byte, a path before every longer one it begins
@@ -77,7 +77,7 @@ static void query_source_walk(const CliEachNameIsFolderCfg *args)
     QuerySourceWalk *const walk = (QuerySourceWalk *)args->context;
     QueryPaths *const found = walk->found;
     if (args->is_folder || !EMBED_CALL(query_extension_is, ToolsCtx, .name = name, .extension = walk->extension) ||
-        (found->count >= found->room))
+        (found->count >= found->capacity))
     {
         return;
     }
@@ -132,7 +132,7 @@ unsigned int query_sources(const QueryToolsRootCtx *args)
             }
             continue;
         }
-        if (args->found->count >= args->found->room)
+        if (args->found->count >= args->found->capacity)
         {
             break;
         }
@@ -162,9 +162,9 @@ const QueryTool *query_tool_by_name(const QueryToolsCtx *args)
     return NULL;
 }
 
-void query_binary_name(const QueryNameRoomCtx *args)
+void query_binary_name(const QueryNameCapacityCtx *args)
 {
-    VerbaLinea line = {args->binary, args->room, 0ull};
+    VerbaLinea line = {args->binary, args->capacity, 0ull};
     mmgr_line_put(&line, args->name);
 #if defined(_WIN32)
     mmgr_line_put(&line, ".exe");
@@ -197,12 +197,12 @@ void query_every_source(const QueryToolsRootToolCCtx *args)
     unsigned int *cxx = args->cxx;
     unsigned int *tools = args->tools;
     query_every_source_free();
-    (void)EMBED_CALL(query_paths_internal.paths_take, QueryPathsCtx, .paths = &g_query_c_sources,
-                     .count = QUERY_SOURCES_MOST);
-    (void)EMBED_CALL(query_paths_internal.paths_take, QueryPathsCtx, .paths = &g_query_cxx_sources,
-                     .count = QUERY_SOURCES_MOST);
-    (void)EMBED_CALL(query_paths_internal.paths_take, QueryPathsCtx, .paths = &g_query_tool_sources,
-                     .count = QUERY_SOURCES_MOST);
+    (void)EMBED_CALL(query_paths_internal.paths_alloc, QueryPathsCtx, .paths = &g_query_c_sources,
+                     .count = QUERY_SOURCES_MAX);
+    (void)EMBED_CALL(query_paths_internal.paths_alloc, QueryPathsCtx, .paths = &g_query_cxx_sources,
+                     .count = QUERY_SOURCES_MAX);
+    (void)EMBED_CALL(query_paths_internal.paths_alloc, QueryPathsCtx, .paths = &g_query_tool_sources,
+                     .count = QUERY_SOURCES_MAX);
     for (unsigned int group = 0u; (group < QUERY_TOOL_GROUPS) && (args->tool->c[group] != NULL); group += 1u)
     {
         (void)EMBED_CALL(query_tools_root_internal.sources, QueryToolsRootCtx, .root = args->root,
@@ -368,16 +368,16 @@ int query_stale(const QueryToolsRootToolCtx *args)
     return stale || (newest > built);
 }
 
-int query_tool_build(const QueryNameRoomCtx *args)
+int query_tool_build(const QueryNameCapacityCtx *args)
 {
     char out[QUERY_PATH_MAX_LEN];
     VerbaLinea line = {out, sizeof(out), 0ull};
     mmgr_line_put(&line, args->root);
     mmgr_line_put(&line, "/build/engine");
     mmgr_line_finish(&line);
-    return EMBED_CALL(query_name_room_internal.tool_built_into, QueryNameRoomCtx, .root = args->root,
+    return EMBED_CALL(query_name_capacity_internal.tool_built_into, QueryNameCapacityCtx, .root = args->root,
                       .programs = args->programs, .name = args->name, .out_text = out, .binary = args->binary,
-                      .room = args->room, .err_msg = args->err_msg);
+                      .capacity = args->capacity, .err_msg = args->err_msg);
 }
 
 // the object `source` is compiled to under `objects`, named by its path from the top of the tree with its separators
@@ -390,7 +390,7 @@ void query_object_get(const QueryToolsRootObjectsCtx *args)
          (args->source_text[root_length] == '/'))
             ? (args->source_text + root_length + 1u)
             : args->source_text;
-    VerbaLinea line = {args->object_room, QUERY_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->object_capacity, QUERY_PATH_MAX_LEN, 0ull};
     mmgr_line_put(&line, args->objects);
     mmgr_line_ch(&line, '/');
     const unsigned long long start = line.at;

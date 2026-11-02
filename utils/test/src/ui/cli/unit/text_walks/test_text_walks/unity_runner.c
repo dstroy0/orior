@@ -9,11 +9,11 @@ extern void setUp(void);
 extern void tearDown(void);
 extern void test_a_byte_the_text_does_not_contain_scans_to_each_end(void);
 extern void test_one_byte_is_found_at_its_first_and_last_position(void);
-extern void test_one_byte_is_found_past_a_lanes_width(void);
-extern void test_a_set_of_two_scans_to_the_first_and_past_the_run(void);
+extern void test_one_byte_is_found_end_a_lanes_width(void);
+extern void test_a_set_of_two_scans_to_the_first_and_end_the_run(void);
 extern void test_the_whitespace_set_agrees(void);
-extern void test_a_position_past_the_bound_stays_for_the_forward_scan(void);
-extern void test_a_position_past_the_bound_stays_for_the_past_scan(void);
+extern void test_a_position_end_the_bound_stays_for_the_forward_scan(void);
+extern void test_a_position_end_the_bound_stays_for_the_end_scan(void);
 extern void test_a_line_stops_at_its_newline_and_cuts_before_its_carriage_return(void);
 extern void test_a_line_with_no_carriage_return_cuts_where_it_stops(void);
 extern void test_an_empty_line_has_no_letters(void);
@@ -24,7 +24,7 @@ extern void test_letters_are_raised_to_upper_case(void);
 extern void test_a_number_reads_its_digits_and_reports_where_they_stop(void);
 extern void test_a_pair_is_found_where_it_is(void);
 extern void test_a_pair_that_is_absent_reports_the_end(void);
-extern void test_a_scan_past_classes_stops_at_the_first_byte_of_neither(void);
+extern void test_a_scan_end_classes_stops_at_the_first_byte_of_neither(void);
 
 
 /*=======Mock Management=====*/
@@ -88,11 +88,11 @@ int main(void)
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\text_walks\\test_text_walks\\test_text_walks.c");
   run_test(test_a_byte_the_text_does_not_contain_scans_to_each_end, "test_a_byte_the_text_does_not_contain_scans_to_each_end", 80);
   run_test(test_one_byte_is_found_at_its_first_and_last_position, "test_one_byte_is_found_at_its_first_and_last_position", 85);
-  run_test(test_one_byte_is_found_past_a_lanes_width, "test_one_byte_is_found_past_a_lanes_width", 90);
-  run_test(test_a_set_of_two_scans_to_the_first_and_past_the_run, "test_a_set_of_two_scans_to_the_first_and_past_the_run", 95);
+  run_test(test_one_byte_is_found_end_a_lanes_width, "test_one_byte_is_found_end_a_lanes_width", 90);
+  run_test(test_a_set_of_two_scans_to_the_first_and_end_the_run, "test_a_set_of_two_scans_to_the_first_and_end_the_run", 95);
   run_test(test_the_whitespace_set_agrees, "test_the_whitespace_set_agrees", 100);
-  run_test(test_a_position_past_the_bound_stays_for_the_forward_scan, "test_a_position_past_the_bound_stays_for_the_forward_scan", 105);
-  run_test(test_a_position_past_the_bound_stays_for_the_past_scan, "test_a_position_past_the_bound_stays_for_the_past_scan", 110);
+  run_test(test_a_position_end_the_bound_stays_for_the_forward_scan, "test_a_position_end_the_bound_stays_for_the_forward_scan", 105);
+  run_test(test_a_position_end_the_bound_stays_for_the_end_scan, "test_a_position_end_the_bound_stays_for_the_end_scan", 110);
   run_test(test_a_line_stops_at_its_newline_and_cuts_before_its_carriage_return, "test_a_line_stops_at_its_newline_and_cuts_before_its_carriage_return", 115);
   run_test(test_a_line_with_no_carriage_return_cuts_where_it_stops, "test_a_line_with_no_carriage_return_cuts_where_it_stops", 123);
   run_test(test_an_empty_line_has_no_letters, "test_an_empty_line_has_no_letters", 131);
@@ -103,7 +103,7 @@ int main(void)
   run_test(test_a_number_reads_its_digits_and_reports_where_they_stop, "test_a_number_reads_its_digits_and_reports_where_they_stop", 168);
   run_test(test_a_pair_is_found_where_it_is, "test_a_pair_is_found_where_it_is", 175);
   run_test(test_a_pair_that_is_absent_reports_the_end, "test_a_pair_that_is_absent_reports_the_end", 180);
-  run_test(test_a_scan_past_classes_stops_at_the_first_byte_of_neither, "test_a_scan_past_classes_stops_at_the_first_byte_of_neither", 185);
+  run_test(test_a_scan_end_classes_stops_at_the_first_byte_of_neither, "test_a_scan_end_classes_stops_at_the_first_byte_of_neither", 185);
 
   return UNITY_END();
 }

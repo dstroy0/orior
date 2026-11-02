@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// highlight.c: a grammar read from its JSON into a room, its patterns, tokens, states and words
+// highlight.c: a grammar read from its JSON into a work state, its patterns, tokens, states and words
 #include "../text/text.h"
 #include "highlight_internal.h"
 
@@ -10,10 +10,10 @@
 // an own entry that is an include and not a rule: the top bit set on its name's text
 #define CLI_INCLUDE_MARK 0x80000000u
 
-// the room the grammar under way is read into, the one the store handed the read
-static CliGrammarRoom *s_read;
+// the work state the grammar under way is read into, the one the store handed the read
+static CliGrammarWorkState *s_read;
 
-// 1 where what is read does not fit the room
+// 1 where what is read does not fit the work state
 static int s_full;
 
 // the grammar's brackets, each pair two letters, the one that opens and the one that closes; none where it has none;
@@ -71,15 +71,16 @@ EMBED_INLINE unsigned int cli_text(const HighlightCtx *args)
 {
     const char *text = args->text;
     unsigned int letters[CLI_NAME_MAX_LEN];
-    const unsigned long long count = EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = text,
-                                                .size = args->length, .letters = letters, .room_u64 = CLI_NAME_MAX_LEN);
-    VerbaLinea line = {args->grammar->text + args->grammar->text_size, s_read->text_most - args->grammar->text_size,
+    const unsigned long long count =
+        EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = text, .size = args->length, .letters = letters,
+                   .capacity_u64 = CLI_NAME_MAX_LEN);
+    VerbaLinea line = {args->grammar->text + args->grammar->text_size, s_read->text_max - args->grammar->text_size,
                        0ull};
     if (args->lower && (count < CLI_NAME_MAX_LEN))
     {
         for (unsigned long long at = 0ull; at < count; at += 1ull)
         {
-            EMBED_CALL(cli_line_letter_internal.utf8_put, CliLineLetterCtx, .line = &line,
+            EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &line,
                        .letter = EMBED_CALL(cli_regexp_letter.lower, CliRegexpLetterCfg, .letter = letters[at]));
         }
     }
@@ -93,7 +94,7 @@ EMBED_INLINE unsigned int cli_text(const HighlightCtx *args)
         return 0u;
     }
     const unsigned int at = args->grammar->text_size;
-    // the texts are below the room's text_most, which an unsigned int counts
+    // the texts are below the work state's text_max, which an unsigned int counts
     args->grammar->text_size += (unsigned int)mmgr_line_finish(&line) + 1u;
     return at;
 }
@@ -112,7 +113,7 @@ EMBED_INLINE unsigned int cli_name_get(const HighlightCtx *args)
             return at;
         }
     }
-    if (args->grammar->names >= s_read->names_most)
+    if (args->grammar->names >= s_read->names_max)
     {
         s_full = 1;
         return 0u;
@@ -126,7 +127,7 @@ EMBED_INLINE unsigned int cli_name_get(const HighlightCtx *args)
 
 EMBED_INLINE unsigned int cli_token_init(const HighlightCtx *args)
 {
-    if (args->grammar->tokens >= s_read->tokens_most)
+    if (args->grammar->tokens >= s_read->tokens_max)
     {
         s_full = 1;
         return CLI_HIGHLIGHT_NONE;
@@ -138,7 +139,7 @@ EMBED_INLINE unsigned int cli_token_init(const HighlightCtx *args)
 }
 
 // a case put at `place` among the grammar's cases: `size` bytes of `key` naming `name`
-EMBED_INLINE void cli_case_put(const HighlightCtx *args)
+EMBED_INLINE void cli_case_append(const HighlightCtx *args)
 {
     const CliHighlightCase entry = {EMBED_CALL(cli_text, HighlightCtx, .grammar = args->grammar, .text = args->key,
                                                .length = args->size, .lower = 0),
@@ -183,12 +184,12 @@ EMBED_INLINE unsigned int cli_brackets_token(const HighlightCtx *args)
     char closes[CLI_NAME_MAX_LEN];
     EMBED_CALL(cli_bracket_by_name, HighlightCtx, .role = "open", .out = opens);
     EMBED_CALL(cli_bracket_by_name, HighlightCtx, .role = "close", .out = closes);
-    const unsigned int listed = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                           .node = s_brackets, .kind = CFG_JSON_ARRAY)
-                                    ? json->node[s_brackets].first
-                                    : CLI_JSON_NONE;
+    const unsigned int list_entries = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
+                                                 .json_read = json, .node = s_brackets, .kind = CFG_JSON_ARRAY)
+                                          ? json->node[s_brackets].first
+                                          : CLI_JSON_NONE;
     unsigned int pairs = 0u;
-    for (unsigned int item = listed; item != CLI_JSON_NONE; item = json->node[item].next)
+    for (unsigned int item = list_entries; item != CLI_JSON_NONE; item = json->node[item].next)
     {
         const char *pair = NULL;
         unsigned long long first = 0ull;
@@ -207,7 +208,7 @@ EMBED_INLINE unsigned int cli_brackets_token(const HighlightCtx *args)
     const unsigned int made =
         EMBED_CALL(cli_token_init, HighlightCtx, .grammar = args->grammar, .kind = CLI_TOKEN_CASES, .name_u32 = 0u);
     const unsigned int count = (2u * pairs) + 1u;
-    if ((made == CLI_HIGHLIGHT_NONE) || ((args->grammar->case_count + count) > s_read->tokens_most))
+    if ((made == CLI_HIGHLIGHT_NONE) || ((args->grammar->case_count + count) > s_read->tokens_max))
     {
         s_full = 1;
         return made;
@@ -217,7 +218,7 @@ EMBED_INLINE unsigned int cli_brackets_token(const HighlightCtx *args)
     args->grammar->token[made].first = first_case;
     args->grammar->token[made].count = count;
     unsigned int place = first_case;
-    for (unsigned int item = listed; item != CLI_JSON_NONE; item = json->node[item].next)
+    for (unsigned int item = list_entries; item != CLI_JSON_NONE; item = json->node[item].next)
     {
         const char *pair = NULL;
         unsigned long long first = 0ull;
@@ -227,13 +228,13 @@ EMBED_INLINE unsigned int cli_brackets_token(const HighlightCtx *args)
         {
             continue;
         }
-        EMBED_CALL(cli_case_put, HighlightCtx, .grammar = args->grammar, .place = place, .key = pair, .size = first,
+        EMBED_CALL(cli_case_append, HighlightCtx, .grammar = args->grammar, .place = place, .key = pair, .size = first,
                    .name = opens);
-        EMBED_CALL(cli_case_put, HighlightCtx, .grammar = args->grammar, .place = place + 1u, .key = pair + first,
+        EMBED_CALL(cli_case_append, HighlightCtx, .grammar = args->grammar, .place = place + 1u, .key = pair + first,
                    .size = second, .name = closes);
         place += 2u;
     }
-    EMBED_CALL(cli_case_put, HighlightCtx, .grammar = args->grammar, .place = place, .key = "@default", .size = 8ull,
+    EMBED_CALL(cli_case_append, HighlightCtx, .grammar = args->grammar, .place = place, .key = "@default", .size = 8ull,
                .name = s_bracket_name);
     return made;
 }
@@ -276,7 +277,7 @@ static int cli_token_get(const HighlightCtx *args)
     const unsigned int count = json->node[list].count;
     const unsigned int made = EMBED_CALL(cli_token_init, HighlightCtx, .grammar = args->grammar,
                                          .kind = grouped ? CLI_TOKEN_GROUPS : CLI_TOKEN_CASES, .name_u32 = 0u);
-    if ((made == CLI_HIGHLIGHT_NONE) || ((args->grammar->case_count + count) > s_read->tokens_most))
+    if ((made == CLI_HIGHLIGHT_NONE) || ((args->grammar->case_count + count) > s_read->tokens_max))
     {
         s_full = 1;
         return 1;
@@ -334,12 +335,12 @@ static int cli_pattern_get(const HighlightCtx *args)
             mmgr_line_put(err_msg, "a pattern with no source");
             return 0;
         }
-        const char *const given =
+        const char *const supplied =
             EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
                        .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                           .object = args->value, .name = "flags"),
                        .length_pointer = NULL);
-        flags = (given != NULL) ? given : "";
+        flags = (supplied != NULL) ? supplied : "";
     }
     else if (source == NULL)
     {
@@ -347,15 +348,15 @@ static int cli_pattern_get(const HighlightCtx *args)
         return 0;
     }
     CliRegexp read;
-    EMBED_CALL(cli_regexp_room.room, CliRegexpRoomCfg, .regexp_out = &read, .room = s_read->pattern);
+    EMBED_CALL(cli_regexp_capacity.capacity, CliRegexpWorkStateCfg, .regexp_out = &read, .work_state = s_read->pattern);
     if (!EMBED_CALL(cli_regexp_source.read, CliRegexpSourceCfg, .regexp_out = &read, .source = source, .flags = flags,
                     .err_msg = err_msg))
     {
         return 0;
     }
-    if (((args->grammar->nodes + read.nodes) > s_read->nodes_most) ||
-        ((args->grammar->items + read.items) > s_read->items_most) ||
-        ((args->grammar->parts + read.parts) > s_read->parts_most))
+    if (((args->grammar->nodes + read.nodes) > s_read->nodes_max) ||
+        ((args->grammar->items + read.items) > s_read->items_max) ||
+        ((args->grammar->parts + read.parts) > s_read->parts_max))
     {
         s_full = 1;
         return 1;
@@ -415,7 +416,7 @@ EMBED_INLINE int cli_rule_read(const HighlightCtx *args)
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                       .object = args->value, .name = "include"),
                    .length_pointer = NULL);
-    if (*own >= s_read->own_most)
+    if (*own >= s_read->own_max)
     {
         s_full = 1;
         return 1;
@@ -443,7 +444,7 @@ EMBED_INLINE int cli_rule_read(const HighlightCtx *args)
         mmgr_line_put(args->err_msg, "a rule with no pattern");
         return 0;
     }
-    if (args->grammar->rules >= s_read->rules_most)
+    if (args->grammar->rules >= s_read->rules_max)
     {
         s_full = 1;
         return 1;
@@ -495,13 +496,13 @@ static void cli_on_expand(const HighlightCtx *args)
         const unsigned int entry = s_read->own[at];
         if ((entry & CLI_INCLUDE_MARK) == 0u)
         {
-            if (args->grammar->listed_count >= s_read->listed_most)
+            if (args->grammar->listing_count >= s_read->listing_max)
             {
                 s_full = 1;
                 return;
             }
-            args->grammar->listed[args->grammar->listed_count] = entry;
-            args->grammar->listed_count += 1u;
+            args->grammar->list_entries[args->grammar->listing_count] = entry;
+            args->grammar->listing_count += 1u;
             continue;
         }
         const char *const name = args->grammar->text + (entry & ~CLI_INCLUDE_MARK);
@@ -540,7 +541,7 @@ EMBED_INLINE void cli_words_read(const HighlightCtx *args)
     const CliJson *json = args->json;
     for (unsigned int member = json->node[args->def].first; member != CLI_JSON_NONE; member = json->node[member].next)
     {
-        if ((json->node[member].kind != CFG_JSON_ARRAY) || (args->grammar->word_lists >= s_read->word_lists_most))
+        if ((json->node[member].kind != CFG_JSON_ARRAY) || (args->grammar->word_lists >= s_read->word_lists_max))
         {
             continue;
         }
@@ -556,7 +557,7 @@ EMBED_INLINE void cli_words_read(const HighlightCtx *args)
             unsigned long long length = 0ull;
             const char *const word = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                                 .json_read = json, .node = item, .length_pointer = &length);
-            if ((word == NULL) || (args->grammar->word_count >= s_read->words_most))
+            if ((word == NULL) || (args->grammar->word_count >= s_read->words_max))
             {
                 continue;
             }
@@ -638,11 +639,11 @@ EMBED_INLINE int cli_indent_read(const HighlightCtx *args)
     }
     const unsigned int begins = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                            .object = args->indent, .name = "begins");
-    const unsigned int listed = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                           .node = begins, .kind = CFG_JSON_ARRAY)
-                                    ? json->node[begins].first
-                                    : CLI_JSON_NONE;
-    for (unsigned int item = listed; item != CLI_JSON_NONE; item = json->node[item].next)
+    const unsigned int list_entries = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
+                                                 .json_read = json, .node = begins, .kind = CFG_JSON_ARRAY)
+                                          ? json->node[begins].first
+                                          : CLI_JSON_NONE;
+    for (unsigned int item = list_entries; item != CLI_JSON_NONE; item = json->node[item].next)
     {
         const unsigned int at =
             EMBED_CALL(cli_state_by_name, HighlightCtx, .grammar_read = grammar, .json = json, .node = item);
@@ -670,7 +671,7 @@ EMBED_INLINE int cli_indent_read(const HighlightCtx *args)
     {
         return 1;
     }
-    if (grammar->rules >= s_read->rules_most)
+    if (grammar->rules >= s_read->rules_max)
     {
         s_full = 1;
         return 1;
@@ -696,21 +697,21 @@ int cli_highlight_read(const CliHighlightJsonCtx *args)
         mmgr_line_put(args->err_msg, "a grammar that is no object");
         return 0;
     }
-    s_read = args->room_grammar_room_pointer;
+    s_read = args->grammar_work_state_pointer;
     memor.set(&(MemoriaCfg){.dst = args->grammar_out, .val = 0, .bytes = sizeof(*args->grammar_out)});
-    args->grammar_out->node = args->room_grammar_room_pointer->node;
-    args->grammar_out->item = args->room_grammar_room_pointer->item;
-    args->grammar_out->part = args->room_grammar_room_pointer->part;
-    args->grammar_out->part_first = args->room_grammar_room_pointer->part_first;
-    args->grammar_out->rule = args->room_grammar_room_pointer->rule;
-    args->grammar_out->token = args->room_grammar_room_pointer->token;
-    args->grammar_out->cases = args->room_grammar_room_pointer->cases;
-    args->grammar_out->listed = args->room_grammar_room_pointer->listed;
-    args->grammar_out->state = args->room_grammar_room_pointer->state;
-    args->grammar_out->word = args->room_grammar_room_pointer->word;
-    args->grammar_out->words = args->room_grammar_room_pointer->words;
-    args->grammar_out->name = args->room_grammar_room_pointer->name;
-    args->grammar_out->text = args->room_grammar_room_pointer->text;
+    args->grammar_out->node = args->grammar_work_state_pointer->node;
+    args->grammar_out->item = args->grammar_work_state_pointer->item;
+    args->grammar_out->part = args->grammar_work_state_pointer->part;
+    args->grammar_out->part_first = args->grammar_work_state_pointer->part_first;
+    args->grammar_out->rule = args->grammar_work_state_pointer->rule;
+    args->grammar_out->token = args->grammar_work_state_pointer->token;
+    args->grammar_out->cases = args->grammar_work_state_pointer->cases;
+    args->grammar_out->list_entries = args->grammar_work_state_pointer->list_entries;
+    args->grammar_out->state = args->grammar_work_state_pointer->state;
+    args->grammar_out->word = args->grammar_work_state_pointer->word;
+    args->grammar_out->words = args->grammar_work_state_pointer->words;
+    args->grammar_out->name = args->grammar_work_state_pointer->name;
+    args->grammar_out->text = args->grammar_work_state_pointer->text;
     s_full = 0;
     args->grammar_out->ignore_case =
         EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json,
@@ -762,7 +763,7 @@ int cli_highlight_read(const CliHighlightJsonCtx *args)
             mmgr_line_put(args->err_msg, "a state that is no list");
             return 0;
         }
-        if (args->grammar_out->states >= s_read->states_most)
+        if (args->grammar_out->states >= s_read->states_max)
         {
             s_full = 1;
             break;
@@ -792,10 +793,11 @@ int cli_highlight_read(const CliHighlightJsonCtx *args)
         args->grammar_out->state[state].name = s_read->own_state[state].name;
         args->grammar_out->state[state].close = CLI_HIGHLIGHT_NONE;
         args->grammar_out->state[state].begins = 0;
-        args->grammar_out->state[state].first = args->grammar_out->listed_count;
+        args->grammar_out->state[state].first = args->grammar_out->listing_count;
         EMBED_CALL(cli_on_expand, HighlightCtx, .grammar = args->grammar_out, .state = state, .seen = seen,
                    .depth = 1u);
-        args->grammar_out->state[state].count = args->grammar_out->listed_count - args->grammar_out->state[state].first;
+        args->grammar_out->state[state].count =
+            args->grammar_out->listing_count - args->grammar_out->state[state].first;
         // the letters a rule of the state that colors or changes the state starts at, each such rule's first letters
         // joined, and whether any takes nothing; a rule with the plain token and no next is a skip, which a stride over
         // its letters as plain is the same as, and it joins nothing
@@ -807,7 +809,7 @@ int cli_highlight_read(const CliHighlightJsonCtx *args)
         for (unsigned int each = 0u; each < args->grammar_out->state[state].count; each += 1u)
         {
             const CliHighlightRule *const rule =
-                &args->grammar_out->rule[args->grammar_out->listed[args->grammar_out->state[state].first + each]];
+                &args->grammar_out->rule[args->grammar_out->list_entries[args->grammar_out->state[state].first + each]];
             const CliHighlightToken *const token =
                 (rule->token != CLI_HIGHLIGHT_NONE) ? &args->grammar_out->token[rule->token] : NULL;
             const int plain = (token == NULL) || ((token->kind == CLI_TOKEN_NAME) && (token->name == 0u));

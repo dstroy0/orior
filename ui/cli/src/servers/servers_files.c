@@ -33,8 +33,8 @@ EMBED_INLINE void files_text_store(const ServersFilesCtx *args)
     unsigned long long size = args->size;
     char key[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = path, .key_out = key);
-    (void)EMBED_CALL(cli_keyed_key_beside.put, CliKeyedKeyBesideCfg, .keyed_out = &g_cli_servers_texts, .key = key,
-                     .beside_value = path, .text = text, .size_value = size);
+    (void)EMBED_CALL(cli_keyed_key_adjacent.put, CliKeyedKeyAdjacentCfg, .keyed_out = &g_cli_servers_texts, .key = key,
+                     .adjacent_value = path, .text = text, .size_value = size);
 }
 
 // the tree the checkers check and where what is reported goes, where a file was opened: 1, or 0 where none was
@@ -82,7 +82,7 @@ int cli_servers_open(const CliServersRootCfg *args)
         {
             return 0;
         }
-        mmgr_line_put(args->out, plugged ? "true" : "false");
+        *args->served = plugged;
         return 1;
     }
     char id[CLI_NAME_MAX_LEN];
@@ -114,7 +114,7 @@ int cli_servers_open(const CliServersRootCfg *args)
         // a tab opened again on a file the server has open receives the diagnostics it last gave
         if (done)
         {
-            EMBED_CALL(cli_servers_sink_key_internal.emit_whole, CliServersSinkKeyCtx, .key = key, .uri = uri,
+            EMBED_CALL(cli_servers_sink_key_internal.emit_file, CliServersSinkKeyCtx, .key = key, .uri = uri,
                        .sink = sink);
         }
     }
@@ -133,10 +133,7 @@ int cli_servers_open(const CliServersRootCfg *args)
                    .language = args->language);
     }
     EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = server);
-    if (done)
-    {
-        mmgr_line_put(args->out, "true");
-    }
+    *args->served = done;
     return done;
 }
 
@@ -180,19 +177,19 @@ int cli_servers_close(const CliServersPathOutErrMsgFromToCfg *args)
     VerbaLinea *err_msg = args->err_msg;
     char key[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = path, .key_out = key);
-    EMBED_CALL(cli_keyed_key_beside.remove, CliKeyedKeyBesideCfg, .keyed_out = &g_cli_servers_texts, .key = key);
-    EMBED_CALL(cli_keyed_key_beside.remove, CliKeyedKeyBesideCfg, .keyed_out = &g_cli_servers_parses, .key = key);
+    EMBED_CALL(cli_keyed_key_adjacent.remove, CliKeyedKeyAdjacentCfg, .keyed_out = &g_cli_servers_texts, .key = key);
+    EMBED_CALL(cli_keyed_key_adjacent.remove, CliKeyedKeyAdjacentCfg, .keyed_out = &g_cli_servers_parses, .key = key);
     unsigned long long read = 0ull;
-    const unsigned char *const mapped = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = path,
+    const unsigned char *const mapped = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                    .size_pointer = &read, .owner = &g_cli_servers_cells);
     const char *const disk = (const char *)mapped;
-    const int whole =
-        (mapped != NULL) && EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg, .bytes = disk, .size = read);
+    const int integer =
+        (mapped != NULL) && EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = disk, .size = read);
     EMBED_CALL(cli_servers_path_size_language_internal.inspect_again, CliServersPathSizeLanguageCtx, .path = path,
-               .text = whole ? disk : NULL, .size = whole ? read : 0ull);
+               .text = integer ? disk : NULL, .size = integer ? read : 0ull);
     char root[CLI_PATH_MAX_LEN];
     static CliServersSink s_sink;
-    if (whole && EMBED_CALL(files_checked_sink, ServersFilesCtx, .root = root, .sink = &s_sink))
+    if (integer && EMBED_CALL(files_checked_sink, ServersFilesCtx, .root = root, .sink = &s_sink))
     {
         EMBED_CALL(cli_servers_path_size_root_sink_internal.check_own, CliServersPathSizeRootSinkCtx, .root = root,
                    .path = path, .text = disk, .size = read, .sink = &s_sink);
@@ -209,7 +206,7 @@ int cli_servers_close(const CliServersPathOutErrMsgFromToCfg *args)
         return 1;
     }
     const int done =
-        EMBED_CALL(cli_servers_path_lsp_internal.check_takes, CliServersPathLspCtx, .path = path, .lsp = server) ||
+        EMBED_CALL(cli_servers_path_lsp_internal.check_allocs, CliServersPathLspCtx, .path = path, .lsp = server) ||
         EMBED_CALL(cli_lsp_err_msg_text.close, CliLspErrMsgTextCfg, .lsp = server, .path = path, .err_msg = err_msg);
     EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = server);
     return done;
@@ -219,10 +216,11 @@ int cli_servers_text_get(const CliServersPathOutErrMsgFromToCfg *args)
 {
     char key[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = args->path, .key_out = key);
-    const char *beside = NULL;
+    const char *adjacent = NULL;
     unsigned long long size = 0ull;
-    const char *const text = EMBED_CALL(cli_keyed_key_beside.get, CliKeyedKeyBesideCfg, .keyed = &g_cli_servers_texts,
-                                        .key = key, .beside = &beside, .size = &size);
+    const char *const text =
+        EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &g_cli_servers_texts, .key = key,
+                   .adjacent = &adjacent, .size = &size);
     if (text != NULL)
     {
         mmgr_line_put_n(args->out, text, size);
@@ -230,20 +228,21 @@ int cli_servers_text_get(const CliServersPathOutErrMsgFromToCfg *args)
     return text != NULL;
 }
 
-char *cli_servers_text_take(const CliServersPathSizeKindCfg *args)
+char *cli_servers_text_alloc(const CliServersPathSizeKindCfg *args)
 {
     char key[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = args->path, .key_out = key);
-    const char *beside = NULL;
-    const char *const text = EMBED_CALL(cli_keyed_key_beside.get, CliKeyedKeyBesideCfg, .keyed = &g_cli_servers_texts,
-                                        .key = key, .beside = &beside, .size = args->size_pointer);
-    char *const taken =
+    const char *adjacent = NULL;
+    const char *const text =
+        EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &g_cli_servers_texts, .key = key,
+                   .adjacent = &adjacent, .size = args->size_pointer);
+    char *const reserved =
         (text != NULL) ? g_cli_cells->persistent_buf_alloc(*args->size_pointer + 1ull, &g_cli_servers_cells) : NULL;
-    if (taken != NULL)
+    if (reserved != NULL)
     {
         // a size the store stored fits a size_t
-        memor.cpy(&(MemoriaCfg){.dst = taken, .src = text, .bytes = (size_t)*args->size_pointer});
-        taken[*args->size_pointer] = '\0';
+        memor.cpy(&(MemoriaCfg){.dst = reserved, .src = text, .bytes = (size_t)*args->size_pointer});
+        reserved[*args->size_pointer] = '\0';
     }
-    return taken;
+    return reserved;
 }

@@ -3,8 +3,8 @@
 // highlight_store.c: the grammars stored, each a cell of its own under its key, given back when a grammar is put in its
 // place; a grammar read, and lines colored by the grammar stored under a key. The lock is taken to find the grammar and
 // to store one, never as lines are colored: a coloring holds the grammar it reads by a count in the grammar's cell and
-// works in a room it claims by a mark, so as many colorings run at once as threads ask for them. The cells are the one
-// cellblock's, counted to the grammars' own mark, which their report gives
+// works in a work state it claims by a mark, so as many colorings run at once as threads ask for them. The cells are
+// the one cellblock's, counted to the grammars' own mark, which their report gives
 #include "../command_line/callback_cfg.h"
 #include "highlight_internal.h"
 
@@ -25,13 +25,13 @@ typedef struct
     VerbaLinea *ended;
 } CliColored;
 // the grammars the list of those stored is taken with
-#define CLI_GRAMMARS_MOST 1024u
+#define CLI_GRAMMARS_MAX 1024u
 
 // A grammar's cell begins with its head: how many colorings read the grammar, raised under the lock as each finds it
 // and lowered with no lock taken as each ends, and above them the mark that the grammar was put out of its place by
 // another stored under its key, the cell given back by the last coloring to end, or at once where none reads it. The
 // grammar's parts follow the head, which takes a whole word
-#define CLI_GRAMMAR_PUT_OUT (1ull << 63u)
+#define CLI_GRAMMAR_APPEND_OUT (1ull << 63u)
 typedef struct
 {
     _Atomic unsigned long long readers;
@@ -49,9 +49,9 @@ typedef struct
 } CliGrammarEntry;
 
 // the grammars stored, the grammar read, the lock the grammars are stored and read under, and what the grammars and the
-// rooms occupy in the cellblock
+// work states occupy in the cellblock
 static CliGrammarEntry *s_grammars;
-static unsigned int s_grammar_room;
+static unsigned int s_grammar_capacity;
 static CliGrammar s_read;
 
 void cli_highlight_cells_usage_write(const CliHighlightCfg *args)
@@ -70,13 +70,13 @@ typedef struct
     const char *key;
     const CliJson *json;
     unsigned int def;
-    CliGrammarRoom *room;
+    CliGrammarWorkState *work_state;
     VerbaLinea *err_msg;
     unsigned long long bound;
     unsigned int limit;
     unsigned char *cell;
     unsigned long long *at_pointer;
-    CliHighlightRoom *room_highlight_room_pointer;
+    CliHighlightWorkState *highlight_work_state_pointer;
     unsigned char **cell_pointer;
     const char *const *lines;
     unsigned int count;
@@ -90,10 +90,10 @@ EMBED_INLINE CliGrammarHead *cli_grammar_head(const HighlightStoreCtx *args)
 
 // the grammar whose cell is `region` put out of its place: its cell given back at once where no coloring reads it, else
 // by the last to end; under the lock
-EMBED_INLINE void cli_grammar_put_out(const HighlightStoreCtx *args)
+EMBED_INLINE void cli_grammar_append_out(const HighlightStoreCtx *args)
 {
     const unsigned long long readers =
-        atomic_fetch_or_explicit(&cli_grammar_head(args)->readers, CLI_GRAMMAR_PUT_OUT, memory_order_acq_rel);
+        atomic_fetch_or_explicit(&cli_grammar_head(args)->readers, CLI_GRAMMAR_APPEND_OUT, memory_order_acq_rel);
     if (readers == 0ull)
     {
         g_cli_cells->persistent_buf_release(args->region, &g_cli_grammars_cells);
@@ -106,7 +106,7 @@ EMBED_INLINE void cli_grammar_let_go(const HighlightStoreCtx *args)
 {
     const unsigned long long readers =
         atomic_fetch_sub_explicit(&cli_grammar_head(args)->readers, 1ull, memory_order_acq_rel);
-    if (readers == (CLI_GRAMMAR_PUT_OUT | 1ull))
+    if (readers == (CLI_GRAMMAR_APPEND_OUT | 1ull))
     {
         g_cli_cells->persistent_buf_release(args->region, &g_cli_grammars_cells);
     }
@@ -119,7 +119,7 @@ EMBED_INLINE unsigned long long cli_words_get(const HighlightStoreCtx *args)
 }
 
 // the place `at` bytes into a region, none where the region is none and only its size is counted
-EMBED_INLINE void *cli_place(const HighlightStoreCtx *args)
+EMBED_INLINE void *cli_position(const HighlightStoreCtx *args)
 {
     return (args->region != NULL) ? (void *)(args->region + args->at) : NULL;
 }
@@ -128,37 +128,40 @@ EMBED_INLINE void *cli_place(const HighlightStoreCtx *args)
 EMBED_INLINE unsigned long long cli_layout(const HighlightStoreCtx *args)
 {
     unsigned long long at = 0ull;
-    args->grammar->node = (CliRegexpNode *)EMBED_CALL(cli_place, HighlightStoreCtx, .region = args->region, .at = at);
+    args->grammar->node =
+        (CliRegexpNode *)EMBED_CALL(cli_position, HighlightStoreCtx, .region = args->region, .at = at);
     at += EMBED_CALL(cli_words_get, HighlightStoreCtx, .bytes = args->grammar->nodes * sizeof(CliRegexpNode));
-    args->grammar->item = (CliRegexpItem *)EMBED_CALL(cli_place, HighlightStoreCtx, .region = args->region, .at = at);
+    args->grammar->item =
+        (CliRegexpItem *)EMBED_CALL(cli_position, HighlightStoreCtx, .region = args->region, .at = at);
     at += EMBED_CALL(cli_words_get, HighlightStoreCtx, .bytes = args->grammar->items * sizeof(CliRegexpItem));
-    args->grammar->part = (unsigned int *)EMBED_CALL(cli_place, HighlightStoreCtx, .region = args->region, .at = at);
+    args->grammar->part = (unsigned int *)EMBED_CALL(cli_position, HighlightStoreCtx, .region = args->region, .at = at);
     at += EMBED_CALL(cli_words_get, HighlightStoreCtx, .bytes = args->grammar->parts * sizeof(unsigned int));
     args->grammar->part_first =
-        (CliRegexpFirst *)EMBED_CALL(cli_place, HighlightStoreCtx, .region = args->region, .at = at);
+        (CliRegexpFirst *)EMBED_CALL(cli_position, HighlightStoreCtx, .region = args->region, .at = at);
     at += EMBED_CALL(cli_words_get, HighlightStoreCtx, .bytes = args->grammar->parts * sizeof(CliRegexpFirst));
     args->grammar->rule =
-        (CliHighlightRule *)EMBED_CALL(cli_place, HighlightStoreCtx, .region = args->region, .at = at);
+        (CliHighlightRule *)EMBED_CALL(cli_position, HighlightStoreCtx, .region = args->region, .at = at);
     at += EMBED_CALL(cli_words_get, HighlightStoreCtx, .bytes = args->grammar->rules * sizeof(CliHighlightRule));
     args->grammar->token =
-        (CliHighlightToken *)EMBED_CALL(cli_place, HighlightStoreCtx, .region = args->region, .at = at);
+        (CliHighlightToken *)EMBED_CALL(cli_position, HighlightStoreCtx, .region = args->region, .at = at);
     at += EMBED_CALL(cli_words_get, HighlightStoreCtx, .bytes = args->grammar->tokens * sizeof(CliHighlightToken));
     args->grammar->cases =
-        (CliHighlightCase *)EMBED_CALL(cli_place, HighlightStoreCtx, .region = args->region, .at = at);
+        (CliHighlightCase *)EMBED_CALL(cli_position, HighlightStoreCtx, .region = args->region, .at = at);
     at += EMBED_CALL(cli_words_get, HighlightStoreCtx, .bytes = args->grammar->case_count * sizeof(CliHighlightCase));
-    args->grammar->listed = (unsigned int *)EMBED_CALL(cli_place, HighlightStoreCtx, .region = args->region, .at = at);
-    at += EMBED_CALL(cli_words_get, HighlightStoreCtx, .bytes = args->grammar->listed_count * sizeof(unsigned int));
+    args->grammar->list_entries =
+        (unsigned int *)EMBED_CALL(cli_position, HighlightStoreCtx, .region = args->region, .at = at);
+    at += EMBED_CALL(cli_words_get, HighlightStoreCtx, .bytes = args->grammar->listing_count * sizeof(unsigned int));
     args->grammar->state =
-        (CliHighlightList *)EMBED_CALL(cli_place, HighlightStoreCtx, .region = args->region, .at = at);
+        (CliHighlightList *)EMBED_CALL(cli_position, HighlightStoreCtx, .region = args->region, .at = at);
     at += EMBED_CALL(cli_words_get, HighlightStoreCtx, .bytes = args->grammar->states * sizeof(CliHighlightList));
-    args->grammar->word = (unsigned int *)EMBED_CALL(cli_place, HighlightStoreCtx, .region = args->region, .at = at);
+    args->grammar->word = (unsigned int *)EMBED_CALL(cli_position, HighlightStoreCtx, .region = args->region, .at = at);
     at += EMBED_CALL(cli_words_get, HighlightStoreCtx, .bytes = args->grammar->word_count * sizeof(unsigned int));
     args->grammar->words =
-        (CliHighlightList *)EMBED_CALL(cli_place, HighlightStoreCtx, .region = args->region, .at = at);
+        (CliHighlightList *)EMBED_CALL(cli_position, HighlightStoreCtx, .region = args->region, .at = at);
     at += EMBED_CALL(cli_words_get, HighlightStoreCtx, .bytes = args->grammar->word_lists * sizeof(CliHighlightList));
-    args->grammar->name = (unsigned int *)EMBED_CALL(cli_place, HighlightStoreCtx, .region = args->region, .at = at);
+    args->grammar->name = (unsigned int *)EMBED_CALL(cli_position, HighlightStoreCtx, .region = args->region, .at = at);
     at += EMBED_CALL(cli_words_get, HighlightStoreCtx, .bytes = args->grammar->names * sizeof(unsigned int));
-    args->grammar->text = (char *)EMBED_CALL(cli_place, HighlightStoreCtx, .region = args->region, .at = at);
+    args->grammar->text = (char *)EMBED_CALL(cli_position, HighlightStoreCtx, .region = args->region, .at = at);
     at += EMBED_CALL(cli_words_get, HighlightStoreCtx, .bytes = args->grammar->text_size);
     return at;
 }
@@ -183,8 +186,9 @@ EMBED_INLINE void cli_copy(const HighlightStoreCtx *args)
         .dst = copy->token, .src = args->read->token, .bytes = args->read->tokens * sizeof(CliHighlightToken)});
     memor.cpy(&(MemoriaCfg){
         .dst = copy->cases, .src = args->read->cases, .bytes = args->read->case_count * sizeof(CliHighlightCase)});
-    memor.cpy(&(MemoriaCfg){
-        .dst = copy->listed, .src = args->read->listed, .bytes = args->read->listed_count * sizeof(unsigned int)});
+    memor.cpy(&(MemoriaCfg){.dst = copy->list_entries,
+                            .src = args->read->list_entries,
+                            .bytes = args->read->listing_count * sizeof(unsigned int)});
     memor.cpy(&(MemoriaCfg){
         .dst = copy->state, .src = args->read->state, .bytes = args->read->states * sizeof(CliHighlightList)});
     memor.cpy(&(MemoriaCfg){
@@ -200,49 +204,49 @@ EMBED_INLINE void cli_copy(const HighlightStoreCtx *args)
 // stands taken or the cellblock cannot meet it; under the lock
 static int cli_grammars_init(void)
 {
-    CliGrammarEntry *const cell =
-        (s_grammar_room == 0u) ? g_cli_cells->persistent_buf_alloc(
-                                     (unsigned long long)CLI_GRAMMARS_MOST * sizeof(*cell), &g_cli_grammars_cells)
-                               : NULL;
+    CliGrammarEntry *const cell = (s_grammar_capacity == 0u)
+                                      ? g_cli_cells->persistent_buf_alloc(
+                                            (unsigned long long)CLI_GRAMMARS_MAX * sizeof(*cell), &g_cli_grammars_cells)
+                                      : NULL;
     if (cell == NULL)
     {
         return 0;
     }
-    memor.set(&(MemoriaCfg){.dst = cell, .val = 0, .bytes = (size_t)CLI_GRAMMARS_MOST * sizeof(*cell)});
+    memor.set(&(MemoriaCfg){.dst = cell, .val = 0, .bytes = (size_t)CLI_GRAMMARS_MAX * sizeof(*cell)});
     s_grammars = cell;
-    s_grammar_room = CLI_GRAMMARS_MOST;
+    s_grammar_capacity = CLI_GRAMMARS_MAX;
     return 1;
 }
 
-// the grammar at `def` read into `room` and stored under `key` in a cell of its own, one stored there before put out of
-// its place first: 1, or 0 with why given
+// the grammar at `def` read into `capacity` and stored under `key` in a cell of its own, one stored there before put
+// out of its place first: 1, or 0 with why given
 EMBED_INLINE int cli_grammar_store(const HighlightStoreCtx *args)
 {
     const CliJson *json = args->json;
     unsigned int def = args->def;
-    CliGrammarRoom *room = args->room;
+    CliGrammarWorkState *work_state = args->work_state;
     VerbaLinea *err_msg = args->err_msg;
     if (!EMBED_CALL(cli_highlight_json_internal.read, CliHighlightJsonCtx, .json = json, .def = def,
-                    .room_grammar_room_pointer = room, .grammar_out = &s_read, .err_msg = err_msg))
+                    .grammar_work_state_pointer = work_state, .grammar_out = &s_read, .err_msg = err_msg))
     {
         return 0;
     }
     CliGrammar laid = s_read;
     const unsigned long long size = EMBED_CALL(cli_layout, HighlightStoreCtx, .grammar = &laid, .region = NULL);
-    unsigned int entry_at = s_grammar_room;
-    unsigned int free_at = s_grammar_room;
-    for (unsigned int at = 0u; at < s_grammar_room; at += 1u)
+    unsigned int entry_at = s_grammar_capacity;
+    unsigned int free_at = s_grammar_capacity;
+    for (unsigned int at = 0u; at < s_grammar_capacity; at += 1u)
     {
         entry_at =
             (s_grammars[at].used &&
              (cellul.eq(&(CatenaFinitaCfg){.src = s_grammars[at].key, .other = args->key, .cap = CLI_CELLS_POOL})))
                 ? at
                 : entry_at;
-        free_at = (!s_grammars[at].used && (free_at == s_grammar_room)) ? at : free_at;
+        free_at = (!s_grammars[at].used && (free_at == s_grammar_capacity)) ? at : free_at;
     }
-    if (entry_at != s_grammar_room)
+    if (entry_at != s_grammar_capacity)
     {
-        EMBED_CALL(cli_grammar_put_out, HighlightStoreCtx, .region = s_grammars[entry_at].region);
+        EMBED_CALL(cli_grammar_append_out, HighlightStoreCtx, .region = s_grammars[entry_at].region);
         s_grammars[entry_at].used = 0;
         free_at = entry_at;
     }
@@ -252,7 +256,7 @@ EMBED_INLINE int cli_grammar_store(const HighlightStoreCtx *args)
         return 0;
     }
     // no place free: the list is taken where it stands untaken
-    if ((free_at == s_grammar_room) && !cli_grammars_init())
+    if ((free_at == s_grammar_capacity) && !cli_grammars_init())
     {
         mmgr_line_put(err_msg, "the grammars stored take more than orior_cli supports");
         return 0;
@@ -283,130 +287,137 @@ EMBED_INLINE unsigned int cli_bound(const HighlightStoreCtx *args)
     return (args->bound < args->limit) ? (unsigned int)args->bound : args->limit;
 }
 
-// a room's part of `bytes` placed `*at` bytes into its cell, none where the cell is none and only the room's size is
-// counted, `*at` moved past it to the next word
-EMBED_INLINE void *cli_room_part(const HighlightStoreCtx *args)
+// a work state's part of `bytes` placed `*at` bytes into its cell, none where the cell is none and only the work
+// state's size is counted, `*at` moved past it to the next word
+EMBED_INLINE void *cli_work_state_part(const HighlightStoreCtx *args)
 {
     unsigned long long *at = args->at_pointer;
-    void *const part = EMBED_CALL(cli_place, HighlightStoreCtx, .region = args->cell, .at = *at);
+    void *const part = EMBED_CALL(cli_position, HighlightStoreCtx, .region = args->cell, .at = *at);
     *at += cli_words_get(args);
     return part;
 }
 
-// each part of a read's room placed in `cell` in order, at the counts the room contains: the bytes they take
+// each part of a read's work state placed in `cell` in order, at the counts the work state contains: the bytes they
+// take
 EMBED_INLINE unsigned long long cli_grammar_parts(const HighlightStoreCtx *args)
 {
     unsigned long long at = 0ull;
-    args->room->node = EMBED_CALL(cli_room_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
-                                  .bytes = args->room->nodes_most * sizeof(CliRegexpNode));
-    args->room->item = EMBED_CALL(cli_room_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
-                                  .bytes = args->room->items_most * sizeof(CliRegexpItem));
-    args->room->part = EMBED_CALL(cli_room_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
-                                  .bytes = args->room->parts_most * sizeof(unsigned int));
-    args->room->part_first = EMBED_CALL(cli_room_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
-                                        .bytes = args->room->parts_most * sizeof(CliRegexpFirst));
-    args->room->rule = EMBED_CALL(cli_room_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
-                                  .bytes = args->room->rules_most * sizeof(CliHighlightRule));
-    args->room->token = EMBED_CALL(cli_room_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
-                                   .bytes = args->room->tokens_most * sizeof(CliHighlightToken));
-    args->room->cases = EMBED_CALL(cli_room_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
-                                   .bytes = args->room->tokens_most * sizeof(CliHighlightCase));
-    args->room->listed = EMBED_CALL(cli_room_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
-                                    .bytes = args->room->listed_most * sizeof(unsigned int));
-    args->room->state = EMBED_CALL(cli_room_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
-                                   .bytes = args->room->states_most * sizeof(CliHighlightList));
-    args->room->word = EMBED_CALL(cli_room_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
-                                  .bytes = args->room->words_most * sizeof(unsigned int));
-    args->room->words = EMBED_CALL(cli_room_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
-                                   .bytes = args->room->word_lists_most * sizeof(CliHighlightList));
-    args->room->name = EMBED_CALL(cli_room_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
-                                  .bytes = args->room->names_most * sizeof(unsigned int));
-    args->room->text = EMBED_CALL(cli_room_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
-                                  .bytes = args->room->text_most);
-    args->room->own = EMBED_CALL(cli_room_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
-                                 .bytes = args->room->own_most * sizeof(unsigned int));
-    args->room->own_state = EMBED_CALL(cli_room_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
-                                       .bytes = args->room->states_most * sizeof(CliHighlightList));
-    args->room->pattern = EMBED_CALL(cli_room_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
-                                     .bytes = sizeof(CliRegexpRoom));
+    args->work_state->node = EMBED_CALL(cli_work_state_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
+                                        .bytes = args->work_state->nodes_max * sizeof(CliRegexpNode));
+    args->work_state->item = EMBED_CALL(cli_work_state_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
+                                        .bytes = args->work_state->items_max * sizeof(CliRegexpItem));
+    args->work_state->part = EMBED_CALL(cli_work_state_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
+                                        .bytes = args->work_state->parts_max * sizeof(unsigned int));
+    args->work_state->part_first =
+        EMBED_CALL(cli_work_state_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
+                   .bytes = args->work_state->parts_max * sizeof(CliRegexpFirst));
+    args->work_state->rule = EMBED_CALL(cli_work_state_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
+                                        .bytes = args->work_state->rules_max * sizeof(CliHighlightRule));
+    args->work_state->token = EMBED_CALL(cli_work_state_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
+                                         .bytes = args->work_state->tokens_max * sizeof(CliHighlightToken));
+    args->work_state->cases = EMBED_CALL(cli_work_state_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
+                                         .bytes = args->work_state->tokens_max * sizeof(CliHighlightCase));
+    args->work_state->list_entries =
+        EMBED_CALL(cli_work_state_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
+                   .bytes = args->work_state->listing_max * sizeof(unsigned int));
+    args->work_state->state = EMBED_CALL(cli_work_state_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
+                                         .bytes = args->work_state->states_max * sizeof(CliHighlightList));
+    args->work_state->word = EMBED_CALL(cli_work_state_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
+                                        .bytes = args->work_state->words_max * sizeof(unsigned int));
+    args->work_state->words = EMBED_CALL(cli_work_state_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
+                                         .bytes = args->work_state->word_lists_max * sizeof(CliHighlightList));
+    args->work_state->name = EMBED_CALL(cli_work_state_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
+                                        .bytes = args->work_state->names_max * sizeof(unsigned int));
+    args->work_state->text = EMBED_CALL(cli_work_state_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
+                                        .bytes = args->work_state->text_max);
+    args->work_state->own = EMBED_CALL(cli_work_state_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
+                                       .bytes = args->work_state->own_max * sizeof(unsigned int));
+    args->work_state->own_state =
+        EMBED_CALL(cli_work_state_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
+                   .bytes = args->work_state->states_max * sizeof(CliHighlightList));
+    args->work_state->pattern = EMBED_CALL(cli_work_state_part, HighlightStoreCtx, .cell = args->cell,
+                                           .at_pointer = &at, .bytes = sizeof(CliRegexpWorkState));
     return at;
 }
 
-// The parts of a read's room at the sizes the grammar's JSON bounds, its `nodes` and the `used` bytes of its texts: a
-// pattern's nodes and parts no more than three for each of its letters and one more, its items no more than its
-// letters; rules, own entries, states, words and their lists no more than the JSON's nodes, tokens two for each and
+// The parts of a read's work state at the sizes the grammar's JSON bounds, its `nodes` and the `used` bytes of its
+// texts: a pattern's nodes and parts no more than three for each of its letters and one more, its items no more than
+// its letters; rules, own entries, states, words and their lists no more than the JSON's nodes, tokens two for each and
 // names one more; the texts no more than four bytes for each byte and a terminator each; and the rules listed, which a
-// state's includes repeat, at their limit. The room is one cell, sized on a first pass over its parts and placed in on
-// a second: the cell, for the caller to give back, or NULL where the cellblock cannot meet it
-EMBED_INLINE unsigned char *cli_grammar_room(const HighlightStoreCtx *args)
+// state's includes repeat, at their limit. The work state is one cell, sized on a first pass over its parts and placed
+// in on a second: the cell, for the caller to give back, or NULL where the cellblock cannot meet it
+EMBED_INLINE unsigned char *cli_grammar_capacity(const HighlightStoreCtx *args)
 {
     const unsigned long long nodes = args->json->nodes;
     const unsigned long long bytes = args->json->used;
-    args->room->nodes_most =
+    args->work_state->nodes_max =
         EMBED_CALL(cli_bound, HighlightStoreCtx, .bound = 3ull * (bytes + nodes), .limit = CLI_GRAMMAR_NODES);
-    args->room->items_most = EMBED_CALL(cli_bound, HighlightStoreCtx, .bound = bytes, .limit = CLI_GRAMMAR_ITEMS);
-    args->room->parts_most =
+    args->work_state->items_max = EMBED_CALL(cli_bound, HighlightStoreCtx, .bound = bytes, .limit = CLI_GRAMMAR_ITEMS);
+    args->work_state->parts_max =
         EMBED_CALL(cli_bound, HighlightStoreCtx, .bound = 3ull * (bytes + nodes), .limit = CLI_GRAMMAR_PARTS);
-    args->room->rules_most = EMBED_CALL(cli_bound, HighlightStoreCtx, .bound = nodes, .limit = CLI_GRAMMAR_RULES);
-    args->room->tokens_most =
+    args->work_state->rules_max = EMBED_CALL(cli_bound, HighlightStoreCtx, .bound = nodes, .limit = CLI_GRAMMAR_RULES);
+    args->work_state->tokens_max =
         EMBED_CALL(cli_bound, HighlightStoreCtx, .bound = 2ull * nodes, .limit = CLI_GRAMMAR_TOKENS);
-    args->room->listed_most = CLI_GRAMMAR_LISTED;
-    args->room->states_most = EMBED_CALL(cli_bound, HighlightStoreCtx, .bound = nodes, .limit = CLI_GRAMMAR_STATES);
-    args->room->words_most = EMBED_CALL(cli_bound, HighlightStoreCtx, .bound = nodes, .limit = CLI_GRAMMAR_WORDS);
-    args->room->word_lists_most =
+    args->work_state->listing_max = CLI_GRAMMAR_LISTING;
+    args->work_state->states_max =
+        EMBED_CALL(cli_bound, HighlightStoreCtx, .bound = nodes, .limit = CLI_GRAMMAR_STATES);
+    args->work_state->words_max = EMBED_CALL(cli_bound, HighlightStoreCtx, .bound = nodes, .limit = CLI_GRAMMAR_WORDS);
+    args->work_state->word_lists_max =
         EMBED_CALL(cli_bound, HighlightStoreCtx, .bound = nodes, .limit = CLI_GRAMMAR_WORD_LISTS);
-    args->room->names_most =
+    args->work_state->names_max =
         EMBED_CALL(cli_bound, HighlightStoreCtx, .bound = nodes + 1ull, .limit = CLI_GRAMMAR_NAMES);
-    args->room->own_most = EMBED_CALL(cli_bound, HighlightStoreCtx, .bound = nodes, .limit = CLI_GRAMMAR_OWN);
-    args->room->text_most =
+    args->work_state->own_max = EMBED_CALL(cli_bound, HighlightStoreCtx, .bound = nodes, .limit = CLI_GRAMMAR_OWN);
+    args->work_state->text_max =
         EMBED_CALL(cli_bound, HighlightStoreCtx, .bound = (4ull * bytes) + nodes + 1ull, .limit = CLI_GRAMMAR_TEXT);
     unsigned char *const cell = g_cli_cells->temporary_buf_alloc(
-        EMBED_CALL(cli_grammar_parts, HighlightStoreCtx, .room = args->room, .cell = NULL), &g_cli_grammars_cells);
+        EMBED_CALL(cli_grammar_parts, HighlightStoreCtx, .work_state = args->work_state, .cell = NULL),
+        &g_cli_grammars_cells);
     if (cell != NULL)
     {
-        (void)EMBED_CALL(cli_grammar_parts, HighlightStoreCtx, .room = args->room, .cell = cell);
+        (void)EMBED_CALL(cli_grammar_parts, HighlightStoreCtx, .work_state = args->work_state, .cell = cell);
     }
     return cell;
 }
 
-// each part of a coloring's room placed in `cell` in order, at the counts the room contains: the bytes they take
+// each part of a coloring's work state placed in `cell` in order, at the counts the work state contains: the bytes they
+// take
 EMBED_INLINE unsigned long long cli_coloring_parts(const HighlightStoreCtx *args)
 {
     unsigned long long at = 0ull;
-    args->room_highlight_room_pointer->letters =
-        EMBED_CALL(cli_room_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
-                   .bytes = args->room_highlight_room_pointer->most * sizeof(unsigned int));
-    args->room_highlight_room_pointer->cols =
-        EMBED_CALL(cli_room_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
-                   .bytes = (args->room_highlight_room_pointer->most + 1ull) * sizeof(unsigned int));
+    args->highlight_work_state_pointer->letters =
+        EMBED_CALL(cli_work_state_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
+                   .bytes = args->highlight_work_state_pointer->most * sizeof(unsigned int));
+    args->highlight_work_state_pointer->cols =
+        EMBED_CALL(cli_work_state_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
+                   .bytes = (args->highlight_work_state_pointer->most + 1ull) * sizeof(unsigned int));
     // a run for each letter, one past the colored part and one for an empty line, and a mark for each state stacked and
     // one more
-    args->room_highlight_room_pointer->run_col = EMBED_CALL(
-        cli_room_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
-        .bytes = (args->room_highlight_room_pointer->most + 3ull + CLI_HIGHLIGHT_STACK) * sizeof(unsigned int));
-    args->room_highlight_room_pointer->run_name = EMBED_CALL(
-        cli_room_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
-        .bytes = (args->room_highlight_room_pointer->most + 3ull + CLI_HIGHLIGHT_STACK) * sizeof(unsigned int));
-    args->room_highlight_room_pointer->stack =
-        EMBED_CALL(cli_room_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
+    args->highlight_work_state_pointer->run_col = EMBED_CALL(
+        cli_work_state_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
+        .bytes = (args->highlight_work_state_pointer->most + 3ull + CLI_HIGHLIGHT_STACK) * sizeof(unsigned int));
+    args->highlight_work_state_pointer->run_name = EMBED_CALL(
+        cli_work_state_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
+        .bytes = (args->highlight_work_state_pointer->most + 3ull + CLI_HIGHLIGHT_STACK) * sizeof(unsigned int));
+    args->highlight_work_state_pointer->stack =
+        EMBED_CALL(cli_work_state_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
                    .bytes = (unsigned long long)CLI_HIGHLIGHT_STACK * CLI_NAME_MAX_LEN);
-    args->room_highlight_room_pointer->picked =
-        EMBED_CALL(cli_room_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
-                   .bytes = (4ull * args->room_highlight_room_pointer->most) + 1ull);
-    args->room_highlight_room_pointer->key =
-        EMBED_CALL(cli_room_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
-                   .bytes = (4ull * args->room_highlight_room_pointer->most) + 1ull);
-    args->room_highlight_room_pointer->endings =
-        EMBED_CALL(cli_room_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
-                   .bytes = args->room_highlight_room_pointer->endings_size);
+    args->highlight_work_state_pointer->picked =
+        EMBED_CALL(cli_work_state_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
+                   .bytes = (4ull * args->highlight_work_state_pointer->most) + 1ull);
+    args->highlight_work_state_pointer->key =
+        EMBED_CALL(cli_work_state_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
+                   .bytes = (4ull * args->highlight_work_state_pointer->most) + 1ull);
+    args->highlight_work_state_pointer->endings =
+        EMBED_CALL(cli_work_state_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
+                   .bytes = args->highlight_work_state_pointer->endings_size);
     return at;
 }
 
-// the room of a coloring of `count` lines, taken in one cell as the coloring begins, as wide as the longest line's
-// letters, a line's letters being no more than its bytes nor than a line is read to, sized on a first pass over its
-// parts and placed in on a second: the room, its cell into `*cell` for the coloring to give back as it ends, or NULL
-// where the cellblock cannot meet it
-EMBED_INLINE CliHighlightRoom *cli_coloring_room(const HighlightStoreCtx *args)
+// the work state of a coloring of `count` lines, taken in one cell as the coloring begins, as wide as the longest
+// line's letters, a line's letters being no more than its bytes nor than a line is read to, sized on a first pass over
+// its parts and placed in on a second: the work state, its cell into `*cell` for the coloring to give back as it ends,
+// or NULL where the cellblock cannot meet it
+EMBED_INLINE CliHighlightWorkState *cli_coloring_capacity(const HighlightStoreCtx *args)
 {
     unsigned char **cell = args->cell_pointer;
     unsigned int count = args->count;
@@ -416,45 +427,46 @@ EMBED_INLINE CliHighlightRoom *cli_coloring_room(const HighlightStoreCtx *args)
         const unsigned long long bytes = cellul.len(&(CatenaFinitaCfg){.src = args->lines[at], .cap = CLI_CELLS_POOL});
         most = (bytes > most) ? bytes : most;
     }
-    args->room_highlight_room_pointer->most = (most < CLI_HIGHLIGHT_LETTERS) ? most : CLI_HIGHLIGHT_LETTERS;
-    args->room_highlight_room_pointer->count = count;
+    args->highlight_work_state_pointer->most = (most < CLI_HIGHLIGHT_LETTERS) ? most : CLI_HIGHLIGHT_LETTERS;
+    args->highlight_work_state_pointer->count = count;
     // each line's ending, and the byte the endings reserve back for their terminator
-    args->room_highlight_room_pointer->endings_size =
-        (args->room_highlight_room_pointer->count * CLI_HIGHLIGHT_ENDING) + 1ull;
+    args->highlight_work_state_pointer->endings_size =
+        (args->highlight_work_state_pointer->count * CLI_HIGHLIGHT_ENDING) + 1ull;
     *cell = g_cli_cells->temporary_buf_alloc(
         EMBED_CALL(cli_coloring_parts, HighlightStoreCtx,
-                   .room_highlight_room_pointer = args->room_highlight_room_pointer, .cell = NULL),
+                   .highlight_work_state_pointer = args->highlight_work_state_pointer, .cell = NULL),
         &g_cli_grammars_cells);
     if (*cell == NULL)
     {
         return NULL;
     }
     (void)EMBED_CALL(cli_coloring_parts, HighlightStoreCtx,
-                     .room_highlight_room_pointer = args->room_highlight_room_pointer, .cell = *cell);
-    return args->room_highlight_room_pointer;
+                     .highlight_work_state_pointer = args->highlight_work_state_pointer, .cell = *cell);
+    return args->highlight_work_state_pointer;
 }
 
 int cli_highlight_store(const CliHighlightKeyJsonCfg *args)
 {
-    CliGrammarRoom room;
-    unsigned char *const cell = EMBED_CALL(cli_grammar_room, HighlightStoreCtx, .room = &room, .json = args->json);
+    CliGrammarWorkState work_state;
+    unsigned char *const cell =
+        EMBED_CALL(cli_grammar_capacity, HighlightStoreCtx, .work_state = &work_state, .json = args->json);
     const int stored =
         (cell != NULL) && EMBED_CALL(cli_grammar_store, HighlightStoreCtx, .key = args->key, .json = args->json,
-                                     .def = args->def, .room = &room, .err_msg = args->err_msg);
+                                     .def = args->def, .work_state = &work_state, .err_msg = args->err_msg);
     g_cli_cells->persistent_buf_release(cell, &g_cli_grammars_cells);
     if (cell == NULL)
     {
-        mmgr_line_put(args->err_msg, "no room to read a grammar into");
+        mmgr_line_put(args->err_msg, "no capacity to read a grammar into");
     }
     return stored;
 }
 
-// the place of the grammar stored under `key`, s_grammar_room where none is; under the lock
+// the place of the grammar stored under `key`, s_grammar_capacity where none is; under the lock
 EMBED_INLINE unsigned int cli_grammar_entry_get(const HighlightStoreCtx *args)
 {
     unsigned int entry_at = 0u;
     while (
-        (entry_at < s_grammar_room) &&
+        (entry_at < s_grammar_capacity) &&
         !(s_grammars[entry_at].used &&
           (cellul.eq(&(CatenaFinitaCfg){.src = s_grammars[entry_at].key, .other = args->key, .cap = CLI_CELLS_POOL}))))
     {
@@ -464,12 +476,12 @@ EMBED_INLINE unsigned int cli_grammar_entry_get(const HighlightStoreCtx *args)
 }
 
 // the lines colored with the grammar stored under `key`, as `colored` says where they go, the lock taken to find the
-// grammar and count the coloring among its readers alone, and the lines colored in a room claimed with no lock taken:
-// 1, or 0 with why given
+// grammar and count the coloring among its readers alone, and the lines colored in a work state claimed with no lock
+// taken: 1, or 0 with why given
 static int cli_color(const HighlightStoreCtx *args)
 {
     const unsigned int entry_at = cli_grammar_entry_get(args);
-    const int has_entry = entry_at != s_grammar_room;
+    const int has_entry = entry_at != s_grammar_capacity;
     unsigned char *const region = has_entry ? s_grammars[entry_at].region : NULL;
     CliGrammar grammar;
     if (has_entry)
@@ -484,27 +496,27 @@ static int cli_color(const HighlightStoreCtx *args)
         mmgr_line_put(args->err_msg, args->key);
         return 0;
     }
-    CliHighlightRoom taken;
+    CliHighlightWorkState reserved;
     unsigned char *cell = NULL;
-    CliHighlightRoom *const room =
-        EMBED_CALL(cli_coloring_room, HighlightStoreCtx, .room_highlight_room_pointer = &taken, .cell_pointer = &cell,
-                   .lines = args->colored->lines, .count = args->colored->count);
-    if ((room != NULL) && (args->colored->each != NULL))
+    CliHighlightWorkState *const work_state =
+        EMBED_CALL(cli_coloring_capacity, HighlightStoreCtx, .highlight_work_state_pointer = &reserved,
+                   .cell_pointer = &cell, .lines = args->colored->lines, .count = args->colored->count);
+    if ((work_state != NULL) && (args->colored->each != NULL))
     {
-        EMBED_CALL(cli_highlight_room_state_internal.leaves_get, CliHighlightRoomStateCtx, .grammar = &grammar,
-                   .room = room, .state = args->colored->state, .lines = args->colored->lines,
+        EMBED_CALL(cli_highlight_capacity_state_internal.leaves_get, CliHighlightWorkStateStateCtx, .grammar = &grammar,
+                   .work_state = work_state, .state = args->colored->state, .lines = args->colored->lines,
                    .count = args->colored->count, .ends = args->colored->ends, .each = args->colored->each,
                    .context = args->colored->context, .ended = args->colored->ended);
     }
-    else if (room != NULL)
+    else if (work_state != NULL)
     {
-        EMBED_CALL(cli_highlight_room_internal.lines, CliHighlightRoomCtx, .grammar = &grammar, .room = room,
-                   .state = args->colored->state, .lines = args->colored->lines, .count = args->colored->count,
-                   .out = args->colored->out);
+        EMBED_CALL(cli_highlight_capacity_internal.lines, CliHighlightWorkStateCtx, .grammar = &grammar,
+                   .work_state = work_state, .state = args->colored->state, .lines = args->colored->lines,
+                   .count = args->colored->count, .out = args->colored->out);
     }
     g_cli_cells->persistent_buf_release(cell, &g_cli_grammars_cells);
     EMBED_CALL(cli_grammar_let_go, HighlightStoreCtx, .region = region);
-    if (room == NULL)
+    if (work_state == NULL)
     {
         mmgr_line_put(args->err_msg, "the coloring could not be taken");
         return 0;
@@ -525,30 +537,10 @@ int cli_highlight_leaves(const CliHighlightKeyCfg *args)
     return EMBED_CALL(cli_color, HighlightStoreCtx, .key = args->key, .colored = &colored, .err_msg = args->err_msg);
 }
 
-int cli_highlight_names_write(const CliHighlightKeyErrMsgCfg *args)
-{
-    const unsigned int entry_at = EMBED_CALL(cli_grammar_entry_get, HighlightStoreCtx, .key = args->key);
-    const int has_entry = entry_at != s_grammar_room;
-    if (has_entry)
-    {
-        const CliGrammar *const grammar = &s_grammars[entry_at].grammar;
-        mmgr_line_ch(args->out, '[');
-        for (unsigned int at = 0u; at < grammar->names; at += 1u)
-        {
-            const char *const name = grammar->text + grammar->name[at];
-            mmgr_line_put(args->out, (at != 0u) ? "," : "");
-            EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out, .text = name,
-                       .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
-        }
-        mmgr_line_ch(args->out, ']');
-    }
-    return has_entry;
-}
-
 unsigned int cli_highlight_names_each(const CliHighlightKeyContextCfg *args)
 {
     const unsigned int entry_at = EMBED_CALL(cli_grammar_entry_get, HighlightStoreCtx, .key = args->key);
-    const CliGrammar *const grammar = (entry_at != s_grammar_room) ? &s_grammars[entry_at].grammar : NULL;
+    const CliGrammar *const grammar = (entry_at != s_grammar_capacity) ? &s_grammars[entry_at].grammar : NULL;
     const unsigned int names = (grammar != NULL) ? grammar->names : 0u;
     for (unsigned int at = 0u; at < names; at += 1u)
     {

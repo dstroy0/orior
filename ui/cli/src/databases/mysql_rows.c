@@ -180,7 +180,7 @@ EMBED_INLINE int rows_columns(const MysqlRowsCtx *args)
     {
         EMBED_CALL(rows_eof, MysqlRowsCtx, .mysql = mysql);
     }
-    mysql->reading = 1;
+    mysql->read_state = 1;
     return 1;
 }
 
@@ -287,7 +287,7 @@ EMBED_INLINE int rows_query_send(const MysqlRowsCtx *args)
 
 int cli_mysql_start(const CliMysqlFailureSqlCfg *args)
 {
-    if (args->mysql_out->reading && !cli_mysql_failure_sql.finish(args))
+    if (args->mysql_out->read_state && !cli_mysql_failure_sql.finish(args))
     {
         return 0;
     }
@@ -298,16 +298,16 @@ int cli_mysql_start(const CliMysqlFailureSqlCfg *args)
 }
 
 // a value of a binary column written as MySQL writes a binary literal, the first 256 bytes of a long one and its
-// length, into the connection's room for hex: where it starts, NULL where the room is full
+// length, into the connection's capacity for hex: where it starts, NULL where the capacity is full
 EMBED_INLINE const char *rows_hex(const MysqlRowsCtx *args)
 {
     unsigned long long *used = args->used;
     unsigned long long *length = args->length;
     static const char s_digits[] = "0123456789ABCDEF";
     VerbaLinea out = {args->mysql->hex + *used, sizeof(args->mysql->hex) - *used, 0ull};
-    const unsigned long long shown = (args->size > 256u) ? 256ull : args->size;
+    const unsigned long long displayed = (args->size > 256u) ? 256ull : args->size;
     mmgr_line_put(&out, "0x");
-    for (unsigned long long at = 0ull; at < shown; at += 1ull)
+    for (unsigned long long at = 0ull; at < displayed; at += 1ull)
     {
         mmgr_line_ch(&out, s_digits[args->bytes[at] >> 4u]);
         mmgr_line_ch(&out, s_digits[args->bytes[at] & 15u]);
@@ -355,7 +355,7 @@ EMBED_INLINE unsigned int rows_row(const MysqlRowsCtx *args)
         const unsigned int code = args->mysql->codes[column];
         const int binary = (args->mysql->charsets[column] == 63u) &&
                            (EMBED_CALL(rows_stringy, MysqlRowsCtx, .code = code) || (code == 16u) || (code == 255u));
-        const int as_hex = binary && (!EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg,
+        const int as_hex = binary && (!EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg,
                                                   .bytes = (const char *)packet + start, .size = length) ||
                                       (code == 16u) || (code == 255u));
         unsigned long long hex_length = 0ull;
@@ -374,7 +374,7 @@ int cli_mysql_rows(const CliMysqlFailureCfg *args)
     unsigned long long read = 0ull;
     *done = 0;
     args->tag[0] = '\0';
-    if (!args->mysql_out->reading)
+    if (!args->mysql_out->read_state)
     {
         *done = 1;
         return 1;
@@ -390,7 +390,7 @@ int cli_mysql_rows(const CliMysqlFailureCfg *args)
         if ((first == 0xfeu) && (args->mysql_out->size < 9u))
         {
             EMBED_CALL(rows_eof, MysqlRowsCtx, .mysql = args->mysql_out);
-            args->mysql_out->reading = 0;
+            args->mysql_out->read_state = 0;
             if (((args->mysql_out->status & CLI_MYSQL_MORE_RESULTS) != 0u) &&
                 !EMBED_CALL(rows_drain, MysqlRowsCtx, .mysql = args->mysql_out, .failure = args->failure))
             {
@@ -405,7 +405,7 @@ int cli_mysql_rows(const CliMysqlFailureCfg *args)
         }
         if (first == 0xffu)
         {
-            args->mysql_out->reading = 0;
+            args->mysql_out->read_state = 0;
             EMBED_CALL(cli_mysql_failure_internal.failure_get, CliMysqlFailureCtx, .payload = args->mysql_out->packet,
                        .size = args->mysql_out->size, .failure = args->failure);
             return 0;
@@ -424,7 +424,7 @@ int cli_mysql_rows(const CliMysqlFailureCfg *args)
 int cli_mysql_finish(const CliMysqlFailureSqlCfg *args)
 {
     char tag[CLI_DB_TAG];
-    while (args->mysql_out->reading)
+    while (args->mysql_out->read_state)
     {
         int done = 0;
         if (!EMBED_CALL(cli_mysql_failure.rows, CliMysqlFailureCfg, .mysql_out = args->mysql_out, .count = 4096ull,
@@ -516,6 +516,6 @@ int cli_mysql_cancel_send(const CliMysqlCfg *args)
 void cli_mysql_literal(const CliMysqlTextCfg *args)
 {
     mmgr_line_ch(args->out, '\'');
-    EMBED_CALL(cli_text_set_table.put_double, CliTextSetCfg, .out = args->out, .text = args->text, .set = "\\'");
+    EMBED_CALL(cli_text_set_table.append_double, CliTextSetCfg, .out = args->out, .text = args->text, .set = "\\'");
     mmgr_line_ch(args->out, '\'');
 }

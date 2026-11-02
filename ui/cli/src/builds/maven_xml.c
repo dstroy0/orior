@@ -42,15 +42,15 @@ typedef struct
     unsigned long long lt;
     unsigned long long gt;
 } MavenXmlCtx;
-// the room of a list a text containing `tags` `<`s can fill, no more than `most`
-EMBED_INLINE unsigned int xml_room(const MavenXmlCtx *args)
+// the capacity of a list a text containing `tags` `<`s can fill, no more than `most`
+EMBED_INLINE unsigned int xml_capacity(const MavenXmlCtx *args)
 {
     // a count no more than `most`, which an unsigned int stores
     return (args->tags < args->most) ? (unsigned int)args->tags : args->most;
 }
 
-// `xml` made to read `size` bytes of `text`, its lists' rooms in one cell sized to the `<`s the text contains, each no
-// more than its most: 1, or 0 with nothing to be stored where the cell is refused
+// `xml` made to read `size` bytes of `text`, its lists' capacities in one cell sized to the `<`s the text contains,
+// each no more than its most: 1, or 0 with nothing to be stored where the cell is refused
 EMBED_INLINE int xml_reserve(const MavenXmlCtx *args)
 {
     CliXml *xml = args->xml;
@@ -59,9 +59,9 @@ EMBED_INLINE int xml_reserve(const MavenXmlCtx *args)
     {
         tags += (args->text[at] == '<') ? 1ull : 0ull;
     }
-    const unsigned int elements = EMBED_CALL(xml_room, MavenXmlCtx, .tags = tags, .most = CLI_XML_ELEMENTS);
-    const unsigned int comments = EMBED_CALL(xml_room, MavenXmlCtx, .tags = tags, .most = CLI_XML_COMMENTS);
-    const unsigned int errors = EMBED_CALL(xml_room, MavenXmlCtx, .tags = tags + 1ull, .most = CLI_XML_ERRORS);
+    const unsigned int elements = EMBED_CALL(xml_capacity, MavenXmlCtx, .tags = tags, .most = CLI_XML_ELEMENTS);
+    const unsigned int comments = EMBED_CALL(xml_capacity, MavenXmlCtx, .tags = tags, .most = CLI_XML_COMMENTS);
+    const unsigned int errors = EMBED_CALL(xml_capacity, MavenXmlCtx, .tags = tags + 1ull, .most = CLI_XML_ERRORS);
     // the lists laid one after another, the widest first, so that each starts where its kind may stand
     const unsigned long long element_bytes = (unsigned long long)elements * sizeof(CliXmlElement);
     const unsigned long long comment_bytes = (unsigned long long)comments * sizeof(unsigned long long);
@@ -76,12 +76,12 @@ EMBED_INLINE int xml_reserve(const MavenXmlCtx *args)
     }
     // each list's place in the cell is a multiple of its kind's width from the cell's start, as laid out above
     xml->element = (CliXmlElement *)(void *)cell;
-    xml->element_room = elements;
+    xml->element_capacity = elements;
     xml->comment_from = (unsigned long long *)(void *)(cell + element_bytes);
     xml->comment_to = (unsigned long long *)(void *)(cell + element_bytes + comment_bytes);
-    xml->comment_room = comments;
+    xml->comment_capacity = comments;
     xml->error = (CliXmlError *)(void *)(cell + element_bytes + (2ull * comment_bytes));
-    xml->error_room = errors;
+    xml->error_capacity = errors;
     xml->open = (unsigned int *)(void *)(cell + element_bytes + (2ull * comment_bytes) + error_bytes);
     return 1;
 }
@@ -89,7 +89,7 @@ EMBED_INLINE int xml_reserve(const MavenXmlCtx *args)
 // what prevented the file from reading, recorded
 EMBED_INLINE void xml_error(const MavenXmlCtx *args)
 {
-    if (args->xml->errors < args->xml->error_room)
+    if (args->xml->errors < args->xml->error_capacity)
     {
         args->xml->error[args->xml->errors] =
             (CliXmlError){args->from, args->to, args->kind, args->element, args->name_from, args->name_to};
@@ -172,7 +172,7 @@ EMBED_INLINE void xml_closing(const MavenXmlCtx *args)
 // an opening tag named `from` to `to`, ending at `gt`, an element under the one left open
 EMBED_INLINE void xml_opening(const MavenXmlCtx *args)
 {
-    if (args->xml->elements == args->xml->element_room)
+    if (args->xml->elements == args->xml->element_capacity)
     {
         return;
     }
@@ -245,14 +245,14 @@ void cli_xml_parse(const CliMavenXmlTextCtx *args)
                 cellul.len(&(CatenaFinitaCfg){.src = s_skip_close[skip], .cap = CLI_CELLS_POOL});
             unsigned long long end = 0ull;
             if (!EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = found + open, .length_value = left - open,
-                            .wanted = s_skip_close[skip], .size = close, .at_pointer = &end))
+                            .required = s_skip_close[skip], .size = close, .at_pointer = &end))
             {
                 EMBED_CALL(xml_error, MavenXmlCtx, .xml = args->xml_out, .from = lt, .to = lt + open, .kind = skip,
                            .element = CLI_XML_NONE, .name_from = 0ull, .name_to = 0ull);
                 return;
             }
             at = lt + open + end + close;
-            if ((skip == 0u) && (args->xml_out->comments < args->xml_out->comment_room))
+            if ((skip == 0u) && (args->xml_out->comments < args->xml_out->comment_capacity))
             {
                 args->xml_out->comment_from[args->xml_out->comments] = lt;
                 args->xml_out->comment_to[args->xml_out->comments] = at;

@@ -9,7 +9,7 @@ typedef struct CliEnvsOutCtx CliEnvsOutCtx;
 #include "embed_dispatch_layout.h"
 #include "envs.h"
 
-// the most names one folder requires and the bytes of them, and the names and the bytes their rooms are taken with
+// the most names one folder requires and the bytes of them, and the names and the bytes their capacities are taken with
 #define CLI_ENVS_NAMES 1024u
 #define CLI_ENVS_TEXT (1u << 20u)
 
@@ -25,17 +25,16 @@ typedef struct
 {
     CliRequiredName *name;
     unsigned int count;
-    unsigned int room;
+    unsigned int capacity;
     char *text;
     unsigned int used;
-    unsigned int text_room;
+    unsigned int text_capacity;
 } CliRequired;
 
 // the names a folder's files require read into `required`, those it contained before let go; the names written as a
 // JSON array; and their cells given back, the names left empty
-void cli_required_take(const CliEnvsCtx *args);
+void cli_required_alloc(const CliEnvsCtx *args);
 void cli_required_in(const CliEnvsCtx *args);
-void cli_required_write(const CliEnvsOutCtx *args);
 void cli_required_free(const CliEnvsCtx *args);
 
 struct CliEnvsCtx
@@ -52,24 +51,15 @@ struct CliEnvsOutCtx
 
 typedef struct
 {
-    void (*required_take)(const CliEnvsCtx *args);
+    void (*required_alloc)(const CliEnvsCtx *args);
     void (*required_in)(const CliEnvsCtx *args);
     void (*required_free)(const CliEnvsCtx *args);
 } CliEnvsNsTable;
-EMBED_TABLE_LAYOUT(CliEnvsNsTable, required_take, required_in, required_free);
+EMBED_TABLE_LAYOUT(CliEnvsNsTable, required_alloc, required_in, required_free);
 EMBED_TABLE_STORAGE CliEnvsNsTable cli_envs_internal EMBED_UNUSED = {
-    .required_take = cli_required_take,
+    .required_alloc = cli_required_alloc,
     .required_in = cli_required_in,
     .required_free = cli_required_free,
-};
-
-typedef struct
-{
-    void (*required_write)(const CliEnvsOutCtx *args);
-} CliEnvsOutNsTable;
-EMBED_TABLE_LAYOUT(CliEnvsOutNsTable, required_write);
-EMBED_TABLE_STORAGE CliEnvsOutNsTable cli_envs_out_internal EMBED_UNUSED = {
-    .required_write = cli_required_write,
 };
 
 #endif

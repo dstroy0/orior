@@ -22,7 +22,7 @@ void cli_toml_value(const CliExecutablesLengthValueCtx *args)
             end += 1ull;
         }
         EMBED_CALL(cli_executables_length_text_internal.scan_copy, CliExecutablesLengthTextCtx, .text = value + 1,
-                   .length = end - 1ull, .out = args->out, .room = args->room);
+                   .length = end - 1ull, .out = args->out, .capacity = args->capacity);
         return;
     }
     unsigned long long end = 0ull;
@@ -32,7 +32,7 @@ void cli_toml_value(const CliExecutablesLengthValueCtx *args)
     EMBED_CALL(cli_executables_text_length_internal.scan_trim, CliExecutablesTextLengthCtx, .text_pointer = &value,
                .length_pointer = &length);
     EMBED_CALL(cli_executables_length_text_internal.scan_copy, CliExecutablesLengthTextCtx, .text = value,
-               .length = length, .out = args->out, .room = args->room);
+               .length = length, .out = args->out, .capacity = args->capacity);
 }
 
 // A Cargo.toml's [[bin]] tables: each one's name and path, where it gives them
@@ -43,8 +43,8 @@ typedef struct
     int has_name[CLI_SCAN_BINS];
     int has_path[CLI_SCAN_BINS];
     unsigned int count;
-    char taken[CLI_SCAN_BINS][CLI_PATH_MAX_LEN];
-    unsigned int takens;
+    char reserved[CLI_SCAN_BINS][CLI_PATH_MAX_LEN];
+    unsigned int allocations;
     const char *folder;
     CliNames more;
 } CliBins;
@@ -74,13 +74,13 @@ static void cli_bin_each(const CliEachNameIsFolderCfg *args)
     mmgr_line_finish(&relative_line);
     if (args->is_folder)
     {
-        EMBED_CALL(cli_executables_name_names_internal.names_put, CliExecutablesNameNamesCtx, .names = &bins->more,
+        EMBED_CALL(cli_executables_name_names_internal.names_append, CliExecutablesNameNamesCtx, .names = &bins->more,
                    .name = name, .length = length, .value = relative);
     }
     else if ((length > 3ull) &&
              (cellul.eq(&(CatenaFinitaCfg){.src = name + length - 3ull, .other = ".rs", .cap = CLI_CELLS_POOL})))
     {
-        EMBED_CALL(cli_executables_name_names_internal.names_put, CliExecutablesNameNamesCtx, .names = &bins->more,
+        EMBED_CALL(cli_executables_name_names_internal.names_append, CliExecutablesNameNamesCtx, .names = &bins->more,
                    .name = name, .length = length - 3ull, .value = relative);
     }
 }
@@ -91,7 +91,7 @@ void cli_cargo_bins(const CliExecutablesNamesCtx *args)
     args->names->count = 0u;
     CliBins *const bins = &s_bins;
     bins->count = 0u;
-    bins->takens = 0u;
+    bins->allocations = 0u;
     bins->more.count = 0u;
     char table[CLI_NAME_MAX_LEN] = "";
     char package[CLI_NAME_MAX_LEN] = "";
@@ -119,7 +119,7 @@ void cli_cargo_bins(const CliExecutablesNamesCtx *args)
             EMBED_CALL(cli_executables_text_length_internal.scan_trim, CliExecutablesTextLengthCtx,
                        .text_pointer = &inner, .length_pointer = &size);
             EMBED_CALL(cli_executables_length_text_internal.scan_copy, CliExecutablesLengthTextCtx, .text = inner,
-                       .length = size, .out = table, .room = sizeof(table));
+                       .length = size, .out = table, .capacity = sizeof(table));
             if (doubled && (cellul.eq(&(CatenaFinitaCfg){.src = table, .other = "bin", .cap = CLI_CELLS_POOL})) &&
                 (bins->count < CLI_SCAN_BINS))
             {
@@ -142,7 +142,8 @@ void cli_cargo_bins(const CliExecutablesNamesCtx *args)
                    .length_pointer = &key_length);
         char value[CLI_PATH_MAX_LEN];
         EMBED_CALL(cli_executables_length_value_internal.toml_value, CliExecutablesLengthValueCtx, .value = equals + 1,
-                   .length = (unsigned long long)((from + length) - (equals + 1)), .out = value, .room = sizeof(value));
+                   .length = (unsigned long long)((from + length) - (equals + 1)), .out = value,
+                   .capacity = sizeof(value));
         const int is_name =
             (key_length == 4ull) && (memor.cmp(&(MemoriaCfg){.src = key, .other = "name", .bytes = 4u}) == 0);
         const int is_path =
@@ -187,22 +188,22 @@ void cli_cargo_bins(const CliExecutablesNamesCtx *args)
             continue;
         }
         char path[CLI_PATH_MAX_LEN];
-        VerbaLinea line_made = {path, sizeof(path), 0ull};
+        VerbaLinea line_created = {path, sizeof(path), 0ull};
         if (bins->has_path[at])
         {
-            mmgr_line_put(&line_made, bins->path[at]);
+            mmgr_line_put(&line_created, bins->path[at]);
         }
         else if (cellul.eq(&(CatenaFinitaCfg){.src = bins->name[at], .other = package, .cap = CLI_CELLS_POOL}))
         {
-            mmgr_line_put(&line_made, "src/main.rs");
+            mmgr_line_put(&line_created, "src/main.rs");
         }
         else
         {
-            mmgr_line_put(&line_made, "src/bin/");
-            mmgr_line_put(&line_made, bins->name[at]);
-            mmgr_line_put(&line_made, ".rs");
+            mmgr_line_put(&line_created, "src/bin/");
+            mmgr_line_put(&line_created, bins->name[at]);
+            mmgr_line_put(&line_created, ".rs");
         }
-        mmgr_line_finish(&line_made);
+        mmgr_line_finish(&line_created);
         // the path as Cargo reads it: `/` between its parts and no `./` before it
         EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = path,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), .from = '\\', .to = '/');
@@ -211,13 +212,13 @@ void cli_cargo_bins(const CliExecutablesNamesCtx *args)
         {
             trimmed += 2;
         }
-        if (bins->takens < CLI_SCAN_BINS)
+        if (bins->allocations < CLI_SCAN_BINS)
         {
             memor.cpy(
-                &(MemoriaCfg){.dst = bins->taken[bins->takens],
+                &(MemoriaCfg){.dst = bins->reserved[bins->allocations],
                               .src = trimmed,
                               .bytes = cellul.len(&(CatenaFinitaCfg){.src = trimmed, .cap = CLI_CELLS_POOL}) + 1u});
-            bins->takens += 1u;
+            bins->allocations += 1u;
         }
         if (args->names->count < CLI_EXECUTABLES_NAMES)
         {
@@ -238,7 +239,7 @@ void cli_cargo_bins(const CliExecutablesNamesCtx *args)
         if ((mmgr_line_finish(&main_line) != 0ull) &&
             EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = main))
         {
-            EMBED_CALL(cli_executables_name_names_internal.names_put, CliExecutablesNameNamesCtx, .names = &found,
+            EMBED_CALL(cli_executables_name_names_internal.names_append, CliExecutablesNameNamesCtx, .names = &found,
                        .name = package, .length = cellul.len(&(CatenaFinitaCfg){.src = package, .cap = CLI_CELLS_POOL}),
                        .value = "src/main.rs");
         }
@@ -304,14 +305,15 @@ void cli_cargo_bins(const CliExecutablesNamesCtx *args)
         {
             const char *const name = (at < found.count) ? found.name[at] : bins->more.name[at - found.count];
             const char *const path = (at < found.count) ? found.value[at] : bins->more.value[at - found.count];
-            int taken = 0;
-            for (unsigned int each = 0u; !taken && (each < bins->takens); each += 1u)
+            int reserved = 0;
+            for (unsigned int each = 0u; !reserved && (each < bins->allocations); each += 1u)
             {
-                taken = cellul.eq(&(CatenaFinitaCfg){.src = bins->taken[each], .other = path, .cap = CLI_CELLS_POOL});
+                reserved =
+                    cellul.eq(&(CatenaFinitaCfg){.src = bins->reserved[each], .other = path, .cap = CLI_CELLS_POOL});
             }
-            if (!taken)
+            if (!reserved)
             {
-                EMBED_CALL(cli_executables_name_names_internal.names_put, CliExecutablesNameNamesCtx,
+                EMBED_CALL(cli_executables_name_names_internal.names_append, CliExecutablesNameNamesCtx,
                            .names = args->names, .name = name,
                            .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .value = NULL);
             }

@@ -25,7 +25,7 @@ typedef struct
 {
     const char *root;
     const char *folder;
-} CliPlanPlaces;
+} CliPlanPositions;
 
 // the description at `file` read and made plain JSON, its tokens read, and nothing yet found too long: 1, or 0 with
 // why given, the plain text and its tokens in cells sized to it; those cells given back once the plan is made; 1 where
@@ -43,7 +43,7 @@ unsigned int cli_plan_member_get(const CliDevcontainerNameCtx *args);
 // token into `tokens`
 unsigned int cli_plan_strings(const CliDevcontainerValueCtx *args);
 // `text` put in the plan's texts, where it starts; and put at the end of `list`
-unsigned int cli_plan_put(const CliDevcontainerPlanTextCtx *args);
+unsigned int cli_plan_append(const CliDevcontainerPlanTextCtx *args);
 void cli_plan_list(const CliDevcontainerPlanTextCtx *args);
 // `text` with the description's variables read into `out`, sized for CLI_STRING_MAX_LEN; `path` joined onto `base`
 // into `out`, sized for CLI_PATH_MAX_LEN
@@ -69,14 +69,14 @@ struct CliDevcontainerObjectCtx
     unsigned int object;
     CliPlan *plan;
     CliPlanList *list;
-    const CliPlanPlaces *places;
+    const CliPlanPositions *positions;
 };
 
 struct CliDevcontainerOutCtx
 {
     char *out;
     const char *text;
-    const CliPlanPlaces *places;
+    const CliPlanPositions *positions;
 };
 
 struct CliDevcontainerOutBaseCtx
@@ -97,7 +97,7 @@ struct CliDevcontainerValueCtx
 {
     unsigned int value;
     unsigned int *tokens;
-    unsigned int room;
+    unsigned int capacity;
 };
 
 struct CliDevcontainerCtx
@@ -158,12 +158,12 @@ EMBED_TABLE_STORAGE CliDevcontainerValueNs cli_devcontainer_value_internal EMBED
 
 typedef struct
 {
-    unsigned int (*plan_put)(const CliDevcontainerPlanTextCtx *args);
+    unsigned int (*plan_append)(const CliDevcontainerPlanTextCtx *args);
     void (*plan_list)(const CliDevcontainerPlanTextCtx *args);
 } CliDevcontainerPlanTextNs;
-EMBED_TABLE_LAYOUT(CliDevcontainerPlanTextNs, plan_put, plan_list);
+EMBED_TABLE_LAYOUT(CliDevcontainerPlanTextNs, plan_append, plan_list);
 EMBED_TABLE_STORAGE CliDevcontainerPlanTextNs cli_devcontainer_plan_text_internal EMBED_UNUSED = {
-    .plan_put = cli_plan_put,
+    .plan_append = cli_plan_append,
     .plan_list = cli_plan_list,
 };
 

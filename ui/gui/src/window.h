@@ -1,32 +1,27 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// window.h: the window apart from the system it stands on: its frame laid out for its size, its raster drawn with the
-// parts, the glyphs and the palette they draw with, the editor showing the open file with the minimap beside it, the
-// menu bar over the catalog of commands, and the interface to the CLI, each answer and event taken on the window's thread;
-// the pointer's place read as the caption, a border, a control or the client; the wheel scrolling the editor; a menu's
-// choice run, its keys sent to the editor's view; and the file opened as the launch command or a door command names it
+// window.h: the window apart from the system it stands on, a view of what the controller publishes: its frame laid out
+// for its size, its raster drawn with the parts, the glyphs and the palette they draw with; the pointer's place read as
+// the caption, a border, a control or the client, and what stands under a pixel written to the controller as an input
 // (window.c)
 #ifndef GUI_WINDOW_H
 #define GUI_WINDOW_H
 typedef struct GuiWindowWokenCfg GuiWindowWokenCfg;
 typedef struct GuiWindowWidthCfg GuiWindowWidthCfg;
 typedef struct GuiWindowIconCfg GuiWindowIconCfg;
-typedef struct GuiWindowTextCfg GuiWindowTextCfg;
 typedef struct GuiWindowCfg GuiWindowCfg;
-typedef struct GuiWindowClaimCfg GuiWindowClaimCfg;
-typedef struct GuiWindowPathCfg GuiWindowPathCfg;
+typedef struct GuiWindowAutohideCfg GuiWindowAutohideCfg;
 typedef struct GuiWindowInputCfg GuiWindowInputCfg;
 typedef struct GuiWindowInputKindCfg GuiWindowInputKindCfg;
 typedef struct GuiWindowReducedCfg GuiWindowReducedCfg;
-typedef struct GuiWindowShownCfg GuiWindowShownCfg;
-typedef struct GuiWindowAtCfg GuiWindowAtCfg;
+typedef struct GuiWindowDisplayedCfg GuiWindowDisplayedCfg;
+#include "../../cli/src/controller/controller.h"
 #include "base.h"
 #include "claim.h"
 #include "embed_dispatch_layout.h"
 #include "framebuffer.h"
 #include "ground.h"
 #include "input_event.h"
-#include "interface.h"
 #include "parts/busy.h"
 #include "parts/editor.h"
 #include "parts/explorer.h"
@@ -62,41 +57,25 @@ typedef struct GuiWindowAtCfg GuiWindowAtCfg;
 #define GUI_BORDER 5
 // The window: its frame; its two framebuffers, the raster the frame is drawn into and the one shown, flipped as a frame
 // is presented, the shown one NULL before any; the base every frame starts from and the ground under it, glyphs, icons,
-// palette, editor, minimap, menu The window: its frame, raster, the ground every frame starts from, glyphs, icons,
-// palette, editor, minimap, menu bar, strip, explorer and interface; the panels over the editor, the hover, the completion
-// and the signature, with the tickets of their asks in flight, 0 where none is, whether the completion is to be asked
-// for as the next frame comes, whether that ask was forced by the keys, whether each panel's ask is to be made again
-// with the server once its answer without the server comes, whether the server is to be told the text as the next frame
-// comes, an input having changed it, and the cursor's place the signature was last asked at; the problems pane, the
-// ticket of the tree's check asked for, and the place the shown file's cursor is to be put at as its next frame comes,
-// where one is wanted; when the caret's breath last began, each frame of the view beginning it again, the caret's ink
-// in the last frame drawn, and whether its ink alone has changed, which the caret drawn again over the frame pays with
-// no frame whole; the busy circle, with whether its stage alone has changed, which the stage blitted over the frame
-// pays the same way; Preferences, what its rows stand at, the palette of the window's own they change, and the scale
-// the system gave, which the zoom lays the frame at a share of; when the view's rows last moved, 0 once the server was
-// told the view they rest at, whether it was told, and the top and rows it was told; the claim and whether its slides
-// ran at the last tick, the view told the editor's size as they stop; the controls' tab's shadow, made once it is
-// wanted; the wordmark, the tickets of what orior's folder saves as read for it and of the session the system names,
-// and the session saved, its size; the catalog of commands the menu bar reads, parsed into a JSON tree of its own once
-// it came; the tree's name shown in the bar; the tree's root as the CLI names it, empty where none is open; the files
-// open as tabs, how many, the one shown, -1 for none, and the one shown before it, -1 for none; the shown file's path
-// and the key it is stored under; whether the window is maximized; the tickets of the calls in flight, the launch
-// command, the root, the catalog, a whole path made the tree's, what orior's folder saves, the view's open, the memory
-// reading and the map's lines, each 0 where none is, whether the map is wanted again as its answer comes, when the
-// memory was last asked and the bytes it answered, and the sequence of the last frame taken; whether the tree's saved
-// tabs are back, the session saved again only after, and whether a session for the tree is known, read from the folder
-// or made by the tabs' own changes, without which no tabs are saved over whatever the folder holds; the session saved
-// again only after; whether the CLI's editor view is open on the shown file, whether the pointer drags in it, and the
-// presses counted, when and where the last was; whether a frame is owed; and the control pressed, for the system to
-// act on, GUI_HIT_CLIENT where none
+// palette; the parts, each holding what it last took of the controller's; the tabs, the status and the settings as last
+// published; when the caret's breath last began, each frame of the view beginning it again, the caret's ink in the last
+// frame drawn, and whether its ink alone has changed, which the caret drawn again over the frame pays with no frame
+// whole; the busy circle, with whether its stage alone has changed; Preferences, what its rows stand at, the palette of
+// the window's own they change, and the scale the system gave, which the zoom lays the frame at a share of; the claim
+// and whether its slides ran at the last tick; the controls' tab's shadow; the wordmark; less motion as the system and
+// the settings ask it; the count the controller gives each file shown, and what it last told of Preferences and the
+// name; what was last said of the editor's size, the bar's titles, the map's lines and the pointer, none said again
+// until it moves; whether the window is maximized; whether the pointer drags in the editor; the presses counted, when
+// and where the last was; whether a frame is owed; and the control pressed, for the system to act on, GUI_HIT_CLIENT
+// where none
 typedef struct GuiWindow
 {
     GuiFrame frame;
     GuiFramebuffer framebuffer;
     GuiRaster *raster;
-    GuiRaster *shown;
+    GuiRaster *displayed;
     GuiBase base;
-    GuiGround ground;
+    GuiBackground background_fill;
     GuiGlyphs glyphs;
     GuiIcons icons;
     const GuiPalette *palette;
@@ -105,111 +84,68 @@ typedef struct GuiWindow
     GuiMenubar menubar;
     GuiStrip strip;
     GuiExplorer explorer;
-    GuiInterface cli;
     GuiHover hover;
     GuiSuggest suggest;
     GuiSignature signature;
-    unsigned long long asked_hover;
-    unsigned long long asked_complete;
-    unsigned long long asked_signature;
-    int complete_wanted;
-    int complete_forced;
-    int complete_again;
-    int hover_again;
-    int signature_again;
-    int told_wanted;
-    GuiPlace signature_place;
     GuiProblems problems;
-    unsigned long long asked_check;
-    GuiPlace place_wanted;
-    int place_pending;
+    const CliTabs *tabs;
+    const CliStatus *status;
+    const CliSettings *settings;
     unsigned long long caret_blink_start_ms;
-    unsigned int caret_ink;
+    unsigned int caret_color;
     int caret_alone;
     GuiBusy busy;
     int busy_alone;
     GuiPreferences preferences;
     GuiPreferenceValues preference_values;
     GuiRaster preferences_raster;
-    int preferences_owed;
+    int preferences_pending;
     int preferences_system_scale;
     GuiPaletteOwn palette_own;
     int system_scale;
-    unsigned long long viewport_notify_deadline_ms;
-    int view_told;
-    unsigned long long view_told_top;
-    unsigned int view_told_rows;
-    GuiClaim claim;
-    int claim_moving;
+    GuiAutohide claim;
+    int autohide_moving;
     GuiStages stages;
     const GuiStage *stage;
     int stages_stale;
     GuiMask controls_shadow;
     GuiWordmark wordmark;
-    unsigned long long asked_mark_session;
     int motion_system;
     int motion_saved;
     int motion_still;
     int off_screen;
-    CliJson catalog;
-    int cataloged;
-    char title[CLI_NAME_MAX_LEN];
-    char root[CLI_PATH_MAX_LEN];
-    GuiTab tab[GUI_TABS_MOST];
-    unsigned int tabs;
-    int active;
-    int last_active;
-    char path[CLI_PATH_MAX_LEN];
-    char key[CLI_PATH_MAX_LEN];
+    unsigned long long shown;
+    int preferences_status;
+    unsigned int wordmark_status;
+    unsigned int sent_rows;
+    unsigned int sent_columns;
+    unsigned int sent_shown;
+    unsigned int sent_folded;
+    int map_sent;
+    unsigned long long map_sent_first;
+    unsigned long long map_sent_last;
+    CliInput moved_sent;
     int maximized;
-    unsigned long long asked_launch;
-    unsigned long long asked_root;
-    unsigned long long asked_catalog;
-    unsigned long long asked_relative;
-    unsigned long long asked_state;
-    unsigned long long asked_view;
-    unsigned long long asked_memory;
-    unsigned long long asked_map;
-    int map_wanted;
-    unsigned long long memory_poll_deadline_ms;
-    unsigned long long memory_bytes;
-    unsigned long long frame_seq;
-    int restored;
-    int session_known;
-    int viewed;
     int dragging;
     unsigned int clicks;
     unsigned long long double_click_deadline_ms;
     int clicked_x;
     int clicked_y;
-    int owed;
+    int pending;
     unsigned int pressed;
 } GuiWindow;
 
-// the double-click window, the pixels a press may move and still count, the memory poll period, the debounce before the
-// server is told the viewport, its slice cut for it, and the caret's blink: its period; each fade, down from full ink
-// and up again, which the caret eases through on a cosine, the steady times at full and at dim taking what the period
-// leaves; and the dim ink, 0 to 255
+// the double-click window, the pixels a press may move and still count, and the caret's blink: its period; each fade,
+// down from full ink and up again, which the caret eases through on a cosine, the steady times at full and at dim
+// taking what the period leaves; and the dim ink, 0 to 255
 #define GUI_DOUBLE_CLICK_MS 500ull
-#define GUI_CLICK_NEAR 4
-#define GUI_MEMORY_POLL_MS 2000ull
-#define GUI_VIEWPORT_DEBOUNCE_MS 250ull
+#define GUI_CLICK_ADJACENT 4
 #define GUI_CARET_BLINK_PERIOD_MS 1500ull
-// the entry orior's folder saves View's Reduce Motion under
-#define GUI_WINDOW_REDUCE_KEY "orior.reduce-motion"
-// the keys Preferences saves under in orior's folder, a color's key its name after the last; and the scheme's own
-// opacities
-#define GUI_WINDOW_ZOOM_KEY "orior.zoom"
-#define GUI_WINDOW_BAR_KEY "orior.opacity.bar"
-#define GUI_WINDOW_EDITOR_KEY "orior.opacity.editor"
-#define GUI_WINDOW_COLOR_KEY "orior.color."
-#define GUI_WINDOW_BAR_OPACITY 30u
-#define GUI_WINDOW_EDITOR_OPACITY 80u
 #define GUI_CARET_FADE_MS 300ull
 #define GUI_CARET_DIM 64u
 
-// the window begun: its glyphs read, its palette the dark scheme, its editor empty and its interface's workers started, the
-// window's thread woken through `woken` with `context`: 1, or 0 with why given; and ended, every cell given back
+// the window begun: its glyphs read, its palette the dark scheme, its parts showing nothing: 1, or 0 with why given;
+// and ended, the controller with it, every cell given back
 int gui_window_begin(const GuiWindowWokenCfg *args);
 void gui_window_end(const GuiWindowCfg *args);
 // the window sized `width` by `height` at `scale`: its frame laid out and its raster made anew: 1, or 0 where the
@@ -223,8 +159,9 @@ void gui_window_preferences_resize(const GuiWindowWidthCfg *args);
 void gui_window_preferences_input(const GuiWindowInputKindCfg *args);
 unsigned int gui_window_preferences_hit(const GuiWindowInputCfg *args);
 void gui_window_preferences_draw(const GuiWindowCfg *args);
-// the first calls made as the window opens: the launch command taken and the tree's root asked
+// the first frame owed as the window opens; and Preferences' window asked closed by the system
 void gui_window_start(const GuiWindowCfg *args);
+void gui_window_preferences_close(const GuiWindowCfg *args);
 // the frame drawn into the raster not shown, the frame owed no more; and the two flipped once that frame is presented,
 // the raster drawn the one shown and the other the one to draw into
 void gui_window_draw(const GuiWindowCfg *args);
@@ -238,18 +175,7 @@ GuiRect gui_window_busy_draw(const GuiWindowCfg *args);
 // where the pointer on the input stands; and an input in the main window, as its kind says
 unsigned int gui_window_hit(const GuiWindowInputCfg *args);
 void gui_window_input(const GuiWindowInputKindCfg *args);
-// a menu's choice run: an item with keys runs as those keys pressed, the editor's view taking them; a line edit with
-// none runs by its name, the view taking that; `exit` closes the window as the close control does; `close-editor`
-// closes the tab shown, `close-all` every tab, and `last-editor` shows the tab shown before
-void gui_window_choose(const GuiWindowCfg *args);
-// the file at `path` opened through the CLI as a tab, shown in the editor as its answers come, or shown where it is
-// open already; the tab `at` shown; and the tab `at` closed, its view and its branch let go, the tab beside it shown
-void gui_window_file_open(const GuiWindowPathCfg *args);
-void gui_window_tab_show(const GuiWindowAtCfg *args);
-void gui_window_tab_close(const GuiWindowAtCfg *args);
-// `length` bytes of a text shown whole in the editor
-int gui_window_text_put(const GuiWindowTextCfg *args);
-// every answer and event waiting taken, on the window's thread
+// the newest of each part taken, on the window's thread, each that changed owing a frame
 void gui_window_drain(const GuiWindowCfg *args);
 // the tick the window asked for come: the claim's timers run and its parts laid where its slides stand, and the
 // ground drawn again where its loop shows a change; and when the window next wants a tick, in milliseconds, 0 for
@@ -258,20 +184,18 @@ void gui_window_tick(const GuiWindowCfg *args);
 unsigned long long gui_window_timeout_ms(const GuiWindowInputCfg *args);
 // the frame laid for the claim's movement at `time_ms`: while a slide runs the stage standing then, the stages made
 // where a slide has been sent since they were; at rest the frame the slides rest at
-void gui_window_claim_layout(const GuiWindowClaimCfg *args);
+void gui_window_autohide_layout(const GuiWindowAutohideCfg *args);
 // the system's wish for less motion told, 1 where it asks for less: that or View's Reduce Motion, saved in orior's
 // folder, stills the lattice, the claim's slides, the name's flight and the caret's breath
 void gui_window_motion_tell(const GuiWindowReducedCfg *args);
-// the window gone off the screen, `shown` 0, its ground's clock standing still, or back on it, 1, a frame owed
-void gui_window_show(const GuiWindowShownCfg *args);
+// the window gone off the screen, `displayed` 0, its ground's clock standing still, or back on it, 1, a frame owed
+void gui_window_show(const GuiWindowDisplayedCfg *args);
 // the window's icon, the wordmark's eye in the text's color, made into `icon` at `size` pixels a side with its own
 // alpha, for the system to take: 1, or 0 where the eye could not be drawn or the raster made; given back as a raster
 int gui_window_icon(const GuiWindowIconCfg *args);
 struct GuiWindowWokenCfg
 {
     GuiWindow *window;
-    GuiInterfaceWoken woken;
-    void *context;
     VerbaLinea *err_msg;
 };
 
@@ -290,29 +214,15 @@ struct GuiWindowIconCfg
     unsigned int size;
 };
 
-struct GuiWindowTextCfg
-{
-    GuiWindow *window;
-    const char *text;
-    unsigned long long length;
-};
-
 struct GuiWindowCfg
 {
     GuiWindow *window;
-    const GuiChoice *choice;
 };
 
-struct GuiWindowClaimCfg
+struct GuiWindowAutohideCfg
 {
     GuiWindow *window;
     unsigned long long time_ms;
-};
-
-struct GuiWindowPathCfg
-{
-    GuiWindow *window;
-    const char *path;
 };
 
 struct GuiWindowInputCfg
@@ -333,16 +243,10 @@ struct GuiWindowReducedCfg
     int reduced;
 };
 
-struct GuiWindowShownCfg
+struct GuiWindowDisplayedCfg
 {
     GuiWindow *window;
-    int shown;
-};
-
-struct GuiWindowAtCfg
-{
-    GuiWindow *window;
-    unsigned int at;
+    int displayed;
 };
 
 typedef struct
@@ -363,11 +267,12 @@ typedef struct
     void (*flip)(const GuiWindowCfg *args);
     GuiRect (*caret_draw)(const GuiWindowCfg *args);
     GuiRect (*busy_draw)(const GuiWindowCfg *args);
-    void (*choose)(const GuiWindowCfg *args);
+    void (*preferences_close)(const GuiWindowCfg *args);
     void (*drain)(const GuiWindowCfg *args);
     void (*tick)(const GuiWindowCfg *args);
 } GuiWindowNs;
-EMBED_TABLE_LAYOUT(GuiWindowNs, end, preferences_draw, start, draw, flip, caret_draw, busy_draw, choose, drain, tick);
+EMBED_TABLE_LAYOUT(GuiWindowNs, end, preferences_draw, start, draw, flip, caret_draw, busy_draw, preferences_close,
+                   drain, tick);
 EMBED_TABLE_STORAGE GuiWindowNs gui_window_table EMBED_UNUSED = {
     .end = gui_window_end,
     .preferences_draw = gui_window_preferences_draw,
@@ -376,7 +281,7 @@ EMBED_TABLE_STORAGE GuiWindowNs gui_window_table EMBED_UNUSED = {
     .flip = gui_window_flip,
     .caret_draw = gui_window_caret_draw,
     .busy_draw = gui_window_busy_draw,
-    .choose = gui_window_choose,
+    .preferences_close = gui_window_preferences_close,
     .drain = gui_window_drain,
     .tick = gui_window_tick,
 };
@@ -418,40 +323,11 @@ EMBED_TABLE_STORAGE CliWindowInputNs cli_window_input EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*file_open)(const GuiWindowPathCfg *args);
-} GuiWindowPathNs;
-EMBED_TABLE_LAYOUT(GuiWindowPathNs, file_open);
-EMBED_TABLE_STORAGE GuiWindowPathNs gui_window_path EMBED_UNUSED = {
-    .file_open = gui_window_file_open,
-};
-
-typedef struct
-{
-    void (*tab_show)(const GuiWindowAtCfg *args);
-    void (*tab_close)(const GuiWindowAtCfg *args);
-} GuiWindowAtNs;
-EMBED_TABLE_LAYOUT(GuiWindowAtNs, tab_show, tab_close);
-EMBED_TABLE_STORAGE GuiWindowAtNs gui_window_at EMBED_UNUSED = {
-    .tab_show = gui_window_tab_show,
-    .tab_close = gui_window_tab_close,
-};
-
-typedef struct
-{
-    int (*text_put)(const GuiWindowTextCfg *args);
-} GuiWindowTextNs;
-EMBED_TABLE_LAYOUT(GuiWindowTextNs, text_put);
-EMBED_TABLE_STORAGE GuiWindowTextNs gui_window_text_table EMBED_UNUSED = {
-    .text_put = gui_window_text_put,
-};
-
-typedef struct
-{
-    void (*claim_layout)(const GuiWindowClaimCfg *args);
-} GuiWindowClaimNs;
-EMBED_TABLE_LAYOUT(GuiWindowClaimNs, claim_layout);
-EMBED_TABLE_STORAGE GuiWindowClaimNs gui_window_claim EMBED_UNUSED = {
-    .claim_layout = gui_window_claim_layout,
+    void (*autohide_layout)(const GuiWindowAutohideCfg *args);
+} GuiWindowAutohideNs;
+EMBED_TABLE_LAYOUT(GuiWindowAutohideNs, autohide_layout);
+EMBED_TABLE_STORAGE GuiWindowAutohideNs gui_window_autohide EMBED_UNUSED = {
+    .autohide_layout = gui_window_autohide_layout,
 };
 
 typedef struct
@@ -465,10 +341,10 @@ EMBED_TABLE_STORAGE GuiWindowReducedNs gui_window_reduced EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*show)(const GuiWindowShownCfg *args);
-} CliWindowShownNs;
-EMBED_TABLE_LAYOUT(CliWindowShownNs, show);
-EMBED_TABLE_STORAGE CliWindowShownNs cli_window_shown EMBED_UNUSED = {
+    void (*show)(const GuiWindowDisplayedCfg *args);
+} CliWindowDisplayedNs;
+EMBED_TABLE_LAYOUT(CliWindowDisplayedNs, show);
+EMBED_TABLE_STORAGE CliWindowDisplayedNs cli_window_shown EMBED_UNUSED = {
     .show = gui_window_show,
 };
 

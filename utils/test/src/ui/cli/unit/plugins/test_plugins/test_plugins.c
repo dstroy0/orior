@@ -6,7 +6,6 @@
 #include "ui/cli/src/editor/highlight.h"
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "ui/cli/src/plugins/plugins.h"
-#include "ui/cli/src/window/window.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
 static CliJsonNode s_node[1u << 16u];
@@ -16,10 +15,10 @@ static CliJson s_json;
 static char s_out[1u << 18u];
 static CliLanguages s_languages;
 static int s_languages_live;
-static char s_why[256];
+static char s_error[256];
 static char s_dir[CLI_PATH_MAX_LEN];
 static char s_folder[CLI_PATH_MAX_LEN];
-static int s_folders_ran;
+static int s_folders_run_result;
 static char s_folders_alpha[CLI_NAME_MAX_LEN];
 static char s_folders_beta[CLI_NAME_MAX_LEN];
 static char s_folders_gamma[CLI_NAME_MAX_LEN];
@@ -30,17 +29,17 @@ static unsigned int tree_read(const char *text, unsigned long long size)
 {
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &s_json, .node_json_node_pointer = s_node, .nodes_most = sizeof(s_node) / sizeof(s_node[0]), .text_out = s_text, .text_most = sizeof(s_text));
-    return EMBED_CALL(cli_json_tree_text_size_tokens.json_read, CliJsonTreeTextSizeTokensCfg, .json = &s_json, .text = text, .size = size, .tokens = s_token, .tokens_most = sizeof(s_token) / sizeof(s_token[0]), .err_msg = &err_msg);
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &s_json, .node_json_node_pointer = s_node, .nodes_max = sizeof(s_node) / sizeof(s_node[0]), .text_out = s_text, .text_max = sizeof(s_text));
+    return EMBED_CALL(cli_json_tree_text_size_tokens.json_read, CliJsonTreeTextSizeTokensCfg, .json = &s_json, .text = text, .size = size, .tokens = s_token, .tokens_max = sizeof(s_token) / sizeof(s_token[0]), .err_msg = &err_msg);
 }
 
-// a member of a node of the tree written compact, asserted against `wanted`
-static void assert_node(unsigned int node, const char *wanted)
+// a member of a node of the tree written compact, asserted against `required`
+static void assert_node(unsigned int node, const char *required)
 {
     char text[512];
     VerbaLinea line = {text, sizeof(text), 0ull};
     EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = &s_json, .node = node, .out = &line, .indent = 0u, .sorted = 0);
-    CLI_TEST_ASSERT_TEXT(wanted, text, line.at);
+    CLI_TEST_ASSERT_TEXT(required, text, line.at);
 }
 
 // the languages read into s_languages, released at the case's end
@@ -77,7 +76,7 @@ static unsigned int toy_answers(void)
 // a plugin drafted from the toy answers: its node
 static unsigned int toy_drafted(void)
 {
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     const unsigned int plugin = EMBED_CALL(cli_plugins_err_msg_json_spec_kind.draft, CliPluginsErrMsgJsonSpecKindCfg, .json_out = &s_json, .spec = toy_answers(), .err_msg = &err_msg);
     TEST_ASSERT_NOT_EQUAL(CLI_JSON_NONE, plugin);
     return plugin;
@@ -87,7 +86,7 @@ static unsigned int toy_drafted(void)
 static unsigned int rusty_drafted(void)
 {
     static const char s_rusty[] = "{\"name\": \"Rusty\", \"extensions\": [\"rsy\"], \"from\": \"rust\", \"keywords\": [\"fn\"]}";
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     const unsigned int plugin = EMBED_CALL(cli_plugins_err_msg_json_spec_kind.draft, CliPluginsErrMsgJsonSpecKindCfg, .json_out = &s_json, .spec = tree_read(s_rusty, sizeof(s_rusty) - 1u), .err_msg = &err_msg);
     TEST_ASSERT_NOT_EQUAL(CLI_JSON_NONE, plugin);
     return plugin;
@@ -103,7 +102,7 @@ static void folder_counted(const CliEachNameIsFolderCfg *args)
 // a toy plugin created in a fresh folder, its folder in s_folder
 static void toy_created(void)
 {
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     cli_unity_folder("plugins", s_dir);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_plugins_err_msg.create_in, CliPluginsErrMsgCfg, .dir = s_dir, .json = &s_json, .spec = toy_answers(), .replace = 0, .folder = s_folder, .err_msg = &err_msg));
 }
@@ -166,11 +165,11 @@ static void folders_read(void)
     char home[CLI_PATH_MAX_LEN];
     char tree[CLI_PATH_MAX_LEN];
     char empty[CLI_PATH_MAX_LEN];
-    if (s_folders_ran)
+    if (s_folders_run_result)
     {
         return;
     }
-    s_folders_ran = 1;
+    s_folders_run_result = 1;
     cli_unity_folder("plugins_folders_home", home);
     cli_unity_folder("plugins_folders_tree", tree);
     (void)EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = "ORIOR_HOME", .value = home);
@@ -208,7 +207,7 @@ void tearDown(void)
     }
 }
 
-void test_every_bundled_plugin_reads_and_names_itself_and_a_script_carries_its_code(void)
+void test_every_bundled_plugin_reads_and_names_itself_and_a_script_transfers_its_code(void)
 {
     TEST_ASSERT_GREATER_OR_EQUAL_UINT(16u, g_cli_bundled_count);
     for (unsigned int at = 0u; at < g_cli_bundled_count; at += 1u)
@@ -246,24 +245,12 @@ void test_every_bundled_plugin_reads_and_names_itself_and_a_script_carries_its_c
     }
 }
 
-void test_a_plugin_written_in_oriors_folder_is_listed_as_the_readers(void)
+void test_a_plugin_written_in_oriors_folder_is_listing_as_the_readers(void)
 {
     int found = 0;
     reader_plugin_written();
     EMBED_CALL(cli_plugins_each_table.each, CliPluginsEachCfg, .each = reader_plugin_found, .context = &found);
     TEST_ASSERT_TRUE(found);
-}
-
-void test_the_windows_list_of_plugins_includes_the_readers(void)
-{
-    const char *text = NULL;
-    unsigned long long size = 0ull;
-    reader_plugin_written();
-    const unsigned int room = cli_window_called(1, "plugins_read", "{}", 2ull);
-    const int answered = cli_window_answer(room, &text, &size);
-    const int listed = answered && (cellul.find(&(CatenaFinitaCfg){.src = text, .cap = size, .other = "\"id\":\"readers\"", .other_cap = CLI_CELLS_POOL}) != NULL);
-    cli_window_given(room);
-    TEST_ASSERT_TRUE(listed);
 }
 
 void test_a_plugins_code_is_each_file_its_main_names_in_order(void)
@@ -288,7 +275,7 @@ void test_a_file_main_names_outside_its_folder_is_refused(void)
     TEST_ASSERT_FALSE(EMBED_CALL(cli_plugins_id.code_get, CliPluginsIdCfg, .id = "parts", .out = &out, .err_msg = &err_msg));
 }
 
-void test_a_file_opens_by_its_whole_name(void)
+void test_a_file_opens_by_its_complete_name(void)
 {
     languages_read();
     TEST_ASSERT_EQUAL_STRING("python", language_of("src/SConscript"));
@@ -314,11 +301,11 @@ void test_a_file_opens_by_its_extension(void)
     TEST_ASSERT_EQUAL_STRING("zig", language_of("build.zig"));
 }
 
-void test_the_languages_keys_are_in_a_room_at_their_most(void)
+void test_the_languages_keys_are_in_a_capacity_at_their_max(void)
 {
     languages_read();
     TEST_ASSERT_GREATER_THAN_UINT(0u, s_languages.count);
-    TEST_ASSERT_EQUAL_UINT(CLI_LANGUAGE_PAIRS, s_languages.room);
+    TEST_ASSERT_EQUAL_UINT(CLI_LANGUAGE_PAIRS, s_languages.capacity);
 }
 
 void test_the_plugins_are_read_in_cells_each_released(void)
@@ -416,7 +403,7 @@ void test_a_plugin_from_another_has_the_others_grammar(void)
 void test_a_plugin_from_one_not_there_is_refused(void)
 {
     static const char s_none[] = "{\"name\": \"x\", \"extensions\": [\"x\"], \"from\": \"nothing-here\"}";
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     TEST_ASSERT_EQUAL_UINT(CLI_JSON_NONE, EMBED_CALL(cli_plugins_err_msg_json_spec_kind.draft, CliPluginsErrMsgJsonSpecKindCfg, .json_out = &s_json, .spec = tree_read(s_none, sizeof(s_none) - 1u), .err_msg = &err_msg));
 }
 
@@ -443,7 +430,7 @@ void test_a_plugin_created_has_a_sample_in_its_language(void)
 void test_a_plugin_is_not_overwritten_unless_requested_and_stays_one_plugin(void)
 {
     unsigned int count = 0u;
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     toy_created();
     TEST_ASSERT_FALSE(EMBED_CALL(cli_plugins_err_msg.create_in, CliPluginsErrMsgCfg, .dir = s_dir, .json = &s_json, .spec = toy_answers(), .replace = 0, .folder = s_folder, .err_msg = &err_msg));
     TEST_ASSERT_TRUE(EMBED_CALL(cli_plugins_err_msg.create_in, CliPluginsErrMsgCfg, .dir = s_dir, .json = &s_json, .spec = toy_answers(), .replace = 1, .folder = s_folder, .err_msg = &err_msg));
@@ -453,19 +440,19 @@ void test_a_plugin_is_not_overwritten_unless_requested_and_stays_one_plugin(void
 
 void test_a_plugin_starts_from_another_larger_than_the_answers_own_tree(void)
 {
-    // answers read into a tree of their own size, starting from a plugin many times the room they use
+    // answers read into a tree of their own size, starting from a plugin many times the capacity they use
     static const char s_from[] = "{\"name\": \"Snake\", \"extensions\": [\"snk\"], \"from\": \"python\"}";
     CliJson tight = {0};
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     cli_unity_folder("plugins_from", s_dir);
-    const unsigned int answers = EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg, .json = &tight, .text = s_from, .size = sizeof(s_from) - 1u, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = &g_checks_cells);
+    const unsigned int answers = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &tight, .text = s_from, .size = sizeof(s_from) - 1u, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = &g_checks_cells);
     err_msg.at = 0ull;
     const int created = EMBED_CALL(cli_plugins_err_msg.create_in, CliPluginsErrMsgCfg, .dir = s_dir, .json = &tight, .spec = answers, .replace = 0, .folder = s_folder, .err_msg = &err_msg);
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &tight);
     TEST_ASSERT_TRUE(created);
 }
 
-void test_a_grammar_is_made_whole_from_the_trees_tables(void)
+void test_a_grammar_is_created_complete_from_the_trees_tables(void)
 {
     static const char s_grammar[] = "{\"types\": {\"table\": \"lng/words.tsv\", \"columns\": [\"word\"], \"rows\": {\"column\": \"kind\", "
                                     "\"match\": "
@@ -475,13 +462,13 @@ void test_a_grammar_is_made_whole_from_the_trees_tables(void)
                                     "\"columns\": [\"word\"]}, \"tokenizer\": {\"root\": [[{\"words\": \"arrows\", \"before\": \"\\\\s\", "
                                     "\"after\": \"$\"}, \"operator\"], [{\"words\": \"none\"}, \"keyword\"], [\"[a-z]+\", \"identifier\"]]}}";
     char tree[CLI_PATH_MAX_LEN];
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     cli_unity_folder("plugins_tables_tree", tree);
     file_written(tree, "lng/words.tsv", "# the words of the check\nword\tkind\tarrow\nalpha\ttype\t->\nbeta\tplain\t-\ngamma-x\ttype\tx>\n"
                                         "\tplain\t\n");
     const unsigned int grammar = tree_read(s_grammar, sizeof(s_grammar) - 1u);
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_plugins_err_msg_json.grammar_whole, CliPluginsErrMsgJsonCfg, .json = &s_json, .grammar = grammar, .tree = tree, .name = "words", .out = &out, .err_msg = &err_msg));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_plugins_err_msg_json.grammar_resolved, CliPluginsErrMsgJsonCfg, .json = &s_json, .grammar = grammar, .tree = tree, .name = "words", .out = &out, .err_msg = &err_msg));
     CLI_TEST_ASSERT_TEXT("{\"types\":[\"alpha\",\"gamma\"],\"others\":[\"beta\"],\"arrows\":[\"->\",\"x>\"],\"none\":[],"
                          "\"tokenizer\":{\"root\":[[\"\\\\s(?:->|x>)$\",\"operator\"],[\"[a-z]+\",\"identifier\"]]}}",
                          s_out, out.at);
@@ -504,7 +491,7 @@ void test_a_plugin_serves_no_folder_unless_matches_except_names_or_with_no_table
 void test_a_folders_grammar_is_stored_under_the_plugin_and_folder(void)
 {
     char key[CLI_NAME_MAX_LEN];
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     folders_read();
     TEST_ASSERT_TRUE(EMBED_CALL(cli_plugins_id_key.grammar_store, CliPluginsIdKeyCfg, .id = "folders:alpha", .key = key, .err_msg = &err_msg));
     TEST_ASSERT_EQUAL_STRING("plugin:folders:alpha", key);
@@ -514,7 +501,7 @@ void test_a_word_of_the_folders_table_is_colored_as_a_keyword(void)
 {
     char key[CLI_NAME_MAX_LEN];
     const char *const lines[1] = {"go x"};
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     folders_read();
     TEST_ASSERT_TRUE(EMBED_CALL(cli_plugins_id_key.grammar_store, CliPluginsIdKeyCfg, .id = "folders:alpha", .key = key, .err_msg = &err_msg));

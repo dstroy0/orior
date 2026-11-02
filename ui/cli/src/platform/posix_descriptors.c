@@ -30,7 +30,7 @@ typedef struct
 #endif
 } PosixDescriptorsCtx;
 // a descriptor that came queued, or closed where the queued are full
-EMBED_INLINE void descriptors_put(const PosixDescriptorsCtx *args)
+EMBED_INLINE void descriptors_append(const PosixDescriptorsCtx *args)
 {
     (void)fcntl(args->fd, F_SETFD, FD_CLOEXEC);
     if (args->pending->count < CLI_DESCRIPTORS_PENDING_MAX)
@@ -44,13 +44,13 @@ EMBED_INLINE void descriptors_put(const PosixDescriptorsCtx *args)
 
 long long cli_socket_receive(const CliTransferSocketCfg *args)
 {
-    unsigned long long room = args->room;
+    unsigned long long capacity = args->capacity;
     CliDescriptors *pending = args->pending;
     union {
         struct cmsghdr header;
-        unsigned char room[CMSG_SPACE(sizeof(int) * CLI_DESCRIPTORS_READ)];
+        unsigned char capacity[CMSG_SPACE(sizeof(int) * CLI_DESCRIPTORS_READ)];
     } control;
-    struct iovec piece = {args->buffer, (size_t)room};
+    struct iovec piece = {args->buffer, (size_t)capacity};
     struct msghdr message;
     ssize_t got = -1;
     for (;;)
@@ -58,8 +58,8 @@ long long cli_socket_receive(const CliTransferSocketCfg *args)
         memor.set(&(MemoriaCfg){.dst = &message, .val = 0, .bytes = sizeof(message)});
         message.msg_iov = &piece;
         message.msg_iovlen = 1;
-        message.msg_control = control.room;
-        message.msg_controllen = sizeof(control.room);
+        message.msg_control = control.capacity;
+        message.msg_controllen = sizeof(control.capacity);
 #if defined(MSG_CMSG_CLOEXEC)
         got = recvmsg(args->socket, &message, MSG_CMSG_CLOEXEC);
 #else
@@ -85,13 +85,13 @@ long long cli_socket_receive(const CliTransferSocketCfg *args)
         {
             int fd = -1;
             memor.cpy(&(MemoriaCfg){.dst = &fd, .src = CMSG_DATA(header) + (one * sizeof(int)), .bytes = sizeof(int)});
-            EMBED_CALL(descriptors_put, PosixDescriptorsCtx, .pending = pending, .fd = fd);
+            EMBED_CALL(descriptors_append, PosixDescriptorsCtx, .pending = pending, .fd = fd);
         }
     }
     return (long long)got;
 }
 
-int cli_descriptor_take(const CliTransferSocketCfg *args)
+int cli_descriptor_alloc(const CliTransferSocketCfg *args)
 {
     int fd = -1;
     if (args->pending->count > 0u)
@@ -105,7 +105,7 @@ int cli_descriptor_take(const CliTransferSocketCfg *args)
 
 void cli_descriptors_close(const CliTransferSocketCfg *args)
 {
-    for (int fd = cli_descriptor_take(args); fd >= 0; fd = cli_descriptor_take(args))
+    for (int fd = cli_descriptor_alloc(args); fd >= 0; fd = cli_descriptor_alloc(args))
     {
         close(fd);
     }

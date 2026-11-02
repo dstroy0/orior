@@ -46,7 +46,7 @@ EMBED_INLINE void cli_git_stamp(const WatchReadCtx *args)
     }
 }
 
-int cli_watch_first_reading(const CliWatchCtx *args)
+int cli_watch_first_read_state(const CliWatchCtx *args)
 {
     const char *root = args->root;
     EMBED_CALL(cli_symbols_context.tree_list, CliSymbolsContextCfg, .root = root);

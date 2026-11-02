@@ -4,7 +4,7 @@
 // the values they may be, stored while the script is read under the module's lock
 #ifndef PYTHON_PATHS_INTERNAL_H
 #define PYTHON_PATHS_INTERNAL_H
-typedef struct CliPythonPathsTextTextMostCtx CliPythonPathsTextTextMostCtx;
+typedef struct CliPythonPathsTextTextMaxCtx CliPythonPathsTextTextMaxCtx;
 typedef struct CliPythonPathsSizeCtx CliPythonPathsSizeCtx;
 typedef struct CliPythonPathsExprCtx CliPythonPathsExprCtx;
 typedef struct CliPythonPathsOutCtx CliPythonPathsOutCtx;
@@ -75,25 +75,25 @@ typedef struct
 // One script's reading: its expressions, the items of their lists and the items of lists being read, the letters of
 // the expression being read and where the reading stands, the texts, the values, the lists being joined into one, the
 // names set, the script's path, and what it puts on `sys.path`, as places in the texts. Its lists are one cell taken
-// for the script, each sized to it: `exprs_most` expressions, `items_most` items, stacked items and ranges,
-// `letters_most` letters and `text_most` bytes of texts, and CLI_PY_VALUES values and found
+// for the script, each sized to it: `exprs_max` expressions, `items_max` items, stacked items and ranges,
+// `letters_max` letters and `text_max` bytes of texts, and CLI_PY_VALUES values and found
 typedef struct
 {
     CliExpr *expr;
     unsigned int exprs;
-    unsigned int exprs_most;
+    unsigned int exprs_max;
     unsigned int *item;
     unsigned int items;
-    unsigned int items_most;
+    unsigned int items_max;
     unsigned int *stack;
     unsigned int stacked;
     unsigned int *letter;
     unsigned int letters;
-    unsigned int letters_most;
+    unsigned int letters_max;
     unsigned int at;
     char *text;
     unsigned int used;
-    unsigned int text_most;
+    unsigned int text_max;
     unsigned int *value;
     unsigned int values;
     CliValues *range;
@@ -113,16 +113,16 @@ extern CellOwner g_cli_python_cells;
 // the reading of a script of `size` bytes begun empty in a cell sized to it, the reading before given back: 1, or 0
 // where the cell is refused and the reading contains nothing; and the reading's cell given back once what it found is
 // read (python_paths.c)
-int cli_py_reading_take(const CliPythonPathsSizeCtx *args);
-void cli_py_reading_free(void);
-// the logical lines of a script read into the reading's cell: `text_most` bytes of their text at `text`, and the start
-// and length of `lines_most` lines at `start` and `length`, none read yet (python_paths.c)
-void cli_py_lines_place(const CliPythonPathsTextTextMostCtx *args);
+int cli_py_read_state_alloc(const CliPythonPathsSizeCtx *args);
+void cli_py_read_state_free(void);
+// the logical lines of a script read into the reading's cell: `text_max` bytes of their text at `text`, and the start
+// and length of `lines_max` lines at `start` and `length`, none read yet (python_paths.c)
+void cli_py_lines_position(const CliPythonPathsTextTextMaxCtx *args);
 
 // `length` bytes of `text` put in the texts, a 0 after them: their place, or CLI_PY_NONE where they do not fit; the
 // text at a place; and the expression `length` bytes of `text` denote, read whole: its place, or CLI_PY_NONE where it
 // is not one the reading takes (python_paths_parse.c)
-unsigned int cli_py_text_put(const CliPythonPathsTextCtx *args);
+unsigned int cli_py_text_append(const CliPythonPathsTextCtx *args);
 const char *cli_py_text(const CliPythonPathsAtCtx *args);
 unsigned int cli_py_parse(const CliPythonPathsTextCtx *args);
 
@@ -130,7 +130,7 @@ unsigned int cli_py_parse(const CliPythonPathsTextCtx *args);
 // and attributes writes, as `os.path.join`, into `out`: 1, or 0 where it writes none; what an expression may be, by
 // the names set, in the script; the folders in a folder, each a value a loop over its entries takes; and the folders
 // above a path, itself first, up to the top of its drive (python_paths_eval.c)
-void cli_py_value_put(const CliPythonPathsTextKindCtx *args);
+void cli_py_value_append(const CliPythonPathsTextKindCtx *args);
 CliValues cli_py_values_from(const CliPythonPathsFirstCtx *args);
 int cli_py_dot(const CliPythonPathsExprCtx *args);
 CliValues cli_py_eval(const CliPythonPathsExprCtx *args);
@@ -140,17 +140,17 @@ CliValues cli_py_upward(const CliPythonPathsOutCtx *args);
 void cli_py_parent(const CliPythonPathsOutCtx *args);
 
 // what the script at `file`, `size` bytes of `text`, puts on `sys.path`, as it may write them, read into the found,
-// the reading taken for it and given back with cli_py_reading_free once the found are read; none found where its
+// the reading taken for it and given back with cli_py_read_state_free once the found are read; none found where its
 // cell is refused (python_paths.c)
 void cli_py_paths_in(const CliPythonPathsSizeCtx *args);
 
-struct CliPythonPathsTextTextMostCtx
+struct CliPythonPathsTextTextMaxCtx
 {
     char *text_out;
-    unsigned int text_most;
+    unsigned int text_max;
     unsigned int *start;
     unsigned int *length_u32s;
-    unsigned int lines_most;
+    unsigned int lines_max;
 };
 
 struct CliPythonPathsSizeCtx
@@ -200,32 +200,32 @@ struct CliPythonPathsFirstCtx
 
 typedef struct
 {
-    int (*py_reading_take)(const CliPythonPathsSizeCtx *args);
+    int (*py_read_state_alloc)(const CliPythonPathsSizeCtx *args);
     void (*py_paths_in)(const CliPythonPathsSizeCtx *args);
 } CliPythonPathsSizeNs;
-EMBED_TABLE_LAYOUT(CliPythonPathsSizeNs, py_reading_take, py_paths_in);
+EMBED_TABLE_LAYOUT(CliPythonPathsSizeNs, py_read_state_alloc, py_paths_in);
 EMBED_TABLE_STORAGE CliPythonPathsSizeNs cli_python_paths_size_internal EMBED_UNUSED = {
-    .py_reading_take = cli_py_reading_take,
+    .py_read_state_alloc = cli_py_read_state_alloc,
     .py_paths_in = cli_py_paths_in,
 };
 
 typedef struct
 {
-    void (*py_lines_place)(const CliPythonPathsTextTextMostCtx *args);
-} CliPythonPathsTextTextMostNs;
-EMBED_TABLE_LAYOUT(CliPythonPathsTextTextMostNs, py_lines_place);
-EMBED_TABLE_STORAGE CliPythonPathsTextTextMostNs cli_python_paths_text_text_most_internal EMBED_UNUSED = {
-    .py_lines_place = cli_py_lines_place,
+    void (*py_lines_position)(const CliPythonPathsTextTextMaxCtx *args);
+} CliPythonPathsTextTextMaxNs;
+EMBED_TABLE_LAYOUT(CliPythonPathsTextTextMaxNs, py_lines_position);
+EMBED_TABLE_STORAGE CliPythonPathsTextTextMaxNs cli_python_paths_text_text_max_internal EMBED_UNUSED = {
+    .py_lines_position = cli_py_lines_position,
 };
 
 typedef struct
 {
-    unsigned int (*py_text_put)(const CliPythonPathsTextCtx *args);
+    unsigned int (*py_text_append)(const CliPythonPathsTextCtx *args);
     unsigned int (*py_parse)(const CliPythonPathsTextCtx *args);
 } CliPythonPathsTextNs;
-EMBED_TABLE_LAYOUT(CliPythonPathsTextNs, py_text_put, py_parse);
+EMBED_TABLE_LAYOUT(CliPythonPathsTextNs, py_text_append, py_parse);
 EMBED_TABLE_STORAGE CliPythonPathsTextNs cli_python_paths_text_internal EMBED_UNUSED = {
-    .py_text_put = cli_py_text_put,
+    .py_text_append = cli_py_text_append,
     .py_parse = cli_py_parse,
 };
 
@@ -240,11 +240,11 @@ EMBED_TABLE_STORAGE CliPythonPathsAtNs cli_python_paths_at_internal EMBED_UNUSED
 
 typedef struct
 {
-    void (*py_value_put)(const CliPythonPathsTextKindCtx *args);
+    void (*py_value_append)(const CliPythonPathsTextKindCtx *args);
 } CliPythonPathsTextKindNs;
-EMBED_TABLE_LAYOUT(CliPythonPathsTextKindNs, py_value_put);
+EMBED_TABLE_LAYOUT(CliPythonPathsTextKindNs, py_value_append);
 EMBED_TABLE_STORAGE CliPythonPathsTextKindNs cli_python_paths_text_kind_internal EMBED_UNUSED = {
-    .py_value_put = cli_py_value_put,
+    .py_value_append = cli_py_value_append,
 };
 
 typedef struct

@@ -17,7 +17,7 @@ typedef struct
     const char *value;
     unsigned long long length;
     char *out;
-    unsigned long long room;
+    unsigned long long capacity;
     const char *text;
     unsigned int kind;
     const char *name;
@@ -28,7 +28,7 @@ typedef struct
     char *path_out;
 } CargoTargetsCtx;
 // a TOML value as text: a string's contents in either quotes, or the bare word before a comment, into `out`, which
-// sized for `room`
+// sized for `capacity`
 EMBED_INLINE void found_toml_value(const CargoTargetsCtx *args)
 {
     const char *value = args->value;
@@ -44,7 +44,7 @@ EMBED_INLINE void found_toml_value(const CargoTargetsCtx *args)
     {
         length -= 1ull;
     }
-    VerbaLinea line = {args->out, args->room, 0ull};
+    VerbaLinea line = {args->out, args->capacity, 0ull};
     if ((length > 0ull) && ((value[0] == '"') || (value[0] == '\'')))
     {
         const char *const closed = memor.chr(&(MemoriaCfg){.src = value + 1, .val = value[0], .bytes = length - 1ull});
@@ -64,7 +64,7 @@ EMBED_INLINE void found_toml_value(const CargoTargetsCtx *args)
     mmgr_line_finish(&line);
 }
 
-// `length` bytes trimmed of ASCII whitespace into `out`, sized for `room`
+// `length` bytes trimmed of ASCII whitespace into `out`, sized for `capacity`
 EMBED_INLINE void found_trim(const CargoTargetsCtx *args)
 {
     const char *text = args->text;
@@ -80,7 +80,7 @@ EMBED_INLINE void found_trim(const CargoTargetsCtx *args)
     {
         length -= 1ull;
     }
-    VerbaLinea line = {args->out, args->room, 0ull};
+    VerbaLinea line = {args->out, args->capacity, 0ull};
     mmgr_line_put_n(&line, text, length);
     mmgr_line_finish(&line);
 }
@@ -145,7 +145,7 @@ int cli_cargo_package_name(const CliCargoTestsCtx *args)
         {
             EMBED_CALL(found_toml_value, CargoTargetsCtx, .value = equal + 1,
                        .length = length - (unsigned long long)(equal - line) - 1ull, .out = args->name,
-                       .room = CLI_NAME_MAX_LEN);
+                       .capacity = CLI_NAME_MAX_LEN);
             return 1;
         }
     }
@@ -154,23 +154,23 @@ int cli_cargo_package_name(const CliCargoTestsCtx *args)
 
 void cli_cargo_join(const CliCargoTestsACtx *args)
 {
-    VerbaLinea line = {args->out, args->room, 0ull};
+    VerbaLinea line = {args->out, args->capacity, 0ull};
     mmgr_line_put(&line, args->a);
     mmgr_line_put(&line, ((args->a[0] != '\0') && (args->b[0] != '\0')) ? args->between : "");
     mmgr_line_put(&line, args->b);
     mmgr_line_finish(&line);
 }
 
-// The targets of one package and what Cargo finds on its own in a folder of it, each list a cell of its room at their
-// most
+// The targets of one package and what Cargo finds on its own in a folder of it, each list a cell of its capacity at
+// their most
 typedef struct
 {
     CliCargoFirst *firsts;
     unsigned int count;
-    unsigned int room;
+    unsigned int capacity;
     CliCargoFirst *entries;
     unsigned int entry_count;
-    unsigned int entry_room;
+    unsigned int entry_capacity;
     const char *folder;
     const char *dir;
 } CliCargoTargets;
@@ -182,14 +182,14 @@ void cli_cargo_firsts_free(void)
     g_cli_cells->persistent_buf_release(s_targets.firsts, &g_cli_cargo_cells);
     s_targets.firsts = NULL;
     s_targets.count = 0u;
-    s_targets.room = 0u;
+    s_targets.capacity = 0u;
 }
 
 // a target put with its first file
 EMBED_INLINE void found_first(const CargoTargetsCtx *args)
 {
     unsigned int kind = args->kind;
-    if (s_targets.count < s_targets.room)
+    if (s_targets.count < s_targets.capacity)
     {
         CliCargoFirst *const first = &s_targets.firsts[s_targets.count];
         first->kind = kind;
@@ -206,7 +206,7 @@ EMBED_INLINE void found_first(const CargoTargetsCtx *args)
 }
 
 // whether a target's first file is taken already by one the manifest lists, from `from` to `to`
-EMBED_INLINE int found_take(const CargoTargetsCtx *args)
+EMBED_INLINE int found_alloc(const CargoTargetsCtx *args)
 {
     for (unsigned int at = args->from; at < args->to; at += 1u)
     {
@@ -221,7 +221,7 @@ EMBED_INLINE int found_take(const CargoTargetsCtx *args)
 // an entry of a folder Cargo finds targets in: a file by its stem, or a folder of its own with a main.rs
 static void found_entry(const CliEachNameIsFolderCfg *args)
 {
-    if (s_targets.entry_count == s_targets.entry_room)
+    if (s_targets.entry_count == s_targets.entry_capacity)
     {
         return;
     }
@@ -235,16 +235,16 @@ static void found_entry(const CliEachNameIsFolderCfg *args)
         mmgr_line_put_n(&line, args->name, length - 3u);
         mmgr_line_finish(&line);
         EMBED_CALL(cli_cargo_tests_a_internal.cargo_join, CliCargoTestsACtx, .a = s_targets.dir, .b = args->name,
-                   .between = "/", .out = entry->path, .room = sizeof(entry->path));
+                   .between = "/", .out = entry->path, .capacity = sizeof(entry->path));
         s_targets.entry_count += 1u;
         return;
     }
     char main_file[CLI_PATH_MAX_LEN];
     char inside[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_cargo_tests_a_internal.cargo_join, CliCargoTestsACtx, .a = s_targets.dir, .b = args->name,
-               .between = "/", .out = path, .room = sizeof(path));
+               .between = "/", .out = path, .capacity = sizeof(path));
     EMBED_CALL(cli_cargo_tests_a_internal.cargo_join, CliCargoTestsACtx, .a = path, .b = "main.rs", .between = "/",
-               .out = inside, .room = sizeof(inside));
+               .out = inside, .capacity = sizeof(inside));
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_targets.folder, .relative = inside, .joined = main_file);
     if (args->is_folder && EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = main_file))
     {
@@ -284,7 +284,7 @@ EMBED_INLINE void found_auto(const CargoTargetsCtx *args)
     qsort(s_targets.entries, s_targets.entry_count, sizeof(s_targets.entries[0]), found_entry_order);
     for (unsigned int at = 0u; at < s_targets.entry_count; at += 1u)
     {
-        if (!EMBED_CALL(found_take, CargoTargetsCtx, .from = args->from, .to = args->to,
+        if (!EMBED_CALL(found_alloc, CargoTargetsCtx, .from = args->from, .to = args->to,
                         .path = s_targets.entries[at].path))
         {
             EMBED_CALL(found_first, CargoTargetsCtx, .kind = args->kind, .name = s_targets.entries[at].name,
@@ -318,7 +318,7 @@ typedef struct
     char path[CLI_PATH_MAX_LEN];
     int named;
     int pathed;
-} CliCargoListed;
+} CliCargoListing;
 
 const CliCargoFirst *cli_cargo_targets(const CliCargoTestsTextSizeCtx *args)
 {
@@ -328,27 +328,27 @@ const CliCargoFirst *cli_cargo_targets(const CliCargoTestsTextSizeCtx *args)
     s_targets.folder = folder;
     s_targets.firsts = g_cli_cells->persistent_buf_alloc((unsigned long long)CLI_CARGO_TARGETS * sizeof(CliCargoFirst),
                                                          &g_cli_cargo_cells);
-    s_targets.room = (s_targets.firsts != NULL) ? CLI_CARGO_TARGETS : 0u;
+    s_targets.capacity = (s_targets.firsts != NULL) ? CLI_CARGO_TARGETS : 0u;
     // the folder's entries and the tables the manifest lists, given back as the targets are found
     const unsigned long long entry_bytes = (unsigned long long)CLI_CARGO_ENTRIES * sizeof(CliCargoFirst);
     char *const work = g_cli_cells->temporary_buf_alloc(
-        entry_bytes + ((unsigned long long)CLI_CARGO_TARGETS * sizeof(CliCargoListed)), &g_cli_cargo_cells);
+        entry_bytes + ((unsigned long long)CLI_CARGO_TARGETS * sizeof(CliCargoListing)), &g_cli_cargo_cells);
     s_targets.entries = NULL;
-    s_targets.entry_room = 0u;
-    CliCargoListed *tables = NULL;
-    unsigned int listed_room = 0u;
+    s_targets.entry_capacity = 0u;
+    CliCargoListing *tables = NULL;
+    unsigned int listing_capacity = 0u;
     if (work != NULL)
     {
         s_targets.entries = (CliCargoFirst *)(void *)work;
-        s_targets.entry_room = CLI_CARGO_ENTRIES;
-        tables = (CliCargoListed *)(void *)(work + entry_bytes);
-        listed_room = CLI_CARGO_TARGETS;
+        s_targets.entry_capacity = CLI_CARGO_ENTRIES;
+        tables = (CliCargoListing *)(void *)(work + entry_bytes);
+        listing_capacity = CLI_CARGO_TARGETS;
     }
     char table[CLI_NAME_MAX_LEN] = "";
     int autobins = 1;
     int autotests = 1;
     char lib[CLI_PATH_MAX_LEN] = "src/lib.rs";
-    unsigned int listed = 0u;
+    unsigned int list_entries = 0u;
     unsigned long long at = 0ull;
     const char *line = NULL;
     unsigned long long length = 0ull;
@@ -366,15 +366,15 @@ const CliCargoFirst *cli_cargo_targets(const CliCargoTestsTextSizeCtx *args)
             const unsigned long long end =
                 ((closed != NULL) && (closed < line + length)) ? (unsigned long long)(closed - line) : length;
             EMBED_CALL(found_trim, CargoTargetsCtx, .text = line + open, .length = end - open, .out = table,
-                       .room = sizeof(table));
+                       .capacity = sizeof(table));
             const int lists =
                 doubled && ((cellul.eq(&(CatenaFinitaCfg){.src = table, .other = "bin", .cap = CLI_CELLS_POOL})) ||
                             (cellul.eq(&(CatenaFinitaCfg){.src = table, .other = "test", .cap = CLI_CELLS_POOL})));
-            if (lists && (listed < listed_room))
+            if (lists && (list_entries < listing_capacity))
             {
-                tables[listed] = (CliCargoListed){
+                tables[list_entries] = (CliCargoListing){
                     cellul.eq(&(CatenaFinitaCfg){.src = table, .other = "bin", .cap = CLI_CELLS_POOL}), "", "", 0, 0};
-                listed += 1u;
+                list_entries += 1u;
             }
             continue;
         }
@@ -386,9 +386,10 @@ const CliCargoFirst *cli_cargo_targets(const CliCargoTestsTextSizeCtx *args)
         char key[64];
         char value[CLI_PATH_MAX_LEN];
         EMBED_CALL(found_trim, CargoTargetsCtx, .text = line, .length = (unsigned long long)(equal - line), .out = key,
-                   .room = sizeof(key));
+                   .capacity = sizeof(key));
         EMBED_CALL(found_toml_value, CargoTargetsCtx, .value = equal + 1,
-                   .length = length - (unsigned long long)(equal - line) - 1ull, .out = value, .room = sizeof(value));
+                   .length = length - (unsigned long long)(equal - line) - 1ull, .out = value,
+                   .capacity = sizeof(value));
         const int listing = (cellul.eq(&(CatenaFinitaCfg){.src = table, .other = "bin", .cap = CLI_CELLS_POOL})) ||
                             (cellul.eq(&(CatenaFinitaCfg){.src = table, .other = "test", .cap = CLI_CELLS_POOL}));
         if ((cellul.eq(&(CatenaFinitaCfg){.src = table, .other = "package", .cap = CLI_CELLS_POOL})) &&
@@ -409,21 +410,21 @@ const CliCargoFirst *cli_cargo_targets(const CliCargoTestsTextSizeCtx *args)
                                     .bytes = cellul.len(&(CatenaFinitaCfg){.src = value, .cap = CLI_CELLS_POOL}) + 1u});
             EMBED_CALL(found_clean, CargoTargetsCtx, .path_out = lib);
         }
-        else if (listing && (listed > 0u) &&
+        else if (listing && (list_entries > 0u) &&
                  (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "name", .cap = CLI_CELLS_POOL})))
         {
-            memor.cpy(&(MemoriaCfg){.dst = tables[listed - 1u].name,
+            memor.cpy(&(MemoriaCfg){.dst = tables[list_entries - 1u].name,
                                     .src = value,
                                     .bytes = cellul.len(&(CatenaFinitaCfg){.src = value, .cap = CLI_CELLS_POOL}) + 1u});
-            tables[listed - 1u].named = 1;
+            tables[list_entries - 1u].named = 1;
         }
-        else if (listing && (listed > 0u) &&
+        else if (listing && (list_entries > 0u) &&
                  (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "path", .cap = CLI_CELLS_POOL})))
         {
-            memor.cpy(&(MemoriaCfg){.dst = tables[listed - 1u].path,
+            memor.cpy(&(MemoriaCfg){.dst = tables[list_entries - 1u].path,
                                     .src = value,
                                     .bytes = cellul.len(&(CatenaFinitaCfg){.src = value, .cap = CLI_CELLS_POOL}) + 1u});
-            tables[listed - 1u].pathed = 1;
+            tables[list_entries - 1u].pathed = 1;
         }
     }
     char lib_full[CLI_PATH_MAX_LEN];
@@ -432,10 +433,10 @@ const CliCargoFirst *cli_cargo_targets(const CliCargoTestsTextSizeCtx *args)
     {
         EMBED_CALL(found_first, CargoTargetsCtx, .kind = CLI_CARGO_LIB, .name = "", .path = lib);
     }
-    const unsigned int listed_first = s_targets.count;
-    for (unsigned int one = 0u; one < listed; one += 1u)
+    const unsigned int listing_first = s_targets.count;
+    for (unsigned int one = 0u; one < list_entries; one += 1u)
     {
-        CliCargoListed *const entry = &tables[one];
+        CliCargoListing *const entry = &tables[one];
         if (!entry->named)
         {
             continue;
@@ -462,28 +463,28 @@ const CliCargoFirst *cli_cargo_targets(const CliCargoTestsTextSizeCtx *args)
         EMBED_CALL(found_first, CargoTargetsCtx, .kind = entry->bin ? CLI_CARGO_BIN : CLI_CARGO_TEST,
                    .name = entry->name, .path = path);
     }
-    const unsigned int taken = s_targets.count;
+    const unsigned int reserved = s_targets.count;
     char main_file[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = "src/main.rs", .joined = main_file);
     if (autobins && EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = main_file) &&
-        !EMBED_CALL(found_take, CargoTargetsCtx, .from = listed_first, .to = taken, .path = "src/main.rs"))
+        !EMBED_CALL(found_alloc, CargoTargetsCtx, .from = listing_first, .to = reserved, .path = "src/main.rs"))
     {
         EMBED_CALL(found_first, CargoTargetsCtx, .kind = CLI_CARGO_BIN, .name = args->package, .path = "src/main.rs");
     }
     if (autobins)
     {
-        EMBED_CALL(found_auto, CargoTargetsCtx, .dir = "src/bin", .kind = CLI_CARGO_BIN, .from = listed_first,
-                   .to = taken);
+        EMBED_CALL(found_auto, CargoTargetsCtx, .dir = "src/bin", .kind = CLI_CARGO_BIN, .from = listing_first,
+                   .to = reserved);
     }
     if (autotests)
     {
-        EMBED_CALL(found_auto, CargoTargetsCtx, .dir = "tests", .kind = CLI_CARGO_TEST, .from = listed_first,
-                   .to = taken);
+        EMBED_CALL(found_auto, CargoTargetsCtx, .dir = "tests", .kind = CLI_CARGO_TEST, .from = listing_first,
+                   .to = reserved);
     }
     g_cli_cells->persistent_buf_release(work, &g_cli_cargo_cells);
     s_targets.entries = NULL;
     s_targets.entry_count = 0u;
-    s_targets.entry_room = 0u;
+    s_targets.entry_capacity = 0u;
     *count = s_targets.count;
     return s_targets.firsts;
 }

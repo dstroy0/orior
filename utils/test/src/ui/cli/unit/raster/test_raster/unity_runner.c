@@ -13,7 +13,7 @@ extern void test_one_line_draws_one_page(void);
 extern void test_a4_at_150_dpi_is_1240_by_1754(void);
 extern void test_the_text_draws_ink(void);
 extern void test_the_red_run_draws_red(void);
-extern void test_the_text_is_within_the_margins_near_the_top(void);
+extern void test_the_text_is_within_the_margins_adjacent_the_top(void);
 extern void test_the_pwg_rasters_header_names_its_kind_and_the_pages_width(void);
 extern void test_the_pwg_raster_contains_the_page(void);
 extern void test_apples_raster_names_its_kind(void);
@@ -87,7 +87,7 @@ int main(void)
   run_test(test_a4_at_150_dpi_is_1240_by_1754, "test_a4_at_150_dpi_is_1240_by_1754", 169);
   run_test(test_the_text_draws_ink, "test_the_text_draws_ink", 176);
   run_test(test_the_red_run_draws_red, "test_the_red_run_draws_red", 187);
-  run_test(test_the_text_is_within_the_margins_near_the_top, "test_the_text_is_within_the_margins_near_the_top", 198);
+  run_test(test_the_text_is_within_the_margins_adjacent_the_top, "test_the_text_is_within_the_margins_adjacent_the_top", 198);
   run_test(test_the_pwg_rasters_header_names_its_kind_and_the_pages_width, "test_the_pwg_rasters_header_names_its_kind_and_the_pages_width", 215);
   run_test(test_the_pwg_raster_contains_the_page, "test_the_pwg_raster_contains_the_page", 227);
   run_test(test_apples_raster_names_its_kind, "test_apples_raster_names_its_kind", 237);

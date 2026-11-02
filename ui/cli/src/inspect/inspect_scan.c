@@ -12,12 +12,14 @@ CliInspectSpan *g_cli_inspect_comment;
 unsigned int g_cli_inspect_comments;
 int g_cli_inspect_over;
 
-void cli_inspect_scan_layout(const CliInspectCarveCtx *args)
+void cli_inspect_scan_layout(const CliInspectPartitionCtx *args)
 {
-    g_cli_inspect_tok = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
-                                   .bytes = (unsigned long long)CLI_INSPECT_TOKENS * sizeof(CliInspectTok));
-    g_cli_inspect_comment = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
-                                       .bytes = (unsigned long long)CLI_INSPECT_COMMENTS * sizeof(CliInspectSpan));
+    g_cli_inspect_tok =
+        EMBED_CALL(cli_inspect_partition_internal.partition, CliInspectPartitionCtx, .partition = args->partition,
+                   .bytes = (unsigned long long)CLI_INSPECT_TOKENS * sizeof(CliInspectTok));
+    g_cli_inspect_comment =
+        EMBED_CALL(cli_inspect_partition_internal.partition, CliInspectPartitionCtx, .partition = args->partition,
+                   .bytes = (unsigned long long)CLI_INSPECT_COMMENTS * sizeof(CliInspectSpan));
 }
 
 void cli_inspect_scan_begin(const CliInspectSizeScanCtx *args)
@@ -30,58 +32,59 @@ typedef struct
 {
     const CliInspectScan *scan;
     unsigned long long pos;
-    unsigned long long *taken;
+    unsigned long long *reserved;
     const CliInspectSet *set;
     const char *at;
     unsigned int size;
 } InspectScanCtx;
-// the letter at `pos` of the scan's text, its bytes into `taken`
+// the letter at `pos` of the scan's text, its bytes into `reserved`
 EMBED_INLINE unsigned int scan_letter(const InspectScanCtx *args)
 {
-    unsigned long long *taken = args->taken;
+    unsigned long long *reserved = args->reserved;
     if (args->pos >= args->scan->size)
     {
-        *taken = 0ull;
+        *reserved = 0ull;
         return CLI_INSPECT_END;
     }
     unsigned int letter = 0u;
-    *taken = EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
-                        .text_bytes = (const unsigned char *)args->scan->src, .length = args->scan->size,
-                        .at = args->pos, .letter = &letter);
+    *reserved = EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+                           .text_bytes = (const unsigned char *)args->scan->src, .length = args->scan->size,
+                           .at = args->pos, .letter = &letter);
     return letter;
 }
 
 unsigned int cli_inspect_peek(const CliInspectScanAheadCtx *args)
 {
-    unsigned long long taken = 0ull;
-    return EMBED_CALL(scan_letter, InspectScanCtx, .scan = args->scan, .pos = args->scan->pos, .taken = &taken);
+    unsigned long long reserved = 0ull;
+    return EMBED_CALL(scan_letter, InspectScanCtx, .scan = args->scan, .pos = args->scan->pos, .reserved = &reserved);
 }
 
 unsigned int cli_inspect_peek_at(const CliInspectScanAheadCtx *args)
 {
     unsigned long long pos = args->scan->pos;
-    unsigned long long taken = 0ull;
+    unsigned long long reserved = 0ull;
     for (unsigned int at = 0u; at < args->ahead; at += 1u)
     {
-        if (EMBED_CALL(scan_letter, InspectScanCtx, .scan = args->scan, .pos = pos, .taken = &taken) == CLI_INSPECT_END)
+        if (EMBED_CALL(scan_letter, InspectScanCtx, .scan = args->scan, .pos = pos, .reserved = &reserved) ==
+            CLI_INSPECT_END)
         {
             return CLI_INSPECT_END;
         }
-        pos += taken;
+        pos += reserved;
     }
-    return EMBED_CALL(scan_letter, InspectScanCtx, .scan = args->scan, .pos = pos, .taken = &taken);
+    return EMBED_CALL(scan_letter, InspectScanCtx, .scan = args->scan, .pos = pos, .reserved = &reserved);
 }
 
 unsigned int cli_inspect_bump(const CliInspectSizeScanCtx *args)
 {
-    unsigned long long taken = 0ull;
-    const unsigned int letter =
-        EMBED_CALL(scan_letter, InspectScanCtx, .scan = args->scan_out, .pos = args->scan_out->pos, .taken = &taken);
+    unsigned long long reserved = 0ull;
+    const unsigned int letter = EMBED_CALL(scan_letter, InspectScanCtx, .scan = args->scan_out,
+                                           .pos = args->scan_out->pos, .reserved = &reserved);
     if (letter == CLI_INSPECT_END)
     {
         return letter;
     }
-    args->scan_out->pos += taken;
+    args->scan_out->pos += reserved;
     if (letter == '\n')
     {
         args->scan_out->line += 1u;
@@ -94,14 +97,15 @@ unsigned int cli_inspect_bump(const CliInspectSizeScanCtx *args)
     return letter;
 }
 
-CliInspectPlace cli_inspect_place(const CliInspectScanCtx *args)
+CliInspectPosition cli_inspect_position(const CliInspectScanCtx *args)
 {
-    return (CliInspectPlace){args->scan->line, args->scan->col};
+    return (CliInspectPosition){args->scan->line, args->scan->col};
 }
 
 void cli_inspect_skip_line(const CliInspectSizeScanCtx *args)
 {
-    const CliInspectPlace from = EMBED_CALL(cli_inspect_scan_internal.place, CliInspectScanCtx, .scan = args->scan_out);
+    const CliInspectPosition from =
+        EMBED_CALL(cli_inspect_scan_internal.place, CliInspectScanCtx, .scan = args->scan_out);
     unsigned int letter =
         EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = args->scan_out);
     while ((letter != CLI_INSPECT_END) && (letter != '\n') && (letter != '\r'))
@@ -109,11 +113,11 @@ void cli_inspect_skip_line(const CliInspectSizeScanCtx *args)
         (void)cli_inspect_size_scan_internal.bump(args);
         letter = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = args->scan_out);
     }
-    EMBED_CALL(cli_inspect_from_to_internal.comment_put, CliInspectFromToCtx, .from = from,
+    EMBED_CALL(cli_inspect_from_to_internal.comment_append, CliInspectFromToCtx, .from = from,
                .to = EMBED_CALL(cli_inspect_scan_internal.place, CliInspectScanCtx, .scan = args->scan_out));
 }
 
-void cli_inspect_tok_put(const CliInspectScanCtx *args)
+void cli_inspect_tok_append(const CliInspectScanCtx *args)
 {
     if (g_cli_inspect_toks == CLI_INSPECT_TOKENS)
     {
@@ -127,7 +131,7 @@ void cli_inspect_tok_put(const CliInspectScanCtx *args)
     g_cli_inspect_toks += 1u;
 }
 
-void cli_inspect_comment_put(const CliInspectFromToCtx *args)
+void cli_inspect_comment_append(const CliInspectFromToCtx *args)
 {
     if (g_cli_inspect_comments == CLI_INSPECT_COMMENTS)
     {
@@ -180,21 +184,24 @@ EMBED_INLINE unsigned int set_entry(const InspectScanCtx *args)
     return hash & (args->set->buckets - 1u);
 }
 
-void cli_inspect_set_layout(const CliInspectCarveSetCtx *args)
+void cli_inspect_set_layout(const CliInspectPartitionSetCtx *args)
 {
     unsigned int buckets = 16u;
-    while ((buckets / 2u) < g_cli_inspect_most.names)
+    while ((buckets / 2u) < g_cli_inspect_max.names)
     {
         buckets <<= 1u;
     }
     args->set->buckets = buckets;
     args->set->count = 0u;
-    args->set->at = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
-                               .bytes = (unsigned long long)buckets * sizeof(const char *));
-    args->set->size = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
-                                 .bytes = (unsigned long long)buckets * sizeof(unsigned int));
-    args->set->taken = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
-                                  .bytes = (unsigned long long)(buckets / 2u) * sizeof(unsigned int));
+    args->set->at =
+        EMBED_CALL(cli_inspect_partition_internal.partition, CliInspectPartitionCtx, .partition = args->partition,
+                   .bytes = (unsigned long long)buckets * sizeof(const char *));
+    args->set->size =
+        EMBED_CALL(cli_inspect_partition_internal.partition, CliInspectPartitionCtx, .partition = args->partition,
+                   .bytes = (unsigned long long)buckets * sizeof(unsigned int));
+    args->set->reserved =
+        EMBED_CALL(cli_inspect_partition_internal.partition, CliInspectPartitionCtx, .partition = args->partition,
+                   .bytes = (unsigned long long)(buckets / 2u) * sizeof(unsigned int));
     if (args->set->at != NULL)
     {
         memor.set(
@@ -202,16 +209,16 @@ void cli_inspect_set_layout(const CliInspectCarveSetCtx *args)
     }
 }
 
-void cli_inspect_set_clear(const CliInspectCarveSetCtx *args)
+void cli_inspect_set_clear(const CliInspectPartitionSetCtx *args)
 {
     for (unsigned int index = 0u; index < args->set->count; index += 1u)
     {
-        args->set->at[args->set->taken[index]] = NULL;
+        args->set->at[args->set->reserved[index]] = NULL;
     }
     args->set->count = 0u;
 }
 
-void cli_inspect_set_put(const CliInspectSetCtx *args)
+void cli_inspect_set_append(const CliInspectSetCtx *args)
 {
     unsigned int entry =
         EMBED_CALL(set_entry, InspectScanCtx, .set = args->set, .at = args->at, .size = args->size_u32);
@@ -230,7 +237,7 @@ void cli_inspect_set_put(const CliInspectSetCtx *args)
     }
     args->set->at[entry] = args->at;
     args->set->size[entry] = args->size_u32;
-    args->set->taken[args->set->count] = entry;
+    args->set->reserved[args->set->count] = entry;
     args->set->count += 1u;
 }
 

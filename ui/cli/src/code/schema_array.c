@@ -23,7 +23,7 @@ typedef struct
 } SchemaArrayCtx;
 
 // a finding over an array's opening bracket: `before`, its count, `middle`, the bound and `after`
-EMBED_INLINE void array_finding_put(const SchemaArrayCtx *args)
+EMBED_INLINE void array_finding_append(const SchemaArrayCtx *args)
 {
     unsigned long long from = args->from;
     const char *code = args->code;
@@ -138,7 +138,7 @@ void cli_schema_array_check(const CliSchemaBaseMapCtx *args)
                    .value_u64s = &bound) &&
         (count < bound))
     {
-        EMBED_CALL(array_finding_put, SchemaArrayCtx, .check = args->check, .from = from,
+        EMBED_CALL(array_finding_append, SchemaArrayCtx, .check = args->check, .from = from,
                    .before = "This array contains ", .count = count, .middle = ", fewer than the ", .bound = bound,
                    .after = " items the schema requires", .code = "schema-items");
     }
@@ -148,7 +148,7 @@ void cli_schema_array_check(const CliSchemaBaseMapCtx *args)
                    .value_u64s = &bound) &&
         (count > bound))
     {
-        EMBED_CALL(array_finding_put, SchemaArrayCtx, .check = args->check, .from = from,
+        EMBED_CALL(array_finding_append, SchemaArrayCtx, .check = args->check, .from = from,
                    .before = "This array contains ", .count = count, .middle = ", more than the ", .bound = bound,
                    .after = " items the schema allows", .code = "schema-items");
     }
@@ -174,16 +174,16 @@ void cli_schema_array_check(const CliSchemaBaseMapCtx *args)
                        ? 1u
                        : 0u;
     }
-    unsigned long long least = 1ull;
+    unsigned long long min = 1ull;
     (void)EMBED_CALL(cli_schema_json_node_value_u_64s_internal.u64, CliSchemaJsonNodeValueU64sCtx, .json = json,
                      .node = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json, .map = args->map,
                                         .name = "minContains"),
-                     .value_u64s = &least);
-    if (matched < least)
+                     .value_u64s = &min);
+    if (matched < min)
     {
-        EMBED_CALL(array_finding_put, SchemaArrayCtx, .check = args->check, .from = from,
+        EMBED_CALL(array_finding_append, SchemaArrayCtx, .check = args->check, .from = from,
                    .before = "This array contains ", .count = matched,
-                   .middle = " of the items the schema's `contains` requires, fewer than ", .bound = least, .after = "",
+                   .middle = " of the items the schema's `contains` requires, fewer than ", .bound = min, .after = "",
                    .code = "schema-contains");
     }
     if (EMBED_CALL(cli_schema_json_node_value_u_64s_internal.u64, CliSchemaJsonNodeValueU64sCtx, .json = json,
@@ -192,7 +192,7 @@ void cli_schema_array_check(const CliSchemaBaseMapCtx *args)
                    .value_u64s = &bound) &&
         (matched > bound))
     {
-        EMBED_CALL(array_finding_put, SchemaArrayCtx, .check = args->check, .from = from,
+        EMBED_CALL(array_finding_append, SchemaArrayCtx, .check = args->check, .from = from,
                    .before = "This array contains ", .count = matched,
                    .middle = " of the items the schema's `contains` requires, more than ", .bound = bound, .after = "",
                    .code = "schema-contains");

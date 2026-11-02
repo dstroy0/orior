@@ -5,12 +5,12 @@
 #include "ui/cli/src/machine/net.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
-// the host parsed from `address` is `wanted`
-static void assert_host(const char *wanted, const char *address)
+// the host parsed from `address` is `required`
+static void assert_host(const char *required, const char *address)
 {
     char host[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_net_address_host.host_get, CliNetAddressHostCfg, .address = address, .host = host);
-    TEST_ASSERT_EQUAL_STRING(wanted, host);
+    TEST_ASSERT_EQUAL_STRING(required, host);
 }
 
 void setUp(void)

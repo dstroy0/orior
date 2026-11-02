@@ -34,9 +34,9 @@ EMBED_INLINE int jobs_choose(const QueryJobsCtx *args)
                       .path = path);
 }
 
-// the program of `role` as the toolchains give it, else as the PATH does, into `path`, sized for `room`: 1, or 0
+// the program of `role` as the toolchains give it, else as the PATH does, into `path`, sized for `capacity`: 1, or 0
 // with why it is not found given
-static int jobs_program(const QueryEachRolePathRoomErrMsgCfg *args)
+static int jobs_program(const QueryEachRolePathCapacityErrMsgCfg *args)
 {
     QueryRole role = args->role;
     char *path = args->path;
@@ -72,7 +72,7 @@ static int jobs_program(const QueryEachRolePathRoomErrMsgCfg *args)
     default:
         break;
     }
-    if (chosen && (cellul.len(&(CatenaFinitaCfg){.src = found, .cap = CLI_CELLS_POOL}) < args->room))
+    if (chosen && (cellul.len(&(CatenaFinitaCfg){.src = found, .cap = CLI_CELLS_POOL}) < args->capacity))
     {
         memor.cpy(&(MemoriaCfg){.dst = path,
                                 .src = found,
@@ -82,8 +82,8 @@ static int jobs_program(const QueryEachRolePathRoomErrMsgCfg *args)
     const QueryPrograms on_path = query_on_path();
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea none = {why, sizeof(why), 0ull};
-    if (EMBED_CALL(on_path.program, QueryEachRolePathRoomErrMsgCfg, .context = on_path.context, .role = role,
-                   .path = path, .room = args->room, .err_msg = &none))
+    if (EMBED_CALL(on_path.program, QueryEachRolePathCapacityErrMsgCfg, .context = on_path.context, .role = role,
+                   .path = path, .capacity = args->capacity, .err_msg = &none))
     {
         return 1;
     }

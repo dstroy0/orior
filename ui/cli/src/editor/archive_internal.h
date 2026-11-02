@@ -12,7 +12,7 @@ typedef struct CliArchiveSizeCtx CliArchiveSizeCtx;
 typedef struct CliArchiveErrMsgCtx CliArchiveErrMsgCtx;
 typedef struct CliArchiveBytesSizeAtCtx CliArchiveBytesSizeAtCtx;
 typedef struct CliArchiveOutCtx CliArchiveOutCtx;
-typedef struct CliArchiveErrMsgRoomCtx CliArchiveErrMsgRoomCtx;
+typedef struct CliArchiveErrMsgBufferCtx CliArchiveErrMsgBufferCtx;
 typedef struct CliArchiveErrMsgPartsCtx CliArchiveErrMsgPartsCtx;
 typedef struct CliArchiveMembersCtx CliArchiveMembersCtx;
 typedef struct CliArchiveCtx CliArchiveCtx;
@@ -33,37 +33,37 @@ extern const unsigned int g_cli_distance_extra[30];
 // put after the members (archive.c)
 int cli_archive_number(const CliArchiveBytesSizeAtCtx *args);
 unsigned int cli_archive_name_store(const CliArchiveMembersCtx *args);
-void cli_archive_member_put(const CliArchiveSizeCtx *args);
+void cli_archive_member_append(const CliArchiveSizeCtx *args);
 
-// a zip's members; a zip member's bytes into `out`, sized for `room`, their count into `out_size`; and the zip with
-// the member at `target` set to `size` bytes of `data`, deflated where that is smaller, into `out`, sized for `room`,
-// its count into `out_size`. Each 1, or 0 with why given (archive_zip.c)
+// a zip's members; a zip member's bytes into `out`, sized for `capacity`, their count into `out_size`; and the zip with
+// the member at `target` set to `size` bytes of `data`, deflated where that is smaller, into `out`, sized for
+// `capacity`, its count into `out_size`. Each 1, or 0 with why given (archive_zip.c)
 int cli_zip_members(const CliArchiveBytesSizeErrMsgCtx *args);
 int cli_zip_data(const CliArchiveBytesSizeErrMsgMembersCtx *args);
 int cli_zip_with(const CliArchiveBytesSizeCtx *args);
 
 // a tar's members; and the tar with the member at `target` set to `size` bytes of `data`, into `out`, sized for
-// `room`, its count into `out_size`. Each 1, or 0 with why given (archive_tar.c)
+// `capacity`, its count into `out_size`. Each 1, or 0 with why given (archive_tar.c)
 int cli_tar_members(const CliArchiveBytesSizeErrMsgCtx *args);
 int cli_tar_with(const CliArchiveBytesSizeCtx *args);
 
-// A room of the archives a path runs through: a cell of `room` bytes, or none
+// A capacity of the archives a path runs through: a cell of `capacity` bytes, or none
 typedef struct
 {
     unsigned char *bytes;
-    unsigned long long room;
-} CliRoom;
+    unsigned long long capacity;
+} CliByteBuffer;
 
-// `room` given `need` bytes for `what`: as it stands where it fits them, else in a cell of that many taken in the
+// `capacity` given `need` bytes for `what`: as it stands where it fits them, else in a cell of that many taken in the
 // old one's place, what the old one occupied let go; 1, or 0 with why given where the cells cannot meet it or `need` is
-// past CLI_ARCHIVE_MOST; and the bytes an archive written anew from `size` bytes may take, an eighth and a page over
+// past CLI_ARCHIVE_MAX; and the bytes an archive written anew from `size` bytes may take, an eighth and a page over
 // (archive_path.c)
-int cli_archive_room(const CliArchiveErrMsgRoomCtx *args);
+int cli_archive_buffer_reserve(const CliArchiveErrMsgBufferCtx *args);
 unsigned long long cli_archive_grow(const CliArchiveBytesSizeAtCtx *args);
 
 // The members of an archive of `kind` whose bytes are `bytes`, read: what a gzipped archive contains, unzipped, into
-// `unpacked`, given the room its trailer specifies, its count into `unpacked_size`; and a member's bytes, by the
-// archive's kind, into `out`, given the room the member takes. Each 1, or 0 with why given (archive.c)
+// `unpacked`, given the capacity its trailer specifies, its count into `unpacked_size`; and a member's bytes, by the
+// archive's kind, into `out`, given the capacity the member takes. Each 1, or 0 with why given (archive.c)
 int cli_members_get(const CliArchiveBytesSizeErrMsgCtx *args);
 int cli_data_get(const CliArchiveBytesCtx *args);
 // the name a gzipped file's one member goes by, the file's own less its .gz, into `out`, sized for CLI_NAME_MAX_LEN
@@ -76,15 +76,15 @@ void cli_gz_inner(const CliArchiveNameOutCtx *args);
 
 // The archives a path runs through, a cell taken with the lock and given back with it: each level's members, what it
 // contains unpacked, the bytes of the archive within it, and the level written anew; and a tar written before it is
-// gzipped. Each room is a cell of its own, taken sized to what it contains as it is first written and given back with
-// the levels
+// gzipped. Each capacity is a cell of its own, taken sized to what it contains as it is first written and given back
+// with the levels
 typedef struct
 {
     CliMembers members[CLI_ARCHIVE_DEPTH];
-    CliRoom unpacked[CLI_ARCHIVE_DEPTH];
-    CliRoom inner[CLI_ARCHIVE_DEPTH - 1u];
-    CliRoom written[CLI_ARCHIVE_DEPTH];
-    CliRoom tar;
+    CliByteBuffer unpacked[CLI_ARCHIVE_DEPTH];
+    CliByteBuffer inner[CLI_ARCHIVE_DEPTH - 1u];
+    CliByteBuffer written[CLI_ARCHIVE_DEPTH];
+    CliByteBuffer tar;
 } CliLevels;
 
 extern CliLevels *g_cli_archive_levels;
@@ -135,7 +135,7 @@ struct CliArchiveBytesCtx
     unsigned int kind;
     const unsigned char *unpacked_bytes;
     unsigned long long unpacked_size_value;
-    CliRoom *out_room_pointer;
+    CliByteBuffer *out_buffer_pointer;
 };
 
 struct CliArchiveBytesSizeCtx
@@ -144,7 +144,7 @@ struct CliArchiveBytesSizeCtx
     unsigned long long size;
     VerbaLinea *err_msg;
     unsigned char *out;
-    unsigned long long room;
+    unsigned long long capacity;
     unsigned long long *out_size;
     const CliMember *target;
     const unsigned char *data;
@@ -159,7 +159,7 @@ struct CliArchiveBytesSizeErrMsgCtx
     CliMembers *members;
     unsigned int kind;
     const char *inner;
-    CliRoom *unpacked;
+    CliByteBuffer *unpacked;
     unsigned long long *unpacked_size;
 };
 
@@ -171,7 +171,7 @@ struct CliArchiveBytesSizeErrMsgMembersCtx
     const CliMembers *members_read;
     const CliMember *member;
     unsigned char *out;
-    unsigned long long room;
+    unsigned long long capacity;
     unsigned long long *out_size;
 };
 
@@ -209,16 +209,16 @@ struct CliArchiveBytesSizeAtCtx
 
 struct CliArchiveOutCtx
 {
-    char *out_room;
+    char *out_capacity;
     const CliParts *parts_read;
     unsigned int from;
     unsigned int to;
 };
 
-struct CliArchiveErrMsgRoomCtx
+struct CliArchiveErrMsgBufferCtx
 {
     VerbaLinea *err_msg;
-    CliRoom *room_room_pointer;
+    CliByteBuffer *buffer_pointer;
     unsigned long long need;
     const char *what;
 };
@@ -246,7 +246,7 @@ struct CliArchiveCtx
 struct CliArchiveNameOutCtx
 {
     const char *name;
-    char *out_room;
+    char *out_capacity;
 };
 
 typedef struct
@@ -271,11 +271,11 @@ EMBED_TABLE_STORAGE CliArchiveMembersNs cli_archive_members_internal EMBED_UNUSE
 
 typedef struct
 {
-    void (*member_put)(const CliArchiveSizeCtx *args);
+    void (*member_append)(const CliArchiveSizeCtx *args);
 } CliArchiveSizeNsTable;
-EMBED_TABLE_LAYOUT(CliArchiveSizeNsTable, member_put);
+EMBED_TABLE_LAYOUT(CliArchiveSizeNsTable, member_append);
 EMBED_TABLE_STORAGE CliArchiveSizeNsTable cli_archive_size_internal EMBED_UNUSED = {
-    .member_put = cli_archive_member_put,
+    .member_append = cli_archive_member_append,
 };
 
 typedef struct
@@ -313,11 +313,11 @@ EMBED_TABLE_STORAGE CliArchiveBytesSizeNsTable cli_archive_bytes_size_internal E
 
 typedef struct
 {
-    int (*room)(const CliArchiveErrMsgRoomCtx *args);
-} CliArchiveErrMsgRoomNs;
-EMBED_TABLE_LAYOUT(CliArchiveErrMsgRoomNs, room);
-EMBED_TABLE_STORAGE CliArchiveErrMsgRoomNs cli_archive_err_msg_room_internal EMBED_UNUSED = {
-    .room = cli_archive_room,
+    int (*capacity)(const CliArchiveErrMsgBufferCtx *args);
+} CliArchiveErrMsgBufferNs;
+EMBED_TABLE_LAYOUT(CliArchiveErrMsgBufferNs, capacity);
+EMBED_TABLE_STORAGE CliArchiveErrMsgBufferNs cli_archive_err_msg_buffer_internal EMBED_UNUSED = {
+    .capacity = cli_archive_buffer_reserve,
 };
 
 typedef struct

@@ -11,11 +11,11 @@
 
 // the places of the edits being written, each edit's from and then its to; their bytes; the order they are taken in,
 // one cell of twice the edits' count; and the lock they are guarded by, which the sorts read them through
-static CliTextPlace *s_place;
+static CliTextPosition *s_position;
 static unsigned long long *s_byte;
 static unsigned int *s_order;
 
-void cli_text_place_write(const CliEditsPlaceCfg *args)
+void cli_text_position_write(const CliEditsPositionCfg *args)
 {
     mmgr_line_put(args->out, "{\"line\":");
     mmgr_line_decimal(args->out, args->place.line, 1u);
@@ -27,9 +27,10 @@ void cli_text_place_write(const CliEditsPlaceCfg *args)
 void cli_text_edit_write(const CliEditsCfg *args)
 {
     mmgr_line_put(args->out, "{\"from\":");
-    EMBED_CALL(cli_edits_place.text_place_write, CliEditsPlaceCfg, .place = args->edit->from, .out = args->out);
+    EMBED_CALL(cli_edits_position.text_position_write, CliEditsPositionCfg, .place = args->edit->from,
+               .out = args->out);
     mmgr_line_put(args->out, ",\"to\":");
-    EMBED_CALL(cli_edits_place.text_place_write, CliEditsPlaceCfg, .place = args->edit->to, .out = args->out);
+    EMBED_CALL(cli_edits_position.text_position_write, CliEditsPositionCfg, .place = args->edit->to, .out = args->out);
     mmgr_line_put(args->out, ",\"text\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
                .text = args->edit->text, .length = args->edit->size);
@@ -56,8 +57,8 @@ unsigned long long cli_text_byte_get(const CliEditsLineCfg *args)
 // two places in the order of their lines
 static int edits_by_line(const void *one, const void *other)
 {
-    const unsigned int left = s_place[*(const unsigned int *)one].line;
-    const unsigned int right = s_place[*(const unsigned int *)other].line;
+    const unsigned int left = s_position[*(const unsigned int *)one].line;
+    const unsigned int right = s_position[*(const unsigned int *)other].line;
     return (left < right) ? -1 : (left > right) ? 1 : 0;
 }
 
@@ -101,7 +102,7 @@ EMBED_INLINE void edits_bytes(const EditsCtx *args)
     int beyond = 0;
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        const CliTextPlace place = s_place[s_order[at]];
+        const CliTextPosition place = s_position[s_order[at]];
         while (!beyond && (line < place.line))
         {
             const char *const newline =
@@ -138,20 +139,20 @@ int cli_text_apply(const CliEditsOutCfg *args)
         return 0;
     }
     // the bytes first on the cell's boundary, then the places, then the order
-    const unsigned long long places = 2ull * args->count;
+    const unsigned long long positions = 2ull * args->count;
     char *const cell = g_cli_cells->temporary_buf_alloc(
-        (places + 1ull) * (sizeof(*s_byte) + sizeof(*s_place) + sizeof(*s_order)), &g_cli_text_cells);
+        (positions + 1ull) * (sizeof(*s_byte) + sizeof(*s_position) + sizeof(*s_order)), &g_cli_text_cells);
     if (cell == NULL)
     {
         return 0;
     }
     s_byte = (unsigned long long *)(void *)cell;
-    s_place = (CliTextPlace *)(void *)(s_byte + places + 1ull);
-    s_order = (unsigned int *)(void *)(s_place + places + 1ull);
+    s_position = (CliTextPosition *)(void *)(s_byte + positions + 1ull);
+    s_order = (unsigned int *)(void *)(s_position + positions + 1ull);
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        s_place[2u * at] = args->edits[at].from;
-        s_place[(2u * at) + 1u] = args->edits[at].to;
+        s_position[2u * at] = args->edits[at].from;
+        s_position[(2u * at) + 1u] = args->edits[at].to;
     }
     EMBED_CALL(edits_bytes, EditsCtx, .text = args->text, .size = args->size, .count = 2u * args->count);
     for (unsigned int at = 0u; at < args->count; at += 1u)
@@ -171,7 +172,7 @@ int cli_text_apply(const CliEditsOutCfg *args)
     }
     mmgr_line_put_n(args->out, args->text + cursor, args->size - cursor);
     s_byte = NULL;
-    s_place = NULL;
+    s_position = NULL;
     s_order = NULL;
     g_cli_cells->persistent_buf_release(cell, &g_cli_text_cells);
     return 1;

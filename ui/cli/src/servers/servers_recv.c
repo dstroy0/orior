@@ -19,7 +19,7 @@
 #define CLI_SERVERS_EXTRA_PATHS 256u
 
 // what is received read, under the reading's lock
-static CliServersReading s_reading = {0};
+static CliServersReadState s_read_state = {0};
 
 typedef struct
 {
@@ -63,8 +63,8 @@ EMBED_INLINE void recv_diagnostics(const ServersRecvCtx *args)
                     .start = &uri_at, .length_pointer = &uri_length) ||
         !EMBED_CALL(cli_lsp_body.member, CliLspBodyCfg, .body = params, .size_value = size, .name = "diagnostics",
                     .start = &all_at, .length_pointer = &all_length) ||
-        !EMBED_CALL(cli_lsp_room.string, CliLspRoomCfg, .text = params + uri_at, .length = uri_length, .out_room = uri,
-                    .room = sizeof(uri)))
+        !EMBED_CALL(cli_lsp_capacity.string, CliLspCapacityCfg, .text = params + uri_at, .length = uri_length,
+                    .out_capacity = uri, .capacity = sizeof(uri)))
     {
         return;
     }
@@ -102,24 +102,26 @@ EMBED_INLINE void recv_diagnostics(const ServersRecvCtx *args)
         return;
     }
     EMBED_CALL(cli_servers_key_checker_internal.wake, CliServersKeyCheckerCtx, .key = key);
-    (void)EMBED_CALL(cli_keyed_key_beside.put, CliKeyedKeyBesideCfg, .keyed_out = &g_cli_servers_published, .key = key,
-                     .beside_value = uri, .text = all, .size_value = all_length);
+    (void)EMBED_CALL(cli_keyed_key_adjacent.put, CliKeyedKeyAdjacentCfg, .keyed_out = &g_cli_servers_published,
+                     .key = key, .adjacent_value = uri, .text = all, .size_value = all_length);
     g_cli_cells->persistent_buf_release(mapped, &g_cli_servers_cells);
-    EMBED_CALL(cli_servers_sink_key_internal.emit_whole, CliServersSinkKeyCtx, .key = key, .uri = uri, .sink = sink);
+    EMBED_CALL(cli_servers_sink_key_internal.emit_file, CliServersSinkKeyCtx, .key = key, .uri = uri, .sink = sink);
 }
 
 // an edit the server requests passed on as each file's edits
 EMBED_INLINE void recv_edit(const ServersRecvCtx *args)
 {
     unsigned long long size = args->size;
-    EMBED_CALL(cli_servers_reading_answer_internal.reading_lock, CliServersReadingAnswerCtx, .reading = &s_reading);
-    const unsigned int root = EMBED_CALL(cli_servers_reading_internal.read, CliServersReadingCtx, .reading = &s_reading,
-                                         .text = args->params, .size = size);
+    EMBED_CALL(cli_servers_read_state_answer_internal.read_state_lock, CliServersReadStateAnswerCtx,
+               .read_state = &s_read_state);
+    const unsigned int root = EMBED_CALL(cli_servers_read_state_internal.read, CliServersReadStateCtx,
+                                         .read_state = &s_read_state, .text = args->params, .size = size);
     char *const edits = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_ANSWER, &g_cli_servers_cells);
     VerbaLinea edits_line = mmgr_line_over(edits, CLI_SERVERS_ANSWER);
-    EMBED_CALL(cli_servers_json_tree_out_internal.workspace_edit_get, CliServersJsonTreeOutCtx, .json = &s_reading.json,
-               .edit = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_reading.json,
-                                  .object = root, .name = "edit"),
+    EMBED_CALL(cli_servers_json_tree_out_internal.workspace_edit_get, CliServersJsonTreeOutCtx,
+               .json = &s_read_state.json,
+               .edit = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                  .json_read = &s_read_state.json, .object = root, .name = "edit"),
                .tree = args->sink->tree, .out = &edits_line);
     if (mmgr_line_ok(&edits_line) && (args->sink->emit != NULL))
     {
@@ -127,7 +129,8 @@ EMBED_INLINE void recv_edit(const ServersRecvCtx *args)
                    .json = edits_line.out, .size = edits_line.at);
     }
     g_cli_cells->persistent_buf_release(edits, &g_cli_servers_cells);
-    EMBED_CALL(cli_servers_reading_answer_internal.reading_release, CliServersReadingAnswerCtx, .reading = &s_reading);
+    EMBED_CALL(cli_servers_read_state_answer_internal.read_state_release, CliServersReadStateAnswerCtx,
+               .read_state = &s_read_state);
 }
 
 // One folder of the analysis written: where it is written and whether one is
@@ -174,12 +177,13 @@ EMBED_INLINE void recv_analysis(const ServersRecvCtx *args)
 EMBED_INLINE void recv_configuration(const ServersRecvCtx *args)
 {
     unsigned long long size = args->size;
-    EMBED_CALL(cli_servers_reading_answer_internal.reading_lock, CliServersReadingAnswerCtx, .reading = &s_reading);
-    const CliJson *const json = &s_reading.json;
+    EMBED_CALL(cli_servers_read_state_answer_internal.read_state_lock, CliServersReadStateAnswerCtx,
+               .read_state = &s_read_state);
+    const CliJson *const json = &s_read_state.json;
     const unsigned int items =
         EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
-                   .object = EMBED_CALL(cli_servers_reading_internal.read, CliServersReadingCtx, .reading = &s_reading,
-                                        .text = args->params, .size = size),
+                   .object = EMBED_CALL(cli_servers_read_state_internal.read, CliServersReadStateCtx,
+                                        .read_state = &s_read_state, .text = args->params, .size = size),
                    .name = "items");
     static CliTreeEnvironment s_environment;
     const int python =
@@ -232,7 +236,8 @@ EMBED_INLINE void recv_configuration(const ServersRecvCtx *args)
         }
     }
     mmgr_line_ch(args->answer, ']');
-    EMBED_CALL(cli_servers_reading_answer_internal.reading_release, CliServersReadingAnswerCtx, .reading = &s_reading);
+    EMBED_CALL(cli_servers_read_state_answer_internal.read_state_release, CliServersReadStateAnswerCtx,
+               .read_state = &s_read_state);
 }
 
 void cli_servers_recv(const CliLspRecvCfg *args)

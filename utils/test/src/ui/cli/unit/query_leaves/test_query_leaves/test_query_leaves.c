@@ -15,10 +15,10 @@ static int s_refused_restored;
 static int s_accepted_left;
 
 // `tree` against `stored` shown as the run's file `path`, into s_shown
-static const char *shown(const char *path, const char *tree, const char *stored)
+static const char *displayed(const char *path, const char *tree, const char *stored)
 {
     VerbaLinea line = {s_shown, sizeof(s_shown), 0ull};
-    EMBED_CALL(query_path_tree_internal.leaf_show, QueryPathTreeCtx, .path = path, .tree = (const unsigned char *)tree, .tree_size = CLI_UNITY_LENGTH(tree), .stored = (const unsigned char *)stored, .stored_size = CLI_UNITY_LENGTH(stored), .shown = &line);
+    EMBED_CALL(query_path_tree_internal.leaf_show, QueryPathTreeCtx, .path = path, .tree = (const unsigned char *)tree, .tree_size = CLI_UNITY_LENGTH(tree), .stored = (const unsigned char *)stored, .stored_size = CLI_UNITY_LENGTH(stored), .displayed = &line);
     (void)mmgr_line_finish(&line);
     return s_shown;
 }
@@ -39,7 +39,7 @@ static unsigned int lines_led_by(char lead, unsigned int *all)
 }
 
 // twenty lines against twenty with the eleventh changed, shown
-static void one_line_changed_shown(void)
+static void one_line_changed_displayed(void)
 {
     char before[256];
     char after[256];
@@ -52,7 +52,7 @@ static void one_line_changed_shown(void)
     }
     (void)mmgr_line_finish(&one);
     (void)mmgr_line_finish(&two);
-    (void)shown("a.txt", before, after);
+    (void)displayed("a.txt", before, after);
 }
 
 // what is printed, appended with a line end
@@ -102,7 +102,7 @@ static void run_settled(void)
     char compiler[QUERY_PATH_MAX_LEN];
     char why[1024];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    if (!EMBED_CALL(programs.program, QueryEachRolePathRoomErrMsgCfg, .context = programs.context, .role = QUERY_ROLE_C, .path = compiler, .room = sizeof(compiler), .err_msg = &err_msg))
+    if (!EMBED_CALL(programs.program, QueryEachRolePathCapacityErrMsgCfg, .context = programs.context, .role = QUERY_ROLE_C, .path = compiler, .capacity = sizeof(compiler), .err_msg = &err_msg))
     {
         TEST_IGNORE_MESSAGE("no C compiler to build the writer with");
     }
@@ -156,14 +156,14 @@ void tearDown(void)
 void test_a_diff_names_one_removed_and_one_added_line(void)
 {
     unsigned int all = 0u;
-    one_line_changed_shown();
+    one_line_changed_displayed();
     TEST_ASSERT_EQUAL_UINT(1u, lines_led_by('-', &all));
     TEST_ASSERT_EQUAL_UINT(1u, lines_led_by('+', &all));
 }
 
 void test_a_diff_shows_the_removed_and_added_text(void)
 {
-    one_line_changed_shown();
+    one_line_changed_displayed();
     CLI_TEST_ASSERT_CONTAINS("-same", s_shown);
     CLI_TEST_ASSERT_CONTAINS("+changed", s_shown);
 }
@@ -171,7 +171,7 @@ void test_a_diff_shows_the_removed_and_added_text(void)
 void test_an_unchanged_run_folds_to_three_lines_a_count_and_three_lines(void)
 {
     unsigned int all = 0u;
-    one_line_changed_shown();
+    one_line_changed_displayed();
     (void)lines_led_by('-', &all);
     CLI_TEST_ASSERT_CONTAINS("... 4 lines the same ...", s_shown);
     TEST_ASSERT_LESS_OR_EQUAL_UINT(17u, all);
@@ -180,29 +180,29 @@ void test_an_unchanged_run_folds_to_three_lines_a_count_and_three_lines(void)
 void test_a_diff_of_the_same_lines_marks_nothing(void)
 {
     unsigned int all = 0u;
-    (void)shown("a.txt", "a\nb\nc\n", "a\nb\nc\n");
+    (void)displayed("a.txt", "a\nb\nc\n", "a\nb\nc\n");
     TEST_ASSERT_EQUAL_UINT(0u, lines_led_by('-', &all));
     TEST_ASSERT_EQUAL_UINT(0u, lines_led_by('+', &all));
 }
 
 void test_a_line_added_to_an_empty_file(void)
 {
-    CLI_TEST_ASSERT_CONTAINS("+a", shown("a.txt", "", "a\n"));
+    CLI_TEST_ASSERT_CONTAINS("+a", displayed("a.txt", "", "a\n"));
 }
 
 void test_a_line_removed_to_an_empty_file(void)
 {
-    CLI_TEST_ASSERT_CONTAINS("-a", shown("a.txt", "a\n", ""));
+    CLI_TEST_ASSERT_CONTAINS("-a", displayed("a.txt", "a\n", ""));
 }
 
-void test_a_record_file_that_grew_is_shown_by_its_growth(void)
+void test_a_record_file_that_grew_is_displayed_by_its_growth(void)
 {
-    TEST_ASSERT_EQUAL_STRING("sm_86.kqr grew by 2 bytes", shown("a/sm_86.kqr", "12345", "1234567"));
+    TEST_ASSERT_EQUAL_STRING("sm_86.kqr grew by 2 bytes", displayed("a/sm_86.kqr", "12345", "1234567"));
 }
 
-void test_a_record_file_that_did_not_grow_is_shown_by_its_sizes(void)
+void test_a_record_file_that_did_not_grow_is_displayed_by_its_sizes(void)
 {
-    TEST_ASSERT_EQUAL_STRING("sm_86.kqr: 7 bytes in the tree, 5 as the run leaves it", shown("a/sm_86.kqr", "1234567", "12345"));
+    TEST_ASSERT_EQUAL_STRING("sm_86.kqr: 7 bytes in the tree, 5 as the run leaves it", displayed("a/sm_86.kqr", "1234567", "12345"));
 }
 
 void test_a_refused_file_is_restored_as_the_tree_stores_it(void)
@@ -217,7 +217,7 @@ void test_a_file_after_all_is_answered_is_left_as_the_run_leaves_it(void)
     TEST_ASSERT_TRUE(s_accepted_left);
 }
 
-void test_each_changed_file_is_shown(void)
+void test_each_changed_file_is_displayed(void)
 {
     run_settled();
     CLI_TEST_ASSERT_CONTAINS("a.khw:", s_printed);

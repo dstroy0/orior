@@ -33,7 +33,7 @@ typedef struct
 // CLI_PATH_MAX_LEN: 1, or 0 where there is none
 int cli_test_python(const CliTestRunsCfg *args);
 
-// `count` tests by their names or files by their paths, `given`, run in the tree at `root`, any run going stopped
+// `count` tests by their names or files by their paths, `supplied`, run in the tree at `root`, any run going stopped
 // first: spread over the machine's cores where `parallel`, with coverage recorded where `cover`. The run's number into
 // `run`, 1, or 0 with why given; what it finds comes by `sink`. And the run going stopped, where one is
 int cli_test_runs_start(const CliTestRunsRootCfg *args);
@@ -42,7 +42,7 @@ void cli_test_runs_stop(void);
 struct CliTestRunsRootCfg
 {
     const char *root;
-    const char *const *given;
+    const char *const *supplied;
     unsigned int count;
     int parallel;
     int cover;

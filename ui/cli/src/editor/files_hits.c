@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // files_hits.c: the lines of one file that contain a search's query, the first place on each line it stands, at most
-// CLI_HITS_MOST of them, and the text of a found line as a hit retains it
+// CLI_HITS_MAX of them, and the text of a found line as a hit retains it
 #include "../command_line/callback_cfg.h"
 #include "../text/json_tree.h"
 #include "../text/regexp.h"
@@ -50,8 +50,8 @@ typedef struct
 {
     const unsigned char *bytes;
     unsigned long long size;
-    const CliSought *sought;
-    CliHitPut put;
+    const CliNeedle *needle;
+    CliHitAppend put;
     void *context;
     unsigned long long line;
     unsigned long long counted;
@@ -65,7 +65,7 @@ static void cli_hit_at(const CliEachAtCfg *args)
     unsigned long long at = args->at;
     CliHitting *const hitting = (CliHitting *)args->context;
     const unsigned char *const bytes = hitting->bytes;
-    if (hitting->found >= CLI_HITS_MOST)
+    if (hitting->found >= CLI_HITS_MAX)
     {
         return;
     }
@@ -92,9 +92,9 @@ static void cli_hit_at(const CliEachAtCfg *args)
         place += EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg, .text_bytes = bytes, .length = at,
                             .at = place, .letter = &last);
     }
-    if (hitting->sought->how.word)
+    if (hitting->needle->how.word)
     {
-        const unsigned long long after = at + hitting->sought->length;
+        const unsigned long long after = at + hitting->needle->length;
         unsigned int next = 0u;
         const int has_next = after < end;
         if (has_next)
@@ -109,7 +109,7 @@ static void cli_hit_at(const CliEachAtCfg *args)
         }
     }
     hitting->last_line = hitting->line;
-    EMBED_CALL(hitting->put, CliHitPutCfg, .context = hitting->context, .line = hitting->line, .col = before + 1ull,
+    EMBED_CALL(hitting->put, CliHitAppendCfg, .context = hitting->context, .line = hitting->line, .col = before + 1ull,
                .text = bytes + start,
                .size = EMBED_CALL(cli_files_path_internal.hit_cut, CliFilesPathCtx, .text = bytes + start,
                                   .size = end - start));
@@ -121,7 +121,7 @@ typedef struct
     const unsigned char *line;
     unsigned long long size;
     unsigned long long at;
-    const CliSought *sought;
+    const CliNeedle *needle;
     unsigned long long *after;
     CliStep *step;
     unsigned long long *col;
@@ -132,7 +132,7 @@ EMBED_INLINE int cli_lower_at(const FilesHitsCtx *args)
 {
     unsigned long long at = args->at;
     unsigned long long *after = args->after;
-    for (unsigned int index = 0u; index < args->sought->lower_count; index += 1u)
+    for (unsigned int index = 0u; index < args->needle->lower_count; index += 1u)
     {
         if (at >= args->size)
         {
@@ -141,7 +141,7 @@ EMBED_INLINE int cli_lower_at(const FilesHitsCtx *args)
         unsigned int letter = 0u;
         at += EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg, .text_bytes = args->line,
                          .length = args->size, .at = at, .letter = &letter);
-        if (EMBED_CALL(cli_regexp_letter.lower, CliRegexpLetterCfg, .letter = letter) != args->sought->lower[index])
+        if (EMBED_CALL(cli_regexp_letter.lower, CliRegexpLetterCfg, .letter = letter) != args->needle->lower[index])
         {
             return 0;
         }
@@ -169,7 +169,7 @@ EMBED_INLINE int cli_line_match(const FilesHitsCtx *args)
     {
         unsigned long long after = 0ull;
         if (!EMBED_CALL(cli_lower_at, FilesHitsCtx, .line = args->line, .size = args->size, .at = step.at,
-                        .sought = args->sought, .after = &after))
+                        .needle = args->needle, .after = &after))
         {
             EMBED_CALL(cli_on_step, FilesHitsCtx, .step = &step, .line = args->line, .size = args->size);
             continue;
@@ -186,13 +186,13 @@ EMBED_INLINE int cli_line_match(const FilesHitsCtx *args)
              EMBED_CALL(cli_files_letter_internal.hit_wordy, CliFilesLetterCtx, .letter = step.last)) ||
             (has_next && EMBED_CALL(cli_files_letter_internal.hit_wordy, CliFilesLetterCtx,
                                     .letter = EMBED_CALL(cli_regexp_letter.lower, CliRegexpLetterCfg, .letter = next)));
-        if (!args->sought->how.word || !joined)
+        if (!args->needle->how.word || !joined)
         {
             *col = step.letter_at + 1ull;
             return 1;
         }
         // a match that is no whole word is passed over whole
-        for (unsigned int index = 0u; index < args->sought->lower_count; index += 1u)
+        for (unsigned int index = 0u; index < args->needle->lower_count; index += 1u)
         {
             EMBED_CALL(cli_on_step, FilesHitsCtx, .step = &step, .line = args->line, .size = args->size);
         }
@@ -202,20 +202,20 @@ EMBED_INLINE int cli_line_match(const FilesHitsCtx *args)
 
 void cli_files_hits_in(const CliFilesContextCtx *args)
 {
-    if (args->sought->how.match_case || args->sought->ascii)
+    if (args->needle->how.match_case || args->needle->ascii)
     {
         CliHitting hitting = {
-            args->bytes_bytes, args->size, args->sought, args->put, args->context, 1ull, 0ull, 0ull, 0u};
+            args->bytes_bytes, args->size, args->needle, args->put, args->context, 1ull, 0ull, 0ull, 0u};
         EMBED_CALL(cli_sift_length.find_all, CliSiftLengthCfg, .text = args->bytes_bytes, .length = args->size,
-                   .needle = (const unsigned char *)args->sought->query, .needle_length = args->sought->length,
-                   .fold = !args->sought->how.match_case, .found = cli_hit_at, .context = &hitting);
+                   .needle = (const unsigned char *)args->needle->query, .needle_length = args->needle->length,
+                   .fold = !args->needle->how.match_case, .found = cli_hit_at, .context = &hitting);
         return;
     }
     // each line, less a carriage return before its newline
     unsigned long long start = 0ull;
     unsigned long long index = 0ull;
     unsigned int found = 0u;
-    while ((start < args->size) && (found < CLI_HITS_MOST))
+    while ((start < args->size) && (found < CLI_HITS_MAX))
     {
         const CliTextLine bounds = EMBED_CALL(cli_text_at.line_at, CliTextAtCfg,
                                               .text = (const char *)args->bytes_bytes, .at = start, .size = args->size);
@@ -225,9 +225,9 @@ void cli_files_hits_in(const CliFilesContextCtx *args)
         index += 1ull;
         unsigned long long col = 0ull;
         if (EMBED_CALL(cli_line_match, FilesHitsCtx, .line = args->bytes_bytes + start, .size = length,
-                       .sought = args->sought, .col = &col))
+                       .needle = args->needle, .col = &col))
         {
-            EMBED_CALL(args->put, CliHitPutCfg, .context = args->context, .line = index, .col = col,
+            EMBED_CALL(args->put, CliHitAppendCfg, .context = args->context, .line = index, .col = col,
                        .text = args->bytes_bytes + start,
                        .size = EMBED_CALL(cli_files_path_internal.hit_cut, CliFilesPathCtx,
                                           .text = args->bytes_bytes + start, .size = length));

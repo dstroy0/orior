@@ -3,7 +3,7 @@
 // reply.h: a JSON reply, a build tool's or a kernel's, read off its bytes in one pass with no tree made: a member found
 // by its key in an object, an array's items taken in turn, a string decoded and a number read, every value not
 // requested for passed over by its brackets. CMake's file API and Meson's introspection write a known shape, so a
-// reader walks it by key and the reply's bytes are the only room it takes (reply.c)
+// reader walks it by key and the reply's bytes are the only capacity it takes (reply.c)
 #ifndef REPLY_H
 #define REPLY_H
 typedef struct CliReplyAtOutCfg CliReplyAtOutCfg;
@@ -41,7 +41,7 @@ unsigned long long cli_reply_item(const CliReplyArrayCfg *args);
 unsigned long long cli_reply_value_end(const CliReplyAtCfg *args);
 unsigned long long cli_reply_string_span(const CliReplyAtCfg *args);
 int cli_reply_string(const CliReplyAtOutCfg *args);
-unsigned long long cli_reply_whole(const CliReplyAtCfg *args);
+unsigned long long cli_reply_integer(const CliReplyAtCfg *args);
 int cli_reply_true(const CliReplyAtCfg *args);
 int cli_reply_string_is(const CliReplyAtCfg *args);
 
@@ -140,7 +140,7 @@ EMBED_TABLE_LAYOUT(CliReplyAtNs, value_end, string_span, whole, reply_true, stri
 EMBED_TABLE_STORAGE CliReplyAtNs cli_reply_at EMBED_UNUSED = {
     .value_end = cli_reply_value_end,
     .string_span = cli_reply_string_span,
-    .whole = cli_reply_whole,
+    .whole = cli_reply_integer,
     .reply_true = cli_reply_true,
     .string_is = cli_reply_string_is,
 };

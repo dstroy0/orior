@@ -71,7 +71,7 @@ EMBED_INLINE int latex_by_name(const LatexTextCtx *args)
 unsigned long long cli_tex_digits(const CliLatexTextLengthAtCtx *args)
 {
     unsigned long long count = 0ull;
-    count = EMBED_CALL(cli_text_at_size_classes.past_class, CliTextAtSizeClassesCfg, .text = args->text,
+    count = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = args->text,
                        .at = args->at_value, .size = args->length, .classes = CLI_TEXT_DIGITS, .set = "") -
             args->at_value;
     return count;
@@ -176,7 +176,7 @@ int cli_tex_sign(const CliLatexTextLengthValueI64sCtx *args)
 }
 
 // whether a line, before its comment, takes fontspec or unicode-math with a \usepackage
-EMBED_INLINE int latex_takes_unicode(const LatexTextCtx *args)
+EMBED_INLINE int latex_allocs_unicode(const LatexTextCtx *args)
 {
     unsigned long long size = args->size;
     unsigned long long cut = 0ull;
@@ -331,7 +331,7 @@ const char *cli_latex_engine_get(const CliLatexCfg *args)
     while (EMBED_CALL(cli_latex_text_internal.tex_line, CliLatexTextCtx, .text = args->text, .length = args->length,
                       .at = &at, .start = &start, .size_pointer = &size))
     {
-        if (EMBED_CALL(latex_takes_unicode, LatexTextCtx, .line = args->text + start, .size = size))
+        if (EMBED_CALL(latex_allocs_unicode, LatexTextCtx, .line = args->text + start, .size = size))
         {
             return "lualatex";
         }

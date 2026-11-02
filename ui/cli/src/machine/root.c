@@ -12,8 +12,8 @@
 #define CLI_TREE_MARKER "src/cu/engine/engine_config.h"
 
 // the folders and files mounted beside the tree, each under its name, in the order they were mounted
-static char s_mount_name[CLI_MOUNTS_MOST][CLI_NAME_MAX_LEN];
-static char s_mount_path[CLI_MOUNTS_MOST][CLI_PATH_MAX_LEN];
+static char s_mount_name[CLI_MOUNTS_MAX][CLI_NAME_MAX_LEN];
+static char s_mount_path[CLI_MOUNTS_MAX][CLI_PATH_MAX_LEN];
 static unsigned int s_mounts;
 
 int cli_is_tree_root(const CliWordsErrMsgCtx *args)
@@ -29,8 +29,8 @@ int cli_is_tree_root(const CliWordsErrMsgCtx *args)
 
 int cli_tree_at(const CliPathErrMsgFullCtx *args)
 {
-    if (!EMBED_CALL(query_room_path_internal.path_full, QueryRoomPathCtx, .path = args->path, .full = args->full,
-                    .room = CLI_PATH_MAX_LEN))
+    if (!EMBED_CALL(query_capacity_path_internal.path_full, QueryCapacityPathCtx, .path = args->path,
+                    .full = args->full, .capacity = CLI_PATH_MAX_LEN))
     {
         mmgr_line_put(args->err_msg, args->path);
         mmgr_line_put(args->err_msg, ": it could not be made a full path");
@@ -56,8 +56,8 @@ typedef struct
 EMBED_INLINE int cli_tree_above(const RootCtx *args)
 {
     char folder[CLI_PATH_MAX_LEN];
-    if (!EMBED_CALL(query_room_path_internal.path_full, QueryRoomPathCtx, .path = args->start, .full = folder,
-                    .room = sizeof(folder)))
+    if (!EMBED_CALL(query_capacity_path_internal.path_full, QueryCapacityPathCtx, .path = args->start, .full = folder,
+                    .capacity = sizeof(folder)))
     {
         return 0;
     }
@@ -65,14 +65,14 @@ EMBED_INLINE int cli_tree_above(const RootCtx *args)
     {
         if (EMBED_CALL(cli_words_err_msg_internal.is_tree_root, CliWordsErrMsgCtx, .folder = folder))
         {
-            return EMBED_CALL(query_room_path_internal.path_full, QueryRoomPathCtx, .path = folder, .full = args->tree,
-                              .room = CLI_PATH_MAX_LEN);
+            return EMBED_CALL(query_capacity_path_internal.path_full, QueryCapacityPathCtx, .path = folder,
+                              .full = args->tree, .capacity = CLI_PATH_MAX_LEN);
         }
         char *slash = NULL;
-        const unsigned long long slash_past =
+        const unsigned long long slash_end =
             EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = folder,
                        .at = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}), .set = "/\\");
-        slash = (slash_past != 0ull) ? (folder + (slash_past - 1ull)) : slash;
+        slash = (slash_end != 0ull) ? (folder + (slash_end - 1ull)) : slash;
         // a root, `C:\` or `/`, stands where no separator is left past its first
         if ((slash == NULL) || (slash == folder) || ((slash == (folder + 2)) && (folder[1] == ':')))
         {
@@ -93,28 +93,28 @@ int cli_tree_on_find(const CliTreeCtx *args)
     char err_buf[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ull};
     if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_ROOT",
-                   .value_out = named, .room = sizeof(named)) &&
+                   .value_out = named, .capacity = sizeof(named)) &&
         EMBED_CALL(cli_path_err_msg_full_internal.tree_at, CliPathErrMsgFullCtx, .path = named, .full = args->tree,
                    .err_msg = &err_msg))
     {
         return 1;
     }
     char here[CLI_PATH_MAX_LEN];
-    if (EMBED_CALL(cli_path_room_internal.folder_current, CliPathRoomCtx, .path_out = here,
-                   .room_size = sizeof(here)) &&
+    if (EMBED_CALL(cli_path_capacity_internal.folder_current, CliPathCapacityCtx, .path_out = here,
+                   .capacity_bytes = sizeof(here)) &&
         EMBED_CALL(cli_tree_above, RootCtx, .start = here, .tree = args->tree))
     {
         return 1;
     }
     char program[CLI_PATH_MAX_LEN];
-    if (EMBED_CALL(cli_path_room_internal.program_own, CliPathRoomCtx, .path_out = program,
-                   .room_size = sizeof(program)))
+    if (EMBED_CALL(cli_path_capacity_internal.program_own, CliPathCapacityCtx, .path_out = program,
+                   .capacity_bytes = sizeof(program)))
     {
         char *slash = NULL;
-        const unsigned long long slash_past =
+        const unsigned long long slash_end =
             EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = program,
                        .at = cellul.len(&(CatenaFinitaCfg){.src = program, .cap = CLI_CELLS_POOL}), .set = "/\\");
-        slash = (slash_past != 0ull) ? (program + (slash_past - 1ull)) : slash;
+        slash = (slash_end != 0ull) ? (program + (slash_end - 1ull)) : slash;
         if (slash != NULL)
         {
             *slash = '\0';
@@ -127,8 +127,8 @@ int cli_tree_on_find(const CliTreeCtx *args)
 int cli_mount(const CliPathErrMsgNameCtx *args)
 {
     char full[CLI_PATH_MAX_LEN];
-    if (!EMBED_CALL(query_room_path_internal.path_full, QueryRoomPathCtx, .path = args->path, .full = full,
-                    .room = sizeof(full)) ||
+    if (!EMBED_CALL(query_capacity_path_internal.path_full, QueryCapacityPathCtx, .path = args->path, .full = full,
+                    .capacity = sizeof(full)) ||
         (!EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = full) &&
          !EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = full)))
     {
@@ -147,7 +147,7 @@ int cli_mount(const CliPathErrMsgNameCtx *args)
             return args->name_out[0] != '\0';
         }
     }
-    if (s_mounts >= CLI_MOUNTS_MOST)
+    if (s_mounts >= CLI_MOUNTS_MAX)
     {
         mmgr_line_put(args->err_msg, "the window has as many mounts as it can");
         return 0;
@@ -161,7 +161,7 @@ int cli_mount(const CliPathErrMsgNameCtx *args)
                              .set = "/\\");
     char stem[CLI_NAME_MAX_LEN];
     VerbaLinea stem_line = {stem, sizeof(stem), 0ull};
-    EMBED_CALL(cli_text_set_table.put_replace, CliTextSetCfg, .out = &stem_line, .text = base, .set = "/\\",
+    EMBED_CALL(cli_text_set_table.append_replace, CliTextSetCfg, .out = &stem_line, .text = base, .set = "/\\",
                .with = "_");
     if ((mmgr_line_finish(&stem_line) == 0ull) || (stem[0] == '\0'))
     {
@@ -174,13 +174,13 @@ int cli_mount(const CliPathErrMsgNameCtx *args)
     mmgr_line_finish(&name_line);
     for (unsigned long long count = 2ull;; count += 1ull)
     {
-        int taken = 0;
-        for (unsigned int at = 0u; !taken && (at < s_mounts); at += 1u)
+        int reserved = 0;
+        for (unsigned int at = 0u; !reserved && (at < s_mounts); at += 1u)
         {
-            taken =
+            reserved =
                 cellul.eq(&(CatenaFinitaCfg){.src = s_mount_name[at], .other = args->name_out, .cap = CLI_CELLS_POOL});
         }
-        if (!taken)
+        if (!reserved)
         {
             break;
         }
@@ -219,10 +219,10 @@ void cli_unmounted_all(void)
     s_mounts = 0u;
 }
 
-unsigned int cli_mounts(const CliRoomNamesCtx *args)
+unsigned int cli_mounts(const CliCapacityNamesCtx *args)
 {
     unsigned int at = 0u;
-    for (; (at < s_mounts) && (at < args->room_u32); at += 1u)
+    for (; (at < s_mounts) && (at < args->capacity_u32); at += 1u)
     {
         args->names[at] = s_mount_name[at];
         args->paths_read[at] = s_mount_path[at];
@@ -347,8 +347,8 @@ void cli_relative(const CliPathRootCtx *args)
                 mmgr_line_ch(&line, '/');
                 rest += 1;
             }
-            rest +=
-                EMBED_CALL(cli_text_from.put_swap, CliTextFromCfg, .out = &line, .text = rest, .from = '\\', .to = '/');
+            rest += EMBED_CALL(cli_text_from.append_swap, CliTextFromCfg, .out = &line, .text = rest, .from = '\\',
+                               .to = '/');
             mmgr_line_finish(&line);
             return;
         }
@@ -358,7 +358,7 @@ void cli_relative(const CliPathRootCtx *args)
         rest = args->path + cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL});
         rest += ((*rest == '/') || (*rest == '\\')) ? 1 : 0;
     }
-    rest += EMBED_CALL(cli_text_from.put_swap, CliTextFromCfg, .out = &line, .text = rest, .from = '\\', .to = '/');
+    rest += EMBED_CALL(cli_text_from.append_swap, CliTextFromCfg, .out = &line, .text = rest, .from = '\\', .to = '/');
     mmgr_line_finish(&line);
 }
 
@@ -366,7 +366,7 @@ int cli_path_parent(const CliPathOutKindCtx *args)
 {
     unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL});
     const unsigned long long root = ((length >= 2ull) && (args->path[1] == ':')) ? 3ull : 1ull;
-    length = (root + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = args->path + root,
+    length = (root + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = args->path + root,
                                 .at = length - root, .set = "/\\"));
     unsigned long long slash = length;
     for (unsigned long long at = 0ull; at < length; at += 1ull)

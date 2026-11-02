@@ -40,10 +40,11 @@ int cli_versions_names_get(const CliVersionCatalogNameCtx *args)
     }
     // each is under its most, so it fits an unsigned int
     args->names_out->most = (unsigned int)((count < CLI_VERSIONS_NAMES) ? count : CLI_VERSIONS_NAMES);
-    args->names_out->room = (unsigned int)((bytes < CLI_VERSIONS_NAMES_TEXT) ? bytes : CLI_VERSIONS_NAMES_TEXT) + 1u;
+    args->names_out->capacity =
+        (unsigned int)((bytes < CLI_VERSIONS_NAMES_TEXT) ? bytes : CLI_VERSIONS_NAMES_TEXT) + 1u;
     args->names_out->at = g_cli_cells->persistent_buf_alloc(
         2ull * (args->names_out->most + 1ull) * sizeof(unsigned int), &g_cli_versions_cells);
-    args->names_out->text = g_cli_cells->persistent_buf_alloc(args->names_out->room, &g_cli_versions_cells);
+    args->names_out->text = g_cli_cells->persistent_buf_alloc(args->names_out->capacity, &g_cli_versions_cells);
     if ((args->names_out->at == NULL) || (args->names_out->text == NULL))
     {
         g_cli_cells->persistent_buf_release(args->names_out->text, &g_cli_versions_cells);
@@ -52,7 +53,7 @@ int cli_versions_names_get(const CliVersionCatalogNameCtx *args)
         args->names_out->size = NULL;
         args->names_out->text = NULL;
         args->names_out->most = 0u;
-        args->names_out->room = 0u;
+        args->names_out->capacity = 0u;
         return 0;
     }
     args->names_out->size = args->names_out->at + args->names_out->most + 1u;
@@ -70,7 +71,7 @@ int cli_versions_names_get(const CliVersionCatalogNameCtx *args)
         {
             const CliVersionsField *const field = &g_cli_versions.field[entry];
             VerbaLinea line = {args->names_out->text + args->names_out->used,
-                               args->names_out->room - args->names_out->used, 0ull};
+                               args->names_out->capacity - args->names_out->used, 0ull};
             EMBED_CALL(cli_version_catalog_size_out_alias_internal.versions_accessor, CliVersionCatalogSizeOutAliasCtx,
                        .alias = EMBED_CALL(cli_version_catalog_internal.versions_text, CliVersionCatalogCtx,
                                            .at = field->key_at),
@@ -165,35 +166,37 @@ void cli_versions_entry_error(const CliVersionCatalogFieldCtx *args)
 }
 
 // the fixes that change the span `from` to `to` to each name of `known` near `name`
-void cli_versions_near(const CliVersionCatalogSizeCtx *args)
+void cli_versions_adjacent(const CliVersionCatalogSizeCtx *args)
 {
     unsigned int finding = args->finding;
     const char *name = args->name;
     unsigned long long size = args->size;
     unsigned long long from = args->from;
     unsigned long long to = args->to;
-    CliBuildNear near;
-    EMBED_CALL(cli_builds_size.build_near_begin, CliBuildsSizeCfg, .near = &near, .name = name, .size = size);
+    CliBuildAdjacent adjacent;
+    EMBED_CALL(cli_builds_size.build_adjacent_begin, CliBuildsSizeCfg, .adjacent = &adjacent, .name = name,
+               .size = size);
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        EMBED_CALL(cli_builds_size_near.build_near_offer, CliBuildsSizeNearCfg, .near = &near, .one = args->known[at],
+        EMBED_CALL(cli_builds_size_adjacent.build_adjacent_offer, CliBuildsSizeAdjacentCfg, .adjacent = &adjacent,
+                   .one = args->known[at],
                    .size = cellul.len(&(CatenaFinitaCfg){.src = args->known[at], .cap = CLI_CELLS_POOL}));
     }
     for (unsigned int at = 0u; (args->names != NULL) && (at < args->names->count); at += 1u)
     {
-        EMBED_CALL(cli_builds_size_near.build_near_offer, CliBuildsSizeNearCfg, .near = &near,
+        EMBED_CALL(cli_builds_size_adjacent.build_adjacent_offer, CliBuildsSizeAdjacentCfg, .adjacent = &adjacent,
                    .one = args->names->text + args->names->at[at], .size = args->names->size[at]);
     }
-    for (unsigned int at = 0u; at < near.count; at += 1u)
+    for (unsigned int at = 0u; at < adjacent.count; at += 1u)
     {
         VerbaLinea title = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = args->check->found);
         mmgr_line_put(&title, "Change to ");
         mmgr_line_put(&title, args->open);
-        mmgr_line_put_n(&title, near.near[at], near.near_size[at]);
+        mmgr_line_put_n(&title, adjacent.adjacent[at], adjacent.adjacent_size[at]);
         mmgr_line_put(&title, args->close);
         EMBED_CALL(cli_builds_text.build_edit_fix, CliBuildsTextCfg, .found = args->check->found, .finding = finding,
-                   .title = &title, .lines = args->check->lines, .from = from, .to = to, .text = near.near[at],
-                   .size = near.near_size[at]);
+                   .title = &title, .lines = args->check->lines, .from = from, .to = to, .text = adjacent.adjacent[at],
+                   .size = adjacent.adjacent_size[at]);
     }
 }
 
@@ -226,7 +229,7 @@ EMBED_INLINE void check_unknown_key(const VersionCatalogCheckCtx *args)
         EMBED_CALL(cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = check->found, .message = &msg,
                    .lines = check->lines, .from = args->field->from, .to = args->field->to,
                    .severity = CLI_BUILD_WARNING, .code = "catalog-key");
-    EMBED_CALL(cli_version_catalog_size_internal.versions_near, CliVersionCatalogSizeCtx, .check = check,
+    EMBED_CALL(cli_version_catalog_size_internal.versions_adjacent, CliVersionCatalogSizeCtx, .check = check,
                .finding = finding, .name = key, .size = args->field->key_size, .known = known, .count = count,
                .names = NULL, .from = args->field->from, .to = args->field->to, .open = "", .close = "");
 }
@@ -313,7 +316,7 @@ void cli_versions_version(const CliVersionCatalogCheckTableCtx *args)
                                                   .at = field->text_at),
                             .size = field->text_size))
         {
-            VerbaLinea full = {args->check->full, 2u * args->check->room, 0ull};
+            VerbaLinea full = {args->check->full, 2u * args->check->capacity, 0ull};
             mmgr_line_put_n(&full, args->coordinates, args->coordinates_size);
             mmgr_line_ch(&full, ':');
             mmgr_line_put_n(
@@ -345,7 +348,7 @@ void cli_versions_version(const CliVersionCatalogCheckTableCtx *args)
             EMBED_CALL(cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = args->check->found, .message = &msg,
                        .lines = args->check->lines, .from = named->value_from, .to = named->value_to,
                        .severity = CLI_BUILD_ERROR, .code = "catalog-reference");
-        EMBED_CALL(cli_version_catalog_size_internal.versions_near, CliVersionCatalogSizeCtx, .check = args->check,
+        EMBED_CALL(cli_version_catalog_size_internal.versions_adjacent, CliVersionCatalogSizeCtx, .check = args->check,
                    .finding = finding, .name = accessor, .size = line.at, .known = NULL, .count = 0u,
                    .names = &g_cli_versions_known, .from = named->value_from, .to = named->value_to, .open = "",
                    .close = "");

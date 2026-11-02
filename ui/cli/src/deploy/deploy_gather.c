@@ -75,7 +75,7 @@ int cli_deploy_fits(const CliDeploySizePatternCtx *args)
             return 0;
         }
     }
-    p = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = args->pattern, .at = p,
+    p = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = args->pattern, .at = p,
                    .size = length, .set = "*");
     return p == length;
 }
@@ -156,7 +156,7 @@ const char *cli_deploy_left_out_by(const CliDeployPatternsCtx *args)
         {
             const char *trimmed = pattern;
             trimmed +=
-                EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = trimmed, .at = 0ull,
+                EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = trimmed, .at = 0ull,
                            .size = cellul.len(&(CatenaFinitaCfg){.src = trimmed, .cap = CLI_CELLS_POOL}), .set = "/");
             if (EMBED_CALL(cli_deploy_size_pattern_internal.fits, CliDeploySizePatternCtx, .pattern = trimmed,
                            .name = args->path, .size = length))
@@ -223,29 +223,29 @@ void cli_deploy_modes_read(const CliDeployPoolCtx *args)
     const char *const words[4] = {"git", "ls-files", "-s", NULL};
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea none = {why, sizeof(why), 0ull};
-    CliRan *const ran = cli_ran_take();
+    CliRunResult *const run_result = cli_run_result_alloc();
     unsigned int lines = 0u;
     if (EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = words, .folder = g_cli_deploy.root, .settings = NULL,
-                   .count = 0u, .ran = ran, .err_msg = &none) &&
-        (ran->out_size > 0u))
+                   .count = 0u, .run_result = run_result, .err_msg = &none) &&
+        (run_result->out_size > 0u))
     {
         lines = 1u;
-        for (unsigned long long at = 0ull; at < ran->out_size; at += 1u)
+        for (unsigned long long at = 0ull; at < run_result->out_size; at += 1u)
         {
-            lines += (ran->out[at] == '\n') ? 1u : 0u;
+            lines += (run_result->out[at] == '\n') ? 1u : 0u;
         }
         s_modes = EMBED_CALL(cli_deploy_pool_internal.place, CliDeployPoolCtx, .pool = args->pool,
                              .size = (unsigned long long)lines * sizeof(s_modes[0]));
     }
     if (s_modes != NULL)
     {
-        for (unsigned long long at = 0ull; (at < ran->out_size) && (s_mode_count < lines);)
+        for (unsigned long long at = 0ull; (at < run_result->out_size) && (s_mode_count < lines);)
         {
-            const char *const line = ran->out + at;
-            const char *const newline =
-                memor.chr(&(MemoriaCfg){.src = line, .bytes = (size_t)(ran->out_size - at), .val = (uint8_t)'\n'});
+            const char *const line = run_result->out + at;
+            const char *const newline = memor.chr(
+                &(MemoriaCfg){.src = line, .bytes = (size_t)(run_result->out_size - at), .val = (uint8_t)'\n'});
             const unsigned long long size =
-                (newline != NULL) ? (unsigned long long)(newline - line) : (ran->out_size - at);
+                (newline != NULL) ? (unsigned long long)(newline - line) : (run_result->out_size - at);
             at += size + 1u;
             const char *const tab = memor.chr(&(MemoriaCfg){.src = line, .bytes = (size_t)size, .val = (uint8_t)'\t'});
             const char *const space = memor.chr(&(MemoriaCfg){.src = line, .bytes = (size_t)size, .val = (uint8_t)' '});
@@ -266,7 +266,7 @@ void cli_deploy_modes_read(const CliDeployPoolCtx *args)
             }
         }
     }
-    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+    EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
     qsort(s_modes, s_mode_count, sizeof(s_modes[0]), gather_order);
 }
 

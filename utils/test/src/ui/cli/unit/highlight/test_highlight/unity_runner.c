@@ -12,17 +12,17 @@ extern void tearDown(void);
 extern void test_a_string_of_thousands_of_characters_runs_to_its_closing_quote(void);
 extern void test_a_line_is_colored_by_its_rules_and_ends_in_root(void);
 extern void test_each_bracket_is_a_token_of_its_own(void);
-extern void test_a_comment_opened_colors_and_its_state_carries(void);
-extern void test_a_comments_state_carries_to_the_next_line_until_it_closes(void);
+extern void test_a_comment_opened_colors_and_its_state_transfers(void);
+extern void test_a_comments_state_transfers_to_the_next_line_until_it_closes(void);
 extern void test_columns_count_as_the_page_counts_them(void);
 extern void test_a_rule_reads_its_groups_and_a_grammar_its_includes(void);
 extern void test_what_matches_no_rule_has_no_token(void);
 extern void test_a_hundred_grammars_are_stored_each_under_its_key(void);
 extern void test_a_grammars_leaves_are_returned_a_line_at_a_time(void);
 extern void test_a_plugins_grammar_is_stored_under_its_key_and_colors(void);
-extern void test_a_plugin_there_is_none_of_is_refused_with_why(void);
+extern void test_a_plugin_there_is_none_of_is_refused_with_error(void);
 extern void test_a_line_is_colored_while_a_coloring_under_way_waits_on_it(void);
-extern void test_a_grammar_stored_again_leaves_a_coloring_reading_the_one_it_found_and_the_next_the_new(void);
+extern void test_a_grammar_stored_again_leaves_a_coloring_read_state_the_one_it_found_and_the_next_the_new(void);
 extern void test_a_coloring_begun_within_another_on_its_thread_colors_and_the_other_goes_on(void);
 extern void test_a_grammars_indent_runs_its_block_each_close_a_mark(void);
 extern void test_cs_prototype_names_its_parameters_and_their_types(void);
@@ -35,7 +35,7 @@ extern void test_a_rust_local_and_its_type_are_named(void);
 extern void test_javascripts_head_names_its_parameters(void);
 extern void test_a_javascript_local_is_named(void);
 extern void test_a_pattern_not_read_here_is_refused(void);
-extern void test_the_grammars_report_the_most_they_and_their_rooms_used_of_the_cellblock(void);
+extern void test_the_grammars_report_the_max_they_and_their_capacities_used_of_the_cellblock(void);
 
 
 /*=======Mock Management=====*/
@@ -100,17 +100,17 @@ int main(void)
   run_test(test_a_string_of_thousands_of_characters_runs_to_its_closing_quote, "test_a_string_of_thousands_of_characters_runs_to_its_closing_quote", 217);
   run_test(test_a_line_is_colored_by_its_rules_and_ends_in_root, "test_a_line_is_colored_by_its_rules_and_ends_in_root", 254);
   run_test(test_each_bracket_is_a_token_of_its_own, "test_each_bracket_is_a_token_of_its_own", 260);
-  run_test(test_a_comment_opened_colors_and_its_state_carries, "test_a_comment_opened_colors_and_its_state_carries", 267);
-  run_test(test_a_comments_state_carries_to_the_next_line_until_it_closes, "test_a_comments_state_carries_to_the_next_line_until_it_closes", 273);
+  run_test(test_a_comment_opened_colors_and_its_state_transfers, "test_a_comment_opened_colors_and_its_state_transfers", 267);
+  run_test(test_a_comments_state_transfers_to_the_next_line_until_it_closes, "test_a_comments_state_transfers_to_the_next_line_until_it_closes", 273);
   run_test(test_columns_count_as_the_page_counts_them, "test_columns_count_as_the_page_counts_them", 279);
   run_test(test_a_rule_reads_its_groups_and_a_grammar_its_includes, "test_a_rule_reads_its_groups_and_a_grammar_its_includes", 284);
   run_test(test_what_matches_no_rule_has_no_token, "test_what_matches_no_rule_has_no_token", 289);
   run_test(test_a_hundred_grammars_are_stored_each_under_its_key, "test_a_hundred_grammars_are_stored_each_under_its_key", 294);
   run_test(test_a_grammars_leaves_are_returned_a_line_at_a_time, "test_a_grammars_leaves_are_returned_a_line_at_a_time", 309);
   run_test(test_a_plugins_grammar_is_stored_under_its_key_and_colors, "test_a_plugins_grammar_is_stored_under_its_key_and_colors", 328);
-  run_test(test_a_plugin_there_is_none_of_is_refused_with_why, "test_a_plugin_there_is_none_of_is_refused_with_why", 339);
+  run_test(test_a_plugin_there_is_none_of_is_refused_with_error, "test_a_plugin_there_is_none_of_is_refused_with_error", 339);
   run_test(test_a_line_is_colored_while_a_coloring_under_way_waits_on_it, "test_a_line_is_colored_while_a_coloring_under_way_waits_on_it", 348);
-  run_test(test_a_grammar_stored_again_leaves_a_coloring_reading_the_one_it_found_and_the_next_the_new, "test_a_grammar_stored_again_leaves_a_coloring_reading_the_one_it_found_and_the_next_the_new", 360);
+  run_test(test_a_grammar_stored_again_leaves_a_coloring_read_state_the_one_it_found_and_the_next_the_new, "test_a_grammar_stored_again_leaves_a_coloring_read_state_the_one_it_found_and_the_next_the_new", 360);
   run_test(test_a_coloring_begun_within_another_on_its_thread_colors_and_the_other_goes_on, "test_a_coloring_begun_within_another_on_its_thread_colors_and_the_other_goes_on", 372);
   run_test(test_a_grammars_indent_runs_its_block_each_close_a_mark, "test_a_grammars_indent_runs_its_block_each_close_a_mark", 388);
   run_test(test_cs_prototype_names_its_parameters_and_their_types, "test_cs_prototype_names_its_parameters_and_their_types", 408);
@@ -123,7 +123,7 @@ int main(void)
   run_test(test_javascripts_head_names_its_parameters, "test_javascripts_head_names_its_parameters", 462);
   run_test(test_a_javascript_local_is_named, "test_a_javascript_local_is_named", 471);
   run_test(test_a_pattern_not_read_here_is_refused, "test_a_pattern_not_read_here_is_refused", 478);
-  run_test(test_the_grammars_report_the_most_they_and_their_rooms_used_of_the_cellblock, "test_the_grammars_report_the_most_they_and_their_rooms_used_of_the_cellblock", 484);
+  run_test(test_the_grammars_report_the_max_they_and_their_capacities_used_of_the_cellblock, "test_the_grammars_report_the_max_they_and_their_capacities_used_of_the_cellblock", 484);
 
   return UNITY_END();
 }

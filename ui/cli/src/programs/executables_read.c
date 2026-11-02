@@ -17,9 +17,9 @@ typedef struct
     CliWalk walk;
     CliNames names;
     CliNames merged;
-} CliScriptsRoom;
+} CliScriptsWorkState;
 
-static CliScriptsRoom *s_scripts;
+static CliScriptsWorkState *s_scripts;
 
 unsigned int cli_executables_kind_get(const CliExecutablesNameOutFolderCtx *args)
 {
@@ -54,9 +54,10 @@ unsigned int cli_executables_kind_get(const CliExecutablesNameOutFolderCtx *args
     return CLI_KIND_NONE;
 }
 
-int cli_text_read(const CliExecutablesRoomCtx *args)
+int cli_text_read(const CliExecutablesCapacityCtx *args)
 {
-    const unsigned long long size = qry_member_file_read(args->path, (unsigned char *)args->bytes, args->room - 1ull);
+    const unsigned long long size =
+        qry_member_file_read(args->path, (unsigned char *)args->bytes, args->capacity - 1ull);
     if (size == QRY_MEMBER_UNREAD)
     {
         args->bytes[0] = '\0';
@@ -66,15 +67,15 @@ int cli_text_read(const CliExecutablesRoomCtx *args)
     return 1;
 }
 
-char *cli_text_take(const CliExecutablesWalkCtx *args)
+char *cli_text_alloc(const CliExecutablesWalkCtx *args)
 {
     unsigned long long size = 0ull;
     char *const text =
         EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = args->path, .size_pointer = &size)
             ? g_cli_cells->persistent_buf_alloc(size + 1ull, &g_cli_executables_cells)
             : NULL;
-    if ((text != NULL) && !EMBED_CALL(cli_executables_room_internal.text_read, CliExecutablesRoomCtx,
-                                      .path = args->path, .bytes = text, .room = size + 1ull))
+    if ((text != NULL) && !EMBED_CALL(cli_executables_capacity_internal.text_read, CliExecutablesCapacityCtx,
+                                      .path = args->path, .bytes = text, .capacity = size + 1ull))
     {
         g_cli_cells->persistent_buf_release(text, &g_cli_executables_cells);
         return NULL;
@@ -82,7 +83,7 @@ char *cli_text_take(const CliExecutablesWalkCtx *args)
     return text;
 }
 
-void cli_executables_walk_take(const CliExecutablesWalkCtx *args)
+void cli_executables_walk_alloc(const CliExecutablesWalkCtx *args)
 {
     CliWalk *walk = args->walk;
     const unsigned long long paths = (unsigned long long)CLI_EXECUTABLES_PENDING + CLI_EXECUTABLES_SCRIPTS;
@@ -95,15 +96,15 @@ void cli_executables_walk_take(const CliExecutablesWalkCtx *args)
         return;
     }
     walk->pending = cell;
-    walk->pending_room = CLI_EXECUTABLES_PENDING;
+    walk->pending_capacity = CLI_EXECUTABLES_PENDING;
     walk->found = cell + CLI_EXECUTABLES_PENDING;
-    walk->found_room = CLI_EXECUTABLES_SCRIPTS;
+    walk->found_capacity = CLI_EXECUTABLES_SCRIPTS;
     walk->depth = (unsigned int *)(void *)(cell + paths);
 }
 
-int cli_executables_pending_put(const CliExecutablesWalkCtx *args)
+int cli_executables_pending_append(const CliExecutablesWalkCtx *args)
 {
-    if (args->walk->pending_count >= args->walk->pending_room)
+    if (args->walk->pending_count >= args->walk->pending_capacity)
     {
         return 0;
     }
@@ -115,9 +116,9 @@ int cli_executables_pending_put(const CliExecutablesWalkCtx *args)
     return 1;
 }
 
-int cli_executables_found_put(const CliExecutablesWalkCtx *args)
+int cli_executables_found_append(const CliExecutablesWalkCtx *args)
 {
-    if (args->walk->found_count >= args->walk->found_room)
+    if (args->walk->found_count >= args->walk->found_capacity)
     {
         return 0;
     }
@@ -172,14 +173,14 @@ static void cli_script_each(const CliEachNameIsFolderCfg *args)
         if (((walk->at_depth + 1u) < CLI_EXECUTABLES_DEEP) && (name[0] != '.') &&
             !EMBED_CALL(cli_executables_name_out_folder_internal.pass, CliExecutablesNameOutFolderCtx, .name = name))
         {
-            (void)EMBED_CALL(cli_executables_walk_internal.pending_put, CliExecutablesWalkCtx, .walk = walk,
+            (void)EMBED_CALL(cli_executables_walk_internal.pending_append, CliExecutablesWalkCtx, .walk = walk,
                              .path = path, .depth = walk->at_depth + 1u);
         }
     }
     else if (EMBED_CALL(cli_executables_name_out_folder_internal.kind_get, CliExecutablesNameOutFolderCtx,
                         .name = name) != CLI_KIND_NONE)
     {
-        (void)EMBED_CALL(cli_executables_walk_internal.found_put, CliExecutablesWalkCtx, .walk = walk, .path = path);
+        (void)EMBED_CALL(cli_executables_walk_internal.found_append, CliExecutablesWalkCtx, .walk = walk, .path = path);
     }
 }
 
@@ -187,8 +188,8 @@ void cli_executables_walk(const CliExecutablesWalkTopCtx *args)
 {
     CliWalk *walk = args->walk;
     walk->pending_count = 0u;
-    (void)EMBED_CALL(cli_executables_walk_internal.pending_put, CliExecutablesWalkCtx, .walk = walk, .path = args->top,
-                     .depth = 0u);
+    (void)EMBED_CALL(cli_executables_walk_internal.pending_append, CliExecutablesWalkCtx, .walk = walk,
+                     .path = args->top, .depth = 0u);
     while (walk->pending_count > 0u)
     {
         walk->pending_count -= 1u;
@@ -205,7 +206,7 @@ void cli_executables_walk(const CliExecutablesWalkTopCtx *args)
                    .context_bytess = walk);
         if (walk->main)
         {
-            (void)EMBED_CALL(cli_executables_walk_internal.found_put, CliExecutablesWalkCtx, .walk = walk,
+            (void)EMBED_CALL(cli_executables_walk_internal.found_append, CliExecutablesWalkCtx, .walk = walk,
                              .path = folder);
         }
     }
@@ -228,10 +229,10 @@ typedef struct
 EMBED_INLINE const char *cli_base(const ExecutablesReadCtx *args)
 {
     const char *name = args->path;
-    const unsigned long long name_past =
+    const unsigned long long name_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
                    .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
-    name = (name_past != 0ull) ? (args->path + name_past) : name;
+    name = (name_end != 0ull) ? (args->path + name_end) : name;
     return name;
 }
 
@@ -245,10 +246,10 @@ EMBED_INLINE int cli_under(const ExecutablesReadCtx *args)
 }
 
 // a program put after those found
-EMBED_INLINE void cli_found_put(const ExecutablesReadCtx *args)
+EMBED_INLINE void cli_found_append(const ExecutablesReadCtx *args)
 {
     unsigned int kind = args->kind;
-    if (args->found->count >= args->found->room)
+    if (args->found->count >= args->found->capacity)
     {
         return;
     }
@@ -295,7 +296,7 @@ static void cli_projects(const ExecutablesReadCtx *args)
         }
         char project[CLI_NAME_MAX_LEN];
         char *const top_text =
-            above ? NULL : EMBED_CALL(cli_executables_walk_internal.text_take, CliExecutablesWalkCtx, .path = script);
+            above ? NULL : EMBED_CALL(cli_executables_walk_internal.text_alloc, CliExecutablesWalkCtx, .path = script);
         const int named =
             (top_text != NULL) &&
             ((args->kind == CLI_KIND_CMAKE) ? EMBED_CALL(cli_executables_text_out_internal.cmake_project,
@@ -318,9 +319,9 @@ static void cli_projects(const ExecutablesReadCtx *args)
             {
                 continue;
             }
-            char *const taken = EMBED_CALL(cli_executables_walk_internal.text_take, CliExecutablesWalkCtx,
-                                           .path = args->walk->found[list]);
-            const char *const text = (taken != NULL) ? taken : "";
+            char *const reserved = EMBED_CALL(cli_executables_walk_internal.text_alloc, CliExecutablesWalkCtx,
+                                              .path = args->walk->found[list]);
+            const char *const text = (reserved != NULL) ? reserved : "";
             char own[CLI_NAME_MAX_LEN];
             if (args->kind == CLI_KIND_CMAKE)
             {
@@ -336,10 +337,10 @@ static void cli_projects(const ExecutablesReadCtx *args)
                 EMBED_CALL(cli_executables_names_internal.meson_targets, CliExecutablesNamesCtx, .text = text,
                            .names = &s_scripts->names);
             }
-            g_cli_cells->persistent_buf_release(taken, &g_cli_executables_cells);
+            g_cli_cells->persistent_buf_release(reserved, &g_cli_executables_cells);
             for (unsigned int at = 0u; at < s_scripts->names.count; at += 1u)
             {
-                EMBED_CALL(cli_executables_name_names_internal.names_put, CliExecutablesNameNamesCtx,
+                EMBED_CALL(cli_executables_name_names_internal.names_append, CliExecutablesNameNamesCtx,
                            .names = &s_scripts->merged, .name = s_scripts->names.name[at],
                            .length =
                                cellul.len(&(CatenaFinitaCfg){.src = s_scripts->names.name[at], .cap = CLI_CELLS_POOL}),
@@ -348,7 +349,7 @@ static void cli_projects(const ExecutablesReadCtx *args)
         }
         for (unsigned int at = 0u; at < s_scripts->merged.count; at += 1u)
         {
-            EMBED_CALL(cli_found_put, ExecutablesReadCtx, .found = args->found, .kind = args->kind, .script = script,
+            EMBED_CALL(cli_found_append, ExecutablesReadCtx, .found = args->found, .kind = args->kind, .script = script,
                        .name = s_scripts->merged.name[at]);
         }
     }
@@ -397,10 +398,10 @@ EMBED_INLINE void cli_script_text_read(const ExecutablesReadCtx *args)
                             ? EMBED_CALL(cli_executables_text_out_internal.dotnet_program, CliExecutablesTextOutCtx,
                                          .project = script, .text = text, .out = name)
                             : EMBED_CALL(cli_executables_text_exe_internal.spec_init, CliExecutablesTextExeCtx,
-                                         .text = text, .exe_room = name, .path_out = path);
+                                         .text = text, .exe_capacity = name, .path_out = path);
         if (one)
         {
-            EMBED_CALL(cli_executables_name_names_internal.names_put, CliExecutablesNameNamesCtx,
+            EMBED_CALL(cli_executables_name_names_internal.names_append, CliExecutablesNameNamesCtx,
                        .names = &s_scripts->names, .name = name,
                        .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}),
                        .value = (args->kind == CLI_KIND_DOTNET) ? NULL : path);
@@ -413,7 +414,7 @@ EMBED_INLINE void cli_script_text_read(const ExecutablesReadCtx *args)
     for (unsigned int at = 0u; at < s_scripts->names.count; at += 1u)
     {
         const unsigned int before = args->found->count;
-        EMBED_CALL(cli_found_put, ExecutablesReadCtx, .found = args->found, .kind = args->kind, .script = script,
+        EMBED_CALL(cli_found_append, ExecutablesReadCtx, .found = args->found, .kind = args->kind, .script = script,
                    .name = s_scripts->names.name[at]);
         if (args->found->count == before)
         {
@@ -449,7 +450,7 @@ EMBED_INLINE void cli_script_text_read(const ExecutablesReadCtx *args)
                        .name = trimmed, .out = path);
             EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = root, .path = path,
                        .relative_out = one->detail);
-            char *const bin = EMBED_CALL(cli_executables_walk_internal.text_take, CliExecutablesWalkCtx, .path = path);
+            char *const bin = EMBED_CALL(cli_executables_walk_internal.text_alloc, CliExecutablesWalkCtx, .path = path);
             EMBED_CALL(cli_executables_folder_internal.npm_builders, CliExecutablesFolderCtx, .folder = folder,
                        .script = (bin != NULL) ? bin : "", .one = one);
             g_cli_cells->persistent_buf_release(bin, &g_cli_executables_cells);
@@ -461,7 +462,8 @@ EMBED_INLINE void cli_script_text_read(const ExecutablesReadCtx *args)
 // cell of its size
 EMBED_INLINE void cli_script_read(const ExecutablesReadCtx *args)
 {
-    char *const text = EMBED_CALL(cli_executables_walk_internal.text_take, CliExecutablesWalkCtx, .path = args->script);
+    char *const text =
+        EMBED_CALL(cli_executables_walk_internal.text_alloc, CliExecutablesWalkCtx, .path = args->script);
     if (text != NULL)
     {
         EMBED_CALL(cli_script_text_read, ExecutablesReadCtx, .root = args->root, .script = args->script, .text = text,
@@ -474,15 +476,15 @@ void cli_executables_read(const CliExecutablesFoundCtx *args)
 {
     cli_executables_found_internal.free(args);
     args->found->item = g_cli_cells->persistent_buf_alloc(
-        (unsigned long long)CLI_EXECUTABLES_MOST * sizeof(*args->found->item), &g_cli_executables_cells);
-    args->found->room = (args->found->item != NULL) ? CLI_EXECUTABLES_MOST : 0u;
+        (unsigned long long)CLI_EXECUTABLES_MAX * sizeof(*args->found->item), &g_cli_executables_cells);
+    args->found->capacity = (args->found->item != NULL) ? CLI_EXECUTABLES_MAX : 0u;
     s_scripts = g_cli_cells->persistent_buf_alloc(sizeof(*s_scripts), &g_cli_executables_cells);
     if (s_scripts == NULL)
     {
         return;
     }
     CliWalk *const walk = &s_scripts->walk;
-    EMBED_CALL(cli_executables_walk_internal.walk_take, CliExecutablesWalkCtx, .walk = walk);
+    EMBED_CALL(cli_executables_walk_internal.walk_alloc, CliExecutablesWalkCtx, .walk = walk);
     EMBED_CALL(cli_executables_walk_top_internal.walk, CliExecutablesWalkTopCtx, .walk = walk, .top = args->root,
                .each = cli_script_each);
     EMBED_CALL(cli_text_paths.paths_sort, CliTextPathsCfg, .paths = walk->found, .count = walk->found_count);

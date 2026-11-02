@@ -10,7 +10,7 @@
 // retains its lines before the first cell, writes a markdown cell's lines behind the language's comment, and contains
 // no outputs.
 //
-// Every call works in a tree its caller hands it, `tokens` sized for `tokens_most` for the JSON it reads
+// Every call works in a tree its caller hands it, `tokens` sized for `tokens_max` for the JSON it reads
 #ifndef NOTEBOOK_H
 #define NOTEBOOK_H
 typedef struct CliNotebookTextCfg CliNotebookTextCfg;
@@ -42,7 +42,7 @@ int cli_notebook_for_diff(const CliNotebookTextCfg *args);
 // outputs go with its source. Cells either side added stand after the cell they follow there. `{"book": ours with no
 // cells, "entries": [{"take": cell} or {"conflict": {"base", "ours", "theirs"}}]}`
 unsigned int cli_notebook_merge(const CliNotebookCfg *args);
-// the cells a merge occupies while it runs, its room and the lines of two cells compared (notebook_merge.c)
+// the cells a merge occupies while it runs, its capacity and the lines of two cells compared (notebook_merge.c)
 extern CellOwner g_cli_notebook_cells;
 
 struct CliNotebookTextCfg
@@ -51,7 +51,7 @@ struct CliNotebookTextCfg
     unsigned long long size;
     CliJson *json;
     CfgJsonToken *tokens;
-    unsigned int tokens_most;
+    unsigned int tokens_max;
     VerbaLinea *err_msg;
     VerbaLinea *out;
 };
@@ -63,7 +63,7 @@ struct CliNotebookPathCfg
     unsigned long long size;
     CliJson *json;
     CfgJsonToken *tokens;
-    unsigned int tokens_most;
+    unsigned int tokens_max;
     VerbaLinea *err_msg;
 };
 

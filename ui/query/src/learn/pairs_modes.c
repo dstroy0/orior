@@ -39,9 +39,9 @@ int query_identity_run(const QueryPairsContextErrMsgRunCtx *args)
     const char *const *words = args->words_letters;
     long long *code = args->code;
     VerbaLinea *err_msg = args->err_msg;
-    static const char *s_words[QUERY_WORDS_MOST + 2u];
+    static const char *s_words[QUERY_WORDS_MAX + 2u];
     s_words[0] = args->identity;
-    const unsigned int word_count = (args->count < QUERY_WORDS_MOST) ? args->count : QUERY_WORDS_MOST;
+    const unsigned int word_count = (args->count < QUERY_WORDS_MAX) ? args->count : QUERY_WORDS_MAX;
     memor.cpy(&(MemoriaCfg){.dst = &s_words[1], .src = words, .bytes = (size_t)word_count * sizeof(words[0])});
     s_words[word_count + 1u] = NULL;
     return EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
@@ -61,12 +61,13 @@ int query_text_identity(const QueryPairsContextErrMsgCtx *args)
     const QueryPrograms *const programs = context->programs;
     if (!EMBED_CALL(query_loops_err_msg_context.context_tool, QueryLoopsErrMsgContextCfg, .context_read = context,
                     .name = "orior_measuring_stick_engine", .binary = s_engine, .err_msg = err_msg) ||
-        !EMBED_CALL(programs->program, QueryEachRolePathRoomErrMsgCfg, .context = programs->context,
-                    .role = QUERY_ROLE_PYTHON, .path = s_python, .room = sizeof(s_python), .err_msg = err_msg) ||
-        !EMBED_CALL(programs->program, QueryEachRolePathRoomErrMsgCfg, .context = programs->context,
-                    .role = QUERY_ROLE_NVCC, .path = s_nvcc, .room = sizeof(s_nvcc), .err_msg = err_msg) ||
-        !EMBED_CALL(programs->program, QueryEachRolePathRoomErrMsgCfg, .context = programs->context,
-                    .role = QUERY_ROLE_CUOBJDUMP, .path = s_cuobjdump, .room = sizeof(s_cuobjdump), .err_msg = err_msg))
+        !EMBED_CALL(programs->program, QueryEachRolePathCapacityErrMsgCfg, .context = programs->context,
+                    .role = QUERY_ROLE_PYTHON, .path = s_python, .capacity = sizeof(s_python), .err_msg = err_msg) ||
+        !EMBED_CALL(programs->program, QueryEachRolePathCapacityErrMsgCfg, .context = programs->context,
+                    .role = QUERY_ROLE_NVCC, .path = s_nvcc, .capacity = sizeof(s_nvcc), .err_msg = err_msg) ||
+        !EMBED_CALL(programs->program, QueryEachRolePathCapacityErrMsgCfg, .context = programs->context,
+                    .role = QUERY_ROLE_CUOBJDUMP, .path = s_cuobjdump, .capacity = sizeof(s_cuobjdump),
+                    .err_msg = err_msg))
     {
         return -1;
     }
@@ -129,8 +130,8 @@ int query_text_identity(const QueryPairsContextErrMsgCtx *args)
     char cl[QUERY_PATH_MAX_LEN];
     char ignored_text[QUERY_LINE_MAX_LEN];
     VerbaLinea ignored = {ignored_text, sizeof(ignored_text), 0ull};
-    if (EMBED_CALL(programs->program, QueryEachRolePathRoomErrMsgCfg, .context = programs->context,
-                   .role = QUERY_ROLE_CL, .path = cl, .room = sizeof(cl), .err_msg = &ignored) &&
+    if (EMBED_CALL(programs->program, QueryEachRolePathCapacityErrMsgCfg, .context = programs->context,
+                   .role = QUERY_ROLE_CL, .path = cl, .capacity = sizeof(cl), .err_msg = &ignored) &&
         (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = cl,
                     .length_value = cellul.len(&(CatenaFinitaCfg){.src = cl, .cap = CLI_CELLS_POOL}),
                     .byte = '\\') != NULL))
@@ -178,13 +179,13 @@ int query_text_identity(const QueryPairsContextErrMsgCtx *args)
         whole = 0;
     }
     // the listing written beside the sides, which the engine reads from the disk
-    const unsigned char *listed = NULL;
+    const unsigned char *list_entries = NULL;
     unsigned long long listed_size = 0ull;
     whole = whole &&
             EMBED_CALL(query_count_name_internal.writer_latest, QueryCountNameCtx, .writer = &s_run.writer,
-                       .name = "measuring_stick_nvcc.sass", .bytes_u8s = &listed, .size_pointer = &listed_size) &&
-            EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = sass, .bytes = listed,
-                       .size = listed_size);
+                       .name = "measuring_stick_nvcc.sass", .bytes_u8s = &list_entries, .size_pointer = &listed_size) &&
+            EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = sass,
+                       .bytes = list_entries, .size = listed_size);
     const char *const engine_words[5] = {s_engine, cu, sass, engine_out, NULL};
     whole = whole && EMBED_CALL(query_loops_context_err_msg_name_run.context_dispatch,
                                 QueryLoopsContextErrMsgNameRunCfg, .context = context, .run = &s_run,
@@ -196,7 +197,7 @@ int query_text_identity(const QueryPairsContextErrMsgCtx *args)
     }
     char reader[64];
     EMBED_CALL(query_pairs_part_name_internal.part_read, QueryPairsPartNameCtx, .part = args->mode->part,
-               .name = reader, .room = sizeof(reader));
+               .name = reader, .capacity = sizeof(reader));
     whole = whole && EMBED_CALL(query_loops_context_folder.listings_read, QueryLoopsContextFolderCfg,
                                 .context = context, .run = &s_run, .pattern = cubin, .prefix = "measuring_stick_",
                                 .architecture = reader, .folder = engine_out, .err_msg = err_msg);

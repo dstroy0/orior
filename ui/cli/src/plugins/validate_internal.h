@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// validate_internal.h: what the validation's sources share: the tool read from its plugin, the room one validation
-// reads into under its lock, and the code, the prover's messages and the findings
+// validate_internal.h: what the validation's sources share: the tool read from its plugin, the work state one
+// validation reads into under its lock, and the code, the prover's messages and the findings
 #ifndef VALIDATE_INTERNAL_H
 #define VALIDATE_INTERNAL_H
 typedef struct CliValidateProgramCtx CliValidateProgramCtx;
@@ -48,7 +48,7 @@ typedef struct CliValidateIdCtx CliValidateIdCtx;
 #define CLI_VALIDATE_OWN (1u << 16u)
 #define CLI_VALIDATE_CHECKS_TEXT (1u << 16u)
 
-// a place of the room's texts that contains none
+// a place of the work state's texts that contains none
 #define CLI_VALIDATE_NONE (~0ull)
 
 // A limit of the machine: its name and what it is, the arrays of the kinds and the words of the messages it stops a
@@ -151,7 +151,7 @@ typedef struct
     unsigned long long lifted;
 } CliFinding;
 
-// The room one validation reads into: the tool's plugin.json and the tool; the code and its words; the theorems'
+// The work state one validation reads into: the tool's plugin.json and the tool; the code and its words; the theorems'
 // names; the copy checked; the first check's messages and the last's; one line of the prover's read; the findings;
 // the toolchains, the PATH's folders, the toolchain found and the PATH a check runs with; a check's output; each
 // limit grown by its barrier's name, the first barrier of that name standing for it, whether it stops the check at
@@ -193,14 +193,15 @@ typedef struct
     unsigned long long own_size;
     char checks[CLI_VALIDATE_CHECKS_TEXT];
     unsigned long long checks_size;
-    int ran;
+    int run_result;
     int late;
     unsigned long long lines;
-} CliValidateRoom;
+} CliValidateWorkState;
 
-// the room, a cell taken with the validation's lock and given back with it; and the lock taken with the room: 1, or 0
-// with the lock given back where the cells cannot meet it; and the room given back with the lock (validate.c)
-extern CliValidateRoom *g_cli_validate;
+// the work state, a cell taken with the validation's lock and given back with it; and the lock taken with the work
+// state: 1, or 0 with the lock given back where the cells cannot meet it; and the work state given back with the lock
+// (validate.c)
+extern CliValidateWorkState *g_cli_validate;
 int cli_validate_lock(void);
 void cli_validate_release(void);
 
@@ -208,14 +209,14 @@ void cli_validate_release(void);
 // contain `part` (validate_tool.c)
 int cli_validate_in_array(const CliValidateJsonCtx *args);
 int cli_validate_contains(const CliValidateTextLengthCtx *args);
-// the tool plugin `id` read into the room's tool: 1, or 0 where no tool plugin is of that id
+// the tool plugin `id` read into the work state's tool: 1, or 0 where no tool plugin is of that id
 int cli_validate_tool_read(const CliValidateIdCtx *args);
 
 // `size` bytes of text with their comments and strings blanked, every letter preserved in its place as one, so that
-// each word found in it is a word of the code, into the room's code: 1, or 0 where it is larger than the room fits;
-// each word of the code with its line and column into the room's words; the full name of each theorem the code
-// declares, with the namespaces open where it is declared, into the room's theorems; and each use of a flagged word, as
-// a word or the last part of a dotted name, `@` before it or not, a finding (validate_code.c)
+// each word found in it is a word of the code, into the work state's code: 1, or 0 where it is larger than the work
+// state fits; each word of the code with its line and column into the work state's words; the full name of each theorem
+// the code declares, with the namespaces open where it is declared, into the work state's theorems; and each use of a
+// flagged word, as a word or the last part of a dotted name, `@` before it or not, a finding (validate_code.c)
 int cli_validate_code_get(const CliValidateTextCtx *args);
 void cli_validate_words_get(void);
 void cli_validate_theorems_in(void);
@@ -229,10 +230,10 @@ void cli_validate_messages_get(const CliValidateSizeCtx *args);
 int cli_validate_barrier_get(const CliValidateMessagesCtx *args);
 int cli_validate_axioms_get(const CliValidateTextCtx *args);
 
-// the copy of `size` bytes of text that is checked, into the room's copy: each `set_option <name> <value>` of the
+// the copy of `size` bytes of text that is checked, into the work state's copy: each `set_option <name> <value>` of the
 // options `names`, `count` of them in the order of their names, set to its value of `values` where that is larger,
 // each change written into `changed`, "; " between them, and the lines that request each theorem's axioms after it: the
-// copy's size, or more than the room fits where it does not fit (validate_messages.c)
+// copy's size, or more than the work state fits where it does not fit (validate_messages.c)
 unsigned long long cli_validate_copy_get(const CliValidateTextSizeCtx *args);
 
 // the limits grown, by their barriers' names in order, into `keys`, sized for CLI_VALIDATE_BARRIERS: their count
@@ -242,8 +243,8 @@ unsigned int cli_validate_grown_keys(const CliValidateCtx *args);
 // the words that run the program on `file` into `words`, the limits' settings just before the file, where the prover
 // reads its own options, the first of them at `from` and `settings` of them, and the folder they run from into `dir`,
 // sized for CLI_PATH_MAX_LEN; and one check run, taking at most the tool's patience: its output, the error stream
-// after it where it prints anything, into the room's output, the seconds it took into `seconds`, and whether it ran
-// out of time into the room. Each 1, or 0 with why given (validate_run.c)
+// after it where it prints anything, into the work state's output, the seconds it took into `seconds`, and whether it
+// ran out of time into the work state. Each 1, or 0 with why given (validate_run.c)
 int cli_validate_command_for(const CliValidateProgramCtx *args);
 int cli_validate_check(const CliValidateErrMsgCtx *args);
 
@@ -260,7 +261,7 @@ unsigned int cli_validate_key_get(const CliValidateAtCtx *args);
 // a finding put with its message, `lifted` NULL for none; and what the checks run found, from the first check's
 // messages and the last's, the flags and the axioms, written as the report of the file `path` and its `project`, NULL
 // for none (validate_report.c)
-void cli_validate_finding_put(const CliValidateLengthCtx *args);
+void cli_validate_finding_append(const CliValidateLengthCtx *args);
 void cli_validate_report(const CliValidateProjectCtx *args);
 
 struct CliValidateProgramCtx
@@ -479,11 +480,11 @@ EMBED_TABLE_STORAGE CliValidateAtNs cli_validate_at_internal EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*finding_put)(const CliValidateLengthCtx *args);
+    void (*finding_append)(const CliValidateLengthCtx *args);
 } CliValidateLengthNs;
-EMBED_TABLE_LAYOUT(CliValidateLengthNs, finding_put);
+EMBED_TABLE_LAYOUT(CliValidateLengthNs, finding_append);
 EMBED_TABLE_STORAGE CliValidateLengthNs cli_validate_length_internal EMBED_UNUSED = {
-    .finding_put = cli_validate_finding_put,
+    .finding_append = cli_validate_finding_append,
 };
 
 typedef struct

@@ -20,7 +20,7 @@ typedef struct CliLspBodyCfg CliLspBodyCfg;
 typedef struct CliLspWriterCfg CliLspWriterCfg;
 typedef struct CliLspWriterLockCfg CliLspWriterLockCfg;
 typedef struct CliLspReaderCfg CliLspReaderCfg;
-typedef struct CliLspRoomCfg CliLspRoomCfg;
+typedef struct CliLspCapacityCfg CliLspCapacityCfg;
 typedef struct CliLspLengthCfg CliLspLengthCfg;
 typedef struct CliLspReaderSizeCfg CliLspReaderSizeCfg;
 typedef struct CliLspContextCfg CliLspContextCfg;
@@ -28,7 +28,7 @@ typedef struct CliLspSizeCfg CliLspSizeCfg;
 typedef struct CliLspLengthUriCfg CliLspLengthUriCfg;
 typedef struct CliLspPathOutCfg CliLspPathOutCfg;
 typedef struct CliLspSizePathCfg CliLspSizePathCfg;
-typedef struct CliLspRoomPathCfg CliLspRoomPathCfg;
+typedef struct CliLspCapacityPathCfg CliLspCapacityPathCfg;
 typedef struct CliLspCfg CliLspCfg;
 typedef struct CliLspSizeKindCfg CliLspSizeKindCfg;
 
@@ -60,11 +60,11 @@ typedef struct
 // into `answer` as JSON, `null` where nothing is written; and what is not sent for a notification
 typedef void (*CliLspRecvFn)(const CliLspRecvCfg *args);
 
-// Where a framed message is read from: a function that reads a piece of at most `room` bytes, 0 at the end, its
+// Where a framed message is read from: a function that reads a piece of at most `capacity` bytes, 0 at the end, its
 // source, and what was read and not yet taken
 typedef struct
 {
-    unsigned long long (*read)(const CliSourcePieceRoomCfg *args);
+    unsigned long long (*read)(const CliSourcePieceCapacityCfg *args);
     void *source;
     char buf[65536];
     unsigned long long start;
@@ -92,27 +92,27 @@ typedef struct
 
 // `size` bytes of a JSON body framed and written whole by `writer` under `lock`; the same of a body made of `count`
 // pieces, each text written as a JSON string's letters as it goes, so that a file's whole text is never copied: each 1,
-// or 0 with why given; one message read from `reader` into `body`, sized for `room`, its size into `size`: 1, or 0
-// where the reader's source ended, the message gave no length or the body is no JSON, a body larger than the room read
-// and let go and the next one read; one message read into a cell of its length with a 0 after, counted to `owner`, its
-// size into `size`: the cell, given back by the caller, or NULL where the source ended, a body the cells cannot meet or
-// that is no JSON read and let go and the next one read; and the member `name` of a message's top object, as its start
-// and length in the body: 1, or 0 where it has none (lsp_wire.c)
+// or 0 with why given; one message read from `reader` into `body`, sized for `capacity`, its size into `size`: 1, or 0
+// where the reader's source ended, the message gave no length or the body is no JSON, a body larger than the capacity
+// read and let go and the next one read; one message read into a cell of its length with a 0 after, counted to `owner`,
+// its size into `size`: the cell, given back by the caller, or NULL where the source ended, a body the cells cannot
+// meet or that is no JSON read and let go and the next one read; and the member `name` of a message's top object, as
+// its start and length in the body: 1, or 0 where it has none (lsp_wire.c)
 int cli_lsp_send(const CliLspWriterCfg *args);
 int cli_lsp_send_parts(const CliLspWriterLockCfg *args);
 int cli_lsp_read_message(const CliLspReaderCfg *args);
-char *cli_lsp_message_take(const CliLspReaderSizeCfg *args);
+char *cli_lsp_message_alloc(const CliLspReaderSizeCfg *args);
 int cli_lsp_member(const CliLspBodyCfg *args);
-// a JSON string of `length` bytes read as its letters into `out`, sized for `room`: 1, or 0 where it is no string
+// a JSON string of `length` bytes read as its letters into `out`, sized for `capacity`: 1, or 0 where it is no string
 // or does not fit (lsp_wire.c)
-int cli_lsp_string(const CliLspRoomCfg *args);
+int cli_lsp_string(const CliLspCapacityCfg *args);
 
-// a path as the protocol names a file into `uri`, sized for `room`: file:///D:/a/b%20c on Windows, file:///a/b
+// a path as the protocol names a file into `uri`, sized for `capacity`: file:///D:/a/b%20c on Windows, file:///a/b
 // elsewhere; the path a file: URI of `length` bytes names into `path`, sized for CLI_PATH_MAX_LEN: 1, or 0 where it
 // names none; and the one name a file goes by however a server writes its URI into `key`, sized for
 // CLI_PATH_MAX_LEN: its path with forward slashes, in lower case on Windows, whose paths do not distinguish files by
 // case
-void cli_lsp_uri_get(const CliLspRoomPathCfg *args);
+void cli_lsp_uri_get(const CliLspCapacityPathCfg *args);
 int cli_lsp_path_get(const CliLspLengthUriCfg *args);
 void cli_lsp_key_get(const CliLspLengthCfg *args);
 
@@ -139,10 +139,9 @@ void cli_lsp_stop(const CliLspContextCfg *args);
 int cli_lsp_request(const CliLspErrMsgLengthCfg *args);
 int cli_lsp_notify(const CliLspErrMsgLengthCfg *args);
 // the request the server sent that its receiver is processing now left unanswered, to be answered later, its id's JSON
-// into `id`, sized for `room`: 1, or 0 where what is received is no request or its id does not fit; and the request of
-// the id `id` answered with `size` bytes of JSON `result`: 1, or 0 with why given (lsp.c)
+// into `id`, sized for `capacity`: 1, or 0 where what is received is no request or its id does not fit; and the request
+// of the id `id` answered with `size` bytes of JSON `result`: 1, or 0 with why given (lsp.c)
 int cli_lsp_answer_later(const CliLspCfg *args);
-int cli_lsp_answer(const CliLspSizeErrMsgCfg *args);
 // the params of a request about the place `line`, `col` of `path` written, `added`, members of JSON, after the place
 // where it is given (lsp_wire.c)
 void cli_lsp_at(const CliLspPathCfg *args);
@@ -162,7 +161,7 @@ unsigned long long cli_lsp_version(const CliLspPathOutCfg *args);
 int cli_lsp_has(const CliLspPathOutCfg *args);
 int cli_lsp_text_size(const CliLspSizePathCfg *args);
 int cli_lsp_text(const CliLspPathOutCfg *args);
-char *cli_lsp_open_uris_take(const CliLspSizeCfg *args);
+char *cli_lsp_open_uris_alloc(const CliLspSizeCfg *args);
 void cli_lsp_open_each(const CliLspContextCfg *args);
 
 struct CliLspErrMsgCfg
@@ -248,16 +247,16 @@ struct CliLspReaderCfg
 {
     CliLspReader *reader;
     char *body_out;
-    unsigned long long room;
+    unsigned long long capacity;
     unsigned long long *size;
 };
 
-struct CliLspRoomCfg
+struct CliLspCapacityCfg
 {
-    unsigned long long room;
+    unsigned long long capacity;
     const char *text;
     unsigned long long length;
-    char *out_room;
+    char *out_capacity;
 };
 
 struct CliLspLengthCfg
@@ -309,16 +308,16 @@ struct CliLspSizePathCfg
     CliLsp *lsp;
 };
 
-struct CliLspRoomPathCfg
+struct CliLspCapacityPathCfg
 {
-    unsigned long long room;
+    unsigned long long capacity;
     const char *path;
     char *uri_out;
 };
 
 struct CliLspCfg
 {
-    unsigned long long room;
+    unsigned long long capacity;
     char *id;
 };
 
@@ -357,11 +356,11 @@ EMBED_TABLE_STORAGE CliLspReaderNs cli_lsp_reader EMBED_UNUSED = {
 
 typedef struct
 {
-    char *(*message_take)(const CliLspReaderSizeCfg *args);
+    char *(*message_alloc)(const CliLspReaderSizeCfg *args);
 } CliLspReaderSizeNs;
-EMBED_TABLE_LAYOUT(CliLspReaderSizeNs, message_take);
+EMBED_TABLE_LAYOUT(CliLspReaderSizeNs, message_alloc);
 EMBED_TABLE_STORAGE CliLspReaderSizeNs cli_lsp_reader_size EMBED_UNUSED = {
-    .message_take = cli_lsp_message_take,
+    .message_alloc = cli_lsp_message_alloc,
 };
 
 typedef struct
@@ -375,19 +374,19 @@ EMBED_TABLE_STORAGE CliLspBodyNs cli_lsp_body EMBED_UNUSED = {
 
 typedef struct
 {
-    int (*string)(const CliLspRoomCfg *args);
-} CliLspRoomNs;
-EMBED_TABLE_LAYOUT(CliLspRoomNs, string);
-EMBED_TABLE_STORAGE CliLspRoomNs cli_lsp_room EMBED_UNUSED = {
+    int (*string)(const CliLspCapacityCfg *args);
+} CliLspCapacityNs;
+EMBED_TABLE_LAYOUT(CliLspCapacityNs, string);
+EMBED_TABLE_STORAGE CliLspCapacityNs cli_lsp_capacity EMBED_UNUSED = {
     .string = cli_lsp_string,
 };
 
 typedef struct
 {
-    void (*uri_get)(const CliLspRoomPathCfg *args);
-} CliLspRoomPathNs;
-EMBED_TABLE_LAYOUT(CliLspRoomPathNs, uri_get);
-EMBED_TABLE_STORAGE CliLspRoomPathNs cli_lsp_room_path EMBED_UNUSED = {
+    void (*uri_get)(const CliLspCapacityPathCfg *args);
+} CliLspCapacityPathNs;
+EMBED_TABLE_LAYOUT(CliLspCapacityPathNs, uri_get);
+EMBED_TABLE_STORAGE CliLspCapacityPathNs cli_lsp_capacity_path EMBED_UNUSED = {
     .uri_get = cli_lsp_uri_get,
 };
 
@@ -483,15 +482,6 @@ EMBED_TABLE_STORAGE CliLspNs cli_lsp EMBED_UNUSED = {
 
 typedef struct
 {
-    int (*answer)(const CliLspSizeErrMsgCfg *args);
-} CliLspSizeErrMsgNs;
-EMBED_TABLE_LAYOUT(CliLspSizeErrMsgNs, answer);
-EMBED_TABLE_STORAGE CliLspSizeErrMsgNs cli_lsp_size_err_msg EMBED_UNUSED = {
-    .answer = cli_lsp_answer,
-};
-
-typedef struct
-{
     void (*at)(const CliLspPathCfg *args);
 } CliLspPathNs;
 EMBED_TABLE_LAYOUT(CliLspPathNs, at);
@@ -525,11 +515,11 @@ EMBED_TABLE_STORAGE CliLspSizePathNs cli_lsp_size_path EMBED_UNUSED = {
 
 typedef struct
 {
-    char *(*open_uris_take)(const CliLspSizeCfg *args);
+    char *(*open_uris_alloc)(const CliLspSizeCfg *args);
 } CliLspSizeNs;
-EMBED_TABLE_LAYOUT(CliLspSizeNs, open_uris_take);
+EMBED_TABLE_LAYOUT(CliLspSizeNs, open_uris_alloc);
 EMBED_TABLE_STORAGE CliLspSizeNs cli_lsp_size EMBED_UNUSED = {
-    .open_uris_take = cli_lsp_open_uris_take,
+    .open_uris_alloc = cli_lsp_open_uris_alloc,
 };
 
 #endif

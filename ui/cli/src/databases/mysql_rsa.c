@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // mysql_rsa.c: RSA encryption with a public key, as RFC 8017 sets it out, with OAEP padding by SHA-1: the password
 // caching_sha2_password takes over a connection that is not encrypted. The numbers are 32-bit words, least first, in
-// rooms of a fixed size, enough for a key of 8192 bits and the products a power of it takes
+// capacities of a fixed size, enough for a key of 8192 bits and the products a power of it takes
 #include "../text/base64.h"
 #include "../text/digest.h"
 #include "../text/text.h"
@@ -37,7 +37,7 @@ EMBED_INLINE void big_trim(const MysqlRsaCtx *args)
     }
 }
 
-// `size` bytes, big-endian, as a number: 1, or 0 where it does not fit the room
+// `size` bytes, big-endian, as a number: 1, or 0 where it does not fit the capacity
 int cli_big_from_be(const CliMysqlCtx *args)
 {
     const unsigned char *bytes = args->bytes;
@@ -95,7 +95,7 @@ EMBED_INLINE int big_bit(const MysqlRsaCtx *args)
            (((args->big_read->word[args->at / 32u] >> (args->at % 32u)) & 1u) == 1u);
 }
 
-// `a` times `b` into `out`, which is neither: 1, or 0 where the product does not fit the room
+// `a` times `b` into `out`, which is neither: 1, or 0 where the product does not fit the capacity
 int cli_big_mul(const CliMysqlACtx *args)
 {
     memor.set(&(MemoriaCfg){.dst = args->out_big_pointer, .val = 0, .bytes = sizeof(*args->out_big_pointer)});
@@ -125,7 +125,7 @@ int cli_big_mul(const CliMysqlACtx *args)
     return 1;
 }
 
-EMBED_INLINE int big_at_least(const MysqlRsaCtx *args)
+EMBED_INLINE int big_at_min(const MysqlRsaCtx *args)
 {
     if (args->a->count != args->b->count)
     {
@@ -185,14 +185,14 @@ void cli_big_rem(const CliMysqlBigCtx *args)
     {
         EMBED_CALL(big_shift_in, MysqlRsaCtx, .big = args->out_big_pointer,
                    .bit = EMBED_CALL(big_bit, MysqlRsaCtx, .big_read = args->big, .at = at - 1u));
-        if (EMBED_CALL(big_at_least, MysqlRsaCtx, .a = args->out_big_pointer, .b = args->modulus))
+        if (EMBED_CALL(big_at_min, MysqlRsaCtx, .a = args->out_big_pointer, .b = args->modulus))
         {
             EMBED_CALL(big_sub, MysqlRsaCtx, .a_out = args->out_big_pointer, .b = args->modulus);
         }
     }
 }
 
-// `base` to the power `exponent` modulo `modulus` into `out`: 1, or 0 where a product does not fit the room
+// `base` to the power `exponent` modulo `modulus` into `out`: 1, or 0 where a product does not fit the capacity
 int cli_big_pow_mod(const CliMysqlOutBigCtx *args)
 {
     static CliBig s_base;
@@ -290,7 +290,7 @@ EMBED_INLINE int rsa_public_key(const MysqlRsaCtx *args)
     unsigned long long der_size = 0ull;
     if (!mmgr_line_ok(&body) ||
         !EMBED_CALL(cli_base64_text.unbase64, CliBase64TextCfg, .text = body.out, .length = body.at, .out_bytes = s_der,
-                    .room = sizeof(s_der), .size_pointer = &der_size))
+                    .capacity = sizeof(s_der), .size_pointer = &der_size))
     {
         return 0;
     }

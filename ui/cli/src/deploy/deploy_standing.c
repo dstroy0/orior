@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// deploy_standing.c: what a place has against what was last sent there and what goes now: the files changed there
+// deploy_existing.c: what a place has against what was last sent there and what goes now: the files changed there
 // since they were sent, each shown with its differences where both copies are text, and the files there the tree no
 // longer has; and the record of the hashes last sent to a place written after a send
 #include "../command_line/cells.h"
@@ -37,7 +37,7 @@ typedef struct
     int replace;
     int releases;
     int remove;
-    int gone;
+    int deleted;
     CliDeployPair *list;
     const char *hash;
     int first;
@@ -45,7 +45,7 @@ typedef struct
 } DeployStandingCtx;
 // the lines of `size` bytes of `lines->text`, as Rust's str::lines splits them, into its starts and sizes where they
 // are not NULL, `most` at the most: their count, or more than `most` where there are more
-EMBED_INLINE unsigned int standing_lines(const DeployStandingCtx *args)
+EMBED_INLINE unsigned int existing_lines(const DeployStandingCtx *args)
 {
     const char *const text = args->lines->text;
     unsigned int count = 0u;
@@ -72,7 +72,7 @@ EMBED_INLINE unsigned int standing_lines(const DeployStandingCtx *args)
 }
 
 // whether line `one` of `old` and line `other` of `new_lines` are the same
-EMBED_INLINE int standing_same(const DeployStandingCtx *args)
+EMBED_INLINE int existing_same(const DeployStandingCtx *args)
 {
     unsigned int other = args->other;
     return (args->old->size[args->one] == args->new_lines->size[other]) &&
@@ -82,7 +82,7 @@ EMBED_INLINE int standing_same(const DeployStandingCtx *args)
 }
 
 // a line printed, two spaces, a mark and a space before `size` bytes of `text`
-EMBED_INLINE void standing_line_print(const DeployStandingCtx *args)
+EMBED_INLINE void existing_line_print(const DeployStandingCtx *args)
 {
     char line[CLI_DEPLOY_COMPARED + 16u];
     VerbaLinea print_line = {line, sizeof(line), 0ull};
@@ -96,9 +96,9 @@ void cli_deploy_difference(const CliDeployOldCtx *args)
 {
     CliDeployLines olds_lines = {args->old, NULL, NULL};
     CliDeployLines news_lines = {args->new_text, NULL, NULL};
-    const unsigned int olds = EMBED_CALL(standing_lines, DeployStandingCtx, .lines = &olds_lines,
+    const unsigned int olds = EMBED_CALL(existing_lines, DeployStandingCtx, .lines = &olds_lines,
                                          .size = args->old_size, .most = CLI_DEPLOY_COMPARED + 1u);
-    const unsigned int news = EMBED_CALL(standing_lines, DeployStandingCtx, .lines = &news_lines,
+    const unsigned int news = EMBED_CALL(existing_lines, DeployStandingCtx, .lines = &news_lines,
                                          .size = args->new_size, .most = CLI_DEPLOY_LINES);
     if ((olds > CLI_DEPLOY_COMPARED + 1u) || (news > CLI_DEPLOY_LINES))
     {
@@ -115,18 +115,18 @@ void cli_deploy_difference(const CliDeployOldCtx *args)
     olds_lines.size = counted + olds;
     news_lines.start = counted + (2u * olds);
     news_lines.size = counted + (2u * olds) + news;
-    (void)EMBED_CALL(standing_lines, DeployStandingCtx, .lines = &olds_lines, .size = args->old_size, .most = olds);
-    (void)EMBED_CALL(standing_lines, DeployStandingCtx, .lines = &news_lines, .size = args->new_size, .most = news);
+    (void)EMBED_CALL(existing_lines, DeployStandingCtx, .lines = &olds_lines, .size = args->old_size, .most = olds);
+    (void)EMBED_CALL(existing_lines, DeployStandingCtx, .lines = &news_lines, .size = args->new_size, .most = news);
     unsigned int head = 0u;
     while ((head < olds) && (head < news) &&
-           EMBED_CALL(standing_same, DeployStandingCtx, .old = &olds_lines, .one = head, .new_lines = &news_lines,
+           EMBED_CALL(existing_same, DeployStandingCtx, .old = &olds_lines, .one = head, .new_lines = &news_lines,
                       .other = head))
     {
         head += 1u;
     }
     unsigned int tail = 0u;
     while ((head + tail < olds) && (head + tail < news) &&
-           EMBED_CALL(standing_same, DeployStandingCtx, .old = &olds_lines, .one = olds - tail - 1u,
+           EMBED_CALL(existing_same, DeployStandingCtx, .old = &olds_lines, .one = olds - tail - 1u,
                       .new_lines = &news_lines, .other = news - tail - 1u))
     {
         tail += 1u;
@@ -135,15 +135,15 @@ void cli_deploy_difference(const CliDeployOldCtx *args)
     VerbaLinea mark_line = {mark, sizeof(mark), 0ull};
     mmgr_line_put(&mark_line, "@@ line ");
     mmgr_line_decimal(&mark_line, head + 1u, 1u);
-    EMBED_CALL(standing_line_print, DeployStandingCtx, .mark = "", .text = mark, .size = mark_line.at);
+    EMBED_CALL(existing_line_print, DeployStandingCtx, .mark = "", .text = mark, .size = mark_line.at);
     for (unsigned int at = head; at < olds - tail; at += 1u)
     {
-        EMBED_CALL(standing_line_print, DeployStandingCtx, .mark = "- ", .text = args->old + olds_lines.start[at],
+        EMBED_CALL(existing_line_print, DeployStandingCtx, .mark = "- ", .text = args->old + olds_lines.start[at],
                    .size = olds_lines.size[at]);
     }
     for (unsigned int at = head; at < news - tail; at += 1u)
     {
-        EMBED_CALL(standing_line_print, DeployStandingCtx, .mark = "+ ", .text = args->new_text + news_lines.start[at],
+        EMBED_CALL(existing_line_print, DeployStandingCtx, .mark = "+ ", .text = args->new_text + news_lines.start[at],
                    .size = news_lines.size[at]);
     }
     g_cli_cells->persistent_buf_release(counted, &g_cli_deploy_cells);
@@ -151,19 +151,19 @@ void cli_deploy_difference(const CliDeployOldCtx *args)
 
 // the copy of `path` the place at `index` has read as text into a cell of the most that is compared and one byte past
 // it, its size into `size`, where it is text of 64 KB at most: the cell, or NULL where it is not
-EMBED_INLINE char *standing_theirs(const DeployStandingCtx *args)
+EMBED_INLINE char *existing_theirs(const DeployStandingCtx *args)
 {
     const char *path = args->path;
     unsigned long long *size = args->size_pointer;
-    const CliDeployPlace *const place = &g_cli_deploy.place[args->index];
-    const unsigned long long room = CLI_DEPLOY_COMPARED + 2ull;
-    char *const theirs = g_cli_cells->temporary_buf_alloc(room, &g_cli_deploy_cells);
-    VerbaLinea text = mmgr_line_over(theirs, room);
+    const CliDeployPosition *const place = &g_cli_deploy.place[args->index];
+    const unsigned long long capacity = CLI_DEPLOY_COMPARED + 2ull;
+    char *const theirs = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_deploy_cells);
+    VerbaLinea text = mmgr_line_over(theirs, capacity);
     int read = 0;
     if (place->here)
     {
         unsigned long long mapped = 0ull;
-        const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = path,
+        const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                       .size_pointer = &mapped, .owner = &g_cli_deploy_cells);
         read = (bytes != NULL) && (mapped <= CLI_DEPLOY_COMPARED);
         if (read)
@@ -197,19 +197,19 @@ EMBED_INLINE char *standing_theirs(const DeployStandingCtx *args)
 }
 
 // the file changed at the place at `index` printed, and its differences where both copies are text
-EMBED_INLINE void standing_change(const DeployStandingCtx *args)
+EMBED_INLINE void existing_change(const DeployStandingCtx *args)
 {
     unsigned int index = args->index;
     const char *path = args->path;
     char place[CLI_PATH_MAX_LEN * 2u];
-    VerbaLinea place_line = {place, sizeof(place), 0ull};
-    EMBED_CALL(cli_deploy_size_internal.place_name, CliDeploySizeCtx, .place = &g_cli_deploy.place[index],
-               .out = &place_line);
+    VerbaLinea position_line = {place, sizeof(place), 0ull};
+    EMBED_CALL(cli_deploy_size_internal.position_name, CliDeploySizeCtx, .place = &g_cli_deploy.place[index],
+               .out = &position_line);
     char line[CLI_PATH_MAX_LEN * 4u];
     VerbaLinea print_line = {line, sizeof(line), 0ull};
     mmgr_line_put(&print_line, path);
     mmgr_line_put(&print_line, " changed at ");
-    mmgr_line_put_n(&print_line, place, place_line.at);
+    mmgr_line_put_n(&print_line, place, position_line.at);
     mmgr_line_put(&print_line, args->replace ? " since it was last sent there, and is replaced:"
                                              : " since it was last sent there, and is retained:");
     EMBED_CALL(cli_deploy_internal.print, CliDeployCtx, .line = &print_line);
@@ -221,7 +221,7 @@ EMBED_INLINE void standing_change(const DeployStandingCtx *args)
     mmgr_line_finish(&there_line);
     unsigned long long theirs_size = 0ull;
     char *const theirs =
-        EMBED_CALL(standing_theirs, DeployStandingCtx, .index = index, .path = there, .size_pointer = &theirs_size);
+        EMBED_CALL(existing_theirs, DeployStandingCtx, .index = index, .path = there, .size_pointer = &theirs_size);
     const CliDeployRun *const run = &g_cli_deploy;
     for (unsigned int sent = 0u; (theirs != NULL) && (sent < run->sents); sent += 1u)
     {
@@ -234,40 +234,41 @@ EMBED_INLINE void standing_change(const DeployStandingCtx *args)
         EMBED_CALL(cli_deploy_out_index_internal.full, CliDeployOutIndexCtx, .index = sent, .out = &full_line);
         mmgr_line_finish(&full_line);
         unsigned long long size = 0ull;
-        const unsigned char *const mine = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = full,
-                                                     .size_pointer = &size, .owner = &g_cli_deploy_cells);
-        if ((mine != NULL) &&
-            EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg, .bytes = (const char *)mine, .size = size))
+        const unsigned char *const ours_index = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = full,
+                                                           .size_pointer = &size, .owner = &g_cli_deploy_cells);
+        if ((ours_index != NULL) && EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg,
+                                               .bytes = (const char *)ours_index, .size = size))
         {
             EMBED_CALL(cli_deploy_old_internal.difference, CliDeployOldCtx, .old = theirs, .old_size = theirs_size,
-                       .new_text = (const char *)mine, .new_size = size);
+                       .new_text = (const char *)ours_index, .new_size = size);
         }
-        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = mine, .owner = &g_cli_deploy_cells);
+        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = ours_index,
+                   .owner = &g_cli_deploy_cells);
         break;
     }
     g_cli_cells->persistent_buf_release(theirs, &g_cli_deploy_cells);
 }
 
 // a file at the place at `index` that the tree no longer has printed, and what becomes of it
-EMBED_INLINE void standing_remove(const DeployStandingCtx *args)
+EMBED_INLINE void existing_remove(const DeployStandingCtx *args)
 {
     char place[CLI_PATH_MAX_LEN * 2u];
-    VerbaLinea place_line = {place, sizeof(place), 0ull};
-    EMBED_CALL(cli_deploy_size_internal.place_name, CliDeploySizeCtx, .place = &g_cli_deploy.place[args->index],
-               .out = &place_line);
+    VerbaLinea position_line = {place, sizeof(place), 0ull};
+    EMBED_CALL(cli_deploy_size_internal.position_name, CliDeploySizeCtx, .place = &g_cli_deploy.place[args->index],
+               .out = &position_line);
     char line[CLI_PATH_MAX_LEN * 4u];
     VerbaLinea print_line = {line, sizeof(line), 0ull};
     mmgr_line_put(&print_line, args->path);
     mmgr_line_put(&print_line, " is at ");
-    mmgr_line_put_n(&print_line, place, place_line.at);
+    mmgr_line_put_n(&print_line, place, position_line.at);
     mmgr_line_put(&print_line, " and no longer in the tree, and is ");
     mmgr_line_put(&print_line, !args->remove ? "retained" : args->releases ? "left out of the new release" : "deleted");
     EMBED_CALL(cli_deploy_internal.print, CliDeployCtx, .line = &print_line);
 }
 
-// the files the place has that changed there since they were last sent, with their hashes there, or where `gone`,
+// the files the place has that changed there since they were last sent, with their hashes there, or where `deleted`,
 // those the tree no longer has, into `list` where it is not NULL, their texts stored in the run's pool: their count
-EMBED_INLINE unsigned int standing_list(const DeployStandingCtx *args)
+EMBED_INLINE unsigned int existing_list(const DeployStandingCtx *args)
 {
     CliDeployRun *const run = &g_cli_deploy;
     unsigned int count = 0u;
@@ -276,35 +277,36 @@ EMBED_INLINE unsigned int standing_list(const DeployStandingCtx *args)
         const CliDeployPair *const there = &g_cli_deploy_there[at];
         const char *const ours = EMBED_CALL(cli_deploy_count_internal.ours, CliDeployCountCtx, .path = there->path);
         const char *const last =
-            args->gone ? NULL
-                       : EMBED_CALL(cli_deploy_count_internal.find, CliDeployCountCtx, .pairs = g_cli_deploy_last,
-                                    .count = g_cli_deploy_last_count, .path = there->path);
-        const int listed =
-            args->gone ? ((ours == NULL) &&
-                          (EMBED_CALL(cli_deploy_patterns_internal.left_out_by, CliDeployPatternsCtx,
-                                      .patterns = run->pattern, .count = run->patterns, .path = there->path) == NULL))
-                       : ((last != NULL) &&
-                          !cellul.eq(&(CatenaFinitaCfg){.src = last, .other = there->text, .cap = CLI_CELLS_POOL}) &&
-                          ((ours == NULL) ||
-                           !cellul.eq(&(CatenaFinitaCfg){.src = ours, .other = there->text, .cap = CLI_CELLS_POOL})));
-        if (listed && (args->list != NULL))
+            args->deleted ? NULL
+                          : EMBED_CALL(cli_deploy_count_internal.find, CliDeployCountCtx, .pairs = g_cli_deploy_last,
+                                       .count = g_cli_deploy_last_count, .path = there->path);
+        const int list_entries =
+            args->deleted
+                ? ((ours == NULL) &&
+                   (EMBED_CALL(cli_deploy_patterns_internal.left_out_by, CliDeployPatternsCtx, .patterns = run->pattern,
+                               .count = run->patterns, .path = there->path) == NULL))
+                : ((last != NULL) &&
+                   !cellul.eq(&(CatenaFinitaCfg){.src = last, .other = there->text, .cap = CLI_CELLS_POOL}) &&
+                   ((ours == NULL) ||
+                    !cellul.eq(&(CatenaFinitaCfg){.src = ours, .other = there->text, .cap = CLI_CELLS_POOL})));
+        if (list_entries && (args->list != NULL))
         {
             args->list[count].path = EMBED_CALL(
                 cli_deploy_pool_internal.text_store, CliDeployPoolCtx, .pool = &run->pool, .text = there->path,
                 .size = cellul.len(&(CatenaFinitaCfg){.src = there->path, .cap = CLI_CELLS_POOL}));
             args->list[count].text =
-                args->gone
+                args->deleted
                     ? NULL
                     : EMBED_CALL(cli_deploy_pool_internal.text_store, CliDeployPoolCtx, .pool = &run->pool,
                                  .text = there->text,
                                  .size = cellul.len(&(CatenaFinitaCfg){.src = there->text, .cap = CLI_CELLS_POOL}));
         }
-        count += listed ? 1u : 0u;
+        count += list_entries ? 1u : 0u;
     }
     return count;
 }
 
-int cli_deploy_standing(const CliDeployErrMsgIndexCtx *args)
+int cli_deploy_existing(const CliDeployErrMsgIndexCtx *args)
 {
     CliDeployRun *const run = &g_cli_deploy;
     if (!cli_deploy_err_msg_index_internal.hashes(args))
@@ -312,46 +314,46 @@ int cli_deploy_standing(const CliDeployErrMsgIndexCtx *args)
         return 0;
     }
     cli_deploy_err_msg_index_internal.last_read(args);
-    const unsigned int changed = EMBED_CALL(standing_list, DeployStandingCtx, .gone = 0, .list = NULL);
-    const unsigned int gone = EMBED_CALL(standing_list, DeployStandingCtx, .gone = 1, .list = NULL);
+    const unsigned int changed = EMBED_CALL(existing_list, DeployStandingCtx, .deleted = 0, .list = NULL);
+    const unsigned int deleted = EMBED_CALL(existing_list, DeployStandingCtx, .deleted = 1, .list = NULL);
     run->changed_list[args->index] =
         (changed > 0u) ? EMBED_CALL(cli_deploy_pool_internal.place, CliDeployPoolCtx, .pool = &run->pool,
                                     .size = (unsigned long long)changed * sizeof(CliDeployPair))
                        : NULL;
-    run->gone_list[args->index] = (gone > 0u)
-                                      ? EMBED_CALL(cli_deploy_pool_internal.place, CliDeployPoolCtx, .pool = &run->pool,
-                                                   .size = (unsigned long long)gone * sizeof(CliDeployPair))
-                                      : NULL;
+    run->removed_list[args->index] =
+        (deleted > 0u) ? EMBED_CALL(cli_deploy_pool_internal.place, CliDeployPoolCtx, .pool = &run->pool,
+                                    .size = (unsigned long long)deleted * sizeof(CliDeployPair))
+                       : NULL;
     if (!run->pool.refused)
     {
         run->changed[args->index] =
-            EMBED_CALL(standing_list, DeployStandingCtx, .gone = 0, .list = run->changed_list[args->index]);
-        run->gone[args->index] =
-            EMBED_CALL(standing_list, DeployStandingCtx, .gone = 1, .list = run->gone_list[args->index]);
+            EMBED_CALL(existing_list, DeployStandingCtx, .deleted = 0, .list = run->changed_list[args->index]);
+        run->deleted[args->index] =
+            EMBED_CALL(existing_list, DeployStandingCtx, .deleted = 1, .list = run->removed_list[args->index]);
     }
     if (run->pool.refused)
     {
         run->changed[args->index] = 0u;
-        run->gone[args->index] = 0u;
+        run->deleted[args->index] = 0u;
         mmgr_line_put(args->err_msg, "it has more files than orior_cli supports");
         return 0;
     }
-    const int releases = !run->deployment.in_place && !run->place[args->index].here;
+    const int releases = !run->deployment.in_position && !run->place[args->index].here;
     for (unsigned int at = 0u; at < run->changed[args->index]; at += 1u)
     {
-        EMBED_CALL(standing_change, DeployStandingCtx, .index = args->index, .folder = args->folder,
+        EMBED_CALL(existing_change, DeployStandingCtx, .index = args->index, .folder = args->folder,
                    .path = run->changed_list[args->index][at].path, .replace = args->replace);
     }
-    for (unsigned int at = 0u; at < run->gone[args->index]; at += 1u)
+    for (unsigned int at = 0u; at < run->deleted[args->index]; at += 1u)
     {
-        EMBED_CALL(standing_remove, DeployStandingCtx, .index = args->index,
-                   .path = run->gone_list[args->index][at].path, .releases = releases, .remove = args->remove);
+        EMBED_CALL(existing_remove, DeployStandingCtx, .index = args->index,
+                   .path = run->removed_list[args->index][at].path, .releases = releases, .remove = args->remove);
     }
     return 1;
 }
 
 // a path and its hash written as a member of the record, pretty as serde_json writes it
-EMBED_INLINE void standing_member(const DeployStandingCtx *args)
+EMBED_INLINE void existing_member(const DeployStandingCtx *args)
 {
     mmgr_line_put(args->record, args->first ? "\n  " : ",\n  ");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->record, .text = args->path,
@@ -391,7 +393,7 @@ void cli_deploy_record(const CliDeployErrMsgIndexCtx *args)
                                            .left = run->sent[sent].path, .right = preserved[other].path);
         const char *const name = (order <= 0) ? run->sent[sent].path : preserved[other].path;
         const char *const hash = (order < 0) ? run->sent[sent].hash : preserved[other].text;
-        EMBED_CALL(standing_member, DeployStandingCtx, .path = name, .hash = hash, .first = first, .record = &record);
+        EMBED_CALL(existing_member, DeployStandingCtx, .path = name, .hash = hash, .first = first, .record = &record);
         first = 0;
         sent += (order <= 0) ? 1u : 0u;
         other += (order >= 0) ? 1u : 0u;

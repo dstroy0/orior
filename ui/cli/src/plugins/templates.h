@@ -20,7 +20,6 @@ typedef struct CliTemplatesOutCfg CliTemplatesOutCfg;
 // named `name` written in `parent` from the template `name_of_template`, its folder into `made`; and the tree at `root`
 // saved as the template `name`, the template's folder into `made`. Each of the last two 1, or 0 with why given
 int cli_templates_folder(const CliTemplatesCfg *args);
-void cli_templates_list(const CliTemplatesOutCfg *args);
 int cli_templates_create(const CliTemplatesTemplateNameCfg *args);
 int cli_templates_save(const CliTemplatesNameCfg *args);
 // the cells the templates' names and a template file's pieces occupy
@@ -60,15 +59,6 @@ typedef struct
 EMBED_TABLE_LAYOUT(CliTemplatesNs, folder);
 EMBED_TABLE_STORAGE CliTemplatesNs cli_templates_table EMBED_UNUSED = {
     .folder = cli_templates_folder,
-};
-
-typedef struct
-{
-    void (*list)(const CliTemplatesOutCfg *args);
-} CliTemplatesOutNs;
-EMBED_TABLE_LAYOUT(CliTemplatesOutNs, list);
-EMBED_TABLE_STORAGE CliTemplatesOutNs cli_templates_out EMBED_UNUSED = {
-    .list = cli_templates_list,
 };
 
 typedef struct

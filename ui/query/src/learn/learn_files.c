@@ -8,7 +8,7 @@
 
 void query_words_add(const QueryLoopsWordsWordsCfg *args)
 {
-    if (args->words_words_pointer->count < QUERY_WORDS_MOST)
+    if (args->words_words_pointer->count < QUERY_WORDS_MAX)
     {
         args->words_words_pointer->word[args->words_words_pointer->count] = args->word;
         args->words_words_pointer->count += 1u;
@@ -18,17 +18,24 @@ void query_words_add(const QueryLoopsWordsWordsCfg *args)
 
 void query_words_text(const QueryLoopsWordsWordsTextCfg *args)
 {
-    if (args->words_words_pointer->texts >= QUERY_TEXTS_MOST)
+    static char (*s_texts)[QUERY_PATH_MAX_LEN];
+    static unsigned int s_next;
+    if (s_texts == NULL)
+    {
+        s_texts = g_cli_cells->persistent_buf_alloc((unsigned long long)QUERY_WORD_TEXTS * QUERY_PATH_MAX_LEN,
+                                                    &g_query_cells);
+    }
+    if (s_texts == NULL)
     {
         return;
     }
-    memor.cpy(&(MemoriaCfg){.dst = args->words_words_pointer->text[args->words_words_pointer->texts],
+    char *const text = s_texts[s_next % QUERY_WORD_TEXTS];
+    s_next += 1u;
+    memor.cpy(&(MemoriaCfg){.dst = text,
                             .src = args->text,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL}) + 1u});
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg,
-               .words_words_pointer = args->words_words_pointer,
-               .word = args->words_words_pointer->text[args->words_words_pointer->texts]);
-    args->words_words_pointer->texts += 1u;
+               .words_words_pointer = args->words_words_pointer, .word = text);
 }
 
 typedef struct
@@ -72,10 +79,10 @@ void query_files_get(const QueryLoopsRootCfg *args)
                .extension = NULL, .path = args->files->fields);
 }
 
-void query_carrier_words(const QueryLoopsWordsWordsCarrierCfg *args)
+void query_transport_words(const QueryLoopsWordsWordsTransportCfg *args)
 {
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg,
-               .words_words_pointer = args->words_words_pointer, .word = args->carrier);
+               .words_words_pointer = args->words_words_pointer, .word = args->transport);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg,
                .words_words_pointer = args->words_words_pointer, .word = "--gated");
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg,
@@ -94,7 +101,7 @@ void query_carrier_words(const QueryLoopsWordsWordsCarrierCfg *args)
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg,
                .words_words_pointer = args->words_words_pointer, .word = "--pop");
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg,
-               .words_words_pointer = args->words_words_pointer, .word = args->carrier);
+               .words_words_pointer = args->words_words_pointer, .word = args->transport);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg,
                .words_words_pointer = args->words_words_pointer, .word = "--dry");
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg,
@@ -134,10 +141,12 @@ int query_base_compile(const QueryLoopsContextErrMsgCfg *args)
     }
     static char s_nvcc[QUERY_PATH_MAX_LEN];
     static char s_cuobjdump[QUERY_PATH_MAX_LEN];
-    if (!EMBED_CALL(context->programs->program, QueryEachRolePathRoomErrMsgCfg, .context = context->programs->context,
-                    .role = QUERY_ROLE_NVCC, .path = s_nvcc, .room = sizeof(s_nvcc), .err_msg = err_msg) ||
-        !EMBED_CALL(context->programs->program, QueryEachRolePathRoomErrMsgCfg, .context = context->programs->context,
-                    .role = QUERY_ROLE_CUOBJDUMP, .path = s_cuobjdump, .room = sizeof(s_cuobjdump), .err_msg = err_msg))
+    if (!EMBED_CALL(context->programs->program, QueryEachRolePathCapacityErrMsgCfg,
+                    .context = context->programs->context, .role = QUERY_ROLE_NVCC, .path = s_nvcc,
+                    .capacity = sizeof(s_nvcc), .err_msg = err_msg) ||
+        !EMBED_CALL(context->programs->program, QueryEachRolePathCapacityErrMsgCfg,
+                    .context = context->programs->context, .role = QUERY_ROLE_CUOBJDUMP, .path = s_cuobjdump,
+                    .capacity = sizeof(s_cuobjdump), .err_msg = err_msg))
     {
         return 0;
     }
@@ -152,7 +161,7 @@ int query_base_compile(const QueryLoopsContextErrMsgCfg *args)
     {
         return 0;
     }
-    int listed = 0;
+    int list_entries = 0;
     if (code == 0ll)
     {
         unsigned long long size = 0ull;
@@ -176,18 +185,19 @@ int query_base_compile(const QueryLoopsContextErrMsgCfg *args)
         {
             return 0;
         }
-        listed = listing_code == 0ll;
+        list_entries = listing_code == 0ll;
     }
     const char *name = args->base;
-    const unsigned long long name_past =
+    const unsigned long long name_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->base,
                    .at = cellul.len(&(CatenaFinitaCfg){.src = args->base, .cap = CLI_CELLS_POOL}), .set = "/\\");
-    name = (name_past != 0ull) ? (args->base + name_past) : name;
+    name = (name_end != 0ull) ? (args->base + name_end) : name;
     char line[QUERY_LINE_MAX_LEN];
     VerbaLinea print_line = {line, sizeof(line), 0ull};
-    mmgr_line_put(&print_line, listed ? "  the vendor's compiler read " : "  the vendor's compiler did not read ");
+    mmgr_line_put(&print_line,
+                  list_entries ? "  the vendor's compiler read " : "  the vendor's compiler did not read ");
     mmgr_line_put(&print_line, name);
-    mmgr_line_put(&print_line, listed ? "; its listing is the blob base_nvcc.sass" : "");
+    mmgr_line_put(&print_line, list_entries ? "; its listing is the blob base_nvcc.sass" : "");
     if (mmgr_line_finish(&print_line) != 0ull)
     {
         EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = line);
@@ -200,9 +210,9 @@ int query_nvdisasm(const QueryLoopsErrMsgCfg *args)
 {
     char why[QUERY_LINE_MAX_LEN];
     VerbaLinea ignored = {why, sizeof(why), 0ull};
-    if (!EMBED_CALL(args->context_read->programs->program, QueryEachRolePathRoomErrMsgCfg,
+    if (!EMBED_CALL(args->context_read->programs->program, QueryEachRolePathCapacityErrMsgCfg,
                     .context = args->context_read->programs->context, .role = QUERY_ROLE_NVDISASM, .path = args->path,
-                    .room = QUERY_PATH_MAX_LEN, .err_msg = &ignored))
+                    .capacity = QUERY_PATH_MAX_LEN, .err_msg = &ignored))
     {
         mmgr_line_put(args->err_msg,
                       "no nvdisasm beside nvcc: the airlock has no reader, and nothing goes to the part");

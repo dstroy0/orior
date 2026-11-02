@@ -9,22 +9,7 @@
 extern void setUp(void);
 extern void tearDown(void);
 extern void test_tokens_are_names_numbers_strings_and_signs(void);
-extern void test_each_token_is_placed_in_utf16_on_its_line(void);
-extern void test_layout_alone_marks_no_token(void);
-extern void test_layout_alone_leaves_lines_the_same_or_reshaped(void);
-extern void test_a_moved_line_reads_as_moved(void);
-extern void test_a_moved_line_is_marked_on_both_sides(void);
-extern void test_a_name_changed_everywhere_is_renamed(void);
-extern void test_a_renamed_names_lines_and_tokens_read_as_renamed(void);
-extern void test_a_moved_block_is_moved_whole(void);
-extern void test_a_moved_block_takes_its_closing_sign_along(void);
-extern void test_each_token_of_a_moved_block_is_marked_moved(void);
-extern void test_a_changed_token_is_marked_on_both_sides(void);
-extern void test_changed_lines_are_side_by_side_rows(void);
-extern void test_a_change_starts_at_its_row(void);
-extern void test_a_changed_token_renames_nothing(void);
-extern void test_a_name_changed_two_ways_is_not_renamed(void);
-extern void test_a_name_changed_two_ways_is_marked_changed(void);
+extern void test_each_token_is_positioned_in_utf16_on_its_line(void);
 
 
 /*=======Mock Management=====*/
@@ -86,23 +71,8 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\structure\\test_structure\\test_structure.c");
-  run_test(test_tokens_are_names_numbers_strings_and_signs, "test_tokens_are_names_numbers_strings_and_signs", 77);
-  run_test(test_each_token_is_placed_in_utf16_on_its_line, "test_each_token_is_placed_in_utf16_on_its_line", 89);
-  run_test(test_layout_alone_marks_no_token, "test_layout_alone_marks_no_token", 99);
-  run_test(test_layout_alone_leaves_lines_the_same_or_reshaped, "test_layout_alone_leaves_lines_the_same_or_reshaped", 106);
-  run_test(test_a_moved_line_reads_as_moved, "test_a_moved_line_reads_as_moved", 120);
-  run_test(test_a_moved_line_is_marked_on_both_sides, "test_a_moved_line_is_marked_on_both_sides", 125);
-  run_test(test_a_name_changed_everywhere_is_renamed, "test_a_name_changed_everywhere_is_renamed", 132);
-  run_test(test_a_renamed_names_lines_and_tokens_read_as_renamed, "test_a_renamed_names_lines_and_tokens_read_as_renamed", 137);
-  run_test(test_a_moved_block_is_moved_whole, "test_a_moved_block_is_moved_whole", 146);
-  run_test(test_a_moved_block_takes_its_closing_sign_along, "test_a_moved_block_takes_its_closing_sign_along", 151);
-  run_test(test_each_token_of_a_moved_block_is_marked_moved, "test_each_token_of_a_moved_block_is_marked_moved", 168);
-  run_test(test_a_changed_token_is_marked_on_both_sides, "test_a_changed_token_is_marked_on_both_sides", 175);
-  run_test(test_changed_lines_are_side_by_side_rows, "test_changed_lines_are_side_by_side_rows", 182);
-  run_test(test_a_change_starts_at_its_row, "test_a_change_starts_at_its_row", 187);
-  run_test(test_a_changed_token_renames_nothing, "test_a_changed_token_renames_nothing", 192);
-  run_test(test_a_name_changed_two_ways_is_not_renamed, "test_a_name_changed_two_ways_is_not_renamed", 197);
-  run_test(test_a_name_changed_two_ways_is_marked_changed, "test_a_name_changed_two_ways_is_marked_changed", 202);
+  run_test(test_tokens_are_names_numbers_strings_and_signs, "test_tokens_are_names_numbers_strings_and_signs", 32);
+  run_test(test_each_token_is_positioned_in_utf16_on_its_line, "test_each_token_is_positioned_in_utf16_on_its_line", 44);
 
   return UNITY_END();
 }

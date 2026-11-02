@@ -74,12 +74,10 @@ void cli_job_show(const CliCommandLineRootCtx *args);
 int cli_job_run(const CliCommandLineRootCtx *args);
 // a run of the command line's made one the window is notified of as it goes, on a channel of its own under runs, where
 // a terminal of the window's started this process, else none; and `size` bytes of `body`, JSON, sent to it
-void cli_window_channel_begin(void);
-void cli_window_channel_send(const CliCommandLineSizeCtx *args);
 
-// the jobs of the menu's groups, their places in the catalog into `listed`, sized for CLI_LINE_JOBS: their count; a
-// menu's commands and the jobs of a menu of jobs listed, as `orior_cli <menu>` alone shows them, its jobs from the tree
-// at `root`, NULL where there is none; and a job of a menu of jobs shown, as the window shows it on choosing, each
+// the jobs of the menu's groups, their places in the catalog into `list_entries`, sized for CLI_LINE_JOBS: their count;
+// a menu's commands and the jobs of a menu of jobs listed, as `orior_cli <menu>` alone shows them, its jobs from the
+// tree at `root`, NULL where there is none; and a job of a menu of jobs shown, as the window shows it on choosing, each
 // giving the code to exit with (command_line_menus.c)
 unsigned int cli_menu_jobs(const CliCommandLineCatalogMenuCtx *args);
 int cli_menu_lines(const CliCommandLineWordCtx *args);
@@ -116,7 +114,7 @@ int cli_file_word(const CliCommandLineOutCtx *args);
 int cli_plugins_list(void);
 int cli_new_plugin(const CliCommandLineWordsCountCtx *args);
 int cli_toolchains_words(const CliCommandLineWordsCountCtx *args);
-// the command line's words that are programs of their own, `serve`, `write-raised`, `detached-run`, `deploy`,
+// the command line's words that are programs of their own, `write-raised`, `deploy`,
 // `libraries` and `sea`, where `first` is one: 1 with the code to exit with into `code`, or 0 where it is none of them
 // (command_line_programs.c)
 int cli_line_program(const CliCommandLineWordsCtx *args);
@@ -249,7 +247,7 @@ struct CliCommandLineCatalogMenuCtx
 {
     const CliCatalog *catalog;
     unsigned int menu;
-    unsigned int *listed;
+    unsigned int *list_entries;
 };
 
 struct CliCommandLineCtx
@@ -369,15 +367,6 @@ EMBED_TABLE_STORAGE CliCommandLineRootNs cli_command_line_root_internal EMBED_UN
     .tests_list = cli_tests_list,
     .job_show = cli_job_show,
     .job_run = cli_job_run,
-};
-
-typedef struct
-{
-    void (*window_channel_send)(const CliCommandLineSizeCtx *args);
-} CliCommandLineSizeNs;
-EMBED_TABLE_LAYOUT(CliCommandLineSizeNs, window_channel_send);
-EMBED_TABLE_STORAGE CliCommandLineSizeNs cli_command_line_size_internal EMBED_UNUSED = {
-    .window_channel_send = cli_window_channel_send,
 };
 
 typedef struct

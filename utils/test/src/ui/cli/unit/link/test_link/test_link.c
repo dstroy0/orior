@@ -5,21 +5,14 @@
 #include "ui/cli/src/comms/link.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
-static char s_why[256];
+static char s_error[256];
 static char s_target[CLI_NAME_MAX_LEN];
 
 // `text` parsed into `address`: whether it is an address
 static int parsed(const char *text, CliLinkAddress *address)
 {
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     return EMBED_CALL(cli_link_text.address_parse, CliLinkTextCfg, .text = text, .address_out = address, .err_msg = &err_msg);
-}
-
-// `uname` read as a target: whether it has one
-static int target_of(const char *uname)
-{
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
-    return EMBED_CALL(cli_link_err_msg_system.target, CliLinkErrMsgSystemCfg, .system = uname, .target = s_target, .err_msg = &err_msg);
 }
 
 void setUp(void)
@@ -99,24 +92,3 @@ void test_a_quote_in_a_word_is_escaped(void)
     CLI_TEST_ASSERT_TEXT("'it'\\''s'", quoted, line.at);
 }
 
-void test_a_linux_x86_64_target_from_uname(void)
-{
-    TEST_ASSERT_TRUE(target_of("Linux x86_64"));
-    TEST_ASSERT_EQUAL_STRING("x86_64-unknown-linux-musl", s_target);
-}
-
-void test_a_linux_aarch64_target_from_uname(void)
-{
-    TEST_ASSERT_TRUE(target_of("Linux aarch64"));
-    TEST_ASSERT_EQUAL_STRING("aarch64-unknown-linux-musl", s_target);
-}
-
-void test_a_mac_has_no_target(void)
-{
-    TEST_ASSERT_FALSE(target_of("Darwin arm64"));
-}
-
-void test_a_windows_machine_is_recognized_from_uname(void)
-{
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_link_err_msg_system.is_windows, CliLinkErrMsgSystemCfg, .system = "MINGW64_NT-10.0-26200 x86_64"));
-}

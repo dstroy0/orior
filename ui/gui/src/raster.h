@@ -11,11 +11,11 @@ typedef struct GuiRasterRadiusWorkCfg GuiRasterRadiusWorkCfg;
 typedef struct GuiRasterWidthCfg GuiRasterWidthCfg;
 typedef struct GuiRasterColorX0Cfg GuiRasterColorX0Cfg;
 typedef struct GuiRasterXYColorCfg GuiRasterXYColorCfg;
-typedef struct GuiRasterRectRadiusGroundCfg GuiRasterRectRadiusGroundCfg;
+typedef struct GuiRasterRectRadiusBackgroundCfg GuiRasterRectRadiusBackgroundCfg;
 typedef struct GuiRasterXYColorCountCfg GuiRasterXYColorCountCfg;
 typedef struct GuiRasterColorCfg GuiRasterColorCfg;
 typedef struct GuiRasterRectRadiusCfg GuiRasterRectRadiusCfg;
-typedef struct GuiRasterRadiusGroundCfg GuiRasterRadiusGroundCfg;
+typedef struct GuiRasterRadiusBackgroundCfg GuiRasterRadiusBackgroundCfg;
 typedef struct GuiRasterXCfg GuiRasterXCfg;
 typedef struct GuiRasterXYCfg GuiRasterXYCfg;
 typedef struct GuiRasterRectColorCfg GuiRasterRectColorCfg;
@@ -25,7 +25,7 @@ typedef struct GuiRasterRectCfg GuiRasterRectCfg;
 typedef struct GuiRasterCfg GuiRasterCfg;
 typedef struct GuiRasterOneCfg GuiRasterOneCfg;
 // a scale that leaves a size as it is: every scale in the window is a percent
-#define GUI_SCALE_WHOLE 100
+#define GUI_SCALE_ONE 100
 
 #include "../../cli/src/command_line/cells.h"
 #include "embed_dispatch_layout.h"
@@ -60,7 +60,7 @@ typedef struct
     GuiColor *pixels;
     void *pages;
     unsigned long long pages_bytes;
-    unsigned long long placed;
+    unsigned long long positioned;
 } GuiRaster;
 
 // the pixels a frame's row is laid in: its width rounded up to GUI_RASTER_PITCH, which lays every row on a 256-byte
@@ -104,16 +104,16 @@ typedef struct
     GuiColor color;
 } GuiUnder;
 
-// `color` blended over `ground` by the color's alpha, the pixel left opaque
+// `color` blended over `background_fill` by the color's alpha, the pixel left opaque
 GuiColor gui_color_over(const GuiRasterCfg *args);
 // the corners of `rect` cut round by `radius`: each corner pixel blended with the ground by the share of it outside
 // the arc, what was drawn inside the rectangle left standing inside the arcs
-void gui_raster_corners_cut(const GuiRasterRectRadiusGroundCfg *args);
-// a pane of `inner` tint on the table `ground` lays: every pixel of `rect`, or of its corners' squares alone where
-// `corners_only` is set, the ground's own pixel with the ink at an alpha between the table's tint's outside the
+void gui_raster_corners_cut(const GuiRasterRectRadiusBackgroundCfg *args);
+// a pane of `inner` tint on the table `background_fill` lays: every pixel of `rect`, or of its corners' squares alone
+// where `corners_only` is set, the ground's own pixel with the ink at an alpha between the table's tint's outside the
 // pane's arcs of `radius` and `inner`'s inside them, by the pixel's share inside, then the ground's grain; the two
 // tints share one ink, and a pane's edge is the ink thickening, never a second layer
-void gui_raster_pane(const GuiRasterRectRadiusGroundCfg *args);
+void gui_raster_pane(const GuiRasterRectRadiusBackgroundCfg *args);
 // The lines the work stands in: along each edge its color and its width in pixels, the lines bending round the
 // work's corners from one into the next
 typedef struct
@@ -122,10 +122,10 @@ typedef struct
     GuiColor right;
     GuiColor bottom;
     GuiColor left;
-    int top_wide;
-    int right_wide;
-    int bottom_wide;
-    int left_wide;
+    int top_width;
+    int right_width;
+    int bottom_width;
+    int left_width;
 } GuiOutline;
 
 // the work's outline laid: `work` cut round by `radius` to the `table`, `inside`, the work less its lines, cut round
@@ -143,7 +143,7 @@ unsigned int gui_raster_notch_fillets(const GuiRasterRadiusCfg *args);
 // notch inside the work filleted, what was drawn left standing outside the arc, and a corner of the notch on the
 // work's edge cut, the ground laid outside the arc; a notch reaching none of the work's edges is cut as a rounded
 // hole
-void gui_raster_notch(const GuiRasterRadiusGroundCfg *args);
+void gui_raster_notch(const GuiRasterRadiusBackgroundCfg *args);
 // `rect` grained inside its corners rounded by `radius`: each pixel blended with white by the alpha the tile of
 // `alpha` bytes, `tile` a side, gives it, the tile laid from the raster's own top left and repeated
 void gui_raster_grain(const GuiRasterRectRadiusCfg *args);
@@ -238,12 +238,12 @@ struct GuiRasterXYColorCfg
     GuiRect clip;
 };
 
-struct GuiRasterRectRadiusGroundCfg
+struct GuiRasterRectRadiusBackgroundCfg
 {
     GuiRect rect;
     GuiRaster *raster;
     unsigned int radius;
-    GuiUnder ground;
+    GuiUnder background_fill;
     GuiColor inner;
     int corners_only;
 };
@@ -276,11 +276,11 @@ struct GuiRasterRectRadiusCfg
     unsigned int tile;
 };
 
-struct GuiRasterRadiusGroundCfg
+struct GuiRasterRadiusBackgroundCfg
 {
     GuiRaster *raster;
     unsigned int radius;
-    GuiUnder ground;
+    GuiUnder background_fill;
     GuiRect work;
     GuiRect notch;
 };
@@ -336,7 +336,7 @@ struct GuiRasterRectCfg
 struct GuiRasterCfg
 {
     GuiColor color;
-    GuiColor ground_color;
+    GuiColor background_color;
 };
 
 struct GuiRasterOneCfg
@@ -413,11 +413,11 @@ EMBED_TABLE_STORAGE CliRasterNs cli_raster EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*corners_cut)(const GuiRasterRectRadiusGroundCfg *args);
-    void (*pane)(const GuiRasterRectRadiusGroundCfg *args);
-} GuiRasterRectRadiusGroundNs;
-EMBED_TABLE_LAYOUT(GuiRasterRectRadiusGroundNs, corners_cut, pane);
-EMBED_TABLE_STORAGE GuiRasterRectRadiusGroundNs gui_raster_rect_radius_ground EMBED_UNUSED = {
+    void (*corners_cut)(const GuiRasterRectRadiusBackgroundCfg *args);
+    void (*pane)(const GuiRasterRectRadiusBackgroundCfg *args);
+} GuiRasterRectRadiusBackgroundNs;
+EMBED_TABLE_LAYOUT(GuiRasterRectRadiusBackgroundNs, corners_cut, pane);
+EMBED_TABLE_STORAGE GuiRasterRectRadiusBackgroundNs gui_raster_rect_radius_background EMBED_UNUSED = {
     .corners_cut = gui_raster_corners_cut,
     .pane = gui_raster_pane,
 };
@@ -442,10 +442,10 @@ EMBED_TABLE_STORAGE GuiRasterRadiusNs gui_raster_radius EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*notch)(const GuiRasterRadiusGroundCfg *args);
-} GuiRasterRadiusGroundNs;
-EMBED_TABLE_LAYOUT(GuiRasterRadiusGroundNs, notch);
-EMBED_TABLE_STORAGE GuiRasterRadiusGroundNs gui_raster_radius_ground EMBED_UNUSED = {
+    void (*notch)(const GuiRasterRadiusBackgroundCfg *args);
+} GuiRasterRadiusBackgroundNs;
+EMBED_TABLE_LAYOUT(GuiRasterRadiusBackgroundNs, notch);
+EMBED_TABLE_STORAGE GuiRasterRadiusBackgroundNs gui_raster_radius_background EMBED_UNUSED = {
     .notch = gui_raster_notch,
 };
 

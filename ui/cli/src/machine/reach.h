@@ -4,7 +4,10 @@
 // readable by the reader alone, naming its process, the tree it has open, its comms door and a persistent key of the
 // door's that grants the channel `command` to send on and `answer/*` to listen on. A command line run on a tree with a
 // window open sends the command there, and the window runs it as the menu runs it and answers on `answer/` and the
-// command's id. A file whose window is gone is taken away by the first command line that finds the door shut (reach.c)
+// command's id. A file whose window is gone is taken away by the first command line that finds the door shut. A
+// window's file is its process in decimal, its tree, empty for none, its address and its key, each ended by a 0. A
+// command's bytes are its id, menu, command and words, each ended by a 0; an answer's are CLI_REACH_DONE or
+// CLI_REACH_REFUSED and then its text (reach.c)
 #ifndef REACH_H
 #define REACH_H
 typedef struct CliReachMenuCfg CliReachMenuCfg;
@@ -12,6 +15,11 @@ typedef struct CliReachCfg CliReachCfg;
 
 #include "../command_line/cli_internal.h"
 #include "embed_dispatch_layout.h"
+
+// the fields before a command's words; and the first byte of an answer, where the command ran and where it did not
+#define CLI_REACH_HEAD_FIELDS 3u
+#define CLI_REACH_DONE '1'
+#define CLI_REACH_REFUSED '0'
 
 // What the window answered: whether the command ran, and what it reported
 typedef struct

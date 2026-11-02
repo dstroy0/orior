@@ -5,8 +5,8 @@
 #include "ui/cli/src/command_line/commands.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
-static CliItem s_items[CLI_ITEMS_MOST];
-static char s_words[CLI_MENUS_MOST][CLI_LABEL_MAX_LEN];
+static CliItem s_items[CLI_ITEMS_MAX];
+static char s_words[CLI_MENUS_MAX][CLI_LABEL_MAX_LEN];
 
 // the item with `args` requires `needed` arguments
 static void assert_arguments_required(unsigned int needed, const char *args)
@@ -46,7 +46,7 @@ void test_no_menu_lists_a_command_twice(void)
 {
     for (unsigned int menu = 0u; menu < cli_menus(); menu += 1u)
     {
-        const unsigned int items = EMBED_CALL(cli_commands_menu_room.menu_items, CliCommandsMenuRoomCfg, .menu = menu, .items = s_items, .room = CLI_ITEMS_MOST);
+        const unsigned int items = EMBED_CALL(cli_commands_menu_capacity.menu_items, CliCommandsMenuCapacityCfg, .menu = menu, .items = s_items, .capacity = CLI_ITEMS_MAX);
         for (unsigned int at = 0u; at < items; at += 1u)
         {
             for (unsigned int before = 0u; before < at; before += 1u)
@@ -61,7 +61,7 @@ void test_every_command_is_one_word(void)
 {
     for (unsigned int menu = 0u; menu < cli_menus(); menu += 1u)
     {
-        const unsigned int items = EMBED_CALL(cli_commands_menu_room.menu_items, CliCommandsMenuRoomCfg, .menu = menu, .items = s_items, .room = CLI_ITEMS_MOST);
+        const unsigned int items = EMBED_CALL(cli_commands_menu_capacity.menu_items, CliCommandsMenuCapacityCfg, .menu = menu, .items = s_items, .capacity = CLI_ITEMS_MAX);
         for (unsigned int at = 0u; at < items; at += 1u)
         {
             TEST_ASSERT_NULL_MESSAGE(cellul.chr(&(CatenaFinitaCfg){.src = s_items[at].command, .cap = CLI_CELLS_POOL, .byte = ' '}), s_items[at].command);
@@ -74,11 +74,11 @@ void test_no_command_of_a_job_menu_is_a_job_path(void)
     for (unsigned int menu = 0u; menu < cli_menus(); menu += 1u)
     {
         char group[1][CLI_LABEL_MAX_LEN];
-        if (EMBED_CALL(cli_commands_menu_groups.menu_groups, CliCommandsMenuGroupsCfg, .menu = menu, .groups = group, .room = 1u) == 0u)
+        if (EMBED_CALL(cli_commands_menu_groups.menu_groups, CliCommandsMenuGroupsCfg, .menu = menu, .groups = group, .capacity = 1u) == 0u)
         {
             continue;
         }
-        const unsigned int items = EMBED_CALL(cli_commands_menu_room.menu_items, CliCommandsMenuRoomCfg, .menu = menu, .items = s_items, .room = CLI_ITEMS_MOST);
+        const unsigned int items = EMBED_CALL(cli_commands_menu_capacity.menu_items, CliCommandsMenuCapacityCfg, .menu = menu, .items = s_items, .capacity = CLI_ITEMS_MAX);
         for (unsigned int at = 0u; at < items; at += 1u)
         {
             TEST_ASSERT_NULL_MESSAGE(cellul.chr(&(CatenaFinitaCfg){.src = s_items[at].command, .cap = CLI_CELLS_POOL, .byte = '/'}), s_items[at].command);

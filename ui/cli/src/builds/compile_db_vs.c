@@ -49,7 +49,7 @@ static int cli_vs_read(void)
     char base[CLI_PATH_MAX_LEN];
     char vswhere[CLI_PATH_MAX_LEN];
     if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ProgramFiles(x86)",
-                    .value_out = base, .room = sizeof(base)))
+                    .value_out = base, .capacity = sizeof(base)))
     {
         return 0;
     }
@@ -59,35 +59,35 @@ static int cli_vs_read(void)
         vswhere,     "-latest",          "-products",
         "*",         "-requires",        "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
         "-property", "installationPath", NULL};
-    CliRan *const ran = cli_ran_take();
+    CliRunResult *const run_result = cli_run_result_alloc();
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea unstarted = {why, sizeof(why), 0ull};
     if (!EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = vswhere_args, .folder = NULL, .settings = NULL,
-                    .count = 0u, .ran = ran, .err_msg = &unstarted))
+                    .count = 0u, .run_result = run_result, .err_msg = &unstarted))
     {
-        EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+        EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
         return 0;
     }
     unsigned long long from = 0ull;
-    unsigned long long to = ran->out_size;
-    while ((from < to) && EMBED_CALL(cli_white, CompileDbVsCtx, .letter = ran->out[from]))
+    unsigned long long to = run_result->out_size;
+    while ((from < to) && EMBED_CALL(cli_white, CompileDbVsCtx, .letter = run_result->out[from]))
     {
         from += 1ull;
     }
-    while ((to > from) && EMBED_CALL(cli_white, CompileDbVsCtx, .letter = ran->out[to - 1ull]))
+    while ((to > from) && EMBED_CALL(cli_white, CompileDbVsCtx, .letter = run_result->out[to - 1ull]))
     {
         to -= 1ull;
     }
     char place[CLI_PATH_MAX_LEN];
     const unsigned long long length = ((to - from) < CLI_PATH_MAX_LEN) ? (to - from) : 0ull;
-    memor.cpy(&(MemoriaCfg){.dst = place, .src = ran->out + from, .bytes = length});
+    memor.cpy(&(MemoriaCfg){.dst = place, .src = run_result->out + from, .bytes = length});
     place[length] = '\0';
     char vcvars[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = place, .relative = "VC/Auxiliary/Build/vcvars64.bat",
                .joined = vcvars);
     if ((length == 0ull) || !EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = vcvars))
     {
-        EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+        EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
         return 0;
     }
     char line[CLI_PATH_MAX_LEN * 2u];
@@ -99,23 +99,23 @@ static int cli_vs_read(void)
     const char *const shell[5] = {"cmd", "/d", "/c", line, NULL};
     unstarted.at = 0ull;
     if (!EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = shell, .folder = NULL, .settings = NULL, .count = 0u,
-                    .ran = ran, .err_msg = &unstarted) ||
-        (ran->code != 0ll))
+                    .run_result = run_result, .err_msg = &unstarted) ||
+        (run_result->code != 0ll))
     {
-        EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+        EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
         return 0;
     }
     VerbaLinea vs_text = {s_vs.text, sizeof(s_vs.text), 0ull};
     int include = 0;
     s_vs.count = 0u;
-    for (unsigned long long at = 0ull; at < ran->out_size;)
+    for (unsigned long long at = 0ull; at < run_result->out_size;)
     {
-        const CliTextLine bounds =
-            EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = ran->out, .at = at, .size = ran->out_size);
+        const CliTextLine bounds = EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = run_result->out, .at = at,
+                                              .size = run_result->out_size);
         const unsigned long long end = bounds.stop;
         unsigned long long size = end - at;
         size -= bounds.stop - bounds.cut;
-        const char *const row = ran->out + at;
+        const char *const row = run_result->out + at;
         at = end + 1ull;
         const char *const equals = memor.chr(&(MemoriaCfg){.src = row, .val = '=', .bytes = size});
         if ((equals == NULL) || (s_vs.count >= 1024u))
@@ -141,7 +141,7 @@ static int cli_vs_read(void)
         s_vs.count += 1u;
         include = include || EMBED_CALL(cli_name_include, CompileDbVsCtx, .name = name);
     }
-    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+    EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
     return include;
 #else
     return 0;

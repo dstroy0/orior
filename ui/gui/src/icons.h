@@ -19,8 +19,8 @@ typedef struct GuiIconsCfg GuiIconsCfg;
 #define GUI_ICON_STROKE 1.1f
 // the eye's box in its own units, its longer side, and its line in those units as the page strokes it: a line's
 // width in pixels at a size is the stroke by the size over the side, and no thinner than a pixel
-#define GUI_EYE_SIDE 255.2f
-#define GUI_EYE_STROKE 2.2f
+#define GUI_LOGO_SIDE 255.2f
+#define GUI_LOGO_STROKE 2.2f
 
 // A cache entry: whether it is in use, its key (the icon, the pixel size and the line width), and the coverage mask,
 // allocated in a cell of its own

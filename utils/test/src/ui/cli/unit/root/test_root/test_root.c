@@ -7,15 +7,15 @@ static char s_tree[CLI_PATH_MAX_LEN];
 static char s_folder[CLI_NAME_MAX_LEN];
 static char s_file[CLI_NAME_MAX_LEN];
 static char s_other[CLI_PATH_MAX_LEN];
-static char s_why[1024];
+static char s_error[1024];
 
-// the file at `path` holds exactly `wanted`
-static void assert_reads(const char *wanted, const char *path)
+// the file at `path` holds exactly `required`
+static void assert_reads(const char *required, const char *path)
 {
     char text[256];
     const unsigned long long size = qry_member_file_read(path, (unsigned char *)text, sizeof(text));
     TEST_ASSERT_NOT_EQUAL(QRY_MEMBER_UNREAD, size);
-    CLI_TEST_ASSERT_TEXT(wanted, text, size);
+    CLI_TEST_ASSERT_TEXT(required, text, size);
 }
 
 // `@<mount><rest>` into `relative`
@@ -31,7 +31,7 @@ static void mounted_path(char *relative, const char *mount, const char *rest)
 // `relative` resolved under the tree into `full`: whether it is allowed
 static int resolved(const char *relative, char *full)
 {
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     return EMBED_CALL(cli_root_internal.inside, CliRootCtx, .root = s_tree, .relative = relative, .joined = full, .err_msg = &err_msg);
 }
 
@@ -51,7 +51,7 @@ void setUp(void)
     TEST_ASSERT_TRUE(EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path, .bytes = "a", .size = 1ull));
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = base, .relative = "lone.txt", .joined = lone);
     TEST_ASSERT_TRUE(EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = lone, .bytes = "lone", .size = 4ull));
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     TEST_ASSERT_TRUE(EMBED_CALL(cli_path_err_msg_name_internal.mount, CliPathErrMsgNameCtx, .path = s_other, .name_out = s_folder, .err_msg = &err_msg));
     TEST_ASSERT_TRUE(EMBED_CALL(cli_path_err_msg_name_internal.mount, CliPathErrMsgNameCtx, .path = lone, .name_out = s_file, .err_msg = &err_msg));
 }
@@ -65,7 +65,7 @@ void tearDown(void)
 void test_mounting_a_folder_again_saves_its_name(void)
 {
     char again[CLI_NAME_MAX_LEN];
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     TEST_ASSERT_TRUE(EMBED_CALL(cli_path_err_msg_name_internal.mount, CliPathErrMsgNameCtx, .path = s_other, .name_out = again, .err_msg = &err_msg));
     TEST_ASSERT_EQUAL_STRING(s_folder, again);
 }

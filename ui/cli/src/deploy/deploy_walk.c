@@ -278,7 +278,7 @@ int cli_deploy_gather(const CliDeployTextCtx *args)
         EMBED_CALL(cli_deploy_out_index_internal.full, CliDeployOutIndexCtx, .index = at, .out = &line);
         unsigned long long size = 0ull;
         const unsigned char *const bytes = (mmgr_line_finish(&line) != 0ull)
-                                               ? EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = full,
+                                               ? EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = full,
                                                             .size_pointer = &size, .owner = &g_cli_deploy_cells)
                                                : NULL;
         if (bytes != NULL)

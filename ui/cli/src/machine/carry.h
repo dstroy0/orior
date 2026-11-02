@@ -9,70 +9,70 @@
 // Taking them in writes nothing until the reader has seen the differences and chosen what to take: each file chosen,
 // and in settings.json each setting chosen, the settings of this machine alone retained as they are. Each file a taking
 // writes over is saved as it was in `carried/`, a folder for each taking, and undoing the taking writes them back and
-// takes out the files it made (carry.c, carry_send.c, carry_take.c, carry_undo.c)
+// takes out the files it made (carry.c, machine_transfer_send.c, machine_transfer_alloc.c, machine_transfer_undo.c)
 #ifndef CARRY_H
 #define CARRY_H
-typedef struct CliCarryHomeCfg CliCarryHomeCfg;
-typedef struct CliCarryHomeToCfg CliCarryHomeToCfg;
-typedef struct CliCarryHomeOutCfg CliCarryHomeOutCfg;
-typedef struct CliCarryCfg CliCarryCfg;
-typedef struct CliCarryFromCfg CliCarryFromCfg;
+typedef struct CliMachineTransferHomeCfg CliMachineTransferHomeCfg;
+typedef struct CliMachineTransferHomeToCfg CliMachineTransferHomeToCfg;
+typedef struct CliMachineTransferHomeOutCfg CliMachineTransferHomeOutCfg;
+typedef struct CliMachineTransferCfg CliMachineTransferCfg;
+typedef struct CliMachineTransferFromCfg CliMachineTransferFromCfg;
 
 #include "../command_line/cli_internal.h"
 #include "embed_dispatch_layout.h"
 
 // the most files carried, and the most bytes of one's text
-#define CLI_CARRIED_MOST 4096u
-#define CLI_CARRIED_TEXT (1u << 25u)
+#define CLI_TRANSFERRED_MAX 4096u
+#define CLI_TRANSFERRED_TEXT (1u << 25u)
 
 // Files carried, by place in order: each place and its text, or its path, each a cell of its own ended by a 0, given
 // back as it is put again and as the files are cleared
 typedef struct
 {
-    char *place[CLI_CARRIED_MOST];
-    char *value[CLI_CARRIED_MOST];
-    unsigned long long size[CLI_CARRIED_MOST];
+    char *place[CLI_TRANSFERRED_MAX];
+    char *value[CLI_TRANSFERRED_MAX];
+    unsigned long long size[CLI_TRANSFERRED_MAX];
     unsigned int count;
-} CliCarried;
+} CliTransferred;
 
 // what travels from orior's own folder `home` into `packed`: each file's text by its place, settings.json without the
 // settings of this machine alone: 1, or 0 with why given; and what travels from `home` written to `to`, as one file
 // where `to` is not a folder, or laid out in the folder `to`, the files it no longer carries taken out of it,
 // committed and pushed where it is a repository: 1 with what it did reported into `out`, or 0 with why given
-int cli_carry_pack(const CliCarryCfg *args);
-int cli_carry_send(const CliCarryHomeToCfg *args);
+int cli_machine_transfer_pack(const CliMachineTransferCfg *args);
+int cli_machine_transfer_send(const CliMachineTransferHomeToCfg *args);
 
 // what the file or the folder `from` carries into `there`, by place, a repository with a remote pulled first: 1, or 0
 // with why given (carry.c)
-int cli_carry_read(const CliCarryFromCfg *args);
+int cli_machine_transfer_read(const CliMachineTransferFromCfg *args);
 
 // how what `there` carries differs from orior's own folder `home`, the files alike left out, written as
 // `[{"place", "how", "settings": [{"key", "here", "there"}]}]`; what `there`, read from `from`, carries taken in:
-// each of `places`, `count` of them, and of settings.json the settings of `keys`, `key_count` of them, alone, as there,
-// a setting there does not set taken out here, and the settings of this machine alone retained, each file it writes
-// over saved first in `carried/`, the taking written as `{"id", "at", "from", "files": [[place, stood]]}`: 1, or 0 with
-// why given; every taking saved, the last first, written as a JSON array of them; and the taking `id` undone, each file
-// it wrote over written back as it was, each it made taken out, and the taking forgotten, the taking written: 1, or 0
-// with why given (carry_take.c)
-void cli_carry_differences(const CliCarryHomeCfg *args);
-int cli_carry_take(const CliCarryHomeCfg *args);
-void cli_carry_takings(const CliCarryHomeToCfg *args);
-int cli_carry_undo(const CliCarryHomeOutCfg *args);
+// each of `positions`, `count` of them, and of settings.json the settings of `keys`, `key_count` of them, alone, as
+// there, a setting there does not set taken out here, and the settings of this machine alone retained, each file it
+// writes over saved first in `carried/`, the taking written as `{"id", "at", "from", "files": [[place, stood]]}`: 1, or
+// 0 with why given; every taking saved, the last first, written as a JSON array of them; and the taking `id` undone,
+// each file it wrote over written back as it was, each it made taken out, and the taking forgotten, the taking written:
+// 1, or 0 with why given (machine_transfer_alloc.c)
+void cli_machine_transfer_differences(const CliMachineTransferHomeCfg *args);
+int cli_machine_transfer_alloc(const CliMachineTransferHomeCfg *args);
+void cli_machine_transfer_allocations(const CliMachineTransferHomeToCfg *args);
+int cli_machine_transfer_undo(const CliMachineTransferHomeOutCfg *args);
 
-struct CliCarryHomeCfg
+struct CliMachineTransferHomeCfg
 {
     const char *home;
     VerbaLinea *err_msg;
     VerbaLinea *out;
     const char *from;
-    const CliCarried *there;
-    const char *const *places;
+    const CliTransferred *there;
+    const char *const *positions;
     unsigned int count;
     const char *const *keys;
     unsigned int key_count;
 };
 
-struct CliCarryHomeToCfg
+struct CliMachineTransferHomeToCfg
 {
     const char *home;
     VerbaLinea *err_msg;
@@ -80,7 +80,7 @@ struct CliCarryHomeToCfg
     VerbaLinea *out;
 };
 
-struct CliCarryHomeOutCfg
+struct CliMachineTransferHomeOutCfg
 {
     const char *home;
     VerbaLinea *err_msg;
@@ -88,67 +88,67 @@ struct CliCarryHomeOutCfg
     const char *id;
 };
 
-struct CliCarryCfg
+struct CliMachineTransferCfg
 {
     const char *home;
-    CliCarried *packed;
+    CliTransferred *packed;
     VerbaLinea *err_msg;
 };
 
-struct CliCarryFromCfg
+struct CliMachineTransferFromCfg
 {
     VerbaLinea *err_msg;
     const char *from;
-    CliCarried *there_out;
+    CliTransferred *there_out;
 };
 
 typedef struct
 {
-    int (*pack)(const CliCarryCfg *args);
-} CliCarryNs;
-EMBED_TABLE_LAYOUT(CliCarryNs, pack);
-EMBED_TABLE_STORAGE CliCarryNs cli_carry EMBED_UNUSED = {
-    .pack = cli_carry_pack,
+    int (*pack)(const CliMachineTransferCfg *args);
+} CliMachineTransferNs;
+EMBED_TABLE_LAYOUT(CliMachineTransferNs, pack);
+EMBED_TABLE_STORAGE CliMachineTransferNs cli_machine_transfer EMBED_UNUSED = {
+    .pack = cli_machine_transfer_pack,
 };
 
 typedef struct
 {
-    int (*send)(const CliCarryHomeToCfg *args);
-    void (*takings)(const CliCarryHomeToCfg *args);
-} CliCarryHomeToNs;
-EMBED_TABLE_LAYOUT(CliCarryHomeToNs, send, takings);
-EMBED_TABLE_STORAGE CliCarryHomeToNs cli_carry_home_to EMBED_UNUSED = {
-    .send = cli_carry_send,
-    .takings = cli_carry_takings,
+    int (*send)(const CliMachineTransferHomeToCfg *args);
+    void (*allocations)(const CliMachineTransferHomeToCfg *args);
+} CliMachineTransferHomeToNs;
+EMBED_TABLE_LAYOUT(CliMachineTransferHomeToNs, send, allocations);
+EMBED_TABLE_STORAGE CliMachineTransferHomeToNs cli_machine_transfer_home_to EMBED_UNUSED = {
+    .send = cli_machine_transfer_send,
+    .allocations = cli_machine_transfer_allocations,
 };
 
 typedef struct
 {
-    int (*read)(const CliCarryFromCfg *args);
-} CliCarryFromNs;
-EMBED_TABLE_LAYOUT(CliCarryFromNs, read);
-EMBED_TABLE_STORAGE CliCarryFromNs cli_carry_from EMBED_UNUSED = {
-    .read = cli_carry_read,
+    int (*read)(const CliMachineTransferFromCfg *args);
+} CliMachineTransferFromNs;
+EMBED_TABLE_LAYOUT(CliMachineTransferFromNs, read);
+EMBED_TABLE_STORAGE CliMachineTransferFromNs cli_machine_transfer_from EMBED_UNUSED = {
+    .read = cli_machine_transfer_read,
 };
 
 typedef struct
 {
-    void (*differences)(const CliCarryHomeCfg *args);
-    int (*take)(const CliCarryHomeCfg *args);
-} CliCarryHomeNs;
-EMBED_TABLE_LAYOUT(CliCarryHomeNs, differences, take);
-EMBED_TABLE_STORAGE CliCarryHomeNs cli_carry_home EMBED_UNUSED = {
-    .differences = cli_carry_differences,
-    .take = cli_carry_take,
+    void (*differences)(const CliMachineTransferHomeCfg *args);
+    int (*take)(const CliMachineTransferHomeCfg *args);
+} CliMachineTransferHomeNs;
+EMBED_TABLE_LAYOUT(CliMachineTransferHomeNs, differences, take);
+EMBED_TABLE_STORAGE CliMachineTransferHomeNs cli_machine_transfer_home EMBED_UNUSED = {
+    .differences = cli_machine_transfer_differences,
+    .take = cli_machine_transfer_alloc,
 };
 
 typedef struct
 {
-    int (*undo)(const CliCarryHomeOutCfg *args);
-} CliCarryHomeOutNs;
-EMBED_TABLE_LAYOUT(CliCarryHomeOutNs, undo);
-EMBED_TABLE_STORAGE CliCarryHomeOutNs cli_carry_home_out EMBED_UNUSED = {
-    .undo = cli_carry_undo,
+    int (*undo)(const CliMachineTransferHomeOutCfg *args);
+} CliMachineTransferHomeOutNs;
+EMBED_TABLE_LAYOUT(CliMachineTransferHomeOutNs, undo);
+EMBED_TABLE_STORAGE CliMachineTransferHomeOutNs cli_machine_transfer_home_out EMBED_UNUSED = {
+    .undo = cli_machine_transfer_undo,
 };
 
 #endif

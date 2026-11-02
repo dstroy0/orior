@@ -13,9 +13,9 @@ typedef struct
     unsigned long long add_length;
 } CliUnder;
 // the places of the commits found, by their id, twice as many as the commits a history contains
-#define CLI_GIT_PLACES (CLI_GIT_LINE_COMMITS * 2u)
+#define CLI_GIT_POSITIONS (CLI_GIT_LINE_COMMITS * 2u)
 
-#define CLI_GIT_NO_PLACE 0xffffffffu
+#define CLI_GIT_NO_POSITION 0xffffffffu
 
 typedef struct
 {
@@ -60,7 +60,8 @@ EMBED_INLINE int cli_under(const GitLinesCtx *args)
     mmgr_line_put_n(&line, args->under->add, args->under->add_length);
     mmgr_line_put_n(&line, args->path + args->under->strip_length, length - args->under->strip_length);
     const unsigned long long size = mmgr_line_finish(&line);
-    *at = EMBED_CALL(cli_git_text.text_put, CliGitTextCfg, .text = &args->found->text, .from = joined, .length = size);
+    *at =
+        EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &args->found->text, .from = joined, .length = size);
     return 1;
 }
 
@@ -69,10 +70,10 @@ EMBED_INLINE int cli_under(const GitLinesCtx *args)
 EMBED_INLINE void cli_history_get(const GitLinesCtx *args)
 {
     unsigned long long size = args->size;
-    static unsigned int s_places[CLI_GIT_PLACES];
-    for (unsigned int at = 0u; at < CLI_GIT_PLACES; at += 1u)
+    static unsigned int s_positions[CLI_GIT_POSITIONS];
+    for (unsigned int at = 0u; at < CLI_GIT_POSITIONS; at += 1u)
     {
-        s_places[at] = CLI_GIT_NO_PLACE;
+        s_positions[at] = CLI_GIT_NO_POSITION;
     }
     unsigned int at = 0u;
     const char *line = args->out;
@@ -93,7 +94,7 @@ EMBED_INLINE void cli_history_get(const GitLinesCtx *args)
                 const char *const id = EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg,
                                                   .text_read = &args->found->text, .at = args->found->commit[at].id);
                 nonzero =
-                    id[EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = id, .at = 0ull,
+                    id[EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = id, .at = 0ull,
                                   .size = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}),
                                   .set = "0")] != '\0';
             }
@@ -122,26 +123,26 @@ EMBED_INLINE void cli_history_get(const GitLinesCtx *args)
             {
                 hash = (hash ^ (unsigned char)key[digit]) * 16777619u;
             }
-            unsigned int entry = hash % CLI_GIT_PLACES;
-            while ((s_places[entry] != CLI_GIT_NO_PLACE) &&
+            unsigned int entry = hash % CLI_GIT_POSITIONS;
+            while ((s_positions[entry] != CLI_GIT_NO_POSITION) &&
                    (memor.cmp(&(MemoriaCfg){.src = EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg,
                                                               .text_read = &args->found->text,
-                                                              .at = args->found->commit[s_places[entry]].id),
+                                                              .at = args->found->commit[s_positions[entry]].id),
                                             .other = key,
                                             .bytes = 40u}) != 0))
             {
-                entry = (entry + 1u) % CLI_GIT_PLACES;
+                entry = (entry + 1u) % CLI_GIT_POSITIONS;
             }
-            if ((s_places[entry] == CLI_GIT_NO_PLACE) && (args->found->commits < CLI_GIT_LINE_COMMITS))
+            if ((s_positions[entry] == CLI_GIT_NO_POSITION) && (args->found->commits < CLI_GIT_LINE_COMMITS))
             {
                 CliLineCommit *const commit = &args->found->commit[args->found->commits];
                 memor.set(&(MemoriaCfg){.dst = commit, .val = 0, .bytes = sizeof(*commit)});
-                commit->id = EMBED_CALL(cli_git_text.text_put, CliGitTextCfg, .text = &args->found->text, .from = key,
-                                        .length = 40ull);
-                s_places[entry] = args->found->commits;
+                commit->id = EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &args->found->text,
+                                        .from = key, .length = 40ull);
+                s_positions[entry] = args->found->commits;
                 args->found->commits += 1u;
             }
-            at = (s_places[entry] != CLI_GIT_NO_PLACE) ? s_places[entry] : args->found->commits;
+            at = (s_positions[entry] != CLI_GIT_NO_POSITION) ? s_positions[entry] : args->found->commits;
             continue;
         }
         if (at >= args->found->commits)
@@ -151,8 +152,8 @@ EMBED_INLINE void cli_history_get(const GitLinesCtx *args)
         CliLineCommit *const commit = &args->found->commit[at];
         if ((key_length == 6ull) && (memor.cmp(&(MemoriaCfg){.src = key, .other = "author", .bytes = 6u}) == 0))
         {
-            commit->author = EMBED_CALL(cli_git_text.text_put, CliGitTextCfg, .text = &args->found->text, .from = value,
-                                        .length = value_length);
+            commit->author = EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &args->found->text,
+                                        .from = value, .length = value_length);
         }
         else if ((key_length == 11ull) &&
                  (memor.cmp(&(MemoriaCfg){.src = key, .other = "author-time", .bytes = 11u}) == 0))
@@ -163,7 +164,7 @@ EMBED_INLINE void cli_history_get(const GitLinesCtx *args)
         }
         else if ((key_length == 7ull) && (memor.cmp(&(MemoriaCfg){.src = key, .other = "summary", .bytes = 7u}) == 0))
         {
-            commit->subject = EMBED_CALL(cli_git_text.text_put, CliGitTextCfg, .text = &args->found->text,
+            commit->subject = EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &args->found->text,
                                          .from = value, .length = value_length);
         }
         else if ((key_length == 8ull) && (memor.cmp(&(MemoriaCfg){.src = key, .other = "filename", .bytes = 8u}) == 0))
@@ -176,8 +177,8 @@ EMBED_INLINE void cli_history_get(const GitLinesCtx *args)
             const char *gap = value;
             gap += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = gap, .at = 0ull,
                               .size = (unsigned long long)(stop - gap), .set = " ");
-            commit->parent = EMBED_CALL(cli_git_text.text_put, CliGitTextCfg, .text = &args->found->text, .from = value,
-                                        .length = (unsigned long long)(gap - value));
+            commit->parent = EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &args->found->text,
+                                        .from = value, .length = (unsigned long long)(gap - value));
             commit->has_parent = 1;
             const char *const path = (gap < stop) ? (gap + 1) : stop;
             commit->has_was = EMBED_CALL(cli_under, GitLinesCtx, .found = args->found, .under = args->under,
@@ -202,20 +203,20 @@ int cli_git_line_history(const CliGitLengthCfg *args)
     args->found_line_history_pointer->lines = 0u;
     EMBED_CALL(cli_git_text.text_begin, CliGitTextCfg, .text = &args->found_line_history_pointer->text);
     char folder[CLI_PATH_MAX_LEN];
-    char shown[CLI_PATH_MAX_LEN];
-    if (!EMBED_CALL(cli_git_root_err_msg_internal.beside, CliGitRootErrMsgCtx, .root = args->root, .file = args->file,
-                    .folder = folder, .shown = shown, .err_msg = args->err_msg))
+    char displayed[CLI_PATH_MAX_LEN];
+    if (!EMBED_CALL(cli_git_root_err_msg_internal.adjacent, CliGitRootErrMsgCtx, .root = args->root, .file = args->file,
+                    .folder = folder, .displayed = displayed, .err_msg = args->err_msg))
     {
         return 0;
     }
     // git names a file from its repository's folder, the tree names it from its own: the folder's path from each ends
     // the same, and what goes before it in either path names the other's folder
     char from_repo[CLI_PATH_MAX_LEN];
-    CliGitGave *const gave = cli_git_take();
-    const int prefixed = EMBED_CALL(cli_git_gave_internal.query, CliGitGaveCtx, .root = folder, .request = s_prefix,
-                                    .count = 2u, .gave = gave);
-    const char *from = gave->out;
-    const char *to = gave->out + gave->out_size;
+    CliGitResult *const result = cli_git_alloc();
+    const int prefixed = EMBED_CALL(cli_git_result_internal.query, CliGitResultCtx, .root = folder, .request = s_prefix,
+                                    .count = 2u, .result = result);
+    const char *from = result->out;
+    const char *to = result->out + result->out_size;
     EMBED_CALL(cli_git_from_internal.trim, CliGitFromCtx, .from = &from, .to = &to);
     VerbaLinea repo_line = {from_repo, sizeof(from_repo), 0ull};
     mmgr_line_put_n(&repo_line, from, prefixed ? (unsigned long long)(to - from) : 0ull);
@@ -246,19 +247,19 @@ int cli_git_line_history(const CliGitLengthCfg *args)
         under.strip = from_repo;
         under.strip_length = cellul.len(&(CatenaFinitaCfg){.src = from_repo, .cap = CLI_CELLS_POOL});
     }
-    const char *const arguments[6] = {"blame", "--porcelain", "--contents", "-", "--", shown};
+    const char *const arguments[6] = {"blame", "--porcelain", "--contents", "-", "--", displayed};
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea unstarted = {why, sizeof(why), 0ull};
-    const int blamed = EMBED_CALL(cli_git_gave_internal.gave, CliGitGaveCtx, .root = folder, .request = arguments,
+    const int blamed = EMBED_CALL(cli_git_result_internal.result, CliGitResultCtx, .root = folder, .request = arguments,
                                   .count = 6u, .how = CLI_GIT_LOCKS_OFF, .index = NULL, .input = args->text_text,
-                                  .length = args->length, .gave = gave, .err_msg = &unstarted) &&
-                       gave->ok && gave->out_whole;
+                                  .length = args->length, .result = result, .err_msg = &unstarted) &&
+                       result->ok && result->out_untruncated;
     if (blamed)
     {
-        EMBED_CALL(cli_history_get, GitLinesCtx, .out = gave->out, .size = gave->out_size, .under = &under,
+        EMBED_CALL(cli_history_get, GitLinesCtx, .out = result->out, .size = result->out_size, .under = &under,
                    .found = args->found_line_history_pointer);
     }
-    EMBED_CALL(cli_git_gave_internal.free, CliGitGaveCtx, .gave = gave);
+    EMBED_CALL(cli_git_result_internal.free, CliGitResultCtx, .result = result);
     if (!blamed)
     {
         mmgr_line_put(args->err_msg, "git has no history of ");

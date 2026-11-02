@@ -76,22 +76,22 @@ typedef struct
 } CliXmlError;
 
 // An XML file as read: its text, its elements, its comments' spans, what prevented it from reading, and the elements
-// its text leaves open, the outermost first; each list's room in one cell sized to the tags the text can contain, no
-// more than its most, given back with cli_xml_free
+// its text leaves open, the outermost first; each list's capacity in one cell sized to the tags the text can contain,
+// no more than its most, given back with cli_xml_free
 typedef struct
 {
     const char *text;
     unsigned long long size;
     CliXmlElement *element;
     unsigned int elements;
-    unsigned int element_room;
+    unsigned int element_capacity;
     unsigned long long *comment_from;
     unsigned long long *comment_to;
     unsigned int comments;
-    unsigned int comment_room;
+    unsigned int comment_capacity;
     CliXmlError *error;
     unsigned int errors;
-    unsigned int error_room;
+    unsigned int error_capacity;
     unsigned int *open;
     unsigned int opens;
 } CliXml;
@@ -134,7 +134,7 @@ extern const char *const g_cli_maven_packagings[8];
 extern const char *const g_cli_maven_types[7];
 extern const char *const g_cli_maven_booleans[2];
 extern const char *const g_cli_maven_common_properties[6];
-extern const char *const g_cli_maven_given_heads[16];
+extern const char *const g_cli_maven_input_heads[16];
 extern const char *const g_cli_maven_project_properties[11];
 
 // the most properties of a POM and its parents, the most dependencies their management gives a version, and the bytes
@@ -154,25 +154,25 @@ typedef struct
     unsigned int *value_at;
     unsigned int *value_size;
     unsigned int properties;
-    unsigned int property_room;
+    unsigned int property_capacity;
     unsigned int *managed_at;
     unsigned int *managed_size;
     unsigned int managed;
-    unsigned int managed_room;
+    unsigned int managed_capacity;
     int imports;
     int whole;
     char *text;
     unsigned int used;
-    unsigned int text_room;
+    unsigned int text_capacity;
 } CliMavenModel;
 
 // the cells the models read are allocated in, counted; a model's cell given back, the model left empty, a model given
-// back before it is read again or let go; a model's cell taken, its rooms none where it is refused; and `size` bytes
-// of `bytes` stored in the model's text: where they start, CLI_MAVEN_MODEL_TEXT where they do not fit
+// back before it is read again or let go; a model's cell taken, its capacities none where it is refused; and `size`
+// bytes of `bytes` stored in the model's text: where they start, CLI_MAVEN_MODEL_TEXT where they do not fit
 // (maven_model_text.c)
 extern CellOwner g_cli_maven_model_cells;
 void cli_maven_model_free(const CliMavenTextSizeModelCtx *args);
-void cli_maven_model_take(const CliMavenTextSizeModelCtx *args);
+void cli_maven_model_alloc(const CliMavenTextSizeModelCtx *args);
 unsigned int cli_maven_model_text_store(const CliMavenSizeModelCtx *args);
 
 // what the POM at `path`, `size` bytes of its text, gives its children, its parents read up to eight above it, into
@@ -198,7 +198,7 @@ typedef struct
     const CliMavenModel *model;
     const CliBuildLines *lines;
     CliBuildFindings *found;
-    char shown[CLI_PATH_MAX_LEN];
+    char displayed[CLI_PATH_MAX_LEN];
     char program[CLI_PATH_MAX_LEN];
 } CliMavenCheck;
 
@@ -299,7 +299,7 @@ struct CliMavenSizeModelCtx
 
 struct CliMavenOutCtx
 {
-    char *out_room;
+    char *out_capacity;
     const char *root;
     const char *folder;
 };
@@ -449,13 +449,13 @@ EMBED_TABLE_STORAGE CliMavenNsTable cli_maven_internal EMBED_UNUSED = {
 typedef struct
 {
     void (*model_free)(const CliMavenTextSizeModelCtx *args);
-    void (*model_take)(const CliMavenTextSizeModelCtx *args);
+    void (*model_alloc)(const CliMavenTextSizeModelCtx *args);
     void (*model_get)(const CliMavenTextSizeModelCtx *args);
 } CliMavenTextSizeModelNs;
-EMBED_TABLE_LAYOUT(CliMavenTextSizeModelNs, model_free, model_take, model_get);
+EMBED_TABLE_LAYOUT(CliMavenTextSizeModelNs, model_free, model_alloc, model_get);
 EMBED_TABLE_STORAGE CliMavenTextSizeModelNs cli_maven_text_size_model_internal EMBED_UNUSED = {
     .model_free = cli_maven_model_free,
-    .model_take = cli_maven_model_take,
+    .model_alloc = cli_maven_model_alloc,
     .model_get = cli_maven_model_get,
 };
 

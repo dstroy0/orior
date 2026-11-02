@@ -11,7 +11,7 @@ extern void tearDown(void);
 extern void test_a_long_lines_second_row_has_no_number(void);
 extern void test_a_long_lines_first_row_is_cut_to_the_page(void);
 extern void test_a_tab_is_four_spaces_wide(void);
-extern void test_two_hundred_lines_take_at_least_three_pages(void);
+extern void test_two_hundred_lines_alloc_at_min_three_pages(void);
 extern void test_a_landscape_page_fits_fewer_rows(void);
 extern void test_the_named_pages_print(void);
 extern void test_a_page_not_named_does_not_print(void);
@@ -82,7 +82,7 @@ int main(void)
   run_test(test_a_long_lines_second_row_has_no_number, "test_a_long_lines_second_row_has_no_number", 82);
   run_test(test_a_long_lines_first_row_is_cut_to_the_page, "test_a_long_lines_first_row_is_cut_to_the_page", 94);
   run_test(test_a_tab_is_four_spaces_wide, "test_a_tab_is_four_spaces_wide", 107);
-  run_test(test_two_hundred_lines_take_at_least_three_pages, "test_two_hundred_lines_take_at_least_three_pages", 115);
+  run_test(test_two_hundred_lines_alloc_at_min_three_pages, "test_two_hundred_lines_alloc_at_min_three_pages", 115);
   run_test(test_a_landscape_page_fits_fewer_rows, "test_a_landscape_page_fits_fewer_rows", 121);
   run_test(test_the_named_pages_print, "test_the_named_pages_print", 129);
   run_test(test_a_page_not_named_does_not_print, "test_a_page_not_named_does_not_print", 136);

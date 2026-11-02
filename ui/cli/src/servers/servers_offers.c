@@ -18,8 +18,8 @@ typedef struct
     unsigned long long size;
     unsigned long long *from;
     unsigned long long *to;
-    CliTextPlace one;
-    CliTextPlace other;
+    CliTextPosition one;
+    CliTextPosition other;
 } ServersOffersCtx;
 // what a server reports of a signature or a parameter, from either of the shapes the protocol allows, its letters as
 // they are
@@ -58,7 +58,7 @@ EMBED_INLINE int offers_param_span(const ServersOffersCtx *args)
     {
         unsigned long long at = 0ull;
         if (!EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = args->label, .length_value = size,
-                        .wanted = part, .size = part_size, .at_pointer = &at))
+                        .required = part, .size = part_size, .at_pointer = &at))
         {
             return 0;
         }
@@ -71,27 +71,27 @@ EMBED_INLINE int offers_param_span(const ServersOffersCtx *args)
     const unsigned int second = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                            .json_read = json, .array = named, .index = 1u);
     const unsigned long long none = ~0ull;
-    *from = EMBED_CALL(cli_servers_json_node_otherwise_internal.whole, CliServersJsonNodeOtherwiseCtx, .json = json,
+    *from = EMBED_CALL(cli_servers_json_node_otherwise_internal.integer, CliServersJsonNodeOtherwiseCtx, .json = json,
                        .node = first, .otherwise = none);
-    *to = EMBED_CALL(cli_servers_json_node_otherwise_internal.whole, CliServersJsonNodeOtherwiseCtx, .json = json,
+    *to = EMBED_CALL(cli_servers_json_node_otherwise_internal.integer, CliServersJsonNodeOtherwiseCtx, .json = json,
                      .node = second, .otherwise = none);
     // each end is cut to its low word, as the protocol's unsigned integer is read
     *from &= 0xffffffffull;
     *to &= 0xffffffffull;
     return EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = named,
                       .kind = CFG_JSON_ARRAY) &&
-           (EMBED_CALL(cli_servers_json_node_otherwise_internal.whole, CliServersJsonNodeOtherwiseCtx, .json = json,
+           (EMBED_CALL(cli_servers_json_node_otherwise_internal.integer, CliServersJsonNodeOtherwiseCtx, .json = json,
                        .node = first, .otherwise = none) != none) &&
-           (EMBED_CALL(cli_servers_json_node_otherwise_internal.whole, CliServersJsonNodeOtherwiseCtx, .json = json,
+           (EMBED_CALL(cli_servers_json_node_otherwise_internal.integer, CliServersJsonNodeOtherwiseCtx, .json = json,
                        .node = second, .otherwise = none) != none);
 }
 
-void cli_servers_signature_get(const CliServersJsonOutHelpCtx *args)
+CliSignaturePanel *cli_servers_signature_get(const CliServersJsonOutHelpCtx *args)
 {
     const unsigned int all = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
                                         .object = args->help, .name = "signatures");
     const unsigned long long chosen =
-        EMBED_CALL(cli_servers_json_node_otherwise_internal.whole, CliServersJsonNodeOtherwiseCtx, .json = args->json,
+        EMBED_CALL(cli_servers_json_node_otherwise_internal.integer, CliServersJsonNodeOtherwiseCtx, .json = args->json,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
                                       .object = args->help, .name = "activeSignature"),
                    .otherwise = 0ull);
@@ -110,138 +110,72 @@ void cli_servers_signature_get(const CliServersJsonOutHelpCtx *args)
                    .length_pointer = &size);
     if (label == NULL)
     {
-        mmgr_line_put(args->out, "null");
-        return;
+        return NULL;
     }
-    mmgr_line_put(args->out, "{\"label\":");
-    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out, .text = label,
-               .length = size);
-    mmgr_line_put(args->out, ",\"params\":[");
-    unsigned long long params = 0ull;
     const unsigned int parameters = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                .json_read = args->json, .object = one, .name = "parameters");
-    for (unsigned int param = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                         .json_read = args->json, .node = parameters, .kind = CFG_JSON_ARRAY)
-                                  ? args->json->node[parameters].first
-                                  : CLI_JSON_NONE;
-         (param != CLI_JSON_NONE) && (params < CLI_SERVERS_PARAMS); param = args->json->node[param].next)
+    const unsigned int first = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
+                                          .json_read = args->json, .node = parameters, .kind = CFG_JSON_ARRAY)
+                                   ? args->json->node[parameters].first
+                                   : CLI_JSON_NONE;
+    unsigned int most = 0u;
+    for (unsigned int param = first; param != CLI_JSON_NONE; param = args->json->node[param].next)
+    {
+        most += 1u;
+    }
+    char doc_text[1u << 16u];
+    VerbaLinea doc = {doc_text, sizeof(doc_text), 0ull};
+    EMBED_CALL(offers_documentation_get, ServersOffersCtx, .json = args->json,
+               .value = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
+                                   .object = one, .name = "documentation"),
+               .out = &doc);
+    const unsigned long long doc_size = mmgr_line_ok(&doc) ? doc.at : 0ull;
+    CliSignaturePanel *const panel = g_cli_cells->persistent_buf_alloc(
+        sizeof(*panel) + (most * sizeof(CliSignatureParameter)) + size + doc_size + 2ull, args->owner);
+    if (panel == NULL)
+    {
+        return NULL;
+    }
+    memor.set(&(MemoriaCfg){.dst = panel, .val = 0, .bytes = sizeof(*panel)});
+    panel->parameter = (CliSignatureParameter *)(void *)(panel + 1);
+    char *const text = (char *)(void *)(panel->parameter + most);
+    memor.cpy(&(MemoriaCfg){.dst = text, .src = label, .bytes = size});
+    text[size] = '\0';
+    memor.cpy(&(MemoriaCfg){.dst = text + size + 1ull, .src = doc_text, .bytes = doc_size});
+    text[size + 1ull + doc_size] = '\0';
+    panel->label = text;
+    panel->length = size;
+    panel->doc = text + size + 1ull;
+    panel->doc_length = doc_size;
+    for (unsigned int param = first; param != CLI_JSON_NONE; param = args->json->node[param].next)
     {
         unsigned long long from = 0ull;
         unsigned long long to = 0ull;
         if (EMBED_CALL(offers_param_span, ServersOffersCtx, .json = args->json, .param = param, .label = label,
                        .size = size, .from = &from, .to = &to))
         {
-            mmgr_line_put(args->out, (params > 0ull) ? ",[" : "[");
-            mmgr_line_decimal(args->out, from, 1u);
-            mmgr_line_ch(args->out, ',');
-            mmgr_line_decimal(args->out, to, 1u);
-            mmgr_line_ch(args->out, ']');
-            params += 1ull;
+            // a span within a label is far inside what an unsigned int represents
+            panel->parameter[panel->parameters] = (CliSignatureParameter){(unsigned int)from, (unsigned int)to};
+            panel->parameters += 1u;
         }
     }
     const unsigned long long none = ~0ull;
     unsigned long long active =
-        EMBED_CALL(cli_servers_json_node_otherwise_internal.whole, CliServersJsonNodeOtherwiseCtx, .json = args->json,
+        EMBED_CALL(cli_servers_json_node_otherwise_internal.integer, CliServersJsonNodeOtherwiseCtx, .json = args->json,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
                                       .object = one, .name = "activeParameter"),
                    .otherwise = none);
     active =
         (active != none)
             ? active
-            : EMBED_CALL(cli_servers_json_node_otherwise_internal.whole, CliServersJsonNodeOtherwiseCtx,
+            : EMBED_CALL(cli_servers_json_node_otherwise_internal.integer, CliServersJsonNodeOtherwiseCtx,
                          .json = args->json,
                          .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                             .json_read = args->json, .object = args->help, .name = "activeParameter"),
                          .otherwise = none);
-    mmgr_line_put(args->out, "],\"active\":");
-    if (active < params)
-    {
-        mmgr_line_decimal(args->out, active, 1u);
-    }
-    else
-    {
-        mmgr_line_put(args->out, "null");
-    }
-    mmgr_line_put(args->out, ",\"doc\":\"");
-    static char s_doc[1u << 16u];
-    VerbaLinea doc = {s_doc, sizeof(s_doc), 0ull};
-    EMBED_CALL(offers_documentation_get, ServersOffersCtx, .json = args->json,
-               .value = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
-                                   .object = one, .name = "documentation"),
-               .out = &doc);
-    EMBED_CALL(cli_json_tree_length_out.json_escaped_lossy, CliJsonTreeLengthOutCfg, .out = args->out,
-               .text_bytes = (const unsigned char *)s_doc, .length = mmgr_line_ok(&doc) ? doc.at : 0ull);
-    mmgr_line_put(args->out, "\",\"count\":");
-    mmgr_line_decimal(args->out,
-                      EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json,
-                                 .node = all, .kind = CFG_JSON_ARRAY)
-                          ? args->json->node[all].count
-                          : 0u,
-                      1u);
-    mmgr_line_ch(args->out, '}');
-}
-
-int cli_servers_action_get(const CliServersJsonCtx *args)
-{
-    unsigned long long size = 0ull;
-    const char *const title =
-        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = args->json,
-                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
-                                      .object = args->one, .name = "title"),
-                   .length_pointer = &size);
-    if (title == NULL)
-    {
-        return 0;
-    }
-    mmgr_line_put(args->out, "{\"title\":");
-    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out, .text = title,
-               .length = size);
-    unsigned long long kind_size = 0ull;
-    const char *const kind =
-        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = args->json,
-                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
-                                      .object = args->one, .name = "kind"),
-                   .length_pointer = &kind_size);
-    mmgr_line_put(args->out, ",\"kind\":");
-    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
-               .text = (kind != NULL) ? kind : "", .length = kind_size);
-    const int preferred =
-        EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json,
-                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
-                                      .object = args->one, .name = "isPreferred"),
-                   .kind = CFG_JSON_TRUE);
-    mmgr_line_put(args->out, preferred ? ",\"preferred\":true,\"disabled\":" : ",\"preferred\":false,\"disabled\":");
-    unsigned long long reason_size = 0ull;
-    const char *const reason = EMBED_CALL(
-        cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = args->json,
-        .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
-                           .object = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                                .json_read = args->json, .object = args->one, .name = "disabled"),
-                           .name = "reason"),
-        .length_pointer = &reason_size);
-    if (reason != NULL)
-    {
-        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out, .text = reason,
-                   .length = reason_size);
-    }
-    else
-    {
-        mmgr_line_put(args->out, "null");
-    }
-    mmgr_line_put(args->out, ",\"raw\":");
-    if (args->plugin != NULL)
-    {
-        // an action of a plugin's server carries the plugin's id, so carrying it out goes to that server
-        mmgr_line_put(args->out, "{\"orior_plugin\":");
-        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
-                   .text = args->plugin,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->plugin, .cap = CLI_NAME_MAX_LEN}));
-        mmgr_line_put(args->out, ",\"action\":");
-    }
-    EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = args->json, .node = args->one,
-               .out = args->out, .indent = 0u, .sorted = 0);
-    mmgr_line_put(args->out, (args->plugin != NULL) ? "}}" : "}");
-    return 1;
+    // a parameter's place is far inside what an int represents
+    panel->active = (active < panel->parameters) ? (int)active : -1;
+    return panel;
 }
 
 // whether the place `one` stands before `other`
@@ -253,11 +187,11 @@ EMBED_INLINE int offers_before(const ServersOffersCtx *args)
 
 int cli_servers_overlaps(const CliServersJsonFromCtx *args)
 {
-    const CliTextPlace start =
+    const CliTextPosition start =
         EMBED_CALL(cli_servers_json_node_otherwise_internal.place, CliServersJsonNodeOtherwiseCtx, .json = args->json,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
                                       .object = args->range, .name = "start"));
-    const CliTextPlace end =
+    const CliTextPosition end =
         EMBED_CALL(cli_servers_json_node_otherwise_internal.place, CliServersJsonNodeOtherwiseCtx, .json = args->json,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
                                       .object = args->range, .name = "end"));

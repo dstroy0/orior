@@ -381,7 +381,7 @@ CliMysql *cli_mysql_connect(const CliMysqlHostCfg *args)
     mysql->sequence = 0u;
     mysql->status = 0u;
     mysql->warnings = 0u;
-    mysql->reading = 0;
+    mysql->read_state = 0;
     mysql->sealed = 0;
     mysql->head.rows = 0;
     mysql->head.column_count = 0u;

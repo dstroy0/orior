@@ -23,7 +23,7 @@ static GuiColor over(GuiColor under, GuiColor color)
 }
 
 // whether two colors stand within a level of each other on every channel
-static int near(GuiColor one, GuiColor other)
+static int adjacent(GuiColor one, GuiColor other)
 {
     const int red = (int)GUI_RED_OF(one) - (int)GUI_RED_OF(other);
     const int green = (int)GUI_GREEN_OF(one) - (int)GUI_GREEN_OF(other);
@@ -37,10 +37,10 @@ static unsigned int grain_at(int x, int y)
     return gui_grain()[(((unsigned int)y % GUI_GRAIN_TILE) * GUI_GRAIN_TILE) + ((unsigned int)x % GUI_GRAIN_TILE)];
 }
 
-// the sheet's pixel over `ground` at x, y: the glass's tint with the grain's white over it
-static GuiColor sheet_at(const GuiPalette *palette, GuiColor ground, int x, int y)
+// the sheet's pixel over `background_fill` at x, y: the glass's tint with the grain's white over it
+static GuiColor sheet_at(const GuiPalette *palette, GuiColor background_fill, int x, int y)
 {
-    return over(over(ground, palette->glass), GUI_RGBA(0xffu, 0xffu, 0xffu, grain_at(x, y)));
+    return over(over(background_fill, palette->glass), GUI_RGBA(0xffu, 0xffu, 0xffu, grain_at(x, y)));
 }
 
 int main(void)
@@ -58,78 +58,78 @@ int main(void)
 
     GuiRaster raster;
     cli_check(EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 800u, .height = 600u), "a raster for the frame is made");
-    EMBED_CALL(gui_base_raster.draw, GuiBaseRasterCfg, .base_read = &base, .raster = &raster, .ground = NULL, .color = palette->ground);
+    EMBED_CALL(gui_base_raster.draw, GuiBaseRasterCfg, .base_read = &base, .raster = &raster, .background_fill = NULL, .color = palette->background_fill);
     const int editor_x = frame.editor.x + (frame.editor.width / 2);
     const int editor_y = frame.editor.y + (frame.editor.height / 2);
-    cli_check(pixel(&raster, editor_x, editor_y) == EMBED_CALL(cli_raster.color_over, GuiRasterCfg, .ground_color = palette->ground, .color = palette->editor_ground),
+    cli_check(pixel(&raster, editor_x, editor_y) == EMBED_CALL(cli_raster.color_over, GuiRasterCfg, .background_color = palette->background_fill, .color = palette->editor_background),
               "a pixel of the editor is its ground over the lattice, the fill's own blend");
     cli_check(pixel(&raster, frame.tabs.x + 10, frame.tabs.y + 10) == palette->surface, "a pixel of the tabs row is the row's surface");
-    cli_check(pixel(&raster, frame.map.x + 10, frame.map.y + 100) == palette->ground, "a pixel of the map's column is the lattice");
-    cli_check(pixel(&raster, frame.work.x, frame.work.y + 100) == palette->ground, "a pixel of the lines' ring is the lattice");
+    cli_check(pixel(&raster, frame.map.x + 10, frame.map.y + 100) == palette->background_fill, "a pixel of the map's column is the lattice");
+    cli_check(pixel(&raster, frame.work.x, frame.work.y + 100) == palette->background_fill, "a pixel of the lines' ring is the lattice");
     const int gap_x = frame.gap.x + (frame.gap.width / 2);
     const int gap_y = frame.gap.y + (frame.gap.height / 2);
-    cli_check(near(pixel(&raster, gap_x, gap_y), sheet_at(palette, palette->ground, gap_x, gap_y)),
+    cli_check(adjacent(pixel(&raster, gap_x, gap_y), sheet_at(palette, palette->background_fill, gap_x, gap_y)),
               "a pixel of the frame's gap is the sheet, the glass with the grain");
     const int bar_x = frame.bar.x + (frame.bar.width / 2);
     const int bar_y = frame.bar.y + (frame.bar.height / 2);
     const GuiColor pane = EMBED_CALL(gui_glass.pane_tint, GuiGlassCfg, .glass = palette->glass);
     cli_check(GUI_ALPHA_OF(pane) < GUI_ALPHA_OF(palette->glass), "a pane's tint is thinner than the glass's");
-    cli_check(near(pixel(&raster, bar_x, bar_y), over(over(palette->ground, pane), GUI_RGBA(0xffu, 0xffu, 0xffu, grain_at(bar_x, bar_y)))),
+    cli_check(adjacent(pixel(&raster, bar_x, bar_y), over(over(palette->background_fill, pane), GUI_RGBA(0xffu, 0xffu, 0xffu, grain_at(bar_x, bar_y)))),
               "a pixel of the bar's pane is the pane's tint with the grain");
     cli_check(pixel(&raster, bar_x, bar_y) != pixel(&raster, gap_x, gap_y) || (grain_at(bar_x, bar_y) != grain_at(gap_x, gap_y)),
               "the pane reads apart from the sheet");
 
     // the lattice as a raster of the window's size is read pixel for pixel
-    GuiRaster ground;
-    cli_check(EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &ground, .width = 800u, .height = 600u), "a lattice raster is made");
-    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &ground, .rect = (GuiRect){0, 0, 800, 600}, .color = GUI_RGB(0x20u, 0x40u, 0x60u));
-    EMBED_CALL(gui_base_raster.draw, GuiBaseRasterCfg, .base_read = &base, .raster = &raster, .ground = &ground, .color = palette->ground);
-    cli_check(pixel(&raster, editor_x, editor_y) == EMBED_CALL(cli_raster.color_over, GuiRasterCfg, .ground_color = GUI_RGB(0x20u, 0x40u, 0x60u), .color = palette->editor_ground),
+    GuiRaster background_fill;
+    cli_check(EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &background_fill, .width = 800u, .height = 600u), "a lattice raster is made");
+    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &background_fill, .rect = (GuiRect){0, 0, 800, 600}, .color = GUI_RGB(0x20u, 0x40u, 0x60u));
+    EMBED_CALL(gui_base_raster.draw, GuiBaseRasterCfg, .base_read = &base, .raster = &raster, .background_fill = &background_fill, .color = palette->background_fill);
+    cli_check(pixel(&raster, editor_x, editor_y) == EMBED_CALL(cli_raster.color_over, GuiRasterCfg, .background_color = GUI_RGB(0x20u, 0x40u, 0x60u), .color = palette->editor_background),
               "with a lattice raster the editor's ground lies over the lattice's pixel");
     cli_check(pixel(&raster, frame.map.x + 10, frame.map.y + 100) == GUI_RGB(0x20u, 0x40u, 0x60u), "and the map's column is the lattice's pixel");
     GuiRaster small;
     cli_check(EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &small, .width = 8u, .height = 4u), "a raster of another size is made");
-    EMBED_CALL(gui_base_raster.draw, GuiBaseRasterCfg, .base_read = &base, .raster = &small, .ground = NULL, .color = palette->ground);
+    EMBED_CALL(gui_base_raster.draw, GuiBaseRasterCfg, .base_read = &base, .raster = &small, .background_fill = NULL, .color = palette->background_fill);
     cli_check(small.pixels[0] == 0u, "a raster not the base's size is left alone");
     EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &small);
 
     // the claim holds with the bar in: its slat makes a hole in the work, the sheet, with the slat's pane in it
-    GuiClaimNumbers numbers = frame.claim;
-    numbers.claim = GUI_WHOLE;
-    numbers.reveal_top = GUI_WHOLE;
-    numbers.grown_top = GUI_WHOLE;
+    GuiAutohideNumbers numbers = frame.claim;
+    numbers.claim = GUI_FIXED_ONE;
+    numbers.reveal_top = GUI_FIXED_ONE;
+    numbers.grown_top = GUI_FIXED_ONE;
     EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
     GuiRect holes[4];
     cli_check(EMBED_CALL(cli_frame_holes.holes, GuiFrameHolesCfg, .frame_read = &frame, .holes = holes) >= 1u, "the bar's slat makes a hole in the work");
     cli_check(EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &frame, .palette = palette, .controls_steady = 0) && (base.laid_count == 2u), "the map is laid again for the claim's frame");
-    EMBED_CALL(gui_base_raster.draw, GuiBaseRasterCfg, .base_read = &base, .raster = &raster, .ground = NULL, .color = palette->ground);
+    EMBED_CALL(gui_base_raster.draw, GuiBaseRasterCfg, .base_read = &base, .raster = &raster, .background_fill = NULL, .color = palette->background_fill);
     const int hole_x = holes[0].x + (holes[0].width / 2);
-    const int below_slat = frame.bar_slat.y + frame.bar_slat.height + 4;
-    cli_check(near(pixel(&raster, hole_x, below_slat), sheet_at(palette, palette->ground, hole_x, below_slat)),
+    const int below_band = frame.bar_band.y + frame.bar_band.height + 4;
+    cli_check(adjacent(pixel(&raster, hole_x, below_band), sheet_at(palette, palette->background_fill, hole_x, below_band)),
               "a pixel of the hole under the slat is the sheet");
-    const int slat_y = frame.bar_slat.y + (frame.bar_slat.height / 2);
-    cli_check(near(pixel(&raster, hole_x, slat_y), over(over(palette->ground, pane), GUI_RGBA(0xffu, 0xffu, 0xffu, grain_at(hole_x, slat_y)))),
+    const int band_y = frame.bar_band.y + (frame.bar_band.height / 2);
+    cli_check(adjacent(pixel(&raster, hole_x, band_y), over(over(palette->background_fill, pane), GUI_RGBA(0xffu, 0xffu, 0xffu, grain_at(hole_x, band_y)))),
               "a pixel of the slat in the hole is the pane");
     cli_check(!EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &frame, .palette = palette, .controls_steady = 0), "laid again for the claim's frame it stands");
     // the bar half revealed stands fourteen and a half pixels above the window: its foot falls in the middle of a
     // row, which takes the ink at an alpha halfway between the pane's and the sheet's
-    numbers.reveal_top = GUI_WHOLE / 2;
+    numbers.reveal_top = GUI_FIXED_ONE / 2;
     EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
-    cli_check((frame.bar_edges.bottom == (26 * GUI_WHOLE) + (GUI_WHOLE / 2)), "the bar's foot falls in the middle of the row of twenty-six");
+    cli_check((frame.bar_edges.bottom == (26 * GUI_FIXED_ONE) + (GUI_FIXED_ONE / 2)), "the bar's foot falls in the middle of the row of twenty-six");
     (void)EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &frame, .palette = palette, .controls_steady = 0);
-    EMBED_CALL(gui_base_raster.draw, GuiBaseRasterCfg, .base_read = &base, .raster = &raster, .ground = NULL, .color = palette->ground);
+    EMBED_CALL(gui_base_raster.draw, GuiBaseRasterCfg, .base_read = &base, .raster = &raster, .background_fill = NULL, .color = palette->background_fill);
     const GuiColor between = (pane & 0x00ffffffu) | (((GUI_ALPHA_OF(palette->glass) + GUI_ALPHA_OF(pane) + 1u) / 2u) << 24u);
-    cli_check(near(pixel(&raster, hole_x, 26), over(over(palette->ground, between), GUI_RGBA(0xffu, 0xffu, 0xffu, grain_at(hole_x, 26)))),
+    cli_check(adjacent(pixel(&raster, hole_x, 26), over(over(palette->background_fill, between), GUI_RGBA(0xffu, 0xffu, 0xffu, grain_at(hole_x, 26)))),
               "the row the foot falls in is the ink at the alpha between");
-    cli_check(near(pixel(&raster, hole_x, 25), over(over(palette->ground, pane), GUI_RGBA(0xffu, 0xffu, 0xffu, grain_at(hole_x, 25)))),
+    cli_check(adjacent(pixel(&raster, hole_x, 25), over(over(palette->background_fill, pane), GUI_RGBA(0xffu, 0xffu, 0xffu, grain_at(hole_x, 25)))),
               "the row above it is the pane whole");
-    cli_check(near(pixel(&raster, hole_x, 27), sheet_at(palette, palette->ground, hole_x, 27)), "and the row below it the sheet");
-    numbers.reveal_top = GUI_WHOLE;
+    cli_check(adjacent(pixel(&raster, hole_x, 27), sheet_at(palette, palette->background_fill, hole_x, 27)), "and the row below it the sheet");
+    numbers.reveal_top = GUI_FIXED_ONE;
     EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &frame, .numbers = &numbers);
     (void)EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &frame, .palette = palette, .controls_steady = 0);
     cli_check(EMBED_CALL(gui_base_frame.layout, GuiBaseFrameCfg, .base = &base, .frame = &frame, .palette = palette, .controls_steady = 1) && (base.laid_count == 5u), "the controls' pane standing lays the map again");
 
-    EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &ground);
+    EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &background_fill);
     EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &raster);
     EMBED_CALL(gui_base_width.free, GuiBaseWidthCfg, .base = &base);
     cli_check((base.tile_red_blue == NULL) && !base.laid, "a base given back holds no tables");

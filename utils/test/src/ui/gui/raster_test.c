@@ -108,8 +108,8 @@ int main(void)
     cli_check((raster.width == 8u) && (raster.height == 4u), "a raster made keeps its size");
     cli_check((raster.pixels[0] == 0u) && (raster.pixels[31] == 0u), "a raster made is clear");
 
-    const GuiColor ink = GUI_RGB(0x10u, 0x20u, 0x30u);
-    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = (GuiRect){2, 1, 3, 2}, .color = ink);
+    const GuiColor text_color = GUI_RGB(0x10u, 0x20u, 0x30u);
+    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = (GuiRect){2, 1, 3, 2}, .color = text_color);
     cli_check(raster.pixels[(1u * 8u) + 2u] == 0xff102030u, "a fill colors its top left pixel, opaque");
     cli_check(raster.pixels[(2u * 8u) + 4u] == 0xff102030u, "a fill colors its bottom right pixel");
     cli_check((raster.pixels[(1u * 8u) + 1u] == 0u) && (raster.pixels[(1u * 8u) + 5u] == 0u) &&
@@ -132,18 +132,18 @@ int main(void)
         {
             for (unsigned int share = 0u; share < 256u; share += 1u)
             {
-                const unsigned int ground_red = under;
-                const unsigned int ground_green = 255u - under;
-                const unsigned int ground_blue = (under * 7u) & 255u;
+                const unsigned int background_red = under;
+                const unsigned int background_green = 255u - under;
+                const unsigned int background_blue = (under * 7u) & 255u;
                 const unsigned int color_red = over;
                 const unsigned int color_green = (over * 3u) & 255u;
                 const unsigned int color_blue = 255u - over;
-                raster.pixels[0] = GUI_RGB(ground_red, ground_green, ground_blue);
+                raster.pixels[0] = GUI_RGB(background_red, background_green, background_blue);
                 EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = (GuiRect){0, 0, 1, 1}, .color = GUI_RGBA(color_red, color_green, color_blue, share));
-                const GuiColor wanted = GUI_RGB(((color_red * share) + (ground_red * (255u - share)) + 127u) / 255u,
-                                                ((color_green * share) + (ground_green * (255u - share)) + 127u) / 255u,
-                                                ((color_blue * share) + (ground_blue * (255u - share)) + 127u) / 255u);
-                wrong += (raster.pixels[0] != wanted) ? 1ull : 0ull;
+                const GuiColor required = GUI_RGB(((color_red * share) + (background_red * (255u - share)) + 127u) / 255u,
+                                                ((color_green * share) + (background_green * (255u - share)) + 127u) / 255u,
+                                                ((color_blue * share) + (background_blue * (255u - share)) + 127u) / 255u);
+                wrong += (raster.pixels[0] != required) ? 1ull : 0ull;
             }
         }
     }
@@ -181,7 +181,7 @@ int main(void)
 
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = whole, .color = white);
     const GuiUnder plain = {NULL, black};
-    EMBED_CALL(gui_raster_rect_radius_ground.corners_cut, GuiRasterRectRadiusGroundCfg, .raster = &raster, .rect = whole, .radius = 2u, .ground = plain);
+    EMBED_CALL(gui_raster_rect_radius_background.corners_cut, GuiRasterRectRadiusBackgroundCfg, .raster = &raster, .rect = whole, .radius = 2u, .background_fill = plain);
     cli_check(red_of(raster.pixels[0]) < red_of(raster.pixels[1u]), "a corner cut takes more ground at the corner pixel than beside it");
     cli_check(raster.pixels[(1u * 8u) + 3u] == 0xffffffffu, "a corner cut leaves the middle");
     cli_check((raster.pixels[1u] != 0xffffffffu) && (raster.pixels[1u] != 0xff000000u), "a corner cut blends along the arc");
@@ -191,10 +191,10 @@ int main(void)
     cli_check(EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &under, .width = 8u, .height = 4u), "a ground raster is made");
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &under, .rect = whole, .color = GUI_RGB(0x00u, 0x80u, 0x00u));
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = whole, .color = white);
-    EMBED_CALL(gui_raster_rect_radius_ground.corners_cut, GuiRasterRectRadiusGroundCfg, .raster = &raster, .rect = whole, .radius = 3u, .ground = (GuiUnder){&under, 0u});
+    EMBED_CALL(gui_raster_rect_radius_background.corners_cut, GuiRasterRectRadiusBackgroundCfg, .raster = &raster, .rect = whole, .radius = 3u, .background_fill = (GuiUnder){&under, 0u});
     cli_check((red_of(raster.pixels[0]) < 0x40u) && (((raster.pixels[0] >> 8u) & 0xffu) > 0x40u), "a corner cut to a ground raster lays its pixel bare");
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = whole, .color = white);
-    EMBED_CALL(gui_raster_rect_radius_ground.corners_cut, GuiRasterRectRadiusGroundCfg, .raster = &raster, .rect = whole, .radius = 3u, .ground = (GuiUnder){&under, GUI_RGBA(0xffu, 0x00u, 0x00u, 0x80u)});
+    EMBED_CALL(gui_raster_rect_radius_background.corners_cut, GuiRasterRectRadiusBackgroundCfg, .raster = &raster, .rect = whole, .radius = 3u, .background_fill = (GuiUnder){&under, GUI_RGBA(0xffu, 0x00u, 0x00u, 0x80u)});
     cli_check((red_of(raster.pixels[0]) > 0x40u) && (((raster.pixels[0] >> 8u) & 0xffu) > 0x20u), "a color over the ground raster is blended into the corner");
     EMBED_CALL(gui_raster_rect_color.free, GuiRasterRectColorCfg, .raster = &under);
 
@@ -213,7 +213,7 @@ int main(void)
     cli_check(EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 40u, .height = 30u), "a raster of forty by thirty is made for a notch");
     const GuiRect big = {0, 0, 40, 30};
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = big, .color = white);
-    EMBED_CALL(gui_raster_radius_ground.notch, GuiRasterRadiusGroundCfg, .raster = &raster, .work = big, .notch = (GuiRect){10, 0, 20, 12}, .radius = 4u, .ground = plain);
+    EMBED_CALL(gui_raster_radius_background.notch, GuiRasterRadiusBackgroundCfg, .raster = &raster, .work = big, .notch = (GuiRect){10, 0, 20, 12}, .radius = 4u, .background_fill = plain);
     cli_check(raster.pixels[(5u * 40u) + 20u] == 0xff000000u, "a notch at the top is cut to the ground");
     cli_check(raster.pixels[(5u * 40u) + 5u] == 0xffffffffu, "the work beside the notch stands");
     cli_check(raster.pixels[(20u * 40u) + 20u] == 0xffffffffu, "the work below the notch stands");
@@ -224,11 +224,11 @@ int main(void)
     cli_check(EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 8u, .height = 4u), "the small raster is made again");
 
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = whole, .color = black);
-    EMBED_CALL(gui_raster_color_x_0.line, GuiRasterColorX0Cfg, .raster = &raster, .x0 = 0, .y0 = 3, .x1 = 7, .y1 = 3, .color = ink);
+    EMBED_CALL(gui_raster_color_x_0.line, GuiRasterColorX0Cfg, .raster = &raster, .x0 = 0, .y0 = 3, .x1 = 7, .y1 = 3, .color = text_color);
     cli_check((raster.pixels[(3u * 8u) + 0u] == 0xff102030u) && (raster.pixels[(3u * 8u) + 7u] == 0xff102030u),
               "a line colors both its ends");
     cli_check(raster.pixels[(2u * 8u) + 3u] == 0xff000000u, "a line colors nothing off its path");
-    EMBED_CALL(gui_raster_color_x_0.line, GuiRasterColorX0Cfg, .raster = &raster, .x0 = 0, .y0 = 0, .x1 = 3, .y1 = 3, .color = ink);
+    EMBED_CALL(gui_raster_color_x_0.line, GuiRasterColorX0Cfg, .raster = &raster, .x0 = 0, .y0 = 0, .x1 = 3, .y1 = 3, .color = text_color);
     cli_check(raster.pixels[(2u * 8u) + 2u] == 0xff102030u, "a diagonal colors the pixels it crosses");
 
     const unsigned char stencil_cover[32] = {0u, 255u, 128u, 0u};
@@ -254,22 +254,22 @@ int main(void)
     // its share; nothing is laid outside the clip
     const unsigned int lanes_red_blue[4] = {(0x10u << 16u) * 255u + 0x30u * 255u + 0x00800080u, 0x00800080u, (0x10u << 16u) * 128u + 0x30u * 128u + 0x00800080u, 0x00800080u};
     const unsigned int lanes_green[4] = {0x20u * 255u + 0x80u, 0x80u, 0x20u * 128u + 0x80u, 0x80u};
-    const unsigned int lanes_rest[4] = {0u, 255u, 127u, 255u};
+    const unsigned int lanes_remainder[4] = {0u, 255u, 127u, 255u};
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = whole, .color = black);
-    EMBED_CALL(gui_raster_width_x.lanes_layout, GuiRasterWidthXCfg, .raster = &raster, .red_blue = lanes_red_blue, .green = lanes_green, .rest = lanes_rest, .width = 2u, .height = 2u, .x = 1, .y = 1, .clip = whole);
+    EMBED_CALL(gui_raster_width_x.lanes_layout, GuiRasterWidthXCfg, .raster = &raster, .red_blue = lanes_red_blue, .green = lanes_green, .rest = lanes_remainder, .width = 2u, .height = 2u, .x = 1, .y = 1, .clip = whole);
     cli_check(raster.pixels[(1u * 8u) + 1u] == 0xff102030u, "a lane of no rest lays the ink whole");
     cli_check(raster.pixels[(1u * 8u) + 2u] == 0xff000000u, "a lane of all rest keeps the ground");
     cli_check(red_of(raster.pixels[(2u * 8u) + 1u]) == 0x08u, "a lane of half rest takes half the ink");
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = whole, .color = black);
-    EMBED_CALL(gui_raster_width_x.lanes_layout, GuiRasterWidthXCfg, .raster = &raster, .red_blue = lanes_red_blue, .green = lanes_green, .rest = lanes_rest, .width = 2u, .height = 2u, .x = 1, .y = 1, .clip = (GuiRect){2, 0, 6, 4});
+    EMBED_CALL(gui_raster_width_x.lanes_layout, GuiRasterWidthXCfg, .raster = &raster, .red_blue = lanes_red_blue, .green = lanes_green, .rest = lanes_remainder, .width = 2u, .height = 2u, .x = 1, .y = 1, .clip = (GuiRect){2, 0, 6, 4});
     cli_check((raster.pixels[(1u * 8u) + 1u] == 0xff000000u) && (raster.pixels[(1u * 8u) + 2u] == 0xff000000u), "lanes lay nothing outside the clip");
 
     // a ground with a grain: the tint over the ground's color, and white over that by the grain's tile
-    cli_check(EMBED_CALL(cli_raster.color_over, GuiRasterCfg, .ground_color = black, .color = GUI_RGBA(0xffu, 0xffu, 0xffu, 0x80u)) == 0xff808080u, "a half-clear white over black is mid gray");
+    cli_check(EMBED_CALL(cli_raster.color_over, GuiRasterCfg, .background_color = black, .color = GUI_RGBA(0xffu, 0xffu, 0xffu, 0x80u)) == 0xff808080u, "a half-clear white over black is mid gray");
     const unsigned char grained[4] = {0u, 255u, 0u, 0u};
     const GuiUnder table = {NULL, GUI_RGBA(0xffu, 0x00u, 0x00u, 0x80u), grained, 2u, black};
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = whole, .color = black);
-    EMBED_CALL(gui_raster_rect_radius_ground.corners_cut, GuiRasterRectRadiusGroundCfg, .raster = &raster, .rect = whole, .radius = 3u, .ground = table);
+    EMBED_CALL(gui_raster_rect_radius_background.corners_cut, GuiRasterRectRadiusBackgroundCfg, .raster = &raster, .rect = whole, .radius = 3u, .background_fill = table);
     cli_check((red_of(raster.pixels[0]) > 0x70u) && (red_of(raster.pixels[0]) < 0x90u) && (((raster.pixels[0] >> 8u) & 0xffu) < 0x10u),
               "a corner cut to a grained table lays the tint over the table's color where the grain is 0");
     cli_check((raster.pixels[1u] != 0xff000000u) && (red_of(raster.pixels[1u]) == ((raster.pixels[1u] >> 8u) & 0xffu)),
@@ -278,11 +278,11 @@ int main(void)
     // a pane on the table: its tint inside the arcs, the table's outside, the ink thickening between
     const GuiUnder plain_table = {NULL, GUI_RGBA(0x00u, 0x00u, 0xffu, 0x40u), NULL, 0u, black};
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = whole, .color = white);
-    EMBED_CALL(gui_raster_rect_radius_ground.pane, GuiRasterRectRadiusGroundCfg, .raster = &raster, .ground = plain_table, .rect = whole, .radius = 2u, .inner = GUI_RGBA(0x00u, 0x00u, 0xffu, 0xc0u), .corners_only = 0);
+    EMBED_CALL(gui_raster_rect_radius_background.pane, GuiRasterRectRadiusBackgroundCfg, .raster = &raster, .background_fill = plain_table, .rect = whole, .radius = 2u, .inner = GUI_RGBA(0x00u, 0x00u, 0xffu, 0xc0u), .corners_only = 0);
     cli_check((raster.pixels[(1u * 8u) + 3u] & 0xffu) == 0xc0u, "a pane's middle is the ink at the pane's alpha over the table's color");
     cli_check((raster.pixels[0] & 0xffu) < 0x90u, "a pane's corner pixel lies between the table's tint and the pane's");
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = whole, .color = white);
-    EMBED_CALL(gui_raster_rect_radius_ground.pane, GuiRasterRectRadiusGroundCfg, .raster = &raster, .ground = plain_table, .rect = whole, .radius = 2u, .inner = GUI_RGBA(0x00u, 0x00u, 0xffu, 0xc0u), .corners_only = 1);
+    EMBED_CALL(gui_raster_rect_radius_background.pane, GuiRasterRectRadiusBackgroundCfg, .raster = &raster, .background_fill = plain_table, .rect = whole, .radius = 2u, .inner = GUI_RGBA(0x00u, 0x00u, 0xffu, 0xc0u), .corners_only = 1);
     cli_check(raster.pixels[(1u * 8u) + 3u] == 0xffffffffu, "a pane's corners alone leave its middle");
     cli_check((raster.pixels[0] & 0xffu) < 0x90u, "and lay its corner pixel");
 
@@ -336,8 +336,8 @@ int main(void)
             {
                 const float inside = (float)reach + 0.5f - hypotf((float)across + 0.5f, (float)down + 0.5f);
                 const float saved = (inside < 0.0f) ? 0.0f : ((inside > 1.0f) ? 1.0f : inside);
-                const unsigned int wanted = (unsigned int)((255.0f * saved) + 0.5f);
-                arcs_right = arcs_right && (EMBED_CALL(gui_raster_reach.arc_cover, GuiRasterReachCfg, .reach = reach, .across = across, .down = down) == wanted);
+                const unsigned int required = (unsigned int)((255.0f * saved) + 0.5f);
+                arcs_right = arcs_right && (EMBED_CALL(gui_raster_reach.arc_cover, GuiRasterReachCfg, .reach = reach, .across = across, .down = down) == required);
             }
         }
     }

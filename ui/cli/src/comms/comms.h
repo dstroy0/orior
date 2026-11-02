@@ -35,7 +35,7 @@ typedef struct CliCommsListenerCfg CliCommsListenerCfg;
 #define CLI_COMMS_GRANTS 16u
 
 // A message received on `channel`, from the part named `from`, `size` bytes of its body: 1 where it was received, 0
-// where the listener is gone, which lets it go, and -1 where the listener's queue had no room for it, which is not
+// where the listener is gone, which lets it go, and -1 where the listener's queue had no capacity for it, which is not
 // counted received
 typedef int (*CliCommsRecvFn)(const CliCommsRecvCfg *args);
 
@@ -75,11 +75,6 @@ void cli_comms_unlisten(const CliCommsListenerCfg *args);
 // 0 with why given; and `bytes` of a body on `channel` counted as gone through the transfer layer
 int cli_comms_send(const CliCommsChannelErrMsgCfg *args);
 void cli_comms_transfer(const CliCommsChannelBytesCfg *args);
-
-// every part, by name, and every channel that has carried or refused a message, by name, as the view lists them,
-// written into `out` (comms_view.c)
-void cli_comms_parts(const CliCommsCfg *args);
-void cli_comms_channels(const CliCommsCfg *args);
 
 struct CliCommsNameCfg
 {
@@ -258,17 +253,6 @@ typedef struct
 EMBED_TABLE_LAYOUT(CliCommsChannelBytesNs, transfer);
 EMBED_TABLE_STORAGE CliCommsChannelBytesNs cli_comms_channel_bytes EMBED_UNUSED = {
     .transfer = cli_comms_transfer,
-};
-
-typedef struct
-{
-    void (*parts)(const CliCommsCfg *args);
-    void (*channels)(const CliCommsCfg *args);
-} CliCommsNs;
-EMBED_TABLE_LAYOUT(CliCommsNs, parts, channels);
-EMBED_TABLE_STORAGE CliCommsNs cli_comms_table EMBED_UNUSED = {
-    .parts = cli_comms_parts,
-    .channels = cli_comms_channels,
 };
 
 #endif

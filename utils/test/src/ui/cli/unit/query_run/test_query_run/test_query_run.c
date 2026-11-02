@@ -35,7 +35,7 @@ static const char *run_numbers(const char *folder)
     static unsigned long long s_numbers[64];
     static char s_paths[64][QUERY_PATH_MAX_LEN];
     static char s_out[256];
-    const unsigned int count = EMBED_CALL(query_folder_number_internal.runs_each, QueryFolderNumberCtx, .folder = folder, .number = s_numbers, .path_callback = s_paths, .room_u32 = 64u);
+    const unsigned int count = EMBED_CALL(query_folder_number_internal.runs_each, QueryFolderNumberCtx, .folder = folder, .number = s_numbers, .path_callback = s_paths, .capacity_u32 = 64u);
     VerbaLinea line = {s_out, sizeof(s_out), 0ull};
     for (unsigned int at = 0u; at < count; at += 1u)
     {
@@ -81,7 +81,7 @@ static void runs_pruned(char *folder)
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = name, .joined = path);
         (void)EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path, .bytes = "", .size = 0ull);
     }
-    EMBED_CALL(query_folder_most_internal.runs_prune, QueryFolderMostCtx, .folder = folder, .most = 2u);
+    EMBED_CALL(query_folder_max_internal.runs_prune, QueryFolderMaxCtx, .folder = folder, .most = 2u);
 }
 
 // the case ignored on a machine with no C compiler to build the writer with
@@ -90,7 +90,7 @@ static void compiler_required(void)
     char compiler[QUERY_PATH_MAX_LEN];
     char why[1024];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    if (!EMBED_CALL(s_programs.program, QueryEachRolePathRoomErrMsgCfg, .context = s_programs.context, .role = QUERY_ROLE_C, .path = compiler, .room = sizeof(compiler), .err_msg = &err_msg))
+    if (!EMBED_CALL(s_programs.program, QueryEachRolePathCapacityErrMsgCfg, .context = s_programs.context, .role = QUERY_ROLE_C, .path = compiler, .capacity = sizeof(compiler), .err_msg = &err_msg))
     {
         TEST_IGNORE_MESSAGE("no C compiler to build the writer with");
     }
@@ -178,7 +178,7 @@ void test_the_next_run_is_numbered_after_the_newest(void)
     char folder[QUERY_PATH_MAX_LEN];
     char next[QUERY_PATH_MAX_LEN];
     runs_numbered(folder);
-    EMBED_CALL(query_folder_room_internal.next_name, QueryFolderRoomCtx, .folder = folder, .name_out = next, .room = sizeof(next));
+    EMBED_CALL(query_folder_capacity_internal.next_name, QueryFolderCapacityCtx, .folder = folder, .name_out = next, .capacity = sizeof(next));
     TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = next, .other = "query13-", .cap = CLI_CELLS_POOL}));
 }
 
@@ -207,10 +207,10 @@ void test_a_folders_runs_are_counted_to_the_query_while_in_use(void)
     (void)EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path, .bytes = "", .size = 0ull);
     const unsigned long long before = embed_atomic_usize_load(&g_query_cells.in_use);
     QueryRuns runs;
-    const int listed = EMBED_CALL(query_folder_runs_internal.runs_take, QueryFolderRunsCtx, .folder = folder, .runs = &runs);
+    const int list_entries = EMBED_CALL(query_folder_runs_internal.runs_alloc, QueryFolderRunsCtx, .folder = folder, .runs = &runs);
     const unsigned long long in_use_during = embed_atomic_usize_load(&g_query_cells.in_use);
     EMBED_CALL(query_folder_runs_internal.runs_free, QueryFolderRunsCtx, .runs = &runs);
-    TEST_ASSERT_TRUE(listed);
+    TEST_ASSERT_TRUE(list_entries);
     TEST_ASSERT_EQUAL_UINT(0u, runs.count);
     TEST_ASSERT_GREATER_THAN_UINT64(before, in_use_during);
     TEST_ASSERT_EQUAL_UINT64(before, embed_atomic_usize_load(&g_query_cells.in_use));
@@ -222,7 +222,7 @@ void test_no_crystal_is_found_where_none_is_built(void)
     char root[QUERY_PATH_MAX_LEN];
     char found[QUERY_PATH_MAX_LEN];
     folder_emptied("build/query_test/crystal", root);
-    TEST_ASSERT_FALSE(EMBED_CALL(query_room_root_internal.crystal, QueryRoomRootCtx, .root = root, .program = found, .room = sizeof(found)));
+    TEST_ASSERT_FALSE(EMBED_CALL(query_capacity_root_internal.crystal, QueryCapacityRootCtx, .root = root, .program = found, .capacity = sizeof(found)));
 }
 
 void test_the_crystals_program_is_found_where_it_is_built(void)
@@ -235,10 +235,10 @@ void test_the_crystals_program_is_found_where_it_is_built(void)
     folder_emptied("build/query_test/crystal", root);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = "build/qry_crystal/engine", .joined = engine);
     (void)EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = engine);
-    EMBED_CALL(query_name_room_internal.binary_name, QueryNameRoomCtx, .name = "qry_crystal", .binary = name, .room = sizeof(name));
+    EMBED_CALL(query_name_capacity_internal.binary_name, QueryNameCapacityCtx, .name = "qry_crystal", .binary = name, .capacity = sizeof(name));
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = engine, .relative = name, .joined = program);
     (void)EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = program, .bytes = "", .size = 0ull);
-    TEST_ASSERT_TRUE(EMBED_CALL(query_room_root_internal.crystal, QueryRoomRootCtx, .root = root, .program = found, .room = sizeof(found)));
+    TEST_ASSERT_TRUE(EMBED_CALL(query_capacity_root_internal.crystal, QueryCapacityRootCtx, .root = root, .program = found, .capacity = sizeof(found)));
     TEST_ASSERT_EQUAL_STRING(program, found);
 }
 
@@ -247,7 +247,7 @@ void test_a_path_is_named_under_the_top_of_the_tree(void)
     char path[QUERY_PATH_MAX_LEN];
     char name[QUERY_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = "src/cu/transpiler/lstar/protocol/table/sm_86.khw", .joined = path);
-    EMBED_CALL(query_room_path_name_internal.by_name, QueryRoomPathNameCtx, .top = s_root, .path = path, .name_out = name, .room = sizeof(name));
+    EMBED_CALL(query_capacity_path_name_internal.by_name, QueryCapacityPathNameCtx, .top = s_root, .path = path, .name_out = name, .capacity = sizeof(name));
     TEST_ASSERT_EQUAL_STRING("src/cu/transpiler/lstar/protocol/table/sm_86.khw", name);
 }
 
@@ -255,7 +255,7 @@ void test_windows_a_path_on_a_drive_outside_the_tree_is_named_by_its_file(void)
 {
 #if defined(_WIN32)
     char name[QUERY_PATH_MAX_LEN];
-    EMBED_CALL(query_room_path_name_internal.by_name, QueryRoomPathNameCtx, .top = s_root, .path = "C:/elsewhere/forms.txt", .name_out = name, .room = sizeof(name));
+    EMBED_CALL(query_capacity_path_name_internal.by_name, QueryCapacityPathNameCtx, .top = s_root, .path = "C:/elsewhere/forms.txt", .name_out = name, .capacity = sizeof(name));
     TEST_ASSERT_EQUAL_STRING("forms.txt", name);
 #else
     TEST_IGNORE_MESSAGE("a drive is Windows's");
@@ -268,7 +268,7 @@ void test_posix_a_path_at_the_root_outside_the_tree_is_named_by_its_file(void)
     TEST_IGNORE_MESSAGE("a path from the root is POSIX's");
 #else
     char name[QUERY_PATH_MAX_LEN];
-    EMBED_CALL(query_room_path_name_internal.by_name, QueryRoomPathNameCtx, .top = s_root, .path = "/elsewhere/forms.txt", .name_out = name, .room = sizeof(name));
+    EMBED_CALL(query_capacity_path_name_internal.by_name, QueryCapacityPathNameCtx, .top = s_root, .path = "/elsewhere/forms.txt", .name_out = name, .capacity = sizeof(name));
     TEST_ASSERT_EQUAL_STRING("forms.txt", name);
 #endif
 }
@@ -339,7 +339,7 @@ void test_no_step_joins_a_run_whose_writer_has_stopped(void)
     TEST_ASSERT_FALSE(EMBED_CALL(query_err_msg_root_internal.run_joining, QueryErrMsgRootCtx, .run = &s_step, .root = s_root, .qry = s_run.writer.qry, .programs = &s_programs, .err_msg = &err_msg));
 }
 
-void test_carried_reads_a_name_from_the_latest_run_else_the_disk_and_none_from_nowhere(void)
+void test_transferred_reads_a_name_from_the_latest_run_else_the_disk_and_none_from_nowhere(void)
 {
     static const char *const s_names[3] = {"carried_check_forms.txt", "carried_check_faulted.txt", "carried_check_nowhere.txt"};
     char base[QUERY_PATH_MAX_LEN];
@@ -364,7 +364,7 @@ void test_carried_reads_a_name_from_the_latest_run_else_the_disk_and_none_from_n
         paths[at] = files[at];
     }
     err_msg.at = 0ull;
-    const int carried = EMBED_CALL(query_count_folder_internal.run_carry, QueryCountFolderCtx, .run = &s_run, .folder = folder, .files = paths, .count = 3u, .crystal = NULL, .err_msg = &err_msg);
+    const int carried = EMBED_CALL(query_count_folder_internal.run_machine_transfer, QueryCountFolderCtx, .run = &s_run, .folder = folder, .files = paths, .count = 3u, .crystal = NULL, .err_msg = &err_msg);
     const int from_run = latest_is(&s_run, "carried_check_forms.txt", "from the run before\n");
     const int from_disk = latest_is(&s_run, "carried_check_faulted.txt", "from the disk\n");
     const unsigned char *bytes = NULL;
@@ -416,13 +416,13 @@ void test_a_file_written_is_recorded_as_a_leaf(void)
     EMBED_CALL(query_count_err_msg_internal.run_leave, QueryCountErrMsgCtx, .run = &s_run, .paths_letters = lefts, .count = 2u);
     const unsigned int count = s_run.left.count;
     const int leaf_named = cellul.eq(&(CatenaFinitaCfg){.src = s_run.left.path[1], .other = left, .cap = CLI_CELLS_POOL});
-    const unsigned int read_room = s_run.read.room;
-    const unsigned int left_room = s_run.left.room;
+    const unsigned int read_capacity = s_run.read.capacity;
+    const unsigned int left_capacity = s_run.left.capacity;
     run_ended(&s_run);
     TEST_ASSERT_EQUAL_UINT(2u, count);
     TEST_ASSERT_TRUE(leaf_named);
-    TEST_ASSERT_EQUAL_UINT(QUERY_LEAVES_MOST, read_room);
-    TEST_ASSERT_EQUAL_UINT(QUERY_LEAVES_MOST, left_room);
+    TEST_ASSERT_EQUAL_UINT(QUERY_LEAVES_MAX, read_capacity);
+    TEST_ASSERT_EQUAL_UINT(QUERY_LEAVES_MAX, left_capacity);
 }
 
 void test_a_later_step_reads_the_runs_own_not_the_disks_older_copy(void)

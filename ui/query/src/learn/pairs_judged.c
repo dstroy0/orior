@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// pairs_judged.c: the modes over the stick's questions and the host's answers, `stall`, `register`, `past`, `queue`,
+// pairs_judged.c: the modes over the stick's questions and the host's answers, `stall`, `register`, `end`, `queue`,
 // `pair`, `cost`, `curve`, `frame` and `fixed`, each put to the part through the airlock and a pair run's log read back
 // by the decoder; and the stick's questions sliced into identities, the integer questions computed on the host over
 // every case, each identity's verdict written to `Lstar.klq` beside the forms of the rulesets given, and the engine's
@@ -149,12 +149,12 @@ int query_judged(const QueryPairsContextErrMsgCtx *args)
     EMBED_CALL(query_context_under_internal.at, QueryContextUnderCtx, .context_read = context, .under = folder,
                .path_out = run_folder);
     char crystal[QUERY_PATH_MAX_LEN];
-    const int has_crystal = EMBED_CALL(query_room_root_internal.crystal, QueryRoomRootCtx, .root = context->root,
-                                       .program = crystal, .room = sizeof(crystal));
+    const int has_crystal = EMBED_CALL(query_capacity_root_internal.crystal, QueryCapacityRootCtx,
+                                       .root = context->root, .program = crystal, .capacity = sizeof(crystal));
     const char *const carried[3] = {host_answers, overseer, "faulted.txt"};
-    whole = whole &&
-            EMBED_CALL(query_count_folder_internal.run_carry, QueryCountFolderCtx, .run = &s_run, .folder = run_folder,
-                       .files = carried, .count = 3u, .crystal = has_crystal ? crystal : NULL, .err_msg = err_msg);
+    whole = whole && EMBED_CALL(query_count_folder_internal.run_machine_transfer, QueryCountFolderCtx, .run = &s_run,
+                                .folder = run_folder, .files = carried, .count = 3u,
+                                .crystal = has_crystal ? crystal : NULL, .err_msg = err_msg);
     const unsigned char *bytes = NULL;
     unsigned long long size = 0ull;
     if (whole && (!cellul.eq(&(CatenaFinitaCfg){.src = args->mode->mode, .other = "frame", .cap = CLI_CELLS_POOL})) &&
@@ -197,10 +197,10 @@ int query_judged(const QueryPairsContextErrMsgCtx *args)
     {
         // the machine file's forms placed by the vendor's writer, handed to the run for the identity to cost in the
         // part's clock beside the arrangements
-        const char *const placed[8] = {s_writer,          args->mode->part, s_files.machine, s_files.layout,
-                                       s_files.mnemonics, "krs_forms.bin",  "krs",           NULL};
+        const char *const positioned[8] = {s_writer,          args->mode->part, s_files.machine, s_files.layout,
+                                           s_files.mnemonics, "krs_forms.bin",  "krs",           NULL};
         whole = EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
-                           .context = context, .run = &s_run, .name = "orior_khw_machine_write", .words = placed,
+                           .context = context, .run = &s_run, .name = "orior_khw_machine_write", .words = positioned,
                            .code = &code, .err_msg = err_msg);
         if (whole && (code != 0ll))
         {

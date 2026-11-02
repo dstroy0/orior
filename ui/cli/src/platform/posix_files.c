@@ -60,15 +60,15 @@ EMBED_INLINE void file_read_from(const PosixFilesCtx *args)
 {
     unsigned long long *got = args->got;
     *got = 0ull;
-    int reading = 1;
-    while (reading && (*got < args->count))
+    int read_state = 1;
+    while (read_state && (*got < args->count))
     {
         // a read's count and its place are what the system's types represent
         const ssize_t read_now =
             pread(args->file, args->bytes + *got, (size_t)(args->count - *got), (off_t)(args->from + *got));
-        reading = read_now > 0;
+        read_state = read_now > 0;
         // a count read is not negative where reading goes on
-        *got += reading ? (unsigned long long)read_now : 0ull;
+        *got += read_state ? (unsigned long long)read_now : 0ull;
     }
 }
 

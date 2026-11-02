@@ -17,8 +17,8 @@ typedef struct CliFormatBytesCtx CliFormatBytesCtx;
 #include "format.h"
 #include "toolchains.h"
 
-// The room the formatting reads into: the manifest and a settings file's text, each a cell sized to what it contains,
-// the toolchain found, and the formatter's words
+// The work state the formatting reads into: the manifest and a settings file's text, each a cell sized to what it
+// contains, the toolchain found, and the formatter's words
 typedef struct
 {
     CliJson json;
@@ -27,19 +27,19 @@ typedef struct
     unsigned long long settings_size;
     char words[CLI_WORDS_TEXT];
     char path[CLI_PATH_TEXT];
-} CliFormatRoom;
+} CliFormatWorkState;
 
-extern CliFormatRoom g_cli_format;
+extern CliFormatWorkState g_cli_format;
 
-// the room's manifest and settings given back, and the formatting's lock with them (format.c)
+// the work state's manifest and settings given back, and the formatting's lock with them (format.c)
 void cli_format_release(void);
 
-// the manifest read into the room, and the toolchain that formats `language` in it: the tool, or CLI_JSON_NONE with
-// why given where none does (format.c)
+// the manifest read into the work state, and the toolchain that formats `language` in it: the tool, or CLI_JSON_NONE
+// with why given where none does (format.c)
 unsigned int cli_format_tool(const CliFormatLanguageCtx *args);
 
 // the first of the files `names`, `count` of them, in the folder of `path` or the nearest folder above it that contains
-// one, read whole into the room's settings: 1, or 0 where none is there or reads as UTF-8 (format_width.c)
+// one, read whole into the work state's settings: 1, or 0 where none is there or reads as UTF-8 (format_width.c)
 int cli_format_nearest(const CliFormatPathCtx *args);
 // whether `size` bytes are UTF-8 whole; and that `program` could not format the file at `path` reported, with the first
 // six lines of what it printed, trimmed, or that it printed nothing (format_width.c)
@@ -57,7 +57,7 @@ struct CliFormatErrMsgCtx
     VerbaLinea *err_msg;
     const char *path;
     const char *program;
-    const CliRan *ran;
+    const CliRunResult *run_result;
 };
 
 struct CliFormatTextCtx

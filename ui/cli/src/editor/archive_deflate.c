@@ -35,8 +35,8 @@ const unsigned int g_cli_distance_extra[30] = {0u, 0u, 0u, 0u, 1u, 1u, 2u, 2u,  
 unsigned int cli_crc32(const CliArchiveBytesSizeCfg *args)
 {
     static unsigned int s_table[256];
-    static int s_made;
-    if (!s_made)
+    static int s_created;
+    if (!s_created)
     {
         for (unsigned int at = 0u; at < 256u; at += 1u)
         {
@@ -47,7 +47,7 @@ unsigned int cli_crc32(const CliArchiveBytesSizeCfg *args)
             }
             s_table[at] = value;
         }
-        s_made = 1;
+        s_created = 1;
     }
     unsigned int crc = 0xffffffffu;
     for (unsigned long long at = 0ull; at < args->size; at += 1ull)
@@ -68,13 +68,13 @@ typedef struct
     unsigned int *symbol;
     VerbaLinea *err_msg;
     unsigned char *out;
-    unsigned long long room;
+    unsigned long long capacity;
     unsigned long long *size;
     const CliHuffman *literals;
     const CliHuffman *distances;
 } ArchiveDeflateCtx;
 // `bits` bits taken: 1 with them into `value`, or 0 where the data ends first
-EMBED_INLINE int cli_take(const ArchiveDeflateCtx *args)
+EMBED_INLINE int cli_alloc(const ArchiveDeflateCtx *args)
 {
     unsigned int count = args->count;
     unsigned int *value = args->value;
@@ -129,7 +129,7 @@ EMBED_INLINE int cli_decode(const ArchiveDeflateCtx *args)
     for (unsigned int length = 1u; length < 16u; length += 1u)
     {
         unsigned int bit = 0u;
-        if (!EMBED_CALL(cli_take, ArchiveDeflateCtx, .bits = args->bits, .count = 1u, .value = &bit))
+        if (!EMBED_CALL(cli_alloc, ArchiveDeflateCtx, .bits = args->bits, .count = 1u, .value = &bit))
         {
             mmgr_line_put(args->err_msg, "the deflated data ends early");
             return 0;
@@ -171,7 +171,7 @@ static int cli_codes(const ArchiveDeflateCtx *args)
         }
         if (symbol < 256u)
         {
-            if (*size >= args->room)
+            if (*size >= args->capacity)
             {
                 mmgr_line_put(args->err_msg, "the inflated data is larger than orior_cli supports");
                 return 0;
@@ -189,8 +189,8 @@ static int cli_codes(const ArchiveDeflateCtx *args)
         unsigned int extra = 0u;
         unsigned int code = 0u;
         unsigned int distance_extra = 0u;
-        if ((at >= 29u) || !EMBED_CALL(cli_take, ArchiveDeflateCtx, .bits = args->bits, .count = g_cli_length_extra[at],
-                                       .value = &extra))
+        if ((at >= 29u) || !EMBED_CALL(cli_alloc, ArchiveDeflateCtx, .bits = args->bits,
+                                       .count = g_cli_length_extra[at], .value = &extra))
         {
             mmgr_line_put(args->err_msg, (at >= 29u) ? "a length past the table" : "the deflated data ends early");
             return 0;
@@ -201,7 +201,7 @@ static int cli_codes(const ArchiveDeflateCtx *args)
         {
             return 0;
         }
-        if ((code >= 30u) || !EMBED_CALL(cli_take, ArchiveDeflateCtx, .bits = args->bits,
+        if ((code >= 30u) || !EMBED_CALL(cli_alloc, ArchiveDeflateCtx, .bits = args->bits,
                                          .count = g_cli_distance_extra[code], .value = &distance_extra))
         {
             mmgr_line_put(args->err_msg, (code >= 30u) ? "a distance past the table" : "the deflated data ends early");
@@ -213,7 +213,7 @@ static int cli_codes(const ArchiveDeflateCtx *args)
             mmgr_line_put(args->err_msg, "a distance back past the start");
             return 0;
         }
-        if ((*size + length) > args->room)
+        if ((*size + length) > args->capacity)
         {
             mmgr_line_put(args->err_msg, "the inflated data is larger than orior_cli supports");
             return 0;
@@ -242,8 +242,8 @@ int cli_inflate(const CliArchiveSizeCfg *args)
     {
         unsigned int last = 0u;
         unsigned int kind = 0u;
-        if (!EMBED_CALL(cli_take, ArchiveDeflateCtx, .bits = &bits, .count = 1u, .value = &last) ||
-            !EMBED_CALL(cli_take, ArchiveDeflateCtx, .bits = &bits, .count = 2u, .value = &kind))
+        if (!EMBED_CALL(cli_alloc, ArchiveDeflateCtx, .bits = &bits, .count = 1u, .value = &last) ||
+            !EMBED_CALL(cli_alloc, ArchiveDeflateCtx, .bits = &bits, .count = 2u, .value = &kind))
         {
             mmgr_line_put(args->err_msg, "the deflated data ends early");
             return 0;
@@ -267,7 +267,7 @@ int cli_inflate(const CliArchiveSizeCfg *args)
                 mmgr_line_put(args->err_msg, "a stored block's length does not check");
                 done = 0;
             }
-            if (done && (((at + 4ull + length) > args->size) || ((*out_size + length) > args->room)))
+            if (done && (((at + 4ull + length) > args->size) || ((*out_size + length) > args->capacity)))
             {
                 mmgr_line_put(args->err_msg, ((at + 4ull + length) > args->size)
                                                  ? "a stored block is cut"
@@ -292,7 +292,7 @@ int cli_inflate(const CliArchiveSizeCfg *args)
             memor.set(&(MemoriaCfg){.dst = fives, .val = 5, .bytes = sizeof(fives)});
             EMBED_CALL(cli_huffman_get, ArchiveDeflateCtx, .lengths = lengths, .count = 288u, .huffman = &s_literals);
             EMBED_CALL(cli_huffman_get, ArchiveDeflateCtx, .lengths = fives, .count = 30u, .huffman = &s_distances);
-            done = EMBED_CALL(cli_codes, ArchiveDeflateCtx, .bits = &bits, .out = args->out, .room = args->room,
+            done = EMBED_CALL(cli_codes, ArchiveDeflateCtx, .bits = &bits, .out = args->out, .capacity = args->capacity,
                               .size = out_size, .literals = &s_literals, .distances = &s_distances,
                               .err_msg = args->err_msg);
         }
@@ -301,9 +301,9 @@ int cli_inflate(const CliArchiveSizeCfg *args)
             unsigned int literals = 0u;
             unsigned int distances = 0u;
             unsigned int code_lengths = 0u;
-            done = EMBED_CALL(cli_take, ArchiveDeflateCtx, .bits = &bits, .count = 5u, .value = &literals) &&
-                   EMBED_CALL(cli_take, ArchiveDeflateCtx, .bits = &bits, .count = 5u, .value = &distances) &&
-                   EMBED_CALL(cli_take, ArchiveDeflateCtx, .bits = &bits, .count = 4u, .value = &code_lengths);
+            done = EMBED_CALL(cli_alloc, ArchiveDeflateCtx, .bits = &bits, .count = 5u, .value = &literals) &&
+                   EMBED_CALL(cli_alloc, ArchiveDeflateCtx, .bits = &bits, .count = 5u, .value = &distances) &&
+                   EMBED_CALL(cli_alloc, ArchiveDeflateCtx, .bits = &bits, .count = 4u, .value = &code_lengths);
             literals += 257u;
             distances += 1u;
             code_lengths += 4u;
@@ -312,7 +312,7 @@ int cli_inflate(const CliArchiveSizeCfg *args)
             for (unsigned int at = 0u; done && (at < code_lengths) && (at < 19u); at += 1u)
             {
                 unsigned int value = 0u;
-                done = EMBED_CALL(cli_take, ArchiveDeflateCtx, .bits = &bits, .count = 3u, .value = &value);
+                done = EMBED_CALL(cli_alloc, ArchiveDeflateCtx, .bits = &bits, .count = 3u, .value = &value);
                 // a code length is below 8, a byte
                 lengths[s_order[at]] = (unsigned char)value;
             }
@@ -335,7 +335,7 @@ int cli_inflate(const CliArchiveSizeCfg *args)
                 if (done && (symbol == 16u))
                 {
                     done = (count > 0u) &&
-                           EMBED_CALL(cli_take, ArchiveDeflateCtx, .bits = &bits, .count = 2u, .value = &extra);
+                           EMBED_CALL(cli_alloc, ArchiveDeflateCtx, .bits = &bits, .count = 2u, .value = &extra);
                     value = (count > 0u) ? all[count - 1u] : 0u;
                     times = 3u + extra;
                     if (!done)
@@ -346,7 +346,7 @@ int cli_inflate(const CliArchiveSizeCfg *args)
                 }
                 else if (done && (symbol >= 17u))
                 {
-                    done = EMBED_CALL(cli_take, ArchiveDeflateCtx, .bits = &bits, .count = (symbol == 17u) ? 3u : 7u,
+                    done = EMBED_CALL(cli_alloc, ArchiveDeflateCtx, .bits = &bits, .count = (symbol == 17u) ? 3u : 7u,
                                       .value = &extra);
                     value = 0u;
                     times = ((symbol == 17u) ? 3u : 11u) + extra;
@@ -382,9 +382,9 @@ int cli_inflate(const CliArchiveSizeCfg *args)
                            .huffman = &s_literals);
                 EMBED_CALL(cli_huffman_get, ArchiveDeflateCtx, .lengths = all + literals, .count = distances,
                            .huffman = &s_distances);
-                done = EMBED_CALL(cli_codes, ArchiveDeflateCtx, .bits = &bits, .out = args->out, .room = args->room,
-                                  .size = out_size, .literals = &s_literals, .distances = &s_distances,
-                                  .err_msg = args->err_msg);
+                done = EMBED_CALL(cli_codes, ArchiveDeflateCtx, .bits = &bits, .out = args->out,
+                                  .capacity = args->capacity, .size = out_size, .literals = &s_literals,
+                                  .distances = &s_distances, .err_msg = args->err_msg);
             }
         }
         else

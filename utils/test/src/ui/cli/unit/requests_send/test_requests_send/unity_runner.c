@@ -11,22 +11,8 @@
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
 extern void tearDown(void);
-extern void test_a_request_is_sent_and_answered(void);
-extern void test_an_answer_is_read_whole_chunked_and_gzipped(void);
-extern void test_an_answer_is_timed(void);
-extern void test_the_request_is_sent_with_its_start_header_length_and_body(void);
-extern void test_a_redirect_is_followed(void);
-extern void test_a_303_is_followed_as_a_get(void);
-extern void test_each_redirect_is_recorded_with_the_address_it_came_from(void);
-extern void test_no_redirect_is_followed_where_the_request_specifies(void);
 extern void test_a_location_is_read_from_where_it_was_sent(void);
-extern void test_a_location_with_its_own_host_is_read_as_it_stands(void);
-extern void test_an_answer_without_a_length_is_read_to_its_end_as_its_bytes(void);
-extern void test_a_request_nothing_answers_reports_what_failed(void);
-extern void test_https_unchecked_is_answered_by_the_server(void);
-extern void test_tls_is_timed(void);
-extern void test_windows_a_schannel_sessions_room_is_in_cells_released_as_it_closes(void);
-extern void test_a_certificate_no_root_signs_is_refused(void);
+extern void test_a_location_with_its_own_host_is_read_as_it_exists(void);
 
 
 /*=======Mock Management=====*/
@@ -88,22 +74,8 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\requests_send\\test_requests_send\\test_requests_send.c");
-  run_test(test_a_request_is_sent_and_answered, "test_a_request_is_sent_and_answered", 310);
-  run_test(test_an_answer_is_read_whole_chunked_and_gzipped, "test_an_answer_is_read_whole_chunked_and_gzipped", 321);
-  run_test(test_an_answer_is_timed, "test_an_answer_is_timed", 329);
-  run_test(test_the_request_is_sent_with_its_start_header_length_and_body, "test_the_request_is_sent_with_its_start_header_length_and_body", 337);
-  run_test(test_a_redirect_is_followed, "test_a_redirect_is_followed", 354);
-  run_test(test_a_303_is_followed_as_a_get, "test_a_303_is_followed_as_a_get", 363);
-  run_test(test_each_redirect_is_recorded_with_the_address_it_came_from, "test_each_redirect_is_recorded_with_the_address_it_came_from", 370);
-  run_test(test_no_redirect_is_followed_where_the_request_specifies, "test_no_redirect_is_followed_where_the_request_specifies", 388);
-  run_test(test_a_location_is_read_from_where_it_was_sent, "test_a_location_is_read_from_where_it_was_sent", 401);
-  run_test(test_a_location_with_its_own_host_is_read_as_it_stands, "test_a_location_with_its_own_host_is_read_as_it_stands", 409);
-  run_test(test_an_answer_without_a_length_is_read_to_its_end_as_its_bytes, "test_an_answer_without_a_length_is_read_to_its_end_as_its_bytes", 417);
-  run_test(test_a_request_nothing_answers_reports_what_failed, "test_a_request_nothing_answers_reports_what_failed", 431);
-  run_test(test_https_unchecked_is_answered_by_the_server, "test_https_unchecked_is_answered_by_the_server", 440);
-  run_test(test_tls_is_timed, "test_tls_is_timed", 448);
-  run_test(test_windows_a_schannel_sessions_room_is_in_cells_released_as_it_closes, "test_windows_a_schannel_sessions_room_is_in_cells_released_as_it_closes", 454);
-  run_test(test_a_certificate_no_root_signs_is_refused, "test_a_certificate_no_root_signs_is_refused", 465);
+  run_test(test_a_location_is_read_from_where_it_was_sent, "test_a_location_is_read_from_where_it_was_sent", 60);
+  run_test(test_a_location_with_its_own_host_is_read_as_it_exists, "test_a_location_with_its_own_host_is_read_as_it_exists", 68);
 
   return UNITY_END();
 }

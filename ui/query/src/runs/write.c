@@ -9,7 +9,7 @@
 #include "../query_loops.h"
 
 // the most rulesets one bridge is written over
-#define QUERY_RULESETS_MOST 16u
+#define QUERY_RULESETS_MAX 16u
 
 typedef struct
 {
@@ -45,8 +45,8 @@ int query_bridge(const QueryLoopsContextErrMsgRulesetsCfg *args)
     unsigned int count = args->count;
     VerbaLinea *err_msg = args->err_msg;
     static const char *const s_default[3] = {"cu.krs", "sass.krs", "openqasm2_0.krs"};
-    const char *const *given = (count == 0u) ? s_default : args->rulesets;
-    const unsigned int given_count = (count == 0u) ? 3u : ((count < QUERY_RULESETS_MOST) ? count : QUERY_RULESETS_MOST);
+    const char *const *supplied = (count == 0u) ? s_default : args->rulesets;
+    const unsigned int input_count = (count == 0u) ? 3u : ((count < QUERY_RULESETS_MAX) ? count : QUERY_RULESETS_MAX);
     static char s_klq_write[QUERY_PATH_MAX_LEN];
     static QueryRun s_run;
     if (!EMBED_CALL(query_loops_err_msg_context.context_tool, QueryLoopsErrMsgContextCfg, .context_read = context,
@@ -56,15 +56,15 @@ int query_bridge(const QueryLoopsContextErrMsgRulesetsCfg *args)
     {
         return -1;
     }
-    static char s_read[QUERY_RULESETS_MOST + 1u][QUERY_PATH_MAX_LEN];
-    static const char *s_reads[QUERY_RULESETS_MOST + 1u];
-    for (unsigned int at = 0u; at < given_count; at += 1u)
+    static char s_read[QUERY_RULESETS_MAX + 1u][QUERY_PATH_MAX_LEN];
+    static const char *s_reads[QUERY_RULESETS_MAX + 1u];
+    for (unsigned int at = 0u; at < input_count; at += 1u)
     {
-        EMBED_CALL(query_table_by_name, WriteCtx, .context = context, .name = given[at], .path = s_read[at]);
+        EMBED_CALL(query_table_by_name, WriteCtx, .context = context, .name = supplied[at], .path = s_read[at]);
         s_reads[at] = s_read[at];
     }
-    EMBED_CALL(query_table_by_name, WriteCtx, .context = context, .name = "Lstar.klq", .path = s_read[given_count]);
-    s_reads[given_count] = s_read[given_count];
+    EMBED_CALL(query_table_by_name, WriteCtx, .context = context, .name = "Lstar.klq", .path = s_read[input_count]);
+    s_reads[input_count] = s_read[input_count];
     char table[QUERY_PATH_MAX_LEN];
     EMBED_CALL(query_context_under_internal.at, QueryContextUnderCtx, .context_read = context, .under = QUERY_TABLE,
                .path_out = table);
@@ -74,14 +74,14 @@ int query_bridge(const QueryLoopsContextErrMsgRulesetsCfg *args)
                .word = s_klq_write);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
                .word = table);
-    for (unsigned int at = 0u; at < given_count; at += 1u)
+    for (unsigned int at = 0u; at < input_count; at += 1u)
     {
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-                   .word = given[at]);
+                   .word = supplied[at]);
     }
     long long code = -1ll;
     const int whole = EMBED_CALL(query_count_err_msg_internal.run_read, QueryCountErrMsgCtx, .run = &s_run,
-                                 .paths_letters = s_reads, .count = given_count + 1u, .err_msg = err_msg) &&
+                                 .paths_letters = s_reads, .count = input_count + 1u, .err_msg = err_msg) &&
                       EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
                                  .context = context, .run = &s_run, .name = "orior_klq_write", .words = s_words.word,
                                  .code = &code, .err_msg = err_msg);
@@ -219,7 +219,7 @@ int query_query_words(const QueryLoopsErrMsgContextWordsCfg *args)
     int *dry = args->dry_pointer;
     static const char *const s_usage = "query takes --<from> --<to> [--<part>] [--dry]: two languages, the part to run "
                                        "on, and dry to launch nothing";
-    const char *plain[QUERY_WORDS_MOST];
+    const char *plain[QUERY_WORDS_MAX];
     unsigned int plains = 0u;
     *dry = 0;
     for (unsigned int at = 0u; at < args->count; at += 1u)
@@ -228,7 +228,7 @@ int query_query_words(const QueryLoopsErrMsgContextWordsCfg *args)
         {
             *dry = 1;
         }
-        else if (plains < QUERY_WORDS_MOST)
+        else if (plains < QUERY_WORDS_MAX)
         {
             plain[plains] = args->words[at];
             plains += 1u;
@@ -263,12 +263,12 @@ int query_query_words(const QueryLoopsErrMsgContextWordsCfg *args)
             }
             *field = plain[at + 1u];
         }
-        const char *const given[3] = {from, to, part};
+        const char *const supplied[3] = {from, to, part};
         for (unsigned int at = 0u; at < 3u; at += 1u)
         {
-            if (given[at] != NULL)
+            if (supplied[at] != NULL)
             {
-                args->names_letters[*named] = given[at];
+                args->names_letters[*named] = supplied[at];
                 *named += 1u;
             }
         }

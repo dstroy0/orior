@@ -5,7 +5,6 @@
 // the cellblock. The cases on a SQLite database are ignored on a machine with no Python
 #include "ui/cli/src/databases/db_internal.h"
 #include "ui/cli/src/tests/test_runs.h"
-#include "ui/cli/src/window/serve_internal.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
 static char s_out[1u << 20u];
@@ -15,7 +14,7 @@ static const CliJson *s_json;
 static CliDbConnection s_prod;
 static char s_root[CLI_PATH_MAX_LEN];
 static char s_names[256];
-static char s_why[256];
+static char s_error[256];
 static int s_lite_tried;
 static CliDbOpen *s_lite;
 static char s_insert_done[64];
@@ -37,14 +36,14 @@ static void text_set(char *out, const char *text)
 }
 
 // the names of the connections the tree names, `|` between them, in s_names
-static const char *names_listed(void)
+static const char *names_listing(void)
 {
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    VerbaLinea listed = {s_out, sizeof(s_out), 0ull};
-    (void)EMBED_CALL(cli_db_out_root.list, CliDbOutRootCfg, .root = s_root, .opens = NULL, .count = 0u, .out = &listed, .err_msg = &err_msg);
+    VerbaLinea list_entries = {s_out, sizeof(s_out), 0ull};
+    (void)EMBED_CALL(cli_db_out_root.list, CliDbOutRootCfg, .root = s_root, .opens = NULL, .count = 0u, .out = &list_entries, .err_msg = &err_msg);
     unsigned int list = CLI_JSON_NONE;
-    const CliJson *const json = cli_unity_parsed(s_out, listed.at, &list);
+    const CliJson *const json = cli_unity_parsed(s_out, list_entries.at, &list);
     VerbaLinea line = {s_names, sizeof(s_names), 0ull};
     for (unsigned int at = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = json, .array = list, .index = at) != CLI_JSON_NONE; at += 1u)
     {
@@ -59,7 +58,7 @@ static const char *names_listed(void)
 static void connections_stored(void)
 {
     CliDbConnection lite;
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     cli_unity_folder("db_json", s_root);
     connection_set(&lite, "local", "sqlite");
     text_set(lite.file, "data/app.db");
@@ -171,18 +170,10 @@ static int pool_contains(const char *marked)
     return holds;
 }
 
-// a call's answer that reads the password its arguments carry
-static int password_read(const CliServeAnswerCfg *args)
-{
-    const CliServeArgs *arguments = args->request;
-    mmgr_line_put(args->out, (EMBED_CALL(cli_serve_err_msg_internal.string_or, CliServeErrMsgCtx, .request = arguments, .key = "password", .otherwise = "")[0] != '\0') ? "read" : "none");
-    return 1;
-}
-
 // the password made here, so that what the search through the pool finds is not the suite's own text
-static void password_made(char *marked, unsigned long long room)
+static void password_created(char *marked, unsigned long long capacity)
 {
-    VerbaLinea made = {marked, room, 0ull};
+    VerbaLinea made = {marked, capacity, 0ull};
     mmgr_line_put(&made, "marked-");
     mmgr_line_put(&made, "password-7f3a");
     (void)mmgr_line_finish(&made);
@@ -195,7 +186,7 @@ static void assert_password_wiped(const char *kind)
     char marked[32];
     CliDbConnection connection;
     cli_unity_folder("db_password_wiped", root);
-    password_made(marked, sizeof(marked));
+    password_created(marked, sizeof(marked));
     connection_set(&connection, "closed", kind);
     (void)cellul.copy(&(CatenaFinitaCfg){.dst = connection.host, .src = "127.0.0.1", .cap = CLI_NAME_MAX_LEN});
     (void)cellul.copy(&(CatenaFinitaCfg){.dst = connection.user, .src = "app", .cap = CLI_NAME_MAX_LEN});
@@ -216,28 +207,28 @@ void tearDown(void)
 void test_connections_are_stored_each_by_its_name(void)
 {
     connections_stored();
-    TEST_ASSERT_EQUAL_STRING("local|prod", names_listed());
+    TEST_ASSERT_EQUAL_STRING("local|prod", names_listing());
 }
 
 void test_a_name_another_connection_has_is_refused(void)
 {
     CliDbConnection renamed;
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     connections_stored();
     renamed = s_prod;
     text_set(renamed.name, "local");
     TEST_ASSERT_FALSE(EMBED_CALL(cli_db_connection.save, CliDbConnectionCfg, .root = s_root, .connection = &renamed, .was = "prod", .err_msg = &err_msg));
 }
 
-void test_a_connection_renamed_stays_in_its_place(void)
+void test_a_connection_renamed_stays_in_its_position(void)
 {
     CliDbConnection renamed;
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     connections_stored();
     renamed = s_prod;
     text_set(renamed.name, "live");
     TEST_ASSERT_TRUE(EMBED_CALL(cli_db_connection.save, CliDbConnectionCfg, .root = s_root, .connection = &renamed, .was = "prod", .err_msg = &err_msg));
-    TEST_ASSERT_EQUAL_STRING("local|live", names_listed());
+    TEST_ASSERT_EQUAL_STRING("local|live", names_listing());
 }
 
 void test_no_password_is_stored_in_the_file(void)
@@ -253,10 +244,10 @@ void test_no_password_is_stored_in_the_file(void)
 
 void test_a_connection_is_removed(void)
 {
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     connections_stored();
     TEST_ASSERT_TRUE(EMBED_CALL(cli_db_root_name.remove, CliDbRootNameCfg, .root = s_root, .name = "local", .err_msg = &err_msg));
-    TEST_ASSERT_EQUAL_STRING("prod", names_listed());
+    TEST_ASSERT_EQUAL_STRING("prod", names_listing());
 }
 
 void test_a_connections_account_names_its_server_and_its_tunnel(void)
@@ -273,7 +264,7 @@ void test_the_keychain_stores_a_password_and_forgets_it(void)
     char account[64];
     char read[64];
     VerbaLinea line = {account, sizeof(account), 0ull};
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     mmgr_line_put(&line, "test://orior@");
     mmgr_line_decimal(&line, cli_process_own(), 1u);
     (void)mmgr_line_finish(&line);
@@ -281,11 +272,11 @@ void test_the_keychain_stores_a_password_and_forgets_it(void)
     {
         TEST_IGNORE_MESSAGE("no keychain on this machine");
     }
-    const int was_read = EMBED_CALL(cli_service_internal.keychain_read, CliServiceCtx, .service = "database", .account = account, .out = read, .room = sizeof(read));
+    const int was_read = EMBED_CALL(cli_service_internal.keychain_read, CliServiceCtx, .service = "database", .account = account, .out = read, .capacity = sizeof(read));
     (void)EMBED_CALL(cli_err_msg_service_internal.keychain_forget, CliErrMsgServiceCtx, .service = "database", .account = account, .err_msg = &err_msg);
     TEST_ASSERT_TRUE(was_read);
     TEST_ASSERT_EQUAL_STRING("stored secret", read);
-    TEST_ASSERT_FALSE(EMBED_CALL(cli_service_internal.keychain_read, CliServiceCtx, .service = "database", .account = account, .out = read, .room = sizeof(read)));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_service_internal.keychain_read, CliServiceCtx, .service = "database", .account = account, .out = read, .capacity = sizeof(read)));
 }
 
 void test_a_sqlite_database_opens_with_its_version(void)
@@ -300,7 +291,7 @@ void test_an_insert_reports_what_it_did(void)
     TEST_ASSERT_EQUAL_STRING("1000 rows affected", s_insert_done);
 }
 
-void test_a_querys_first_page_comes_the_rest_waiting(void)
+void test_a_querys_first_page_comes_the_remainder_waiting(void)
 {
     lite_ready();
     const unsigned int found = statement_run(s_lite, "SELECT n, name, b, NULL AS z FROM t ORDER BY n", 0, 100ull);
@@ -362,7 +353,7 @@ void test_a_transaction_is_open_until_it_is_rolled_back(void)
     TEST_ASSERT_EQUAL_STRING("idle", EMBED_CALL(cli_db_err_msg.transaction, CliDbErrMsgCfg, .open = s_lite));
 }
 
-void test_a_failure_reports_why(void)
+void test_a_failure_reports_error(void)
 {
     lite_ready();
     TEST_ASSERT_EQUAL_UINT(CLI_JSON_NONE, statement_run(s_lite, "SELECT * FROM none", 0, 10ull));
@@ -388,8 +379,8 @@ void test_the_schema_lists_its_objects(void)
 void test_a_table_lists_its_columns_and_indexes(void)
 {
     static const char *const s_table[3] = {"main", "table", "t"};
-    char shown[256];
-    VerbaLinea line = {shown, sizeof(shown), 0ull};
+    char displayed[256];
+    VerbaLinea line = {displayed, sizeof(displayed), 0ull};
     lite_ready();
     const unsigned int found = children_read(s_table, 3u);
     for (unsigned int at = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = s_json, .array = found, .index = at) != CLI_JSON_NONE; at += 1u)
@@ -400,7 +391,7 @@ void test_a_table_lists_its_columns_and_indexes(void)
         mmgr_line_ch(&line, ' ');
         mmgr_line_put(&line, cli_unity_member_text(part, "label"));
     }
-    CLI_TEST_ASSERT_TEXT("column n|column name|column b|index t_name", shown, line.at);
+    CLI_TEST_ASSERT_TEXT("column n|column name|column b|index t_name", displayed, line.at);
 }
 
 void test_each_column_has_its_type_and_default(void)
@@ -500,27 +491,6 @@ void test_a_refused_postgres_connection_stores_no_password_in_a_cell(void)
 void test_a_refused_mysql_connection_stores_no_password_in_a_cell(void)
 {
     assert_password_wiped("mysql");
-}
-
-void test_a_calls_arguments_store_no_password_in_a_cell(void)
-{
-    char marked[32];
-    char args[128];
-    char answer[16];
-    char why[64];
-    password_made(marked, sizeof(marked));
-    VerbaLinea written = {args, sizeof(args), 0ull};
-    mmgr_line_put(&written, "{\"password\":\"");
-    mmgr_line_put(&written, marked);
-    mmgr_line_put(&written, "\"}");
-    const unsigned long long size = written.at;
-    (void)mmgr_line_finish(&written);
-    VerbaLinea out = {answer, sizeof(answer), 0ull};
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_serve_size_internal.answer, CliServeSizeCtx, .answer = password_read, .args_text = args, .size = size, .out = &out, .err_msg = &err_msg));
-    (void)mmgr_line_finish(&out);
-    CLI_TEST_ASSERT_TEXT("read", answer, 4ull);
-    TEST_ASSERT_FALSE(pool_contains(marked));
 }
 
 void test_every_connection_closed_is_released(void)

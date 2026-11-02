@@ -27,17 +27,17 @@ static void statement_recorded(const CliEachSpanCfg *args)
     statements->count += 1u;
 }
 
-// the statements of `text` in `dialect` are `wanted`
-static void assert_statements(const char *wanted, const char *text, unsigned int dialect)
+// the statements of `text` in `dialect` are `required`
+static void assert_statements(const char *required, const char *text, unsigned int dialect)
 {
     char out[512];
     SqlStatements statements = {text, {out, sizeof(out), 0ull}, 0u};
     EMBED_CALL(cli_sql_text_length.statements, CliSqlTextLengthCfg, .text = text, .length = CLI_UNITY_LENGTH(text), .dialect = dialect, .each = statement_recorded, .context = &statements);
-    CLI_TEST_ASSERT_TEXT(wanted, out, statements.line.at);
+    CLI_TEST_ASSERT_TEXT(required, out, statements.line.at);
 }
 
-// the statement at `at` of the sample is `wanted`, the empty string for none
-static void assert_statement_at(const char *wanted, unsigned long long at)
+// the statement at `at` of the sample is `required`, the empty string for none
+static void assert_statement_at(const char *required, unsigned long long at)
 {
     char out[64];
     CliSqlSpan span;
@@ -47,7 +47,7 @@ static void assert_statement_at(const char *wanted, unsigned long long at)
         mmgr_line_put_n(&line, s_positions + span.start, span.end - span.start);
     }
     (void)mmgr_line_finish(&line);
-    TEST_ASSERT_EQUAL_STRING(wanted, out);
+    TEST_ASSERT_EQUAL_STRING(required, out);
 }
 
 // the position of `needle` in the sample
@@ -57,20 +57,20 @@ static unsigned long long position_of(const char *needle)
     return (unsigned long long)(cellul.find(&(CatenaFinitaCfg){.src = s_positions, .cap = CLI_CELLS_POOL, .other = needle, .other_cap = CLI_CELLS_POOL}) - s_positions);
 }
 
-// the count `statement` asks for is `wanted`, NULL for none
-static void assert_counted(const char *wanted, const char *statement, unsigned int dialect)
+// the count `statement` asks for is `required`, NULL for none
+static void assert_counted(const char *required, const char *statement, unsigned int dialect)
 {
     char out[256];
     VerbaLinea line = {out, sizeof(out), 0ull};
     const int counted = EMBED_CALL(cli_sql_length_dialect.unbounded, CliSqlLengthDialectCfg, .statement = statement, .length = CLI_UNITY_LENGTH(statement), .dialect = dialect, .out = &line);
-    if (wanted == NULL)
+    if (required == NULL)
     {
         TEST_ASSERT_FALSE(counted);
     }
     else
     {
         TEST_ASSERT_TRUE(counted);
-        CLI_TEST_ASSERT_TEXT(wanted, out, line.at);
+        CLI_TEST_ASSERT_TEXT(required, out, line.at);
     }
 }
 
@@ -130,7 +130,7 @@ void test_the_statement_at_a_position(void)
     assert_statement_at("select 1", position_of("1"));
 }
 
-void test_the_statement_just_past_its_end(void)
+void test_the_statement_just_end_its_end(void)
 {
     assert_statement_at("select 1", position_of("1;") + 2u);
 }
@@ -155,7 +155,7 @@ void test_the_last_statement_at_the_texts_end(void)
     assert_statement_at("select\n  3", sizeof(s_positions) - 1u);
 }
 
-void test_a_read_past_its_comment_reads(void)
+void test_a_read_end_its_comment_reads(void)
 {
     TEST_ASSERT_EQUAL_UINT(CLI_DOES_READS, does("/* x */ SELECT * FROM t", CLI_SQL_POSTGRES));
 }
@@ -240,7 +240,7 @@ void test_a_truncate_of_many_tables_adds_their_counts(void)
     assert_counted("SELECT (SELECT count(*) FROM a) + (SELECT count(*) FROM b)", "truncate a, b", CLI_SQL_POSTGRES);
 }
 
-void test_a_where_beside_a_string_of_where_bounds_the_delete(void)
+void test_a_where_adjacent_a_string_of_where_bounds_the_delete(void)
 {
     assert_counted(NULL, "delete from t where 'where' = ''", CLI_SQL_POSTGRES);
 }

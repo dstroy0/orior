@@ -110,7 +110,7 @@ CliDbOpen *cli_db_connect(const CliDbRootCfg *args)
     if (open == NULL)
     {
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = args->failure,
-                   .message = (entry_at < CLI_DB_OPENS) ? "no room is left to open a database connection in"
+                   .message = (entry_at < CLI_DB_OPENS) ? "no capacity is left to open a database connection in"
                                                         : "orior_cli has as many database connections open as it can");
         return NULL;
     }
@@ -133,7 +133,7 @@ CliDbOpen *cli_db_connect(const CliDbRootCfg *args)
                    .out = &account_line);
         mmgr_line_finish(&account_line);
         if (!EMBED_CALL(cli_service_internal.keychain_read, CliServiceCtx, .service = "database", .account = account,
-                        .out = open->password, .room = sizeof(open->password)))
+                        .out = open->password, .capacity = sizeof(open->password)))
         {
             open->password[0] = '\0';
         }
@@ -160,9 +160,10 @@ CliDbOpen *cli_db_connect(const CliDbRootCfg *args)
             : open->query.lite->version;
     (void)cellul.copy(&(CatenaFinitaCfg){
         .dst = open->version, .src = (version != NULL) ? version : "", .cap = sizeof(open->version)});
-    open->has_stop = EMBED_CALL(cli_db_internal.link_stopper, CliDbCtx, .link_read = &open->query, .stop = &open->stop);
+    open->has_stop =
+        EMBED_CALL(cli_db_internal.link_cancel_thread, CliDbCtx, .link_read = &open->query, .stop = &open->stop);
     open->has_meta_stop =
-        EMBED_CALL(cli_db_internal.link_stopper, CliDbCtx, .link_read = &open->meta, .stop = &open->meta_stop);
+        EMBED_CALL(cli_db_internal.link_cancel_thread, CliDbCtx, .link_read = &open->meta, .stop = &open->meta_stop);
     EMBED_CALL(cli_db_failure_context_internal.zone_read, CliDbFailureContextCtx, .open = open);
     return open;
 }
@@ -202,7 +203,7 @@ static int open_with(const DbOpenCtx *args)
         {
             return 0;
         }
-        *has_stop = EMBED_CALL(cli_db_internal.link_stopper, CliDbCtx, .link_read = link, .stop = stop);
+        *has_stop = EMBED_CALL(cli_db_internal.link_cancel_thread, CliDbCtx, .link_read = link, .stop = stop);
     }
     args->open->busy += args->runs ? 1 : 0;
     const int done =
@@ -288,7 +289,7 @@ int cli_db_stop(const CliDbErrMsgCfg *args)
     return sent;
 }
 
-int cli_db_stop_reading(const CliDbErrMsgCfg *args)
+int cli_db_stop_read_state(const CliDbErrMsgCfg *args)
 {
     const int has = args->open->has_meta_stop;
     const int sent = has && EMBED_CALL(cli_db_stop_internal.stop_send, CliDbStopCtx,

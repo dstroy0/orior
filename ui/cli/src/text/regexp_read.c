@@ -11,7 +11,7 @@ unsigned long long cli_regexp_letters(const CliRegexpTextCfg *args)
 {
     unsigned long long count = 0ull;
     unsigned long long at = 0ull;
-    while ((at < args->size) && (count < args->room_u64))
+    while ((at < args->size) && (count < args->capacity_u64))
     {
         const unsigned char byte = (unsigned char)args->text[at];
         const unsigned int length = (byte < 0x80u) ? 1u : (byte < 0xe0u) ? 2u : (byte < 0xf0u) ? 3u : 4u;
@@ -31,7 +31,7 @@ unsigned long long cli_regexp_letters(const CliRegexpTextCfg *args)
 }
 
 // `/<source>/: <why> at <place>` reported: CLI_REGEXP_FAILED
-unsigned int cli_fail(const CliRegexpReadWhyCtx *args)
+unsigned int cli_fail(const CliRegexpReadErrorCtx *args)
 {
     if (!args->reader->failed)
     {
@@ -70,7 +70,7 @@ int cli_eat(const CliRegexpReadCtx *args)
     unsigned int letter = 0u;
     if (EMBED_CALL(cli_regexp_read_letter_kind_internal.peek, CliRegexpReadLetterKindCtx, .reader_read = args->reader,
                    .letter = &letter) &&
-        (letter == args->wanted))
+        (letter == args->required))
     {
         args->reader->at += 1u;
         return 1;
@@ -86,7 +86,7 @@ unsigned int cli_node(const CliRegexpReadKindCtx *args)
     CliRegexp *const regexp = args->reader->regexp;
     if (regexp->nodes >= CLI_REGEXP_NODES)
     {
-        return EMBED_CALL(cli_regexp_read_why_internal.fail, CliRegexpReadWhyCtx, .reader = args->reader,
+        return EMBED_CALL(cli_regexp_read_error_internal.fail, CliRegexpReadErrorCtx, .reader = args->reader,
                           .why = "more nodes than a pattern allows");
     }
     const unsigned int made = regexp->nodes;
@@ -104,7 +104,7 @@ unsigned int cli_parent(const CliRegexpReadKindCtx *args)
     CliRegexp *const regexp = args->reader->regexp;
     if ((regexp->parts + count) > CLI_REGEXP_PARTS)
     {
-        return EMBED_CALL(cli_regexp_read_why_internal.fail, CliRegexpReadWhyCtx, .reader = args->reader,
+        return EMBED_CALL(cli_regexp_read_error_internal.fail, CliRegexpReadErrorCtx, .reader = args->reader,
                           .why = "more parts than a pattern allows");
     }
     const unsigned int made = cli_regexp_read_kind_internal.node(args);
@@ -184,7 +184,7 @@ EMBED_INLINE unsigned int cli_quantified(const RegexpReadCtx *args)
             return args->atom;
         }
         max = min;
-        if (EMBED_CALL(cli_regexp_read_internal.eat, CliRegexpReadCtx, .reader = reader, .wanted = ','))
+        if (EMBED_CALL(cli_regexp_read_internal.eat, CliRegexpReadCtx, .reader = reader, .required = ','))
         {
             unsigned int peeked = 0u;
             const int closes = EMBED_CALL(cli_regexp_read_letter_kind_internal.peek, CliRegexpReadLetterKindCtx,
@@ -195,7 +195,7 @@ EMBED_INLINE unsigned int cli_quantified(const RegexpReadCtx *args)
                       ? max
                       : CLI_REGEXP_UNBOUNDED;
         }
-        if (!EMBED_CALL(cli_regexp_read_internal.eat, CliRegexpReadCtx, .reader = reader, .wanted = '}'))
+        if (!EMBED_CALL(cli_regexp_read_internal.eat, CliRegexpReadCtx, .reader = reader, .required = '}'))
         {
             reader->at = back;
             return args->atom;
@@ -211,10 +211,10 @@ EMBED_INLINE unsigned int cli_quantified(const RegexpReadCtx *args)
     if ((kind == CLI_REGEXP_START) || (kind == CLI_REGEXP_END) || (kind == CLI_REGEXP_BOUNDARY) ||
         (kind == CLI_REGEXP_LOOK))
     {
-        return EMBED_CALL(cli_regexp_read_why_internal.fail, CliRegexpReadWhyCtx, .reader = reader,
+        return EMBED_CALL(cli_regexp_read_error_internal.fail, CliRegexpReadErrorCtx, .reader = reader,
                           .why = "a quantifier after an assertion");
     }
-    const int greedy = !EMBED_CALL(cli_regexp_read_internal.eat, CliRegexpReadCtx, .reader = reader, .wanted = '?');
+    const int greedy = !EMBED_CALL(cli_regexp_read_internal.eat, CliRegexpReadCtx, .reader = reader, .required = '?');
     const unsigned int made = EMBED_CALL(cli_regexp_read_kind_internal.node, CliRegexpReadKindCtx, .reader = reader,
                                          .kind = CLI_REGEXP_REPEAT);
     if (made != CLI_REGEXP_FAILED)
@@ -232,7 +232,7 @@ EMBED_INLINE unsigned int cli_quantified(const RegexpReadCtx *args)
 EMBED_INLINE unsigned int cli_sequence(const RegexpReadCtx *args)
 {
     CliRegexpReader *reader = args->reader;
-    unsigned int parts[CLI_REGEXP_LEVEL_MOST];
+    unsigned int parts[CLI_REGEXP_LEVEL_MAX];
     unsigned int count = 0u;
     unsigned int letter = 0u;
     while (EMBED_CALL(cli_regexp_read_letter_kind_internal.peek, CliRegexpReadLetterKindCtx, .reader_read = reader,
@@ -247,9 +247,9 @@ EMBED_INLINE unsigned int cli_sequence(const RegexpReadCtx *args)
         {
             return quantified;
         }
-        if (count >= CLI_REGEXP_LEVEL_MOST)
+        if (count >= CLI_REGEXP_LEVEL_MAX)
         {
-            return EMBED_CALL(cli_regexp_read_why_internal.fail, CliRegexpReadWhyCtx, .reader = reader,
+            return EMBED_CALL(cli_regexp_read_error_internal.fail, CliRegexpReadErrorCtx, .reader = reader,
                               .why = "more parts than a sequence allows");
         }
         parts[count] = quantified;
@@ -267,7 +267,7 @@ EMBED_INLINE unsigned int cli_sequence(const RegexpReadCtx *args)
 
 unsigned int cli_alternation(const CliRegexpReadCtx *args)
 {
-    unsigned int options[CLI_REGEXP_LEVEL_MOST];
+    unsigned int options[CLI_REGEXP_LEVEL_MAX];
     unsigned int count = 0u;
     do
     {
@@ -276,14 +276,14 @@ unsigned int cli_alternation(const CliRegexpReadCtx *args)
         {
             return option;
         }
-        if (count >= CLI_REGEXP_LEVEL_MOST)
+        if (count >= CLI_REGEXP_LEVEL_MAX)
         {
-            return EMBED_CALL(cli_regexp_read_why_internal.fail, CliRegexpReadWhyCtx, .reader = args->reader,
+            return EMBED_CALL(cli_regexp_read_error_internal.fail, CliRegexpReadErrorCtx, .reader = args->reader,
                               .why = "more alternatives than an alternation allows");
         }
         options[count] = option;
         count += 1u;
-    } while (EMBED_CALL(cli_regexp_read_internal.eat, CliRegexpReadCtx, .reader = args->reader, .wanted = '|'));
+    } while (EMBED_CALL(cli_regexp_read_internal.eat, CliRegexpReadCtx, .reader = args->reader, .required = '|'));
     return (count == 1u)
                ? options[0]
                : EMBED_CALL(cli_regexp_read_kind_internal.parent, CliRegexpReadKindCtx, .reader = args->reader,
@@ -364,12 +364,12 @@ static void cli_on_fill(const RegexpReadCtx *args)
     }
 }
 
-void cli_regexp_on_room(const CliRegexpRoomCfg *args)
+void cli_regexp_on_capacity(const CliRegexpWorkStateCfg *args)
 {
-    args->regexp_out->node = args->room->node;
-    args->regexp_out->item = args->room->item;
-    args->regexp_out->part = args->room->part;
-    args->regexp_out->part_first = args->room->part_first;
+    args->regexp_out->node = args->work_state->node;
+    args->regexp_out->item = args->work_state->item;
+    args->regexp_out->part = args->work_state->part;
+    args->regexp_out->part_first = args->work_state->part_first;
 }
 
 // the pattern `source` with `flags` read into `regexp` by `reader`, made empty: 1, or 0 with why given
@@ -381,7 +381,7 @@ EMBED_INLINE int cli_regexp_read_by(const RegexpReadCtx *args)
     VerbaLinea *err_msg = args->err_msg;
     reader->length = EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = source,
                                 .size = cellul.len(&(CatenaFinitaCfg){.src = source, .cap = CLI_CELLS_POOL}),
-                                .letters = reader->letters, .room_u64 = CLI_REGEXP_LETTERS);
+                                .letters = reader->letters, .capacity_u64 = CLI_REGEXP_LETTERS);
     reader->unicode = cellul.chr(&(CatenaFinitaCfg){.src = args->flags, .cap = CLI_CELLS_POOL, .byte = 'u'}) != NULL;
     reader->regexp = regexp;
     reader->source = source;
@@ -397,7 +397,8 @@ EMBED_INLINE int cli_regexp_read_by(const RegexpReadCtx *args)
     }
     if (reader->at < reader->length)
     {
-        EMBED_CALL(cli_regexp_read_why_internal.fail, CliRegexpReadWhyCtx, .reader = reader, .why = "an unmatched )");
+        EMBED_CALL(cli_regexp_read_error_internal.fail, CliRegexpReadErrorCtx, .reader = reader,
+                   .why = "an unmatched )");
         return 0;
     }
     regexp->root = root;

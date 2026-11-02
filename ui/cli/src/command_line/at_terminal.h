@@ -20,7 +20,7 @@ typedef struct CliAtTerminalCfg CliAtTerminalCfg;
 int cli_at_terminal_runs(const CliAtTerminalCommandCfg *args);
 int cli_at_terminal_run(const CliAtTerminalCommandCfg *args);
 
-// the tests or files of tests `given`, `count` of them, run on the tree at `root` across the machine's cores, with
+// the tests or files of tests `supplied`, `count` of them, run on the tree at `root` across the machine's cores, with
 // coverage where `cover`, and waited for: each test that failed with the first line it printed, each file's coverage,
 // then the counts, written into `out` where every test ran and none failed and into `err_msg` otherwise; 1, or 0
 // (at_terminal_tests.c)
@@ -28,7 +28,7 @@ int cli_at_terminal_tests(const CliAtTerminalRootCfg *args);
 // what the file or folder `from` carries that differs from this machine's taken in: each file and each setting of
 // settings.json named among `chosen`, `count` of them, or every one where none is named: 1 with what it took given, or
 // 0 with why given
-int cli_at_terminal_take(const CliAtTerminalCountCfg *args);
+int cli_at_terminal_alloc(const CliAtTerminalCountCfg *args);
 // the taking `id` undone, what it did given: 1, or 0 with why given
 int cli_at_terminal_undo(const CliAtTerminalCfg *args);
 
@@ -58,7 +58,7 @@ struct CliAtTerminalRootCfg
     unsigned int count;
     VerbaLinea *out;
     VerbaLinea *err_msg;
-    const char *const *given;
+    const char *const *supplied;
     int cover;
 };
 
@@ -96,7 +96,7 @@ typedef struct
 } CliAtTerminalCountNs;
 EMBED_TABLE_LAYOUT(CliAtTerminalCountNs, take);
 EMBED_TABLE_STORAGE CliAtTerminalCountNs cli_at_terminal_count EMBED_UNUSED = {
-    .take = cli_at_terminal_take,
+    .take = cli_at_terminal_alloc,
 };
 
 typedef struct

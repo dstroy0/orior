@@ -21,12 +21,12 @@ typedef struct CliInspectLanguageCtx CliInspectLanguageCtx;
 typedef struct CliInspectSizeScanCtx CliInspectSizeScanCtx;
 typedef struct CliInspectAtCtx CliInspectAtCtx;
 typedef struct CliInspectSetCtx CliInspectSetCtx;
-typedef struct CliInspectCarveCtx CliInspectCarveCtx;
+typedef struct CliInspectPartitionCtx CliInspectPartitionCtx;
 typedef struct CliInspectFactsCtx CliInspectFactsCtx;
 typedef struct CliInspectFactsTitleCtx CliInspectFactsTitleCtx;
 typedef struct CliInspectFactsLineVerbaLineaCtx CliInspectFactsLineVerbaLineaCtx;
 typedef struct CliInspectScanAheadCtx CliInspectScanAheadCtx;
-typedef struct CliInspectCarveSetCtx CliInspectCarveSetCtx;
+typedef struct CliInspectPartitionSetCtx CliInspectPartitionSetCtx;
 typedef struct CliInspectCtx CliInspectCtx;
 
 #include "embed_dispatch_layout.h"
@@ -42,15 +42,15 @@ typedef struct
     unsigned int comments;
     unsigned long long columns;
     unsigned int names;
-} CliInspectMost;
+} CliInspectMax;
 
-extern CliInspectMost g_cli_inspect_most;
+extern CliInspectMax g_cli_inspect_max;
 
 // the most tokens, lines and comments a reading contains, and the most columns a painting contains
-#define CLI_INSPECT_TOKENS (g_cli_inspect_most.tokens)
-#define CLI_INSPECT_LINES (g_cli_inspect_most.lines)
-#define CLI_INSPECT_COMMENTS (g_cli_inspect_most.comments)
-#define CLI_INSPECT_COLUMNS (g_cli_inspect_most.columns)
+#define CLI_INSPECT_TOKENS (g_cli_inspect_max.tokens)
+#define CLI_INSPECT_LINES (g_cli_inspect_max.lines)
+#define CLI_INSPECT_COMMENTS (g_cli_inspect_max.comments)
+#define CLI_INSPECT_COLUMNS (g_cli_inspect_max.columns)
 
 // A carving of a reading's cell into the lists of the sources that read it: where the next list starts, NULL where
 // the lists are only measured, and the bytes they take
@@ -58,38 +58,38 @@ typedef struct
 {
     unsigned char *at;
     unsigned long long bytes;
-} CliInspectCarve;
+} CliInspectPartition;
 
 // the next list of a carving, `bytes` long, aligned to eight bytes: its start, NULL where the carving only measures
-// (inspect_reading.c)
-void *cli_inspect_carve(const CliInspectCarveCtx *args);
+// (inspect_read_state.c)
+void *cli_inspect_partition(const CliInspectPartitionCtx *args);
 // the reading of `size` bytes of `text` in `language` taken, under the inspections' lock: its counts into
-// g_cli_inspect_most and every list a source of that language reads it into a part of one cell sized to them, 1, or
-// 0 where the cell cannot be taken; and the cell given back (inspect_reading.c)
-int cli_inspect_reading_reserve(const CliInspectLanguageCtx *args);
-void cli_inspect_reading_free(void);
+// g_cli_inspect_max and every list a source of that language reads it into a part of one cell sized to them, 1, or
+// 0 where the cell cannot be taken; and the cell given back (inspect_read_state.c)
+int cli_inspect_read_state_reserve(const CliInspectLanguageCtx *args);
+void cli_inspect_read_state_free(void);
 // each source's lists carved for a reading, the scan's, the painting's and the sorting's for every language, the rest
 // for theirs (inspect_scan.c, inspect_paint.c, inspect.c, inspect_js_lex.c, inspect_js_parse.c, inspect_js_write.c,
 // inspect_js_facts.c, inspect_py_lex.c, inspect_py_parse.c, inspect_py_sort.c, inspect_py_unread.c)
-void cli_inspect_scan_layout(const CliInspectCarveCtx *args);
-void cli_inspect_paint_layout(const CliInspectCarveCtx *args);
-void cli_inspect_sort_layout(const CliInspectCarveCtx *args);
-void cli_inspect_js_lex_layout(const CliInspectCarveCtx *args);
-void cli_inspect_js_parse_layout(const CliInspectCarveCtx *args);
-void cli_inspect_js_write_layout(const CliInspectCarveCtx *args);
-void cli_inspect_js_facts_layout(const CliInspectCarveCtx *args);
-void cli_inspect_py_lex_layout(const CliInspectCarveCtx *args);
-void cli_inspect_py_parse_layout(const CliInspectCarveCtx *args);
-void cli_inspect_py_sort_layout(const CliInspectCarveCtx *args);
-void cli_inspect_py_unread_layout(const CliInspectCarveCtx *args);
+void cli_inspect_scan_layout(const CliInspectPartitionCtx *args);
+void cli_inspect_paint_layout(const CliInspectPartitionCtx *args);
+void cli_inspect_sort_layout(const CliInspectPartitionCtx *args);
+void cli_inspect_js_lex_layout(const CliInspectPartitionCtx *args);
+void cli_inspect_js_parse_layout(const CliInspectPartitionCtx *args);
+void cli_inspect_js_write_layout(const CliInspectPartitionCtx *args);
+void cli_inspect_js_facts_layout(const CliInspectPartitionCtx *args);
+void cli_inspect_py_lex_layout(const CliInspectPartitionCtx *args);
+void cli_inspect_py_parse_layout(const CliInspectPartitionCtx *args);
+void cli_inspect_py_sort_layout(const CliInspectPartitionCtx *args);
+void cli_inspect_py_unread_layout(const CliInspectPartitionCtx *args);
 
 // code no path reaches reported as the text before the word that leaves the block, the word, and the text after; the
 // words that leave a block in JavaScript are return, throw, break and continue and in Python return, raise, break and
-// continue, so the longest is continue, and the report's room is the three and its 0
+// continue, so the longest is continue, and the report's capacity is the three and its 0
 #define CLI_INSPECT_UNREACHED_BEFORE "No path reaches this code: the `"
 #define CLI_INSPECT_UNREACHED_AFTER "` before it leaves the block."
 #define CLI_INSPECT_LEAVING_MAX_LEN "continue"
-#define CLI_INSPECT_UNREACHED_ROOM                                                                                     \
+#define CLI_INSPECT_UNREACHED_CAPACITY                                                                                 \
     ((sizeof(CLI_INSPECT_UNREACHED_BEFORE) - 1u) + (sizeof(CLI_INSPECT_LEAVING_MAX_LEN) - 1u) +                        \
      sizeof(CLI_INSPECT_UNREACHED_AFTER))
 _Static_assert((sizeof(CLI_INSPECT_LEAVING_MAX_LEN) >= sizeof("return")) &&
@@ -116,8 +116,8 @@ typedef struct
     unsigned char field;
     unsigned int start;
     unsigned int end;
-    CliInspectPlace from;
-    CliInspectPlace to;
+    CliInspectPosition from;
+    CliInspectPosition to;
 } CliInspectTok;
 
 // A set of names, each `size` bytes at `at`, `buckets` of them, a power of two, and the buckets it took, to clear it
@@ -126,7 +126,7 @@ typedef struct
 {
     const char **at;
     unsigned int *size;
-    unsigned int *taken;
+    unsigned int *reserved;
     unsigned int count;
     unsigned int buckets;
 } CliInspectSet;
@@ -151,10 +151,10 @@ void cli_inspect_scan_begin(const CliInspectSizeScanCtx *args);
 unsigned int cli_inspect_peek(const CliInspectScanAheadCtx *args);
 unsigned int cli_inspect_peek_at(const CliInspectScanAheadCtx *args);
 unsigned int cli_inspect_bump(const CliInspectSizeScanCtx *args);
-CliInspectPlace cli_inspect_place(const CliInspectScanCtx *args);
+CliInspectPosition cli_inspect_position(const CliInspectScanCtx *args);
 void cli_inspect_skip_line(const CliInspectSizeScanCtx *args);
-void cli_inspect_tok_put(const CliInspectScanCtx *args);
-void cli_inspect_comment_put(const CliInspectFromToCtx *args);
+void cli_inspect_tok_append(const CliInspectScanCtx *args);
+void cli_inspect_comment_append(const CliInspectFromToCtx *args);
 
 // whether a letter is alphabetic, alphanumeric or white as Rust's char defines, ASCII and the letters of the Unicode
 // properties the regular expressions read (inspect_scan.c)
@@ -164,9 +164,9 @@ int cli_inspect_white(const CliInspectCtx *args);
 
 // a set's lists carved for a reading, its buckets twice the reading's names; a set made empty; a name put in it; and
 // whether it contains a name (inspect_scan.c)
-void cli_inspect_set_layout(const CliInspectCarveSetCtx *args);
-void cli_inspect_set_clear(const CliInspectCarveSetCtx *args);
-void cli_inspect_set_put(const CliInspectSetCtx *args);
+void cli_inspect_set_layout(const CliInspectPartitionSetCtx *args);
+void cli_inspect_set_clear(const CliInspectPartitionSetCtx *args);
+void cli_inspect_set_append(const CliInspectSetCtx *args);
 int cli_inspect_set_has(const CliInspectAtCtx *args);
 
 // a painting begun over `size` bytes of `src`, each column of each line of no class; a span painted `class_of`, a
@@ -175,8 +175,8 @@ void cli_inspect_paint_begin(const CliInspectSizeSrcParsedCtx *args);
 void cli_inspect_paint(const CliInspectFromToCtx *args);
 void cli_inspect_paint_runs(const CliInspectSizeSrcParsedCtx *args);
 // a fold and a span put on a parse; and the parse's folds made each the widest that starts on its line
-void cli_inspect_fold_put(const CliInspectParsedCtx *args);
-void cli_inspect_range_put(const CliInspectFromToParsedCtx *args);
+void cli_inspect_fold_append(const CliInspectParsedCtx *args);
+void cli_inspect_range_append(const CliInspectFromToParsedCtx *args);
 void cli_inspect_folds_finish(const CliInspectSizeSrcParsedCtx *args);
 
 // `size` bytes stored in the facts' pool: where they stand, empty where the pool is full and the facts marked full; the
@@ -184,13 +184,13 @@ void cli_inspect_folds_finish(const CliInspectSizeSrcParsedCtx *args);
 // put on the last finding, `title` its title; and an edit put on the last fix (inspect.c)
 CliInspectText cli_inspect_text_store(const CliInspectTextCtx *args);
 CliInspectText cli_inspect_line_store(const CliInspectFactsLineVerbaLineaCtx *args);
-void cli_inspect_finding_put(const CliInspectFromCtx *args);
-void cli_inspect_fix_put(const CliInspectFactsCtx *args);
+void cli_inspect_finding_append(const CliInspectFromCtx *args);
+void cli_inspect_fix_append(const CliInspectFactsCtx *args);
 void cli_inspect_fix_title(const CliInspectFactsTitleCtx *args);
-void cli_inspect_edit_put(const CliInspectTextCtx *args);
+void cli_inspect_edit_append(const CliInspectTextCtx *args);
 // a name put on the facts' list of names, its alias where `alias` is not NULL: its place, CLI_INSPECT_FULL where the
 // list is full
-unsigned int cli_inspect_name_put(const CliInspectSizeFromCtx *args);
+unsigned int cli_inspect_name_append(const CliInspectSizeFromCtx *args);
 
 // the body written again from its members' lines with the methods among them sorted by name, case aside and then by
 // their bytes: each member a run of lines, `firsts` to `lasts`, and its name where `names` gives one; the lines between
@@ -237,14 +237,14 @@ struct CliInspectSizeSrcCtx
     const char *form;
     CliInspectEdit *edit;
     VerbaLinea *text;
-    CliInspectPlace *summary;
+    CliInspectPosition *summary;
     VerbaLinea *err_msg;
 };
 
 struct CliInspectFromCtx
 {
-    CliInspectPlace from;
-    CliInspectPlace to;
+    CliInspectPosition from;
+    CliInspectPosition to;
     CliFacts *facts;
     int severity;
     const VerbaLinea *message;
@@ -255,8 +255,8 @@ struct CliInspectFromCtx
 struct CliInspectSizeFromCtx
 {
     unsigned long long size;
-    CliInspectPlace from;
-    CliInspectPlace to;
+    CliInspectPosition from;
+    CliInspectPosition to;
     CliFacts *facts;
     const char *name;
     const char *alias;
@@ -267,8 +267,8 @@ struct CliInspectTextCtx
 {
     const char *text_text;
     unsigned long long size;
-    CliInspectPlace from;
-    CliInspectPlace to;
+    CliInspectPosition from;
+    CliInspectPosition to;
     CliFacts *facts;
 };
 
@@ -286,7 +286,7 @@ struct CliInspectScanCtx
     const CliInspectScan *scan;
     unsigned char kind;
     unsigned long long start;
-    CliInspectPlace from;
+    CliInspectPosition from;
     int field;
 };
 
@@ -313,15 +313,15 @@ struct CliInspectSizeSrcFactsCtx
 
 struct CliInspectFromToCtx
 {
-    CliInspectPlace from;
-    CliInspectPlace to;
+    CliInspectPosition from;
+    CliInspectPosition to;
     unsigned char class_of;
 };
 
 struct CliInspectFromToParsedCtx
 {
-    CliInspectPlace from;
-    CliInspectPlace to;
+    CliInspectPosition from;
+    CliInspectPosition to;
     CliParsed *parsed;
 };
 
@@ -353,9 +353,9 @@ struct CliInspectSetCtx
     unsigned int size_u32;
 };
 
-struct CliInspectCarveCtx
+struct CliInspectPartitionCtx
 {
-    CliInspectCarve *carve;
+    CliInspectPartition *partition;
     unsigned long long bytes;
 };
 
@@ -383,9 +383,9 @@ struct CliInspectScanAheadCtx
     unsigned int ahead;
 };
 
-struct CliInspectCarveSetCtx
+struct CliInspectPartitionSetCtx
 {
-    CliInspectCarve *carve;
+    CliInspectPartition *partition;
     CliInspectSet *set;
 };
 
@@ -396,23 +396,24 @@ struct CliInspectCtx
 
 typedef struct
 {
-    void *(*carve)(const CliInspectCarveCtx *args);
-    void (*scan_layout)(const CliInspectCarveCtx *args);
-    void (*paint_layout)(const CliInspectCarveCtx *args);
-    void (*sort_layout)(const CliInspectCarveCtx *args);
-    void (*js_lex_layout)(const CliInspectCarveCtx *args);
-    void (*js_parse_layout)(const CliInspectCarveCtx *args);
-    void (*js_write_layout)(const CliInspectCarveCtx *args);
-    void (*js_facts_layout)(const CliInspectCarveCtx *args);
-    void (*py_lex_layout)(const CliInspectCarveCtx *args);
-    void (*py_parse_layout)(const CliInspectCarveCtx *args);
-    void (*py_sort_layout)(const CliInspectCarveCtx *args);
-    void (*py_unread_layout)(const CliInspectCarveCtx *args);
-} CliInspectCarveNs;
-EMBED_TABLE_LAYOUT(CliInspectCarveNs, carve, scan_layout, paint_layout, sort_layout, js_lex_layout, js_parse_layout,
-                   js_write_layout, js_facts_layout, py_lex_layout, py_parse_layout, py_sort_layout, py_unread_layout);
-EMBED_TABLE_STORAGE CliInspectCarveNs cli_inspect_carve_internal EMBED_UNUSED = {
-    .carve = cli_inspect_carve,
+    void *(*partition)(const CliInspectPartitionCtx *args);
+    void (*scan_layout)(const CliInspectPartitionCtx *args);
+    void (*paint_layout)(const CliInspectPartitionCtx *args);
+    void (*sort_layout)(const CliInspectPartitionCtx *args);
+    void (*js_lex_layout)(const CliInspectPartitionCtx *args);
+    void (*js_parse_layout)(const CliInspectPartitionCtx *args);
+    void (*js_write_layout)(const CliInspectPartitionCtx *args);
+    void (*js_facts_layout)(const CliInspectPartitionCtx *args);
+    void (*py_lex_layout)(const CliInspectPartitionCtx *args);
+    void (*py_parse_layout)(const CliInspectPartitionCtx *args);
+    void (*py_sort_layout)(const CliInspectPartitionCtx *args);
+    void (*py_unread_layout)(const CliInspectPartitionCtx *args);
+} CliInspectPartitionNs;
+EMBED_TABLE_LAYOUT(CliInspectPartitionNs, partition, scan_layout, paint_layout, sort_layout, js_lex_layout,
+                   js_parse_layout, js_write_layout, js_facts_layout, py_lex_layout, py_parse_layout, py_sort_layout,
+                   py_unread_layout);
+EMBED_TABLE_STORAGE CliInspectPartitionNs cli_inspect_partition_internal EMBED_UNUSED = {
+    .partition = cli_inspect_partition,
     .scan_layout = cli_inspect_scan_layout,
     .paint_layout = cli_inspect_paint_layout,
     .sort_layout = cli_inspect_sort_layout,
@@ -428,11 +429,11 @@ EMBED_TABLE_STORAGE CliInspectCarveNs cli_inspect_carve_internal EMBED_UNUSED = 
 
 typedef struct
 {
-    int (*reading_reserve)(const CliInspectLanguageCtx *args);
+    int (*read_state_reserve)(const CliInspectLanguageCtx *args);
 } CliInspectLanguageNsTable;
-EMBED_TABLE_LAYOUT(CliInspectLanguageNsTable, reading_reserve);
+EMBED_TABLE_LAYOUT(CliInspectLanguageNsTable, read_state_reserve);
 EMBED_TABLE_STORAGE CliInspectLanguageNsTable cli_inspect_language_internal EMBED_UNUSED = {
-    .reading_reserve = cli_inspect_reading_reserve,
+    .read_state_reserve = cli_inspect_read_state_reserve,
 };
 
 typedef struct
@@ -461,23 +462,23 @@ EMBED_TABLE_STORAGE CliInspectScanAheadNs cli_inspect_scan_ahead_internal EMBED_
 
 typedef struct
 {
-    CliInspectPlace (*place)(const CliInspectScanCtx *args);
-    void (*tok_put)(const CliInspectScanCtx *args);
+    CliInspectPosition (*place)(const CliInspectScanCtx *args);
+    void (*tok_append)(const CliInspectScanCtx *args);
 } CliInspectScanNs;
-EMBED_TABLE_LAYOUT(CliInspectScanNs, place, tok_put);
+EMBED_TABLE_LAYOUT(CliInspectScanNs, place, tok_append);
 EMBED_TABLE_STORAGE CliInspectScanNs cli_inspect_scan_internal EMBED_UNUSED = {
-    .place = cli_inspect_place,
-    .tok_put = cli_inspect_tok_put,
+    .place = cli_inspect_position,
+    .tok_append = cli_inspect_tok_append,
 };
 
 typedef struct
 {
-    void (*comment_put)(const CliInspectFromToCtx *args);
+    void (*comment_append)(const CliInspectFromToCtx *args);
     void (*paint)(const CliInspectFromToCtx *args);
 } CliInspectFromToNs;
-EMBED_TABLE_LAYOUT(CliInspectFromToNs, comment_put, paint);
+EMBED_TABLE_LAYOUT(CliInspectFromToNs, comment_append, paint);
 EMBED_TABLE_STORAGE CliInspectFromToNs cli_inspect_from_to_internal EMBED_UNUSED = {
-    .comment_put = cli_inspect_comment_put,
+    .comment_append = cli_inspect_comment_append,
     .paint = cli_inspect_paint,
 };
 
@@ -496,22 +497,22 @@ EMBED_TABLE_STORAGE CliInspectNsTable cli_inspect_internal EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*set_layout)(const CliInspectCarveSetCtx *args);
-    void (*set_clear)(const CliInspectCarveSetCtx *args);
-} CliInspectCarveSetNs;
-EMBED_TABLE_LAYOUT(CliInspectCarveSetNs, set_layout, set_clear);
-EMBED_TABLE_STORAGE CliInspectCarveSetNs cli_inspect_carve_set_internal EMBED_UNUSED = {
+    void (*set_layout)(const CliInspectPartitionSetCtx *args);
+    void (*set_clear)(const CliInspectPartitionSetCtx *args);
+} CliInspectPartitionSetNs;
+EMBED_TABLE_LAYOUT(CliInspectPartitionSetNs, set_layout, set_clear);
+EMBED_TABLE_STORAGE CliInspectPartitionSetNs cli_inspect_partition_set_internal EMBED_UNUSED = {
     .set_layout = cli_inspect_set_layout,
     .set_clear = cli_inspect_set_clear,
 };
 
 typedef struct
 {
-    void (*set_put)(const CliInspectSetCtx *args);
+    void (*set_append)(const CliInspectSetCtx *args);
 } CliInspectSetNs;
-EMBED_TABLE_LAYOUT(CliInspectSetNs, set_put);
+EMBED_TABLE_LAYOUT(CliInspectSetNs, set_append);
 EMBED_TABLE_STORAGE CliInspectSetNs cli_inspect_set_internal EMBED_UNUSED = {
-    .set_put = cli_inspect_set_put,
+    .set_append = cli_inspect_set_append,
 };
 
 typedef struct
@@ -542,31 +543,31 @@ EMBED_TABLE_STORAGE CliInspectSizeSrcParsedNs cli_inspect_size_src_parsed_intern
 
 typedef struct
 {
-    void (*fold_put)(const CliInspectParsedCtx *args);
+    void (*fold_append)(const CliInspectParsedCtx *args);
 } CliInspectParsedNsTable;
-EMBED_TABLE_LAYOUT(CliInspectParsedNsTable, fold_put);
+EMBED_TABLE_LAYOUT(CliInspectParsedNsTable, fold_append);
 EMBED_TABLE_STORAGE CliInspectParsedNsTable cli_inspect_parsed_internal EMBED_UNUSED = {
-    .fold_put = cli_inspect_fold_put,
+    .fold_append = cli_inspect_fold_append,
 };
 
 typedef struct
 {
-    void (*range_put)(const CliInspectFromToParsedCtx *args);
+    void (*range_append)(const CliInspectFromToParsedCtx *args);
 } CliInspectFromToParsedNs;
-EMBED_TABLE_LAYOUT(CliInspectFromToParsedNs, range_put);
+EMBED_TABLE_LAYOUT(CliInspectFromToParsedNs, range_append);
 EMBED_TABLE_STORAGE CliInspectFromToParsedNs cli_inspect_from_to_parsed_internal EMBED_UNUSED = {
-    .range_put = cli_inspect_range_put,
+    .range_append = cli_inspect_range_append,
 };
 
 typedef struct
 {
     CliInspectText (*text_store)(const CliInspectTextCtx *args);
-    void (*edit_put)(const CliInspectTextCtx *args);
+    void (*edit_append)(const CliInspectTextCtx *args);
 } CliInspectTextNs;
-EMBED_TABLE_LAYOUT(CliInspectTextNs, text_store, edit_put);
+EMBED_TABLE_LAYOUT(CliInspectTextNs, text_store, edit_append);
 EMBED_TABLE_STORAGE CliInspectTextNs cli_inspect_text_internal EMBED_UNUSED = {
     .text_store = cli_inspect_text_store,
-    .edit_put = cli_inspect_edit_put,
+    .edit_append = cli_inspect_edit_append,
 };
 
 typedef struct
@@ -580,20 +581,20 @@ EMBED_TABLE_STORAGE CliInspectFactsLineVerbaLineaNs cli_inspect_facts_line_verba
 
 typedef struct
 {
-    void (*finding_put)(const CliInspectFromCtx *args);
+    void (*finding_append)(const CliInspectFromCtx *args);
 } CliInspectFromNs;
-EMBED_TABLE_LAYOUT(CliInspectFromNs, finding_put);
+EMBED_TABLE_LAYOUT(CliInspectFromNs, finding_append);
 EMBED_TABLE_STORAGE CliInspectFromNs cli_inspect_from_internal EMBED_UNUSED = {
-    .finding_put = cli_inspect_finding_put,
+    .finding_append = cli_inspect_finding_append,
 };
 
 typedef struct
 {
-    void (*fix_put)(const CliInspectFactsCtx *args);
+    void (*fix_append)(const CliInspectFactsCtx *args);
 } CliInspectFactsNsTable;
-EMBED_TABLE_LAYOUT(CliInspectFactsNsTable, fix_put);
+EMBED_TABLE_LAYOUT(CliInspectFactsNsTable, fix_append);
 EMBED_TABLE_STORAGE CliInspectFactsNsTable cli_inspect_facts_internal EMBED_UNUSED = {
-    .fix_put = cli_inspect_fix_put,
+    .fix_append = cli_inspect_fix_append,
 };
 
 typedef struct
@@ -607,11 +608,11 @@ EMBED_TABLE_STORAGE CliInspectFactsTitleNs cli_inspect_facts_title_internal EMBE
 
 typedef struct
 {
-    unsigned int (*name_put)(const CliInspectSizeFromCtx *args);
+    unsigned int (*name_append)(const CliInspectSizeFromCtx *args);
 } CliInspectSizeFromNs;
-EMBED_TABLE_LAYOUT(CliInspectSizeFromNs, name_put);
+EMBED_TABLE_LAYOUT(CliInspectSizeFromNs, name_append);
 EMBED_TABLE_STORAGE CliInspectSizeFromNs cli_inspect_size_from_internal EMBED_UNUSED = {
-    .name_put = cli_inspect_name_put,
+    .name_append = cli_inspect_name_append,
 };
 
 typedef struct

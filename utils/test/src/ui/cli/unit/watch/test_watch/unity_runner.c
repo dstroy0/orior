@@ -8,18 +8,8 @@
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
 extern void tearDown(void);
-extern void test_a_batch_reports_which_folders_and_files_changed(void);
-extern void test_gits_objects_are_not_reported(void);
-extern void test_gits_index_changes_gits_view(void);
-extern void test_an_overflowed_record_of_changes_is_reported(void);
-extern void test_a_running_watch_stores_nothing_in_the_temporary_tier(void);
-extern void test_a_rounds_lists_stay_allocated_for_the_next_round(void);
-extern void test_the_system_reports_a_written_file(void);
-extern void test_the_system_reports_a_new_file(void);
-extern void test_the_system_reports_the_folder_of_a_new_file(void);
 extern void test_a_poll_finds_a_written_file(void);
 extern void test_a_poll_finds_a_new_file(void);
-extern void test_changes_and_batches_use_memory_sized_to_them_and_release_it(void);
 
 
 /*=======Mock Management=====*/
@@ -81,18 +71,8 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\watch\\test_watch\\test_watch.c");
-  run_test(test_a_batch_reports_which_folders_and_files_changed, "test_a_batch_reports_which_folders_and_files_changed", 140);
-  run_test(test_gits_objects_are_not_reported, "test_gits_objects_are_not_reported", 147);
-  run_test(test_gits_index_changes_gits_view, "test_gits_index_changes_gits_view", 154);
-  run_test(test_an_overflowed_record_of_changes_is_reported, "test_an_overflowed_record_of_changes_is_reported", 162);
-  run_test(test_a_running_watch_stores_nothing_in_the_temporary_tier, "test_a_running_watch_stores_nothing_in_the_temporary_tier", 171);
-  run_test(test_a_rounds_lists_stay_allocated_for_the_next_round, "test_a_rounds_lists_stay_allocated_for_the_next_round", 177);
-  run_test(test_the_system_reports_a_written_file, "test_the_system_reports_a_written_file", 183);
-  run_test(test_the_system_reports_a_new_file, "test_the_system_reports_a_new_file", 189);
-  run_test(test_the_system_reports_the_folder_of_a_new_file, "test_the_system_reports_the_folder_of_a_new_file", 195);
-  run_test(test_a_poll_finds_a_written_file, "test_a_poll_finds_a_written_file", 201);
-  run_test(test_a_poll_finds_a_new_file, "test_a_poll_finds_a_new_file", 207);
-  run_test(test_changes_and_batches_use_memory_sized_to_them_and_release_it, "test_changes_and_batches_use_memory_sized_to_them_and_release_it", 213);
+  run_test(test_a_poll_finds_a_written_file, "test_a_poll_finds_a_written_file", 81);
+  run_test(test_a_poll_finds_a_new_file, "test_a_poll_finds_a_new_file", 87);
 
   return UNITY_END();
 }

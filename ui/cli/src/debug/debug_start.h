@@ -10,10 +10,10 @@ typedef struct CliDebugStartCfg CliDebugStartCfg;
 #include "embed_dispatch_layout.h"
 
 // A session's plan: the kind of its start, the test it runs, its language, whether it is a recorded run, the program a
-// CMake or Meson build makes from its file, the adapter's spec in the session's start room, the toolchain's name and
-// id, and the adapter's program; the request, launch or attach, its arguments in the start room, the session's name,
-// the session that started it; and the address of a debugger already listening, and whether ending the session ends
-// the program there
+// CMake or Meson build makes from its file, the adapter's spec in the session's start capacity, the toolchain's name
+// and id, and the adapter's program; the request, launch or attach, its arguments in the start capacity, the session's
+// name, the session that started it; and the address of a debugger already listening, and whether ending the session
+// ends the program there
 typedef struct
 {
     char kind[16];
@@ -21,7 +21,7 @@ typedef struct
     char language[CLI_NAME_MAX_LEN];
     int recording;
     CliProgram made;
-    int has_made;
+    int has_created;
     unsigned int spec;
     char tool[CLI_NAME_MAX_LEN];
     char tool_id[CLI_NAME_MAX_LEN];

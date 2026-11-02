@@ -17,15 +17,15 @@ typedef struct
     char paths[CLI_PATH_MAX_LEN * 2u];
 } CliElfQueued;
 // A reading of a program's libraries, one cell for the call: the program's dynamic section and a library's, and the
-// folders the loader's settings name; and the libraries queued, a cell of `room` at their most
+// folders the loader's settings name; and the libraries queued, a cell of `capacity` at their most
 typedef struct
 {
     CliDynamic *dynamic;
     CliDynamic *more;
     char (*folders)[CLI_PATH_MAX_LEN];
     CliElfQueued *queue;
-    unsigned int room;
-} CliElfReading;
+    unsigned int capacity;
+} CliElfReadState;
 
 // the libraries a reading's queue is taken with
 
@@ -38,9 +38,9 @@ typedef struct
     unsigned long long strings;
     unsigned long long offset;
     char *out;
-    unsigned long long room;
+    unsigned long long capacity;
     const char *path;
-    CliElfReading *reading;
+    CliElfReadState *read_state;
     unsigned int queued;
     const char *name;
     const char *by;
@@ -50,9 +50,9 @@ typedef struct
     unsigned long long length;
     const CliElfQueued *one;
     char *at;
-    int *beside;
+    int *adjacent;
     CliBinaryReport *report;
-    const CliElfReading *reading_read;
+    const CliElfReadState *read_state_read;
     unsigned int next;
     VerbaLinea *err_msg;
 } BinaryElfCtx;
@@ -69,14 +69,14 @@ EMBED_INLINE int cli_glibc_order(const BinaryElfCtx *args)
         unsigned long long right = 0ull;
         const int has_left = (a[0] >= '0') && (a[0] <= '9');
         const int has_right = (b[0] >= '0') && (b[0] <= '9');
-        unsigned long long past_left = 0ull;
+        unsigned long long end_left = 0ull;
         left = EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = a, .at = 0ull,
-                          .size = cellul.len(&(CatenaFinitaCfg){.src = a, .cap = CLI_CELLS_POOL}), .end = &past_left);
-        a += past_left;
-        unsigned long long past_right = 0ull;
+                          .size = cellul.len(&(CatenaFinitaCfg){.src = a, .cap = CLI_CELLS_POOL}), .end = &end_left);
+        a += end_left;
+        unsigned long long end_right = 0ull;
         right = EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = b, .at = 0ull,
-                           .size = cellul.len(&(CatenaFinitaCfg){.src = b, .cap = CLI_CELLS_POOL}), .end = &past_right);
-        b += past_right;
+                           .size = cellul.len(&(CatenaFinitaCfg){.src = b, .cap = CLI_CELLS_POOL}), .end = &end_right);
+        b += end_right;
         if (!has_left || !has_right)
         {
             return has_left - has_right;
@@ -96,9 +96,9 @@ EMBED_INLINE int cli_string(const BinaryElfCtx *args)
     const unsigned char *bytes = args->bytes;
     unsigned long long size = args->size;
     char *out = args->out;
-    unsigned long long room = args->room;
+    unsigned long long capacity = args->capacity;
     return EMBED_CALL(cli_binary_bytes.text, CliBinaryBytesCfg, .bytes = bytes, .size = size,
-                      .at = args->strings + args->offset, .out = out, .room = room);
+                      .at = args->strings + args->offset, .out = out, .capacity = capacity);
 }
 
 int cli_elf_dynamic(const CliBinaryErrMsgBytesCfg *args)
@@ -201,7 +201,7 @@ int cli_elf_dynamic(const CliBinaryErrMsgBytesCfg *args)
                        .at = dynamic_start + (index * 16u) + 8u, .width = 8u);
         if ((tag == 1ull) && (args->found->count < 64u) &&
             EMBED_CALL(cli_string, BinaryElfCtx, .bytes = bytes, .size = args->size, .strings = strings,
-                       .offset = value, .out = args->found->needed[args->found->count], .room = CLI_NAME_MAX_LEN))
+                       .offset = value, .out = args->found->needed[args->found->count], .capacity = CLI_NAME_MAX_LEN))
         {
             args->found->count += 1u;
         }
@@ -210,7 +210,7 @@ int cli_elf_dynamic(const CliBinaryErrMsgBytesCfg *args)
             char *const into = (tag == 15ull) ? args->found->rpath : args->found->runpath;
             char text[CLI_PATH_MAX_LEN * 2u];
             if (EMBED_CALL(cli_string, BinaryElfCtx, .bytes = bytes, .size = args->size, .strings = strings,
-                           .offset = value, .out = text, .room = sizeof(text)))
+                           .offset = value, .out = text, .capacity = sizeof(text)))
             {
                 VerbaLinea line = {into, CLI_PATH_MAX_LEN * 2u,
                                    cellul.len(&(CatenaFinitaCfg){.src = into, .cap = CLI_CELLS_POOL})};
@@ -233,7 +233,7 @@ int cli_elf_dynamic(const CliBinaryErrMsgBytesCfg *args)
             if (EMBED_CALL(cli_string, BinaryElfCtx, .bytes = bytes, .size = args->size, .strings = strings,
                            .offset = EMBED_CALL(cli_binary_bytes_size.number, CliBinaryBytesSizeCfg, .bytes = bytes,
                                                 .size = args->size, .at = aux + 8u, .width = 4u),
-                           .out = version, .room = sizeof(version)) &&
+                           .out = version, .capacity = sizeof(version)) &&
                 (cellul.starts(&(CatenaFinitaCfg){.src = version, .other = "GLIBC_2", .cap = CLI_CELLS_POOL})) &&
                 (!args->found->has_glibc ||
                  (EMBED_CALL(cli_glibc_order, BinaryElfCtx, .a = version, .b = args->found->glibc) > 0)))
@@ -288,17 +288,17 @@ EMBED_INLINE void cli_folder_get(const BinaryElfCtx *args)
 // a library queued with the run paths its loader names, its RUNPATH where it has one, else its RPATH
 EMBED_INLINE unsigned int cli_on_queue(const BinaryElfCtx *args)
 {
-    if (args->reading->room == 0u)
+    if (args->read_state->capacity == 0u)
     {
-        args->reading->queue = g_cli_cells->temporary_buf_alloc(CLI_BINARY_LIBRARIES * sizeof(*args->reading->queue),
-                                                                &g_cli_programs_cells);
-        args->reading->room = (args->reading->queue != NULL) ? CLI_BINARY_LIBRARIES : 0u;
+        args->read_state->queue = g_cli_cells->temporary_buf_alloc(
+            CLI_BINARY_LIBRARIES * sizeof(*args->read_state->queue), &g_cli_programs_cells);
+        args->read_state->capacity = (args->read_state->queue != NULL) ? CLI_BINARY_LIBRARIES : 0u;
     }
-    if (args->queued >= args->reading->room)
+    if (args->queued >= args->read_state->capacity)
     {
         return args->queued;
     }
-    CliElfQueued *const one = &args->reading->queue[args->queued];
+    CliElfQueued *const one = &args->read_state->queue[args->queued];
     memor.cpy(&(MemoriaCfg){.dst = one->name,
                             .src = args->name,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}) + 1u});
@@ -348,7 +348,7 @@ EMBED_INLINE void cli_on_expand(const BinaryElfCtx *args)
 // the library found among a queued one's run paths, its path into `at`, and whether that path is beside it by $ORIGIN
 EMBED_INLINE int cli_in_paths(const BinaryElfCtx *args)
 {
-    int *beside = args->beside;
+    int *adjacent = args->adjacent;
     const char *from = args->one->paths;
     for (const char *place = args->one->paths;; place += 1)
     {
@@ -371,7 +371,7 @@ EMBED_INLINE int cli_in_paths(const BinaryElfCtx *args)
                     VerbaLinea entry_line = {entry, sizeof(entry), 0ull};
                     mmgr_line_put_n(&entry_line, from, length);
                     mmgr_line_finish(&entry_line);
-                    *beside =
+                    *adjacent =
                         cellul.find(&(CatenaFinitaCfg){
                             .src = entry, .cap = CLI_CELLS_POOL, .other = "ORIGIN", .other_cap = CLI_CELLS_POOL}) !=
                         NULL;
@@ -424,8 +424,8 @@ EMBED_INLINE int cli_queued_before(const BinaryElfCtx *args)
 {
     for (unsigned int at = 0u; at < args->next; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = args->reading_read->queue[at].name,
-                                         .other = args->reading_read->queue[args->next].name,
+        if (cellul.eq(&(CatenaFinitaCfg){.src = args->read_state_read->queue[at].name,
+                                         .other = args->read_state_read->queue[args->next].name,
                                          .cap = CLI_CELLS_POOL}))
         {
             return 1;
@@ -441,8 +441,9 @@ EMBED_INLINE int cli_elf_read(const BinaryElfCtx *args)
     unsigned long long size = args->size;
     const char *path = args->path;
     VerbaLinea *err_msg = args->err_msg;
-    const unsigned int folders = EMBED_CALL(cli_binary.linux_folders, CliBinaryCfg, .folders = args->reading->folders);
-    CliDynamic *const dynamic = args->reading->dynamic;
+    const unsigned int folders =
+        EMBED_CALL(cli_binary.linux_folders, CliBinaryCfg, .folders = args->read_state->folders);
+    CliDynamic *const dynamic = args->read_state->dynamic;
     if (!EMBED_CALL(cli_binary_err_msg_bytes.elf_dynamic, CliBinaryErrMsgBytesCfg, .bytes = bytes, .size = size,
                     .found = dynamic, .err_msg = err_msg))
     {
@@ -467,14 +468,14 @@ EMBED_INLINE int cli_elf_read(const BinaryElfCtx *args)
     unsigned int queued = 0u;
     for (unsigned int at = 0u; at < dynamic->count; at += 1u)
     {
-        queued = EMBED_CALL(cli_on_queue, BinaryElfCtx, .reading = args->reading, .queued = queued,
+        queued = EMBED_CALL(cli_on_queue, BinaryElfCtx, .read_state = args->read_state, .queued = queued,
                             .name = dynamic->needed[at], .by = program, .origin = origin, .dynamic = dynamic);
     }
     EMBED_CALL(cli_build_paths, BinaryElfCtx, .dynamic = dynamic, .report = args->report);
     for (unsigned int next = 0u; next < queued; next += 1u)
     {
-        const CliElfQueued *const one = &args->reading->queue[next];
-        if (EMBED_CALL(cli_queued_before, BinaryElfCtx, .reading_read = args->reading, .next = next) ||
+        const CliElfQueued *const one = &args->read_state->queue[next];
+        if (EMBED_CALL(cli_queued_before, BinaryElfCtx, .read_state_read = args->read_state, .next = next) ||
             (args->report->libraries >= CLI_BINARY_LIBRARIES))
         {
             continue;
@@ -488,10 +489,10 @@ EMBED_INLINE int cli_elf_read(const BinaryElfCtx *args)
                                 .src = one->by,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = one->by, .cap = CLI_CELLS_POOL}) + 1u});
         library->has_at = 1;
-        int beside = 0;
-        if (EMBED_CALL(cli_in_paths, BinaryElfCtx, .one = one, .at = library->at, .beside = &beside))
+        int adjacent = 0;
+        if (EMBED_CALL(cli_in_paths, BinaryElfCtx, .one = one, .at = library->at, .adjacent = &adjacent))
         {
-            library->found = beside ? CLI_FOUND_BESIDE : CLI_FOUND_BUILD_PATH;
+            library->found = adjacent ? CLI_FOUND_ADJACENT : CLI_FOUND_BUILD_PATH;
         }
         else
         {
@@ -500,7 +501,7 @@ EMBED_INLINE int cli_elf_read(const BinaryElfCtx *args)
             for (unsigned int at = 0u; !library->has_at && (at < folders); at += 1u)
             {
                 VerbaLinea line = {library->at, CLI_PATH_MAX_LEN, 0ull};
-                mmgr_line_put(&line, args->reading->folders[at]);
+                mmgr_line_put(&line, args->read_state->folders[at]);
                 mmgr_line_ch(&line, '/');
                 mmgr_line_put(&line, one->name);
                 library->has_at =
@@ -509,16 +510,16 @@ EMBED_INLINE int cli_elf_read(const BinaryElfCtx *args)
             }
             library->found = library->has_at ? CLI_FOUND_SYSTEM : CLI_FOUND_MISSING;
         }
-        if (!library->has_at || ((library->found != CLI_FOUND_BESIDE) && (library->found != CLI_FOUND_BUILD_PATH)))
+        if (!library->has_at || ((library->found != CLI_FOUND_ADJACENT) && (library->found != CLI_FOUND_BUILD_PATH)))
         {
             continue;
         }
         unsigned long long more_size = 0ull;
-        const unsigned char *const more = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = library->at,
+        const unsigned char *const more = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = library->at,
                                                      .size_pointer = &more_size, .owner = &g_cli_programs_cells);
         char err_buf[CLI_PATH_MAX_LEN];
         VerbaLinea ignored = {err_buf, sizeof(err_buf), 0ull};
-        CliDynamic *const loaded = args->reading->more;
+        CliDynamic *const loaded = args->read_state->more;
         if ((more != NULL) && EMBED_CALL(cli_binary_err_msg_bytes.elf_dynamic, CliBinaryErrMsgBytesCfg, .bytes = more,
                                          .size = more_size, .found = loaded, .err_msg = &ignored))
         {
@@ -536,7 +537,7 @@ EMBED_INLINE int cli_elf_read(const BinaryElfCtx *args)
             EMBED_CALL(cli_folder_get, BinaryElfCtx, .path = library->at, .out = more_origin);
             for (unsigned int at = 0u; at < loaded->count; at += 1u)
             {
-                queued = EMBED_CALL(cli_on_queue, BinaryElfCtx, .reading = args->reading, .queued = queued,
+                queued = EMBED_CALL(cli_on_queue, BinaryElfCtx, .read_state = args->read_state, .queued = queued,
                                     .name = loaded->needed[at], .by = library->name, .origin = more_origin,
                                     .dynamic = loaded);
             }
@@ -558,12 +559,12 @@ int cli_binary_elf_read(const CliBinaryPathReportCfg *args)
         mmgr_line_put(args->err_msg, "a reading of a program's libraries could not be given a cell");
         return 0;
     }
-    CliElfReading reading = {(CliDynamic *)(void *)cell, ((CliDynamic *)(void *)cell) + 1,
-                             (char (*)[CLI_PATH_MAX_LEN])(void *)(cell + dynamics), NULL, 0u};
+    CliElfReadState read_state = {(CliDynamic *)(void *)cell, ((CliDynamic *)(void *)cell) + 1,
+                                  (char (*)[CLI_PATH_MAX_LEN])(void *)(cell + dynamics), NULL, 0u};
     const int read =
-        EMBED_CALL(cli_elf_read, BinaryElfCtx, .reading = &reading, .bytes = args->bytes, .size = args->size,
+        EMBED_CALL(cli_elf_read, BinaryElfCtx, .read_state = &read_state, .bytes = args->bytes, .size = args->size,
                    .path = args->path, .report = args->report, .err_msg = args->err_msg);
-    g_cli_cells->persistent_buf_release(reading.queue, &g_cli_programs_cells);
+    g_cli_cells->persistent_buf_release(read_state.queue, &g_cli_programs_cells);
     g_cli_cells->persistent_buf_release(cell, &g_cli_programs_cells);
     return read;
 }

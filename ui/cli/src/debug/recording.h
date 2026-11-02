@@ -22,7 +22,7 @@ typedef struct CliRecordingCfg CliRecordingCfg;
 #include "embed_dispatch_layout.h"
 
 // the adapter that records a Python program's run in the tree at `root` and steps through it, begun: its context, for
-// cli_dap_within to hand `cli_recording_serve`, or NULL where no room for the replay is left; and a request served
+// cli_dap_within to hand `cli_recording_serve`, or NULL where no capacity for the replay is left; and a request served
 // (recording_request.c)
 void *cli_recording_begin(const CliRecordingCfg *args);
 int cli_recording_serve(const CliDapServeCfg *args);

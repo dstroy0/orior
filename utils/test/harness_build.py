@@ -155,13 +155,28 @@ def cmd_source_syntax(a):
 def cmd_source_tests_syntax(a):
     os.makedirs(OUT, exist_ok=True)
     listed = os.path.join(OUT, "tests_syntax.txt")
-    folder = os.path.join(ROOT, "utils", "test", "src", "ui", "cli")
+    top = os.path.join(ROOT, "utils", "test", "src", "ui")
+    unity = os.path.join(ROOT, "build", "unity", "src")
+    sources = [
+        os.path.join(folder, name)
+        for folder, _, names in os.walk(top)
+        for name in names
+        if name.endswith(".c") and (name != "unity_runner.c")
+    ]
+
+    def errors_of(source):
+        said = subprocess.run(
+            ["clang", "-std=c11", "-fsyntax-only", "-I", ROOT, "-I", unity, "-DUNITY_INCLUDE_DOUBLE", "-DUNITY_NORETURN=_Noreturn", *MMGR_FLAGS, source],
+            capture_output=True,
+            text=True,
+            errors="replace",
+        )
+        return [line for line in (said.stdout + said.stderr).splitlines() if "error:" in line]
+
     errors = []
-    for name in sorted(os.listdir(folder)):
-        if not name.endswith(".c"):
-            continue
-        said = subprocess.run(["clang", "-std=c11", "-fsyntax-only", *MMGR_FLAGS, os.path.join(folder, name)], capture_output=True, text=True, errors="replace")
-        errors.extend(line for line in (said.stdout + said.stderr).splitlines() if "error:" in line)
+    with concurrent.futures.ThreadPoolExecutor(FRAME_JOBS) as pool:
+        for found in pool.map(errors_of, sorted(sources)):
+            errors.extend(found)
     with open(listed, "w", encoding="utf-8", newline="\n") as out:
         out.write("".join(line + "\n" for line in errors))
     print(len(errors))

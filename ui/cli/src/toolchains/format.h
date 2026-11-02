@@ -24,7 +24,6 @@ typedef struct CliFormatLanguageCfg CliFormatLanguageCfg;
 // or 0 where none takes it; every language a formatter formats, written as a JSON array; and the program that formats
 // `language` into `program`, sized for CLI_NAME_MAX_LEN: 1, or 0 where orior_cli has no formatter for it
 int cli_format_language_get(const CliFormatCfg *args);
-void cli_format_languages(const CliFormatPathCfg *args);
 int cli_format_program_get(const CliFormatLanguageCfg *args);
 
 // the width the formatter of `language` wraps lines of the file at `path` to into `width`: the project's own setting
@@ -82,12 +81,10 @@ EMBED_TABLE_STORAGE CliFormatNs cli_format_table EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*languages)(const CliFormatPathCfg *args);
     int (*format)(const CliFormatPathCfg *args);
 } CliFormatPathNs;
-EMBED_TABLE_LAYOUT(CliFormatPathNs, languages, format);
+EMBED_TABLE_LAYOUT(CliFormatPathNs, format);
 EMBED_TABLE_STORAGE CliFormatPathNs cli_format_path EMBED_UNUSED = {
-    .languages = cli_format_languages,
     .format = cli_format,
 };
 

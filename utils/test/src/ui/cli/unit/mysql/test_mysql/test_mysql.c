@@ -25,10 +25,10 @@ static CliDbFailure s_failure;
 static char s_value[MYSQL_ROWS][MYSQL_VALUES][MYSQL_VALUE];
 static int s_null[MYSQL_ROWS][MYSQL_VALUES];
 static unsigned int s_rows;
-static MysqlStopper s_stopper;
+static MysqlStopper s_cancel_thread;
 
 // what the live MySQL sequence recorded
-static int s_mysql_ran;
+static int s_mysql_run_result;
 static int s_mysql_named;
 static int s_mysql_answered;
 static int s_sha2_signed_in[2];
@@ -36,7 +36,7 @@ static int s_sha2_sealed[2];
 static int s_native_signed_in;
 static int s_wrong_refused;
 static char s_wrong_code[64];
-static int s_insert_ran;
+static int s_insert_run_result;
 static int s_insert_rows;
 static char s_insert_tag[CLI_DB_TAG];
 static int s_select_rows;
@@ -47,24 +47,24 @@ static int s_page_done;
 static char s_page_last[MYSQL_VALUE];
 static char s_page_bytes[MYSQL_VALUE];
 static int s_page_null;
-static unsigned int s_rest_rows;
-static int s_rest_done;
+static unsigned int s_remainder_rows;
+static int s_remainder_done;
 static int s_begun;
 static int s_begun_rows;
 static int s_open_in_transaction;
 static int s_rolled_in_transaction;
-static int s_missing_ran;
+static int s_missing_run_result;
 static char s_missing_code[64];
-static unsigned long long s_sleep_took;
+static unsigned long long s_sleep_consumed;
 static int s_sleep_returned;
 static unsigned int s_sleep_rows;
 static char s_sleep_value[MYSQL_VALUE];
-static int s_literal_ran;
+static int s_literal_run_result;
 static unsigned int s_literal_rows;
 static char s_literal_value[MYSQL_VALUE];
 
 // what the live MariaDB sequence recorded
-static int s_maria_ran;
+static int s_maria_run_result;
 static int s_maria_named;
 static int s_maria_answered;
 static int s_maria_signed_in;
@@ -76,12 +76,12 @@ static int s_maria_columns_typed;
 static unsigned int s_maria_page_rows;
 static int s_maria_page_done;
 static char s_maria_page_last[MYSQL_VALUE];
-static unsigned int s_maria_rest_rows;
-static int s_maria_rest_done;
-static unsigned long long s_maria_sleep_took;
+static unsigned int s_maria_remainder_rows;
+static int s_maria_remainder_done;
+static unsigned long long s_maria_sleep_consumed;
 static int s_maria_sleep_returned;
 static char s_maria_sleep_code[64];
-static int s_maria_after_ran;
+static int s_maria_after_run_result;
 static char s_maria_after_value[MYSQL_VALUE];
 
 // whether two numbers are the same
@@ -105,14 +105,14 @@ static int row_recorded(const CliDbRowCfg *args)
     return 1;
 }
 
-// the running statement cancelled from its own thread after 400 milliseconds
+// the running statement canceled from its own thread after 400 milliseconds
 static void statement_cancelled(void *context)
 {
-    MysqlStopper *const stopper = context;
+    MysqlStopper *const cancel_thread = context;
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 400u);
-    (void)EMBED_CALL(cli_mysql.cancel_send, CliMysqlCfg, .cancel_read = &stopper->cancel, .err_msg = &err_msg);
+    (void)EMBED_CALL(cli_mysql.cancel_send, CliMysqlCfg, .cancel_read = &cancel_thread->cancel, .err_msg = &err_msg);
 }
 
 // every statement of `count` run on `my`, each read whole
@@ -149,15 +149,15 @@ static int password_read(const char *name, char *password)
     mmgr_line_put(&line, name);
     mmgr_line_put(&line, "_PASSWORD");
     (void)mmgr_line_finish(&line);
-    return EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = variable, .value_out = password, .room = 256u);
+    return EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = variable, .value_out = password, .capacity = 256u);
 }
 
 // a sleep started on `my` stopped by a cancel from a thread of its own: the milliseconds it took, and whether it returned rows
 static unsigned long long sleep_stopped(CliMysql *my, int *returned)
 {
-    EMBED_CALL(cli_mysql_cancel.canceller, CliMysqlCancelCfg, .mysql = my, .cancel = &s_stopper.cancel);
-    s_stopper.thread = (CliThread){statement_cancelled, &s_stopper};
-    (void)EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_stopper.thread);
+    EMBED_CALL(cli_mysql_cancel.canceller, CliMysqlCancelCfg, .mysql = my, .cancel = &s_cancel_thread.cancel);
+    s_cancel_thread.thread = (CliThread){statement_cancelled, &s_cancel_thread};
+    (void)EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_cancel_thread.thread);
     const unsigned long long started = cli_clock_milliseconds();
     s_rows = 0u;
     *returned = EMBED_CALL(cli_mysql_failure_sql.all, CliMysqlFailureSqlCfg, .mysql_out = my, .sql = "SELECT SLEEP(30)", .size = 16ull, .each_row = row_recorded, .context = NULL, .failure = &s_failure);
@@ -184,16 +184,16 @@ static void thousand_written(char *out)
     (void)mmgr_line_finish(&line);
 }
 
-// `text` copied into `out`, which is sized for `room`
-static void text_stored(char *out, unsigned long long room, const char *text)
+// `text` copied into `out`, which is sized for `capacity`
+static void text_stored(char *out, unsigned long long capacity, const char *text)
 {
-    VerbaLinea line = {out, room, 0ull};
+    VerbaLinea line = {out, capacity, 0ull};
     mmgr_line_put(&line, text);
     (void)mmgr_line_finish(&line);
 }
 
 // the live MySQL sequence, once for the process
-static void mysql_ran(void)
+static void mysql_run_result(void)
 {
     static const char *const s_users[4] = {"DROP USER IF EXISTS 'orior_sha2'@'%', 'orior_native'@'%'", "CREATE USER 'orior_sha2'@'%' IDENTIFIED WITH caching_sha2_password BY 'sha2 secret'", "CREATE USER 'orior_native'@'%' IDENTIFIED WITH mysql_native_password BY 'native secret'", "FLUSH PRIVILEGES"};
     static const char *const s_table[3] = {"CREATE DATABASE IF NOT EXISTS orior_test", "CREATE TABLE IF NOT EXISTS orior_test.n (n INT, t VARCHAR(10), b VARBINARY(4), at TIMESTAMP NULL)", "TRUNCATE orior_test.n"};
@@ -205,11 +205,11 @@ static void mysql_ran(void)
     char insert[2048];
     char tag[CLI_DB_TAG];
     char literal[64];
-    if (s_mysql_ran)
+    if (s_mysql_run_result)
     {
         return;
     }
-    s_mysql_ran = 1;
+    s_mysql_run_result = 1;
     s_mysql_named = password_read("MYSQL", password);
     if (!s_mysql_named)
     {
@@ -243,7 +243,7 @@ static void mysql_ran(void)
     text_stored(s_wrong_code, sizeof(s_wrong_code), s_failure.code);
     statements_run(my, s_table, 3u);
     thousand_written(insert);
-    s_insert_ran = EMBED_CALL(cli_mysql_failure_sql.start, CliMysqlFailureSqlCfg, .mysql_out = my, .sql = insert, .size = CLI_UNITY_LENGTH(insert), .failure = &s_failure);
+    s_insert_run_result = EMBED_CALL(cli_mysql_failure_sql.start, CliMysqlFailureSqlCfg, .mysql_out = my, .sql = insert, .size = CLI_UNITY_LENGTH(insert), .failure = &s_failure);
     s_insert_rows = EMBED_CALL(cli_mysql_cancel.head, CliMysqlCancelCfg, .mysql = my)->rows;
     text_stored(s_insert_tag, sizeof(s_insert_tag), EMBED_CALL(cli_mysql_cancel.head, CliMysqlCancelCfg, .mysql = my)->tag);
     s_select_rows = EMBED_CALL(cli_mysql_failure_sql.start, CliMysqlFailureSqlCfg, .mysql_out = my, .sql = s_select, .size = sizeof(s_select) - 1u, .failure = &s_failure) && EMBED_CALL(cli_mysql_cancel.head, CliMysqlCancelCfg, .mysql = my)->rows;
@@ -257,24 +257,24 @@ static void mysql_ran(void)
     text_stored(s_page_bytes, sizeof(s_page_bytes), s_value[0][2]);
     s_page_null = s_null[0][3];
     s_rows = 0u;
-    (void)EMBED_CALL(cli_mysql_failure.rows, CliMysqlFailureCfg, .mysql_out = my, .count = 1000ull, .each_row = row_recorded, .context = NULL, .done = &s_rest_done, .tag = tag, .failure = &s_failure);
-    s_rest_rows = s_rows;
+    (void)EMBED_CALL(cli_mysql_failure.rows, CliMysqlFailureCfg, .mysql_out = my, .count = 1000ull, .each_row = row_recorded, .context = NULL, .done = &s_remainder_done, .tag = tag, .failure = &s_failure);
+    s_remainder_rows = s_rows;
     s_begun = EMBED_CALL(cli_mysql_failure_sql.start, CliMysqlFailureSqlCfg, .mysql_out = my, .sql = "BEGIN", .size = 5ull, .failure = &s_failure);
     s_begun_rows = EMBED_CALL(cli_mysql_cancel.head, CliMysqlCancelCfg, .mysql = my)->rows;
     statements_run(my, s_delete, 1u);
     s_open_in_transaction = EMBED_CALL(cli_mysql_cancel.in_transaction, CliMysqlCancelCfg, .mysql = my);
     statements_run(my, s_rollback, 1u);
     s_rolled_in_transaction = EMBED_CALL(cli_mysql_cancel.in_transaction, CliMysqlCancelCfg, .mysql = my);
-    s_missing_ran = EMBED_CALL(cli_mysql_failure_sql.start, CliMysqlFailureSqlCfg, .mysql_out = my, .sql = "SELECT * FROM orior_test.none", .size = 29ull, .failure = &s_failure);
+    s_missing_run_result = EMBED_CALL(cli_mysql_failure_sql.start, CliMysqlFailureSqlCfg, .mysql_out = my, .sql = "SELECT * FROM orior_test.none", .size = 29ull, .failure = &s_failure);
     text_stored(s_missing_code, sizeof(s_missing_code), s_failure.code);
-    s_sleep_took = sleep_stopped(my, &s_sleep_returned);
+    s_sleep_consumed = sleep_stopped(my, &s_sleep_returned);
     s_sleep_rows = s_rows;
     text_stored(s_sleep_value, sizeof(s_sleep_value), s_value[0][0]);
     VerbaLinea line = {literal, sizeof(literal), 0ull};
     mmgr_line_put(&line, "SELECT ");
     EMBED_CALL(cli_mysql_text.literal, CliMysqlTextCfg, .text = "it's \\ ok", .out = &line);
     s_rows = 0u;
-    s_literal_ran = EMBED_CALL(cli_mysql_failure_sql.all, CliMysqlFailureSqlCfg, .mysql_out = my, .sql = literal, .size = line.at, .each_row = row_recorded, .context = NULL, .failure = &s_failure);
+    s_literal_run_result = EMBED_CALL(cli_mysql_failure_sql.all, CliMysqlFailureSqlCfg, .mysql_out = my, .sql = literal, .size = line.at, .each_row = row_recorded, .context = NULL, .failure = &s_failure);
     s_literal_rows = s_rows;
     text_stored(s_literal_value, sizeof(s_literal_value), s_value[0][0]);
     statements_run(my, s_drop, 1u);
@@ -284,7 +284,7 @@ static void mysql_ran(void)
 // the MySQL sequence run, the case ignored with no server named or answering
 static void mysql_ready(void)
 {
-    mysql_ran();
+    mysql_run_result();
     if (!s_mysql_named || !s_mysql_answered)
     {
         TEST_IGNORE_MESSAGE("no MySQL answers");
@@ -292,7 +292,7 @@ static void mysql_ready(void)
 }
 
 // the live MariaDB sequence, once for the process
-static void mariadb_ran(void)
+static void mariadb_run_result(void)
 {
     static const char *const s_user[2] = {"DROP USER IF EXISTS 'orior_native'@'%'", "CREATE USER 'orior_native'@'%' IDENTIFIED BY 'native secret'"};
     static const char *const s_drop[1] = {"DROP USER 'orior_native'@'%'"};
@@ -301,11 +301,11 @@ static void mariadb_ran(void)
                                    "SELECT seq, CONCAT('n', seq) AS t FROM k";
     char password[256];
     char tag[CLI_DB_TAG];
-    if (s_maria_ran)
+    if (s_maria_run_result)
     {
         return;
     }
-    s_maria_ran = 1;
+    s_maria_run_result = 1;
     s_maria_named = password_read("MARIADB", password);
     if (!s_maria_named)
     {
@@ -335,13 +335,13 @@ static void mariadb_ran(void)
     s_maria_page_rows = s_rows;
     text_stored(s_maria_page_last, sizeof(s_maria_page_last), s_value[599][1]);
     s_rows = 0u;
-    (void)EMBED_CALL(cli_mysql_failure.rows, CliMysqlFailureCfg, .mysql_out = my, .count = 600ull, .each_row = row_recorded, .context = NULL, .done = &s_maria_rest_done, .tag = tag, .failure = &s_failure);
-    s_maria_rest_rows = s_rows;
+    (void)EMBED_CALL(cli_mysql_failure.rows, CliMysqlFailureCfg, .mysql_out = my, .count = 600ull, .each_row = row_recorded, .context = NULL, .done = &s_maria_remainder_done, .tag = tag, .failure = &s_failure);
+    s_maria_remainder_rows = s_rows;
     // MariaDB fails a statement its KILL QUERY stops, where MySQL has SLEEP return 1
-    s_maria_sleep_took = sleep_stopped(my, &s_maria_sleep_returned);
+    s_maria_sleep_consumed = sleep_stopped(my, &s_maria_sleep_returned);
     text_stored(s_maria_sleep_code, sizeof(s_maria_sleep_code), s_failure.code);
     s_rows = 0u;
-    s_maria_after_ran = EMBED_CALL(cli_mysql_failure_sql.all, CliMysqlFailureSqlCfg, .mysql_out = my, .sql = "SELECT 2", .size = 8ull, .each_row = row_recorded, .context = NULL, .failure = &s_failure);
+    s_maria_after_run_result = EMBED_CALL(cli_mysql_failure_sql.all, CliMysqlFailureSqlCfg, .mysql_out = my, .sql = "SELECT 2", .size = 8ull, .each_row = row_recorded, .context = NULL, .failure = &s_failure);
     text_stored(s_maria_after_value, sizeof(s_maria_after_value), s_value[0][0]);
     statements_run(my, s_drop, 1u);
     EMBED_CALL(cli_mysql_failure_sql.close, CliMysqlFailureSqlCfg, .mysql_out = my);
@@ -350,7 +350,7 @@ static void mariadb_ran(void)
 // the MariaDB sequence run, the case ignored with no server named or answering
 static void mariadb_ready(void)
 {
-    mariadb_ran();
+    mariadb_run_result();
     if (!s_maria_named || !s_maria_answered)
     {
         TEST_IGNORE_MESSAGE("no MariaDB answers");
@@ -371,11 +371,11 @@ void test_a_power_is_computed_by_its_modulus(void)
     static const unsigned char s_four[1] = {4u};
     static const unsigned char s_thirteen[1] = {13u};
     static const unsigned char s_modulus[2] = {0x01u, 0xf1u};
-    static const unsigned char s_wanted[2] = {0x01u, 0xbdu};
+    static const unsigned char s_requested[2] = {0x01u, 0xbdu};
     (void)EMBED_CALL(cli_mysql_internal.big_from_be, CliMysqlCtx, .big_out = &s_big[0], .bytes = s_four, .size = 1ull);
     (void)EMBED_CALL(cli_mysql_internal.big_from_be, CliMysqlCtx, .big_out = &s_big[1], .bytes = s_thirteen, .size = 1ull);
     (void)EMBED_CALL(cli_mysql_internal.big_from_be, CliMysqlCtx, .big_out = &s_big[2], .bytes = s_modulus, .size = 2ull);
-    (void)EMBED_CALL(cli_mysql_internal.big_from_be, CliMysqlCtx, .big_out = &s_big[3], .bytes = s_wanted, .size = 2ull);
+    (void)EMBED_CALL(cli_mysql_internal.big_from_be, CliMysqlCtx, .big_out = &s_big[3], .bytes = s_requested, .size = 2ull);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_mysql_out_big_internal.big_pow_mod, CliMysqlOutBigCtx, .base = &s_big[0], .exponent = &s_big[1], .modulus = &s_big[2], .out_big_pointer = &s_big[4]));
     TEST_ASSERT_TRUE(numbers_same(&s_big[4], &s_big[3]));
 }
@@ -508,7 +508,7 @@ void test_mysql_a_wrong_password_is_refused(void)
 void test_mysql_an_insert_reports_the_rows_it_affected(void)
 {
     mysql_ready();
-    TEST_ASSERT_TRUE(s_insert_ran);
+    TEST_ASSERT_TRUE(s_insert_run_result);
     TEST_ASSERT_FALSE(s_insert_rows);
     TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_insert_tag, .other = "1000 rows affected", .cap = CLI_CELLS_POOL}));
 }
@@ -536,11 +536,11 @@ void test_mysql_bytes_read_as_hex_and_a_null_as_none(void)
     TEST_ASSERT_TRUE(s_page_null);
 }
 
-void test_mysql_the_rest_of_the_rows_come(void)
+void test_mysql_the_remainder_of_the_rows_come(void)
 {
     mysql_ready();
-    TEST_ASSERT_EQUAL_UINT(600u, s_rest_rows);
-    TEST_ASSERT_TRUE(s_rest_done);
+    TEST_ASSERT_EQUAL_UINT(600u, s_remainder_rows);
+    TEST_ASSERT_TRUE(s_remainder_done);
 }
 
 void test_mysql_a_transaction_is_open_until_rolled_back(void)
@@ -555,14 +555,14 @@ void test_mysql_a_transaction_is_open_until_rolled_back(void)
 void test_mysql_a_failure_has_the_servers_code(void)
 {
     mysql_ready();
-    TEST_ASSERT_FALSE(s_missing_ran);
+    TEST_ASSERT_FALSE(s_missing_run_result);
     TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_missing_code, .other = "1146", .cap = CLI_CELLS_POOL}));
 }
 
 void test_mysql_a_sleep_stopped_returns_1_at_once(void)
 {
     mysql_ready();
-    TEST_ASSERT_LESS_THAN_UINT64(10000ull, s_sleep_took);
+    TEST_ASSERT_LESS_THAN_UINT64(10000ull, s_sleep_consumed);
     TEST_ASSERT_TRUE(s_sleep_returned);
     TEST_ASSERT_EQUAL_UINT(1u, s_sleep_rows);
     TEST_ASSERT_EQUAL_STRING("1", s_sleep_value);
@@ -571,7 +571,7 @@ void test_mysql_a_sleep_stopped_returns_1_at_once(void)
 void test_mysql_a_literal_reads_back_as_itself(void)
 {
     mysql_ready();
-    TEST_ASSERT_TRUE(s_literal_ran);
+    TEST_ASSERT_TRUE(s_literal_run_result);
     TEST_ASSERT_EQUAL_UINT(1u, s_literal_rows);
     TEST_ASSERT_EQUAL_STRING("it's \\ ok", s_literal_value);
 }
@@ -605,17 +605,17 @@ void test_mariadb_a_page_of_rows_comes(void)
     TEST_ASSERT_EQUAL_STRING("n600", s_maria_page_last);
 }
 
-void test_mariadb_the_rest_of_the_rows_come(void)
+void test_mariadb_the_remainder_of_the_rows_come(void)
 {
     mariadb_ready();
-    TEST_ASSERT_EQUAL_UINT(300u, s_maria_rest_rows);
-    TEST_ASSERT_TRUE(s_maria_rest_done);
+    TEST_ASSERT_EQUAL_UINT(300u, s_maria_remainder_rows);
+    TEST_ASSERT_TRUE(s_maria_remainder_done);
 }
 
 void test_mariadb_a_sleep_stopped_fails_at_once(void)
 {
     mariadb_ready();
-    TEST_ASSERT_LESS_THAN_UINT64(10000ull, s_maria_sleep_took);
+    TEST_ASSERT_LESS_THAN_UINT64(10000ull, s_maria_sleep_consumed);
     TEST_ASSERT_FALSE(s_maria_sleep_returned);
     TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_maria_sleep_code, .other = "1317", .cap = CLI_CELLS_POOL}));
 }
@@ -623,6 +623,6 @@ void test_mariadb_a_sleep_stopped_fails_at_once(void)
 void test_mariadb_the_connection_answers_after_a_stopped_sleep(void)
 {
     mariadb_ready();
-    TEST_ASSERT_TRUE(s_maria_after_ran);
+    TEST_ASSERT_TRUE(s_maria_after_run_result);
     TEST_ASSERT_EQUAL_STRING("2", s_maria_after_value);
 }

@@ -15,7 +15,7 @@ typedef struct
     const CliRequestsParsed *parsed;
     CliRequestsText text;
     char *out;
-    unsigned long long room;
+    unsigned long long capacity;
     const char *root;
     const char *path;
     const char *name;
@@ -31,13 +31,13 @@ EMBED_INLINE void ready_full_err(const RequestsReadyCtx *args)
     mmgr_line_put(args->err_msg, "the request is larger than orior_cli supports");
 }
 
-// a text of the parse filled into `out`, sized for `room`, its end closed: 1, or 0 with why given
+// a text of the parse filled into `out`, sized for `capacity`, its end closed: 1, or 0 with why given
 EMBED_INLINE int ready_fill(const RequestsReadyCtx *args)
 {
     CliRequestsText text = args->text;
     char *out = args->out;
     VerbaLinea *err_msg = args->err_msg;
-    VerbaLinea line = {out, args->room, 0ull};
+    VerbaLinea line = {out, args->capacity, 0ull};
     if (!EMBED_CALL(cli_requests_text_size_internal.fill, CliRequestsTextSizeCtx, .text = args->parsed->text + text.at,
                     .size = text.size, .values_read = &s_values, .out = &line, .err_msg = err_msg))
     {
@@ -71,17 +71,17 @@ EMBED_INLINE int ready_body_file(const RequestsReadyCtx *args)
         mmgr_line_put(err_msg, "the file has no folder");
         return 0;
     }
-    char beside[CLI_PATH_MAX_LEN];
-    VerbaLinea line = {beside, sizeof(beside), 0ull};
+    char adjacent[CLI_PATH_MAX_LEN];
+    VerbaLinea line = {adjacent, sizeof(adjacent), 0ull};
     mmgr_line_put(&line, folder);
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, args->name);
     unsigned long long length = 0ull;
     const unsigned char *const bytes = (mmgr_line_finish(&line) != 0ull)
-                                           ? EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = beside,
+                                           ? EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = adjacent,
                                                         .size_pointer = &length, .owner = &g_cli_requests_cells)
                                            : NULL;
-    const int whole = (bytes != NULL) && EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg,
+    const int whole = (bytes != NULL) && EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg,
                                                     .bytes = (const char *)bytes, .size = length);
     if (whole)
     {
@@ -123,7 +123,7 @@ EMBED_INLINE int ready_init(const RequestsReadyCtx *args)
     {
         const CliRequestsText name = args->parsed->variable_name[at];
         const CliRequestsText value = args->parsed->variable_value[at];
-        if (!EMBED_CALL(cli_requests_name_internal.value_put, CliRequestsNameCtx, .values = &s_values,
+        if (!EMBED_CALL(cli_requests_name_internal.value_append, CliRequestsNameCtx, .values = &s_values,
                         .name = args->parsed->text + name.at, .name_size = name.size,
                         .value = args->parsed->text + value.at, .value_size = value.size))
         {
@@ -133,7 +133,7 @@ EMBED_INLINE int ready_init(const RequestsReadyCtx *args)
     }
     if ((args->request->method.size >= sizeof(args->sent->method)) ||
         !EMBED_CALL(ready_fill, RequestsReadyCtx, .parsed = args->parsed, .text = args->request->url,
-                    .out = args->sent->url, .room = sizeof(args->sent->url), .err_msg = err_msg))
+                    .out = args->sent->url, .capacity = sizeof(args->sent->url), .err_msg = err_msg))
     {
         if (args->request->method.size >= sizeof(args->sent->method))
         {
@@ -160,10 +160,10 @@ EMBED_INLINE int ready_init(const RequestsReadyCtx *args)
     for (unsigned int at = 0u; at < args->request->headers; at += 1u)
     {
         if (!EMBED_CALL(ready_fill, RequestsReadyCtx, .parsed = args->parsed, .text = args->request->header_name[at],
-                        .out = args->sent->header_name[at], .room = sizeof(args->sent->header_name[at]),
+                        .out = args->sent->header_name[at], .capacity = sizeof(args->sent->header_name[at]),
                         .err_msg = err_msg) ||
             !EMBED_CALL(ready_fill, RequestsReadyCtx, .parsed = args->parsed, .text = args->request->header_value[at],
-                        .out = args->sent->header_value[at], .room = sizeof(args->sent->header_value[at]),
+                        .out = args->sent->header_value[at], .capacity = sizeof(args->sent->header_value[at]),
                         .err_msg = err_msg))
         {
             return 0;

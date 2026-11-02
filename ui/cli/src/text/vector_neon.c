@@ -46,12 +46,12 @@ EMBED_INLINE uint16x8_t cli_fold8(const VectorNeonCtx *args)
 
 unsigned long long cli_vector_find_unit_neon(const CliVectorUnitCfg *args)
 {
-    const uint16x8_t wanted = vdupq_n_u16(args->unit);
+    const uint16x8_t required = vdupq_n_u16(args->unit);
     unsigned long long at = 0ull;
     while ((at + 8ull) <= args->length)
     {
         const unsigned long long found =
-            EMBED_CALL(cli_lanes, VectorNeonCtx, .mask_uint16x8_t = vceqq_u16(vld1q_u16(args->text + at), wanted));
+            EMBED_CALL(cli_lanes, VectorNeonCtx, .mask_uint16x8_t = vceqq_u16(vld1q_u16(args->text + at), required));
         if (found != 0ull)
         {
             return at + (EMBED_CALL(cli_lowest64, VectorNeonCtx, .mask = found) / 8u);
@@ -110,12 +110,12 @@ int cli_vector_same_neon(const CliVectorLengthACfg *args)
 
 unsigned long long cli_vector_find_neon(const CliVectorTextLengthCfg *args)
 {
-    const unsigned long long span = args->sought_length - 1ull;
+    const unsigned long long span = args->needle_length - 1ull;
     const uint16x8_t first = vdupq_n_u16(
-        args->folded ? EMBED_CALL(cli_vector_unit.fold, CliVectorUnitCfg, .unit = args->sought[0]) : args->sought[0]);
+        args->folded ? EMBED_CALL(cli_vector_unit.fold, CliVectorUnitCfg, .unit = args->needle[0]) : args->needle[0]);
     const uint16x8_t last =
-        vdupq_n_u16(args->folded ? EMBED_CALL(cli_vector_unit.fold, CliVectorUnitCfg, .unit = args->sought[span])
-                                 : args->sought[span]);
+        vdupq_n_u16(args->folded ? EMBED_CALL(cli_vector_unit.fold, CliVectorUnitCfg, .unit = args->needle[span])
+                                 : args->needle[span]);
     unsigned long long at = 0ull;
     while ((at + span + 8ull) <= args->length)
     {
@@ -132,8 +132,8 @@ unsigned long long cli_vector_find_neon(const CliVectorTextLengthCfg *args)
         {
             const unsigned int lane = EMBED_CALL(cli_lowest64, VectorNeonCtx, .mask = found) / 8u;
             const unsigned long long place = at + lane;
-            if (EMBED_CALL(cli_vector_text_sought.stands_at, CliVectorTextSoughtCfg, .text = args->text,
-                           .sought = args->sought, .sought_length = args->sought_length, .at = place,
+            if (EMBED_CALL(cli_vector_text_needle.exists_at, CliVectorTextNeedleCfg, .text = args->text,
+                           .needle = args->needle, .needle_length = args->needle_length, .at = place,
                            .folded = args->folded))
             {
                 return place;
@@ -143,7 +143,7 @@ unsigned long long cli_vector_find_neon(const CliVectorTextLengthCfg *args)
         at += 8ull;
     }
     return EMBED_CALL(cli_vector_text_length.plain_find, CliVectorTextLengthCfg, .text = args->text,
-                      .length = args->length, .sought = args->sought, .sought_length = args->sought_length,
+                      .length = args->length, .needle = args->needle, .needle_length = args->needle_length,
                       .folded = args->folded, .start = at);
 }
 

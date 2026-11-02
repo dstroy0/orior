@@ -80,7 +80,7 @@ typedef struct
     char line[CLI_DB_LITE_LINE];
     unsigned long long size;
     int in_transaction;
-    int reading;
+    int read_state;
     unsigned long long count;
     char version[64];
     char text[CLI_DB_LITE_LINE];
@@ -155,7 +155,7 @@ const CliDbHead *cli_db_link_head(const CliDbCtx *args);
 int cli_db_link_rows(const CliDbLinkFailureCtx *args);
 int cli_db_link_all(const CliDbLinkFailureStatementCtx *args);
 const char *cli_db_link_transaction(const CliDbCtx *args);
-int cli_db_link_stopper(const CliDbCtx *args);
+int cli_db_link_cancel_thread(const CliDbCtx *args);
 void cli_db_link_notices(const CliDbLinkContextCtx *args);
 void cli_db_link_close(const CliDbLinkCtx *args);
 int cli_db_stop_send(const CliDbStopCtx *args);
@@ -265,7 +265,7 @@ struct CliDbStatementCtx
     const char *statement;
     unsigned long long size;
     CliDbOpen *open;
-    unsigned long long took;
+    unsigned long long consumed;
     const char *err_text;
     int failed;
 };
@@ -376,13 +376,13 @@ typedef struct
 {
     const CliDbHead *(*link_head)(const CliDbCtx *args);
     const char *(*link_transaction)(const CliDbCtx *args);
-    int (*link_stopper)(const CliDbCtx *args);
+    int (*link_cancel_thread)(const CliDbCtx *args);
 } CliDbNsTable;
-EMBED_TABLE_LAYOUT(CliDbNsTable, link_head, link_transaction, link_stopper);
+EMBED_TABLE_LAYOUT(CliDbNsTable, link_head, link_transaction, link_cancel_thread);
 EMBED_TABLE_STORAGE CliDbNsTable cli_db_internal EMBED_UNUSED = {
     .link_head = cli_db_link_head,
     .link_transaction = cli_db_link_transaction,
-    .link_stopper = cli_db_link_stopper,
+    .link_cancel_thread = cli_db_link_cancel_thread,
 };
 
 typedef struct

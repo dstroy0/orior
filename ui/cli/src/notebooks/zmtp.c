@@ -22,7 +22,7 @@ typedef struct
     const void *body;
     unsigned int *flags_pointer;
     unsigned char *body_bytes;
-    unsigned long long room;
+    unsigned long long capacity;
     unsigned long long *size_pointer;
     const char *kind;
     VerbaLinea *err_msg;
@@ -57,13 +57,13 @@ EMBED_INLINE int cli_zmtp_frame_write(const ZmtpCtx *args)
                       .size = size);
 }
 
-// what reading a frame came to: the connection failed, the frame read, or its body larger than the room and passed
+// what reading a frame came to: the connection failed, the frame read, or its body larger than the capacity and passed
 // over
 #define CLI_ZMTP_FRAME_FAILED 0
 #define CLI_ZMTP_FRAME_READ 1
 #define CLI_ZMTP_FRAME_PASSED 2
 
-// one frame read: its flags and its body into `body`, sized for `room`, its size into `size`: what the read came to
+// one frame read: its flags and its body into `body`, sized for `capacity`, its size into `size`: what the read came to
 static int cli_zmtp_frame_read(const ZmtpCtx *args)
 {
     unsigned int *flags = args->flags_pointer;
@@ -99,24 +99,24 @@ static int cli_zmtp_frame_read(const ZmtpCtx *args)
         }
         *size = length;
     }
-    if (*size <= args->room)
+    if (*size <= args->capacity)
     {
         return EMBED_CALL(cli_size_bytes_internal.socket_read, CliSizeBytesCtx, .sock = args->socket,
                           .bytes_out = args->body_bytes, .size = *size)
                    ? CLI_ZMTP_FRAME_READ
                    : CLI_ZMTP_FRAME_FAILED;
     }
-    // a body larger than the room is read and let go, so that the next frame is read where it starts
+    // a body larger than the capacity is read and let go, so that the next frame is read where it starts
     unsigned char piece[4096];
     for (unsigned long long left = *size; left > 0ull;)
     {
-        const unsigned long long taken = (left < sizeof(piece)) ? left : sizeof(piece);
+        const unsigned long long reserved = (left < sizeof(piece)) ? left : sizeof(piece);
         if (!EMBED_CALL(cli_size_bytes_internal.socket_read, CliSizeBytesCtx, .sock = args->socket, .bytes_out = piece,
-                        .size = taken))
+                        .size = reserved))
         {
             return CLI_ZMTP_FRAME_FAILED;
         }
-        left -= taken;
+        left -= reserved;
     }
     return CLI_ZMTP_FRAME_PASSED;
 }
@@ -178,7 +178,7 @@ EMBED_INLINE int cli_zmtp_greet(const ZmtpCtx *args)
     if (!EMBED_CALL(cli_zmtp_frame_write, ZmtpCtx, .socket = args->socket, .body = ready, .size = at,
                     .flags = CLI_ZMTP_COMMAND) ||
         (EMBED_CALL(cli_zmtp_frame_read, ZmtpCtx, .socket = args->socket, .flags_pointer = &flags, .body_bytes = answer,
-                    .room = sizeof(answer), .size_pointer = &size) != CLI_ZMTP_FRAME_READ) ||
+                    .capacity = sizeof(answer), .size_pointer = &size) != CLI_ZMTP_FRAME_READ) ||
         ((flags & CLI_ZMTP_COMMAND) == 0u) || (size < 6ull) ||
         (memor.cmp(&(MemoriaCfg){.src = answer, .other = "\x05READY", .bytes = 6u}) != 0))
     {
@@ -257,9 +257,9 @@ unsigned int cli_zmtp_receive(const CliZmtpSocketCfg *args)
     {
         unsigned int flags = 0u;
         unsigned long long size = 0ull;
-        const int read =
-            EMBED_CALL(cli_zmtp_frame_read, ZmtpCtx, .socket = args->socket, .flags_pointer = &flags,
-                       .body_bytes = args->room + used, .room = args->room_size - used, .size_pointer = &size);
+        const int read = EMBED_CALL(cli_zmtp_frame_read, ZmtpCtx, .socket = args->socket, .flags_pointer = &flags,
+                                    .body_bytes = args->capacity + used, .capacity = args->capacity_bytes - used,
+                                    .size_pointer = &size);
         if (read == CLI_ZMTP_FRAME_FAILED)
         {
             return 0u;
@@ -272,7 +272,7 @@ unsigned int cli_zmtp_receive(const CliZmtpSocketCfg *args)
         whole = whole && (read == CLI_ZMTP_FRAME_READ);
         if (whole && (count < args->most))
         {
-            args->frames_out[count].bytes = args->room + used;
+            args->frames_out[count].bytes = args->capacity + used;
             args->frames_out[count].size = size;
             count += 1u;
         }
@@ -285,7 +285,7 @@ unsigned int cli_zmtp_receive(const CliZmtpSocketCfg *args)
         {
             return count;
         }
-        // a message larger than the room is passed over whole, and the next one read
+        // a message larger than the capacity is passed over whole, and the next one read
         count = 0u;
         used = 0ull;
         whole = 1;

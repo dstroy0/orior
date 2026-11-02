@@ -82,7 +82,7 @@ EMBED_INLINE void tar_header(const DeployTarCtx *args)
 }
 
 // `size` bytes added to the tar at `path`, then zeros to the end of their last block: 1, or 0 where they could not be
-EMBED_INLINE int tar_put(const DeployTarCtx *args)
+EMBED_INLINE int tar_append(const DeployTarCtx *args)
 {
     const char *path = args->path;
     const void *bytes = args->bytes;
@@ -123,8 +123,8 @@ EMBED_INLINE int tar_pax(const DeployTarCtx *args)
     EMBED_CALL(tar_header, DeployTarCtx, .header = header, .name = "PaxHeader", .size = pax_line.at, .mode = 0644u,
                .time = args->time, .kind = 'x');
     return mmgr_line_ok(&pax_line) &&
-           EMBED_CALL(tar_put, DeployTarCtx, .path = args->path, .bytes = header, .size = sizeof(header)) &&
-           EMBED_CALL(tar_put, DeployTarCtx, .path = args->path, .bytes = pax, .size = pax_line.at);
+           EMBED_CALL(tar_append, DeployTarCtx, .path = args->path, .bytes = header, .size = sizeof(header)) &&
+           EMBED_CALL(tar_append, DeployTarCtx, .path = args->path, .bytes = pax, .size = pax_line.at);
 }
 
 // whether `name` is among the paths of `preserved`, sorted by their bytes
@@ -170,7 +170,7 @@ int cli_deploy_tar(const CliDeployErrMsgPathCtx *args)
         EMBED_CALL(cli_deploy_out_index_internal.full, CliDeployOutIndexCtx, .index = index, .out = &full_line);
         mmgr_line_finish(&full_line);
         unsigned long long size = 0ull;
-        const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = full,
+        const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = full,
                                                       .size_pointer = &size, .owner = &g_cli_deploy_cells);
         if (bytes == NULL)
         {
@@ -184,8 +184,8 @@ int cli_deploy_tar(const CliDeployErrMsgPathCtx *args)
         const int written =
             ((cellul.len(&(CatenaFinitaCfg){.src = file->path, .cap = CLI_CELLS_POOL}) <= 99u) ||
              EMBED_CALL(tar_pax, DeployTarCtx, .path = args->path, .name = file->path, .time = args->time)) &&
-            EMBED_CALL(tar_put, DeployTarCtx, .path = args->path, .bytes = header, .size = sizeof(header)) &&
-            EMBED_CALL(tar_put, DeployTarCtx, .path = args->path, .bytes = bytes, .size = size);
+            EMBED_CALL(tar_append, DeployTarCtx, .path = args->path, .bytes = header, .size = sizeof(header)) &&
+            EMBED_CALL(tar_append, DeployTarCtx, .path = args->path, .bytes = bytes, .size = size);
         EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_deploy_cells);
         if (!written)
         {

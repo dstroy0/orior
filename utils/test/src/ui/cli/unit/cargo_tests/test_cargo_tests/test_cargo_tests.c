@@ -132,7 +132,7 @@ void tearDown(void)
 {
 }
 
-void test_tests_are_found_past_strings_comments_and_lifetimes(void)
+void test_tests_are_found_end_strings_comments_and_lifetimes(void)
 {
     sample_scanned();
     cli_cargo_scan_free();
@@ -149,10 +149,10 @@ void test_the_modules_a_file_names_are_found(void)
 void test_the_tokens_cell_is_the_size_of_their_count(void)
 {
     sample_scanned();
-    const unsigned int room = g_cli_cargo_scan.token_room;
+    const unsigned int capacity = g_cli_cargo_scan.token_capacity;
     const unsigned int count = g_cli_cargo_scan.token_count;
     cli_cargo_scan_free();
-    TEST_ASSERT_EQUAL_UINT(count, room);
+    TEST_ASSERT_EQUAL_UINT(count, capacity);
     TEST_ASSERT_NOT_EQUAL(0u, count);
 }
 
@@ -196,10 +196,10 @@ void test_a_found_test_reports_its_line(void)
     TEST_ASSERT_EQUAL_UINT(3u, line);
 }
 
-void test_the_tests_are_stored_in_grown_room_with_their_texts_in_one_piece(void)
+void test_the_tests_are_stored_in_grown_capacity_with_their_texts_in_one_piece(void)
 {
     package_found();
-    TEST_ASSERT_GREATER_OR_EQUAL_UINT(s_tests.count, s_tests.room);
+    TEST_ASSERT_GREATER_OR_EQUAL_UINT(s_tests.count, s_tests.capacity);
     TEST_ASSERT_NOT_NULL(s_tests.pieces);
     TEST_ASSERT_NULL(s_tests.pieces->next);
     EMBED_CALL(cli_cargo_tests_table.free, CliCargoTestsCfg, .tests = &s_tests);
@@ -266,7 +266,7 @@ void test_a_builds_first_error_and_its_location_are_read(void)
     char path[CLI_PATH_MAX_LEN];
     unsigned long long length = 0ull;
     long long line = 0ll;
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_cargo_report_size.cargo_build_error, CliCargoReportSizeCfg, .output = s_build_output, .size = sizeof(s_build_output) - 1u, .error = error, .room = sizeof(error), .length = &length, .path = path, .line = &line));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_cargo_report_size.cargo_build_error, CliCargoReportSizeCfg, .output = s_build_output, .size = sizeof(s_build_output) - 1u, .error = error, .capacity = sizeof(error), .length = &length, .path = path, .line = &line));
     CLI_TEST_ASSERT_TEXT("error[E0308]: mismatched types", error, length);
     TEST_ASSERT_EQUAL_STRING("src/lib.rs", path);
     TEST_ASSERT_EQUAL_INT64(3ll, line);

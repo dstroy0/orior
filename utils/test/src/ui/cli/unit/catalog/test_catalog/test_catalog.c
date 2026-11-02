@@ -22,7 +22,7 @@ static char s_script[CLI_PATH_MAX_LEN];
 // the catalog emptied
 static CliCatalog *catalog_emptied(void)
 {
-    EMBED_CALL(cli_catalog_jobs_most.begin, CliCatalogJobsMostCfg, .catalog = &s_catalog, .jobs = s_jobs, .jobs_most = 2048u, .params = s_params, .params_most = 8192u, .steps = s_steps, .steps_most = 4096u, .request = s_args, .args_most = 16384u, .lists = s_lists, .lists_most = 32768u, .text_out = s_text, .text_most = sizeof(s_text));
+    EMBED_CALL(cli_catalog_jobs_max.begin, CliCatalogJobsMaxCfg, .catalog = &s_catalog, .jobs = s_jobs, .jobs_max = 2048u, .params = s_params, .params_max = 8192u, .steps = s_steps, .steps_max = 4096u, .request = s_args, .args_max = 16384u, .lists = s_lists, .lists_max = 32768u, .text_out = s_text, .text_max = sizeof(s_text));
     return &s_catalog;
 }
 
@@ -42,16 +42,16 @@ static const CliParam *param_of(unsigned int job, const char *key)
 }
 
 // the line the job's step shows recorded
-static void line_recorded(const CliEachShownCfg *args)
+static void line_recorded(const CliEachDisplayedCfg *args)
 {
-    memor.cpy(&(MemoriaCfg){.dst = s_shown, .src = args->shown, .bytes = CLI_UNITY_LENGTH(args->shown) + 1ull});
+    memor.cpy(&(MemoriaCfg){.dst = s_shown, .src = args->displayed, .bytes = CLI_UNITY_LENGTH(args->displayed) + 1ull});
 }
 
 // the line the job shows with its trace `trace`, in s_shown, the test ignored where it shows none for want of bash
-static void line_shown(const char *trace)
+static void line_displayed(const char *trace)
 {
     EMBED_CALL(cli_catalog_key_values.values_begin, CliCatalogKeyValuesCfg, .values_out = &s_values);
-    EMBED_CALL(cli_catalog_key_values.values_put, CliCatalogKeyValuesCfg, .values_out = &s_values, .key = CLI_TRACE, .value = trace);
+    EMBED_CALL(cli_catalog_key_values.values_append, CliCatalogKeyValuesCfg, .values_out = &s_values, .key = CLI_TRACE, .value = trace);
     s_shown[0] = '\0';
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
@@ -95,7 +95,7 @@ void tearDown(void)
 void test_case_names_reads_the_line_after_the_case(void)
 {
     char names[8][CLI_NAME_MAX_LEN];
-    TEST_ASSERT_EQUAL_UINT(3u, EMBED_CALL(cli_catalog_text_variable_internal.case_names, CliCatalogTextVariableCtx, .text_read = "case \"$SIM\" in\n    a|b_c|d) ;;\n    *) exit 2 ;;\nesac\n", .variable = "SIM", .names_callback = names, .room = 8u));
+    TEST_ASSERT_EQUAL_UINT(3u, EMBED_CALL(cli_catalog_text_variable_internal.case_names, CliCatalogTextVariableCtx, .text_read = "case \"$SIM\" in\n    a|b_c|d) ;;\n    *) exit 2 ;;\nesac\n", .variable = "SIM", .names_callback = names, .capacity = 8u));
     TEST_ASSERT_EQUAL_STRING("a", names[0]);
     TEST_ASSERT_EQUAL_STRING("b_c", names[1]);
     TEST_ASSERT_EQUAL_STRING("d", names[2]);
@@ -115,14 +115,14 @@ void test_a_builds_trace_is_verbose_by_default_or_quiet(void)
 void test_a_traced_build_runs_bash_with_xtrace(void)
 {
     script_read("build");
-    line_shown(CLI_TRACE_VERBOSE);
+    line_displayed(CLI_TRACE_VERBOSE);
     TEST_ASSERT_EQUAL_STRING("SHELLOPTS=xtrace bash src/build_it.sh", s_shown);
 }
 
 void test_a_quiet_build_runs_bash_without_xtrace(void)
 {
     script_read("build");
-    line_shown(CLI_TRACE_QUIET);
+    line_displayed(CLI_TRACE_QUIET);
     TEST_ASSERT_EQUAL_STRING("bash src/build_it.sh", s_shown);
 }
 
@@ -158,7 +158,7 @@ void test_a_drivers_parts_join_its_literals(void)
     static const char s_source[] = "\"  --run names one part; the parts running in the order given: schedule, iapx-prove,\"\n"
                                    "            \" entropy, floor\\n\"";
     char parts[8][CLI_NAME_MAX_LEN];
-    TEST_ASSERT_EQUAL_UINT(4u, EMBED_CALL(cli_catalog_room_internal.driver_parts, CliCatalogRoomCtx, .source = s_source, .parts = parts, .room = 8u));
+    TEST_ASSERT_EQUAL_UINT(4u, EMBED_CALL(cli_catalog_capacity_internal.driver_parts, CliCatalogCapacityCtx, .source = s_source, .parts = parts, .capacity = 8u));
     TEST_ASSERT_EQUAL_STRING("schedule", parts[0]);
     TEST_ASSERT_EQUAL_STRING("iapx-prove", parts[1]);
     TEST_ASSERT_EQUAL_STRING("entropy", parts[2]);
@@ -186,7 +186,7 @@ void test_a_catalog_that_grows_reads_the_tree_as_one_of_fixed_size(void)
     tree_read();
     (void)mmgr_owner_register(&s_grown_cells);
     CliCatalog grown;
-    EMBED_CALL(cli_catalog_cells.take, CliCatalogCellsCfg, .catalog = &grown, .cells = &s_grown_cells, .jobs_most = 2048u);
+    EMBED_CALL(cli_catalog_cells.take, CliCatalogCellsCfg, .catalog = &grown, .cells = &s_grown_cells, .jobs_max = 2048u);
     EMBED_CALL(cli_catalog_root.read, CliCatalogRootCfg, .root = s_root, .catalog = &grown);
     TEST_ASSERT_FALSE(grown.full);
     TEST_ASSERT_EQUAL_UINT(s_catalog.jobs, grown.jobs);

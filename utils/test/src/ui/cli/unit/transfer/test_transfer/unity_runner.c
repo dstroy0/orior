@@ -9,7 +9,7 @@ extern void setUp(void);
 extern void tearDown(void);
 extern void test_a_region_contains_what_was_written(void);
 extern void test_a_region_opens_as_another_process_opens_it(void);
-extern void test_a_region_outlives_the_handle_it_was_made_by(void);
+extern void test_a_region_outlives_the_handle_it_was_created_by(void);
 extern void test_a_region_declared_larger_than_it_is_is_refused(void);
 extern void test_windows_a_shared_region_cannot_be_mapped_for_writing(void);
 extern void test_windows_a_shared_region_reads_what_it_contains(void);
@@ -79,7 +79,7 @@ int main(void)
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\transfer\\test_transfer\\test_transfer.c");
   run_test(test_a_region_contains_what_was_written, "test_a_region_contains_what_was_written", 62);
   run_test(test_a_region_opens_as_another_process_opens_it, "test_a_region_opens_as_another_process_opens_it", 68);
-  run_test(test_a_region_outlives_the_handle_it_was_made_by, "test_a_region_outlives_the_handle_it_was_made_by", 74);
+  run_test(test_a_region_outlives_the_handle_it_was_created_by, "test_a_region_outlives_the_handle_it_was_created_by", 74);
   run_test(test_a_region_declared_larger_than_it_is_is_refused, "test_a_region_declared_larger_than_it_is_is_refused", 82);
   run_test(test_windows_a_shared_region_cannot_be_mapped_for_writing, "test_windows_a_shared_region_cannot_be_mapped_for_writing", 88);
   run_test(test_windows_a_shared_region_reads_what_it_contains, "test_windows_a_shared_region_reads_what_it_contains", 105);

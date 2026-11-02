@@ -63,15 +63,16 @@ int cli_format_utf8(const CliFormatBytesCtx *args)
 void cli_format_fail(const CliFormatErrMsgCtx *args)
 {
     const char *name = args->path;
-    const unsigned long long name_past =
+    const unsigned long long name_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
                    .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
-    name = (name_past != 0ull) ? (args->path + name_past) : name;
+    name = (name_end != 0ull) ? (args->path + name_end) : name;
     mmgr_line_put(args->err_msg, args->program);
     mmgr_line_put(args->err_msg, " could not format ");
     mmgr_line_put(args->err_msg, (name[0] != '\0') ? name : args->path);
     mmgr_line_put(args->err_msg, ": ");
-    const CliSpan whole = EMBED_CALL(cli_trim, FormatWidthCtx, .span = (CliSpan){args->ran->err, args->ran->err_size});
+    const CliSpan whole =
+        EMBED_CALL(cli_trim, FormatWidthCtx, .span = (CliSpan){args->run_result->err, args->run_result->err_size});
     if (whole.length == 0ull)
     {
         mmgr_line_put(args->err_msg, "it printed nothing");
@@ -110,7 +111,7 @@ int cli_format_nearest(const CliFormatPathCtx *args)
             char file[CLI_PATH_MAX_LEN];
             EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = args->names[at], .joined = file);
             unsigned long long size = 0ull;
-            const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = file,
+            const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = file,
                                                           .size_pointer = &size, .owner = &g_cli_toolchains_cells);
             if (bytes == NULL)
             {
@@ -152,7 +153,7 @@ EMBED_INLINE int cli_number_after(const FormatWidthCtx *args)
 {
     unsigned int *number = args->number;
     CliSpan rest = EMBED_CALL(cli_trim, FormatWidthCtx, .span = args->part);
-    const unsigned long long lead = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg,
+    const unsigned long long lead = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg,
                                                .text = rest.at, .at = 0ull, .size = rest.length, .set = "\"'");
     rest = (CliSpan){rest.at + lead, rest.length - lead};
     const unsigned long long key_length = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_CELLS_POOL});
@@ -162,9 +163,9 @@ EMBED_INLINE int cli_number_after(const FormatWidthCtx *args)
         return 0;
     }
     rest = (CliSpan){rest.at + key_length, rest.length - key_length};
-    const unsigned long long lead_after = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg,
-                                                     .text = rest.at, .at = 0ull, .size = rest.length, .set = "\"'");
-    rest = (CliSpan){rest.at + lead_after, rest.length - lead_after};
+    const unsigned long long prefix_after = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg,
+                                                       .text = rest.at, .at = 0ull, .size = rest.length, .set = "\"'");
+    rest = (CliSpan){rest.at + prefix_after, rest.length - prefix_after};
     rest = EMBED_CALL(cli_trim, FormatWidthCtx, .span = rest);
     if ((rest.length == 0ull) || ((rest.at[0] != '=') && (rest.at[0] != ':')))
     {
@@ -199,10 +200,10 @@ int cli_format_number_in(const CliFormatTextCtx *args)
         if ((code.length > 0ull) && (code.at[0] == '[') && (code.at[code.length - 1ull] == ']'))
         {
             CliSpan name = code;
-            const unsigned long long lead = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg,
+            const unsigned long long lead = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg,
                                                        .text = name.at, .at = 0ull, .size = name.length, .set = "[]");
             name = (CliSpan){name.at + lead, name.length - lead};
-            name.length = EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = name.at,
+            name.length = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = name.at,
                                      .at = name.length, .set = "[]");
             name = EMBED_CALL(cli_trim, FormatWidthCtx, .span = name);
             inside = (args->table != NULL) &&
@@ -341,7 +342,7 @@ int cli_format_margin(const CliFormatPathLanguageCfg *args)
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                       .object = tool, .name = "name"),
                    .length_pointer = NULL);
-    EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_room = args->by, .text = name, .otherwise = "");
+    EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_capacity = args->by, .text = name, .otherwise = "");
     *width = found;
     cli_format_release();
     return found > 0u;

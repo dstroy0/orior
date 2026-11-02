@@ -17,7 +17,7 @@ typedef struct
     unsigned long long message;
     unsigned long long message_size;
     char path[CLI_PATH_MAX_LEN];
-    int placed;
+    int positioned;
     long long line;
 } CliCargoFailure;
 // the most failures one report names
@@ -144,7 +144,7 @@ int cli_cargo_result_line(const CliCargoReportLineCfg *args)
     return 1;
 }
 
-int cli_cargo_place_get(const CliCargoReportSizeTextPathCfg *args)
+int cli_cargo_position_get(const CliCargoReportSizeTextPathCfg *args)
 {
     long long *line = args->line;
     unsigned long long start = 0ull;
@@ -216,7 +216,7 @@ EMBED_INLINE void report_failure_read(const CargoReportCtx *args)
     VerbaLinea *text = args->text_verba_linea_pointer;
     args->failure->message = text->at;
     args->failure->message_size = 0ull;
-    args->failure->placed = 0;
+    args->failure->positioned = 0;
     unsigned long long start = 0ull;
     unsigned long long length = 0ull;
     unsigned long long peek = *at;
@@ -257,20 +257,21 @@ EMBED_INLINE void report_failure_read(const CargoReportCtx *args)
             {
                 mmgr_line_put_n(text, args->out + after + 1ull, split - 4ull);
                 args->failure->message_size = split - 4ull;
-                args->failure->placed =
-                    EMBED_CALL(cli_cargo_report_size_text_path.cargo_place_get, CliCargoReportSizeTextPathCfg,
+                args->failure->positioned =
+                    EMBED_CALL(cli_cargo_report_size_text_path.cargo_position_get, CliCargoReportSizeTextPathCfg,
                                .text = args->out + after + split, .size = rest - split, .path = args->failure->path,
                                .line = &args->failure->line);
             }
             continue;
         }
         // panicked at src/lib.rs:4:5:, the message on the lines after it
-        unsigned long long place_size = rest;
-        place_size = EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = args->out + after,
-                                .at = place_size, .set = ":");
-        args->failure->placed = EMBED_CALL(cli_cargo_report_size_text_path.cargo_place_get,
-                                           CliCargoReportSizeTextPathCfg, .text = args->out + after, .size = place_size,
-                                           .path = args->failure->path, .line = &args->failure->line);
+        unsigned long long position_size = rest;
+        position_size = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg,
+                                   .text = args->out + after, .at = position_size, .set = ":");
+        args->failure->positioned =
+            EMBED_CALL(cli_cargo_report_size_text_path.cargo_position_get, CliCargoReportSizeTextPathCfg,
+                       .text = args->out + after, .size = position_size, .path = args->failure->path,
+                       .line = &args->failure->line);
         args->failure->message_size = 0ull;
         while (EMBED_CALL(report_line, CargoReportCtx, .text = args->out, .size = size, .at = &peek, .start = &start,
                           .length = &length))
@@ -354,7 +355,7 @@ void cli_cargo_failures_each(const CliCargoReportSizeOutCfg *args)
         {
             EMBED_CALL(args->each, CliEachNameMessagePathLineCfg, .context = args->context, .name = out + failure->name,
                        .name_size = failure->name_size, .message = texts + failure->message,
-                       .message_size = failure->message_size, .path = failure->placed ? failure->path : NULL,
+                       .message_size = failure->message_size, .path = failure->positioned ? failure->path : NULL,
                        .line = failure->line);
         }
     }
@@ -379,14 +380,14 @@ int cli_cargo_build_error(const CliCargoReportSizeCfg *args)
     {
         return 0;
     }
-    VerbaLinea out = {args->error, args->room, 0ull};
+    VerbaLinea out = {args->error, args->capacity, 0ull};
     mmgr_line_put_n(&out, args->output + start, size_of);
-    *length = mmgr_line_ok(&out) ? out.at : args->room;
+    *length = mmgr_line_ok(&out) ? out.at : args->capacity;
     args->path[0] = '\0';
-    for (unsigned int taken = 0u;
-         (taken < 4u) && EMBED_CALL(report_line, CargoReportCtx, .text = args->output, .size = args->size, .at = &at,
-                                    .start = &start, .length = &size_of);
-         taken += 1u)
+    for (unsigned int reserved = 0u;
+         (reserved < 4u) && EMBED_CALL(report_line, CargoReportCtx, .text = args->output, .size = args->size, .at = &at,
+                                       .start = &start, .length = &size_of);
+         reserved += 1u)
     {
         while ((size_of > 0ull) && (cellul.chr(&(CatenaFinitaCfg){
                                         .src = " \t", .cap = CLI_CELLS_POOL, .byte = args->output[start]}) != NULL))
@@ -397,7 +398,7 @@ int cli_cargo_build_error(const CliCargoReportSizeCfg *args)
         if (EMBED_CALL(report_starts, CargoReportCtx, .text = args->output, .start_value = start,
                        .length_value = size_of, .head = "--> "))
         {
-            if (!EMBED_CALL(cli_cargo_report_size_text_path.cargo_place_get, CliCargoReportSizeTextPathCfg,
+            if (!EMBED_CALL(cli_cargo_report_size_text_path.cargo_position_get, CliCargoReportSizeTextPathCfg,
                             .text = args->output + start + 4ull, .size = size_of - 4ull, .path = args->path,
                             .line = args->line))
             {
@@ -429,7 +430,7 @@ void cli_cargo_last_line(const CliCargoReportSizeTextCfg *args)
             found = 1;
         }
     }
-    VerbaLinea line = {args->out_out, args->room, 0ull};
+    VerbaLinea line = {args->out_out, args->capacity, 0ull};
     mmgr_line_put_n(&line, found ? args->text + last : args->none,
                     found ? last_size : cellul.len(&(CatenaFinitaCfg){.src = args->none, .cap = CLI_CELLS_POOL}));
     *length = line.at;
@@ -460,7 +461,7 @@ void cli_cargo_workspace_get(const CliCargoReportCfg *args)
         char manifest[CLI_PATH_MAX_LEN];
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = "Cargo.toml", .joined = manifest);
         unsigned long long size = 0ull;
-        const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = manifest,
+        const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = manifest,
                                                       .size_pointer = &size, .owner = &g_cli_tests_cells);
         unsigned long long at = 0ull;
         unsigned long long start = 0ull;

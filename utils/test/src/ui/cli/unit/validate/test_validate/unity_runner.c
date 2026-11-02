@@ -13,7 +13,7 @@ extern void test_the_lean_tool_reads_its_barriers(void);
 extern void test_comments_and_strings_are_not_code(void);
 extern void test_flags_find_their_words(void);
 extern void test_each_flag_has_its_position_and_severity(void);
-extern void test_theorems_take_their_namespaces(void);
+extern void test_theorems_alloc_their_namespaces(void);
 extern void test_messages_read_leans_json_each_at_its_position(void);
 extern void test_information_is_a_note(void);
 extern void test_a_timeout_is_the_heartbeats_barrier(void);
@@ -92,7 +92,7 @@ int main(void)
   run_test(test_comments_and_strings_are_not_code, "test_comments_and_strings_are_not_code", 92);
   run_test(test_flags_find_their_words, "test_flags_find_their_words", 110);
   run_test(test_each_flag_has_its_position_and_severity, "test_each_flag_has_its_position_and_severity", 125);
-  run_test(test_theorems_take_their_namespaces, "test_theorems_take_their_namespaces", 134);
+  run_test(test_theorems_alloc_their_namespaces, "test_theorems_alloc_their_namespaces", 134);
   run_test(test_messages_read_leans_json_each_at_its_position, "test_messages_read_leans_json_each_at_its_position", 147);
   run_test(test_information_is_a_note, "test_information_is_a_note", 156);
   run_test(test_a_timeout_is_the_heartbeats_barrier, "test_a_timeout_is_the_heartbeats_barrier", 162);

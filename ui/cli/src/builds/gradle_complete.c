@@ -40,7 +40,7 @@ typedef struct
     const char *first;
     unsigned long long first_size;
     const char *rest;
-    unsigned long long rest_size;
+    unsigned long long remainder_size;
     CliCompletions *items;
 } GradleCompleteCtx;
 // the aliases of the catalog `first` of the build of the script at `path`, put after `rest`
@@ -71,12 +71,12 @@ EMBED_INLINE void complete_catalog(const GradleCompleteCtx *args)
     // the catalog read where it lies, mapped while its aliases are read and let go after
     unsigned long long read = 0ull;
     const unsigned char *const catalog =
-        EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = s_catalogs.path[chosen], .size_pointer = &read,
+        EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = s_catalogs.path[chosen], .size_pointer = &read,
                    .owner = &g_cli_gradle_cells);
     CliVersionsAliases aliases;
     const int whole =
         (catalog != NULL) && (read <= CLI_GRADLE_CATALOG_TEXT) &&
-        EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg, .bytes = (const char *)catalog, .size = read) &&
+        EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = (const char *)catalog, .size = read) &&
         EMBED_CALL(cli_version_catalog_text_size_aliases_internal.versions_aliases, CliVersionCatalogTextSizeAliasesCtx,
                    .text = (const char *)catalog, .size = read, .aliases = &aliases);
     EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = catalog, .owner = &g_cli_gradle_cells);
@@ -104,7 +104,7 @@ EMBED_INLINE void complete_catalog(const GradleCompleteCtx *args)
             if (mmgr_line_ok(&value))
             {
                 EMBED_CALL(cli_builds_items.build_relative, CliBuildsItemsCfg, .items = items, .token = args->rest,
-                           .token_size = args->rest_size, .value = s_value, .value_size = value.at,
+                           .token_size = args->remainder_size, .value = s_value, .value_size = value.at,
                            .kind = s_kinds[one], .detail = aliases.text + alias->about_at,
                            .detail_size = alias->about_size);
             }
@@ -118,10 +118,10 @@ EMBED_INLINE void complete_catalog(const GradleCompleteCtx *args)
 EMBED_INLINE int complete_settings(const GradleCompleteCtx *args)
 {
     const char *name = args->path;
-    const unsigned long long name_past =
+    const unsigned long long name_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
                    .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
-    name = (name_past != 0ull) ? (args->path + name_past) : name;
+    name = (name_end != 0ull) ? (args->path + name_end) : name;
     static const char s_settings[] = "settings.gradle";
     for (unsigned int at = 0u; at < sizeof(s_settings) - 1u; at += 1u)
     {
@@ -140,7 +140,7 @@ EMBED_INLINE void complete_declare(const GradleCompleteCtx *args)
     CliCompletions *items = args->items;
     for (unsigned int at = 0u; at < g_cli_gradle.declares; at += 1u)
     {
-        (void)EMBED_CALL(cli_edits_items.completion_put, CliEditsItemsCfg, .items = items,
+        (void)EMBED_CALL(cli_edits_items.completion_append, CliEditsItemsCfg, .items = items,
                          .label = g_cli_gradle.declared[at], .label_size = g_cli_gradle.declared_size[at],
                          .kind = "function", .detail = "declared configuration", .detail_size = 22u,
                          .insert = g_cli_gradle.declared[at], .insert_size = g_cli_gradle.declared_size[at],
@@ -179,7 +179,8 @@ void cli_gradle_complete(const CliGradleTextCtx *args)
     {
         const unsigned long long first = (unsigned long long)(dot - text);
         EMBED_CALL(complete_catalog, GradleCompleteCtx, .root = args->root, .path = args->path, .first = text + token,
-                   .first_size = first - token, .rest = dot + 1, .rest_size = args->at - first - 1u, .items = items);
+                   .first_size = first - token, .rest = dot + 1, .remainder_size = args->at - first - 1u,
+                   .items = items);
         return;
     }
     unsigned long long line_start = token;

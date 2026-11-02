@@ -210,7 +210,7 @@ int query_writer_tee(const QueryWordsNameCtx *args)
     for (;;)
     {
         const unsigned long long got = EMBED_CALL(query_process_piece_internal.process_read, QueryProcessPieceCtx,
-                                                  .process = &child, .piece = s_piece, .room_u64 = sizeof(s_piece));
+                                                  .process = &child, .piece = s_piece, .capacity_u64 = sizeof(s_piece));
         if (got == 0ull)
         {
             break;

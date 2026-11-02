@@ -5,7 +5,7 @@
 // (settings.c, settings_layers.c). A settings file is JSON, with comments and trailing commas as VS Code's files write
 // them, each key a setting as settings.json stores it (state.c), and these keys of its own:
 //
-// - `takes`: the path of another settings file, from the file's own folder, whose settings this one takes, its own
+// - `allocs`: the path of another settings file, from the file's own folder, whose settings this one takes, its own
 //   standing over them;
 // - `windows`, `linux` and `macos`: settings for that system alone, standing over the file's others;
 // - `machine`, in the reader's own settings.json: settings for this machine alone, standing over the file's others and
@@ -32,7 +32,7 @@ typedef struct CliSettingsOutCfg CliSettingsOutCfg;
 // the cells the settings are read and laid in (settings.c)
 extern CellOwner g_cli_settings_cells;
 
-// the tree's settings file, from its top folder; the most files one chain of `takes` reads; and the most settings one
+// the tree's settings file, from its top folder; the most files one chain of `allocs` reads; and the most settings one
 // `${setting:name}` reads through
 #define CLI_SETTINGS_TREE ".orior/settings.json"
 
@@ -103,7 +103,7 @@ typedef struct
     CliLayerText under[CLI_LAYERS_KEYS];
     unsigned int unders;
     unsigned int own[CLI_LAYERS_KEYS];
-    unsigned int owns;
+    unsigned int owner;
     CliLayerSource from[CLI_LAYERS_SOURCES];
     unsigned int froms;
     CliKindText kind[CLI_LAYERS_KEYS];
@@ -115,11 +115,11 @@ typedef struct
     const char *system;
     char *text;
     unsigned long long used;
-    unsigned long long room;
+    unsigned long long capacity;
 } CliLayers;
 
 // the system orior_cli runs on, as a settings file names it; and whether `key` is one of a settings file's own keys and
-// no setting: `takes`, a system's, `machine` or a kind's
+// no setting: `allocs`, a system's, `machine` or a kind's
 const char *cli_settings_system(void);
 int cli_settings_is_file_key(const CliSettingsKeyCfg *args);
 // the file at `path` and each it takes, the one taken first, each shown by its path from `root` where it is under it,
@@ -133,7 +133,6 @@ void cli_settings_reader(const CliSettingsPathCfg *args);
 // a chain written as the window reads it, `{"files": [{"file", "values"}], "problems"}`, after `out`; a chain the
 // window hands back, so written, read into `chain`, which contains nothing before: 1, or 0 with why given; and a
 // chain's tree given back, the chain left containing nothing (settings_chain_text.c)
-void cli_settings_chain_write(const CliSettingsCfg *args);
 int cli_settings_chain_read(const CliSettingsChainCfg *args);
 void cli_settings_chain_free(const CliSettingsPathCfg *args);
 // the settings in force from the reader's chain and the tree's, for the tree at `root`, into `layers`, which contain
@@ -142,7 +141,6 @@ void cli_settings_chain_free(const CliSettingsPathCfg *args);
 // or under it, NULL where they set none (settings_layers.c)
 void cli_settings_layers(const CliSettingsRootCfg *args);
 void cli_settings_layers_free(const CliSettingsRootCfg *args);
-void cli_settings_layers_write(const CliSettingsOutCfg *args);
 const char *cli_settings_layer(const CliSettingsKeyCfg *args);
 
 struct CliSettingsChainCfg
@@ -215,15 +213,6 @@ EMBED_TABLE_STORAGE CliSettingsPathNs cli_settings_path_table EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*chain_write)(const CliSettingsCfg *args);
-} CliSettingsNs;
-EMBED_TABLE_LAYOUT(CliSettingsNs, chain_write);
-EMBED_TABLE_STORAGE CliSettingsNs cli_settings_table EMBED_UNUSED = {
-    .chain_write = cli_settings_chain_write,
-};
-
-typedef struct
-{
     int (*chain_read)(const CliSettingsChainCfg *args);
 } CliSettingsChainNs;
 EMBED_TABLE_LAYOUT(CliSettingsChainNs, chain_read);
@@ -240,15 +229,6 @@ EMBED_TABLE_LAYOUT(CliSettingsRootNs, layers, layers_free);
 EMBED_TABLE_STORAGE CliSettingsRootNs cli_settings_root EMBED_UNUSED = {
     .layers = cli_settings_layers,
     .layers_free = cli_settings_layers_free,
-};
-
-typedef struct
-{
-    void (*layers_write)(const CliSettingsOutCfg *args);
-} CliSettingsOutNs;
-EMBED_TABLE_LAYOUT(CliSettingsOutNs, layers_write);
-EMBED_TABLE_STORAGE CliSettingsOutNs cli_settings_out EMBED_UNUSED = {
-    .layers_write = cli_settings_layers_write,
 };
 
 #endif

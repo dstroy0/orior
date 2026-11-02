@@ -17,17 +17,17 @@
 int cli_random_bytes(const CliSizeBytesCtx *args)
 {
     unsigned char *const into = (unsigned char *)args->bytes_out;
-    unsigned long long given = 0ull;
-    while (given < args->size)
+    unsigned long long supplied = 0ull;
+    while (supplied < args->size)
     {
-        const unsigned long long left = args->size - given;
+        const unsigned long long left = args->size - supplied;
         // a piece is at most what a ULONG counts
         const ULONG piece = (left > 0xFFFFFFFFull) ? 0xFFFFFFFFul : (ULONG)left;
-        if (!RtlGenRandom(into + given, piece))
+        if (!RtlGenRandom(into + supplied, piece))
         {
             return 0;
         }
-        given += piece;
+        supplied += piece;
     }
     return 1;
 }
@@ -43,7 +43,7 @@ void cli_temp_folder(const CliFolderCtx *args)
         return;
     }
     size_t end = cellul.len(&(CatenaFinitaCfg){.src = args->folder_out, .cap = CLI_CELLS_POOL});
-    end = (size_t)(3u + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg,
+    end = (size_t)(3u + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg,
                                    .text = args->folder_out + 3u, .at = end - 3u, .set = "\\/"));
     args->folder_out[end] = '\0';
 }
@@ -96,9 +96,9 @@ unsigned long long cli_booted_seconds(void)
 }
 
 // the logon session this process's token stands in, which every log in makes new, its id written in hexadecimal
-void cli_logon_by_name(const CliRoomLogonCtx *args)
+void cli_logon_by_name(const CliCapacityLogonCtx *args)
 {
-    VerbaLinea named = {args->logon, args->room_size, 0ull};
+    VerbaLinea named = {args->logon, args->capacity_bytes, 0ull};
     HANDLE token = NULL;
     if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token))
     {

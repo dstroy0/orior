@@ -118,7 +118,7 @@ EMBED_INLINE void check_choose(const SchemaCheckCtx *args)
     const CliJson *const json = &check->store->json;
     unsigned int fitting = 0u;
     unsigned int nearest = CLI_JSON_NONE;
-    unsigned int least = 0u;
+    unsigned int min = 0u;
     for (unsigned int choice = json->node[args->choices].first; choice != CLI_JSON_NONE;
          choice = json->node[choice].next)
     {
@@ -126,10 +126,10 @@ EMBED_INLINE void check_choose(const SchemaCheckCtx *args)
             EMBED_CALL(cli_schema_base_node_internal.trial, CliSchemaBaseNodeCtx, .check = check, .node = node,
                        .schema = choice, .base = base, .depth = depth, .record = 0);
         fitting += (tried == 0u) ? 1u : 0u;
-        if ((nearest == CLI_JSON_NONE) || (tried < least))
+        if ((nearest == CLI_JSON_NONE) || (tried < min))
         {
             nearest = choice;
-            least = tried;
+            min = tried;
         }
     }
     if ((fitting == 0u) && (nearest != CLI_JSON_NONE))
@@ -203,7 +203,7 @@ EMBED_INLINE int check_type(const SchemaCheckCtx *args)
     EMBED_CALL(cli_schema_size_out_internal.kind_write, CliSchemaSizeOutCtx, .kind = kind,
                .size = cellul.len(&(CatenaFinitaCfg){.src = kind, .cap = CLI_CELLS_POOL}), .out = &msg);
     mmgr_line_put(&msg, " stands here, where the schema requires ");
-    int first_listed = 1;
+    int first_listing = 1;
     for (unsigned int one = first; one != CLI_JSON_NONE;
          one = (single != CLI_JSON_NONE) ? CLI_JSON_NONE : json->node[one].next)
     {
@@ -212,10 +212,10 @@ EMBED_INLINE int check_type(const SchemaCheckCtx *args)
                                                .json_read = json, .node = one, .length_pointer = &size);
         if (allowed != NULL)
         {
-            mmgr_line_put(&msg, first_listed ? "" : " or ");
+            mmgr_line_put(&msg, first_listing ? "" : " or ");
             EMBED_CALL(cli_schema_size_out_internal.kind_write, CliSchemaSizeOutCtx, .kind = allowed, .size = size,
                        .out = &msg);
-            first_listed = 0;
+            first_listing = 0;
         }
     }
     (void)EMBED_CALL(cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = args->check->found, .message = &msg,
@@ -246,17 +246,17 @@ EMBED_INLINE void check_values(const SchemaCheckCtx *args)
         {
             VerbaLinea msg =
                 EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = args->check->found);
-            EMBED_CALL(cli_schema_read_node_internal.shown_value, CliSchemaReadNodeCtx, .read = args->check->read,
+            EMBED_CALL(cli_schema_read_node_internal.displayed_value, CliSchemaReadNodeCtx, .read = args->check->read,
                        .node = node, .out = &msg);
             mmgr_line_put(&msg, " is none of the values the schema allows: ");
-            unsigned int shown = 0u;
-            for (unsigned int one = json->node[choices].first; (one != CLI_JSON_NONE) && (shown < 12u);
+            unsigned int displayed = 0u;
+            for (unsigned int one = json->node[choices].first; (one != CLI_JSON_NONE) && (displayed < 12u);
                  one = json->node[one].next)
             {
-                mmgr_line_put(&msg, (shown > 0u) ? ", " : "");
+                mmgr_line_put(&msg, (displayed > 0u) ? ", " : "");
                 EMBED_CALL(cli_schema_json_value_internal.show, CliSchemaJsonValueCtx, .json = json, .value = one,
                            .out = &msg);
-                shown += 1u;
+                displayed += 1u;
             }
             const unsigned int finding =
                 EMBED_CALL(cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = args->check->found,
@@ -264,8 +264,8 @@ EMBED_INLINE void check_values(const SchemaCheckCtx *args)
                            .severity = CLI_BUILD_WARNING, .code = "schema-enum");
             if (value->kind == CLI_SCHEMA_TEXT)
             {
-                CliBuildNear near;
-                EMBED_CALL(cli_builds_size.build_near_begin, CliBuildsSizeCfg, .near = &near,
+                CliBuildAdjacent adjacent;
+                EMBED_CALL(cli_builds_size.build_adjacent_begin, CliBuildsSizeCfg, .adjacent = &adjacent,
                            .name = EMBED_CALL(cli_schema_read_at_internal.text, CliSchemaReadAtCtx,
                                               .read = args->check->read, .at = value->text_at),
                            .size = value->text_size);
@@ -276,21 +276,21 @@ EMBED_INLINE void check_values(const SchemaCheckCtx *args)
                                                         .json_read = json, .node = one, .length_pointer = &size);
                     if (text != NULL)
                     {
-                        EMBED_CALL(cli_builds_size_near.build_near_offer, CliBuildsSizeNearCfg, .near = &near,
-                                   .one = text, .size = size);
+                        EMBED_CALL(cli_builds_size_adjacent.build_adjacent_offer, CliBuildsSizeAdjacentCfg,
+                                   .adjacent = &adjacent, .one = text, .size = size);
                     }
                 }
-                for (unsigned int at = 0u; at < near.count; at += 1u)
+                for (unsigned int at = 0u; at < adjacent.count; at += 1u)
                 {
                     VerbaLinea title =
                         EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = args->check->found);
                     mmgr_line_put(&title, "Change to \"");
-                    mmgr_line_put_n(&title, near.near[at], near.near_size[at]);
+                    mmgr_line_put_n(&title, adjacent.adjacent[at], adjacent.adjacent_size[at]);
                     mmgr_line_ch(&title, '"');
                     static char s_quoted[1u << 13u];
                     VerbaLinea quoted = {s_quoted, sizeof(s_quoted), 0ull};
                     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &quoted,
-                               .text = near.near[at], .length = near.near_size[at]);
+                               .text = adjacent.adjacent[at], .length = adjacent.adjacent_size[at]);
                     EMBED_CALL(cli_builds_text.build_edit_fix, CliBuildsTextCfg, .found = args->check->found,
                                .finding = finding, .title = &title, .lines = args->check->lines, .from = value->from,
                                .to = value->to, .text = s_quoted, .size = quoted.at);
@@ -298,15 +298,15 @@ EMBED_INLINE void check_values(const SchemaCheckCtx *args)
             }
         }
     }
-    const unsigned int wanted =
+    const unsigned int required =
         EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json, .map = map, .name = "const");
-    if ((wanted != CLI_JSON_NONE) &&
+    if ((required != CLI_JSON_NONE) &&
         !EMBED_CALL(cli_schema_read_json_internal.same, CliSchemaReadJsonCtx, .read = args->check->read, .node = node,
-                    .json = json, .value = wanted))
+                    .json = json, .value = required))
     {
         VerbaLinea msg = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = args->check->found);
         mmgr_line_put(&msg, "The schema requires ");
-        EMBED_CALL(cli_schema_json_value_internal.show, CliSchemaJsonValueCtx, .json = json, .value = wanted,
+        EMBED_CALL(cli_schema_json_value_internal.show, CliSchemaJsonValueCtx, .json = json, .value = required,
                    .out = &msg);
         mmgr_line_put(&msg, " here");
         (void)EMBED_CALL(cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = args->check->found,
@@ -325,11 +325,11 @@ EMBED_INLINE const char *check_base(const SchemaCheckCtx *args)
                                       .name = "$id", .size_pointer = &size);
     unsigned long long found = 0ull;
     if ((id == NULL) || !EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = id, .length_value = size,
-                                    .wanted = "://", .size = 3u, .at_pointer = &found))
+                                    .required = "://", .size = 3u, .at_pointer = &found))
     {
         return args->base;
     }
-    size = EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = id, .at = size, .set = "#");
+    size = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = id, .at = size, .set = "#");
     if (size + 1u > CLI_SCHEMA_BASES - s_bases_used)
     {
         return args->base;

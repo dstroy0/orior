@@ -46,7 +46,7 @@ typedef struct
     GuiColor color;
     float *advance;
 } GlyphsCtx;
-// the face `face` read from the file at `path` through the ranges room `ranges`, its ranges then saved in a cell of
+// the face `face` read from the file at `path` through the ranges capacity `ranges`, its ranges then saved in a cell of
 // their own count: 1, or 0 where there is no path, no file or no font in it
 EMBED_INLINE int glyphs_face_read(const GlyphsCtx *args)
 {
@@ -276,21 +276,21 @@ EMBED_INLINE GuiCachedGlyph *glyphs_entry(const GlyphsCtx *args)
     return &args->glyphs->entry[at];
 }
 
-// the stem darkening at `size` pixels an em: how far each side of a stroke is pushed out, in pixels, GUI_DARKEN_MOST
-// at GUI_DARKEN_SMALL pixels and below, falling straight to GUI_DARKEN_LEAST at GUI_DARKEN_LARGE and above, as a
+// the stem darkening at `size` pixels an em: how far each side of a stroke is pushed out, in pixels, GUI_DARKEN_MAX
+// at GUI_DARKEN_SMALL pixels and below, falling straight to GUI_DARKEN_MIN at GUI_DARKEN_LARGE and above, as a
 // small glyph's thin stems need the most to read at full weight
 EMBED_INLINE float glyphs_darkening(const GlyphsCtx *args)
 {
     if (args->size <= GUI_DARKEN_SMALL)
     {
-        return GUI_DARKEN_MOST;
+        return GUI_DARKEN_MAX;
     }
     if (args->size >= GUI_DARKEN_LARGE)
     {
-        return GUI_DARKEN_LEAST;
+        return GUI_DARKEN_MIN;
     }
     const float along = (float)(args->size - GUI_DARKEN_SMALL) / (float)(GUI_DARKEN_LARGE - GUI_DARKEN_SMALL);
-    return GUI_DARKEN_MOST + ((GUI_DARKEN_LEAST - GUI_DARKEN_MOST) * along);
+    return GUI_DARKEN_MAX + ((GUI_DARKEN_MIN - GUI_DARKEN_MAX) * along);
 }
 
 // the contours' strokes expanded by `reach` pixels a side: each point moved along the miter of its two edges' normals
@@ -346,18 +346,18 @@ EMBED_INLINE void glyphs_darken(const GlyphsCtx *args)
 // the coverage lifted through the blend's gamma: each share of 255 raised to one over GUI_TEXT_GAMMA, made once,
 // which brings a stroke's partly covered edge pixels up toward its whole ones and reads crisper and bolder
 static unsigned char s_lifted[256];
-static int s_lifted_made;
+static int s_lifted_created;
 
 EMBED_INLINE unsigned int glyphs_lift(const GlyphsCtx *args)
 {
-    if (!s_lifted_made)
+    if (!s_lifted_created)
     {
         for (unsigned int at = 0u; at < 256u; at += 1u)
         {
             // a share from 0 to 1 raised and scaled to 255, rounded, is a byte
             s_lifted[at] = (unsigned char)((powf((float)at / 255.0f, 1.0f / GUI_TEXT_GAMMA) * 255.0f) + 0.5f);
         }
-        s_lifted_made = 1;
+        s_lifted_created = 1;
     }
     return s_lifted[args->cover & 0xffu];
 }
@@ -369,7 +369,7 @@ EMBED_INLINE int glyphs_rasterize(const GlyphsCtx *args)
     GuiMask *mask = args->mask;
     CliMask measured;
     EMBED_CALL(cli_font_contours.rasterize, CliFontContoursCfg, .contours = args->glyphs_read->contours,
-               .mask = &measured, .cover = NULL, .room = 0ull);
+               .mask = &measured, .cover = NULL, .capacity = 0ull);
     mask->width = 0u;
     mask->height = 0u;
     mask->left = 0;
@@ -379,8 +379,8 @@ EMBED_INLINE int glyphs_rasterize(const GlyphsCtx *args)
     {
         return 1;
     }
-    const unsigned long long room = (measured.width * measured.height) + 4ull;
-    float *const floats = g_cli_cells->temporary_buf_alloc(room * sizeof(*floats), &g_gui_glyphs_cells);
+    const unsigned long long capacity = (measured.width * measured.height) + 4ull;
+    float *const floats = g_cli_cells->temporary_buf_alloc(capacity * sizeof(*floats), &g_gui_glyphs_cells);
     unsigned char *const cover =
         g_cli_cells->persistent_buf_alloc(measured.width * measured.height, &g_gui_glyphs_cells);
     if ((floats == NULL) || (cover == NULL))
@@ -391,7 +391,7 @@ EMBED_INLINE int glyphs_rasterize(const GlyphsCtx *args)
     }
     CliMask drawn;
     EMBED_CALL(cli_font_contours.rasterize, CliFontContoursCfg, .contours = args->glyphs_read->contours, .mask = &drawn,
-               .cover = floats, .room = room);
+               .cover = floats, .capacity = capacity);
     for (unsigned long long at = 0ull; at < (drawn.width * drawn.height); at += 1ull)
     {
         // a coverage from 0 to 1 by 255, rounded, is a byte
@@ -578,15 +578,15 @@ EMBED_INLINE GuiAsciiTable *glyphs_ascii_table(const GlyphsCtx *args)
             return table;
         }
     }
-    const unsigned int taken = args->glyphs->ascii_next;
-    args->glyphs->ascii_next = (taken + 1u) % GUI_ASCII_TABLES;
-    GuiAsciiTable *const table = &args->glyphs->ascii[taken];
+    const unsigned int reserved = args->glyphs->ascii_next;
+    args->glyphs->ascii_next = (reserved + 1u) % GUI_ASCII_TABLES;
+    GuiAsciiTable *const table = &args->glyphs->ascii[reserved];
     memor.set(&(MemoriaCfg){.dst = table, .val = 0, .bytes = sizeof(*table)});
     table->used = 1;
     table->face = face;
     table->size = size;
     table->color = color;
-    args->glyphs->ascii_last = taken;
+    args->glyphs->ascii_last = reserved;
     return table;
 }
 
@@ -639,10 +639,10 @@ float gui_text_draw(const GuiGlyphsFaceSizeCfg *args)
     unsigned long long at = 0ull;
     while (at < args->length)
     {
-        unsigned long long took = 0ull;
+        unsigned long long consumed = 0ull;
         const unsigned int letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = args->text,
-                                               .size = args->length, .at = at, .length = &took);
-        at += (took != 0ull) ? took : 1ull;
+                                               .size = args->length, .at = at, .length = &consumed);
+        at += (consumed != 0ull) ? consumed : 1ull;
         float advance = 0.0f;
         const GuiGlyphCell *const cell = EMBED_CALL(gui_glyphs_face_letter.glyph_cell, GuiGlyphsFaceLetterCfg,
                                                     .glyphs = args->glyphs, .face = args->face, .letter = letter,
@@ -664,10 +664,10 @@ float gui_text_width(const GuiGlyphsFaceSizeCfg *args)
     unsigned long long at = 0ull;
     while (at < args->length)
     {
-        unsigned long long took = 0ull;
+        unsigned long long consumed = 0ull;
         const unsigned int letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = args->text,
-                                               .size = args->length, .at = at, .length = &took);
-        at += (took != 0ull) ? took : 1ull;
+                                               .size = args->length, .at = at, .length = &consumed);
+        at += (consumed != 0ull) ? consumed : 1ull;
         float advance = 0.0f;
         (void)EMBED_CALL(gui_glyphs_face_letter.glyph, GuiGlyphsFaceLetterCfg, .glyphs = args->glyphs,
                          .face = args->face, .letter = letter, .size = args->size, .advance = &advance);

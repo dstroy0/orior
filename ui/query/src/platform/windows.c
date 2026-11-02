@@ -49,7 +49,7 @@ EMBED_INLINE void query_word_quote(const WindowsCtx *args)
         const unsigned long long stop = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
                                                    .text = args->word, .at = at, .size = whole, .set = "\\\"");
         mmgr_line_put_n(args->line, args->word + at, (size_t)(stop - at));
-        const unsigned long long run_end = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg,
+        const unsigned long long run_end = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg,
                                                       .text = args->word, .at = stop, .size = whole, .set = "\\");
         mmgr_line_put_n(args->line, args->word + stop, (size_t)(run_end - stop));
         // a slash's count is below the path's bytes, which an unsigned int stores
@@ -161,7 +161,7 @@ unsigned long long query_process_read(const QueryProcessPieceCtx *args)
         return 0ull;
     }
     // a piece is at most a gibibyte, which a DWORD counts
-    const DWORD most = (DWORD)((args->room_u64 < (1ull << 30u)) ? args->room_u64 : (1ull << 30u));
+    const DWORD most = (DWORD)((args->capacity_u64 < (1ull << 30u)) ? args->capacity_u64 : (1ull << 30u));
     DWORD got = 0u;
     if (!ReadFile((HANDLE)(uintptr_t)args->process->output, args->piece, most, &got, NULL))
     {
@@ -212,9 +212,10 @@ int query_environment_read(const QueryNameValueCtx *args)
     const DWORD length = (MultiByteToWideChar(CP_UTF8, 0, args->name, -1, s_name, (int)QUERY_ENVIRONMENT_WIDE) != 0)
                              ? GetEnvironmentVariableW(s_name, s_value, QUERY_ENVIRONMENT_WIDE)
                              : 0u;
-    // a room is far below what an int counts
-    const int read = (length != 0u) && (length < QUERY_ENVIRONMENT_WIDE) &&
-                     (WideCharToMultiByte(CP_UTF8, 0, s_value, -1, args->value_out, (int)args->room, NULL, NULL) != 0);
+    // a capacity is far below what an int counts
+    const int read =
+        (length != 0u) && (length < QUERY_ENVIRONMENT_WIDE) &&
+        (WideCharToMultiByte(CP_UTF8, 0, s_value, -1, args->value_out, (int)args->capacity, NULL, NULL) != 0);
     return read;
 }
 
@@ -222,7 +223,7 @@ int query_environment_write(const QueryNameOutCtx *args)
 {
     char s_value[QUERY_ENVIRONMENT_MAX_LEN];
     const int read = EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = args->name,
-                                .value_out = s_value, .room = sizeof(s_value));
+                                .value_out = s_value, .capacity = sizeof(s_value));
     if (read)
     {
         mmgr_line_put(args->out, s_value);
@@ -413,11 +414,11 @@ void query_pause(const QueryMillisecondsCtx *args)
     Sleep(args->milliseconds);
 }
 
-int query_path_full(const QueryRoomPathCtx *args)
+int query_path_full(const QueryCapacityPathCtx *args)
 {
-    // a room is far below what a DWORD counts
-    const DWORD length = GetFullPathNameA(args->path, (DWORD)args->room, args->full, NULL);
-    if ((length == 0u) || (length >= args->room))
+    // a capacity is far below what a DWORD counts
+    const DWORD length = GetFullPathNameA(args->path, (DWORD)args->capacity, args->full, NULL);
+    if ((length == 0u) || (length >= args->capacity))
     {
         return 0;
     }
@@ -436,7 +437,7 @@ int query_terminal_is(void)
     return GetFileType(GetStdHandle(STD_INPUT_HANDLE)) == FILE_TYPE_CHAR;
 }
 
-unsigned long long query_terminal_line_read(const QueryRoomLineCtx *args)
+unsigned long long query_terminal_line_read(const QueryCapacityLineCtx *args)
 {
     const HANDLE input = GetStdHandle(STD_INPUT_HANDLE);
     size_t length = 0u;
@@ -462,7 +463,7 @@ unsigned long long query_terminal_line_read(const QueryRoomLineCtx *args)
         if (letter != '\r')
         {
             whole += 1ull;
-            if ((length + 1u) < args->room)
+            if ((length + 1u) < args->capacity)
             {
                 args->line[length] = letter;
                 length += 1u;

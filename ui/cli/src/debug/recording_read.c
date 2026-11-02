@@ -26,10 +26,10 @@ CliReplay *g_cli_replay;
 // the line read last, in a tree of its own sized to it, given back as the next is read and as the recording is let go
 static CliJson s_json;
 
-// each thread's stack of frames as the recording is read, in a cell of its own of `s_rooms` frames, its depth, and
+// each thread's stack of frames as the recording is read, in a cell of its own of `s_capacities` frames, its depth, and
 // whether it has one; each cell given back once the recording is read
 static unsigned int *s_stacks[CLI_RECORDING_THREADS];
-static unsigned int s_rooms[CLI_RECORDING_THREADS];
+static unsigned int s_capacities[CLI_RECORDING_THREADS];
 static unsigned int s_depths[CLI_RECORDING_THREADS];
 static int s_has_stack[CLI_RECORDING_THREADS];
 
@@ -40,13 +40,13 @@ static void read_stacks_free(void)
     {
         g_cli_cells->persistent_buf_release(s_stacks[thread], &g_cli_debug_cells);
         s_stacks[thread] = NULL;
-        s_rooms[thread] = 0u;
+        s_capacities[thread] = 0u;
         s_depths[thread] = 0u;
         s_has_stack[thread] = 0;
     }
 }
 
-// the names of a recording with no room: one empty name
+// the names of a recording with no capacity: one empty name
 static char s_no_names[1] = "";
 
 const char *cli_recording_name(const CliRecordingAtFramesCtx *args)
@@ -131,9 +131,9 @@ EMBED_INLINE void *read_part(const RecordingReadCtx *args)
     return part;
 }
 
-// the recording's room taken for the counts of its `size` bytes of `text` and its parts set into it, the frames and
-// files zero and the names one empty name: 1, or 0 with the recording containing no room
-EMBED_INLINE int read_room_take(const RecordingReadCtx *args)
+// the recording's capacity taken for the counts of its `size` bytes of `text` and its parts set into it, the frames and
+// files zero and the names one empty name: 1, or 0 with the recording containing no capacity
+EMBED_INLINE int read_work_state_alloc(const RecordingReadCtx *args)
 {
     ReadCounts counts;
     EMBED_CALL(read_on_count, RecordingReadCtx, .text = args->text, .size = args->size, .counts = &counts);
@@ -149,28 +149,28 @@ EMBED_INLINE int read_room_take(const RecordingReadCtx *args)
         return 0;
     }
     unsigned char *at = cell;
-    args->recording->room = cell;
+    args->recording->capacity = cell;
     args->recording->steps = EMBED_CALL(read_part, RecordingReadCtx, .at_u8s = &at,
                                         .bytes = (unsigned long long)counts.steps * sizeof(CliRecordedStep));
-    args->recording->step_most = counts.steps;
+    args->recording->step_max = counts.steps;
     args->recording->by_frame = EMBED_CALL(read_part, RecordingReadCtx, .at_u8s = &at,
                                            .bytes = (unsigned long long)counts.steps * sizeof(unsigned int));
     args->recording->frames = EMBED_CALL(read_part, RecordingReadCtx, .at_u8s = &at,
                                          .bytes = (unsigned long long)counts.frames * sizeof(CliRecordedFrame));
-    args->recording->frame_most = counts.frames;
+    args->recording->frame_max = counts.frames;
     args->recording->files = EMBED_CALL(read_part, RecordingReadCtx, .at_u8s = &at,
                                         .bytes = (unsigned long long)counts.files * sizeof(unsigned int));
-    args->recording->file_most = counts.files;
+    args->recording->file_max = counts.files;
     args->recording->thread_ids = EMBED_CALL(read_part, RecordingReadCtx, .at_u8s = &at,
                                              .bytes = (unsigned long long)counts.threads * sizeof(unsigned long long));
     args->recording->thread_names = EMBED_CALL(read_part, RecordingReadCtx, .at_u8s = &at,
                                                .bytes = (unsigned long long)counts.threads * sizeof(unsigned int));
-    args->recording->thread_most = counts.threads;
+    args->recording->thread_max = counts.threads;
     args->recording->raised = EMBED_CALL(read_part, RecordingReadCtx, .at_u8s = &at,
                                          .bytes = (unsigned long long)counts.raises * sizeof(CliRecordedRaise));
-    args->recording->raised_most = counts.raises;
+    args->recording->raised_max = counts.raises;
     args->recording->names = EMBED_CALL(read_part, RecordingReadCtx, .at_u8s = &at, .bytes = args->size + 1ull);
-    args->recording->names_most = args->size + 1ull;
+    args->recording->names_max = args->size + 1ull;
     memor.set(&(MemoriaCfg){
         .dst = args->recording->frames, .val = 0, .bytes = (size_t)counts.frames * sizeof(CliRecordedFrame)});
     memor.set(
@@ -192,7 +192,7 @@ EMBED_INLINE unsigned int read_record(const RecordingReadCtx *args)
     VerbaLinea unread = {why, sizeof(why), 0ull};
     const unsigned int root =
         (end - at <= CLI_RECORDING_LINE_TEXT)
-            ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg, .json = &s_json,
+            ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &s_json,
                          .text = recording->text + at, .size = end - at, .nodes_more = 0u, .text_more = 0ull,
                          .err_msg = &unread, .owner = &g_cli_debug_cells)
             : CLI_JSON_NONE;
@@ -243,7 +243,7 @@ EMBED_INLINE unsigned int read_by_name(const RecordingReadCtx *args)
                    .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                       .json_read = &s_json, .array = args->record, .index = args->at_u32),
                    .length_pointer = &length);
-    if ((text == NULL) || (recording->used + length + 1ull > recording->names_most))
+    if ((text == NULL) || (recording->used + length + 1ull > recording->names_max))
     {
         return 0u;
     }
@@ -273,7 +273,7 @@ EMBED_INLINE void read_call(const RecordingReadCtx *args)
 {
     CliRecording *const recording = &g_cli_replay->recording;
     const unsigned long long serial = EMBED_CALL(read_number, RecordingReadCtx, .record = args->record, .at_u32 = 1u);
-    if (serial >= recording->frame_most)
+    if (serial >= recording->frame_max)
     {
         return;
     }
@@ -298,11 +298,11 @@ EMBED_INLINE void read_call(const RecordingReadCtx *args)
     {
         s_stacks[thread] = g_cli_cells->persistent_buf_alloc(
             (unsigned long long)CLI_RECORDING_DEPTH * sizeof(unsigned int), &g_cli_debug_cells);
-        s_rooms[thread] = (s_stacks[thread] != NULL) ? CLI_RECORDING_DEPTH : 0u;
+        s_capacities[thread] = (s_stacks[thread] != NULL) ? CLI_RECORDING_DEPTH : 0u;
         s_has_stack[thread] = 1;
     }
     if (((s_depths[thread] == 0u) || (s_stacks[thread][s_depths[thread] - 1u] != serial)) &&
-        (s_depths[thread] < s_rooms[thread]))
+        (s_depths[thread] < s_capacities[thread]))
     {
         s_stacks[thread][s_depths[thread]] = (unsigned int)serial;
         s_depths[thread] += 1u;
@@ -310,7 +310,7 @@ EMBED_INLINE void read_call(const RecordingReadCtx *args)
 }
 
 // the place of `serial` in a thread's stack from its top, one past it; the stack's depth where it is not there
-EMBED_INLINE unsigned int read_place(const RecordingReadCtx *args)
+EMBED_INLINE unsigned int read_position(const RecordingReadCtx *args)
 {
     int *found = args->found;
     for (unsigned int at = s_depths[args->thread]; at > 0u; at -= 1u)
@@ -330,16 +330,16 @@ EMBED_INLINE void read_line(const RecordingReadCtx *args)
 {
     CliRecording *const recording = &g_cli_replay->recording;
     const unsigned long long serial = EMBED_CALL(read_number, RecordingReadCtx, .record = args->record, .at_u32 = 1u);
-    if ((serial >= recording->frame_most) || (recording->step_count == recording->step_most))
+    if ((serial >= recording->frame_max) || (recording->step_count == recording->step_max))
     {
-        recording->cut = recording->cut || (recording->step_count == recording->step_most);
+        recording->cut = recording->cut || (recording->step_count == recording->step_max);
         return;
     }
     CliRecordedFrame *const frame = &recording->frames[serial];
     const unsigned int thread = frame->seen ? frame->thread : 0u;
     int found = 0;
     const unsigned int depth = ((thread < CLI_RECORDING_THREADS) && s_has_stack[thread])
-                                   ? EMBED_CALL(read_place, RecordingReadCtx, .thread = thread,
+                                   ? EMBED_CALL(read_position, RecordingReadCtx, .thread = thread,
                                                 .serial = (unsigned int)serial, .found = &found)
                                    : 1u;
     if (!frame->seen)
@@ -360,12 +360,12 @@ EMBED_INLINE void read_return(const RecordingReadCtx *args)
     CliRecording *const recording = &g_cli_replay->recording;
     const unsigned long long serial = EMBED_CALL(read_number, RecordingReadCtx, .record = args->record, .at_u32 = 1u);
     const unsigned int thread =
-        ((serial < recording->frame_most) && recording->frames[serial].seen) ? recording->frames[serial].thread : 0u;
+        ((serial < recording->frame_max) && recording->frames[serial].seen) ? recording->frames[serial].thread : 0u;
     int found = 0;
     if ((thread < CLI_RECORDING_THREADS) && s_has_stack[thread])
     {
-        const unsigned int place =
-            EMBED_CALL(read_place, RecordingReadCtx, .thread = thread, .serial = (unsigned int)serial, .found = &found);
+        const unsigned int place = EMBED_CALL(read_position, RecordingReadCtx, .thread = thread,
+                                              .serial = (unsigned int)serial, .found = &found);
         s_depths[thread] = found ? place - 1u : s_depths[thread];
     }
 }
@@ -375,7 +375,7 @@ EMBED_INLINE void read_raise(const RecordingReadCtx *args)
 {
     CliRecording *const recording = &g_cli_replay->recording;
     const unsigned long long serial = EMBED_CALL(read_number, RecordingReadCtx, .record = args->record, .at_u32 = 1u);
-    const CliRecordedFrame *const frame = (serial < recording->frame_most) ? &recording->frames[serial] : NULL;
+    const CliRecordedFrame *const frame = (serial < recording->frame_max) ? &recording->frames[serial] : NULL;
     const unsigned int step = ((frame != NULL) && frame->seen && (frame->last != CLI_RECORDING_NO_STEP))
                                   ? frame->last
                                   : ((recording->step_count > 0u) ? recording->step_count - 1u : 0u);
@@ -397,7 +397,7 @@ EMBED_INLINE void read_raise(const RecordingReadCtx *args)
             return;
         }
     }
-    if (recording->raised_count < recording->raised_most)
+    if (recording->raised_count < recording->raised_max)
     {
         recording->raised[recording->raised_count] = (CliRecordedRaise){step, kind, message};
         recording->raised_count += 1u;
@@ -424,26 +424,26 @@ void cli_recording_let_go(void)
         recording->path[0] = '\0';
     }
     recording->size = 0ull;
-    g_cli_cells->persistent_buf_release(recording->room, &g_cli_debug_cells);
-    recording->room = NULL;
+    g_cli_cells->persistent_buf_release(recording->capacity, &g_cli_debug_cells);
+    recording->capacity = NULL;
     recording->steps = NULL;
     recording->step_count = 0u;
-    recording->step_most = 0u;
+    recording->step_max = 0u;
     recording->frames = NULL;
-    recording->frame_most = 0u;
+    recording->frame_max = 0u;
     recording->by_frame = NULL;
     recording->files = NULL;
     recording->file_count = 0u;
-    recording->file_most = 0u;
+    recording->file_max = 0u;
     recording->thread_ids = NULL;
     recording->thread_names = NULL;
     recording->thread_count = 0u;
-    recording->thread_most = 0u;
+    recording->thread_max = 0u;
     recording->raised = NULL;
     recording->raised_count = 0u;
-    recording->raised_most = 0u;
+    recording->raised_max = 0u;
     recording->names = s_no_names;
-    recording->names_most = 0ull;
+    recording->names_max = 0ull;
     recording->used = 1u;
     recording->has_code = 0;
     recording->code = 0ll;
@@ -457,19 +457,19 @@ EMBED_INLINE void read_store(const RecordingReadCtx *args)
     if (EMBED_CALL(read_kind, RecordingReadCtx, .record = args->record, .word = "file"))
     {
         const unsigned long long file = EMBED_CALL(read_number, RecordingReadCtx, .record = args->record, .at_u32 = 1u);
-        for (; (recording->file_count <= file) && (recording->file_count < recording->file_most);
+        for (; (recording->file_count <= file) && (recording->file_count < recording->file_max);
              recording->file_count += 1u)
         {
             recording->files[recording->file_count] = 0u;
         }
-        if (file < recording->file_most)
+        if (file < recording->file_max)
         {
             recording->files[file] =
                 EMBED_CALL(read_by_name, RecordingReadCtx, .record = args->record, .at_u32 = 2u, .slashed = 1);
         }
     }
     else if (EMBED_CALL(read_kind, RecordingReadCtx, .record = args->record, .word = "thread") &&
-             (recording->thread_count < recording->thread_most))
+             (recording->thread_count < recording->thread_max))
     {
         recording->thread_ids[recording->thread_count] =
             EMBED_CALL(read_number, RecordingReadCtx, .record = args->record, .at_u32 = 1u);
@@ -547,7 +547,7 @@ void cli_recording_read(const CliRecordingPathCtx *args)
     {
         memor.set(&(MemoriaCfg){.dst = bytes + size, .val = 0, .bytes = CLI_FILE_SLACK});
         recording->size = size;
-        if (!EMBED_CALL(read_room_take, RecordingReadCtx, .recording = recording, .text = recording->text,
+        if (!EMBED_CALL(read_work_state_alloc, RecordingReadCtx, .recording = recording, .text = recording->text,
                         .size = recording->size))
         {
             cli_recording_let_go();
@@ -571,7 +571,7 @@ void cli_recording_read(const CliRecordingPathCtx *args)
     read_stacks_free();
     // each frame's steps in turn, in the order they ran
     unsigned int first = 0u;
-    for (unsigned int serial = 0u; serial < recording->frame_most; serial += 1u)
+    for (unsigned int serial = 0u; serial < recording->frame_max; serial += 1u)
     {
         recording->frames[serial].first = first;
         recording->frames[serial].last = first;

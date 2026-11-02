@@ -13,7 +13,7 @@ extern void test_a_frames_names_are_recorded_with_their_values(void);
 extern void test_each_frame_has_its_own_values(void);
 extern void test_the_runs_exit_code_is_recorded(void);
 extern void test_a_raise_is_recorded_at_its_step(void);
-extern void test_a_stack_places_each_caller_at_its_line(void);
+extern void test_a_stack_positions_each_caller_at_its_line(void);
 extern void test_a_stack_has_only_its_own_frame_once_the_call_returned(void);
 extern void test_a_names_history_lists_each_line_that_changed_it(void);
 extern void test_a_names_history_is_of_its_own_frame(void);
@@ -92,7 +92,7 @@ int main(void)
   run_test(test_each_frame_has_its_own_values, "test_each_frame_has_its_own_values", 130);
   run_test(test_the_runs_exit_code_is_recorded, "test_the_runs_exit_code_is_recorded", 135);
   run_test(test_a_raise_is_recorded_at_its_step, "test_a_raise_is_recorded_at_its_step", 141);
-  run_test(test_a_stack_places_each_caller_at_its_line, "test_a_stack_places_each_caller_at_its_line", 147);
+  run_test(test_a_stack_positions_each_caller_at_its_line, "test_a_stack_positions_each_caller_at_its_line", 147);
   run_test(test_a_stack_has_only_its_own_frame_once_the_call_returned, "test_a_stack_has_only_its_own_frame_once_the_call_returned", 152);
   run_test(test_a_names_history_lists_each_line_that_changed_it, "test_a_names_history_lists_each_line_that_changed_it", 157);
   run_test(test_a_names_history_is_of_its_own_frame, "test_a_names_history_is_of_its_own_frame", 163);

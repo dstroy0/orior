@@ -8,17 +8,17 @@
 // the input each function last took, by the function
 static const GuiInput *s_pressed;
 static const GuiInput *s_moved;
-static struct GuiWindow *s_window_handed;
+static struct GuiWindow *s_window_transferred;
 
-static void handed_pressed(const GuiInputHandlerCfg *args)
+static void transferred_pressed(const GuiInputHandlerCfg *args)
 {
-    s_window_handed = args->window;
+    s_window_transferred = args->window;
     s_pressed = args->input;
 }
 
-static void handed_moved(const GuiInputHandlerCfg *args)
+static void transferred_moved(const GuiInputHandlerCfg *args)
 {
-    s_window_handed = args->window;
+    s_window_transferred = args->window;
     s_moved = args->input;
 }
 
@@ -41,11 +41,11 @@ int main(void)
 
     // the table hands each kind to the function it names, and a kind it names none for goes nowhere
     GuiInputHandlers handlers = {{NULL}};
-    handlers.by_type[GUI_INPUT_DOWN] = handed_pressed;
-    handlers.by_type[GUI_INPUT_MOVED] = handed_moved;
+    handlers.by_type[GUI_INPUT_DOWN] = transferred_pressed;
+    handlers.by_type[GUI_INPUT_MOVED] = transferred_moved;
     struct GuiWindow *const window = (struct GuiWindow *)&handlers;
     EMBED_CALL(gui_input_event.handle, GuiInputEventCfg, .handlers = &handlers, .window = window, .input = down);
-    cli_check((s_pressed == down) && (s_moved == NULL) && (s_window_handed == window), "a press reaches the function its table names, with the window");
+    cli_check((s_pressed == down) && (s_moved == NULL) && (s_window_transferred == window), "a press reaches the function its table names, with the window");
     EMBED_CALL(gui_input_event.handle, GuiInputEventCfg, .handlers = &handlers, .window = window, .input = moved);
     cli_check((s_moved == moved) && (s_pressed == down), "the pointer moved reaches its own");
     s_pressed = NULL;

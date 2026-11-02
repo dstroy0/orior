@@ -14,10 +14,10 @@ typedef struct
     const char *out;
     unsigned long long size;
     CliCommits *found;
-    void (*each)(const CliIdWhenMadeCfg *args);
+    void (*each)(const CliIdWhenCreatedCfg *args);
     const char *folder;
     const char *what;
-    const char *shown;
+    const char *displayed;
     VerbaLinea *out_verba_linea_pointer;
 } GitListsCtx;
 // the commit lines `id\x1fwhen\x1fsubject` of what git wrote put after those found
@@ -50,12 +50,13 @@ EMBED_INLINE void cli_commits_get(const GitListsCtx *args)
         }
         CliCommit *const one = &args->found->item[args->found->count];
         args->found->count += 1u;
-        one->id = EMBED_CALL(cli_git_text.text_put, CliGitTextCfg, .text = &args->found->text, .from = id,
+        one->id = EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &args->found->text, .from = id,
                              .length = id_length);
         one->when = seconds;
-        one->subject = (subject != NULL) ? EMBED_CALL(cli_git_text.text_put, CliGitTextCfg, .text = &args->found->text,
-                                                      .from = subject, .length = (unsigned long long)(stop - subject))
-                                         : 0u;
+        one->subject = (subject != NULL)
+                           ? EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &args->found->text,
+                                        .from = subject, .length = (unsigned long long)(stop - subject))
+                           : 0u;
     }
 }
 
@@ -87,7 +88,7 @@ EMBED_INLINE void cli_records(const GitListsCtx *args)
             stop += 1;
         }
         const char *const next = stop + 1;
-        record += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = record, .at = 0ull,
+        record += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = record, .at = 0ull,
                              .size = (unsigned long long)(stop - record), .set = "\n");
         const char *at = record;
         unsigned long long lengths[4] = {0ull, 0ull, 0ull, 0ull};
@@ -105,17 +106,17 @@ EMBED_INLINE void cli_records(const GitListsCtx *args)
         {
             const char *message_end = stop;
             message_end =
-                message + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = message,
+                message + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = message,
                                      .at = (unsigned long long)(message_end - message), .set = CLI_TEXT_WHITE);
-            EMBED_CALL(args->each, CliIdWhenMadeCfg, .id = fields[0], .id_length = lengths[0], .when = when,
-                       .made = fields[2], .made_length = (unsigned long long)(message_end - fields[2]));
+            EMBED_CALL(args->each, CliIdWhenCreatedCfg, .id = fields[0], .id_length = lengths[0], .when = when,
+                       .made = fields[2], .created_length = (unsigned long long)(message_end - fields[2]));
         }
         record = next;
     }
 }
 
 // a commit found elsewhere stored, its subject the first line of its message
-static void cli_elsewhere_each(const CliIdWhenMadeCfg *args)
+static void cli_elsewhere_each(const CliIdWhenCreatedCfg *args)
 {
     const char *id = args->id;
     long long when = args->when;
@@ -127,39 +128,39 @@ static void cli_elsewhere_each(const CliIdWhenMadeCfg *args)
     const char *message = args->made;
     for (unsigned int seen = 0u; seen < 2u; seen += 1u)
     {
-        while ((message < (args->made + args->made_length)) && (message[0] != '\x1f'))
+        while ((message < (args->made + args->created_length)) && (message[0] != '\x1f'))
         {
             message += 1;
         }
-        message += (message < (args->made + args->made_length)) ? 1 : 0;
+        message += (message < (args->made + args->created_length)) ? 1 : 0;
     }
     const char *line_end = message;
     line_end += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = line_end, .at = 0ull,
-                           .size = (unsigned long long)((args->made + args->made_length) - line_end), .set = "\n");
+                           .size = (unsigned long long)((args->made + args->created_length) - line_end), .set = "\n");
     line_end -= ((line_end > message) && (line_end[-1] == '\r')) ? 1 : 0;
     CliCommit *const one = &found->item[found->count];
-    one->id =
-        EMBED_CALL(cli_git_text.text_put, CliGitTextCfg, .text = &found->text, .from = id, .length = args->id_length);
+    one->id = EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &found->text, .from = id,
+                         .length = args->id_length);
     one->when = when;
-    one->subject = EMBED_CALL(cli_git_text.text_put, CliGitTextCfg, .text = &found->text, .from = message,
+    one->subject = EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &found->text, .from = message,
                               .length = (unsigned long long)(line_end - message));
-    s_elsewhere.at[found->count] = EMBED_CALL(cli_git_text.text_put, CliGitTextCfg, .text = &s_elsewhere.made,
-                                              .from = args->made, .length = args->made_length);
-    s_elsewhere.length[found->count] = args->made_length;
+    s_elsewhere.at[found->count] = EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &s_elsewhere.made,
+                                              .from = args->made, .length = args->created_length);
+    s_elsewhere.length[found->count] = args->created_length;
     s_elsewhere.ours[found->count] = 0;
     found->count += 1u;
 }
 
 // a commit of the branch's own marks each found elsewhere that is the same
-static void cli_ours_each(const CliIdWhenMadeCfg *args)
+static void cli_ours_each(const CliIdWhenCreatedCfg *args)
 {
     for (unsigned int at = 0u; at < s_elsewhere.found.count; at += 1u)
     {
-        if ((s_elsewhere.length[at] == args->made_length) &&
+        if ((s_elsewhere.length[at] == args->created_length) &&
             (memor.cmp(&(MemoriaCfg){.src = EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg,
                                                        .text_read = &s_elsewhere.made, .at = s_elsewhere.at[at]),
                                      .other = args->made,
-                                     .bytes = args->made_length}) == 0))
+                                     .bytes = args->created_length}) == 0))
         {
             s_elsewhere.ours[at] = 1;
         }
@@ -176,11 +177,11 @@ void cli_git_elsewhere(const CliGitRootFileErrMsgCfg *args)
     EMBED_CALL(cli_git_text.text_begin, CliGitTextCfg, .text = &s_elsewhere.made);
     const char *const theirs[8] = {"log",  "--branches",  "--remotes",   "--not",
                                    "HEAD", "--no-merges", CLI_GIT_LIMIT, s_format};
-    CliGitGave *const gave = cli_git_take();
-    if (EMBED_CALL(cli_git_gave_internal.query, CliGitGaveCtx, .root = args->root, .request = theirs, .count = 8u,
-                   .gave = gave))
+    CliGitResult *const result = cli_git_alloc();
+    if (EMBED_CALL(cli_git_result_internal.query, CliGitResultCtx, .root = args->root, .request = theirs, .count = 8u,
+                   .result = result))
     {
-        EMBED_CALL(cli_records, GitListsCtx, .out = gave->out, .size = gave->out_size, .each = cli_elsewhere_each);
+        EMBED_CALL(cli_records, GitListsCtx, .out = result->out, .size = result->out_size, .each = cli_elsewhere_each);
     }
     long long oldest = 0ll;
     for (unsigned int at = 0u; at < s_elsewhere.found.count; at += 1u)
@@ -199,14 +200,14 @@ void cli_git_elsewhere(const CliGitRootFileErrMsgCfg *args)
     mmgr_line_finish(&line);
     const char *const ours[5] = {"log", "HEAD", "--no-merges", since, s_format};
     // where the branch's own commits cannot be read, no commit is reported to be elsewhere: each would be
-    const int read =
-        (s_elsewhere.found.count != 0u) && EMBED_CALL(cli_git_gave_internal.query, CliGitGaveCtx, .root = args->root,
-                                                      .request = ours, .count = 5u, .gave = gave);
+    const int read = (s_elsewhere.found.count != 0u) &&
+                     EMBED_CALL(cli_git_result_internal.query, CliGitResultCtx, .root = args->root, .request = ours,
+                                .count = 5u, .result = result);
     if (read)
     {
-        EMBED_CALL(cli_records, GitListsCtx, .out = gave->out, .size = gave->out_size, .each = cli_ours_each);
+        EMBED_CALL(cli_records, GitListsCtx, .out = result->out, .size = result->out_size, .each = cli_ours_each);
     }
-    EMBED_CALL(cli_git_gave_internal.free, CliGitGaveCtx, .gave = gave);
+    EMBED_CALL(cli_git_result_internal.free, CliGitResultCtx, .result = result);
     for (unsigned int at = 0u; read && (at < s_elsewhere.found.count); at += 1u)
     {
         const CliCommit *const one = &s_elsewhere.found.item[at];
@@ -220,11 +221,12 @@ void cli_git_elsewhere(const CliGitRootFileErrMsgCfg *args)
                                                .text_read = &s_elsewhere.found.text, .at = one->subject);
         CliCommit *const commit = &args->found->item[args->found->count];
         args->found->count += 1u;
-        commit->id = EMBED_CALL(cli_git_text.text_put, CliGitTextCfg, .text = &args->found->text, .from = id,
+        commit->id = EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &args->found->text, .from = id,
                                 .length = cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}));
         commit->when = one->when;
-        commit->subject = EMBED_CALL(cli_git_text.text_put, CliGitTextCfg, .text = &args->found->text, .from = subject,
-                                     .length = cellul.len(&(CatenaFinitaCfg){.src = subject, .cap = CLI_CELLS_POOL}));
+        commit->subject =
+            EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &args->found->text, .from = subject,
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = subject, .cap = CLI_CELLS_POOL}));
     }
     EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_elsewhere.found.text);
     EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_elsewhere.made);
@@ -235,54 +237,54 @@ int cli_git_commits(const CliGitRootFileErrMsgCfg *args)
     args->found->count = 0u;
     EMBED_CALL(cli_git_text.text_begin, CliGitTextCfg, .text = &args->found->text);
     char folder[CLI_PATH_MAX_LEN];
-    char shown[CLI_PATH_MAX_LEN];
-    if (!EMBED_CALL(cli_git_root_err_msg_internal.beside, CliGitRootErrMsgCtx, .root = args->root, .file = args->file,
-                    .folder = folder, .shown = shown, .err_msg = args->err_msg))
+    char displayed[CLI_PATH_MAX_LEN];
+    if (!EMBED_CALL(cli_git_root_err_msg_internal.adjacent, CliGitRootErrMsgCtx, .root = args->root, .file = args->file,
+                    .folder = folder, .displayed = displayed, .err_msg = args->err_msg))
     {
         return 0;
     }
-    const char *const arguments[6] = {"log", "--follow", CLI_GIT_LIMIT, "--format=%H%x1f%ct%x1f%s", "--", shown};
-    CliGitGave *const gave = cli_git_take();
-    if (EMBED_CALL(cli_git_gave_internal.query, CliGitGaveCtx, .root = folder, .request = arguments, .count = 6u,
-                   .gave = gave))
+    const char *const arguments[6] = {"log", "--follow", CLI_GIT_LIMIT, "--format=%H%x1f%ct%x1f%s", "--", displayed};
+    CliGitResult *const result = cli_git_alloc();
+    if (EMBED_CALL(cli_git_result_internal.query, CliGitResultCtx, .root = folder, .request = arguments, .count = 6u,
+                   .result = result))
     {
-        EMBED_CALL(cli_commits_get, GitListsCtx, .out = gave->out, .size = gave->out_size, .found = args->found);
+        EMBED_CALL(cli_commits_get, GitListsCtx, .out = result->out, .size = result->out_size, .found = args->found);
     }
-    EMBED_CALL(cli_git_gave_internal.free, CliGitGaveCtx, .gave = gave);
+    EMBED_CALL(cli_git_result_internal.free, CliGitResultCtx, .result = result);
     return 1;
 }
 
-// git run to show `what` of the file at `shown` from `folder`, `what` before the colon: what it wrote into `out`, 1,
-// or 0 where it could not
+// git run to show `what` of the file at `displayed` from `folder`, `what` before the colon: what it wrote into `out`,
+// 1, or 0 where it could not
 EMBED_INLINE int cli_show(const GitListsCtx *args)
 {
     char named[CLI_PATH_MAX_LEN + CLI_NAME_MAX_LEN];
     VerbaLinea line = {named, sizeof(named), 0ull};
     mmgr_line_put(&line, args->what);
     mmgr_line_ch(&line, ':');
-    mmgr_line_put(&line, args->shown);
+    mmgr_line_put(&line, args->displayed);
     if (mmgr_line_finish(&line) == 0ull)
     {
         return 0;
     }
     const char *const arguments[2] = {"show", named};
-    CliGitGave *const gave = cli_git_take();
-    const int found = EMBED_CALL(cli_git_gave_internal.query, CliGitGaveCtx, .root = args->folder, .request = arguments,
-                                 .count = 2u, .gave = gave);
+    CliGitResult *const result = cli_git_alloc();
+    const int found = EMBED_CALL(cli_git_result_internal.query, CliGitResultCtx, .root = args->folder,
+                                 .request = arguments, .count = 2u, .result = result);
     if (found)
     {
-        mmgr_line_put_n(args->out_verba_linea_pointer, gave->out, gave->out_size);
+        mmgr_line_put_n(args->out_verba_linea_pointer, result->out, result->out_size);
     }
-    EMBED_CALL(cli_git_gave_internal.free, CliGitGaveCtx, .gave = gave);
+    EMBED_CALL(cli_git_result_internal.free, CliGitResultCtx, .result = result);
     return found;
 }
 
 int cli_git_text_at(const CliGitRootFileCfg *args)
 {
     char folder[CLI_PATH_MAX_LEN];
-    char shown[CLI_PATH_MAX_LEN];
-    if (!EMBED_CALL(cli_git_root_err_msg_internal.beside, CliGitRootErrMsgCtx, .root = args->root, .file = args->file,
-                    .folder = folder, .shown = shown, .err_msg = args->err_msg))
+    char displayed[CLI_PATH_MAX_LEN];
+    if (!EMBED_CALL(cli_git_root_err_msg_internal.adjacent, CliGitRootErrMsgCtx, .root = args->root, .file = args->file,
+                    .folder = folder, .displayed = displayed, .err_msg = args->err_msg))
     {
         return 0;
     }
@@ -292,7 +294,7 @@ int cli_git_text_at(const CliGitRootFileCfg *args)
         mmgr_line_put(args->err_msg, " is not a commit");
         return 0;
     }
-    if (!EMBED_CALL(cli_show, GitListsCtx, .folder = folder, .what = args->id, .shown = shown,
+    if (!EMBED_CALL(cli_show, GitListsCtx, .folder = folder, .what = args->id, .displayed = displayed,
                     .out_verba_linea_pointer = args->out))
     {
         mmgr_line_put(args->err_msg, args->file);
@@ -306,7 +308,7 @@ int cli_git_text_at(const CliGitRootFileCfg *args)
 int cli_git_text_before(const CliGitRootFileCfg *args)
 {
     char folder[CLI_PATH_MAX_LEN];
-    char shown[CLI_PATH_MAX_LEN];
+    char displayed[CLI_PATH_MAX_LEN];
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     char parent[CLI_NAME_MAX_LEN];
@@ -314,21 +316,21 @@ int cli_git_text_before(const CliGitRootFileCfg *args)
     mmgr_line_put(&line, args->id);
     mmgr_line_put(&line, "^1");
     return EMBED_CALL(cli_git_internal.is_id, CliGitCtx, .id = args->id) && (mmgr_line_finish(&line) != 0ull) &&
-           EMBED_CALL(cli_git_root_err_msg_internal.beside, CliGitRootErrMsgCtx, .root = args->root, .file = args->file,
-                      .folder = folder, .shown = shown, .err_msg = &err_msg) &&
-           EMBED_CALL(cli_show, GitListsCtx, .folder = folder, .what = parent, .shown = shown,
+           EMBED_CALL(cli_git_root_err_msg_internal.adjacent, CliGitRootErrMsgCtx, .root = args->root,
+                      .file = args->file, .folder = folder, .displayed = displayed, .err_msg = &err_msg) &&
+           EMBED_CALL(cli_show, GitListsCtx, .folder = folder, .what = parent, .displayed = displayed,
                       .out_verba_linea_pointer = args->out);
 }
 
 int cli_git_head_text(const CliGitRootFileStageCfg *args)
 {
     char folder[CLI_PATH_MAX_LEN];
-    char shown[CLI_PATH_MAX_LEN];
+    char displayed[CLI_PATH_MAX_LEN];
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    return EMBED_CALL(cli_git_root_err_msg_internal.beside, CliGitRootErrMsgCtx, .root = args->root, .file = args->file,
-                      .folder = folder, .shown = shown, .err_msg = &err_msg) &&
-           EMBED_CALL(cli_show, GitListsCtx, .folder = folder, .what = "HEAD", .shown = shown,
+    return EMBED_CALL(cli_git_root_err_msg_internal.adjacent, CliGitRootErrMsgCtx, .root = args->root,
+                      .file = args->file, .folder = folder, .displayed = displayed, .err_msg = &err_msg) &&
+           EMBED_CALL(cli_show, GitListsCtx, .folder = folder, .what = "HEAD", .displayed = displayed,
                       .out_verba_linea_pointer = args->out);
 }
 
@@ -339,12 +341,12 @@ int cli_git_new_by(const CliGitRootIdCfg *args)
         return 0;
     }
     const char *const arguments[4] = {"log", "-1", "--format=%an%x00%s", args->id};
-    CliGitGave *const gave = cli_git_take();
-    int found = EMBED_CALL(cli_git_gave_internal.query, CliGitGaveCtx, .root = args->root, .request = arguments,
-                           .count = 4u, .gave = gave);
-    const char *from = gave->out;
-    const char *to = gave->out + gave->out_size;
-    to = from + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = from,
+    CliGitResult *const result = cli_git_alloc();
+    int found = EMBED_CALL(cli_git_result_internal.query, CliGitResultCtx, .root = args->root, .request = arguments,
+                           .count = 4u, .result = result);
+    const char *from = result->out;
+    const char *to = result->out + result->out_size;
+    to = from + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = from,
                            .at = (unsigned long long)(to - from), .set = CLI_TEXT_WHITE);
     const char *zero = from;
     const char *const nul = memor.chr(&(MemoriaCfg){.src = from, .val = 0, .bytes = (unsigned long long)(to - from)});
@@ -355,7 +357,7 @@ int cli_git_new_by(const CliGitRootIdCfg *args)
         mmgr_line_put_n(args->name_verba_linea_pointer, from, (unsigned long long)(zero - from));
         mmgr_line_put_n(args->subject, zero + 1, (unsigned long long)(to - zero - 1));
     }
-    EMBED_CALL(cli_git_gave_internal.free, CliGitGaveCtx, .gave = gave);
+    EMBED_CALL(cli_git_result_internal.free, CliGitResultCtx, .result = result);
     return found;
 }
 
@@ -375,23 +377,23 @@ int cli_git_touch(const CliGitRootErrMsgCfg *args)
     mmgr_line_put(&line, "^1");
     mmgr_line_finish(&line);
     const char *const verify[4] = {"rev-parse", "-q", "--verify", parent};
-    CliGitGave *const gave = cli_git_take();
-    const int from = EMBED_CALL(cli_git_gave_internal.query, CliGitGaveCtx, .root = args->root, .request = verify,
-                                .count = 4u, .gave = gave);
+    CliGitResult *const result = cli_git_alloc();
+    const int from = EMBED_CALL(cli_git_result_internal.query, CliGitResultCtx, .root = args->root, .request = verify,
+                                .count = 4u, .result = result);
     const char *const arguments[9] = {
         "diff-tree", "-r", "-M", "--name-status", "-z", "--relative", "--no-commit-id", from ? parent : "--root",
         args->id};
-    if (!EMBED_CALL(cli_git_gave_internal.query, CliGitGaveCtx, .root = args->root, .request = arguments, .count = 9u,
-                    .gave = gave))
+    if (!EMBED_CALL(cli_git_result_internal.query, CliGitResultCtx, .root = args->root, .request = arguments,
+                    .count = 9u, .result = result))
     {
-        EMBED_CALL(cli_git_gave_internal.free, CliGitGaveCtx, .gave = gave);
+        EMBED_CALL(cli_git_result_internal.free, CliGitResultCtx, .result = result);
         mmgr_line_put(args->err_msg, args->id);
         mmgr_line_put(args->err_msg, " is not a commit");
         return 0;
     }
     // the fields of what git wrote, the empty ones passed
-    const char *at = gave->out;
-    const char *const end = gave->out + gave->out_size;
+    const char *at = result->out;
+    const char *const end = result->out + result->out_size;
     const char *fields[3] = {NULL, NULL, NULL};
     unsigned long long lengths[3] = {0ull, 0ull, 0ull};
     while (args->found_touched_list_pointer->count < CLI_GIT_TOUCHED)
@@ -424,11 +426,11 @@ int cli_git_touch(const CliGitRootErrMsgCfg *args)
         if ((state == 'R') || (state == 'C'))
         {
             one->path =
-                EMBED_CALL(cli_git_text.text_put, CliGitTextCfg, .text = &args->found_touched_list_pointer->text,
+                EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &args->found_touched_list_pointer->text,
                            .from = fields[2], .length = lengths[2]);
             one->state = (state == 'R') ? 'R' : 'A';
             one->has_was = state == 'R';
-            one->was = one->has_was ? EMBED_CALL(cli_git_text.text_put, CliGitTextCfg,
+            one->was = one->has_was ? EMBED_CALL(cli_git_text.text_append, CliGitTextCfg,
                                                  .text = &args->found_touched_list_pointer->text, .from = fields[1],
                                                  .length = lengths[1])
                                     : 0u;
@@ -436,13 +438,13 @@ int cli_git_touch(const CliGitRootErrMsgCfg *args)
         else
         {
             one->path =
-                EMBED_CALL(cli_git_text.text_put, CliGitTextCfg, .text = &args->found_touched_list_pointer->text,
+                EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &args->found_touched_list_pointer->text,
                            .from = fields[1], .length = lengths[1]);
             one->state = ((state == 'A') || (state == 'D')) ? state : 'M';
             one->has_was = 0;
             one->was = 0u;
         }
     }
-    EMBED_CALL(cli_git_gave_internal.free, CliGitGaveCtx, .gave = gave);
+    EMBED_CALL(cli_git_result_internal.free, CliGitResultCtx, .result = result);
     return 1;
 }

@@ -38,22 +38,22 @@ typedef struct GuiPreferencesRowCfg GuiPreferencesRowCfg;
 #define GUI_PREFERENCE_REDUCE 3u
 #define GUI_PREFERENCE_ROWS 4u
 #define GUI_PREFERENCE_ZOOM_STEPS 13u
-#define GUI_PREFERENCE_ZOOM_WHOLE 5u
+#define GUI_PREFERENCE_ZOOM_DEFAULT_STEP 5u
 #define GUI_PREFERENCE_OPACITY_STEP 10u
-#define GUI_PREFERENCE_OPACITY_MOST 100u
+#define GUI_PREFERENCE_OPACITY_MAX 100u
 #define GUI_PREFERENCES_EDGE 24
 #define GUI_PREFERENCES_LIST 168
 #define GUI_PREFERENCES_ROW 30
 #define GUI_PREFERENCES_SIZE 13u
-#define GUI_PREFERENCES_CELL_WIDE 320
+#define GUI_PREFERENCES_CELL_WIDTH 320
 #define GUI_PREFERENCES_CELL 24
 #define GUI_PREFERENCES_SWATCH 14
-#define GUI_PREFERENCES_NAME_WIDE 175
-#define GUI_PREFERENCES_VALUE_WIDE 66
+#define GUI_PREFERENCES_NAME_WIDTH 175
+#define GUI_PREFERENCES_VALUE_WIDTH 66
 #define GUI_PREFERENCES_CODE 12u
 #define GUI_PREFERENCES_TEXT 64u
 #define GUI_PREFERENCES_CONTRASTS 1024u
-#define GUI_PREFERENCES_CLOSE_WIDE 32
+#define GUI_PREFERENCES_CLOSE_WIDTH 32
 #define GUI_PREFERENCES_CLOSE_SIDE 9
 
 // What the rows of Settings stand at: the zoom's step, the bar's and the editor's opacity in percent, and whether
@@ -87,7 +87,7 @@ typedef struct
 // a percent; and whether the pointer stands on its close mark
 typedef struct
 {
-    int shown;
+    int displayed;
     unsigned int section;
     unsigned int marked;
     unsigned int top;
@@ -154,7 +154,7 @@ struct GuiPreferencesValuesCfg
 {
     const GuiPreferenceValues *values;
     unsigned int row;
-    char *said;
+    char *output;
     char *value;
     unsigned long long size;
 };

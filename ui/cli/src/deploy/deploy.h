@@ -13,13 +13,13 @@
 //
 // On a machine, each deployment goes to a new folder under releases/, and `current` is turned to it only once every
 // place has the new release: a place that fails leaves each place on the release it had. Roll back turns each
-// place's `current` to the release before it. A deployment `inPlace` sends its files into the folder itself, as a
+// place's `current` to the release before it. A deployment `inPosition` sends its files into the folder itself, as a
 // folder on Windows takes them.
 //
 // Before a file goes, the copy the place has is compared with the copy last sent there: a copy changed there since
 // is shown with its differences, to retain or to replace. The files a place has that the tree no longer does are
 // listed, to retain or to delete (deploy_read.c, deploy_gather.c, deploy_walk.c, deploy_tar.c, deploy_there.c,
-// deploy_standing.c, deploy_run.c, deploy_send.c, deploy_jobs.c)
+// deploy_existing.c, deploy_run.c, deploy_send.c, deploy_jobs.c)
 #ifndef DEPLOY_H
 #define DEPLOY_H
 typedef struct CliDeployRootCfg CliDeployRootCfg;

@@ -19,7 +19,7 @@ typedef LONG(NTAPI *CliQueryProcess)(HANDLE process, ULONG kind, PVOID info, ULO
 // what NtQueryInformationProcess is queried for: the line a process was started with; the most bytes it is read in; and
 // the access a process is opened with to read it
 #define CLI_PROCESS_COMMAND_LINE 60u
-#define CLI_PROCESS_COMMAND_MOST (1u << 20u)
+#define CLI_PROCESS_COMMAND_MAX (1u << 20u)
 #define CLI_PROCESS_QUERY_LIMITED 0x1000u
 
 // the text the name is written in, under its lock
@@ -31,23 +31,24 @@ typedef struct
     const wchar_t *text;
     int count;
     char *out;
-    int room;
+    int capacity;
     CliQueryProcess query;
     DWORD pid;
 #endif
 } WindowsProcessesCtx;
-// `count` UTF-16 units written as UTF-8 into `out`, sized for `room`, each unit that starts no whole letter as U+FFFD
+// `count` UTF-16 units written as UTF-8 into `out`, sized for `capacity`, each unit that starts no whole letter as
+// U+FFFD
 EMBED_INLINE void processes_utf8(const WindowsProcessesCtx *args)
 {
     const int written = (args->count > 0) ? WideCharToMultiByte(CP_UTF8, 0u, args->text, args->count, args->out,
-                                                                args->room - 1, NULL, NULL)
+                                                                args->capacity - 1, NULL, NULL)
                                           : 0;
     args->out[(written > 0) ? written : 0] = '\0';
 }
 
 // the line process `pid` was started with, a counted string, its length in bytes first and the address of its text
-// after, the text following in the same room, read into a cell of the bytes the system reports it takes: the line as
-// UTF-8 in a cell of its own, given back with g_cli_cells->persistent_buf_release, or NULL where it cannot be read
+// after, the text following in the same capacity, read into a cell of the bytes the system reports it takes: the line
+// as UTF-8 in a cell of its own, given back with g_cli_cells->persistent_buf_release, or NULL where it cannot be read
 EMBED_INLINE char *processes_command_get(const WindowsProcessesCtx *args)
 {
     const HANDLE process = OpenProcess(CLI_PROCESS_QUERY_LIMITED, FALSE, args->pid);
@@ -62,21 +63,21 @@ EMBED_INLINE char *processes_command_get(const WindowsProcessesCtx *args)
     char *command = NULL;
     ULONG needed = 0u;
     (void)args->query(process, CLI_PROCESS_COMMAND_LINE, NULL, 0u, &needed);
-    const ULONG room = needed;
-    // the room taken on a cell's boundary, aligned for the string's header
-    unsigned char *const base = ((room > 2u * sizeof(void *)) && (room < CLI_PROCESS_COMMAND_MOST))
-                                    ? g_cli_cells->temporary_buf_alloc(room, &g_cli_platform_cells)
+    const ULONG capacity = needed;
+    // the capacity taken on a cell's boundary, aligned for the string's header
+    unsigned char *const base = ((capacity > 2u * sizeof(void *)) && (capacity < CLI_PROCESS_COMMAND_MAX))
+                                    ? g_cli_cells->temporary_buf_alloc(capacity, &g_cli_platform_cells)
                                     : NULL;
-    if ((base != NULL) && (args->query(process, CLI_PROCESS_COMMAND_LINE, base, room, &needed) >= 0))
+    if ((base != NULL) && (args->query(process, CLI_PROCESS_COMMAND_LINE, base, capacity, &needed) >= 0))
     {
         unsigned short bytes = 0u;
         const wchar_t *start = NULL;
         memor.cpy(&(MemoriaCfg){.dst = &bytes, .src = base, .bytes = sizeof(bytes)});
         memor.cpy(&(MemoriaCfg){.dst = (void *)&start, .src = base + sizeof(void *), .bytes = sizeof(start)});
         const size_t length = (size_t)bytes / 2u;
-        const unsigned char *const end = base + room;
-        // the text read lies within the room, as the system wrote it there, and each of its units is three bytes of
-        // UTF-8 at the most, below an int's reach as the room is
+        const unsigned char *const end = base + capacity;
+        // the text read lies within the capacity, as the system wrote it there, and each of its units is three bytes of
+        // UTF-8 at the most, below an int's reach as the capacity is
         if ((start != NULL) && ((const unsigned char *)start >= base) &&
             ((const unsigned char *)(start + length) <= end))
         {
@@ -85,7 +86,7 @@ EMBED_INLINE char *processes_command_get(const WindowsProcessesCtx *args)
         if (command != NULL)
         {
             EMBED_CALL(processes_utf8, WindowsProcessesCtx, .text = start, .count = (int)length, .out = command,
-                       .room = (int)((3u * length) + 1u));
+                       .capacity = (int)((3u * length) + 1u));
         }
     }
     g_cli_cells->persistent_buf_release(base, &g_cli_platform_cells);
@@ -115,7 +116,7 @@ void cli_processes_each(const CliContextCtx *args)
             end += 1;
         }
         EMBED_CALL(processes_utf8, WindowsProcessesCtx, .text = entry.szExeFile, .count = end, .out = s_name,
-                   .room = (int)sizeof(s_name));
+                   .capacity = (int)sizeof(s_name));
         char *const command =
             EMBED_CALL(processes_command_get, WindowsProcessesCtx, .query = query, .pid = entry.th32ProcessID);
         EMBED_CALL(args->each_callback, CliEachPidNameCommandCfg, .context = args->context,
@@ -167,7 +168,7 @@ int cli_process_memory(const CliPidCtx *args)
     return 1;
 }
 
-int cli_process_by_name(const CliRoomPidCtx *args)
+int cli_process_by_name(const CliCapacityPidCtx *args)
 {
     const HANDLE process = OpenProcess(CLI_PROCESS_QUERY_LIMITED, FALSE, (DWORD)args->pid);
     if (process == NULL)
@@ -193,9 +194,9 @@ int cli_process_by_name(const CliRoomPidCtx *args)
     {
         end -= 4u;
     }
-    // a name's units are fewer than a path's, which an int counts, and the room is far below what an int counts
+    // a name's units are fewer than a path's, which an int counts, and the capacity is far below what an int counts
     EMBED_CALL(processes_utf8, WindowsProcessesCtx, .text = path + start, .count = (int)(end - start),
-               .out = args->name_out, .room = (int)args->room_size);
+               .out = args->name_out, .capacity = (int)args->capacity_bytes);
     return 1;
 }
 #endif

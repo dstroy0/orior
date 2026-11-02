@@ -153,9 +153,9 @@ EMBED_INLINE unsigned int cli_exact(const JsonNumberCtx *args)
 EMBED_INLINE unsigned int cli_round(const JsonNumberCtx *args)
 {
     int *point = args->point;
-    const unsigned int taken = (args->count < args->most) ? args->count : args->most;
-    memor.cpy(&(MemoriaCfg){.dst = args->cut, .src = args->digits_read, .bytes = taken});
-    unsigned int cut_len = taken;
+    const unsigned int reserved = (args->count < args->most) ? args->count : args->most;
+    memor.cpy(&(MemoriaCfg){.dst = args->cut, .src = args->digits_read, .bytes = reserved});
+    unsigned int cut_len = reserved;
     if (args->count > args->most)
     {
         int up = args->digits_read[args->most] > '5';
@@ -170,7 +170,7 @@ EMBED_INLINE unsigned int cli_round(const JsonNumberCtx *args)
         }
         if (up)
         {
-            cut_len = (unsigned int)EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg,
+            cut_len = (unsigned int)EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg,
                                                .text = args->cut, .at = cut_len, .set = "9");
             if (cut_len == 0u)
             {
@@ -184,7 +184,7 @@ EMBED_INLINE unsigned int cli_round(const JsonNumberCtx *args)
             }
         }
     }
-    cut_len = (unsigned int)(1u + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg,
+    cut_len = (unsigned int)(1u + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg,
                                              .text = args->cut + 1u, .at = cut_len - 1u, .set = "0"));
     return cut_len;
 }

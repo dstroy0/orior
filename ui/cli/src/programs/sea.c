@@ -79,7 +79,7 @@ unsigned int cli_sea_outside(const CliSeaCfg *args)
             rest = at + cellul.len(&(CatenaFinitaCfg){.src = s_marks[mark], .cap = CLI_CELLS_POOL});
             const char *trimmed = rest;
             trimmed += EMBED_CALL(
-                cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = trimmed, .at = 0ull,
+                cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = trimmed, .at = 0ull,
                 .size = cellul.len(&(CatenaFinitaCfg){.src = trimmed, .cap = CLI_CELLS_POOL}), .set = CLI_TEXT_WHITE);
             const char quote = trimmed[0];
             if ((quote != '"') && (quote != '\'') && (quote != '`'))
@@ -107,7 +107,7 @@ unsigned int cli_sea_outside(const CliSeaCfg *args)
                     (cellul.len(&(CatenaFinitaCfg){.src = args->found[at_found], .cap = CLI_CELLS_POOL}) == length) &&
                     (memor.cmp(&(MemoriaCfg){.src = args->found[at_found], .other = name, .bytes = length}) == 0);
             }
-            if (!bare && (length != 0ull) && !known && (count < args->room))
+            if (!bare && (length != 0ull) && !known && (count < args->capacity))
             {
                 VerbaLinea line = {args->found[count], CLI_NAME_MAX_LEN, 0ull};
                 mmgr_line_put_n(&line, name, length);
@@ -163,7 +163,7 @@ EMBED_INLINE int cli_number(const SeaCtx *args)
 }
 
 // a little-endian number of `width` bytes written at `at`
-EMBED_INLINE void cli_put(const SeaCtx *args)
+EMBED_INLINE void cli_append(const SeaCtx *args)
 {
     for (unsigned int byte = 0u; byte < args->width; byte += 1u)
     {
@@ -314,9 +314,10 @@ int cli_sea_note(const CliSeaErrMsgCfg *args)
         return 0;
     }
     memor.set(&(MemoriaCfg){.dst = args->note->head, .val = 0, .bytes = sizeof(args->note->head)});
-    EMBED_CALL(cli_put, SeaCtx, .bytes_out = args->note->head, .at = 0ull, .value_value = name_size, .width = 4u);
-    EMBED_CALL(cli_put, SeaCtx, .bytes_out = args->note->head, .at = 4ull, .value_value = args->data_size, .width = 4u);
-    EMBED_CALL(cli_put, SeaCtx, .bytes_out = args->note->head, .at = 8ull, .value_value = 0ull, .width = 4u);
+    EMBED_CALL(cli_append, SeaCtx, .bytes_out = args->note->head, .at = 0ull, .value_value = name_size, .width = 4u);
+    EMBED_CALL(cli_append, SeaCtx, .bytes_out = args->note->head, .at = 4ull, .value_value = args->data_size,
+               .width = 4u);
+    EMBED_CALL(cli_append, SeaCtx, .bytes_out = args->note->head, .at = 8ull, .value_value = 0ull, .width = 4u);
     memor.cpy(&(MemoriaCfg){.dst = args->note->head + 12, .src = s_resource, .bytes = name_size});
     args->note->head_size = 12ull + (((name_size + 3ull) / 4ull) * 4ull);
     const unsigned long long padded = ((args->data_size + 3ull) / 4ull) * 4ull;
@@ -338,7 +339,7 @@ int cli_sea_note(const CliSeaErrMsgCfg *args)
                                                   page};
             for (unsigned int field = 0u; field < 7u; field += 1u)
             {
-                EMBED_CALL(cli_put, SeaCtx, .bytes_out = header, .at = field * 8ull, .value_value = fields[field],
+                EMBED_CALL(cli_append, SeaCtx, .bytes_out = header, .at = field * 8ull, .value_value = fields[field],
                            .width = 8u);
             }
             put += 1ull;
@@ -362,7 +363,7 @@ int cli_sea_note(const CliSeaErrMsgCfg *args)
                                                   8ull};
             for (unsigned int field = 0u; field < 7u; field += 1u)
             {
-                EMBED_CALL(cli_put, SeaCtx, .bytes_out = into, .at = field * 8ull, .value_value = fields[field],
+                EMBED_CALL(cli_append, SeaCtx, .bytes_out = into, .at = field * 8ull, .value_value = fields[field],
                            .width = 8u);
             }
         }
@@ -378,7 +379,8 @@ int cli_sea_note(const CliSeaErrMsgCfg *args)
                                           4ull};
     for (unsigned int field = 0u; field < 7u; field += 1u)
     {
-        EMBED_CALL(cli_put, SeaCtx, .bytes_out = last, .at = field * 8ull, .value_value = fields[field], .width = 8u);
+        EMBED_CALL(cli_append, SeaCtx, .bytes_out = last, .at = field * 8ull, .value_value = fields[field],
+                   .width = 8u);
     }
     return 1;
 }

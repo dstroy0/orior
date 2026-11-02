@@ -5,15 +5,15 @@
 #include "../../../../../ui/gui/src/palette.h"
 #include "../cli/cli_check.h"
 
-// the named color called `wanted`: whether one has the name and its color is `color`
-static int named_is(const GuiPalette *palette, const char *wanted, GuiColor color)
+// the named color called `required`: whether one has the name and its color is `color`
+static int named_is(const GuiPalette *palette, const char *required, GuiColor color)
 {
     const unsigned int count = EMBED_CALL(gui_palette_length.name_count, GuiPaletteLengthCfg, .palette = palette);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         char name[64];
         EMBED_CALL(gui_palette_at.name_name, GuiPaletteAtCfg, .palette = palette, .at = at, .name = name, .size = sizeof(name));
-        if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = wanted, .cap = sizeof(name)}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = required, .cap = sizeof(name)}))
         {
             return EMBED_CALL(gui_palette_at.name_color, GuiPaletteAtCfg, .palette = palette, .at = at) == color;
         }
@@ -45,9 +45,9 @@ static int named_differ(const GuiPalette *palette)
 int main(void)
 {
     const GuiPalette *const dark = EMBED_CALL(cli_palette.palette, GuiPaletteCfg, .scheme = GUI_SCHEME_DARK);
-    cli_check(dark->ground == GUI_RGB(0x13u, 0x13u, 0x31u), "the dark ground is the stylesheet's --bg");
+    cli_check(dark->background_fill == GUI_RGB(0x13u, 0x13u, 0x31u), "the dark ground is the stylesheet's --bg");
     cli_check(dark->text == GUI_RGB(0xe4u, 0xe3u, 0xf5u), "the dark text is the stylesheet's --fg");
-    cli_check(dark->ink == GUI_RGB(0x1du, 0x18u, 0x50u), "the dark ink is the stylesheet's --ink");
+    cli_check(dark->text_color == GUI_RGB(0x1du, 0x18u, 0x50u), "the dark ink is the stylesheet's --ink");
     cli_check(dark->number == GUI_RGB(0x5eu, 0x5bu, 0x8au), "the line numbers are the stylesheet's --ed-num");
     // a palette the window can change: its colors as the scheme's until they are changed, each named color found by the
     // stylesheet's name, the ink's tint and the editor's ground laid at their opacities
@@ -55,13 +55,13 @@ int main(void)
     EMBED_CALL(cli_palette.own_init, GuiPaletteCfg, .own = &own, .scheme = GUI_SCHEME_DARK);
     cli_check((own.colors.glass == dark->glass) && (own.colors.token == own.token) && (own.token[0].color == dark->token[0].color), "a palette of its own starts as the scheme's");
     EMBED_CALL(gui_palette_own_bar_percent.opacity_layout, GuiPaletteOwnBarPercentCfg, .own = &own, .bar_percent = 30u, .editor_percent = 80u);
-    cli_check((own.colors.glass == dark->glass) && (own.colors.editor_ground == dark->editor_ground), "the opacities the scheme stands at lay the colors the scheme gives");
+    cli_check((own.colors.glass == dark->glass) && (own.colors.editor_background == dark->editor_background), "the opacities the scheme stands at lay the colors the scheme gives");
     EMBED_CALL(gui_palette_own_bar_percent.opacity_layout, GuiPaletteOwnBarPercentCfg, .own = &own, .bar_percent = 50u, .editor_percent = 100u);
-    cli_check((GUI_ALPHA_OF(own.colors.glass) == 128u) && (GUI_ALPHA_OF(own.colors.editor_ground) == 255u), "other opacities lay the alpha");
-    cli_check((own.colors.glass & 0x00ffffffu) == (dark->ink & 0x00ffffffu), "and leave the color");
+    cli_check((GUI_ALPHA_OF(own.colors.glass) == 128u) && (GUI_ALPHA_OF(own.colors.editor_background) == 255u), "other opacities lay the alpha");
+    cli_check((own.colors.glass & 0x00ffffffu) == (dark->text_color & 0x00ffffffu), "and leave the color");
     char name[32];
     EMBED_CALL(gui_palette_at.name_name, GuiPaletteAtCfg, .palette = &own.colors, .at = 0u, .name = name, .size = sizeof(name));
-    cli_check(cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "window.background", .cap = sizeof(name)}) && (EMBED_CALL(gui_palette_at.name_color, GuiPaletteAtCfg, .palette = &own.colors, .at = 0u) == dark->ground), "the first color named is the window's background");
+    cli_check(cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "window.background", .cap = sizeof(name)}) && (EMBED_CALL(gui_palette_at.name_color, GuiPaletteAtCfg, .palette = &own.colors, .at = 0u) == dark->background_fill), "the first color named is the window's background");
     // each color goes by the name of what it colors
     cli_check(named_differ(dark), "no two colors share a name");
     cli_check(named_is(dark, "lattice.background", dark->deep), "what the lattice is drawn on");
@@ -70,19 +70,19 @@ int main(void)
     cli_check(named_is(dark, "text.primary", dark->text) && named_is(dark, "text.secondary", dark->text_2) && named_is(dark, "text.tertiary", dark->text_3), "the text at its three strengths");
     cli_check(named_is(dark, "divider", dark->line) && named_is(dark, "accent", dark->signal), "the hairline and the accent");
     cli_check(named_is(dark, "link.foreground", dark->link) && named_is(dark, "hover.foreground", dark->hover) && named_is(dark, "failure.foreground", dark->fail), "the link, what the pointer lights and a failure");
-    cli_check(named_is(dark, "glass.tint", dark->ink), "the tint of the panes");
+    cli_check(named_is(dark, "glass.tint", dark->text_color), "the tint of the panes");
     cli_check(named_is(dark, "titleBar.foreground", dark->bar_text) && named_is(dark, "menubar.foreground", dark->bar_title), "the bar's text and its menu titles");
     cli_check(named_is(dark, "toolbar.hoverBackground", dark->bar_title_hover) && named_is(dark, "toolbar.hoverForeground", dark->bar_bright), "a pointed title or tool");
     cli_check(named_is(dark, "breadcrumb.separator", dark->bar_path) && named_is(dark, "statusBar.foreground", dark->status_text), "the status bar's text and the marks between its crumbs");
     cli_check(named_is(dark, "wordmark.foreground", dark->open_text) && named_is(dark, "wordmark.eye", dark->bar_mark), "the large name and the eye");
-    cli_check(named_is(dark, "editor.background", dark->editor_ground) && named_is(dark, "editor.foreground", dark->editor_text), "the editor's ground and text");
+    cli_check(named_is(dark, "editor.background", dark->editor_background) && named_is(dark, "editor.foreground", dark->editor_text), "the editor's ground and text");
     cli_check(named_is(dark, "editor.lineNumber", dark->number) && named_is(dark, "editor.lineHighlight", dark->current), "the line numbers and the current line");
     cli_check(named_is(dark, "editor.selection", dark->selection) && named_is(dark, "editor.inactiveSelection", dark->selection_idle), "the selection, with the keys and without them");
     cli_check(named_is(dark, "editor.cursor", dark->caret) && named_is(dark, "editor.indentGuide", dark->guide) && named_is(dark, "editor.foldBackground", dark->same), "the cursor, the indent guide and a closed fold's mark");
     cli_check(named_is(dark, "editor.findMatch", dark->match_on) && named_is(dark, "editor.findMatchHighlight", dark->match), "the current match and the others");
     cli_check(named_is(dark, "minimap.selection", dark->map_selection) && named_is(dark, "minimap.findMatch", dark->map_match) && named_is(dark, "minimap.slider", dark->map_slider) && named_is(dark, "minimap.sliderActive", dark->map_slider_on), "the minimap's");
     cli_check(named_is(dark, "diagnostic.error", dark->error) && named_is(dark, "diagnostic.warning", dark->warning) && named_is(dark, "diagnostic.information", dark->note), "a diagnostic's severities");
-    cli_check(named_is(dark, "tab.activeBackground", dark->tab_ground), "the shown tab's ground");
+    cli_check(named_is(dark, "tab.activeBackground", dark->tab_background), "the shown tab's ground");
     cli_check(named_is(dark, "fuse.ash", dark->fuse_ash) && named_is(dark, "fuse.burn", dark->fuse_burn) && named_is(dark, "fuse.fire", dark->fuse_fire), "the busy circle's fuse");
     cli_check(named_is(dark, "lattice.inPlace", dark->lattice[0]) && named_is(dark, "lattice.moving", dark->lattice[1]) && named_is(dark, "lattice.displaced", dark->lattice[2]), "a lattice point in place and moved");
     cli_check(named_is(dark, "fileIcon.red", dark->mark[0]) && named_is(dark, "fileIcon.green", dark->mark[1]) && named_is(dark, "fileIcon.yellow", dark->mark[2]) && named_is(dark, "fileIcon.blue", dark->mark[3]) &&
@@ -93,10 +93,10 @@ int main(void)
     EMBED_CALL(gui_palette_at.name_name, GuiPaletteAtCfg, .palette = &own.colors, .at = named - own.colors.token_count, .name = name, .size = sizeof(name));
     cli_check((name[0] == 't') && (name[5] == '.') && (EMBED_CALL(gui_palette_at.name_color, GuiPaletteAtCfg, .palette = &own.colors, .at = named - own.colors.token_count) == own.token[0].color), "a token goes by the name its grammar gives it");
     EMBED_CALL(gui_palette_own.name_set, GuiPaletteOwnCfg, .own = &own, .at = 0u, .color = GUI_RGB(1u, 2u, 3u));
-    cli_check(own.colors.ground == GUI_RGB(1u, 2u, 3u), "a color named is set");
+    cli_check(own.colors.background_fill == GUI_RGB(1u, 2u, 3u), "a color named is set");
     EMBED_CALL(gui_palette_own.name_set, GuiPaletteOwnCfg, .own = &own, .at = named - 1u, .color = GUI_RGB(4u, 5u, 6u));
     cli_check(own.token[own.colors.token_count - 1u].color == GUI_RGB(4u, 5u, 6u), "and a token");
-    cli_check(dark->ground == GUI_RGB(0x13u, 0x13u, 0x31u), "and the scheme's own stands");
+    cli_check(dark->background_fill == GUI_RGB(0x13u, 0x13u, 0x31u), "and the scheme's own stands");
     // a value as text and read back
     char value[16];
     EMBED_CALL(gui_palette_size_color.value_text, GuiPaletteSizeColorCfg, .color = GUI_RGB(0x12u, 0xa4u, 0xefu), .text = value, .size = sizeof(value));
@@ -110,12 +110,12 @@ int main(void)
     // contrast in whole tenths of a ratio, rounded down, as WCAG 2 measures it
     const GuiColor white = GUI_RGB(0xffu, 0xffu, 0xffu);
     const GuiColor black = GUI_RGB(0u, 0u, 0u);
-    cli_check(EMBED_CALL(gui_palette_fore.contrast, GuiPaletteForeCfg, .fore = white, .back = black, .ground = black) == 210u, "white on black is 21:1");
-    cli_check(EMBED_CALL(gui_palette_fore.contrast, GuiPaletteForeCfg, .fore = black, .back = white, .ground = white) == 210u, "and black on white the same");
-    cli_check(EMBED_CALL(gui_palette_fore.contrast, GuiPaletteForeCfg, .fore = black, .back = black, .ground = black) == 10u, "a color on itself is 1:1");
-    cli_check(EMBED_CALL(gui_palette_fore.contrast, GuiPaletteForeCfg, .fore = GUI_RGB(0x77u, 0x77u, 0x77u), .back = white, .ground = white) == 44u, "#777777 on white is 4.47:1, under the least");
-    cli_check(EMBED_CALL(gui_palette_fore.contrast, GuiPaletteForeCfg, .fore = GUI_RGBA(0xffu, 0xffu, 0xffu, 0x80u), .back = black, .ground = black) == 53u, "a translucent color is laid over what is under it");
-    cli_check(EMBED_CALL(gui_palette_fore.contrast, GuiPaletteForeCfg, .fore = dark->editor_text, .back = dark->editor_ground, .ground = dark->ground) == 142u, "a translucent ground is laid over the window's");
+    cli_check(EMBED_CALL(gui_palette_foreground.contrast, GuiPaletteForegroundCfg, .foreground_color = white, .back = black, .background_fill = black) == 210u, "white on black is 21:1");
+    cli_check(EMBED_CALL(gui_palette_foreground.contrast, GuiPaletteForegroundCfg, .foreground_color = black, .back = white, .background_fill = white) == 210u, "and black on white the same");
+    cli_check(EMBED_CALL(gui_palette_foreground.contrast, GuiPaletteForegroundCfg, .foreground_color = black, .back = black, .background_fill = black) == 10u, "a color on itself is 1:1");
+    cli_check(EMBED_CALL(gui_palette_foreground.contrast, GuiPaletteForegroundCfg, .foreground_color = GUI_RGB(0x77u, 0x77u, 0x77u), .back = white, .background_fill = white) == 44u, "#777777 on white is 4.47:1, under the least");
+    cli_check(EMBED_CALL(gui_palette_foreground.contrast, GuiPaletteForegroundCfg, .foreground_color = GUI_RGBA(0xffu, 0xffu, 0xffu, 0x80u), .back = black, .background_fill = black) == 53u, "a translucent color is laid over what is under it");
+    cli_check(EMBED_CALL(gui_palette_foreground.contrast, GuiPaletteForegroundCfg, .foreground_color = dark->editor_text, .back = dark->editor_background, .background_fill = dark->background_fill) == 142u, "a translucent ground is laid over the window's");
     // the colors checked for text, each named with the color under it
     unsigned int tenths = 0u;
     char under[32];

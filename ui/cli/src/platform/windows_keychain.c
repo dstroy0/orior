@@ -68,7 +68,7 @@ int cli_keychain_read(const CliServiceCtx *args)
     {
         return 0;
     }
-    VerbaLinea line = {out, args->room, 0ull};
+    VerbaLinea line = {out, args->capacity, 0ull};
     EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &line,
                .text_bytes = found->CredentialBlob, .length = found->CredentialBlobSize);
     mmgr_line_finish(&line);

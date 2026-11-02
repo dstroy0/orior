@@ -13,7 +13,7 @@ typedef struct
     unsigned int object;
     const char *name;
     char *out;
-    unsigned long long room;
+    unsigned long long capacity;
     VerbaLinea *err_msg;
     unsigned long long parent;
     char *language;
@@ -23,8 +23,8 @@ typedef struct
     CliDebugPlan *plan;
 } DebugStartCtx;
 
-// a string member `name` of the object `object` of `json` into `out`, sized for `room`: 1, or 0 with the member named
-// missing where it is not a string
+// a string member `name` of the object `object` of `json` into `out`, sized for `capacity`: 1, or 0 with the member
+// named missing where it is not a string
 EMBED_INLINE int start_field(const DebugStartCtx *args)
 {
     const CliJson *json = args->json;
@@ -55,7 +55,7 @@ EMBED_INLINE int start_parent_language(const DebugStartCtx *args)
     for (unsigned int at = 0u; at < CLI_DEBUG_SESSIONS; at += 1u)
     {
         const CliDebugSession *const session = &g_cli_debug.sessions[at];
-        if (session->taken && session->listed && (session->info.id == args->parent))
+        if (session->reserved && session->list_entries && (session->info.id == args->parent))
         {
             memor.cpy(&(MemoriaCfg){
                 .dst = args->language,
@@ -77,12 +77,12 @@ EMBED_INLINE int start_adapter(const DebugStartCtx *args)
     CliJson *const to = &args->place->start;
     char path[CLI_PATH_MAX_LEN];
     unsigned long long parent = 0ull;
-    args->plan->has_made = 0;
+    args->plan->has_created = 0;
     if ((cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "file", .cap = CLI_CELLS_POOL})) ||
         (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "process", .cap = CLI_CELLS_POOL})))
     {
         if (!EMBED_CALL(start_field, DebugStartCtx, .json = json, .object = args->start, .name = "language",
-                        .out = args->plan->language, .room = sizeof(args->plan->language), .err_msg = err_msg))
+                        .out = args->plan->language, .capacity = sizeof(args->plan->language), .err_msg = err_msg))
         {
             return 0;
         }
@@ -90,7 +90,7 @@ EMBED_INLINE int start_adapter(const DebugStartCtx *args)
     else if (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->kind, .other = "test", .cap = CLI_CELLS_POOL}))
     {
         if (!EMBED_CALL(start_field, DebugStartCtx, .json = json, .object = args->start, .name = "id",
-                        .out = args->plan->id, .room = sizeof(args->plan->id), .err_msg = err_msg))
+                        .out = args->plan->id, .capacity = sizeof(args->plan->id), .err_msg = err_msg))
         {
             return 0;
         }
@@ -143,13 +143,13 @@ EMBED_INLINE int start_adapter(const DebugStartCtx *args)
     {
         char full[CLI_PATH_MAX_LEN];
         if (!EMBED_CALL(start_field, DebugStartCtx, .json = json, .object = args->start, .name = "path", .out = path,
-                        .room = sizeof(path), .err_msg = err_msg))
+                        .capacity = sizeof(path), .err_msg = err_msg))
         {
             return 0;
         }
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = path, .joined = full);
-        args->plan->has_made = EMBED_CALL(cli_compile_db_root_file.program_get, CliCompileDbRootFileCfg, .root = root,
-                                          .file = full, .program = &args->plan->made);
+        args->plan->has_created = EMBED_CALL(cli_compile_db_root_file.program_get, CliCompileDbRootFileCfg,
+                                             .root = root, .file = full, .program = &args->plan->made);
     }
     if (args->plan->recording)
     {
@@ -172,7 +172,7 @@ EMBED_INLINE int start_adapter(const DebugStartCtx *args)
         return 1;
     }
     const char *const ahead =
-        !args->plan->has_made ? ""
+        !args->plan->has_created ? ""
         : (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->made.compiler, .other = "GNU", .cap = CLI_CELLS_POOL}))
             ? "gcc"
             : "llvm";
@@ -193,12 +193,12 @@ EMBED_INLINE int start_file(const DebugStartCtx *args)
     char program[CLI_PATH_MAX_LEN];
     int built = 0;
     if (!EMBED_CALL(start_field, DebugStartCtx, .json = json, .object = args->start, .name = "path", .out = path,
-                    .room = sizeof(path), .err_msg = err_msg))
+                    .capacity = sizeof(path), .err_msg = err_msg))
     {
         return 0;
     }
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = path, .joined = file);
-    if (args->plan->has_made)
+    if (args->plan->has_created)
     {
         built = EMBED_CALL(cli_debug_err_msg_program_internal.build_program, CliDebugErrMsgProgramCtx,
                            .made = &args->plan->made, .program = program, .err_msg = err_msg);
@@ -444,7 +444,7 @@ EMBED_INLINE int start_reach(const DebugStartCtx *args)
     }
     unsigned long long port = 0ull;
     if (!EMBED_CALL(start_field, DebugStartCtx, .json = json, .object = args->start, .name = "host",
-                    .out = args->plan->host, .room = sizeof(args->plan->host), .err_msg = args->err_msg))
+                    .out = args->plan->host, .capacity = sizeof(args->plan->host), .err_msg = args->err_msg))
     {
         return 0;
     }
@@ -521,8 +521,8 @@ int cli_debug_plan(const CliDebugStartCfg *args)
     // the spec and the arguments the session starts with, made in a tree of the most they take, its cell owned by the
     // place until it is freed
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = to);
-    if (!EMBED_CALL(cli_json_tree_nodes_most.json_reserve, CliJsonTreeNodesMostCfg, .json = to,
-                    .nodes_most = CLI_DEBUG_START_NODES, .text_most = CLI_DEBUG_START_TEXT,
+    if (!EMBED_CALL(cli_json_tree_nodes_max.json_reserve, CliJsonTreeNodesMaxCfg, .json = to,
+                    .nodes_max = CLI_DEBUG_START_NODES, .text_max = CLI_DEBUG_START_TEXT,
                     .what = "the tree a debug session starts with", .owner = &g_cli_debug_cells))
     {
         mmgr_line_put(args->err_msg, "the cells cannot meet the tree a debug session starts with");
@@ -530,7 +530,7 @@ int cli_debug_plan(const CliDebugStartCfg *args)
     }
     memor.set(&(MemoriaCfg){.dst = args->plan, .val = 0, .bytes = sizeof(*args->plan)});
     if (!EMBED_CALL(start_field, DebugStartCtx, .json = json, .object = args->start, .name = "kind",
-                    .out = args->plan->kind, .room = sizeof(args->plan->kind), .err_msg = args->err_msg) ||
+                    .out = args->plan->kind, .capacity = sizeof(args->plan->kind), .err_msg = args->err_msg) ||
         !EMBED_CALL(start_adapter, DebugStartCtx, .place = args->place, .root = args->root, .json = json,
                     .start = args->start, .plan = args->plan, .err_msg = args->err_msg))
     {
@@ -558,7 +558,7 @@ int cli_debug_plan(const CliDebugStartCfg *args)
         char full[CLI_PATH_MAX_LEN];
         char python[CLI_PATH_MAX_LEN];
         made = EMBED_CALL(start_field, DebugStartCtx, .json = json, .object = args->start, .name = "path", .out = path,
-                          .room = sizeof(path), .err_msg = args->err_msg);
+                          .capacity = sizeof(path), .err_msg = args->err_msg);
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->root, .relative = path, .joined = full);
         python[0] = '\0';
         (void)EMBED_CALL(cli_test_runs.test_python, CliTestRunsCfg, .python = python);
@@ -628,7 +628,7 @@ int cli_debug_plan(const CliDebugStartCfg *args)
     }
     if (to->full)
     {
-        mmgr_line_put(args->err_msg, "the session's start does not fit the room it is made in");
+        mmgr_line_put(args->err_msg, "the session's start does not fit the buffer it is built in");
         return 0;
     }
     return 1;

@@ -28,7 +28,7 @@ typedef struct
 #if (!defined(_WIN32)) && (defined(__linux__))
     const char *path;
     char *out;
-    unsigned long long room;
+    unsigned long long capacity;
 #endif
 } PosixSystemCtx;
 
@@ -40,16 +40,16 @@ int cli_random_bytes(const CliSizeBytesCtx *args)
         return 0;
     }
     unsigned char *const into = (unsigned char *)args->bytes_out;
-    unsigned long long given = 0ull;
-    while (given < args->size)
+    unsigned long long supplied = 0ull;
+    while (supplied < args->size)
     {
-        const ssize_t read_now = read(source, into + given, (size_t)(args->size - given));
+        const ssize_t read_now = read(source, into + supplied, (size_t)(args->size - supplied));
         if (read_now <= 0)
         {
             close(source);
             return 0;
         }
-        given += (unsigned long long)read_now;
+        supplied += (unsigned long long)read_now;
     }
     close(source);
     return 1;
@@ -58,7 +58,7 @@ int cli_random_bytes(const CliSizeBytesCtx *args)
 void cli_temp_folder(const CliFolderCtx *args)
 {
     if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "TMPDIR",
-                    .value_out = args->folder_out, .room = CLI_PATH_MAX_LEN) ||
+                    .value_out = args->folder_out, .capacity = CLI_PATH_MAX_LEN) ||
         (args->folder_out[0] == '\0'))
     {
         memor.cpy(&(MemoriaCfg){.dst = args->folder_out,
@@ -67,7 +67,7 @@ void cli_temp_folder(const CliFolderCtx *args)
         return;
     }
     size_t end = cellul.len(&(CatenaFinitaCfg){.src = args->folder_out, .cap = CLI_CELLS_POOL});
-    end = (size_t)(1u + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg,
+    end = (size_t)(1u + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg,
                                    .text = args->folder_out + 1u, .at = end - 1u, .set = "/"));
     args->folder_out[end] = '\0';
 }
@@ -117,16 +117,17 @@ int cli_private_file_write(const CliPathBytesCtx *args)
 
 #if defined(__linux__)
 // the most bytes of /proc/stat and of a session's id read
-#define CLI_SYSTEM_STAT_MOST 65536u
+#define CLI_SYSTEM_STAT_MAX 65536u
 
-// the file at `path` read into `out`, sized for `room`, a 0 after what was read: the bytes read, 0 where it cannot be
+// the file at `path` read into `out`, sized for `capacity`, a 0 after what was read: the bytes read, 0 where it cannot
+// be
 EMBED_INLINE unsigned long long system_read(const PosixSystemCtx *args)
 {
     const int file = open(args->path, O_RDONLY | O_CLOEXEC);
     unsigned long long used = 0ull;
-    while ((file >= 0) && (used + 1ull < args->room))
+    while ((file >= 0) && (used + 1ull < args->capacity))
     {
-        const ssize_t count = read(file, args->out + used, (size_t)(args->room - 1ull - used));
+        const ssize_t count = read(file, args->out + used, (size_t)(args->capacity - 1ull - used));
         if (count <= 0)
         {
             break;
@@ -144,8 +145,8 @@ EMBED_INLINE unsigned long long system_read(const PosixSystemCtx *args)
 // the machine's start as the kernel saves it, the line `btime` of /proc/stat
 unsigned long long cli_booted_seconds(void)
 {
-    static char s_stat[CLI_SYSTEM_STAT_MOST];
-    (void)EMBED_CALL(system_read, PosixSystemCtx, .path = "/proc/stat", .out = s_stat, .room = sizeof(s_stat));
+    static char s_stat[CLI_SYSTEM_STAT_MAX];
+    (void)EMBED_CALL(system_read, PosixSystemCtx, .path = "/proc/stat", .out = s_stat, .capacity = sizeof(s_stat));
     const char *at = cellul.find(
         &(CatenaFinitaCfg){.src = s_stat, .cap = sizeof(s_stat), .other = "\nbtime ", .other_cap = CLI_CELLS_POOL});
     unsigned long long seconds = 0ull;
@@ -157,24 +158,24 @@ unsigned long long cli_booted_seconds(void)
 }
 
 // the audit session the kernel gives each log in, or the desktop's own name for the session where the kernel saves none
-void cli_logon_by_name(const CliRoomLogonCtx *args)
+void cli_logon_by_name(const CliCapacityLogonCtx *args)
 {
     char session[64];
     unsigned long long length = EMBED_CALL(system_read, PosixSystemCtx, .path = "/proc/self/sessionid", .out = session,
-                                           .room = sizeof(session));
-    length = EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = session, .at = length,
+                                           .capacity = sizeof(session));
+    length = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = session, .at = length,
                         .set = "\n ");
     session[length] = '\0';
     const int saved =
         (length > 0ull) && !cellul.eq(&(CatenaFinitaCfg){.src = session, .other = "4294967295", .cap = CLI_CELLS_POOL});
-    VerbaLinea named = {args->logon, args->room_size, 0ull};
+    VerbaLinea named = {args->logon, args->capacity_bytes, 0ull};
     if (saved)
     {
         mmgr_line_put(&named, session);
         (void)mmgr_line_finish(&named);
     }
     else if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "XDG_SESSION_ID",
-                         .value_out = args->logon, .room = args->room_size))
+                         .value_out = args->logon, .capacity = args->capacity_bytes))
     {
         (void)mmgr_line_finish(&named);
     }
@@ -190,9 +191,9 @@ unsigned long long cli_booted_seconds(void)
 }
 
 // the reader's log in is not named on macOS; the machine's start alone marks a session there
-void cli_logon_by_name(const CliRoomLogonCtx *args)
+void cli_logon_by_name(const CliCapacityLogonCtx *args)
 {
-    VerbaLinea named = {args->logon, args->room_size, 0ull};
+    VerbaLinea named = {args->logon, args->capacity_bytes, 0ull};
     (void)mmgr_line_finish(&named);
 }
 #else
@@ -201,9 +202,9 @@ unsigned long long cli_booted_seconds(void)
     return 0ull;
 }
 
-void cli_logon_by_name(const CliRoomLogonCtx *args)
+void cli_logon_by_name(const CliCapacityLogonCtx *args)
 {
-    VerbaLinea named = {args->logon, args->room_size, 0ull};
+    VerbaLinea named = {args->logon, args->capacity_bytes, 0ull};
     (void)mmgr_line_finish(&named);
 }
 #endif

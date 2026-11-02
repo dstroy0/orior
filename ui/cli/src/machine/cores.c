@@ -40,7 +40,7 @@ EMBED_INLINE int cli_count(const CoresCtx *args)
     const char *text = args->text;
     unsigned int *value = args->value;
     text +=
-        EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = text, .at = 0ull,
+        EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = text, .at = 0ull,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), .set = CLI_TEXT_WHITE);
     unsigned long long count = 0ull;
     const char *at = text;
@@ -50,7 +50,7 @@ EMBED_INLINE int cli_count(const CoresCtx *args)
     at += digits_end;
     const char *rest = at;
     rest +=
-        EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = rest, .at = 0ull,
+        EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = rest, .at = 0ull,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL}), .set = CLI_TEXT_WHITE);
     if ((at == text) || (rest[0] != '\0') || (count > 0xffffffffull))
     {
@@ -75,7 +75,7 @@ unsigned int cli_cores_on_reserve(void)
     }
     EMBED_CALL(cli_settings_path_table.reader, CliSettingsPathCfg, .chain = &read->reader);
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &read->none.json,
-               .node_json_node_pointer = NULL, .nodes_most = 0u, .text_out = NULL, .text_most = 0ull);
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
     read->none.files = 0u;
     read->none.problems = 0u;
     EMBED_CALL(cli_settings_root.layers, CliSettingsRootCfg, .reader = &read->reader, .tree = &read->none, .root = "",

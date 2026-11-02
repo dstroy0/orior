@@ -8,9 +8,9 @@
 #include "../text/text.h"
 #include "symbols_internal.h"
 
-// the room the first cell of leaves holds
+// the capacity the first cell of leaves holds
 #define CLI_LEAVES_MARKS 256ull
-#define CLI_LEAVES_MOST (1u << 19u)
+#define CLI_LEAVES_MAX (1u << 19u)
 
 typedef struct
 {
@@ -201,7 +201,7 @@ static void cli_leaf_get(const SymbolsLeavesCtx *args)
                       ? CLI_LEAF_DECLARES
                   : EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
                                .segment = "rest")
-                      ? CLI_LEAF_REST
+                      ? CLI_LEAF_REMAINDER
                   : EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
                                .segment = "join")
                       ? CLI_LEAF_JOIN
@@ -225,7 +225,7 @@ static void cli_leaf_get(const SymbolsLeavesCtx *args)
                       ? CLI_LEAF_INCLUDED
                   : EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
                                .segment = "beside")
-                      ? CLI_LEAF_BESIDE
+                      ? CLI_LEAF_ADJACENT
                   : (typed && EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from,
                                          .length = size, .segment = "number"))
                       ? CLI_LEAF_OF_NUMBER
@@ -287,24 +287,25 @@ unsigned int cli_symbols_name_roles(const CliSymbolsQueryCfg *args)
            ((closes || parts) ? CLI_ROLE_CLOSING : 0u) | ((leaf.is == CLI_LEAF_NAME) ? CLI_ROLE_NAME : 0u) |
            ((named && ((leaf.is & CLI_LEAF_LOCAL) != 0u)) ? CLI_ROLE_LOCAL : 0u) |
            ((named && ((leaf.is & CLI_LEAF_PARAMETER) != 0u)) ? CLI_ROLE_PARAMETER : 0u) | (ends ? CLI_ROLE_ENDS : 0u) |
+           (named ? CLI_ROLE_WORD : 0u) |
            ((((leaf.is & CLI_LEAF_MEMORY) != 0u) && (leaf.binds == 0u) && ((leaf.is & CLI_LEAF_UNARY) == 0u))
                 ? CLI_ROLE_REACHES
                 : 0u);
 }
 
 // the leaves' one cell taken for the text's bytes, a leaf a byte at the most and a mark past those, at most
-// CLI_LEAVES_MOST: 1, or 0 where it stands full or the cells cannot meet it
-EMBED_INLINE int cli_leaves_take(const SymbolsLeavesCtx *args)
+// CLI_LEAVES_MAX: 1, or 0 where it stands full or the cells cannot meet it
+EMBED_INLINE int cli_leaves_alloc(const SymbolsLeavesCtx *args)
 {
-    if (args->read->room != 0u)
+    if (args->read->capacity != 0u)
     {
         return 0;
     }
-    const unsigned long long wanted = args->read->size + CLI_LEAVES_MARKS;
-    const unsigned int room = (wanted < CLI_LEAVES_MOST) ? (unsigned int)wanted : CLI_LEAVES_MOST;
+    const unsigned long long required = args->read->size + CLI_LEAVES_MARKS;
+    const unsigned int capacity = (required < CLI_LEAVES_MAX) ? (unsigned int)required : CLI_LEAVES_MAX;
     args->read->leaf =
-        g_cli_cells->temporary_buf_alloc((unsigned long long)room * sizeof(CliLeaf), &g_cli_leaves_cells);
-    args->read->room = (args->read->leaf != NULL) ? room : 0u;
+        g_cli_cells->temporary_buf_alloc((unsigned long long)capacity * sizeof(CliLeaf), &g_cli_leaves_cells);
+    args->read->capacity = (args->read->leaf != NULL) ? capacity : 0u;
     return args->read->leaf != NULL;
 }
 
@@ -338,7 +339,7 @@ static void cli_leaves_line(const CliLeavesEachCfg *args)
         {
             continue;
         }
-        if ((read->count == read->room) && !EMBED_CALL(cli_leaves_take, SymbolsLeavesCtx, .read = read))
+        if ((read->count == read->capacity) && !EMBED_CALL(cli_leaves_alloc, SymbolsLeavesCtx, .read = read))
         {
             read->refused = 1;
             break;
@@ -424,5 +425,5 @@ void cli_symbols_leaves_free(const CliSymbolsTextCtx *args)
     g_cli_cells->persistent_buf_release(args->read->leaf, &g_cli_leaves_cells);
     args->read->leaf = NULL;
     args->read->count = 0u;
-    args->read->room = 0u;
+    args->read->capacity = 0u;
 }

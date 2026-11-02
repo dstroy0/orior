@@ -142,7 +142,7 @@ void test_prettiers_width_is_the_margin_of_a_script(void)
     TEST_ASSERT_EQUAL_UINT(100u, width);
 }
 
-void test_markdown_prose_takes_the_width_where_it_wraps(void)
+void test_markdown_prose_allocs_the_width_where_it_wraps(void)
 {
     cli_unity_file(s_dir, ".prettierrc", "{ \"printWidth\": 100, \"proseWrap\": \"always\" }");
     TEST_ASSERT_EQUAL_INT64(100ll, width_of("a.md", "markdown"));

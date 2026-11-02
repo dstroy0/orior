@@ -30,10 +30,10 @@ EMBED_INLINE int white_is(const RequestsWhiteCtx *args)
 unsigned long long cli_requests_white_at(const CliRequestsTextAtCtx *args)
 {
     unsigned int letter = 0u;
-    const unsigned long long taken = EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
-                                                .text_bytes = (const unsigned char *)args->text,
-                                                .length = args->end_value, .at = args->at, .letter = &letter);
-    return EMBED_CALL(white_is, RequestsWhiteCtx, .letter = letter) ? taken : 0ull;
+    const unsigned long long reserved = EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+                                                   .text_bytes = (const unsigned char *)args->text,
+                                                   .length = args->end_value, .at = args->at, .letter = &letter);
+    return EMBED_CALL(white_is, RequestsWhiteCtx, .letter = letter) ? reserved : 0ull;
 }
 
 // the bytes of the white letter that ends at `end`, 0 where the letter there is not white
@@ -46,27 +46,27 @@ EMBED_INLINE unsigned long long white_before(const RequestsWhiteCtx *args)
         at -= 1u;
     }
     unsigned int letter = 0u;
-    const unsigned long long taken =
+    const unsigned long long reserved =
         EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg, .text_bytes = (const unsigned char *)text,
                    .length = args->end, .at = at, .letter = &letter);
-    return ((at + taken == args->end) && EMBED_CALL(white_is, RequestsWhiteCtx, .letter = letter)) ? taken : 0ull;
+    return ((at + reserved == args->end) && EMBED_CALL(white_is, RequestsWhiteCtx, .letter = letter)) ? reserved : 0ull;
 }
 
 void cli_requests_trim(const CliRequestsTextStartCtx *args)
 {
     unsigned long long *start = args->start;
     unsigned long long *end = args->end;
-    unsigned long long taken = 1ull;
-    while ((*start < *end) && (taken > 0ull))
+    unsigned long long reserved = 1ull;
+    while ((*start < *end) && (reserved > 0ull))
     {
-        taken = EMBED_CALL(cli_requests_text_at_internal.white_at, CliRequestsTextAtCtx, .text = args->text,
-                           .at = *start, .end_value = *end);
-        *start += taken;
+        reserved = EMBED_CALL(cli_requests_text_at_internal.white_at, CliRequestsTextAtCtx, .text = args->text,
+                              .at = *start, .end_value = *end);
+        *start += reserved;
     }
-    taken = 1ull;
-    while ((*end > *start) && (taken > 0ull))
+    reserved = 1ull;
+    while ((*end > *start) && (reserved > 0ull))
     {
-        taken = EMBED_CALL(white_before, RequestsWhiteCtx, .text = args->text, .start = *start, .end = *end);
-        *end -= taken;
+        reserved = EMBED_CALL(white_before, RequestsWhiteCtx, .text = args->text, .start = *start, .end = *end);
+        *end -= reserved;
     }
 }

@@ -82,8 +82,8 @@ int cli_pg_cancel_send(const CliPgCfg *args)
     }
     // the server closes the connection once it has the request
     unsigned char rest[1];
-    (void)EMBED_CALL(cli_room_internal.socket_some, CliRoomCtx, .sock = &socket, .bytes_out = rest,
-                     .room = sizeof(rest));
+    (void)EMBED_CALL(cli_capacity_internal.socket_some, CliCapacityCtx, .sock = &socket, .bytes_out = rest,
+                     .capacity = sizeof(rest));
     EMBED_CALL(cli_err_msg_internal.socket_close, CliErrMsgCtx, .sock_out = &socket);
     return 1;
 }
@@ -91,6 +91,6 @@ int cli_pg_cancel_send(const CliPgCfg *args)
 void cli_pg_literal(const CliPgTextCfg *args)
 {
     mmgr_line_ch(args->out, '\'');
-    EMBED_CALL(cli_text_set_table.put_double, CliTextSetCfg, .out = args->out, .text = args->text, .set = "'");
+    EMBED_CALL(cli_text_set_table.append_double, CliTextSetCfg, .out = args->out, .text = args->text, .set = "'");
     mmgr_line_ch(args->out, '\'');
 }

@@ -11,7 +11,7 @@ extern void setUp(void);
 extern void tearDown(void);
 extern void test_each_named_script_that_is_missing_is_a_finding(void);
 extern void test_an_imported_name_nothing_exports_is_a_finding(void);
-extern void test_the_finding_is_placed_on_the_name(void);
+extern void test_the_finding_is_positioned_on_the_name(void);
 extern void test_an_imported_name_is_defined_for_the_script(void);
 extern void test_sconss_own_name_is_defined_for_the_script(void);
 extern void test_sconss_names_complete(void);
@@ -84,7 +84,7 @@ int main(void)
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\scons\\test_scons\\test_scons.c");
   run_test(test_each_named_script_that_is_missing_is_a_finding, "test_each_named_script_that_is_missing_is_a_finding", 84);
   run_test(test_an_imported_name_nothing_exports_is_a_finding, "test_an_imported_name_nothing_exports_is_a_finding", 92);
-  run_test(test_the_finding_is_placed_on_the_name, "test_the_finding_is_placed_on_the_name", 99);
+  run_test(test_the_finding_is_positioned_on_the_name, "test_the_finding_is_positioned_on_the_name", 99);
   run_test(test_an_imported_name_is_defined_for_the_script, "test_an_imported_name_is_defined_for_the_script", 108);
   run_test(test_sconss_own_name_is_defined_for_the_script, "test_sconss_own_name_is_defined_for_the_script", 117);
   run_test(test_sconss_names_complete, "test_sconss_names_complete", 126);

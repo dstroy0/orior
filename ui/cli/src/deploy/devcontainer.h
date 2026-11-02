@@ -34,9 +34,9 @@ typedef struct CliDevcontainerPlanAtCfg CliDevcontainerPlanAtCfg;
 // the most bytes a plan's texts take, the most entries of one of its lists, and the most commands it runs at a time
 #define CLI_PLAN_TEXT (1u << 16u)
 
-#define CLI_PLAN_LIST_MOST 256u
+#define CLI_PLAN_LIST_MAX 256u
 
-#define CLI_PLAN_COMMANDS_MOST 64u
+#define CLI_PLAN_COMMANDS_MAX 64u
 
 // what a tree's dev container is built from: an image, a Dockerfile, or a compose project's service
 enum
@@ -49,7 +49,7 @@ enum
 // A list of a plan's texts, each the place in the plan's `text` it starts at
 typedef struct
 {
-    unsigned int at[CLI_PLAN_LIST_MOST];
+    unsigned int at[CLI_PLAN_LIST_MAX];
     unsigned int count;
 } CliPlanList;
 
@@ -92,9 +92,9 @@ typedef struct
     int has_user;
     unsigned int user;
     CliPlanList words;
-    CliPlanCommand on_create[CLI_PLAN_COMMANDS_MOST];
+    CliPlanCommand on_create[CLI_PLAN_COMMANDS_MAX];
     unsigned int on_creates;
-    CliPlanCommand on_start[CLI_PLAN_COMMANDS_MOST];
+    CliPlanCommand on_start[CLI_PLAN_COMMANDS_MAX];
     unsigned int on_starts;
 } CliPlan;
 

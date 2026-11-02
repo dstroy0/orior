@@ -41,7 +41,7 @@ void test_a_file_of_many_pages_maps_as_written(void)
     assert_maps_as_written(70000ull);
 }
 
-void test_a_file_past_a_mebibyte_maps_as_written(void)
+void test_a_file_end_a_mebibyte_maps_as_written(void)
 {
     assert_maps_as_written((1ull << 20u) + 4099ull);
 }

@@ -16,7 +16,7 @@ typedef struct
     const unsigned int *b;
     int m;
     CliStep *steps;
-    unsigned int room;
+    unsigned int capacity;
     const CliSide *one;
     unsigned int at_u32;
     const CliSide *other;
@@ -43,8 +43,8 @@ EMBED_INLINE unsigned int cli_letter(const StructureCtx *args)
         *bytes = 1u;
         return (length == 1u) ? lead : 0xfffdu;
     }
-    static const unsigned int s_lead_bits[5] = {0x00u, 0x7fu, 0x1fu, 0x0fu, 0x07u};
-    unsigned int letter = lead & s_lead_bits[length];
+    static const unsigned int s_prefix_bits[5] = {0x00u, 0x7fu, 0x1fu, 0x0fu, 0x07u};
+    unsigned int letter = lead & s_prefix_bits[length];
     for (unsigned int step = 1u; step < length; step += 1u)
     {
         const unsigned char next = (unsigned char)args->at[step];
@@ -94,10 +94,10 @@ EMBED_INLINE int cli_alphanumeric(const StructureCtx *args)
 // quote
 enum
 {
-    CLI_TAKE_NAME,
-    CLI_TAKE_NUMBER,
-    CLI_TAKE_STRING,
-    CLI_TAKE_SIGN
+    CLI_ALLOC_NAME,
+    CLI_ALLOC_NUMBER,
+    CLI_ALLOC_STRING,
+    CLI_ALLOC_SIGN
 };
 
 int cli_structure_lex(const CliStructureTextCtx *args)
@@ -143,23 +143,23 @@ int cli_structure_lex(const CliStructureTextCtx *args)
         const unsigned int start = (unsigned int)(at - text);
         column += EMBED_CALL(cli_units, StructureCtx, .letter = letter);
         at += bytes;
-        const unsigned int take = EMBED_CALL(cli_starts_name_letter, StructureCtx, .letter = letter) ? CLI_TAKE_NAME
-                                  : ((letter >= '0') && (letter <= '9'))                             ? CLI_TAKE_NUMBER
-                                  : ((letter == '"') || (letter == '\'') || (letter == '`'))         ? CLI_TAKE_STRING
-                                                                                                     : CLI_TAKE_SIGN;
+        const unsigned int take = EMBED_CALL(cli_starts_name_letter, StructureCtx, .letter = letter) ? CLI_ALLOC_NAME
+                                  : ((letter >= '0') && (letter <= '9'))                             ? CLI_ALLOC_NUMBER
+                                  : ((letter == '"') || (letter == '\'') || (letter == '`'))         ? CLI_ALLOC_STRING
+                                                                                                     : CLI_ALLOC_SIGN;
         int escaped = 0;
         int closed = 0;
-        while ((take != CLI_TAKE_SIGN) && (at < end))
+        while ((take != CLI_ALLOC_SIGN) && (at < end))
         {
             unsigned int next_bytes = 0u;
             const unsigned int next = EMBED_CALL(cli_letter, StructureCtx, .at = at, .end = end, .bytes = &next_bytes);
             int continues = next != '\n';
-            if (continues && (take == CLI_TAKE_NAME))
+            if (continues && (take == CLI_ALLOC_NAME))
             {
                 continues =
                     EMBED_CALL(cli_alphanumeric, StructureCtx, .letter = next) || (next == '_') || (next == '$');
             }
-            else if (continues && (take == CLI_TAKE_NUMBER))
+            else if (continues && (take == CLI_ALLOC_NUMBER))
             {
                 continues =
                     EMBED_CALL(cli_alphanumeric, StructureCtx, .letter = next) || (next == '.') || (next == '_');
@@ -187,11 +187,11 @@ int cli_structure_lex(const CliStructureTextCtx *args)
 }
 
 // Myers' shortest edit. It stores one band of its frontier for each edit, and what it stores grows with the edits and
-// not with the sequences, in the compare's room
+// not with the sequences, in the compare's capacity
 
 EMBED_INLINE unsigned int cli_myers(const StructureCtx *args)
 {
-    const int most = ((args->n + args->m) < (int)CLI_MOST_EDITS) ? (args->n + args->m) : (int)CLI_MOST_EDITS;
+    const int most = ((args->n + args->m) < (int)CLI_MAX_EDITS) ? (args->n + args->m) : (int)CLI_MAX_EDITS;
     const int middle = most + 1;
     memor.set(&(MemoriaCfg){.dst = g_cli_structure->frontier,
                             .val = 0,
@@ -238,7 +238,7 @@ EMBED_INLINE unsigned int cli_myers(const StructureCtx *args)
         const int back_k = down ? (k + 1) : (k - 1);
         const int back_x = before[back_k + d];
         const int back_y = back_x - back_k;
-        while ((x > back_x) && (y > back_y) && (count < args->room))
+        while ((x > back_x) && (y > back_y) && (count < args->capacity))
         {
             x -= 1;
             y -= 1;
@@ -247,7 +247,7 @@ EMBED_INLINE unsigned int cli_myers(const StructureCtx *args)
             args->steps[count] = step;
             count += 1u;
         }
-        if (count >= args->room)
+        if (count >= args->capacity)
         {
             return CLI_STRUCTURE_NONE;
         }
@@ -265,7 +265,7 @@ EMBED_INLINE unsigned int cli_myers(const StructureCtx *args)
         }
         count += 1u;
     }
-    while ((x > 0) && (y > 0) && (count < args->room))
+    while ((x > 0) && (y > 0) && (count < args->capacity))
     {
         x -= 1;
         y -= 1;
@@ -295,7 +295,7 @@ unsigned int cli_structure_shortest(const CliStructureACtx *args)
     {
         tail += 1u;
     }
-    if ((args->n + args->m) > args->room)
+    if ((args->n + args->m) > args->capacity)
     {
         return CLI_STRUCTURE_NONE;
     }
@@ -309,7 +309,7 @@ unsigned int cli_structure_shortest(const CliStructureACtx *args)
     // the sequences are below what a side contains, which an int counts
     const unsigned int core =
         EMBED_CALL(cli_myers, StructureCtx, .a = args->a + head, .n = (int)(args->n - head - tail), .b = args->b + head,
-                   .m = (int)(args->m - head - tail), .steps = args->steps + count, .room = args->room - count);
+                   .m = (int)(args->m - head - tail), .steps = args->steps + count, .capacity = args->capacity - count);
     if (core == CLI_STRUCTURE_NONE)
     {
         return core;

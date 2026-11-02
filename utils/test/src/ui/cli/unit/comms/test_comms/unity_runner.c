@@ -15,24 +15,9 @@ extern void test_a_grant_is_within_one_that_names_every_channel_it_names(void);
 extern void test_a_grant_is_not_within_a_narrower_one(void);
 extern void test_a_key_is_64_hex_digits_and_no_two_are_alike(void);
 extern void test_a_key_names_its_part(void);
-extern void test_a_listener_receives_what_is_sent_on_its_channels(void);
-extern void test_a_message_comes_with_its_channel_speaker_and_body(void);
-extern void test_a_key_names_the_process_of_its_part(void);
-extern void test_a_channel_the_key_does_not_name_is_refused_to_the_listener(void);
-extern void test_a_channel_the_key_does_not_name_is_refused_to_the_speaker(void);
-extern void test_a_key_of_no_part_opens_nothing(void);
-extern void test_a_channel_counts_what_it_refused(void);
-extern void test_a_speaker_counts_what_it_was_refused(void);
 extern void test_a_part_starts_another_with_channels_of_its_own(void);
 extern void test_a_part_may_not_grant_a_channel_it_does_not_have(void);
 extern void test_a_part_may_not_grant_every_channel(void);
-extern void test_a_channel_counts_its_messages(void);
-extern void test_a_channel_stores_its_last_messages_the_oldest_first(void);
-extern void test_a_channel_lists_its_listeners(void);
-extern void test_a_channels_stored_messages_use_the_same_bytes_as_more_are_sent(void);
-extern void test_a_message_that_fits_the_oldests_cell_is_written_into_that_cell(void);
-extern void test_a_message_past_the_oldests_cell_uses_a_larger_one(void);
-extern void test_a_listener_by_call_receives_in_the_speakers_call_in_the_order_sent(void);
 extern void test_a_part_that_leaves_receives_nothing_more(void);
 extern void test_a_key_of_a_part_that_left_opens_nothing(void);
 
@@ -96,32 +81,17 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\comms\\test_comms\\test_comms.c");
-  run_test(test_a_grant_names_its_channel_and_every_channel_under_it, "test_a_grant_names_its_channel_and_every_channel_under_it", 327);
-  run_test(test_a_grant_names_no_other_channel, "test_a_grant_names_no_other_channel", 335);
-  run_test(test_a_grant_is_within_one_that_names_every_channel_it_names, "test_a_grant_is_within_one_that_names_every_channel_it_names", 342);
-  run_test(test_a_grant_is_not_within_a_narrower_one, "test_a_grant_is_not_within_a_narrower_one", 349);
-  run_test(test_a_key_is_64_hex_digits_and_no_two_are_alike, "test_a_key_is_64_hex_digits_and_no_two_are_alike", 355);
-  run_test(test_a_key_names_its_part, "test_a_key_names_its_part", 362);
-  run_test(test_a_listener_receives_what_is_sent_on_its_channels, "test_a_listener_receives_what_is_sent_on_its_channels", 370);
-  run_test(test_a_message_comes_with_its_channel_speaker_and_body, "test_a_message_comes_with_its_channel_speaker_and_body", 376);
-  run_test(test_a_key_names_the_process_of_its_part, "test_a_key_names_the_process_of_its_part", 384);
-  run_test(test_a_channel_the_key_does_not_name_is_refused_to_the_listener, "test_a_channel_the_key_does_not_name_is_refused_to_the_listener", 391);
-  run_test(test_a_channel_the_key_does_not_name_is_refused_to_the_speaker, "test_a_channel_the_key_does_not_name_is_refused_to_the_speaker", 398);
-  run_test(test_a_key_of_no_part_opens_nothing, "test_a_key_of_no_part_opens_nothing", 405);
-  run_test(test_a_channel_counts_what_it_refused, "test_a_channel_counts_what_it_refused", 411);
-  run_test(test_a_speaker_counts_what_it_was_refused, "test_a_speaker_counts_what_it_was_refused", 418);
-  run_test(test_a_part_starts_another_with_channels_of_its_own, "test_a_part_starts_another_with_channels_of_its_own", 424);
-  run_test(test_a_part_may_not_grant_a_channel_it_does_not_have, "test_a_part_may_not_grant_a_channel_it_does_not_have", 431);
-  run_test(test_a_part_may_not_grant_every_channel, "test_a_part_may_not_grant_every_channel", 438);
-  run_test(test_a_channel_counts_its_messages, "test_a_channel_counts_its_messages", 444);
-  run_test(test_a_channel_stores_its_last_messages_the_oldest_first, "test_a_channel_stores_its_last_messages_the_oldest_first", 450);
-  run_test(test_a_channel_lists_its_listeners, "test_a_channel_lists_its_listeners", 457);
-  run_test(test_a_channels_stored_messages_use_the_same_bytes_as_more_are_sent, "test_a_channels_stored_messages_use_the_same_bytes_as_more_are_sent", 463);
-  run_test(test_a_message_that_fits_the_oldests_cell_is_written_into_that_cell, "test_a_message_that_fits_the_oldests_cell_is_written_into_that_cell", 470);
-  run_test(test_a_message_past_the_oldests_cell_uses_a_larger_one, "test_a_message_past_the_oldests_cell_uses_a_larger_one", 478);
-  run_test(test_a_listener_by_call_receives_in_the_speakers_call_in_the_order_sent, "test_a_listener_by_call_receives_in_the_speakers_call_in_the_order_sent", 485);
-  run_test(test_a_part_that_leaves_receives_nothing_more, "test_a_part_that_leaves_receives_nothing_more", 492);
-  run_test(test_a_key_of_a_part_that_left_opens_nothing, "test_a_key_of_a_part_that_left_opens_nothing", 499);
+  run_test(test_a_grant_names_its_channel_and_every_channel_under_it, "test_a_grant_names_its_channel_and_every_channel_under_it", 190);
+  run_test(test_a_grant_names_no_other_channel, "test_a_grant_names_no_other_channel", 198);
+  run_test(test_a_grant_is_within_one_that_names_every_channel_it_names, "test_a_grant_is_within_one_that_names_every_channel_it_names", 205);
+  run_test(test_a_grant_is_not_within_a_narrower_one, "test_a_grant_is_not_within_a_narrower_one", 212);
+  run_test(test_a_key_is_64_hex_digits_and_no_two_are_alike, "test_a_key_is_64_hex_digits_and_no_two_are_alike", 218);
+  run_test(test_a_key_names_its_part, "test_a_key_names_its_part", 225);
+  run_test(test_a_part_starts_another_with_channels_of_its_own, "test_a_part_starts_another_with_channels_of_its_own", 233);
+  run_test(test_a_part_may_not_grant_a_channel_it_does_not_have, "test_a_part_may_not_grant_a_channel_it_does_not_have", 240);
+  run_test(test_a_part_may_not_grant_every_channel, "test_a_part_may_not_grant_every_channel", 247);
+  run_test(test_a_part_that_leaves_receives_nothing_more, "test_a_part_that_leaves_receives_nothing_more", 253);
+  run_test(test_a_key_of_a_part_that_left_opens_nothing, "test_a_key_of_a_part_that_left_opens_nothing", 260);
 
   return UNITY_END();
 }

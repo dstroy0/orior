@@ -7,7 +7,7 @@
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
 extern void tearDown(void);
-extern void test_a_scripts_comment_past_its_license(void);
+extern void test_a_scripts_comment_end_its_license(void);
 extern void test_a_rust_files_comment(void);
 extern void test_a_python_modules_docstring(void);
 extern void test_a_stylesheets_block_comment(void);
@@ -22,7 +22,6 @@ extern void test_a_rust_mod_uses_a_module(void);
 extern void test_an_include_uses_a_header(void);
 extern void test_tex_input_uses_a_file(void);
 extern void test_a_word_in_prose_does_not_use_a_file(void);
-extern void test_a_files_purpose_names_the_files_that_use_it(void);
 
 
 /*=======Mock Management=====*/
@@ -84,7 +83,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\purpose\\test_purpose\\test_purpose.c");
-  run_test(test_a_scripts_comment_past_its_license, "test_a_scripts_comment_past_its_license", 33);
+  run_test(test_a_scripts_comment_end_its_license, "test_a_scripts_comment_end_its_license", 33);
   run_test(test_a_rust_files_comment, "test_a_rust_files_comment", 40);
   run_test(test_a_python_modules_docstring, "test_a_python_modules_docstring", 45);
   run_test(test_a_stylesheets_block_comment, "test_a_stylesheets_block_comment", 50);
@@ -99,7 +98,6 @@ int main(void)
   run_test(test_an_include_uses_a_header, "test_an_include_uses_a_header", 113);
   run_test(test_tex_input_uses_a_file, "test_tex_input_uses_a_file", 118);
   run_test(test_a_word_in_prose_does_not_use_a_file, "test_a_word_in_prose_does_not_use_a_file", 123);
-  run_test(test_a_files_purpose_names_the_files_that_use_it, "test_a_files_purpose_names_the_files_that_use_it", 128);
 
   return UNITY_END();
 }

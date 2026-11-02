@@ -63,7 +63,7 @@ static int cli_escape(const RegexpAtomsCtx *args)
     unsigned int escaped = 0u;
     if (!EMBED_CALL(cli_regexp_read_letter_internal.next, CliRegexpReadLetterCtx, .reader = reader, .letter = &escaped))
     {
-        EMBED_CALL(cli_regexp_read_why_internal.fail, CliRegexpReadWhyCtx, .reader = reader,
+        EMBED_CALL(cli_regexp_read_error_internal.fail, CliRegexpReadErrorCtx, .reader = reader,
                    .why = "a backslash at the end");
         return CLI_ESCAPE_FAILED;
     }
@@ -99,7 +99,7 @@ static int cli_escape(const RegexpAtomsCtx *args)
     }
     else if (escaped == 'u')
     {
-        if (EMBED_CALL(cli_regexp_read_internal.eat, CliRegexpReadCtx, .reader = reader, .wanted = '{'))
+        if (EMBED_CALL(cli_regexp_read_internal.eat, CliRegexpReadCtx, .reader = reader, .required = '{'))
         {
             unsigned long long code = 0ull;
             unsigned long long digits = 0ull;
@@ -113,9 +113,9 @@ static int cli_escape(const RegexpAtomsCtx *args)
                 digits += 1ull;
                 reader->at += 1u;
             }
-            if (!EMBED_CALL(cli_regexp_read_internal.eat, CliRegexpReadCtx, .reader = reader, .wanted = '}'))
+            if (!EMBED_CALL(cli_regexp_read_internal.eat, CliRegexpReadCtx, .reader = reader, .required = '}'))
             {
-                EMBED_CALL(cli_regexp_read_why_internal.fail, CliRegexpReadWhyCtx, .reader = reader,
+                EMBED_CALL(cli_regexp_read_error_internal.fail, CliRegexpReadErrorCtx, .reader = reader,
                            .why = "an unclosed \\u{");
                 return CLI_ESCAPE_FAILED;
             }
@@ -139,7 +139,7 @@ static int cli_escape(const RegexpAtomsCtx *args)
                         .letter = &control) ||
             !(((control | 0x20u) >= 'a') && ((control | 0x20u) <= 'z')))
         {
-            EMBED_CALL(cli_regexp_read_why_internal.fail, CliRegexpReadWhyCtx, .reader = reader,
+            EMBED_CALL(cli_regexp_read_error_internal.fail, CliRegexpReadErrorCtx, .reader = reader,
                        .why = "a control escape");
             return CLI_ESCAPE_FAILED;
         }
@@ -147,9 +147,9 @@ static int cli_escape(const RegexpAtomsCtx *args)
     }
     else if (((escaped == 'p') || (escaped == 'P')) && reader->unicode)
     {
-        if (!EMBED_CALL(cli_regexp_read_internal.eat, CliRegexpReadCtx, .reader = reader, .wanted = '{'))
+        if (!EMBED_CALL(cli_regexp_read_internal.eat, CliRegexpReadCtx, .reader = reader, .required = '{'))
         {
-            EMBED_CALL(cli_regexp_read_why_internal.fail, CliRegexpReadWhyCtx, .reader = reader,
+            EMBED_CALL(cli_regexp_read_error_internal.fail, CliRegexpReadErrorCtx, .reader = reader,
                        .why = "a property with no name");
             return CLI_ESCAPE_FAILED;
         }
@@ -162,9 +162,9 @@ static int cli_escape(const RegexpAtomsCtx *args)
             reader->at += 1u;
         }
         const unsigned long long length = reader->at - start;
-        if (!EMBED_CALL(cli_regexp_read_internal.eat, CliRegexpReadCtx, .reader = reader, .wanted = '}'))
+        if (!EMBED_CALL(cli_regexp_read_internal.eat, CliRegexpReadCtx, .reader = reader, .required = '}'))
         {
-            EMBED_CALL(cli_regexp_read_why_internal.fail, CliRegexpReadWhyCtx, .reader = reader,
+            EMBED_CALL(cli_regexp_read_error_internal.fail, CliRegexpReadErrorCtx, .reader = reader,
                        .why = "an unclosed property");
             return CLI_ESCAPE_FAILED;
         }
@@ -183,7 +183,7 @@ static int cli_escape(const RegexpAtomsCtx *args)
         }
         if (property == 8u)
         {
-            EMBED_CALL(cli_regexp_read_why_internal.fail, CliRegexpReadWhyCtx, .reader = reader,
+            EMBED_CALL(cli_regexp_read_error_internal.fail, CliRegexpReadErrorCtx, .reader = reader,
                        .why = "a property not read here");
             return CLI_ESCAPE_FAILED;
         }
@@ -192,7 +192,7 @@ static int cli_escape(const RegexpAtomsCtx *args)
     }
     else if (escaped == 'k')
     {
-        EMBED_CALL(cli_regexp_read_why_internal.fail, CliRegexpReadWhyCtx, .reader = reader,
+        EMBED_CALL(cli_regexp_read_error_internal.fail, CliRegexpReadErrorCtx, .reader = reader,
                    .why = "an escape not read here");
         return CLI_ESCAPE_FAILED;
     }
@@ -206,7 +206,7 @@ EMBED_INLINE int cli_item_add(const RegexpAtomsCtx *args)
     unsigned int *count = args->count_pointer;
     if (*count >= 256u)
     {
-        EMBED_CALL(cli_regexp_read_why_internal.fail, CliRegexpReadWhyCtx, .reader = reader,
+        EMBED_CALL(cli_regexp_read_error_internal.fail, CliRegexpReadErrorCtx, .reader = reader,
                    .why = "more items than a class allows");
         return 0;
     }
@@ -219,7 +219,7 @@ EMBED_INLINE int cli_item_add(const RegexpAtomsCtx *args)
 EMBED_INLINE unsigned int cli_class(const RegexpAtomsCtx *args)
 {
     CliRegexpReader *reader = args->reader;
-    const int negated = EMBED_CALL(cli_regexp_read_internal.eat, CliRegexpReadCtx, .reader = reader, .wanted = '^');
+    const int negated = EMBED_CALL(cli_regexp_read_internal.eat, CliRegexpReadCtx, .reader = reader, .required = '^');
     CliRegexpItem items[256];
     unsigned int count = 0u;
     for (;;)
@@ -228,7 +228,7 @@ EMBED_INLINE unsigned int cli_class(const RegexpAtomsCtx *args)
         if (!EMBED_CALL(cli_regexp_read_letter_internal.next, CliRegexpReadLetterCtx, .reader = reader,
                         .letter = &letter))
         {
-            return EMBED_CALL(cli_regexp_read_why_internal.fail, CliRegexpReadWhyCtx, .reader = reader,
+            return EMBED_CALL(cli_regexp_read_error_internal.fail, CliRegexpReadErrorCtx, .reader = reader,
                               .why = "an unclosed class");
         }
         if (letter == ']')
@@ -296,7 +296,7 @@ EMBED_INLINE unsigned int cli_class(const RegexpAtomsCtx *args)
         }
         if (high < low)
         {
-            return EMBED_CALL(cli_regexp_read_why_internal.fail, CliRegexpReadWhyCtx, .reader = reader,
+            return EMBED_CALL(cli_regexp_read_error_internal.fail, CliRegexpReadErrorCtx, .reader = reader,
                               .why = "a range out of order");
         }
         if (!EMBED_CALL(cli_item_add, RegexpAtomsCtx, .reader = reader, .items = items, .count_pointer = &count,
@@ -308,7 +308,7 @@ EMBED_INLINE unsigned int cli_class(const RegexpAtomsCtx *args)
     CliRegexp *const regexp = reader->regexp;
     if ((regexp->items + count) > CLI_REGEXP_ITEMS)
     {
-        return EMBED_CALL(cli_regexp_read_why_internal.fail, CliRegexpReadWhyCtx, .reader = reader,
+        return EMBED_CALL(cli_regexp_read_error_internal.fail, CliRegexpReadErrorCtx, .reader = reader,
                           .why = "more class items than a pattern allows");
     }
     const unsigned int made = EMBED_CALL(cli_regexp_read_kind_internal.node, CliRegexpReadKindCtx, .reader = reader,
@@ -351,21 +351,21 @@ EMBED_INLINE unsigned int cli_on_wrap(const RegexpAtomsCtx *args)
 EMBED_INLINE unsigned int cli_group(const RegexpAtomsCtx *args)
 {
     CliRegexpReader *reader = args->reader;
-    if (EMBED_CALL(cli_regexp_read_internal.eat, CliRegexpReadCtx, .reader = reader, .wanted = '?'))
+    if (EMBED_CALL(cli_regexp_read_internal.eat, CliRegexpReadCtx, .reader = reader, .required = '?'))
     {
         unsigned int way = 0u;
         if (!EMBED_CALL(cli_regexp_read_letter_internal.next, CliRegexpReadLetterCtx, .reader = reader,
                         .letter = &way) ||
             ((way != ':') && (way != '=') && (way != '!')))
         {
-            return EMBED_CALL(cli_regexp_read_why_internal.fail, CliRegexpReadWhyCtx, .reader = reader,
+            return EMBED_CALL(cli_regexp_read_error_internal.fail, CliRegexpReadErrorCtx, .reader = reader,
                               .why = "a group not read here");
         }
         const unsigned int inner = EMBED_CALL(cli_regexp_read_internal.alternation, CliRegexpReadCtx, .reader = reader);
         if ((inner != CLI_REGEXP_NONE) &&
-            !EMBED_CALL(cli_regexp_read_internal.eat, CliRegexpReadCtx, .reader = reader, .wanted = ')'))
+            !EMBED_CALL(cli_regexp_read_internal.eat, CliRegexpReadCtx, .reader = reader, .required = ')'))
         {
-            return EMBED_CALL(cli_regexp_read_why_internal.fail, CliRegexpReadWhyCtx, .reader = reader,
+            return EMBED_CALL(cli_regexp_read_error_internal.fail, CliRegexpReadErrorCtx, .reader = reader,
                               .why = (way == ':') ? "an unclosed group" : "an unclosed lookahead");
         }
         return (way == ':') ? EMBED_CALL(cli_on_wrap, RegexpAtomsCtx, .reader = reader, .kind = CLI_REGEXP_GROUP,
@@ -375,16 +375,16 @@ EMBED_INLINE unsigned int cli_group(const RegexpAtomsCtx *args)
     }
     if ((reader->groups + 1u) >= CLI_REGEXP_GROUPS)
     {
-        return EMBED_CALL(cli_regexp_read_why_internal.fail, CliRegexpReadWhyCtx, .reader = reader,
+        return EMBED_CALL(cli_regexp_read_error_internal.fail, CliRegexpReadErrorCtx, .reader = reader,
                           .why = "more groups than a pattern allows");
     }
     reader->groups += 1u;
     const unsigned int index = reader->groups;
     const unsigned int inner = EMBED_CALL(cli_regexp_read_internal.alternation, CliRegexpReadCtx, .reader = reader);
     if ((inner != CLI_REGEXP_NONE) &&
-        !EMBED_CALL(cli_regexp_read_internal.eat, CliRegexpReadCtx, .reader = reader, .wanted = ')'))
+        !EMBED_CALL(cli_regexp_read_internal.eat, CliRegexpReadCtx, .reader = reader, .required = ')'))
     {
-        return EMBED_CALL(cli_regexp_read_why_internal.fail, CliRegexpReadWhyCtx, .reader = reader,
+        return EMBED_CALL(cli_regexp_read_error_internal.fail, CliRegexpReadErrorCtx, .reader = reader,
                           .why = "an unclosed group");
     }
     return EMBED_CALL(cli_on_wrap, RegexpAtomsCtx, .reader = reader, .kind = CLI_REGEXP_GROUP, .child = inner,
@@ -397,7 +397,7 @@ unsigned int cli_atom(const CliRegexpReadCtx *args)
     if (!EMBED_CALL(cli_regexp_read_letter_internal.next, CliRegexpReadLetterCtx, .reader = args->reader,
                     .letter = &letter))
     {
-        return EMBED_CALL(cli_regexp_read_why_internal.fail, CliRegexpReadWhyCtx, .reader = args->reader,
+        return EMBED_CALL(cli_regexp_read_error_internal.fail, CliRegexpReadErrorCtx, .reader = args->reader,
                           .why = "nothing to read");
     }
     if ((letter == '.') || (letter == '^') || (letter == '$'))
@@ -417,7 +417,7 @@ unsigned int cli_atom(const CliRegexpReadCtx *args)
     }
     if ((letter == '*') || (letter == '+') || (letter == '?'))
     {
-        return EMBED_CALL(cli_regexp_read_why_internal.fail, CliRegexpReadWhyCtx, .reader = args->reader,
+        return EMBED_CALL(cli_regexp_read_error_internal.fail, CliRegexpReadErrorCtx, .reader = args->reader,
                           .why = "a quantifier with nothing before it");
     }
     unsigned int made = CLI_REGEXP_NONE;
@@ -462,7 +462,7 @@ unsigned int cli_atom(const CliRegexpReadCtx *args)
             CliRegexp *const regexp = args->reader->regexp;
             if (regexp->items >= CLI_REGEXP_ITEMS)
             {
-                return EMBED_CALL(cli_regexp_read_why_internal.fail, CliRegexpReadWhyCtx, .reader = args->reader,
+                return EMBED_CALL(cli_regexp_read_error_internal.fail, CliRegexpReadErrorCtx, .reader = args->reader,
                                   .why = "more class items than a pattern allows");
             }
             made = EMBED_CALL(cli_regexp_read_kind_internal.node, CliRegexpReadKindCtx, .reader = args->reader,

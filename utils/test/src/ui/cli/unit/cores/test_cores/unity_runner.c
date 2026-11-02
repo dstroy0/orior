@@ -8,9 +8,9 @@
 extern void setUp(void);
 extern void tearDown(void);
 extern void test_reserving_zero_reserves_one(void);
-extern void test_reserving_one_leaves_the_rest_for_work(void);
+extern void test_reserving_one_leaves_the_remainder_for_work(void);
 extern void test_reserving_more_than_the_machine_has_leaves_one_for_work(void);
-extern void test_reserving_two_leaves_the_rest_for_work(void);
+extern void test_reserving_two_leaves_the_remainder_for_work(void);
 
 
 /*=======Mock Management=====*/
@@ -73,9 +73,9 @@ int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\cores\\test_cores\\test_cores.c");
   run_test(test_reserving_zero_reserves_one, "test_reserving_zero_reserves_one", 23);
-  run_test(test_reserving_one_leaves_the_rest_for_work, "test_reserving_one_leaves_the_rest_for_work", 29);
+  run_test(test_reserving_one_leaves_the_remainder_for_work, "test_reserving_one_leaves_the_remainder_for_work", 29);
   run_test(test_reserving_more_than_the_machine_has_leaves_one_for_work, "test_reserving_more_than_the_machine_has_leaves_one_for_work", 35);
-  run_test(test_reserving_two_leaves_the_rest_for_work, "test_reserving_two_leaves_the_rest_for_work", 41);
+  run_test(test_reserving_two_leaves_the_remainder_for_work, "test_reserving_two_leaves_the_remainder_for_work", 41);
 
   return UNITY_END();
 }

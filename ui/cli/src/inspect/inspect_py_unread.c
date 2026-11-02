@@ -12,8 +12,8 @@ typedef struct
 {
     CliInspectTok tok;
     unsigned int fix;
-    CliInspectPlace from;
-    CliInspectPlace to;
+    CliInspectPosition from;
+    CliInspectPosition to;
 } PySet;
 // the most offsets of a statement's tokens that set a name, which are no reads
 #define CLI_PY_SKIPS 4096u
@@ -31,15 +31,17 @@ static CliInspectSet s_read;
 static CliInspectSet s_declared;
 static unsigned int *s_equals;
 
-void cli_inspect_py_unread_layout(const CliInspectCarveCtx *args)
+void cli_inspect_py_unread_layout(const CliInspectPartitionCtx *args)
 {
-    s_sets = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
+    s_sets = EMBED_CALL(cli_inspect_partition_internal.partition, CliInspectPartitionCtx, .partition = args->partition,
                         .bytes = (unsigned long long)CLI_INSPECT_LINES * sizeof(PySet));
-    EMBED_CALL(cli_inspect_carve_set_internal.set_layout, CliInspectCarveSetCtx, .set = &s_read, .carve = args->carve);
-    EMBED_CALL(cli_inspect_carve_set_internal.set_layout, CliInspectCarveSetCtx, .set = &s_declared,
-               .carve = args->carve);
-    s_equals = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
-                          .bytes = (unsigned long long)(CLI_INSPECT_TOKENS / 8u + 1u) * sizeof(unsigned int));
+    EMBED_CALL(cli_inspect_partition_set_internal.set_layout, CliInspectPartitionSetCtx, .set = &s_read,
+               .partition = args->partition);
+    EMBED_CALL(cli_inspect_partition_set_internal.set_layout, CliInspectPartitionSetCtx, .set = &s_declared,
+               .partition = args->partition);
+    s_equals =
+        EMBED_CALL(cli_inspect_partition_internal.partition, CliInspectPartitionCtx, .partition = args->partition,
+                   .bytes = (unsigned long long)(CLI_INSPECT_TOKENS / 8u + 1u) * sizeof(unsigned int));
 }
 static unsigned int s_skip[CLI_PY_SKIPS];
 static unsigned int s_skips;
@@ -69,10 +71,10 @@ int cli_py_depth_at(const CliInspectPySrcToksCfg *args)
     return depth;
 }
 
-void cli_py_whole_lines(const CliInspectPySrcCfg *args)
+void cli_py_full_line_span(const CliInspectPySrcCfg *args)
 {
-    CliInspectPlace *start = args->start;
-    CliInspectPlace *end = args->end;
+    CliInspectPosition *start = args->start;
+    CliInspectPosition *end = args->end;
     unsigned int count = 1u;
     unsigned long long last_start = 0ull;
     unsigned long long last_end = args->size;
@@ -88,10 +90,10 @@ void cli_py_whole_lines(const CliInspectPySrcCfg *args)
             last_start = (count - 1u == args->to) ? (at + 1u) : last_start;
         }
     }
-    *start = (CliInspectPlace){args->from, 0u};
+    *start = (CliInspectPosition){args->from, 0u};
     if (args->to + 1u < count)
     {
-        *end = (CliInspectPlace){args->to + 1u, 0u};
+        *end = (CliInspectPosition){args->to + 1u, 0u};
         return;
     }
     unsigned int units = 0u;
@@ -103,7 +105,7 @@ void cli_py_whole_lines(const CliInspectPySrcCfg *args)
                        .text_bytes = (const unsigned char *)args->src, .length = last_end, .at = at, .letter = &letter);
         units += (letter >= 0x10000u) ? 2u : 1u;
     }
-    *end = (CliInspectPlace){args->to, units};
+    *end = (CliInspectPosition){args->to, units};
 }
 
 typedef struct
@@ -114,8 +116,8 @@ typedef struct
     unsigned int offset;
     const CliInspectTok *tok;
     unsigned int fix;
-    CliInspectPlace from;
-    CliInspectPlace to;
+    CliInspectPosition from;
+    CliInspectPosition to;
     unsigned long long size;
     int lone;
     const CliPyLine *line;
@@ -167,7 +169,7 @@ EMBED_INLINE void unread_reads_get(const InspectPyUnreadCtx *args)
         if (EMBED_CALL(unread_is_read, InspectPyUnreadCtx, .src = args->src, .toks = args->toks, .count = args->count,
                        .offset = offset))
         {
-            EMBED_CALL(cli_inspect_set_internal.set_put, CliInspectSetCtx, .set = &s_read,
+            EMBED_CALL(cli_inspect_set_internal.set_append, CliInspectSetCtx, .set = &s_read,
                        .at = args->src + args->toks[offset].start,
                        .size_u32 = args->toks[offset].end - args->toks[offset].start);
         }
@@ -295,8 +297,8 @@ EMBED_INLINE void unread_setting(const InspectPyUnreadCtx *args)
         {
             EMBED_CALL(unread_skip, InspectPyUnreadCtx, .offset = start);
             unsigned int fix = CLI_PY_FIX_NONE;
-            CliInspectPlace from = toks[0].from;
-            CliInspectPlace to = toks[0].from;
+            CliInspectPosition from = toks[0].from;
+            CliInspectPosition to = toks[0].from;
             if ((equals == 1u) && args->lone && !annotated)
             {
                 const int calls = EMBED_CALL(cli_inspect_py_src_word.py_contains, CliInspectPySrcWordCfg, .src = src,
@@ -309,7 +311,7 @@ EMBED_INLINE void unread_setting(const InspectPyUnreadCtx *args)
                 else
                 {
                     const unsigned int end_line = g_cli_inspect_tok[args->line->first + args->line->count - 1u].to.line;
-                    EMBED_CALL(cli_inspect_py_src.py_whole_lines, CliInspectPySrcCfg, .src = src, .size = size,
+                    EMBED_CALL(cli_inspect_py_src.py_full_line_span, CliInspectPySrcCfg, .src = src, .size = size,
                                .from = toks[0].from.line, .to = end_line, .start = &from, .end = &to);
                 }
             }
@@ -408,7 +410,7 @@ EMBED_INLINE void unread_line(const InspectPyUnreadCtx *args)
             {
                 if (statement[name].kind == CLI_PY_NAME)
                 {
-                    EMBED_CALL(cli_inspect_set_internal.set_put, CliInspectSetCtx, .set = &s_declared,
+                    EMBED_CALL(cli_inspect_set_internal.set_append, CliInspectSetCtx, .set = &s_declared,
                                .at = src + statement[name].start,
                                .size_u32 = statement[name].end - statement[name].start);
                 }
@@ -423,7 +425,7 @@ EMBED_INLINE void unread_line(const InspectPyUnreadCtx *args)
                 EMBED_CALL(unread_is_read, InspectPyUnreadCtx, .src = src, .toks = statement, .count = count,
                            .offset = offset))
             {
-                EMBED_CALL(cli_inspect_set_internal.set_put, CliInspectSetCtx, .set = &s_read,
+                EMBED_CALL(cli_inspect_set_internal.set_append, CliInspectSetCtx, .set = &s_read,
                            .at = src + statement[offset].start,
                            .size_u32 = statement[offset].end - statement[offset].start);
             }
@@ -442,7 +444,7 @@ EMBED_INLINE void unread_report(const InspectPyUnreadCtx *args)
     mmgr_line_ch(&msg, '`');
     mmgr_line_put_n(&msg, name, length);
     mmgr_line_put(&msg, "` is set and never read.");
-    EMBED_CALL(cli_inspect_from_internal.finding_put, CliInspectFromCtx, .facts = facts, .from = args->set->tok.from,
+    EMBED_CALL(cli_inspect_from_internal.finding_append, CliInspectFromCtx, .facts = facts, .from = args->set->tok.from,
                .to = args->set->tok.to, .severity = CLI_INSPECT_WARNING, .message = &msg, .code = "unread",
                .href = NULL);
     if (args->set->fix == CLI_PY_FIX_NONE)
@@ -458,8 +460,8 @@ EMBED_INLINE void unread_report(const InspectPyUnreadCtx *args)
     mmgr_line_put(&titled, (args->set->fix == CLI_PY_FIX_AS)      ? "`"
                            : (args->set->fix == CLI_PY_FIX_VALUE) ? " =` and retain its value"
                                                                   : "");
-    EMBED_CALL(cli_inspect_facts_internal.fix_put, CliInspectFactsCtx, .facts = facts, .title = &titled);
-    EMBED_CALL(cli_inspect_text_internal.edit_put, CliInspectTextCtx, .facts = facts, .from = args->set->from,
+    EMBED_CALL(cli_inspect_facts_internal.fix_append, CliInspectFactsCtx, .facts = facts, .title = &titled);
+    EMBED_CALL(cli_inspect_text_internal.edit_append, CliInspectTextCtx, .facts = facts, .from = args->set->from,
                .to = args->set->to, .text_text = "", .size = 0ull);
 }
 
@@ -470,8 +472,8 @@ void cli_py_unread(const CliInspectPySrcSizeCfg *args)
     unsigned int at = args->at;
     const unsigned int end = EMBED_CALL(cli_inspect_py.py_block_end, CliInspectPyCfg, .at = at);
     s_set_count = 0u;
-    EMBED_CALL(cli_inspect_carve_set_internal.set_clear, CliInspectCarveSetCtx, .set = &s_read);
-    EMBED_CALL(cli_inspect_carve_set_internal.set_clear, CliInspectCarveSetCtx, .set = &s_declared);
+    EMBED_CALL(cli_inspect_partition_set_internal.set_clear, CliInspectPartitionSetCtx, .set = &s_read);
+    EMBED_CALL(cli_inspect_partition_set_internal.set_clear, CliInspectPartitionSetCtx, .set = &s_declared);
     unsigned int nested_end = 0u;
     for (unsigned int index = at + 1u; index < end; index += 1u)
     {
@@ -497,12 +499,12 @@ void cli_py_unread(const CliInspectPySrcSizeCfg *args)
         }
         EMBED_CALL(unread_line, InspectPyUnreadCtx, .src = src, .size = size, .line = line);
     }
-    static const char *const s_whole[4] = {"locals", "vars", "eval", "exec"};
+    static const char *const s_coordinates[4] = {"locals", "vars", "eval", "exec"};
     for (unsigned int word = 0u; word < 4u; word += 1u)
     {
-        if (EMBED_CALL(cli_inspect_at_internal.set_has, CliInspectAtCtx, .set_read = &s_read, .at = s_whole[word],
-                       .size_u32 =
-                           (unsigned int)cellul.len(&(CatenaFinitaCfg){.src = s_whole[word], .cap = CLI_CELLS_POOL})))
+        if (EMBED_CALL(cli_inspect_at_internal.set_has, CliInspectAtCtx, .set_read = &s_read, .at = s_coordinates[word],
+                       .size_u32 = (unsigned int)cellul.len(
+                           &(CatenaFinitaCfg){.src = s_coordinates[word], .cap = CLI_CELLS_POOL})))
         {
             return;
         }

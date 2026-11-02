@@ -45,7 +45,7 @@ void cli_db_quoted_name(const CliDbOutNameCtx *args)
     const char quote = (args->dialect == CLI_SQL_MYSQL) ? '`' : '"';
     mmgr_line_ch(args->out, quote);
     const char quoted[2] = {quote, '\0'};
-    EMBED_CALL(cli_text_set_table.put_double, CliTextSetCfg, .out = args->out, .text = args->name, .set = quoted);
+    EMBED_CALL(cli_text_set_table.append_double, CliTextSetCfg, .out = args->out, .text = args->name, .set = quoted);
     mmgr_line_ch(args->out, quote);
 }
 

@@ -51,12 +51,12 @@ int query_version_get(const QueryTablesOutputCtx *args)
             continue;
         }
         unsigned long long end = at + 1ull;
-        end = EMBED_CALL(cli_text_at_size_classes.past_class, CliTextAtSizeClassesCfg, .text = args->output, .at = end,
+        end = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = args->output, .at = end,
                          .size = size, .classes = CLI_TEXT_DIGITS, .set = ".");
         if ((end > (at + 1ull)) &&
             ((end == size) || (args->output[end] == ' ') || (args->output[end] == '\n') || (args->output[end] == '\r')))
         {
-            VerbaLinea line = {args->version, args->room, 0ull};
+            VerbaLinea line = {args->version, args->capacity, 0ull};
             mmgr_line_put_n(&line, (const char *)(args->output + at + 1u), end - at - 1ull);
             return mmgr_line_finish(&line) != 0ull;
         }
@@ -64,9 +64,9 @@ int query_version_get(const QueryTablesOutputCtx *args)
     return 0;
 }
 
-void query_archive_by_name(const QueryTablesRoomCtx *args)
+void query_archive_by_name(const QueryTablesCapacityCtx *args)
 {
-    VerbaLinea line = {args->archive, args->room, 0ull};
+    VerbaLinea line = {args->archive, args->capacity, 0ull};
     mmgr_line_put(&line, "cuda_nvdisasm-linux-x86_64-");
     mmgr_line_put(&line, args->version_read);
     mmgr_line_put(&line, "-archive");
@@ -79,9 +79,9 @@ unsigned int query_architectures_get(const QueryTablesCtx *args)
     unsigned long long size = args->size;
     unsigned int count = 0u;
     unsigned long long at = 0ull;
-    while ((at < size) && (count < QUERY_ARCHITECTURES_MOST))
+    while ((at < size) && (count < QUERY_ARCHITECTURES_MAX))
     {
-        at = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = (const char *)args->output,
+        at = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = (const char *)args->output,
                         .at = at, .size = size, .set = " \n\r\t");
         const unsigned long long first = at;
         at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = (const char *)args->output,
@@ -109,16 +109,16 @@ void query_in_container(const QueryTablesRootCtx *args)
                             : args->path_read;
     VerbaLinea line = {args->inside, QUERY_PATH_MAX_LEN, 0ull};
     mmgr_line_put(&line, "/tree/");
-    (void)EMBED_CALL(cli_text_from.put_swap, CliTextFromCfg, .out = &line, .text = under, .from = '\\', .to = '/');
+    (void)EMBED_CALL(cli_text_from.append_swap, CliTextFromCfg, .out = &line, .text = under, .from = '\\', .to = '/');
     mmgr_line_finish(&line);
 }
 
 // the program of `role` into `path`
 int query_program(const QueryTablesPathCtx *args)
 {
-    return EMBED_CALL(args->context_read->programs->program, QueryEachRolePathRoomErrMsgCfg,
+    return EMBED_CALL(args->context_read->programs->program, QueryEachRolePathCapacityErrMsgCfg,
                       .context = args->context_read->programs->context, .role = args->role, .path = args->path,
-                      .room = QUERY_PATH_MAX_LEN, .err_msg = args->err_msg);
+                      .capacity = QUERY_PATH_MAX_LEN, .err_msg = args->err_msg);
 }
 
 // The architectures the words name, `sm_86 sm_90`, or every one the compiler lists where none is named, into
@@ -132,7 +132,7 @@ unsigned int query_architectures(const QueryTablesErrMsgCtx *args)
     if (args->count != 0u)
     {
         unsigned int arch_count = 0u;
-        for (unsigned int at = 0u; (at < args->count) && (arch_count < QUERY_ARCHITECTURES_MOST); at += 1u)
+        for (unsigned int at = 0u; (at < args->count) && (arch_count < QUERY_ARCHITECTURES_MAX); at += 1u)
         {
             memor.cpy(
                 &(MemoriaCfg){.dst = args->arches[arch_count],
@@ -144,12 +144,12 @@ unsigned int query_architectures(const QueryTablesErrMsgCtx *args)
     }
     static char s_nvcc[QUERY_PATH_MAX_LEN];
     long long code = -1ll;
-    const char *const listed[3] = {s_nvcc, "--list-gpu-arch", NULL};
+    const char *const list_entries[3] = {s_nvcc, "--list-gpu-arch", NULL};
     if (!EMBED_CALL(query_tables_path_internal.program, QueryTablesPathCtx, .context_read = context,
                     .role = QUERY_ROLE_NVCC, .path = s_nvcc, .err_msg = err_msg) ||
         !EMBED_CALL(query_loops_context_err_msg_name_run.context_dispatch, QueryLoopsContextErrMsgNameRunCfg,
-                    .context = context, .run = run, .name = "nvcc_architectures.txt", .words = listed, .code = &code,
-                    .err_msg = err_msg))
+                    .context = context, .run = run, .name = "nvcc_architectures.txt", .words = list_entries,
+                    .code = &code, .err_msg = err_msg))
     {
         return 0u;
     }
@@ -193,14 +193,14 @@ int query_disassembler(const QueryTablesOutErrMsgCtx *args)
     if (!EMBED_CALL(query_count_name_internal.writer_latest, QueryCountNameCtx, .writer = &run->writer,
                     .name = "nvcc_version.txt", .bytes_u8s = &bytes, .size_pointer = &size) ||
         !EMBED_CALL(query_tables_output_internal.version_get, QueryTablesOutputCtx, .output = bytes, .size = size,
-                    .version = version, .room = sizeof(version)))
+                    .version = version, .capacity = sizeof(version)))
     {
         mmgr_line_put(err_msg, "nvcc --version names no version");
         return 0;
     }
     char archive[128];
-    EMBED_CALL(query_tables_room_internal.archive_by_name, QueryTablesRoomCtx, .version_read = version,
-               .archive = archive, .room = sizeof(archive));
+    EMBED_CALL(query_tables_capacity_internal.archive_by_name, QueryTablesCapacityCtx, .version_read = version,
+               .archive = archive, .capacity = sizeof(archive));
     char download[QUERY_PATH_MAX_LEN];
     char unpacked[QUERY_PATH_MAX_LEN];
     char tar[QUERY_PATH_MAX_LEN];

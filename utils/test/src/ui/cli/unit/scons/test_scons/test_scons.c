@@ -48,14 +48,14 @@ static unsigned long long range_number(unsigned int finding, const char *end, co
 // A name SCons defines for a script, and whether it was found
 typedef struct
 {
-    const char *wanted;
+    const char *required;
     int found;
 } SconsName;
 
 static void name_defined(const CliEachNameSizeCfg *args)
 {
     SconsName *const defined = args->context;
-    defined->found |= (CLI_UNITY_LENGTH(defined->wanted) == args->size) && (memor.cmp(&(MemoriaCfg){.src = args->name, .other = defined->wanted, .bytes = args->size}) == 0);
+    defined->found |= (CLI_UNITY_LENGTH(defined->required) == args->size) && (memor.cmp(&(MemoriaCfg){.src = args->name, .other = defined->required, .bytes = args->size}) == 0);
 }
 
 // what completes `text` at its end in the top script
@@ -96,7 +96,7 @@ void test_an_imported_name_nothing_exports_is_a_finding(void)
     TEST_ASSERT_EQUAL_STRING("`tools` is imported here, and no SConstruct or SConscript of the tree exports it", message_of(EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = s_json, .array = found, .index = 0u)));
 }
 
-void test_the_finding_is_placed_on_the_name(void)
+void test_the_finding_is_positioned_on_the_name(void)
 {
     const unsigned int found = findings_of("src/SConscript", s_sub);
     const unsigned int finding = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = s_json, .array = found, .index = 0u);

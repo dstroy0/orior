@@ -15,8 +15,8 @@
 // how many folders below the top a search for projects goes; and the bytes the projects found and a server's options
 // are written in
 #define CLI_SERVERS_PROJECT_DEPTH 6u
-#define CLI_SERVERS_FOUND_ROOM (1ull << 20u)
-#define CLI_SERVERS_OPTIONS_ROOM (1ull << 20u)
+#define CLI_SERVERS_FOUND_CAPACITY (1ull << 20u)
+#define CLI_SERVERS_OPTIONS_CAPACITY (1ull << 20u)
 
 // what parts the folders of a PATH
 #if defined(_WIN32)
@@ -89,22 +89,23 @@ static void launch_project_entry(const CliEachNameIsFolderCfg *args)
 
 void cli_servers_projects_in(const CliServersRootOutCtx *args)
 {
-    char *const found_cell = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_FOUND_ROOM, &g_cli_servers_launch_cells);
-    CliServersProjects projects = {args->name, args->root, 0u, mmgr_line_over(found_cell, CLI_SERVERS_FOUND_ROOM), 0u};
+    char *const found_cell = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_FOUND_CAPACITY, &g_cli_servers_launch_cells);
+    CliServersProjects projects = {args->name, args->root, 0u, mmgr_line_over(found_cell, CLI_SERVERS_FOUND_CAPACITY),
+                                   0u};
     (void)EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = args->root,
                      .each = launch_project_entry, .context_bytess = &projects);
     // the projects in order, each by where it starts among those found
     const unsigned int count = mmgr_line_ok(&projects.found) ? projects.count : 0u;
     const char **const found =
         (count != 0u) ? g_cli_cells->temporary_buf_alloc(count * sizeof(*found), &g_cli_servers_launch_cells) : NULL;
-    const unsigned int listed = (found != NULL) ? count : 0u;
+    const unsigned int list_entries = (found != NULL) ? count : 0u;
     const char *path = projects.found.out;
-    for (unsigned int at = 0u; at < listed; at += 1u)
+    for (unsigned int at = 0u; at < list_entries; at += 1u)
     {
         found[at] = path;
         path += cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u;
     }
-    for (unsigned int at = 1u; at < listed; at += 1u)
+    for (unsigned int at = 1u; at < list_entries; at += 1u)
     {
         const char *const swap = found[at];
         unsigned int place = at;
@@ -117,7 +118,7 @@ void cli_servers_projects_in(const CliServersRootOutCtx *args)
         found[place] = swap;
     }
     mmgr_line_ch(args->out, '[');
-    for (unsigned int at = 0u; at < listed; at += 1u)
+    for (unsigned int at = 0u; at < list_entries; at += 1u)
     {
         mmgr_line_put(args->out, (at > 0u) ? "," : "");
         EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->out,
@@ -197,7 +198,7 @@ CliLsp *cli_servers_launch(const CliServersRootCtx *args)
     if ((launching != NULL) && (tool != CLI_JSON_NONE))
     {
         unsigned int count = 0u;
-        char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&count, &g_cli_servers_launch_cells);
+        char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_allocated(&count, &g_cli_servers_launch_cells);
         EMBED_CALL(cli_toolchains_json.find, CliToolchainsJsonCfg, .json = &manifest_json, .tool = tool,
                    .path_callback = (const char (*)[CLI_PATH_MAX_LEN])folders, .count = count,
                    .found = &launching->found);
@@ -224,8 +225,9 @@ CliLsp *cli_servers_launch(const CliServersRootCtx *args)
         g_cli_cells->persistent_buf_release(launching, &g_cli_servers_launch_cells);
         return NULL;
     }
-    char *const options_cell = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_OPTIONS_ROOM, &g_cli_servers_launch_cells);
-    VerbaLinea options = mmgr_line_over(options_cell, CLI_SERVERS_OPTIONS_ROOM);
+    char *const options_cell =
+        g_cli_cells->temporary_buf_alloc(CLI_SERVERS_OPTIONS_CAPACITY, &g_cli_servers_launch_cells);
+    VerbaLinea options = mmgr_line_over(options_cell, CLI_SERVERS_OPTIONS_CAPACITY);
     EMBED_CALL(launch_options, ServersLaunchCtx, .root = root, .spec = args->spec_read, .out = &options);
     CliWords *const words = &launching->words;
     words->count = 0u;
@@ -233,7 +235,7 @@ CliLsp *cli_servers_launch(const CliServersRootCtx *args)
     words->full = 0;
     for (unsigned int at = 0u; at < args->spec_read->args; at += 1u)
     {
-        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = words,
+        EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
                    .word = args->spec_read->arg[at]);
     }
     EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = launching->path,

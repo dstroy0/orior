@@ -38,14 +38,14 @@ typedef struct
     const char *key;
     const char *id;
     char *joined;
-    unsigned long long room;
+    unsigned long long capacity;
     const char *path;
     char *into;
 } ServersCheckersCtx;
 // the key a run is counted under: the file's key and the checker's id
 EMBED_INLINE void checkers_run_key(const ServersCheckersCtx *args)
 {
-    VerbaLinea line = {args->joined, args->room, 0ull};
+    VerbaLinea line = {args->joined, args->capacity, 0ull};
     mmgr_line_put(&line, args->key);
     mmgr_line_ch(&line, '\n');
     mmgr_line_put(&line, args->id);
@@ -56,19 +56,19 @@ unsigned long long cli_servers_run_count(const CliServersKeyCtx *args)
 {
     char joined[CLI_PATH_MAX_LEN + CLI_NAME_MAX_LEN + 2u];
     EMBED_CALL(checkers_run_key, ServersCheckersCtx, .key = args->key, .id = args->id, .joined = joined,
-               .room = sizeof(joined));
-    const char *beside = NULL;
+               .capacity = sizeof(joined));
+    const char *adjacent = NULL;
     unsigned long long size = 0ull;
-    const char *const stored = EMBED_CALL(cli_keyed_key_beside.get, CliKeyedKeyBesideCfg, .keyed = &s_runs,
-                                          .key = joined, .beside = &beside, .size = &size);
+    const char *const stored = EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &s_runs,
+                                          .key = joined, .adjacent = &adjacent, .size = &size);
     unsigned long long run = 0ull;
     if ((stored != NULL) && (size == sizeof(run)))
     {
         memor.cpy(&(MemoriaCfg){.dst = &run, .src = stored, .bytes = sizeof(run)});
     }
     run += 1ull;
-    (void)EMBED_CALL(cli_keyed_key_beside.put, CliKeyedKeyBesideCfg, .keyed_out = &s_runs, .key = joined,
-                     .beside_value = "", .text = (const char *)&run, .size_value = sizeof(run));
+    (void)EMBED_CALL(cli_keyed_key_adjacent.put, CliKeyedKeyAdjacentCfg, .keyed_out = &s_runs, .key = joined,
+                     .adjacent_value = "", .text = (const char *)&run, .size_value = sizeof(run));
     return run;
 }
 
@@ -76,11 +76,11 @@ int cli_servers_run_last(const CliServersKeyCtx *args)
 {
     char joined[CLI_PATH_MAX_LEN + CLI_NAME_MAX_LEN + 2u];
     EMBED_CALL(checkers_run_key, ServersCheckersCtx, .key = args->key, .id = args->id, .joined = joined,
-               .room = sizeof(joined));
-    const char *beside = NULL;
+               .capacity = sizeof(joined));
+    const char *adjacent = NULL;
     unsigned long long size = 0ull;
-    const char *const stored = EMBED_CALL(cli_keyed_key_beside.get, CliKeyedKeyBesideCfg, .keyed = &s_runs,
-                                          .key = joined, .beside = &beside, .size = &size);
+    const char *const stored = EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &s_runs,
+                                          .key = joined, .adjacent = &adjacent, .size = &size);
     unsigned long long last = 0ull;
     if ((stored != NULL) && (size == sizeof(last)))
     {

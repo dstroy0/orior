@@ -16,7 +16,7 @@ static QueryWords s_words;
 static QueryLearnStep s_step;
 static char s_joined[1024];
 static QueryStickPaths s_paths;
-static char s_why[512];
+static char s_error[512];
 static char s_root[QUERY_PATH_MAX_LEN];
 static char s_cu[QUERY_PATH_MAX_LEN];
 static char s_fresh[QUERY_PATH_MAX_LEN];
@@ -38,7 +38,7 @@ static const char *words_joined(void)
 // the step's `count` words read into s_step: 1, or 0 where they are refused
 static int step_read(const char *const *words, unsigned int count)
 {
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     memor.set(&(MemoriaCfg){.dst = &s_step, .val = 0, .bytes = sizeof(s_step)});
     return EMBED_CALL(query_learn_words_internal.step_read, QueryLearnWordsCtx, .words = words, .count = count, .step = &s_step, .err_msg = &err_msg);
 }
@@ -87,7 +87,7 @@ static void stick_files_written(void)
 // the stick words' answer for `count` words
 static int stick_words(const char *const *words, unsigned int count)
 {
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     return EMBED_CALL(query_loops_err_msg_words.stick_words, QueryLoopsErrMsgWordsCfg, .words = words, .count = count, .err_msg = &err_msg);
 }
 
@@ -101,7 +101,7 @@ void tearDown(void)
 {
 }
 
-void test_the_files_are_handed_with_forward_slashes(void)
+void test_the_files_are_transferred_with_forward_slashes(void)
 {
     EMBED_CALL(query_loops_root.files_get, QueryLoopsRootCfg, .root = "D:/top/tree", .part = "sm_86", .files = &s_files);
     const unsigned long long length = CLI_UNITY_LENGTH(s_files.costs);
@@ -111,7 +111,7 @@ void test_the_files_are_handed_with_forward_slashes(void)
     TEST_ASSERT_EQUAL_STRING("/table/sm_86.ksc", s_files.costs + length - 16u);
 }
 
-void test_the_parts_files_are_beside_the_bridge(void)
+void test_the_parts_files_are_adjacent_the_bridge(void)
 {
     EMBED_CALL(query_loops_root.files_get, QueryLoopsRootCfg, .root = "T", .part = "sm_86", .files = &s_files);
     TEST_ASSERT_EQUAL_STRING("T/" QUERY_TABLE "/sm_86.khw", s_files.machine);
@@ -119,15 +119,15 @@ void test_the_parts_files_are_beside_the_bridge(void)
     TEST_ASSERT_EQUAL_STRING("T/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_nvidia.tsv", s_files.fields);
 }
 
-void test_the_carriers_words_with_the_lessons(void)
+void test_the_transports_words_with_the_lessons(void)
 {
-    EMBED_CALL(query_loops_words_words_carrier.carrier_words, QueryLoopsWordsWordsCarrierCfg, .words_words_pointer = &s_words, .carrier = "C", .cross = "X", .nvdisasm = "N", .machine = "M", .layout = "L", .lessons = 1);
+    EMBED_CALL(query_loops_words_words_transport.transport_words, QueryLoopsWordsWordsTransportCfg, .words_words_pointer = &s_words, .transport = "C", .cross = "X", .nvdisasm = "N", .machine = "M", .layout = "L", .lessons = 1);
     TEST_ASSERT_EQUAL_STRING("C --gated gated.txt --lessons overseer.txt M L --pop C --dry --full --lessons overseer.txt M L --cross X N SM86 airlock.md gated.txt", words_joined());
 }
 
-void test_the_carriers_words_without_the_lessons(void)
+void test_the_transports_words_without_the_lessons(void)
 {
-    EMBED_CALL(query_loops_words_words_carrier.carrier_words, QueryLoopsWordsWordsCarrierCfg, .words_words_pointer = &s_words, .carrier = "C", .cross = "X", .nvdisasm = "N", .machine = "M", .layout = "L", .lessons = 0);
+    EMBED_CALL(query_loops_words_words_transport.transport_words, QueryLoopsWordsWordsTransportCfg, .words_words_pointer = &s_words, .transport = "C", .cross = "X", .nvdisasm = "N", .machine = "M", .layout = "L", .lessons = 0);
     TEST_ASSERT_EQUAL_STRING("C --gated gated.txt M L --pop C --dry --full M L --cross X N SM86 airlock.md gated.txt", words_joined());
 }
 
@@ -192,7 +192,7 @@ void test_the_clock_with_no_span_uses_its_default(void)
     TEST_ASSERT_EQUAL_STRING(QUERY_CLOCK_WORDS, s_step.base);
 }
 
-void test_the_clock_reads_a_given_span(void)
+void test_the_clock_reads_a_input_span(void)
 {
     TEST_ASSERT_TRUE(step_read(s_clock, 3u));
     TEST_ASSERT_EQUAL_INT(QUERY_LEARN_CLOCK, s_step.kind);
@@ -200,7 +200,7 @@ void test_the_clock_reads_a_given_span(void)
     TEST_ASSERT_EQUAL_STRING("4000", s_step.base);
 }
 
-void test_one_places_questions_are_read(void)
+void test_one_positions_questions_are_read(void)
 {
     static const char *const s_enumerate[2] = {"enumerate", "loop_back_if"};
     TEST_ASSERT_TRUE(step_read(s_enumerate, 2u));
@@ -208,7 +208,7 @@ void test_one_places_questions_are_read(void)
     TEST_ASSERT_EQUAL_STRING("loop_back_if", s_step.word);
 }
 
-void test_an_enumerate_with_no_place_is_refused(void)
+void test_an_enumerate_with_no_position_is_refused(void)
 {
     static const char *const s_enumerate[1] = {"enumerate"};
     TEST_ASSERT_FALSE(step_read(s_enumerate, 1u));
@@ -293,7 +293,7 @@ void test_a_missing_container_is_compiled(void)
     TEST_ASSERT_TRUE(EMBED_CALL(query_loops_cu.stick_change, QueryLoopsCuCfg, .cu = s_cu, .fresh = s_fresh, .cubin = s_cubin));
 }
 
-void test_the_stick_with_no_words_reads_the_vendors_reading(void)
+void test_the_stick_with_no_words_reads_the_vendors_read_state(void)
 {
     TEST_ASSERT_EQUAL_INT(QUERY_STICK_VENDOR, stick_words(NULL, 0u));
 }

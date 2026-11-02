@@ -346,37 +346,38 @@ typedef struct
 {
     const char *language;
     char ids[CLI_VALIDATE_TOOLS][CLI_NAME_MAX_LEN];
-    unsigned int places[CLI_VALIDATE_TOOLS];
+    unsigned int positions[CLI_VALIDATE_TOOLS];
     int checks[CLI_VALIDATE_TOOLS];
     unsigned int count;
     unsigned int seen;
     int loading;
-    unsigned int sought;
+    unsigned int needle;
     int loaded;
 } CliToolLook;
 
 static CliToolLook s_look;
 
 // a plugin looked at: a tool recorded by its id, or, as one is read again, the tool at the place sought read into the
-// room
+// capacity
 static void tool_look(const CliEachPluginCfg *args)
 {
     CliToolLook *const look = (CliToolLook *)args->context;
     const unsigned int place = look->seen;
     look->seen += 1u;
-    if (look->loading && (place != look->sought))
+    if (look->loading && (place != look->needle))
     {
         return;
     }
-    // the plugin's tree in a cell of its own sized to its text, the one before given back, retained until the room is
+    // the plugin's tree in a cell of its own sized to its text, the one before given back, retained until the capacity
+    // is
     CliJson *const json = &g_cli_validate->json;
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = json);
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea unread = {why, sizeof(why), 0ull};
     const unsigned int root =
-        EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg, .bytes = args->plugin->text,
+        EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = args->plugin->text,
                    .size = args->plugin->size)
-            ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg, .json = json,
+            ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = json,
                          .text = args->plugin->text, .size = args->plugin->size, .nodes_more = 0u, .text_more = 0ull,
                          .err_msg = &unread, .owner = &g_cli_plugins_cells)
             : CLI_JSON_NONE;
@@ -409,7 +410,7 @@ static void tool_look(const CliEachPluginCfg *args)
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = tool->id, .cap = CLI_CELLS_POOL}) + 1u});
         look->count += 1u;
     }
-    look->places[at] = place;
+    look->positions[at] = place;
     look->checks[at] =
         (look->language != NULL) &&
         EMBED_CALL(cli_validate_json_internal.in_array, CliValidateJsonCtx, .json = json, .array = tool->languages,
@@ -430,29 +431,29 @@ EMBED_INLINE void tool_looked_over(const ValidateToolCtx *args)
 
 int cli_validate_tool_for(const CliValidateCfg *args)
 {
-    // each plugin is read into the validation's room, retained for the look as a validation retains it
+    // each plugin is read into the validation's capacity, retained for the look as a validation retains it
     if (!cli_validate_lock())
     {
         return 0;
     }
     EMBED_CALL(tool_looked_over, ValidateToolCtx, .language = args->language);
-    const char *least = NULL;
+    const char *min = NULL;
     for (unsigned int at = 0u; at < s_look.count; at += 1u)
     {
-        if (s_look.checks[at] && ((least == NULL) || (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg,
-                                                                 .one = s_look.ids[at], .other_pointer = least) < 0)))
+        if (s_look.checks[at] && ((min == NULL) || (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg,
+                                                               .one = s_look.ids[at], .other_pointer = min) < 0)))
         {
-            least = s_look.ids[at];
+            min = s_look.ids[at];
         }
     }
-    if (least != NULL)
+    if (min != NULL)
     {
         memor.cpy(&(MemoriaCfg){.dst = args->id,
-                                .src = least,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = least, .cap = CLI_CELLS_POOL}) + 1u});
+                                .src = min,
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = min, .cap = CLI_CELLS_POOL}) + 1u});
     }
     cli_validate_release();
-    return least != NULL;
+    return min != NULL;
 }
 
 int cli_validate_tool_read(const CliValidateIdCtx *args)
@@ -469,7 +470,7 @@ int cli_validate_tool_read(const CliValidateIdCtx *args)
     {
         s_look.seen = 0u;
         s_look.loading = 1;
-        s_look.sought = s_look.places[at];
+        s_look.needle = s_look.positions[at];
         EMBED_CALL(cli_plugins_each_table.each, CliPluginsEachCfg, .each = tool_look, .context = &s_look);
     }
     const int loaded = s_look.loaded;

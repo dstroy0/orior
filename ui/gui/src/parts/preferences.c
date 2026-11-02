@@ -11,8 +11,8 @@
 static const unsigned int s_zoom_percent[GUI_PREFERENCE_ZOOM_STEPS] = {50u,  67u,  75u,  80u,  90u,  100u, 110u,
                                                                        125u, 150u, 175u, 200u, 250u, 300u};
 static const char *const s_sections[GUI_PREFERENCES_SECTIONS] = {"Settings", "Colors"};
-static const char *const s_said[GUI_PREFERENCE_ROWS] = {"Zoom is ", "Bar opacity is ", "Editor opacity is ",
-                                                        "Reduce Motion is "};
+static const char *const s_output[GUI_PREFERENCE_ROWS] = {"Zoom is ", "Bar opacity is ", "Editor opacity is ",
+                                                          "Reduce Motion is "};
 
 // the most bytes a color's value takes as it is typed, its mark and eight digits
 #define PREFERENCES_ENTERED_MOST 9u
@@ -56,7 +56,7 @@ void gui_preferences_init(const GuiPreferencesSizeCfg *args)
 
 unsigned int gui_preference_zoom_percent(const GuiPreferencesStepCfg *args)
 {
-    return s_zoom_percent[(args->step < GUI_PREFERENCE_ZOOM_STEPS) ? args->step : GUI_PREFERENCE_ZOOM_WHOLE];
+    return s_zoom_percent[(args->step < GUI_PREFERENCE_ZOOM_STEPS) ? args->step : GUI_PREFERENCE_ZOOM_DEFAULT_STEP];
 }
 
 int gui_preference_zoom_step(const GuiPreferencesCfg *args)
@@ -92,7 +92,7 @@ unsigned int gui_preference_opacity_move(const GuiPreferencesPercentCfg *args)
     {
         return (args->percent < GUI_PREFERENCE_OPACITY_STEP) ? 0u : args->percent - GUI_PREFERENCE_OPACITY_STEP;
     }
-    if (args->percent < GUI_PREFERENCE_OPACITY_MOST)
+    if (args->percent < GUI_PREFERENCE_OPACITY_MAX)
     {
         return args->percent + GUI_PREFERENCE_OPACITY_STEP;
     }
@@ -101,8 +101,8 @@ unsigned int gui_preference_opacity_move(const GuiPreferencesPercentCfg *args)
 
 void gui_preference_sentence(const GuiPreferencesValuesCfg *args)
 {
-    VerbaLinea words = {args->said, args->size, 0ull};
-    mmgr_line_put(&words, s_said[(args->row < GUI_PREFERENCE_ROWS) ? args->row : 0u]);
+    VerbaLinea words = {args->output, args->size, 0ull};
+    mmgr_line_put(&words, s_output[(args->row < GUI_PREFERENCE_ROWS) ? args->row : 0u]);
     (void)mmgr_line_finish(&words);
     VerbaLinea line = {args->value, args->size, 0ull};
     if (args->row == GUI_PREFERENCE_REDUCE)
@@ -138,7 +138,7 @@ void gui_preferences_want(const GuiPreferencesScaleCfg *args)
                             EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_LIST,
                                        .scale = scale) +
                             (2 * EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
-                                            .pixels = GUI_PREFERENCES_CELL_WIDE, .scale = scale)));
+                                            .pixels = GUI_PREFERENCES_CELL_WIDTH, .scale = scale)));
     *height = (unsigned int)((2 * edge) + (rows * EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                              .pixels = GUI_PREFERENCES_CELL, .scale = scale)));
 }
@@ -151,10 +151,10 @@ GuiRect gui_preferences_rect(const GuiPreferencesPaletteValuesCfg *args)
 
 GuiRect gui_preferences_close_rect(const GuiPreferencesRowCfg *args)
 {
-    const int wide = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_CLOSE_WIDE,
-                                .scale = args->preferences_read->scale);
+    const int pixel_width = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_CLOSE_WIDTH,
+                                       .scale = args->preferences_read->scale);
     // a client's side is far inside what an int represents
-    return (GuiRect){(int)args->preferences_read->width - wide, 0, wide,
+    return (GuiRect){(int)args->preferences_read->width - pixel_width, 0, pixel_width,
                      EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_EDGE,
                                 .scale = args->preferences_read->scale)};
 }
@@ -193,10 +193,10 @@ EMBED_INLINE GuiRect preferences_content(const PreferencesCtx *args)
 GuiRect gui_preferences_row_rect(const GuiPreferencesRowCfg *args)
 {
     const GuiRect content = EMBED_CALL(preferences_content, PreferencesCtx, .preferences = args->preferences_read);
-    const int tall = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_ROW,
-                                .scale = args->preferences_read->scale);
+    const int pixel_height = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_ROW,
+                                        .scale = args->preferences_read->scale);
     // a row's place is far inside what an int represents
-    return (GuiRect){content.x, content.y + ((int)args->row * tall), content.width, tall};
+    return (GuiRect){content.x, content.y + ((int)args->row * pixel_height), content.width, pixel_height};
 }
 
 // what the colors' grid stands in: what a section shows, less the row over it that says which colors are under the
@@ -212,7 +212,7 @@ EMBED_INLINE GuiRect preferences_grid(const PreferencesCtx *args)
 unsigned int gui_preferences_cells_across(const GuiPreferencesPaletteValuesCfg *args)
 {
     const int across = EMBED_CALL(preferences_grid, PreferencesCtx, .preferences = args->preferences_read).width /
-                       EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_CELL_WIDE,
+                       EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_CELL_WIDTH,
                                   .scale = args->preferences_read->scale);
     // the count is not negative past the test
     return (across < 1) ? 1u : (unsigned int)across;
@@ -239,13 +239,13 @@ GuiRect gui_preferences_cell_rect(const GuiPreferencesPaletteValuesCfg *args)
         return (GuiRect){0, 0, 0, 0};
     }
     const GuiRect grid = EMBED_CALL(preferences_grid, PreferencesCtx, .preferences = args->preferences_read);
-    const int wide = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_CELL_WIDE,
-                                .scale = args->preferences_read->scale);
-    const int tall = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_CELL,
-                                .scale = args->preferences_read->scale);
+    const int pixel_width = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_CELL_WIDTH,
+                                       .scale = args->preferences_read->scale);
+    const int pixel_height = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_CELL,
+                                        .scale = args->preferences_read->scale);
     // a cell's place is far inside what an int represents
-    return (GuiRect){grid.x + ((int)(args->at % across) * wide),
-                     grid.y + ((int)(row - args->preferences_read->top) * tall), wide, tall};
+    return (GuiRect){grid.x + ((int)(args->at % across) * pixel_width),
+                     grid.y + ((int)(row - args->preferences_read->top) * pixel_height), pixel_width, pixel_height};
 }
 
 // the grid's first row in view moved to save the color marked in view
@@ -388,7 +388,7 @@ void gui_preferences_key(const GuiPreferencesPaletteNameCfg *args)
     }
     else if (EMBED_CALL(preferences_key, PreferencesCtx, .name = args->name, .key = "Escape"))
     {
-        args->preferences->shown = 0;
+        args->preferences->displayed = 0;
         args->change->kind = GUI_PREFERENCE_CLOSED;
     }
     else if (EMBED_CALL(preferences_key, PreferencesCtx, .name = args->name, .key = "PageDown"))
@@ -453,7 +453,7 @@ int gui_preferences_press(const GuiPreferencesPaletteChangeCfg *args)
                                       .preferences_read = args->preferences),
                    .x = args->x, .y = args->y))
     {
-        args->preferences->shown = 0;
+        args->preferences->displayed = 0;
         args->change->kind = GUI_PREFERENCE_CLOSED;
         return 1;
     }
@@ -556,8 +556,8 @@ int gui_preferences_wheel(const GuiPreferencesPaletteCfg *args)
     const unsigned int in_view = EMBED_CALL(preferences_rows_in_view, PreferencesCtx, .preferences = args->preferences);
     const unsigned int most = (total > in_view) ? total - in_view : 0u;
     // the first row and the rows moved are far inside what an int represents
-    const int wanted = (int)args->preferences->top + args->rows;
-    const unsigned int top = (wanted < 0) ? 0u : (((unsigned int)wanted > most) ? most : (unsigned int)wanted);
+    const int required = (int)args->preferences->top + args->rows;
+    const unsigned int top = (required < 0) ? 0u : (((unsigned int)required > most) ? most : (unsigned int)required);
     const int moved = top != args->preferences->top;
     args->preferences->top = top;
     return moved;
@@ -587,10 +587,10 @@ EMBED_INLINE void preferences_row_draw(const PreferencesCtx *args)
     const GuiPreferenceValues *values = args->values;
     unsigned int row = args->row;
     GuiRect clip = args->clip;
-    char said[GUI_PREFERENCES_TEXT];
+    char output[GUI_PREFERENCES_TEXT];
     char value[GUI_PREFERENCES_TEXT];
     EMBED_CALL(gui_preferences_values.preference_sentence, GuiPreferencesValuesCfg, .values = values, .row = row,
-               .said = said, .value = value, .size = sizeof(said));
+               .output = output, .value = value, .size = sizeof(output));
     const GuiRect rect =
         EMBED_CALL(gui_preferences_row.row_rect, GuiPreferencesRowCfg, .preferences_read = preferences, .row = row);
     // a size in pixels is not negative
@@ -601,8 +601,8 @@ EMBED_INLINE void preferences_row_draw(const PreferencesCtx *args)
     const int marked = preferences->marked == row;
     const float after =
         EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
-                   .face = GUI_FACE_HEAD, .size = size, .x_f32 = (float)rect.x, .y = baseline, .text = said,
-                   .length = EMBED_CALL(preferences_length, PreferencesCtx, .text = said),
+                   .face = GUI_FACE_HEAD, .size = size, .x_f32 = (float)rect.x, .y = baseline, .text = output,
+                   .length = EMBED_CALL(preferences_length, PreferencesCtx, .text = output),
                    .color = marked ? args->palette->text_2 : args->palette->text_3, .clip = clip);
     (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
                      .face = GUI_FACE_HEAD, .size = size, .x_f32 = after, .y = baseline, .text = value,
@@ -651,7 +651,7 @@ EMBED_INLINE void preferences_cell_draw(const PreferencesCtx *args)
         EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
                    .one = (GuiRect){left, cell.y,
                                     EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
-                                               .pixels = GUI_PREFERENCES_NAME_WIDE, .scale = scale),
+                                               .pixels = GUI_PREFERENCES_NAME_WIDTH, .scale = scale),
                                     cell.height},
                    .other = clip);
     (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
@@ -659,7 +659,7 @@ EMBED_INLINE void preferences_cell_draw(const PreferencesCtx *args)
                      .length = EMBED_CALL(preferences_length, PreferencesCtx, .text = name),
                      .color = marked ? palette->text : palette->text_2, .clip = name_clip);
     const float value_left = (float)(left + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
-                                                       .pixels = GUI_PREFERENCES_NAME_WIDE + 5, .scale = scale));
+                                                       .pixels = GUI_PREFERENCES_NAME_WIDTH + 5, .scale = scale));
     const GuiRect value_clip = EMBED_CALL(
         gui_raster_one.rect_intersect, GuiRasterOneCfg,
         .one = (GuiRect){(int)value_left, cell.y, cell.x + cell.width - (int)value_left, cell.height}, .other = clip);
@@ -697,7 +697,7 @@ EMBED_INLINE void preferences_cell_draw(const PreferencesCtx *args)
         EMBED_CALL(gui_palette_size.contrast_text, GuiPaletteSizeCfg, .tenths_value = tenths, .text = ratio,
                    .size = sizeof(ratio));
         const int mark_left = (int)value_left + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
-                                                           .pixels = GUI_PREFERENCES_VALUE_WIDE, .scale = scale);
+                                                           .pixels = GUI_PREFERENCES_VALUE_WIDTH, .scale = scale);
         const GuiRect mark_clip = EMBED_CALL(
             gui_raster_one.rect_intersect, GuiRasterOneCfg,
             .one = (GuiRect){mark_left, cell.y, cell.x + cell.width - mark_left, cell.height}, .other = clip);
@@ -724,13 +724,13 @@ EMBED_INLINE void preferences_contrasts_draw(const PreferencesCtx *args)
     const unsigned int size =
         (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = (int)GUI_PREFERENCES_CODE,
                                  .scale = args->preferences->scale);
-    char least[GUI_PREFERENCES_TEXT];
-    EMBED_CALL(gui_palette_size.contrast_text, GuiPaletteSizeCfg, .tenths_value = GUI_PALETTE_CONTRAST_LEAST,
-               .text = least, .size = sizeof(least));
-    char said[GUI_PREFERENCES_CONTRASTS];
-    VerbaLinea line = {said, sizeof(said), 0ull};
+    char min[GUI_PREFERENCES_TEXT];
+    EMBED_CALL(gui_palette_size.contrast_text, GuiPaletteSizeCfg, .tenths_value = GUI_PALETTE_CONTRAST_MIN, .text = min,
+               .size = sizeof(min));
+    char output[GUI_PREFERENCES_CONTRASTS];
+    VerbaLinea line = {output, sizeof(output), 0ull};
     mmgr_line_put(&line, "Under ");
-    mmgr_line_put(&line, least);
+    mmgr_line_put(&line, min);
     mmgr_line_put(&line, ", the contrast WCAG 2 asks of text: ");
     const unsigned long long head = line.at;
     const unsigned int count = EMBED_CALL(gui_palette_length.name_count, GuiPaletteLengthCfg, .palette = palette);
@@ -755,7 +755,7 @@ EMBED_INLINE void preferences_contrasts_draw(const PreferencesCtx *args)
             mmgr_line_put(&line, ", ");
             mmgr_line_put(&line, ratio);
             if (EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs,
-                           .face = GUI_FACE_HEAD, .size = size, .text = said, .length = line.at) > (float)row.width)
+                           .face = GUI_FACE_HEAD, .size = size, .text = output, .length = line.at) > (float)row.width)
             {
                 line.at = before;
                 break;
@@ -770,7 +770,7 @@ EMBED_INLINE void preferences_contrasts_draw(const PreferencesCtx *args)
                          .face = GUI_FACE_HEAD, .size = size, .x_f32 = (float)row.x,
                          .y = EMBED_CALL(preferences_baseline, PreferencesCtx, .glyphs = glyphs, .face = GUI_FACE_HEAD,
                                          .size = size, .rect = row),
-                         .text = said, .length = length, .color = palette->fail,
+                         .text = output, .length = length, .color = palette->fail,
                          .clip = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = row, .other = clip));
     }
 }

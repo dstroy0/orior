@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// writer_carry.c: the run's records read: the latest of a name in the run while this process is a member, from the
-// .qry after; every record of a name joined; the file at a path as the run stores it; and the latest record of names
-// carried from a finished .qry into this run
+// writer_machine_transfer.c: the run's records read: the latest of a name in the run while this process is a member,
+// from the .qry after; every record of a name joined; the file at a path as the run stores it; and the latest record of
+// names carried from a finished .qry into this run
 #include "../../../cli/src/text/text.h"
 #include "../query_internal.h"
 
@@ -69,9 +69,9 @@ int query_writer_read(const QueryCountNameCtx *args)
 {
     if (query_count_name_internal.writer_is_member(args))
     {
-        const unsigned long long room = args->joined->capacity - args->joined->at;
+        const unsigned long long capacity = args->joined->capacity - args->joined->at;
         const unsigned long long gathered =
-            qry_member_gathered(args->name, (unsigned char *)(args->joined->out + args->joined->at), room);
+            qry_member_gathered(args->name, (unsigned char *)(args->joined->out + args->joined->at), capacity);
         if ((gathered == QRY_MEMBER_UNREAD) || (gathered == 0ull))
         {
             return 0;
@@ -117,7 +117,7 @@ EMBED_INLINE unsigned long long query_member_name_size(const WriterCarryCtx *arg
     return size;
 }
 
-char *query_writer_read_take(const QueryCountNameCtx *args)
+char *query_writer_read_alloc(const QueryCountNameCtx *args)
 {
     unsigned long long *size = args->size_pointer;
     if (query_count_name_internal.writer_is_member(args))
@@ -189,18 +189,18 @@ int query_writer_current(const QueryCountNameCtx *args)
 }
 
 // whether `record` is of a name carried: one of the `count` of `names`, or any where none are named
-EMBED_INLINE int query_carry_want(const WriterCarryCtx *args)
+EMBED_INLINE int query_machine_transfer_want(const WriterCarryCtx *args)
 {
-    int wanted = (args->count == 0u);
-    for (unsigned int each = 0u; !wanted && (each < args->count); each += 1u)
+    int required = (args->count == 0u);
+    for (unsigned int each = 0u; !required && (each < args->count); each += 1u)
     {
-        wanted = EMBED_CALL(query_name_is, WriterCarryCtx, .name = QRY_RECORD_NAME(args->record),
-                            .length = args->record->name_length, .text = args->names[each]);
+        required = EMBED_CALL(query_name_is, WriterCarryCtx, .name = QRY_RECORD_NAME(args->record),
+                              .length = args->record->name_length, .text = args->names[each]);
     }
-    return wanted;
+    return required;
 }
 
-int query_writer_carry(const QueryCountNameCtx *args)
+int query_writer_machine_transfer(const QueryCountNameCtx *args)
 {
     if (!query_count_name_internal.writer_is_member(args))
     {
@@ -222,10 +222,10 @@ int query_writer_carry(const QueryCountNameCtx *args)
     unsigned int records = 0u;
     while (qry_record_read(mapped, mapped_size, &at, &record))
     {
-        records +=
-            EMBED_CALL(query_carry_want, WriterCarryCtx, .record = record, .names = args->names, .count = args->count)
-                ? 1u
-                : 0u;
+        records += EMBED_CALL(query_machine_transfer_want, WriterCarryCtx, .record = record, .names = args->names,
+                              .count = args->count)
+                       ? 1u
+                       : 0u;
     }
     const QryRecord **const latest =
         (records > 0u)
@@ -235,7 +235,8 @@ int query_writer_carry(const QueryCountNameCtx *args)
     at = 0ull;
     while ((latest != NULL) && qry_record_read(mapped, mapped_size, &at, &record))
     {
-        if (!EMBED_CALL(query_carry_want, WriterCarryCtx, .record = record, .names = args->names, .count = args->count))
+        if (!EMBED_CALL(query_machine_transfer_want, WriterCarryCtx, .record = record, .names = args->names,
+                        .count = args->count))
         {
             continue;
         }
@@ -278,17 +279,17 @@ int query_writer_carry(const QueryCountNameCtx *args)
     return 1;
 }
 
-// The names listed in `listed`, one a line, carried from the finished .qry at `from`: what was carried reported
-int query_writer_carry_list(const QueryFromWriterCtx *args)
+// The names listed in `list_entries`, one a line, carried from the finished .qry at `from`: what was carried reported
+int query_writer_machine_transfer_list(const QueryFromWriterCtx *args)
 {
     // the list copied into a cell of its size, each name trimmed of the spaces about it and ended by a 0 in place, and
     // a place for each line in a cell of their count
-    const size_t size = cellul.len(&(CatenaFinitaCfg){.src = args->listed, .cap = CLI_CELLS_POOL});
+    const size_t size = cellul.len(&(CatenaFinitaCfg){.src = args->list_entries, .cap = CLI_CELLS_POOL});
     char *const names = g_cli_cells->persistent_buf_alloc(size + 1u, &g_query_cells);
     unsigned int lines = 1u;
     for (size_t at = 0u; at < size; at += 1u)
     {
-        lines += (args->listed[at] == '\n') ? 1u : 0u;
+        lines += (args->list_entries[at] == '\n') ? 1u : 0u;
     }
     const char **const named =
         (names != NULL) ? g_cli_cells->persistent_buf_alloc((unsigned long long)lines * sizeof(char *), &g_query_cells)
@@ -299,17 +300,17 @@ int query_writer_carry_list(const QueryFromWriterCtx *args)
         mmgr_line_put(args->err_msg, "the names carried could not be stored");
         return 0;
     }
-    memor.cpy(&(MemoriaCfg){.dst = names, .src = args->listed, .bytes = size + 1u});
+    memor.cpy(&(MemoriaCfg){.dst = names, .src = args->list_entries, .bytes = size + 1u});
     unsigned int count = 0u;
     char *line = names;
     while (*line != '\0')
     {
         const size_t length = EMBED_CALL(cli_text_set_table.upto, CliTextSetCfg, .text = line, .set = "\r\n");
         size_t first = 0u;
-        first = (size_t)EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = line,
-                                   .at = first, .size = length, .set = " \t");
+        first = (size_t)EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = line, .at = first,
+                                   .size = length, .set = " \t");
         size_t last = length;
-        last = (size_t)(first + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg,
+        last = (size_t)(first + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg,
                                            .text = line + first, .at = last - first, .set = " \t"));
         const size_t gap = EMBED_CALL(cli_text_set_table.over, CliTextSetCfg, .text = line + length, .set = "\r\n");
         if ((last > first) && ((last - first) <= QRY_NAME_MAX_LEN))
@@ -320,9 +321,9 @@ int query_writer_carry_list(const QueryFromWriterCtx *args)
         }
         line += length + gap;
     }
-    const int carried =
-        (count == 0u) || EMBED_CALL(query_count_name_internal.writer_carry, QueryCountNameCtx, .writer = args->writer,
-                                    .from = args->from, .names = named, .count = count, .err_msg = args->err_msg);
+    const int carried = (count == 0u) || EMBED_CALL(query_count_name_internal.writer_machine_transfer,
+                                                    QueryCountNameCtx, .writer = args->writer, .from = args->from,
+                                                    .names = named, .count = count, .err_msg = args->err_msg);
     if (count == 0u)
     {
         mmgr_line_put(args->err_msg, "no records carried from ");

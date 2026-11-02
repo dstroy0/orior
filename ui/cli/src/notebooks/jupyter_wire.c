@@ -11,7 +11,7 @@
 // parent's header, the metadata and the content; and the bytes the shell's queue is written in
 #define CLI_KERNEL_MARK "<IDS|MSG>"
 #define CLI_KERNEL_PARTS 5u
-#define CLI_KERNEL_QUEUE_ROOM (16ull << 20u)
+#define CLI_KERNEL_QUEUE_CAPACITY (16ull << 20u)
 
 static unsigned long long s_next = 1ull;
 
@@ -101,7 +101,7 @@ typedef struct
     const char *name;
     VerbaLinea *out;
     char *copy;
-    unsigned long long room;
+    unsigned long long capacity;
 } JupyterWireCtx;
 // the HMAC by SHA-256 of `count` frames taken one after another, with the kernel's key, as RFC 2104 sets it out, in
 // lowercase hex into `hex`, sized for 65
@@ -128,10 +128,10 @@ static void jupyter_sign(const JupyterWireCtx *args)
         pad[at] = (unsigned char)(block[at] ^ 0x36u);
     }
     EMBED_CALL(cli_digest.sha256_begin, CliDigestCfg, .sha = &sha);
-    EMBED_CALL(cli_digest_sha.sha256_take, CliDigestShaCfg, .sha = &sha, .bytes = pad, .size = sizeof(pad));
+    EMBED_CALL(cli_digest_sha.sha256_alloc, CliDigestShaCfg, .sha = &sha, .bytes = pad, .size = sizeof(pad));
     for (unsigned int part = 0u; part < args->count; part += 1u)
     {
-        EMBED_CALL(cli_digest_sha.sha256_take, CliDigestShaCfg, .sha = &sha, .bytes = args->parts[part].bytes,
+        EMBED_CALL(cli_digest_sha.sha256_alloc, CliDigestShaCfg, .sha = &sha, .bytes = args->parts[part].bytes,
                    .size = args->parts[part].size);
     }
     EMBED_CALL(cli_digest.sha256_end, CliDigestCfg, .sha = &sha, .digest = inner);
@@ -140,8 +140,8 @@ static void jupyter_sign(const JupyterWireCtx *args)
         pad[at] = (unsigned char)(block[at] ^ 0x5cu);
     }
     EMBED_CALL(cli_digest.sha256_begin, CliDigestCfg, .sha = &sha);
-    EMBED_CALL(cli_digest_sha.sha256_take, CliDigestShaCfg, .sha = &sha, .bytes = pad, .size = sizeof(pad));
-    EMBED_CALL(cli_digest_sha.sha256_take, CliDigestShaCfg, .sha = &sha, .bytes = inner, .size = sizeof(inner));
+    EMBED_CALL(cli_digest_sha.sha256_alloc, CliDigestShaCfg, .sha = &sha, .bytes = pad, .size = sizeof(pad));
+    EMBED_CALL(cli_digest_sha.sha256_alloc, CliDigestShaCfg, .sha = &sha, .bytes = inner, .size = sizeof(inner));
     EMBED_CALL(cli_digest.sha256_end, CliDigestCfg, .sha = &sha, .digest = outer);
     static const char s_hex[17] = "0123456789abcdef";
     for (unsigned int at = 0u; at < sizeof(outer); at += 1u)
@@ -158,8 +158,8 @@ EMBED_INLINE int jupyter_shell_queue(const JupyterWireCtx *args)
 {
     if (args->kernel->shell_queue.out == NULL)
     {
-        char *const queue_cell = g_cli_cells->persistent_buf_alloc(CLI_KERNEL_QUEUE_ROOM, &g_cli_notebook_cells);
-        args->kernel->shell_queue = mmgr_line_over(queue_cell, CLI_KERNEL_QUEUE_ROOM);
+        char *const queue_cell = g_cli_cells->persistent_buf_alloc(CLI_KERNEL_QUEUE_CAPACITY, &g_cli_notebook_cells);
+        args->kernel->shell_queue = mmgr_line_over(queue_cell, CLI_KERNEL_QUEUE_CAPACITY);
     }
     char named[CLI_KERNEL_ID];
     memor.set(&(MemoriaCfg){.dst = named, .val = 0, .bytes = sizeof(named)});
@@ -258,25 +258,25 @@ int cli_kernel_frames_send(const CliJupyterKernelCtx *args)
     return sent;
 }
 
-// the string member `name` of a header `size` bytes long, read into the reader's room, written as JSON into `out`, ""
-// where it has none, and into `copy`, sized for `room`, where it is given and fits: 1, or 0 where the header is no
-// JSON
+// the string member `name` of a header `size` bytes long, read into the reader's capacity, written as JSON into `out`,
+// "" where it has none, and into `copy`, sized for `capacity`, where it is given and fits: 1, or 0 where the header is
+// no JSON
 EMBED_INLINE int jupyter_header_member(const JupyterWireCtx *args)
 {
     const char *name = args->name;
     VerbaLinea *out = args->out;
     CliJson json;
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &json,
-               .node_json_node_pointer = args->reader->nodes, .nodes_most = CLI_KERNEL_HEADER_NODES,
-               .text_out = args->reader->text, .text_most = CLI_KERNEL_HEADER_TEXT);
+               .node_json_node_pointer = args->reader->nodes, .nodes_max = CLI_KERNEL_HEADER_NODES,
+               .text_out = args->reader->text, .text_max = CLI_KERNEL_HEADER_TEXT);
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea unread = {why, sizeof(why), 0ull};
     const char *const text = (const char *)args->header->bytes;
     const unsigned int root =
-        EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg, .bytes = text, .size = args->header->size)
+        EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = text, .size = args->header->size)
             ? EMBED_CALL(cli_json_tree_text_size_tokens.json_read, CliJsonTreeTextSizeTokensCfg, .json = &json,
                          .text = text, .size = args->header->size, .tokens = args->reader->tokens,
-                         .tokens_most = CLI_KERNEL_HEADER_NODES, .err_msg = &unread)
+                         .tokens_max = CLI_KERNEL_HEADER_NODES, .err_msg = &unread)
             : CLI_JSON_NONE;
     if (root == CLI_JSON_NONE)
     {
@@ -292,7 +292,7 @@ EMBED_INLINE int jupyter_header_member(const JupyterWireCtx *args)
                .text = (value != NULL) ? value : "", .length = length);
     if (args->copy != NULL)
     {
-        const int fits = (value != NULL) && (length < args->room) &&
+        const int fits = (value != NULL) && (length < args->capacity) &&
                          (memor.chr(&(MemoriaCfg){.src = value, .val = '\0', .bytes = length}) == NULL);
         memor.cpy(&(MemoriaCfg){.dst = args->copy, .src = fits ? value : "", .bytes = fits ? length : 0ull});
         args->copy[fits ? length : 0ull] = '\0';
@@ -333,18 +333,18 @@ int cli_kernel_message_write(const CliJupyterOutCtx *args)
                .length = cellul.len(&(CatenaFinitaCfg){.src = args->reader->channel, .cap = CLI_CELLS_POOL}));
     mmgr_line_put(args->out, ",\"msg_type\":");
     const int header = EMBED_CALL(jupyter_header_member, JupyterWireCtx, .reader = args->reader, .header = &parts[1],
-                                  .name = "msg_type", .out = args->out, .copy = NULL, .room = 0ull);
+                                  .name = "msg_type", .out = args->out, .copy = NULL, .capacity = 0ull);
     mmgr_line_put(args->out, ",\"msg_id\":");
     const int id =
         header && EMBED_CALL(jupyter_header_member, JupyterWireCtx, .reader = args->reader, .header = &parts[1],
-                             .name = "msg_id", .out = args->out, .copy = NULL, .room = 0ull);
+                             .name = "msg_id", .out = args->out, .copy = NULL, .capacity = 0ull);
     mmgr_line_put(args->out, ",\"parent\":");
     const int parented =
         id && EMBED_CALL(jupyter_header_member, JupyterWireCtx, .reader = args->reader, .header = &parts[2],
-                         .name = "msg_id", .out = args->out, .copy = args->parent_out, .room = CLI_KERNEL_ID);
+                         .name = "msg_id", .out = args->out, .copy = args->parent_out, .capacity = CLI_KERNEL_ID);
     mmgr_line_put(args->out, ",\"content\":");
     const int whole = parented &&
-                      EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg,
+                      EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg,
                                  .bytes = (const char *)parts[4].bytes, .size = parts[4].size) &&
                       EMBED_CALL(cli_json_tree_text.json_compact, CliJsonTreeTextCfg,
                                  .text = (const char *)parts[4].bytes, .size = parts[4].size, .out = args->out);

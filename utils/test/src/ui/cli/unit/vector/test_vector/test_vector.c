@@ -63,34 +63,34 @@ void test_every_path_finds_a_run_with_and_without_case_where_the_plain_loop_does
 {
     static const unsigned long long s_from[3] = {0u, 1u, 9u};
     unsigned short text[100];
-    unsigned short sought[8];
+    unsigned short needle[8];
     unsigned short ascii[8];
     for (unsigned long long seed = 0ull; seed < 400ull; seed += 1ull)
     {
         const unsigned long long length = 10ull + (seed * 13ull) % 90ull;
         text_written(seed, length, text);
         const unsigned long long start = (seed * 3ull) % 8ull;
-        const unsigned long long sought_length = 1ull + seed % 6ull;
+        const unsigned long long needle_length = 1ull + seed % 6ull;
         if ((seed % 3ull) == 0ull)
         {
-            text_written(seed + 1000ull, sought_length, sought);
+            text_written(seed + 1000ull, needle_length, needle);
         }
         else
         {
-            memor.cpy(&(MemoriaCfg){.dst = sought, .src = text + start + 5u, .bytes = sought_length * sizeof(sought[0])});
+            memor.cpy(&(MemoriaCfg){.dst = needle, .src = text + start + 5u, .bytes = needle_length * sizeof(needle[0])});
         }
-        for (unsigned long long at = 0ull; at < sought_length; at += 1ull)
+        for (unsigned long long at = 0ull; at < needle_length; at += 1ull)
         {
-            ascii[at] = (sought[at] < 0x80u) ? sought[at] : (unsigned short)'x';
+            ascii[at] = (needle[at] < 0x80u) ? needle[at] : (unsigned short)'x';
         }
         for (unsigned int from = 0u; from < 3u; from += 1u)
         {
-            const unsigned long long plain = EMBED_CALL(cli_vector_text.find_on, CliVectorTextCfg, .path = CLI_VECTOR_PLAIN, .text = text, .length = length, .sought = sought, .sought_length = sought_length, .from = s_from[from], .folded = 0);
-            const unsigned long long folded = EMBED_CALL(cli_vector_text.find_on, CliVectorTextCfg, .path = CLI_VECTOR_PLAIN, .text = text, .length = length, .sought = ascii, .sought_length = sought_length, .from = s_from[from], .folded = 1);
+            const unsigned long long plain = EMBED_CALL(cli_vector_text.find_on, CliVectorTextCfg, .path = CLI_VECTOR_PLAIN, .text = text, .length = length, .needle = needle, .needle_length = needle_length, .from = s_from[from], .folded = 0);
+            const unsigned long long folded = EMBED_CALL(cli_vector_text.find_on, CliVectorTextCfg, .path = CLI_VECTOR_PLAIN, .text = text, .length = length, .needle = ascii, .needle_length = needle_length, .from = s_from[from], .folded = 1);
             for (unsigned int path = 0u; path < s_path_count; path += 1u)
             {
-                TEST_ASSERT_EQUAL_UINT64(plain, EMBED_CALL(cli_vector_text.find_on, CliVectorTextCfg, .path = s_paths[path], .text = text, .length = length, .sought = sought, .sought_length = sought_length, .from = s_from[from], .folded = 0));
-                TEST_ASSERT_EQUAL_UINT64(folded, EMBED_CALL(cli_vector_text.find_on, CliVectorTextCfg, .path = s_paths[path], .text = text, .length = length, .sought = ascii, .sought_length = sought_length, .from = s_from[from], .folded = 1));
+                TEST_ASSERT_EQUAL_UINT64(plain, EMBED_CALL(cli_vector_text.find_on, CliVectorTextCfg, .path = s_paths[path], .text = text, .length = length, .needle = needle, .needle_length = needle_length, .from = s_from[from], .folded = 0));
+                TEST_ASSERT_EQUAL_UINT64(folded, EMBED_CALL(cli_vector_text.find_on, CliVectorTextCfg, .path = s_paths[path], .text = text, .length = length, .needle = ascii, .needle_length = needle_length, .from = s_from[from], .folded = 1));
             }
         }
     }
@@ -100,7 +100,7 @@ void test_a_search_without_case_folds_the_long_s_to_s(void)
 {
     for (unsigned int path = 0u; path < s_path_count; path += 1u)
     {
-        TEST_ASSERT_EQUAL_UINT64(3ull, EMBED_CALL(cli_vector_text.find_on, CliVectorTextCfg, .path = s_paths[path], .text = s_folding, .length = 12ull, .sought = s_star, .sought_length = 4ull, .from = 0ull, .folded = 1));
+        TEST_ASSERT_EQUAL_UINT64(3ull, EMBED_CALL(cli_vector_text.find_on, CliVectorTextCfg, .path = s_paths[path], .text = s_folding, .length = 12ull, .needle = s_star, .needle_length = 4ull, .from = 0ull, .folded = 1));
     }
 }
 
@@ -108,7 +108,7 @@ void test_a_search_without_case_folds_the_kelvin_sign_to_k(void)
 {
     for (unsigned int path = 0u; path < s_path_count; path += 1u)
     {
-        TEST_ASSERT_EQUAL_UINT64(8ull, EMBED_CALL(cli_vector_text.find_on, CliVectorTextCfg, .path = s_paths[path], .text = s_folding, .length = 12ull, .sought = s_king, .sought_length = 4ull, .from = 0ull, .folded = 1));
+        TEST_ASSERT_EQUAL_UINT64(8ull, EMBED_CALL(cli_vector_text.find_on, CliVectorTextCfg, .path = s_paths[path], .text = s_folding, .length = 12ull, .needle = s_king, .needle_length = 4ull, .from = 0ull, .folded = 1));
     }
 }
 
@@ -116,7 +116,7 @@ void test_a_search_without_case_folds_ascii(void)
 {
     for (unsigned int path = 0u; path < s_path_count; path += 1u)
     {
-        TEST_ASSERT_EQUAL_UINT64(0ull, EMBED_CALL(cli_vector_text.find_on, CliVectorTextCfg, .path = s_paths[path], .text = s_folding, .length = 12ull, .sought = s_xx, .sought_length = 2ull, .from = 0ull, .folded = 1));
+        TEST_ASSERT_EQUAL_UINT64(0ull, EMBED_CALL(cli_vector_text.find_on, CliVectorTextCfg, .path = s_paths[path], .text = s_folding, .length = 12ull, .needle = s_xx, .needle_length = 2ull, .from = 0ull, .folded = 1));
     }
 }
 
@@ -124,7 +124,7 @@ void test_a_search_with_case_does_not_fold(void)
 {
     for (unsigned int path = 0u; path < s_path_count; path += 1u)
     {
-        TEST_ASSERT_EQUAL_UINT64(CLI_VECTOR_NONE, EMBED_CALL(cli_vector_text.find_on, CliVectorTextCfg, .path = s_paths[path], .text = s_folding, .length = 12ull, .sought = s_star, .sought_length = 4ull, .from = 0ull, .folded = 0));
+        TEST_ASSERT_EQUAL_UINT64(CLI_VECTOR_NONE, EMBED_CALL(cli_vector_text.find_on, CliVectorTextCfg, .path = s_paths[path], .text = s_folding, .length = 12ull, .needle = s_star, .needle_length = 4ull, .from = 0ull, .folded = 0));
     }
 }
 
@@ -176,27 +176,27 @@ void test_every_path_counts_a_common_start_as_the_plain_loop_does(void)
     }
 }
 
-void test_the_plain_path_is_listed_first(void)
+void test_the_plain_path_is_listing_first(void)
 {
     TEST_ASSERT_GREATER_THAN_UINT(0u, s_path_count);
     TEST_ASSERT_EQUAL_UINT(CLI_VECTOR_PLAIN, s_paths[0]);
 }
 
-void test_the_machines_vector_path_is_listed(void)
+void test_the_machines_vector_path_is_listing(void)
 {
 #if defined(__x86_64__) || defined(_M_X64)
-    const unsigned int wanted = CLI_VECTOR_SSE2;
+    const unsigned int required = CLI_VECTOR_SSE2;
 #elif defined(__aarch64__) || defined(_M_ARM64)
-    const unsigned int wanted = CLI_VECTOR_NEON;
+    const unsigned int required = CLI_VECTOR_NEON;
 #else
-    const unsigned int wanted = CLI_VECTOR_PLAIN;
+    const unsigned int required = CLI_VECTOR_PLAIN;
 #endif
-    int listed = 0;
+    int list_entries = 0;
     for (unsigned int at = 0u; at < s_path_count; at += 1u)
     {
-        listed |= s_paths[at] == wanted;
+        list_entries |= s_paths[at] == required;
     }
-    TEST_ASSERT_TRUE(listed);
+    TEST_ASSERT_TRUE(list_entries);
 }
 
 void test_the_machine_runs_its_widest_path(void)

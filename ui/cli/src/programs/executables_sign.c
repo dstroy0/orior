@@ -18,9 +18,9 @@ typedef struct
     char *out;
 #if (defined(_WIN32))
     CliCommand *command;
-    VerbaLinea *shown;
+    VerbaLinea *displayed;
     const char *word;
-    const char *shown_word;
+    const char *displayed_word;
 #endif
 #if (defined(__APPLE__))
     const char *path;
@@ -55,7 +55,7 @@ EMBED_INLINE int cli_signing(const ExecutablesSignCtx *args)
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea reason = {why, sizeof(why), 0ull};
     const unsigned int root =
-        EMBED_CALL(cli_json_tree_err_msg.json_file_take, CliJsonTreeErrMsgCfg, .json = &json, .path = path,
+        EMBED_CALL(cli_json_tree_err_msg.json_file_alloc, CliJsonTreeErrMsgCfg, .json = &json, .path = path,
                    .nodes_more = 0u, .text_more = 0ull, .err_msg = &reason, .owner = &g_cli_programs_cells);
     char named[CLI_NAME_MAX_LEN];
     VerbaLinea line = {named, sizeof(named), 0ull};
@@ -72,7 +72,7 @@ EMBED_INLINE int cli_signing(const ExecutablesSignCtx *args)
         EMBED_CALL(cli_executables_text_length_internal.scan_trim, CliExecutablesTextLengthCtx, .text_pointer = &value,
                    .length_pointer = &length);
         EMBED_CALL(cli_executables_length_text_internal.scan_copy, CliExecutablesLengthTextCtx, .text = value,
-                   .length = length, .out = out, .room = CLI_PATH_MAX_LEN);
+                   .length = length, .out = out, .capacity = CLI_PATH_MAX_LEN);
     }
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
     return (value != NULL) && (length != 0ull);
@@ -96,10 +96,10 @@ int cli_executables_signs(void)
 EMBED_INLINE void cli_with_extension(const ExecutablesSignCtx *args)
 {
     const char *name = args->path;
-    const unsigned long long name_past =
+    const unsigned long long name_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
                    .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
-    name = (name_past != 0ull) ? (args->path + name_past) : name;
+    name = (name_end != 0ull) ? (args->path + name_end) : name;
     const char *const dot =
         (name[0] != '\0')
             ? EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = name + 1,
@@ -123,15 +123,15 @@ EMBED_INLINE void cli_both(const ExecutablesSignCtx *args)
     CliCommand *command = args->command;
     const char *word = args->word;
     EMBED_CALL(cli_runner_command_word.command_word, CliRunnerCommandWordCfg, .command = command, .word = word);
-    mmgr_line_ch(args->shown, ' ');
-    mmgr_line_put(args->shown, args->shown_word);
+    mmgr_line_ch(args->displayed, ' ');
+    mmgr_line_put(args->displayed, args->displayed_word);
 }
 #endif
 
 int cli_executables_sign_steps(const CliExecutablesErrMsgCfg *args)
 {
-    char (*shown)[CLI_PATH_MAX_LEN * 4u] = args->shown;
-    unsigned int room = args->room;
+    char (*displayed)[CLI_PATH_MAX_LEN * 4u] = args->displayed;
+    unsigned int capacity = args->capacity;
     VerbaLinea *err_msg = args->err_msg;
 #if defined(_WIN32)
     char certificate[CLI_PATH_MAX_LEN];
@@ -141,19 +141,21 @@ int cli_executables_sign_steps(const CliExecutablesErrMsgCfg *args)
         return -1;
     }
     char signtool[CLI_PATH_MAX_LEN];
-    if ((room < 1u) || !EMBED_CALL(cli_executables_tool.program, CliExecutablesToolCfg, .tool = "signtool",
-                                   .name = "signtool", .path = signtool, .err_msg = err_msg))
+    if ((capacity < 1u) || !EMBED_CALL(cli_executables_tool.program, CliExecutablesToolCfg, .tool = "signtool",
+                                       .name = "signtool", .path = signtool, .err_msg = err_msg))
     {
         return -1;
     }
     CliCommand *const command = &args->commands[0];
-    VerbaLinea line = {shown[0], CLI_PATH_MAX_LEN * 4u, 0ull};
+    VerbaLinea line = {displayed[0], CLI_PATH_MAX_LEN * 4u, 0ull};
     EMBED_CALL(cli_runner.command_begin, CliRunnerCfg, .command = command, .program = signtool);
     mmgr_line_put(&line, "signtool");
-    EMBED_CALL(cli_both, ExecutablesSignCtx, .command = command, .shown = &line, .word = "sign", .shown_word = "sign");
-    EMBED_CALL(cli_both, ExecutablesSignCtx, .command = command, .shown = &line, .word = "/fd", .shown_word = "/fd");
-    EMBED_CALL(cli_both, ExecutablesSignCtx, .command = command, .shown = &line, .word = "sha256",
-               .shown_word = "sha256");
+    EMBED_CALL(cli_both, ExecutablesSignCtx, .command = command, .displayed = &line, .word = "sign",
+               .displayed_word = "sign");
+    EMBED_CALL(cli_both, ExecutablesSignCtx, .command = command, .displayed = &line, .word = "/fd",
+               .displayed_word = "/fd");
+    EMBED_CALL(cli_both, ExecutablesSignCtx, .command = command, .displayed = &line, .word = "sha256",
+               .displayed_word = "sha256");
     // the certificate's last four letters in lower case, which name a .pfx or .p12 file
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = certificate, .cap = CLI_CELLS_POOL});
     char tail[5] = "";
@@ -166,17 +168,18 @@ int cli_executables_sign_steps(const CliExecutablesErrMsgCfg *args)
                     (cellul.eq(&(CatenaFinitaCfg){.src = tail, .other = ".p12", .cap = CLI_CELLS_POOL}));
     if (EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = certificate) || pfx)
     {
-        EMBED_CALL(cli_both, ExecutablesSignCtx, .command = command, .shown = &line, .word = "/f", .shown_word = "/f");
-        EMBED_CALL(cli_both, ExecutablesSignCtx, .command = command, .shown = &line, .word = certificate,
-                   .shown_word = certificate);
+        EMBED_CALL(cli_both, ExecutablesSignCtx, .command = command, .displayed = &line, .word = "/f",
+                   .displayed_word = "/f");
+        EMBED_CALL(cli_both, ExecutablesSignCtx, .command = command, .displayed = &line, .word = certificate,
+                   .displayed_word = certificate);
         char password[CLI_PATH_MAX_LEN];
         if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_SIGN_PASSWORD",
-                       .value_out = password, .room = sizeof(password)))
+                       .value_out = password, .capacity = sizeof(password)))
         {
-            EMBED_CALL(cli_both, ExecutablesSignCtx, .command = command, .shown = &line, .word = "/p",
-                       .shown_word = "/p");
-            EMBED_CALL(cli_both, ExecutablesSignCtx, .command = command, .shown = &line, .word = password,
-                       .shown_word = "<ORIOR_SIGN_PASSWORD>");
+            EMBED_CALL(cli_both, ExecutablesSignCtx, .command = command, .displayed = &line, .word = "/p",
+                       .displayed_word = "/p");
+            EMBED_CALL(cli_both, ExecutablesSignCtx, .command = command, .displayed = &line, .word = password,
+                       .displayed_word = "<ORIOR_SIGN_PASSWORD>");
         }
     }
     else
@@ -187,31 +190,31 @@ int cli_executables_sign_steps(const CliExecutablesErrMsgCfg *args)
         for (unsigned long long at = 0ull; at < whole;)
         {
             const unsigned long long stop =
-                EMBED_CALL(cli_text_at_size_classes.past_class, CliTextAtSizeClassesCfg, .text = certificate, .at = at,
+                EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = certificate, .at = at,
                            .size = whole, .classes = CLI_TEXT_DIGITS, .set = "abcdefABCDEF");
             mmgr_line_put_n(&printed, certificate + at, (size_t)(stop - at));
             at = stop + 1ull;
         }
         mmgr_line_finish(&printed);
-        EMBED_CALL(cli_both, ExecutablesSignCtx, .command = command, .shown = &line, .word = "/sha1",
-                   .shown_word = "/sha1");
-        EMBED_CALL(cli_both, ExecutablesSignCtx, .command = command, .shown = &line, .word = thumbprint,
-                   .shown_word = thumbprint);
+        EMBED_CALL(cli_both, ExecutablesSignCtx, .command = command, .displayed = &line, .word = "/sha1",
+                   .displayed_word = "/sha1");
+        EMBED_CALL(cli_both, ExecutablesSignCtx, .command = command, .displayed = &line, .word = thumbprint,
+                   .displayed_word = thumbprint);
     }
     char server[CLI_PATH_MAX_LEN];
     if (EMBED_CALL(cli_signing, ExecutablesSignCtx, .key = "timestamp", .out = server))
     {
-        EMBED_CALL(cli_both, ExecutablesSignCtx, .command = command, .shown = &line, .word = "/tr",
-                   .shown_word = "/tr");
-        EMBED_CALL(cli_both, ExecutablesSignCtx, .command = command, .shown = &line, .word = server,
-                   .shown_word = server);
-        EMBED_CALL(cli_both, ExecutablesSignCtx, .command = command, .shown = &line, .word = "/td",
-                   .shown_word = "/td");
-        EMBED_CALL(cli_both, ExecutablesSignCtx, .command = command, .shown = &line, .word = "sha256",
-                   .shown_word = "sha256");
+        EMBED_CALL(cli_both, ExecutablesSignCtx, .command = command, .displayed = &line, .word = "/tr",
+                   .displayed_word = "/tr");
+        EMBED_CALL(cli_both, ExecutablesSignCtx, .command = command, .displayed = &line, .word = server,
+                   .displayed_word = server);
+        EMBED_CALL(cli_both, ExecutablesSignCtx, .command = command, .displayed = &line, .word = "/td",
+                   .displayed_word = "/td");
+        EMBED_CALL(cli_both, ExecutablesSignCtx, .command = command, .displayed = &line, .word = "sha256",
+                   .displayed_word = "sha256");
     }
-    EMBED_CALL(cli_both, ExecutablesSignCtx, .command = command, .shown = &line, .word = args->file,
-               .shown_word = args->file);
+    EMBED_CALL(cli_both, ExecutablesSignCtx, .command = command, .displayed = &line, .word = args->file,
+               .displayed_word = args->file);
     mmgr_line_finish(&line);
     return 1;
 #elif defined(__APPLE__)
@@ -221,9 +224,9 @@ int cli_executables_sign_steps(const CliExecutablesErrMsgCfg *args)
         mmgr_line_put(err_msg, "settings.json names no identity under signing.macos");
         return -1;
     }
-    if (room < 3u)
+    if (capacity < 3u)
     {
-        mmgr_line_put(err_msg, "no room for the signing steps");
+        mmgr_line_put(err_msg, "no capacity for the signing steps");
         return -1;
     }
     static const char *const s_codesign[6] = {"--force", "--options", "runtime", "--timestamp", "--sign", NULL};
@@ -237,7 +240,7 @@ int cli_executables_sign_steps(const CliExecutablesErrMsgCfg *args)
                .word = identity);
     EMBED_CALL(cli_runner_command_word.command_word, CliRunnerCommandWordCfg, .command = &args->commands[0],
                .word = args->file);
-    VerbaLinea line = {shown[0], CLI_PATH_MAX_LEN * 4u, 0ull};
+    VerbaLinea line = {displayed[0], CLI_PATH_MAX_LEN * 4u, 0ull};
     mmgr_line_put(&line, "codesign --force --options runtime --timestamp --sign \"");
     mmgr_line_put(&line, identity);
     mmgr_line_put(&line, "\" ");
@@ -261,7 +264,7 @@ int cli_executables_sign_steps(const CliExecutablesErrMsgCfg *args)
                .word = args->file);
     EMBED_CALL(cli_runner_command_word.command_word, CliRunnerCommandWordCfg, .command = &args->commands[1],
                .word = zip);
-    VerbaLinea pack = {shown[1], CLI_PATH_MAX_LEN * 4u, 0ull};
+    VerbaLinea pack = {displayed[1], CLI_PATH_MAX_LEN * 4u, 0ull};
     mmgr_line_put(&pack, "ditto -c -k --keepParent ");
     mmgr_line_put(&pack, args->file);
     mmgr_line_ch(&pack, ' ');
@@ -280,7 +283,7 @@ int cli_executables_sign_steps(const CliExecutablesErrMsgCfg *args)
                .word = profile);
     EMBED_CALL(cli_runner_command_word.command_word, CliRunnerCommandWordCfg, .command = &args->commands[2],
                .word = "--wait");
-    VerbaLinea send = {shown[2], CLI_PATH_MAX_LEN * 4u, 0ull};
+    VerbaLinea send = {displayed[2], CLI_PATH_MAX_LEN * 4u, 0ull};
     mmgr_line_put(&send, "xcrun notarytool submit ");
     mmgr_line_put(&send, zip);
     mmgr_line_put(&send, " --keychain-profile ");
@@ -289,8 +292,8 @@ int cli_executables_sign_steps(const CliExecutablesErrMsgCfg *args)
     mmgr_line_finish(&send);
     return 3;
 #else
-    (void)shown;
-    (void)room;
+    (void)displayed;
+    (void)capacity;
     (void)err_msg;
     return 0;
 #endif
@@ -308,18 +311,18 @@ void cli_executables_signature_print(const CliExecutablesCfg *args)
         return;
     }
     const char *const words[5] = {signtool, "verify", "/pa", args->file, NULL};
-    CliRan *const ran = cli_ran_take();
+    CliRunResult *const run_result = cli_run_result_alloc();
     char err_buf[CLI_PATH_MAX_LEN];
     VerbaLinea unstarted = {err_buf, sizeof(err_buf), 0ull};
     if (!EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = words, .folder = NULL, .settings = NULL, .count = 0u,
-                    .ran = ran, .err_msg = &unstarted))
+                    .run_result = run_result, .err_msg = &unstarted))
     {
-        EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+        EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
         return;
     }
-    if (ran->code == 0ll)
+    if (run_result->code == 0ll)
     {
-        EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+        EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
         EMBED_CALL(cli_print, ExecutablesSignCtx, .sink = args->sink, .text = "Windows trusts the program's signature");
         return;
     }
@@ -328,7 +331,7 @@ void cli_executables_signature_print(const CliExecutablesCfg *args)
     unsigned long long reason_length = 0ull;
     for (unsigned int stream = 0u; (reason_length == 0ull) && (stream < 2u); stream += 1u)
     {
-        for (const char *line = (stream == 0u) ? ran->err : ran->out; line[0] != '\0';)
+        for (const char *line = (stream == 0u) ? run_result->err : run_result->out; line[0] != '\0';)
         {
             const char *stop = line;
             stop += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = stop, .at = 0ull,
@@ -355,7 +358,7 @@ void cli_executables_signature_print(const CliExecutablesCfg *args)
                   "; a certificate from an authority Windows trusts, and a reputation built as the program is "
                   "downloaded, prevent SmartScreen from warning");
     mmgr_line_finish(&print_line);
-    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+    EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
     EMBED_CALL(cli_print, ExecutablesSignCtx, .sink = args->sink, .text = print_buf);
 #elif defined(__APPLE__)
     char profile[CLI_PATH_MAX_LEN];

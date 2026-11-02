@@ -72,7 +72,7 @@ void test_a_gsm_written_in_pieces_holds_its_bytes(void)
     assert_file(s_gsm, s_first);
 }
 
-void test_the_seal_beside_it_holds_the_root_of_those_bytes(void)
+void test_the_seal_adjacent_it_holds_the_root_of_those_bytes(void)
 {
     TEST_ASSERT_TRUE(seal_holds_root_of(s_gsm, s_first));
 }

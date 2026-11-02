@@ -11,7 +11,7 @@
 
 // the threads that take the jobs, and the places jobs wait in
 #define CLI_SERVERS_WORKERS 8u
-#define CLI_SERVERS_PLACES 16u
+#define CLI_SERVERS_POSITIONS 16u
 
 // A job waiting: whether its place is taken, the function that does it, and its bytes, a cell of `size`
 typedef struct
@@ -20,11 +20,11 @@ typedef struct
     CliServersJob run;
     unsigned long long size;
     char *bytes;
-} CliServersPlace;
+} CliServersPosition;
 
 // the places, the order they were taken in, and the threads, under the jobs' lock
-static CliServersPlace s_place[CLI_SERVERS_PLACES];
-static unsigned int s_order[CLI_SERVERS_PLACES];
+static CliServersPosition s_position[CLI_SERVERS_POSITIONS];
+static unsigned int s_order[CLI_SERVERS_POSITIONS];
 static unsigned int s_waiting;
 static CliWake s_wake = CLI_WAKE_INIT;
 static CliThread s_thread[CLI_SERVERS_WORKERS];
@@ -45,7 +45,7 @@ static void jobs_worker(void *context)
             EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_wake);
         }
         s_idle -= 1u;
-        CliServersPlace *const place = &s_place[s_order[0]];
+        CliServersPosition *const place = &s_position[s_order[0]];
         s_waiting -= 1u;
         memor.move_down(&(MemoriaCfg){.dst = s_order, .src = s_order + 1u, .bytes = s_waiting * sizeof(s_order[0])});
         const CliServersJob run = place->run;
@@ -83,13 +83,13 @@ int cli_servers_later_dispatch(const CliServersRunSizeCtx *args)
     for (;;)
     {
         unsigned int free = 0u;
-        while ((free < CLI_SERVERS_PLACES) && s_place[free].used)
+        while ((free < CLI_SERVERS_POSITIONS) && s_position[free].used)
         {
             free += 1u;
         }
-        if (free < CLI_SERVERS_PLACES)
+        if (free < CLI_SERVERS_POSITIONS)
         {
-            CliServersPlace *const place = &s_place[free];
+            CliServersPosition *const place = &s_position[free];
             place->used = 1;
             place->run = run;
             place->size = size;

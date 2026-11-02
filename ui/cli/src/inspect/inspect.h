@@ -68,7 +68,7 @@ typedef struct
 {
     unsigned int line;
     unsigned int col;
-} CliInspectPlace;
+} CliInspectPosition;
 
 // A text stored in a pool: where it starts and its length, a 0 after it
 typedef struct
@@ -80,8 +80,8 @@ typedef struct
 // An edit: the span it takes out and the text it writes there
 typedef struct
 {
-    CliInspectPlace from;
-    CliInspectPlace to;
+    CliInspectPosition from;
+    CliInspectPosition to;
     CliInspectText text;
 } CliInspectEdit;
 
@@ -97,8 +97,8 @@ typedef struct
 // what it checks, NULL where none does, and its fixes
 typedef struct
 {
-    CliInspectPlace from;
-    CliInspectPlace to;
+    CliInspectPosition from;
+    CliInspectPosition to;
     int severity;
     CliInspectText message;
     const char *code;
@@ -114,8 +114,8 @@ typedef struct
     CliInspectText name;
     CliInspectText alias;
     int has_alias;
-    CliInspectPlace from;
-    CliInspectPlace to;
+    CliInspectPosition from;
+    CliInspectPosition to;
 } CliInspectName;
 
 // An import a file makes as it runs: the module or the path it names, the names a Python `from` import takes, the
@@ -127,8 +127,8 @@ typedef struct
     unsigned int names;
     CliInspectText alias;
     int has_alias;
-    CliInspectPlace from;
-    CliInspectPlace to;
+    CliInspectPosition from;
+    CliInspectPosition to;
 } CliInspectImport;
 
 // A Python class declared at a file's top level: its name and its span, the bases it names, what its body and its
@@ -136,8 +136,8 @@ typedef struct
 typedef struct
 {
     CliInspectText name;
-    CliInspectPlace from;
-    CliInspectPlace to;
+    CliInspectPosition from;
+    CliInspectPosition to;
     unsigned int base_first;
     unsigned int bases;
     unsigned int has_first;
@@ -152,8 +152,8 @@ typedef struct
 typedef struct
 {
     CliInspectText name;
-    CliInspectPlace from;
-    CliInspectPlace to;
+    CliInspectPosition from;
+    CliInspectPosition to;
     unsigned int first;
     unsigned int last;
     unsigned int call_first;
@@ -167,38 +167,39 @@ typedef struct
 {
     CliInspectImport *import;
     unsigned int imports;
-    unsigned int imports_most;
+    unsigned int imports_max;
     CliInspectClass *class_of;
     unsigned int classes;
-    unsigned int classes_most;
+    unsigned int classes_max;
     CliInspectFunction *function;
     unsigned int functions;
-    unsigned int functions_most;
+    unsigned int functions_max;
     CliInspectFinding *finding;
     unsigned int findings;
-    unsigned int findings_most;
+    unsigned int findings_max;
     CliInspectFix *fix;
     unsigned int fixes;
-    unsigned int fixes_most;
+    unsigned int fixes_max;
     CliInspectEdit *edit;
     unsigned int edits;
-    unsigned int edits_most;
+    unsigned int edits_max;
     CliInspectName *name;
     unsigned int names;
-    unsigned int names_most;
+    unsigned int names_max;
     char *text;
     unsigned int used;
-    unsigned int text_most;
+    unsigned int text_max;
     int full;
-    // counting: each put counts what it would store and stores nothing, so a walk sizes the room the next walk fills
+    // counting: each put counts what it would store and stores nothing, so a walk sizes the capacity the next walk
+    // fills
     int counting;
 } CliFacts;
 
 // A span: from where to where
 typedef struct
 {
-    CliInspectPlace from;
-    CliInspectPlace to;
+    CliInspectPosition from;
+    CliInspectPosition to;
 } CliInspectSpan;
 
 // A run of one class on a line: its first column, the column past its last, and its class
@@ -217,18 +218,18 @@ typedef struct
 {
     CliInspectRun *run;
     unsigned int runs;
-    unsigned int runs_most;
+    unsigned int runs_max;
     unsigned int *line_first;
     unsigned int *line_runs;
     unsigned int lines;
-    unsigned int lines_most;
+    unsigned int lines_max;
     unsigned int *fold_first;
     unsigned int *fold_last;
     unsigned int folds;
-    unsigned int folds_most;
+    unsigned int folds_max;
     CliInspectSpan *range;
     unsigned int ranges;
-    unsigned int ranges_most;
+    unsigned int ranges_max;
     int full;
 } CliParsed;
 
@@ -243,7 +244,7 @@ const char *cli_inspect_language_get(const CliInspectCfg *args);
 const char *cli_inspect_text(const CliInspectPoolCfg *args);
 
 // facts made empty over the storage handed them; facts that count what a walk would store and store nothing, so the
-// walk sizes the room the next one fills; and the facts of `size` bytes of a file's text in `language`, where the
+// walk sizes the capacity the next one fills; and the facts of `size` bytes of a file's text in `language`, where the
 // inspections read the language: 1, or 0 where they do not
 void cli_facts_counting(const CliInspectFactsLanguageCfg *args);
 void cli_facts_begin(const CliInspectFactsCfg *args);
@@ -277,36 +278,36 @@ struct CliInspectFactsCfg
 {
     CliFacts *facts;
     CliInspectImport *imports;
-    unsigned int imports_most;
+    unsigned int imports_max;
     CliInspectClass *classes;
-    unsigned int classes_most;
+    unsigned int classes_max;
     CliInspectFunction *functions;
-    unsigned int functions_most;
+    unsigned int functions_max;
     CliInspectFinding *findings;
-    unsigned int findings_most;
+    unsigned int findings_max;
     CliInspectFix *fixes;
-    unsigned int fixes_most;
+    unsigned int fixes_max;
     CliInspectEdit *edits;
-    unsigned int edits_most;
+    unsigned int edits_max;
     CliInspectName *names;
-    unsigned int names_most;
+    unsigned int names_max;
     char *text_out;
-    unsigned int text_most;
+    unsigned int text_max;
 };
 
 struct CliInspectParsedCfg
 {
     CliParsed *parsed;
     CliInspectRun *runs;
-    unsigned int runs_most;
+    unsigned int runs_max;
     unsigned int *line_first;
     unsigned int *line_runs;
-    unsigned int lines_most;
+    unsigned int lines_max;
     unsigned int *fold_first;
     unsigned int *fold_last;
-    unsigned int folds_most;
+    unsigned int folds_max;
     CliInspectSpan *ranges;
-    unsigned int ranges_most;
+    unsigned int ranges_max;
 };
 
 struct CliInspectLanguageCfg
@@ -318,7 +319,7 @@ struct CliInspectLanguageCfg
     const char *form;
     CliInspectEdit *edit;
     VerbaLinea *text_verba_linea_pointer;
-    CliInspectPlace *summary;
+    CliInspectPosition *summary;
     VerbaLinea *err_msg;
 };
 
@@ -326,8 +327,8 @@ struct CliInspectRangesCfg
 {
     const CliInspectSpan *ranges_read;
     unsigned int count;
-    CliInspectPlace from;
-    CliInspectPlace to;
+    CliInspectPosition from;
+    CliInspectPosition to;
     CliInspectSpan *out_inspect_span_pointer;
     unsigned int most;
 };

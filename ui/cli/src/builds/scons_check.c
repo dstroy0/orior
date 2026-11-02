@@ -4,8 +4,8 @@
 // folder of the SConstruct it belongs to; and each name it imports that no SConstruct or SConscript of the tree
 // exports, the first 400 of them read. The names SCons gives a file; and what completes the word before the cursor.
 // More imports than CLI_SCONS_IMPORTS are not stored, and the names exported past CLI_SCONS_EXPORTS of them or
-// CLI_SCONS_EXPORTS_TEXT of their bytes are not matched to them. Each call takes its rooms as cells of the cellblock,
-// counted to the checks' own mark, and gives them back before it returns
+// CLI_SCONS_EXPORTS_TEXT of their bytes are not matched to them. Each call takes its capacities as cells of the
+// cellblock, counted to the checks' own mark, and gives them back before it returns
 #include "../command_line/callback_cfg.h"
 #include "../editor/files.h"
 #include "../text/json_tree.h"
@@ -39,19 +39,20 @@ typedef struct
     int exported;
 } CliSconsImport;
 
-// the check under way; the names the file imports, a cell for the check containing `s_imports_most` of them, NULL while
+// the check under way; the names the file imports, a cell for the check containing `s_imports_max` of them, NULL while
 // they are only counted, and how many there are; the names exported matched to them and the bytes those take; and what
-// the checks' rooms occupy in the cellblock
+// the checks' capacities occupy in the cellblock
 static CliSconsCheck s_check;
 static CliSconsImport *s_import;
-static unsigned int s_imports_most;
+static unsigned int s_imports_max;
 static unsigned int s_imports;
 static unsigned int s_exports;
 static unsigned int s_export_used;
 
 void cli_scons_cells_usage_write(const CliSconsCtx *args)
 {
-    EMBED_CALL(cli_cells_table.owner_usage_write, CliCellsCfg, .owner = &g_cli_scons_rooms_cells, .out = args->out);
+    EMBED_CALL(cli_cells_table.owner_usage_write, CliCellsCfg, .owner = &g_cli_scons_work_states_cells,
+               .out = args->out);
 }
 
 typedef struct
@@ -75,12 +76,13 @@ EMBED_INLINE unsigned char *check_read(const SconsCheckCtx *args)
 {
     const char *text = args->text;
     unsigned long long size = args->size;
-    unsigned char *const class_of =
-        (size <= CLI_SCONS_TEXT) ? g_cli_cells->persistent_buf_alloc(size + 1ull, &g_cli_scons_rooms_cells) : NULL;
+    unsigned char *const class_of = (size <= CLI_SCONS_TEXT)
+                                        ? g_cli_cells->persistent_buf_alloc(size + 1ull, &g_cli_scons_work_states_cells)
+                                        : NULL;
     if ((class_of != NULL) && !EMBED_CALL(cli_scons_text_size_class_of_internal.read, CliSconsTextSizeClassOfCtx,
                                           .text = text, .size = size, .class_of = class_of))
     {
-        g_cli_cells->persistent_buf_release(class_of, &g_cli_scons_rooms_cells);
+        g_cli_cells->persistent_buf_release(class_of, &g_cli_scons_work_states_cells);
         return NULL;
     }
     return class_of;
@@ -152,7 +154,7 @@ static void check_script(const CliSconsScriptCfg *args)
     if ((size > 0u) && (args->written[0] == '#'))
     {
         unsigned long long skip = 1u;
-        skip = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = args->written, .at = skip,
+        skip = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = args->written, .at = skip,
                           .size = size, .set = "/");
         mmgr_line_put_n(&line, args->written + skip, size - skip);
         base = check->top;
@@ -189,7 +191,7 @@ static void check_import(const CliSconsSpanCfg *args)
     {
         s_imports += 1u;
     }
-    else if ((s_import != NULL) && (s_imports < s_imports_most))
+    else if ((s_import != NULL) && (s_imports < s_imports_max))
     {
         s_import[s_imports] = (CliSconsImport){args->from, args->to, 0};
         s_imports += 1u;
@@ -247,19 +249,19 @@ EMBED_INLINE void check_others(const SconsCheckCtx *args)
         {
             continue;
         }
-        unsigned char *const text = g_cli_cells->temporary_buf_alloc(bytes + 1ull, &g_cli_scons_rooms_cells);
+        unsigned char *const text = g_cli_cells->temporary_buf_alloc(bytes + 1ull, &g_cli_scons_work_states_cells);
         const unsigned long long size = (text != NULL) ? qry_member_file_read(other, text, bytes) : QRY_MEMBER_UNREAD;
         unsigned char *const class_of =
             ((size != QRY_MEMBER_UNREAD) &&
-             EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg, .bytes = (const char *)text, .size = size))
+             EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = (const char *)text, .size = size))
                 ? EMBED_CALL(check_read, SconsCheckCtx, .text = (const char *)text, .size = size)
                 : NULL;
         if (class_of != NULL)
         {
             EMBED_CALL(cli_scons_context_internal.export, CliSconsContextCtx, .named = check_export, .context = NULL);
         }
-        g_cli_cells->persistent_buf_release(class_of, &g_cli_scons_rooms_cells);
-        g_cli_cells->persistent_buf_release(text, &g_cli_scons_rooms_cells);
+        g_cli_cells->persistent_buf_release(class_of, &g_cli_scons_work_states_cells);
+        g_cli_cells->persistent_buf_release(text, &g_cli_scons_work_states_cells);
     }
     EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
 }
@@ -285,10 +287,10 @@ EMBED_INLINE void check_read_file(const SconsCheckCtx *args)
     s_import = NULL;
     s_imports = 0u;
     EMBED_CALL(cli_scons_name_internal.import, CliSconsNameCtx, .each = check_import, .context = NULL);
-    s_imports_most = s_imports;
-    s_import = (s_imports_most > 0u) ? g_cli_cells->persistent_buf_alloc(s_imports_most * sizeof(CliSconsImport),
-                                                                         &g_cli_scons_rooms_cells)
-                                     : NULL;
+    s_imports_max = s_imports;
+    s_import = (s_imports_max > 0u) ? g_cli_cells->persistent_buf_alloc(s_imports_max * sizeof(CliSconsImport),
+                                                                        &g_cli_scons_work_states_cells)
+                                    : NULL;
     if (s_import == NULL)
     {
         return;
@@ -315,7 +317,7 @@ EMBED_INLINE void check_read_file(const SconsCheckCtx *args)
                          .lines = lines, .from = s_import[at].from, .to = s_import[at].to,
                          .severity = CLI_BUILD_WARNING, .code = "scons-import");
     }
-    g_cli_cells->persistent_buf_release(s_import, &g_cli_scons_rooms_cells);
+    g_cli_cells->persistent_buf_release(s_import, &g_cli_scons_work_states_cells);
     s_import = NULL;
 }
 
@@ -327,7 +329,7 @@ void cli_scons_check(const CliSconsTextCtx *args)
         EMBED_CALL(check_read_file, SconsCheckCtx, .root = args->root, .path = args->path, .text = args->text,
                    .lines = args->lines, .found = args->found);
     }
-    g_cli_cells->persistent_buf_release(class_of, &g_cli_scons_rooms_cells);
+    g_cli_cells->persistent_buf_release(class_of, &g_cli_scons_work_states_cells);
 }
 
 // The hand a name SCons gives is handed to
@@ -335,13 +337,13 @@ typedef struct
 {
     void (*each)(const CliEachNameSizeCfg *args);
     void *context;
-} CliSconsGiven;
+} CliSconsInput;
 
 // a name the file imports handed on
 static void check_input_import(const CliSconsSpanCfg *args)
 {
-    const CliSconsGiven *const given = args->context;
-    EMBED_CALL(given->each, CliEachNameSizeCfg, .context = given->context, .name = g_cli_scons.text + args->from,
+    const CliSconsInput *const supplied = args->context;
+    EMBED_CALL(supplied->each, CliEachNameSizeCfg, .context = supplied->context, .name = g_cli_scons.text + args->from,
                .size = args->to - args->from);
 }
 
@@ -359,10 +361,10 @@ void cli_scons_free(const CliSconsTextSizeContextCtx *args)
     unsigned char *const class_of = EMBED_CALL(check_read, SconsCheckCtx, .text = text, .size = size);
     if (class_of != NULL)
     {
-        CliSconsGiven given = {each, context};
-        EMBED_CALL(cli_scons_name_internal.import, CliSconsNameCtx, .each = check_input_import, .context = &given);
+        CliSconsInput supplied = {each, context};
+        EMBED_CALL(cli_scons_name_internal.import, CliSconsNameCtx, .each = check_input_import, .context = &supplied);
     }
-    g_cli_cells->persistent_buf_release(class_of, &g_cli_scons_rooms_cells);
+    g_cli_cells->persistent_buf_release(class_of, &g_cli_scons_work_states_cells);
 }
 
 // whether a letter goes in an environment's name and its method
@@ -420,7 +422,7 @@ EMBED_INLINE void check_complete(const SconsCheckCtx *args)
     if (last == CLI_SCONS_STRING)
     {
         unsigned long long opened = token;
-        opened = (line_start + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg,
+        opened = (line_start + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg,
                                           .text = text + line_start, .at = opened - line_start, .set = "\"'"));
         opened = line_start + EMBED_CALL(cli_text_size_byte.trimmed_end, CliTextSizeByteCfg, .text = text + line_start,
                                          .size = opened - line_start);
@@ -472,12 +474,12 @@ EMBED_INLINE void check_complete(const SconsCheckCtx *args)
     {
         const char *const global = g_cli_scons_globals[one];
         int upper = 1;
-        upper = EMBED_CALL(cli_text_at_size_classes.past_class, CliTextAtSizeClassesCfg, .text = global, .at = 0ull,
+        upper = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = global, .at = 0ull,
                            .size = cellul.len(&(CatenaFinitaCfg){.src = global, .cap = CLI_CELLS_POOL}),
                            .classes = CLI_TEXT_UPPER,
                            .set = "_") == cellul.len(&(CatenaFinitaCfg){.src = global, .cap = CLI_CELLS_POOL});
         (void)EMBED_CALL(
-            cli_edits_items.completion_put, CliEditsItemsCfg, .items = items, .label = global,
+            cli_edits_items.completion_append, CliEditsItemsCfg, .items = items, .label = global,
             .label_size = cellul.len(&(CatenaFinitaCfg){.src = global, .cap = CLI_CELLS_POOL}),
             .kind = upper ? "constant" : "function", .detail = "SCons", .detail_size = 5u, .insert = global,
             .insert_size = cellul.len(&(CatenaFinitaCfg){.src = global, .cap = CLI_CELLS_POOL}), .snippet = 0);
@@ -491,5 +493,5 @@ void cli_scons_complete(const CliSconsTextSizeCtx *args)
     {
         EMBED_CALL(check_complete, SconsCheckCtx, .text = args->text, .at = args->at, .items = args->items);
     }
-    g_cli_cells->persistent_buf_release(class_of, &g_cli_scons_rooms_cells);
+    g_cli_cells->persistent_buf_release(class_of, &g_cli_scons_work_states_cells);
 }

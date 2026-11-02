@@ -10,7 +10,7 @@
 // the most values of a frame's names reported at once
 #define CLI_REPLAY_VALUES 1024u
 
-static unsigned int s_standing[512][2];
+static unsigned int s_existing[512][2];
 
 typedef struct
 {
@@ -72,7 +72,7 @@ EMBED_INLINE void answer_stack(const RecordingAnswerCtx *args)
 {
     const CliJson *json = args->json;
     unsigned long long thread = 0ull;
-    if (!EMBED_CALL(cli_recording_json_internal.replay_whole, CliRecordingJsonCtx, .json = json,
+    if (!EMBED_CALL(cli_recording_json_internal.replay_integer, CliRecordingJsonCtx, .json = json,
                     .id = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                      .object = args->arguments, .name = "threadId"),
                     .value = &thread))
@@ -90,7 +90,7 @@ EMBED_INLINE void answer_stack(const RecordingAnswerCtx *args)
         }
     }
     const unsigned int count = EMBED_CALL(cli_recording_at_frames_internal.stack, CliRecordingAtFramesCtx, .at = at,
-                                          .frames = s_standing, .room = 512u);
+                                          .frames = s_existing, .capacity = 512u);
     mmgr_line_put(args->body, "{\"stackFrames\":[");
     for (unsigned int frame = 0u; frame < count; frame += 1u)
     {
@@ -99,7 +99,7 @@ EMBED_INLINE void answer_stack(const RecordingAnswerCtx *args)
             mmgr_line_ch(args->body, ',');
         }
         EMBED_CALL(cli_recording_serial_step_internal.replay_frame_write, CliRecordingSerialStepCtx, .out = args->body,
-                   .serial = s_standing[frame][0], .step = s_standing[frame][1]);
+                   .serial = s_existing[frame][0], .step = s_existing[frame][1]);
     }
     mmgr_line_put(args->body, "],\"totalFrames\":");
     mmgr_line_decimal(args->body, count, 1u);
@@ -110,18 +110,18 @@ EMBED_INLINE void answer_variables(const RecordingAnswerCtx *args)
 {
     const CliJson *json = args->json;
     unsigned long long serial = 0ull;
-    if (!EMBED_CALL(cli_recording_json_internal.replay_whole, CliRecordingJsonCtx, .json = json,
+    if (!EMBED_CALL(cli_recording_json_internal.replay_integer, CliRecordingJsonCtx, .json = json,
                     .id = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                      .object = args->arguments, .name = "variablesReference"),
                     .value = &serial) ||
-        (serial >= g_cli_replay->recording.frame_most))
+        (serial >= g_cli_replay->recording.frame_max))
     {
         serial = 0ull;
     }
     CliRecordedValue *values = NULL;
     const unsigned int count =
         EMBED_CALL(cli_recording_at_internal.values, CliRecordingAtCtx, .serial = (unsigned int)serial,
-                   .at = g_cli_replay->at, .taken = &values, .most = CLI_REPLAY_VALUES, .owner = &g_cli_debug_cells);
+                   .at = g_cli_replay->at, .reserved = &values, .most = CLI_REPLAY_VALUES, .owner = &g_cli_debug_cells);
     mmgr_line_put(args->body, "{\"variables\":[");
     for (unsigned int at = 0u; at < count; at += 1u)
     {
@@ -147,21 +147,21 @@ EMBED_INLINE int answer_evaluate(const RecordingAnswerCtx *args)
     unsigned long long length = 0ull;
     const char *name = EMBED_CALL(answer_text, RecordingAnswerCtx, .json = json, .arguments = args->arguments,
                                   .name = "expression", .length = &length);
-    const unsigned long long lead = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = name,
+    const unsigned long long lead = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = name,
                                                .at = 0ull, .size = length, .set = " \t\n\r");
     name += lead;
     length -= lead;
-    length = EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = name, .at = length,
+    length = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = name, .at = length,
                         .set = " \t\n\r");
     const unsigned int serial =
         EMBED_CALL(cli_recording_json_internal.replay_frame_get, CliRecordingJsonCtx, .json = json,
                    .id = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                     .object = args->arguments, .name = "frameId"));
     const unsigned int count = EMBED_CALL(cli_recording_at_frames_internal.stack, CliRecordingAtFramesCtx,
-                                          .at = g_cli_replay->at, .frames = s_standing, .room = 512u);
+                                          .at = g_cli_replay->at, .frames = s_existing, .capacity = 512u);
     for (unsigned int frame = 0u; frame <= count; frame += 1u)
     {
-        const unsigned int one = (frame == 0u) ? serial : s_standing[frame - 1u][0];
+        const unsigned int one = (frame == 0u) ? serial : s_existing[frame - 1u][0];
         if ((frame > 0u) && !(recording->frames[one].seen && (recording->frames[one].parent == 0u)))
         {
             continue;
@@ -169,7 +169,7 @@ EMBED_INLINE int answer_evaluate(const RecordingAnswerCtx *args)
         CliRecordedValue *values = NULL;
         const unsigned int value_count =
             EMBED_CALL(cli_recording_at_internal.values, CliRecordingAtCtx, .serial = one, .at = g_cli_replay->at,
-                       .taken = &values, .most = CLI_REPLAY_VALUES, .owner = &g_cli_debug_cells);
+                       .reserved = &values, .most = CLI_REPLAY_VALUES, .owner = &g_cli_debug_cells);
         for (unsigned int at = 0u; at < value_count; at += 1u)
         {
             if ((cellul.len(&(CatenaFinitaCfg){.src = values[at].name, .cap = CLI_CELLS_POOL}) == length) &&
@@ -279,9 +279,9 @@ EMBED_INLINE void answer_history(const RecordingAnswerCtx *args)
     unsigned long long length = 0ull;
     const char *const text = EMBED_CALL(answer_text, RecordingAnswerCtx, .json = json, .arguments = args->arguments,
                                         .name = "name", .length = &length);
-    VerbaLinea sought = {name, sizeof(name), 0ull};
-    mmgr_line_put_n(&sought, text, length);
-    mmgr_line_finish(&sought);
+    VerbaLinea needle = {name, sizeof(name), 0ull};
+    mmgr_line_put_n(&needle, text, length);
+    mmgr_line_finish(&needle);
     const unsigned int serial =
         EMBED_CALL(cli_recording_json_internal.replay_frame_get, CliRecordingJsonCtx, .json = json,
                    .id = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
@@ -373,7 +373,7 @@ int cli_replay_answer(const CliRecordingDapCtx *args)
     }
     if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "orior/goto", .cap = CLI_CELLS_POOL}))
     {
-        if (!EMBED_CALL(cli_recording_json_internal.replay_whole, CliRecordingJsonCtx, .json = args->json,
+        if (!EMBED_CALL(cli_recording_json_internal.replay_integer, CliRecordingJsonCtx, .json = args->json,
                         .id = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                          .json_read = args->json, .object = args->arguments, .name = "step"),
                         .value = &step) ||

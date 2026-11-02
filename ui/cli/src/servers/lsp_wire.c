@@ -8,7 +8,7 @@
 #include "../text/text.h"
 #include "lsp.h"
 
-// the most bytes of a text escaped at once as it is written, and the room they take escaped
+// the most bytes of a text escaped at once as it is written, and the capacity they take escaped
 #define CLI_LSP_PIECE 2048u
 #define CLI_LSP_ESCAPED 16384u
 
@@ -111,8 +111,8 @@ EMBED_INLINE int wire_byte(const LspWireCtx *args)
     if (args->reader->start == args->reader->end)
     {
         args->reader->start = 0ull;
-        args->reader->end = EMBED_CALL(args->reader->read, CliSourcePieceRoomCfg, .source = args->reader->source,
-                                       .piece = args->reader->buf, .room = sizeof(args->reader->buf));
+        args->reader->end = EMBED_CALL(args->reader->read, CliSourcePieceCapacityCfg, .source = args->reader->source,
+                                       .piece = args->reader->buf, .capacity = sizeof(args->reader->buf));
         if (args->reader->end == 0ull)
         {
             return 0;
@@ -132,22 +132,23 @@ EMBED_INLINE int wire_bytes(const LspWireCtx *args)
         if (args->reader->start == args->reader->end)
         {
             args->reader->start = 0ull;
-            args->reader->end = EMBED_CALL(args->reader->read, CliSourcePieceRoomCfg, .source = args->reader->source,
-                                           .piece = args->reader->buf, .room = sizeof(args->reader->buf));
+            args->reader->end =
+                EMBED_CALL(args->reader->read, CliSourcePieceCapacityCfg, .source = args->reader->source,
+                           .piece = args->reader->buf, .capacity = sizeof(args->reader->buf));
             if (args->reader->end == 0ull)
             {
                 return 0;
             }
         }
         const unsigned long long buffered = args->reader->end - args->reader->start;
-        const unsigned long long taken = (buffered < args->size - done) ? buffered : args->size - done;
+        const unsigned long long reserved = (buffered < args->size - done) ? buffered : args->size - done;
         if (args->into != NULL)
         {
             memor.cpy(&(MemoriaCfg){
-                .dst = args->into + done, .src = args->reader->buf + args->reader->start, .bytes = taken});
+                .dst = args->into + done, .src = args->reader->buf + args->reader->start, .bytes = reserved});
         }
-        args->reader->start += taken;
-        done += taken;
+        args->reader->start += reserved;
+        done += reserved;
     }
     return 1;
 }
@@ -211,17 +212,17 @@ static int wire_head_read(const LspWireCtx *args)
 }
 
 // whether `length` bytes of a body are a JSON body whole, its letters UTF-8 whole
-EMBED_INLINE int wire_body_whole(const LspWireCtx *args)
+EMBED_INLINE int wire_body_valid(const LspWireCtx *args)
 {
     char tiny[1];
     VerbaLinea checked = {tiny, sizeof(tiny), 0ull};
-    return EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg, .bytes = args->body,
+    return EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = args->body,
                       .size = args->length_value) &&
            EMBED_CALL(cli_json_tree_text.json_compact, CliJsonTreeTextCfg, .text = args->body,
                       .size = args->length_value, .out = &checked);
 }
 
-char *cli_lsp_message_take(const CliLspReaderSizeCfg *args)
+char *cli_lsp_message_alloc(const CliLspReaderSizeCfg *args)
 {
     unsigned long long *size = args->size;
     for (;;)
@@ -238,7 +239,7 @@ char *cli_lsp_message_take(const CliLspReaderSizeCfg *args)
             g_cli_cells->persistent_buf_release(body, args->owner);
             return NULL;
         }
-        if ((body != NULL) && EMBED_CALL(wire_body_whole, LspWireCtx, .body = body, .length_value = length))
+        if ((body != NULL) && EMBED_CALL(wire_body_valid, LspWireCtx, .body = body, .length_value = length))
         {
             body[length] = '\0';
             *size = length;
@@ -258,9 +259,9 @@ int cli_lsp_read_message(const CliLspReaderCfg *args)
         {
             return 0;
         }
-        if (length > args->room)
+        if (length > args->capacity)
         {
-            // a body larger than the room is passed over whole, and the next message read
+            // a body larger than the capacity is passed over whole, and the next message read
             if (!EMBED_CALL(wire_bytes, LspWireCtx, .reader = args->reader, .into = NULL, .size = length))
             {
                 return 0;
@@ -272,7 +273,7 @@ int cli_lsp_read_message(const CliLspReaderCfg *args)
             return 0;
         }
         *size = length;
-        return EMBED_CALL(wire_body_whole, LspWireCtx, .body = args->body_out, .length_value = length);
+        return EMBED_CALL(wire_body_valid, LspWireCtx, .body = args->body_out, .length_value = length);
     }
 }
 
@@ -348,14 +349,14 @@ int cli_lsp_member(const CliLspBodyCfg *args)
         return 0;
     }
     at = EMBED_CALL(wire_white, LspWireCtx, .text = args->body, .size = args->size_value, .at = at + 1ull);
-    const unsigned long long wanted = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
+    const unsigned long long required = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
     while ((at < args->size_value) && (args->body[at] == '"'))
     {
         const unsigned long long key_end =
             EMBED_CALL(wire_value_end, LspWireCtx, .text = args->body, .size = args->size_value, .at = at);
         const int named =
-            (key_end - at == wanted + 2ull) &&
-            (memor.cmp(&(MemoriaCfg){.src = args->body + at + 1ull, .other = args->name, .bytes = wanted}) == 0);
+            (key_end - at == required + 2ull) &&
+            (memor.cmp(&(MemoriaCfg){.src = args->body + at + 1ull, .other = args->name, .bytes = required}) == 0);
         at = EMBED_CALL(wire_white, LspWireCtx, .text = args->body, .size = args->size_value, .at = key_end);
         at = EMBED_CALL(wire_white, LspWireCtx, .text = args->body, .size = args->size_value, .at = at + 1ull);
         const unsigned long long value_end =
@@ -372,22 +373,22 @@ int cli_lsp_member(const CliLspBodyCfg *args)
     return 0;
 }
 
-void cli_lsp_uri_get(const CliLspRoomPathCfg *args)
+void cli_lsp_uri_get(const CliLspCapacityPathCfg *args)
 {
     static const char s_hex[17] = "0123456789ABCDEF";
-    VerbaLinea out = {args->uri_out, args->room, 0ull};
+    VerbaLinea out = {args->uri_out, args->capacity, 0ull};
     mmgr_line_put(&out, ((args->path[0] == '/') || (args->path[0] == '\\')) ? "file://" : "file:///");
-    const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL});
-    for (unsigned long long at = 0ull; at < whole;)
+    const unsigned long long integer = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL});
+    for (unsigned long long at = 0ull; at < integer;)
     {
         const unsigned long long stop =
-            EMBED_CALL(cli_text_at_size_classes.past_class, CliTextAtSizeClassesCfg, .text = args->path, .at = at,
-                       .size = whole, .classes = CLI_TEXT_LETTERS | CLI_TEXT_DIGITS, .set = "-._~/:\\");
+            EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = args->path, .at = at,
+                       .size = integer, .classes = CLI_TEXT_LETTERS | CLI_TEXT_DIGITS, .set = "-._~/:\\");
         const size_t from = out.at;
-        const size_t taken = mmgr_line_put_n(&out, args->path + at, (size_t)(stop - at));
-        EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = out.out + from, .size = taken, .from = '\\',
-                   .to = '/');
-        if (stop < whole)
+        const size_t reserved = mmgr_line_put_n(&out, args->path + at, (size_t)(stop - at));
+        EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = out.out + from, .size = reserved,
+                   .from = '\\', .to = '/');
+        if (stop < integer)
         {
             const unsigned char byte = (unsigned char)args->path[stop];
             mmgr_line_ch(&out, '%');
@@ -435,7 +436,7 @@ int cli_lsp_path_get(const CliLspLengthUriCfg *args)
         at += 1ull;
     }
     if ((mmgr_line_finish(&out) == 0ull) ||
-        !EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg, .bytes = args->path_out, .size = out.at))
+        !EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = args->path_out, .size = out.at))
     {
         return 0;
     }
@@ -464,34 +465,36 @@ void cli_lsp_key_get(const CliLspLengthCfg *args)
 #endif
 }
 
-int cli_lsp_string(const CliLspRoomCfg *args)
+int cli_lsp_string(const CliLspCapacityCfg *args)
 {
     CliJsonNode node[1];
     CfgJsonToken token[1];
     CliJson json;
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &json,
-               .node_json_node_pointer = node, .nodes_most = 1u, .text_out = args->out_room, .text_most = args->room);
+               .node_json_node_pointer = node, .nodes_max = 1u, .text_out = args->out_capacity,
+               .text_max = args->capacity);
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea unread = {why, sizeof(why), 0ull};
     const unsigned int root =
         EMBED_CALL(cli_json_tree_text_size_tokens.json_read, CliJsonTreeTextSizeTokensCfg, .json = &json,
-                   .text = args->text, .size = args->length, .tokens = token, .tokens_most = 1u, .err_msg = &unread);
+                   .text = args->text, .size = args->length, .tokens = token, .tokens_max = 1u, .err_msg = &unread);
     unsigned long long size = 0ull;
     const char *const letters = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                            .json_read = &json, .node = root, .length_pointer = &size);
-    if ((letters == NULL) || (size >= args->room))
+    if ((letters == NULL) || (size >= args->capacity))
     {
         return 0;
     }
-    memor.move_down(&(MemoriaCfg){.dst = args->out_room, .src = letters, .bytes = size});
-    args->out_room[size] = '\0';
+    memor.move_down(&(MemoriaCfg){.dst = args->out_capacity, .src = letters, .bytes = size});
+    args->out_capacity[size] = '\0';
     return 1;
 }
 
 void cli_lsp_at(const CliLspPathCfg *args)
 {
     char uri[CLI_PATH_MAX_LEN * 3u];
-    EMBED_CALL(cli_lsp_room_path.uri_get, CliLspRoomPathCfg, .path = args->path, .uri_out = uri, .room = sizeof(uri));
+    EMBED_CALL(cli_lsp_capacity_path.uri_get, CliLspCapacityPathCfg, .path = args->path, .uri_out = uri,
+               .capacity = sizeof(uri));
     mmgr_line_put(args->params_verba_linea_pointer, "{\"textDocument\":{\"uri\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->params_verba_linea_pointer,
                .text = uri, .length = cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}));

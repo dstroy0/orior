@@ -13,7 +13,7 @@ typedef struct CliRunnerCtx CliRunnerCtx;
 #include "runner.h"
 
 // the most runs open at once, and the most steps a run's job takes
-#define CLI_RUNS_MOST 16u
+#define CLI_RUNS_MAX 16u
 
 #define CLI_RUN_STEPS 256u
 
@@ -44,25 +44,25 @@ typedef struct
 
 // the run's job copied from `catalog` into a cell sized to it, and a cell taken for its lines: 1, or 0 with why given
 // and neither taken; and both given back (runner_start.c)
-int cli_run_cells_take(const CliRunnerRunCtx *args);
+int cli_run_cells_alloc(const CliRunnerRunCtx *args);
 void cli_run_cells_free(const CliRunnerRunSpawnedCtx *args);
 
 // the lock every run's state is read and changed under
-void cli_runs_take(void);
-void cli_runs_give(void);
+void cli_runs_alloc(void);
+void cli_runs_release(void);
 // the milliseconds since a run began, to the microsecond (runner_run.c)
 double cli_run_since(const CliRunnerCtx *args);
 // a line printed on a run's stream, stored among its lines where it is output (runner_lines.c)
 void cli_run_line(const CliRunnerRunStreamCtx *args);
 // each line of a started process's output and errors carried to the run as it comes, the errors on a thread of their
 // own, until both end
-void cli_run_carry(const CliRunnerRunSpawnedCtx *args);
+void cli_run_machine_transfer(const CliRunnerRunSpawnedCtx *args);
 // the pages a job wrote: every .html file in its view folder, and every .html path its output names that is a file,
-// each by its path in the tree, in order and each once, into `views`, sized for CLI_VIEWS_MOST: their count
+// each by its path in the tree, in order and each once, into `views`, sized for CLI_VIEWS_MAX: their count
 unsigned int cli_run_pages(const CliRunnerRootCtx *args);
 
 // the runs open, the next run's number, and the lock and wake over them (runner_run.c)
-extern CliRun g_cli_runs[CLI_RUNS_MOST];
+extern CliRun g_cli_runs[CLI_RUNS_MAX];
 extern unsigned long long g_cli_next_run;
 extern CliWake g_cli_runs_wake;
 // a run's steps taken in turn, its end reported after the last: the function its thread runs
@@ -104,22 +104,22 @@ struct CliRunnerCtx
 
 typedef struct
 {
-    int (*run_cells_take)(const CliRunnerRunCtx *args);
+    int (*run_cells_alloc)(const CliRunnerRunCtx *args);
 } CliRunnerRunNs;
-EMBED_TABLE_LAYOUT(CliRunnerRunNs, run_cells_take);
+EMBED_TABLE_LAYOUT(CliRunnerRunNs, run_cells_alloc);
 EMBED_TABLE_STORAGE CliRunnerRunNs cli_runner_run_internal EMBED_UNUSED = {
-    .run_cells_take = cli_run_cells_take,
+    .run_cells_alloc = cli_run_cells_alloc,
 };
 
 typedef struct
 {
     void (*run_cells_free)(const CliRunnerRunSpawnedCtx *args);
-    void (*run_carry)(const CliRunnerRunSpawnedCtx *args);
+    void (*run_machine_transfer)(const CliRunnerRunSpawnedCtx *args);
 } CliRunnerRunSpawnedNs;
-EMBED_TABLE_LAYOUT(CliRunnerRunSpawnedNs, run_cells_free, run_carry);
+EMBED_TABLE_LAYOUT(CliRunnerRunSpawnedNs, run_cells_free, run_machine_transfer);
 EMBED_TABLE_STORAGE CliRunnerRunSpawnedNs cli_runner_run_spawned_internal EMBED_UNUSED = {
     .run_cells_free = cli_run_cells_free,
-    .run_carry = cli_run_carry,
+    .run_machine_transfer = cli_run_machine_transfer,
 };
 
 typedef struct

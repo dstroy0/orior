@@ -26,7 +26,7 @@ void test_reserving_zero_reserves_one(void)
     TEST_ASSERT_EQUAL_UINT(1u, cli_cores_on_reserve());
 }
 
-void test_reserving_one_leaves_the_rest_for_work(void)
+void test_reserving_one_leaves_the_remainder_for_work(void)
 {
     EMBED_CALL(cli_cores.reserve, CliCoresCfg, .reserved = 0u);
     TEST_ASSERT_EQUAL_UINT(cores_left(cli_cores_machine(), 1u), cli_cores_for_work());
@@ -38,7 +38,7 @@ void test_reserving_more_than_the_machine_has_leaves_one_for_work(void)
     TEST_ASSERT_EQUAL_UINT(1u, cli_cores_for_work());
 }
 
-void test_reserving_two_leaves_the_rest_for_work(void)
+void test_reserving_two_leaves_the_remainder_for_work(void)
 {
     EMBED_CALL(cli_cores.reserve, CliCoresCfg, .reserved = 2u);
     TEST_ASSERT_EQUAL_UINT(cores_left(cli_cores_machine(), 2u), cli_cores_for_work());

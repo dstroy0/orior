@@ -5,7 +5,7 @@
 #include "measured.h"
 
 // the pieces a measuring line fills handed on and let go
-static int measured_put(void *context, const char *bytes, size_t size)
+static int measured_append(void *context, const char *bytes, size_t size)
 {
     (void)context;
     (void)bytes;
@@ -16,7 +16,7 @@ static int measured_put(void *context, const char *bytes, size_t size)
 void cli_measure_begin(const CliMeasuredPieceCfg *args)
 {
     VerbaLinea *line = args->line;
-    *line = (VerbaLinea){args->piece, args->piece_size, 0ull, measured_put, NULL, 0ull};
+    *line = (VerbaLinea){args->piece, args->piece_size, 0ull, measured_append, NULL, 0ull};
 }
 
 unsigned long long cli_measure(const CliMeasuredCfg *args)

@@ -11,7 +11,7 @@ typedef struct
     CliPlan *plan;
     const char *file;
     const char *base;
-    const CliPlanPlaces *places;
+    const CliPlanPositions *positions;
     const unsigned int *compose;
     unsigned int composes;
     VerbaLinea *err_msg;
@@ -24,7 +24,7 @@ EMBED_INLINE int cli_source_read(const DevcontainerReadCtx *args)
 {
     CliPlan *plan = args->plan;
     const char *base = args->base;
-    const CliPlanPlaces *places = args->places;
+    const CliPlanPositions *positions = args->positions;
     static char s_text[CLI_STRING_MAX_LEN];
     static char s_read[CLI_STRING_MAX_LEN];
     char path[CLI_PATH_MAX_LEN];
@@ -40,7 +40,7 @@ EMBED_INLINE int cli_source_read(const DevcontainerReadCtx *args)
             return 0;
         }
         plan->source = CLI_SOURCE_COMPOSE;
-        plan->service = EMBED_CALL(cli_devcontainer_plan_text_internal.plan_put, CliDevcontainerPlanTextCtx,
+        plan->service = EMBED_CALL(cli_devcontainer_plan_text_internal.plan_append, CliDevcontainerPlanTextCtx,
                                    .plan = plan, .text = s_text);
         for (unsigned int at = 0u; at < args->composes; at += 1u)
         {
@@ -48,18 +48,18 @@ EMBED_INLINE int cli_source_read(const DevcontainerReadCtx *args)
                            .value = args->compose[at], .out = s_text))
             {
                 EMBED_CALL(cli_devcontainer_out_internal.plan_expand, CliDevcontainerOutCtx, .text = s_text,
-                           .places = places, .out = s_read);
+                           .positions = positions, .out = s_read);
                 EMBED_CALL(cli_devcontainer_out_base_internal.plan_join, CliDevcontainerOutBaseCtx, .base = base,
                            .path = s_read, .out = path);
                 EMBED_CALL(cli_devcontainer_plan_text_internal.plan_list, CliDevcontainerPlanTextCtx, .plan = plan,
                            .list = &plan->files, .text = path);
             }
         }
-        unsigned int tokens[CLI_PLAN_LIST_MOST];
+        unsigned int tokens[CLI_PLAN_LIST_MAX];
         const unsigned int services = EMBED_CALL(cli_devcontainer_value_internal.plan_strings, CliDevcontainerValueCtx,
                                                  .value = EMBED_CALL(cli_devcontainer_name_internal.plan_member,
                                                                      CliDevcontainerNameCtx, .name = "runServices"),
-                                                 .tokens = tokens, .room = CLI_PLAN_LIST_MOST);
+                                                 .tokens = tokens, .capacity = CLI_PLAN_LIST_MAX);
         for (unsigned int at = 0u; at < services; at += 1u)
         {
             if (EMBED_CALL(cli_devcontainer_value_out_internal.plan_string, CliDevcontainerValueOutCtx,
@@ -77,10 +77,10 @@ EMBED_INLINE int cli_source_read(const DevcontainerReadCtx *args)
                    .out = s_text))
     {
         plan->source = CLI_SOURCE_IMAGE;
-        EMBED_CALL(cli_devcontainer_out_internal.plan_expand, CliDevcontainerOutCtx, .text = s_text, .places = places,
-                   .out = s_read);
-        plan->image = EMBED_CALL(cli_devcontainer_plan_text_internal.plan_put, CliDevcontainerPlanTextCtx, .plan = plan,
-                                 .text = s_read);
+        EMBED_CALL(cli_devcontainer_out_internal.plan_expand, CliDevcontainerOutCtx, .text = s_text,
+                   .positions = positions, .out = s_read);
+        plan->image = EMBED_CALL(cli_devcontainer_plan_text_internal.plan_append, CliDevcontainerPlanTextCtx,
+                                 .plan = plan, .text = s_read);
         return 1;
     }
     const unsigned int build =
@@ -99,11 +99,11 @@ EMBED_INLINE int cli_source_read(const DevcontainerReadCtx *args)
         return 0;
     }
     plan->source = CLI_SOURCE_BUILD;
-    EMBED_CALL(cli_devcontainer_out_internal.plan_expand, CliDevcontainerOutCtx, .text = s_text, .places = places,
+    EMBED_CALL(cli_devcontainer_out_internal.plan_expand, CliDevcontainerOutCtx, .text = s_text, .positions = positions,
                .out = s_read);
     EMBED_CALL(cli_devcontainer_out_base_internal.plan_join, CliDevcontainerOutBaseCtx, .base = base, .path = s_read,
                .out = path);
-    plan->dockerfile = EMBED_CALL(cli_devcontainer_plan_text_internal.plan_put, CliDevcontainerPlanTextCtx,
+    plan->dockerfile = EMBED_CALL(cli_devcontainer_plan_text_internal.plan_append, CliDevcontainerPlanTextCtx,
                                   .plan = plan, .text = path);
     if (!EMBED_CALL(cli_devcontainer_value_out_internal.plan_string, CliDevcontainerValueOutCtx,
                     .value = EMBED_CALL(cli_devcontainer_name_internal.plan_member_get, CliDevcontainerNameCtx,
@@ -114,22 +114,22 @@ EMBED_INLINE int cli_source_read(const DevcontainerReadCtx *args)
                                 .src = ".",
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = ".", .cap = CLI_CELLS_POOL}) + 1u});
     }
-    EMBED_CALL(cli_devcontainer_out_internal.plan_expand, CliDevcontainerOutCtx, .text = s_text, .places = places,
+    EMBED_CALL(cli_devcontainer_out_internal.plan_expand, CliDevcontainerOutCtx, .text = s_text, .positions = positions,
                .out = s_read);
     EMBED_CALL(cli_devcontainer_out_base_internal.plan_join, CliDevcontainerOutBaseCtx, .base = base, .path = s_read,
                .out = path);
-    plan->context = EMBED_CALL(cli_devcontainer_plan_text_internal.plan_put, CliDevcontainerPlanTextCtx, .plan = plan,
-                               .text = path);
+    plan->context = EMBED_CALL(cli_devcontainer_plan_text_internal.plan_append, CliDevcontainerPlanTextCtx,
+                               .plan = plan, .text = path);
     EMBED_CALL(cli_devcontainer_object_internal.plan_pairs, CliDevcontainerObjectCtx, .plan = plan,
                .object = EMBED_CALL(cli_devcontainer_name_internal.plan_member_get, CliDevcontainerNameCtx,
                                     .object = build, .name = "args"),
-               .places = places, .list = &plan->args);
+               .positions = positions, .list = &plan->args);
     plan->targeted = EMBED_CALL(cli_devcontainer_value_out_internal.plan_string, CliDevcontainerValueOutCtx,
                                 .value = EMBED_CALL(cli_devcontainer_name_internal.plan_member_get,
                                                     CliDevcontainerNameCtx, .object = build, .name = "target"),
                                 .out = s_text);
-    plan->target = plan->targeted ? EMBED_CALL(cli_devcontainer_plan_text_internal.plan_put, CliDevcontainerPlanTextCtx,
-                                               .plan = plan, .text = s_text)
+    plan->target = plan->targeted ? EMBED_CALL(cli_devcontainer_plan_text_internal.plan_append,
+                                               CliDevcontainerPlanTextCtx, .plan = plan, .text = s_text)
                                   : 0u;
     return 1;
 }
@@ -139,7 +139,7 @@ EMBED_INLINE int cli_source_read(const DevcontainerReadCtx *args)
 EMBED_INLINE void cli_last_by_name(const DevcontainerReadCtx *args)
 {
     const char *end = args->path + cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL});
-    end = args->path + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = args->path,
+    end = args->path + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = args->path,
                                   .at = (unsigned long long)(end - args->path), .set = "/\\");
     const char *last = end;
     last = args->path + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
@@ -172,13 +172,13 @@ EMBED_INLINE int cli_plan_lock(const DevcontainerReadCtx *args)
     memor.set(&(MemoriaCfg){.dst = plan, .val = 0, .bytes = sizeof(*plan)});
     // the text at 0 is the empty one
     plan->used = 1u;
-    plan->file = EMBED_CALL(cli_devcontainer_plan_text_internal.plan_put, CliDevcontainerPlanTextCtx, .plan = plan,
+    plan->file = EMBED_CALL(cli_devcontainer_plan_text_internal.plan_append, CliDevcontainerPlanTextCtx, .plan = plan,
                             .text = file);
-    plan->root = EMBED_CALL(cli_devcontainer_plan_text_internal.plan_put, CliDevcontainerPlanTextCtx, .plan = plan,
+    plan->root = EMBED_CALL(cli_devcontainer_plan_text_internal.plan_append, CliDevcontainerPlanTextCtx, .plan = plan,
                             .text = root);
     char name[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_devcontainer_root_name.name, CliDevcontainerRootNameCfg, .root = root, .name = name);
-    plan->name = EMBED_CALL(cli_devcontainer_plan_text_internal.plan_put, CliDevcontainerPlanTextCtx, .plan = plan,
+    plan->name = EMBED_CALL(cli_devcontainer_plan_text_internal.plan_append, CliDevcontainerPlanTextCtx, .plan = plan,
                             .text = name);
     // the description's folder, or the tree where it stands in none
     char base[CLI_PATH_MAX_LEN];
@@ -201,20 +201,20 @@ EMBED_INLINE int cli_plan_lock(const DevcontainerReadCtx *args)
                                 .src = root,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
     }
-    unsigned int compose[CLI_PLAN_LIST_MOST];
+    unsigned int compose[CLI_PLAN_LIST_MAX];
     const unsigned int composes = EMBED_CALL(cli_devcontainer_value_internal.plan_strings, CliDevcontainerValueCtx,
                                              .value = EMBED_CALL(cli_devcontainer_name_internal.plan_member,
                                                                  CliDevcontainerNameCtx, .name = "dockerComposeFile"),
-                                             .tokens = compose, .room = CLI_PLAN_LIST_MOST);
-    const CliPlanPlaces outside = {root, ""};
+                                             .tokens = compose, .capacity = CLI_PLAN_LIST_MAX);
+    const CliPlanPositions outside = {root, ""};
     if (EMBED_CALL(cli_devcontainer_value_out_internal.plan_string, CliDevcontainerValueOutCtx,
                    .value = EMBED_CALL(cli_devcontainer_name_internal.plan_member, CliDevcontainerNameCtx,
                                        .name = "workspaceFolder"),
                    .out = s_text))
     {
-        EMBED_CALL(cli_devcontainer_out_internal.plan_expand, CliDevcontainerOutCtx, .text = s_text, .places = &outside,
-                   .out = s_read);
-        plan->folder = EMBED_CALL(cli_devcontainer_plan_text_internal.plan_put, CliDevcontainerPlanTextCtx,
+        EMBED_CALL(cli_devcontainer_out_internal.plan_expand, CliDevcontainerOutCtx, .text = s_text,
+                   .positions = &outside, .out = s_read);
+        plan->folder = EMBED_CALL(cli_devcontainer_plan_text_internal.plan_append, CliDevcontainerPlanTextCtx,
                                   .plan = plan, .text = s_read);
     }
     else
@@ -226,32 +226,33 @@ EMBED_INLINE int cli_plan_lock(const DevcontainerReadCtx *args)
         mmgr_line_put(&line, (composes != 0u) ? "/" : "/workspaces/");
         mmgr_line_put(&line, (composes != 0u) ? "" : tree_name);
         mmgr_line_finish(&line);
-        plan->folder = EMBED_CALL(cli_devcontainer_plan_text_internal.plan_put, CliDevcontainerPlanTextCtx,
+        plan->folder = EMBED_CALL(cli_devcontainer_plan_text_internal.plan_append, CliDevcontainerPlanTextCtx,
                                   .plan = plan, .text = s_read);
     }
-    const CliPlanPlaces places = {root, plan->text + plan->folder};
-    if (!EMBED_CALL(cli_source_read, DevcontainerReadCtx, .plan = plan, .file = file, .base = base, .places = &places,
-                    .compose = compose, .composes = composes, .err_msg = err_msg))
+    const CliPlanPositions positions = {root, plan->text + plan->folder};
+    if (!EMBED_CALL(cli_source_read, DevcontainerReadCtx, .plan = plan, .file = file, .base = base,
+                    .positions = &positions, .compose = compose, .composes = composes, .err_msg = err_msg))
     {
         return 0;
     }
     EMBED_CALL(cli_devcontainer_object_internal.plan_pairs, CliDevcontainerObjectCtx, .plan = plan,
                .object = EMBED_CALL(cli_devcontainer_name_internal.plan_member, CliDevcontainerNameCtx,
                                     .name = "containerEnv"),
-               .places = &places, .list = &plan->env);
-    EMBED_CALL(cli_devcontainer_object_internal.plan_mounts, CliDevcontainerObjectCtx, .plan = plan, .places = &places);
-    unsigned int tokens[CLI_PLAN_LIST_MOST];
+               .positions = &positions, .list = &plan->env);
+    EMBED_CALL(cli_devcontainer_object_internal.plan_mounts, CliDevcontainerObjectCtx, .plan = plan,
+               .positions = &positions);
+    unsigned int tokens[CLI_PLAN_LIST_MAX];
     const unsigned int run_args = EMBED_CALL(
         cli_devcontainer_value_internal.plan_strings, CliDevcontainerValueCtx,
         .value = EMBED_CALL(cli_devcontainer_name_internal.plan_member, CliDevcontainerNameCtx, .name = "runArgs"),
-        .tokens = tokens, .room = CLI_PLAN_LIST_MOST);
+        .tokens = tokens, .capacity = CLI_PLAN_LIST_MAX);
     for (unsigned int each = 0u; each < run_args; each += 1u)
     {
         if (EMBED_CALL(cli_devcontainer_value_out_internal.plan_string, CliDevcontainerValueOutCtx,
                        .value = tokens[each], .out = s_text))
         {
             EMBED_CALL(cli_devcontainer_out_internal.plan_expand, CliDevcontainerOutCtx, .text = s_text,
-                       .places = &places, .out = s_read);
+                       .positions = &positions, .out = s_read);
             EMBED_CALL(cli_devcontainer_plan_text_internal.plan_list, CliDevcontainerPlanTextCtx, .plan = plan,
                        .list = &plan->run_args, .text = s_read);
         }
@@ -264,8 +265,8 @@ EMBED_INLINE int cli_plan_lock(const DevcontainerReadCtx *args)
                                 .value = EMBED_CALL(cli_devcontainer_name_internal.plan_member, CliDevcontainerNameCtx,
                                                     .name = "remoteUser"),
                                 .out = s_text);
-    plan->user = plan->has_user ? EMBED_CALL(cli_devcontainer_plan_text_internal.plan_put, CliDevcontainerPlanTextCtx,
-                                             .plan = plan, .text = s_text)
+    plan->user = plan->has_user ? EMBED_CALL(cli_devcontainer_plan_text_internal.plan_append,
+                                             CliDevcontainerPlanTextCtx, .plan = plan, .text = s_text)
                                 : 0u;
     EMBED_CALL(cli_devcontainer_plan_internal.plan_commands, CliDevcontainerPlanCtx, .plan = plan,
                .key = "onCreateCommand", .commands = plan->on_create, .count = &plan->on_creates);

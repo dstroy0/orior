@@ -21,12 +21,12 @@ extern void test_the_part_for_this_machine_alone_stays(void);
 extern void test_a_chosen_file_is_applied_and_none_outside_the_folder(void);
 extern void test_an_application_is_recorded(void);
 extern void test_an_undo_writes_a_file_back_as_it_was(void);
-extern void test_an_undo_removes_a_file_the_application_made(void);
+extern void test_an_undo_removes_a_file_the_application_created(void);
 extern void test_an_undo_removes_the_record(void);
-extern void test_a_file_that_carries_no_settings_is_refused(void);
+extern void test_a_file_that_transfers_no_settings_is_refused(void);
 extern void test_settings_are_sent_to_a_repository_and_committed(void);
 extern void test_the_repository_contains_what_travels_and_no_more(void);
-extern void test_one_commit_is_made(void);
+extern void test_one_commit_is_created(void);
 extern void test_sending_what_is_there_commits_nothing(void);
 extern void test_the_repository_reads_back_what_was_sent(void);
 
@@ -103,12 +103,12 @@ int main(void)
   run_test(test_a_chosen_file_is_applied_and_none_outside_the_folder, "test_a_chosen_file_is_applied_and_none_outside_the_folder", 264);
   run_test(test_an_application_is_recorded, "test_an_application_is_recorded", 271);
   run_test(test_an_undo_writes_a_file_back_as_it_was, "test_an_undo_writes_a_file_back_as_it_was", 277);
-  run_test(test_an_undo_removes_a_file_the_application_made, "test_an_undo_removes_a_file_the_application_made", 286);
+  run_test(test_an_undo_removes_a_file_the_application_created, "test_an_undo_removes_a_file_the_application_created", 286);
   run_test(test_an_undo_removes_the_record, "test_an_undo_removes_the_record", 294);
-  run_test(test_a_file_that_carries_no_settings_is_refused, "test_a_file_that_carries_no_settings_is_refused", 302);
+  run_test(test_a_file_that_transfers_no_settings_is_refused, "test_a_file_that_transfers_no_settings_is_refused", 302);
   run_test(test_settings_are_sent_to_a_repository_and_committed, "test_settings_are_sent_to_a_repository_and_committed", 312);
   run_test(test_the_repository_contains_what_travels_and_no_more, "test_the_repository_contains_what_travels_and_no_more", 319);
-  run_test(test_one_commit_is_made, "test_one_commit_is_made", 327);
+  run_test(test_one_commit_is_created, "test_one_commit_is_created", 327);
   run_test(test_sending_what_is_there_commits_nothing, "test_sending_what_is_there_commits_nothing", 343);
   run_test(test_the_repository_reads_back_what_was_sent, "test_the_repository_reads_back_what_was_sent", 351);
 

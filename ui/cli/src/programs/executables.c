@@ -30,7 +30,7 @@ int cli_executables_program(const CliExecutablesToolCfg *args)
         return 0;
     }
     unsigned int count = 0u;
-    char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&count, &g_cli_executables_cells);
+    char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_allocated(&count, &g_cli_executables_cells);
     EMBED_CALL(cli_toolchains_json.find, CliToolchainsJsonCfg, .json = &json, .tool = one,
                .path_callback = (const char (*)[CLI_PATH_MAX_LEN])folders, .count = count, .found = &found_tool);
     g_cli_cells->persistent_buf_release(folders, &g_cli_executables_cells);
@@ -43,12 +43,12 @@ int cli_executables_program(const CliExecutablesToolCfg *args)
                                  .count = 1u, .path = path);
     if (!found)
     {
-        const char *const shown =
+        const char *const displayed =
             EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
                        .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
                                           .object = one, .name = "name"),
                        .length_pointer = NULL);
-        mmgr_line_put(err_msg, (shown != NULL) ? shown : args->tool);
+        mmgr_line_put(err_msg, (displayed != NULL) ? displayed : args->tool);
         mmgr_line_put(err_msg,
                       " builds it, and is not found: File, Toolchains opens its install page or takes its folder");
     }
@@ -75,16 +75,17 @@ int cli_executables_output(const CliExecutablesNameCtx *args)
     words[((args->count < 14u) ? args->count : 14u) + 1u] = NULL;
     char why[CLI_PATH_MAX_LEN];
     VerbaLinea unstarted = {why, sizeof(why), 0ull};
-    const int started = EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = words, .folder = args->folder,
-                                   .settings = NULL, .count = 0u, .ran = args->ran, .err_msg = &unstarted);
-    if (!started || (args->ran->code != 0ll))
+    const int started =
+        EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = words, .folder = args->folder, .settings = NULL,
+                   .count = 0u, .run_result = args->run_result, .err_msg = &unstarted);
+    if (!started || (args->run_result->code != 0ll))
     {
         mmgr_line_put(err_msg, name);
         mmgr_line_ch(err_msg, ' ');
         mmgr_line_put(err_msg, (args->count != 0u) ? args->request[0] : "");
         mmgr_line_put(err_msg, ": ");
-        const char *from = started ? args->ran->err : why;
-        const char *to = started ? (args->ran->err + args->ran->err_size) : (why + unstarted.at);
+        const char *from = started ? args->run_result->err : why;
+        const char *to = started ? (args->run_result->err + args->run_result->err_size) : (why + unstarted.at);
         while ((from < to) && EMBED_CALL(cli_executables_internal.scan_white, CliExecutablesCtx, .letter = from[0]))
         {
             from += 1;
@@ -125,16 +126,16 @@ EMBED_INLINE int cli_cargo_target(const ExecutablesCtx *args)
     char folder[CLI_PATH_MAX_LEN];
     const int has_folder =
         EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->manifest, .out = folder);
-    CliRan *const ran = cli_ran_take();
+    CliRunResult *const run_result = cli_run_result_alloc();
     char why[CLI_PATH_MAX_LEN];
     VerbaLinea unstarted = {why, sizeof(why), 0ull};
     const int started =
         EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = words, .folder = has_folder ? folder : NULL,
-                   .settings = NULL, .count = 0u, .ran = ran, .err_msg = &unstarted);
-    if (!started || (ran->code != 0ll))
+                   .settings = NULL, .count = 0u, .run_result = run_result, .err_msg = &unstarted);
+    if (!started || (run_result->code != 0ll))
     {
-        const char *from = started ? ran->err : why;
-        const char *to = started ? (ran->err + ran->err_size) : (why + unstarted.at);
+        const char *from = started ? run_result->err : why;
+        const char *to = started ? (run_result->err + run_result->err_size) : (why + unstarted.at);
         while ((from < to) && EMBED_CALL(cli_executables_internal.scan_white, CliExecutablesCtx, .letter = from[0]))
         {
             from += 1;
@@ -145,17 +146,18 @@ EMBED_INLINE int cli_cargo_target(const ExecutablesCtx *args)
         }
         mmgr_line_put(err_msg, "cargo metadata: ");
         mmgr_line_put_n(err_msg, from, (unsigned long long)(to - from));
-        EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+        EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
         return 0;
     }
     // Cargo's answer read into a tree sized to it
     CliJson json;
     char reason[CLI_NAME_MAX_LEN];
     VerbaLinea unread = {reason, sizeof(reason), 0ull};
-    const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg,
-                                         .json = &json, .text = ran->out, .size = ran->out_size, .nodes_more = 0u,
-                                         .text_more = 0ull, .err_msg = &unread, .owner = &g_cli_executables_cells);
-    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+    const unsigned int root =
+        EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
+                   .text = run_result->out, .size = run_result->out_size, .nodes_more = 0u, .text_more = 0ull,
+                   .err_msg = &unread, .owner = &g_cli_executables_cells);
+    EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
     if (root == CLI_JSON_NONE)
     {
         EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
@@ -290,10 +292,10 @@ int cli_executables_init(const CliExecutablesPathCfg *args)
                           .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL}) + 1u});
     }
     const char *base = full;
-    const unsigned long long base_past =
+    const unsigned long long base_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = full,
                    .at = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_CELLS_POOL}), .set = "/\\");
-    base = (base_past != 0ull) ? (full + base_past) : base;
+    base = (base_end != 0ull) ? (full + base_end) : base;
     const unsigned int kind =
         EMBED_CALL(cli_executables_name_out_folder_internal.kind_get, CliExecutablesNameOutFolderCtx, .name = base);
     if (kind == CLI_KIND_NONE)
@@ -405,7 +407,7 @@ int cli_executables_init(const CliExecutablesPathCfg *args)
         char exe[CLI_NAME_MAX_LEN];
         char under[CLI_PATH_MAX_LEN];
         // the spec read, a cell of its size taken for the reading
-        char *const spec = EMBED_CALL(cli_executables_walk_internal.text_take, CliExecutablesWalkCtx, .path = full);
+        char *const spec = EMBED_CALL(cli_executables_walk_internal.text_alloc, CliExecutablesWalkCtx, .path = full);
         if (spec == NULL)
         {
             mmgr_line_put(args->err_msg, script);
@@ -413,7 +415,7 @@ int cli_executables_init(const CliExecutablesPathCfg *args)
             return 0;
         }
         found = EMBED_CALL(cli_executables_text_exe_internal.spec_init, CliExecutablesTextExeCtx, .text = spec,
-                           .exe_room = exe, .path_out = under);
+                           .exe_capacity = exe, .path_out = under);
         g_cli_cells->persistent_buf_release(spec, &g_cli_executables_cells);
         if (!found)
         {

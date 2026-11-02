@@ -14,11 +14,11 @@ extern void test_an_unchanged_run_folds_to_three_lines_a_count_and_three_lines(v
 extern void test_a_diff_of_the_same_lines_marks_nothing(void);
 extern void test_a_line_added_to_an_empty_file(void);
 extern void test_a_line_removed_to_an_empty_file(void);
-extern void test_a_record_file_that_grew_is_shown_by_its_growth(void);
-extern void test_a_record_file_that_did_not_grow_is_shown_by_its_sizes(void);
+extern void test_a_record_file_that_grew_is_displayed_by_its_growth(void);
+extern void test_a_record_file_that_did_not_grow_is_displayed_by_its_sizes(void);
 extern void test_a_refused_file_is_restored_as_the_tree_stores_it(void);
 extern void test_a_file_after_all_is_answered_is_left_as_the_run_leaves_it(void);
-extern void test_each_changed_file_is_shown(void);
+extern void test_each_changed_file_is_displayed(void);
 extern void test_an_unchanged_file_is_skipped(void);
 
 
@@ -87,11 +87,11 @@ int main(void)
   run_test(test_a_diff_of_the_same_lines_marks_nothing, "test_a_diff_of_the_same_lines_marks_nothing", 180);
   run_test(test_a_line_added_to_an_empty_file, "test_a_line_added_to_an_empty_file", 188);
   run_test(test_a_line_removed_to_an_empty_file, "test_a_line_removed_to_an_empty_file", 193);
-  run_test(test_a_record_file_that_grew_is_shown_by_its_growth, "test_a_record_file_that_grew_is_shown_by_its_growth", 198);
-  run_test(test_a_record_file_that_did_not_grow_is_shown_by_its_sizes, "test_a_record_file_that_did_not_grow_is_shown_by_its_sizes", 203);
+  run_test(test_a_record_file_that_grew_is_displayed_by_its_growth, "test_a_record_file_that_grew_is_displayed_by_its_growth", 198);
+  run_test(test_a_record_file_that_did_not_grow_is_displayed_by_its_sizes, "test_a_record_file_that_did_not_grow_is_displayed_by_its_sizes", 203);
   run_test(test_a_refused_file_is_restored_as_the_tree_stores_it, "test_a_refused_file_is_restored_as_the_tree_stores_it", 208);
   run_test(test_a_file_after_all_is_answered_is_left_as_the_run_leaves_it, "test_a_file_after_all_is_answered_is_left_as_the_run_leaves_it", 214);
-  run_test(test_each_changed_file_is_shown, "test_each_changed_file_is_shown", 220);
+  run_test(test_each_changed_file_is_displayed, "test_each_changed_file_is_displayed", 220);
   run_test(test_an_unchanged_file_is_skipped, "test_an_unchanged_file_is_skipped", 227);
 
   return UNITY_END();

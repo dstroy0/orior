@@ -18,7 +18,7 @@ void cli_shape_ends_free(const CliShapeMatcherCtx *args)
     g_cli_cells->persistent_buf_release(args->matcher->ends, &g_cli_shape_cells);
     args->matcher->ends = NULL;
     args->matcher->ends_top = 0u;
-    args->matcher->ends_room = 0u;
+    args->matcher->ends_capacity = 0u;
 }
 
 typedef struct
@@ -57,18 +57,18 @@ EMBED_INLINE int match_ends_statement(const ShapeMatchCtx *args)
 
 // an end put on the stack where it fits: the stack one cell, taken as its first end is put, of a token's end for each
 // part of the pattern at the most, the end not put where it is full or the cellblock cannot meet it
-EMBED_INLINE void match_end_put(const ShapeMatchCtx *args)
+EMBED_INLINE void match_end_append(const ShapeMatchCtx *args)
 {
-    if (args->matcher_out->ends_room == 0u)
+    if (args->matcher_out->ends_capacity == 0u)
     {
-        const unsigned long long wanted = ((unsigned long long)args->matcher_out->tokens->count + 1ull) *
-                                          ((unsigned long long)args->matcher_out->part_count + 1ull);
-        const unsigned int room = (wanted < CLI_SHAPE_ENDS) ? (unsigned int)wanted : CLI_SHAPE_ENDS;
+        const unsigned long long required = ((unsigned long long)args->matcher_out->tokens->count + 1ull) *
+                                            ((unsigned long long)args->matcher_out->part_count + 1ull);
+        const unsigned int capacity = (required < CLI_SHAPE_ENDS) ? (unsigned int)required : CLI_SHAPE_ENDS;
         args->matcher_out->ends =
-            g_cli_cells->temporary_buf_alloc(room * sizeof(*args->matcher_out->ends), &g_cli_shape_cells);
-        args->matcher_out->ends_room = (args->matcher_out->ends != NULL) ? room : 0u;
+            g_cli_cells->temporary_buf_alloc(capacity * sizeof(*args->matcher_out->ends), &g_cli_shape_cells);
+        args->matcher_out->ends_capacity = (args->matcher_out->ends != NULL) ? capacity : 0u;
     }
-    if (args->matcher_out->ends_top < args->matcher_out->ends_room)
+    if (args->matcher_out->ends_top < args->matcher_out->ends_capacity)
     {
         args->matcher_out->ends[args->matcher_out->ends_top] = args->end;
         args->matcher_out->ends_top += 1u;
@@ -92,7 +92,7 @@ EMBED_INLINE void match_ends(const ShapeMatchCtx *args)
         {
             if (args->matcher_out->tokens->kind[at_end] == CLI_SHAPE_NAME)
             {
-                EMBED_CALL(match_end_put, ShapeMatchCtx, .matcher_out = args->matcher_out, .end = at_end + 1u);
+                EMBED_CALL(match_end_append, ShapeMatchCtx, .matcher_out = args->matcher_out, .end = at_end + 1u);
             }
             break;
         }
@@ -106,7 +106,7 @@ EMBED_INLINE void match_ends(const ShapeMatchCtx *args)
             depth += change;
             if (depth == 0)
             {
-                EMBED_CALL(match_end_put, ShapeMatchCtx, .matcher_out = args->matcher_out, .end = at_end + 1u);
+                EMBED_CALL(match_end_append, ShapeMatchCtx, .matcher_out = args->matcher_out, .end = at_end + 1u);
             }
             continue;
         }
@@ -115,7 +115,7 @@ EMBED_INLINE void match_ends(const ShapeMatchCtx *args)
             (EMBED_CALL(match_ends_statement, ShapeMatchCtx, .matcher = args->matcher_out, .at = at_end) ||
              (((args->matcher_out->tokens->role[at_end] & CLI_SHAPE_REGION) != 0u) && (change < 0))))
         {
-            EMBED_CALL(match_end_put, ShapeMatchCtx, .matcher_out = args->matcher_out, .end = at_end + 1u);
+            EMBED_CALL(match_end_append, ShapeMatchCtx, .matcher_out = args->matcher_out, .end = at_end + 1u);
             if (args->last)
             {
                 break;
@@ -126,7 +126,7 @@ EMBED_INLINE void match_ends(const ShapeMatchCtx *args)
         ((args->matcher_out->ends_top == first) ||
          (args->matcher_out->ends[args->matcher_out->ends_top - 1u] != at_end)))
     {
-        EMBED_CALL(match_end_put, ShapeMatchCtx, .matcher_out = args->matcher_out, .end = at_end);
+        EMBED_CALL(match_end_append, ShapeMatchCtx, .matcher_out = args->matcher_out, .end = at_end);
     }
     if ((args->hole == CLI_SHAPE_HOLE_EXPR) && args->last)
     {

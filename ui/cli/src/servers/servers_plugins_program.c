@@ -29,9 +29,9 @@ int cli_servers_plugin_program(const CliServersErrMsgJsonCtx *args)
     }
     if (toolchain == NULL)
     {
-        VerbaLinea whole = {args->program, CLI_PATH_MAX_LEN, 0ull};
-        mmgr_line_put(&whole, name);
-        return mmgr_line_finish(&whole) != 0ull;
+        VerbaLinea integer = {args->program, CLI_PATH_MAX_LEN, 0ull};
+        mmgr_line_put(&integer, name);
+        return mmgr_line_finish(&integer) != 0ull;
     }
     CliJson manifest_json;
     const unsigned int tool =
@@ -43,7 +43,7 @@ int cli_servers_plugin_program(const CliServersErrMsgJsonCtx *args)
     if (tool != CLI_JSON_NONE)
     {
         unsigned int count = 0u;
-        char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&count, &g_cli_servers_cells);
+        char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_allocated(&count, &g_cli_servers_cells);
         EMBED_CALL(cli_toolchains_json.find, CliToolchainsJsonCfg, .json = &manifest_json, .tool = tool,
                    .path_callback = (const char (*)[CLI_PATH_MAX_LEN])folders, .count = count, .found = &found);
         g_cli_cells->persistent_buf_release(folders, &g_cli_servers_cells);
@@ -66,7 +66,7 @@ int cli_servers_plugin_program(const CliServersErrMsgJsonCtx *args)
 
 // the `length` bytes of `text` written into `written`, each `{folder}` in them written as `folder`, escaped for a JSON
 // string where `escaped`
-void cli_servers_plugin_folder_put(const CliServersTextCtx *args)
+void cli_servers_plugin_folder_append(const CliServersTextCtx *args)
 {
     const unsigned long long folder_length = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_CELLS_POOL});
     for (unsigned long long at = 0ull; at < args->length; at += 1ull)
@@ -107,12 +107,12 @@ void cli_servers_plugin_args(const CliServersJsonServerCtx *args)
         const char *const text = (arg != NULL) ? arg : "";
         char word[CLI_PATH_MAX_LEN * 2u];
         VerbaLinea written = {word, sizeof(word), 0ull};
-        EMBED_CALL(cli_servers_text_internal.plugin_folder_put, CliServersTextCtx, .written = &written, .text = text,
+        EMBED_CALL(cli_servers_text_internal.plugin_folder_append, CliServersTextCtx, .written = &written, .text = text,
                    .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), .folder = args->folder,
                    .escaped = 0);
         if (mmgr_line_finish(&written) != 0ull)
         {
-            EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = args->words,
+            EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
                        .word = word);
         }
     }

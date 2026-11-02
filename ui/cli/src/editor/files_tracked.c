@@ -45,8 +45,8 @@ EMBED_INLINE int tracked_cache(const FilesTrackedCtx *args)
     return found;
 }
 
-// git's answer for `outside` cached for the listing made at `at`, where it is that listing's still and room is left
-EMBED_INLINE void tracked_put(const FilesTrackedCtx *args)
+// git's answer for `outside` cached for the listing made at `at`, where it is that listing's still and capacity is left
+EMBED_INLINE void tracked_append(const FilesTrackedCtx *args)
 {
     if ((s_cached_at == args->at) && (s_cached_count < CLI_TRACKED_CACHE))
     {
@@ -101,7 +101,7 @@ int cli_files_track(const CliFilesRootPathCfg *args)
         }
         at = end + 1ull;
     }
-    const unsigned long long read_at = cli_tree_listed_at();
+    const unsigned long long read_at = cli_tree_listing_at();
     int ignored = 0;
     if (EMBED_CALL(tracked_cache, FilesTrackedCtx, .outside = outside, .at = read_at, .ignored = &ignored))
     {
@@ -120,13 +120,13 @@ int cli_files_track(const CliFilesRootPathCfg *args)
     words[count + 2u] = "--";
     words[count + 3u] = spec;
     words[count + 4u] = NULL;
-    CliRan *const ran = cli_ran_take();
+    CliRunResult *const run_result = cli_run_result_alloc();
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea unstarted = {why, sizeof(why), 0ull};
     ignored = EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = words, .folder = root, .settings = NULL,
-                         .count = 0u, .ran = ran, .err_msg = &unstarted) &&
-              (ran->code == 0ll);
-    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
-    EMBED_CALL(tracked_put, FilesTrackedCtx, .outside = outside, .at = read_at, .ignored_value = ignored);
+                         .count = 0u, .run_result = run_result, .err_msg = &unstarted) &&
+              (run_result->code == 0ll);
+    EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
+    EMBED_CALL(tracked_append, FilesTrackedCtx, .outside = outside, .at = read_at, .ignored_value = ignored);
     return !ignored;
 }

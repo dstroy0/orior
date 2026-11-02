@@ -74,7 +74,7 @@ void cli_catalog_short(const CliCatalogOutCtx *args)
         folder = args->file + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->file,
                                          .at = (unsigned long long)(folder - args->file), .set = "/");
     }
-    EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_room = out, .text = folder, .otherwise = args->file);
+    EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_capacity = out, .text = folder, .otherwise = args->file);
 }
 
 // a job of a script: its id the group and its file, its title its file
@@ -93,7 +93,7 @@ void cli_catalog_script_job(const CliCatalogPathCtx *args)
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, file);
     mmgr_line_finish(&line);
-    char *const about = cli_catalog_path_internal.about_take(args);
+    char *const about = cli_catalog_path_internal.about_alloc(args);
     EMBED_CALL(cli_catalog_id_group.job, CliCatalogIdGroupCfg, .catalog = catalog, .id = id, .group = group,
                .title = (title != NULL) ? title : file, .file = file, .about = (about != NULL) ? about : "",
                .opens = opens);
@@ -133,47 +133,47 @@ void cli_catalog_bash_alone(const CliCatalogPathCtx *args)
 // source and never a build of its own
 void cli_catalog_builds(const CliCatalogPathCtx *args)
 {
-    static const char *const s_places[3] = {"/src", "/utils/maint/engine", "/utils/maint/texbuild"};
+    static const char *const s_positions[3] = {"/src", "/utils/maint/engine", "/utils/maint/texbuild"};
     char place[CLI_PATH_MAX_LEN];
     char path[CLI_PATH_MAX_LEN];
     CliEntries examples = {NULL, 0u, 0u};
     CliEntries builds = {NULL, 0u, 0u};
-    CliPaths listed = {NULL, 0u};
+    CliPaths list_entries = {NULL, 0u};
     EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = args->root, .name = "examples",
                .path_out = place);
     EMBED_CALL(cli_catalog_folder_internal.entries, CliCatalogFolderCtx, .folder = place, .folders = 1, .filter = NULL,
                .entries = &examples);
-    (void)EMBED_CALL(cli_catalog_most_internal.paths_room, CliCatalogMostCtx, .paths = &listed,
+    (void)EMBED_CALL(cli_catalog_max_internal.paths_capacity, CliCatalogMaxCtx, .paths = &list_entries,
                      .most = 3u + examples.count);
-    unsigned int places = 0u;
-    for (unsigned int at = 0u; (at < 3u) && (places < listed.room); at += 1u)
+    unsigned int positions = 0u;
+    for (unsigned int at = 0u; (at < 3u) && (positions < list_entries.capacity); at += 1u)
     {
-        VerbaLinea line = {listed.path[places], CLI_PATH_MAX_LEN, 0ull};
+        VerbaLinea line = {list_entries.path[positions], CLI_PATH_MAX_LEN, 0ull};
         mmgr_line_put(&line, args->root);
-        mmgr_line_put(&line, s_places[at]);
-        places += (mmgr_line_finish(&line) != 0ull) ? 1u : 0u;
+        mmgr_line_put(&line, s_positions[at]);
+        positions += (mmgr_line_finish(&line) != 0ull) ? 1u : 0u;
     }
-    for (unsigned int at = 0u; (at < examples.count) && (places < listed.room); at += 1u)
+    for (unsigned int at = 0u; (at < examples.count) && (positions < list_entries.capacity); at += 1u)
     {
         EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = place,
-                   .name = examples.name[at], .path_out = listed.path[places]);
-        places += 1u;
+                   .name = examples.name[at], .path_out = list_entries.path[positions]);
+        positions += 1u;
     }
     EMBED_CALL(cli_catalog_folder_internal.entries_free, CliCatalogFolderCtx, .entries = &examples);
-    for (unsigned int at = 0u; at < places; at += 1u)
+    for (unsigned int at = 0u; at < positions; at += 1u)
     {
-        EMBED_CALL(cli_catalog_folder_internal.entries, CliCatalogFolderCtx, .folder = listed.path[at], .folders = 0,
-                   .filter = cli_is_build, .entries = &builds);
+        EMBED_CALL(cli_catalog_folder_internal.entries, CliCatalogFolderCtx, .folder = list_entries.path[at],
+                   .folders = 0, .filter = cli_is_build, .entries = &builds);
         for (unsigned int each = 0u; each < builds.count; each += 1u)
         {
-            EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = listed.path[at],
+            EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = list_entries.path[at],
                        .name = builds.name[each], .path_out = path);
             EMBED_CALL(cli_catalog_path_internal.bash_alone, CliCatalogPathCtx, .catalog = args->catalog,
                        .root = args->root, .group = "build", .path = path);
         }
     }
     EMBED_CALL(cli_catalog_folder_internal.entries_free, CliCatalogFolderCtx, .entries = &builds);
-    EMBED_CALL(cli_catalog_most_internal.paths_free, CliCatalogMostCtx, .paths = &listed);
+    EMBED_CALL(cli_catalog_max_internal.paths_free, CliCatalogMaxCtx, .paths = &list_entries);
 }
 
 typedef struct
@@ -247,10 +247,10 @@ static int cli_find_file(const CatalogReadCtx *args)
     return found_one;
 }
 
-char *cli_catalog_script_take(const CliCatalogPathOutCtx *args)
+char *cli_catalog_script_alloc(const CliCatalogPathOutCtx *args)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = args->path,
+    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->path,
                                                   .size_pointer = &size, .owner = &g_cli_catalog_cells);
     if (bytes == NULL)
     {
@@ -276,20 +276,20 @@ void cli_catalog_sims(const CliCatalogPathCtx *args)
                .name = "src/sims/run.sh", .path_out = script);
     EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = args->root,
                .name = "src/sims/cu", .path_out = sims_cu);
-    char *const text = EMBED_CALL(cli_catalog_path_out_internal.script_take, CliCatalogPathOutCtx, .path = script);
+    char *const text = EMBED_CALL(cli_catalog_path_out_internal.script_alloc, CliCatalogPathOutCtx, .path = script);
     if (text == NULL)
     {
         return;
     }
     CliEntries names = {NULL, 0u, 0u};
     CliEntries sources = {NULL, 0u, 0u};
-    (void)EMBED_CALL(cli_catalog_names_internal.names_room, CliCatalogNamesCtx, .names = &names,
+    (void)EMBED_CALL(cli_catalog_names_internal.names_capacity, CliCatalogNamesCtx, .names = &names,
                      .most = EMBED_CALL(cli_catalog_text_variable_internal.case_names, CliCatalogTextVariableCtx,
-                                        .text_read = text, .variable = "SIM", .names_callback = NULL, .room = 0u));
+                                        .text_read = text, .variable = "SIM", .names_callback = NULL, .capacity = 0u));
     const unsigned int count =
         (names.name != NULL)
             ? EMBED_CALL(cli_catalog_text_variable_internal.case_names, CliCatalogTextVariableCtx, .text_read = text,
-                         .variable = "SIM", .names_callback = names.name, .room = names.room)
+                         .variable = "SIM", .names_callback = names.name, .capacity = names.capacity)
             : 0u;
     EMBED_CALL(cli_catalog_internal.text_free, CliCatalogCtx, .text = text);
     for (unsigned int at = 0u; at < count; at += 1u)
@@ -330,7 +330,7 @@ void cli_catalog_sims(const CliCatalogPathCtx *args)
         {
             EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = args->root, .path = source,
                        .relative_out = file);
-            about = EMBED_CALL(cli_catalog_path_internal.about_take, CliCatalogPathCtx, .path = source);
+            about = EMBED_CALL(cli_catalog_path_internal.about_alloc, CliCatalogPathCtx, .path = source);
         }
         else
         {
@@ -361,9 +361,9 @@ unsigned int cli_catalog_paths(const CliCatalogFilterCtx *args)
     CliEntries files = {NULL, 0u, 0u};
     EMBED_CALL(cli_catalog_folder_internal.entries, CliCatalogFolderCtx, .folder = args->dir, .folders = 0,
                .filter = args->filter, .entries = &files);
-    (void)EMBED_CALL(cli_catalog_most_internal.paths_room, CliCatalogMostCtx, .paths = args->list,
+    (void)EMBED_CALL(cli_catalog_max_internal.paths_capacity, CliCatalogMaxCtx, .paths = args->list,
                      .most = at + files.count);
-    for (unsigned int each = 0u; (each < files.count) && (at < args->list->room); each += 1u)
+    for (unsigned int each = 0u; (each < files.count) && (at < args->list->capacity); each += 1u)
     {
         char path[CLI_PATH_MAX_LEN];
         EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = args->dir,

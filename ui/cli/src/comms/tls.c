@@ -10,14 +10,14 @@ int cli_tls_on_write(const CliTlsDataCfg *args)
     unsigned long long done = 0ull;
     while (done < args->size)
     {
-        const long long taken = EMBED_CALL(cli_tls_data.write, CliTlsDataCfg, .tls = args->tls, .data = bytes + done,
-                                           .size = args->size - done, .err_msg = args->err_msg);
-        if (taken <= 0ll)
+        const long long reserved = EMBED_CALL(cli_tls_data.write, CliTlsDataCfg, .tls = args->tls, .data = bytes + done,
+                                              .size = args->size - done, .err_msg = args->err_msg);
+        if (reserved <= 0ll)
         {
             return 0;
         }
         // a count written is not negative here
-        done += (unsigned long long)taken;
+        done += (unsigned long long)reserved;
     }
     return 1;
 }

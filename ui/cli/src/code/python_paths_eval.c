@@ -16,7 +16,7 @@
 #define CLI_PY_SEPARATOR '/'
 #endif
 
-void cli_py_value_put(const CliPythonPathsTextKindCtx *args)
+void cli_py_value_append(const CliPythonPathsTextKindCtx *args)
 {
     if ((args->text_u32 != CLI_PY_NONE) && (g_cli_py.values < CLI_PY_VALUES))
     {
@@ -56,12 +56,12 @@ typedef struct
     const CliExpr *many;
 } PythonPathsEvalCtx;
 // a text written into `line` put as a value
-EMBED_INLINE void cli_line_put(const PythonPathsEvalCtx *args)
+EMBED_INLINE void cli_line_append(const PythonPathsEvalCtx *args)
 {
     if (mmgr_line_ok(args->line))
     {
-        EMBED_CALL(cli_python_paths_text_kind_internal.py_value_put, CliPythonPathsTextKindCtx,
-                   .text_u32 = EMBED_CALL(cli_python_paths_text_internal.py_text_put, CliPythonPathsTextCtx,
+        EMBED_CALL(cli_python_paths_text_kind_internal.py_value_append, CliPythonPathsTextKindCtx,
+                   .text_u32 = EMBED_CALL(cli_python_paths_text_internal.py_text_append, CliPythonPathsTextCtx,
                                           .text = args->line->out, .length = args->line->at));
     }
 }
@@ -74,10 +74,10 @@ EMBED_INLINE int cli_parts(const PythonPathsEvalCtx *args)
 
 void cli_py_parent(const CliPythonPathsOutCtx *args)
 {
-    const unsigned long long last_past =
+    const unsigned long long last_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
                    .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
-    const char *const last = (last_past != 0ull) ? (args->path + last_past - 1ull) : NULL;
+    const char *const last = (last_end != 0ull) ? (args->path + last_end - 1ull) : NULL;
     if (last == NULL)
     {
         return;
@@ -120,7 +120,7 @@ EMBED_INLINE void cli_join(const PythonPathsEvalCtx *args)
 // every pairing of the values of `one` and `other`, joined, or added where `join` is 0, at most CLI_PY_PAIRS of them
 EMBED_INLINE CliValues cli_pairs(const PythonPathsEvalCtx *args)
 {
-    static char s_made[CLI_PATH_MAX_LEN * 2u];
+    static char s_created[CLI_PATH_MAX_LEN * 2u];
     const unsigned int mark = g_cli_py.values;
     unsigned int made = 0u;
     for (unsigned int left = 0u; (left < args->one.count) && (made < CLI_PY_PAIRS); left += 1u)
@@ -131,7 +131,7 @@ EMBED_INLINE CliValues cli_pairs(const PythonPathsEvalCtx *args)
                                                 .at = g_cli_py.value[args->one.first + left]);
             const char *const part = EMBED_CALL(cli_python_paths_at_internal.py_text, CliPythonPathsAtCtx,
                                                 .at = g_cli_py.value[args->other.first + right]);
-            VerbaLinea line = {s_made, sizeof(s_made), 0ull};
+            VerbaLinea line = {s_created, sizeof(s_created), 0ull};
             if (args->join)
             {
                 EMBED_CALL(cli_join, PythonPathsEvalCtx, .base = base, .part = part, .out = &line);
@@ -141,7 +141,7 @@ EMBED_INLINE CliValues cli_pairs(const PythonPathsEvalCtx *args)
                 mmgr_line_put(&line, base);
                 mmgr_line_put(&line, part);
             }
-            EMBED_CALL(cli_line_put, PythonPathsEvalCtx, .line = &line);
+            EMBED_CALL(cli_line_append, PythonPathsEvalCtx, .line = &line);
             made += 1u;
         }
     }
@@ -177,9 +177,9 @@ EMBED_INLINE CliValues cli_parents(const PythonPathsEvalCtx *args)
                 .bytes =
                     cellul.len(&(CatenaFinitaCfg){.src = (length == 0ull) ? "" : s_up, .cap = CLI_CELLS_POOL}) + 1u});
         }
-        EMBED_CALL(cli_python_paths_text_kind_internal.py_value_put, CliPythonPathsTextKindCtx,
+        EMBED_CALL(cli_python_paths_text_kind_internal.py_value_append, CliPythonPathsTextKindCtx,
                    .text_u32 =
-                       EMBED_CALL(cli_python_paths_text_internal.py_text_put, CliPythonPathsTextCtx, .text = s_at,
+                       EMBED_CALL(cli_python_paths_text_internal.py_text_append, CliPythonPathsTextCtx, .text = s_at,
                                   .length = cellul.len(&(CatenaFinitaCfg){.src = s_at, .cap = CLI_CELLS_POOL})));
     }
     return EMBED_CALL(cli_python_paths_first_internal.py_values_from, CliPythonPathsFirstCtx, .first = mark);
@@ -335,9 +335,9 @@ EMBED_INLINE CliValues cli_index(const PythonPathsEvalCtx *args)
             last = found;
         }
         // the parting found lies in the text, at or past its start
-        EMBED_CALL(cli_python_paths_text_kind_internal.py_value_put, CliPythonPathsTextKindCtx,
+        EMBED_CALL(cli_python_paths_text_kind_internal.py_value_append, CliPythonPathsTextKindCtx,
                    .text_u32 = (last != NULL)
-                                   ? EMBED_CALL(cli_python_paths_text_internal.py_text_put, CliPythonPathsTextCtx,
+                                   ? EMBED_CALL(cli_python_paths_text_internal.py_text_append, CliPythonPathsTextCtx,
                                                 .text = text, .length = (unsigned long long)(last - text))
                                    : g_cli_py.value[values.first + one]);
     }
@@ -352,7 +352,7 @@ EMBED_INLINE CliValues cli_many(const PythonPathsEvalCtx *args)
     {
         const CliValues one = EMBED_CALL(cli_python_paths_expr_internal.py_eval, CliPythonPathsExprCtx,
                                          .expr = g_cli_py.item[args->many->first + at]);
-        if (g_cli_py.ranged < g_cli_py.items_most)
+        if (g_cli_py.ranged < g_cli_py.items_max)
         {
             g_cli_py.range[g_cli_py.ranged] = one;
             g_cli_py.ranged += 1u;
@@ -364,7 +364,7 @@ EMBED_INLINE CliValues cli_many(const PythonPathsEvalCtx *args)
         const CliValues one = g_cli_py.range[at];
         for (unsigned int place = 0u; place < one.count; place += 1u)
         {
-            EMBED_CALL(cli_python_paths_text_kind_internal.py_value_put, CliPythonPathsTextKindCtx,
+            EMBED_CALL(cli_python_paths_text_kind_internal.py_value_append, CliPythonPathsTextKindCtx,
                        .text_u32 = g_cli_py.value[one.first + place]);
         }
     }
@@ -382,9 +382,9 @@ CliValues cli_py_eval(const CliPythonPathsExprCtx *args)
         const char *const name = EMBED_CALL(cli_python_paths_at_internal.py_text, CliPythonPathsAtCtx, .at = one->text);
         if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "__file__", .cap = CLI_CELLS_POOL}))
         {
-            EMBED_CALL(cli_python_paths_text_kind_internal.py_value_put, CliPythonPathsTextKindCtx,
+            EMBED_CALL(cli_python_paths_text_kind_internal.py_value_append, CliPythonPathsTextKindCtx,
                        .text_u32 = EMBED_CALL(
-                           cli_python_paths_text_internal.py_text_put, CliPythonPathsTextCtx, .text = g_cli_py.file,
+                           cli_python_paths_text_internal.py_text_append, CliPythonPathsTextCtx, .text = g_cli_py.file,
                            .length = cellul.len(&(CatenaFinitaCfg){.src = g_cli_py.file, .cap = CLI_CELLS_POOL})));
             return EMBED_CALL(cli_python_paths_first_internal.py_values_from, CliPythonPathsFirstCtx, .first = mark);
         }
@@ -401,7 +401,8 @@ CliValues cli_py_eval(const CliPythonPathsExprCtx *args)
         return cli_none();
     }
     case CLI_EXPR_TEXT:
-        EMBED_CALL(cli_python_paths_text_kind_internal.py_value_put, CliPythonPathsTextKindCtx, .text_u32 = one->text);
+        EMBED_CALL(cli_python_paths_text_kind_internal.py_value_append, CliPythonPathsTextKindCtx,
+                   .text_u32 = one->text);
         return EMBED_CALL(cli_python_paths_first_internal.py_values_from, CliPythonPathsFirstCtx, .first = mark);
     case CLI_EXPR_MANY:
         return EMBED_CALL(cli_many, PythonPathsEvalCtx, .many = one);
@@ -489,7 +490,7 @@ CliValues cli_py_folders_in(const CliPythonPathsCtx *args)
     {
         VerbaLinea line = {s_path, sizeof(s_path), 0ull};
         EMBED_CALL(cli_join, PythonPathsEvalCtx, .base = args->folder, .part = s_folders.name[at], .out = &line);
-        EMBED_CALL(cli_line_put, PythonPathsEvalCtx, .line = &line);
+        EMBED_CALL(cli_line_append, PythonPathsEvalCtx, .line = &line);
     }
     return EMBED_CALL(cli_python_paths_first_internal.py_values_from, CliPythonPathsFirstCtx, .first = mark);
 }
@@ -502,9 +503,10 @@ CliValues cli_py_upward(const CliPythonPathsOutCtx *args)
     memor.cpy(&(MemoriaCfg){.dst = s_at,
                             .src = args->path,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1u});
-    EMBED_CALL(cli_python_paths_text_kind_internal.py_value_put, CliPythonPathsTextKindCtx,
-               .text_u32 = EMBED_CALL(cli_python_paths_text_internal.py_text_put, CliPythonPathsTextCtx, .text = s_at,
-                                      .length = cellul.len(&(CatenaFinitaCfg){.src = s_at, .cap = CLI_CELLS_POOL})));
+    EMBED_CALL(cli_python_paths_text_kind_internal.py_value_append, CliPythonPathsTextKindCtx,
+               .text_u32 =
+                   EMBED_CALL(cli_python_paths_text_internal.py_text_append, CliPythonPathsTextCtx, .text = s_at,
+                              .length = cellul.len(&(CatenaFinitaCfg){.src = s_at, .cap = CLI_CELLS_POOL})));
     for (;;)
     {
         VerbaLinea up = {s_up, sizeof(s_up), 0ull};
@@ -515,8 +517,8 @@ CliValues cli_py_upward(const CliPythonPathsOutCtx *args)
         {
             return EMBED_CALL(cli_python_paths_first_internal.py_values_from, CliPythonPathsFirstCtx, .first = mark);
         }
-        EMBED_CALL(cli_python_paths_text_kind_internal.py_value_put, CliPythonPathsTextKindCtx,
-                   .text_u32 = EMBED_CALL(cli_python_paths_text_internal.py_text_put, CliPythonPathsTextCtx,
+        EMBED_CALL(cli_python_paths_text_kind_internal.py_value_append, CliPythonPathsTextKindCtx,
+                   .text_u32 = EMBED_CALL(cli_python_paths_text_internal.py_text_append, CliPythonPathsTextCtx,
                                           .text = s_up, .length = length));
         memor.cpy(&(MemoriaCfg){.dst = s_at,
                                 .src = s_up,

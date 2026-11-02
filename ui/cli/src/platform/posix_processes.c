@@ -24,7 +24,7 @@ typedef struct
 #if (!defined(_WIN32)) && (defined(__linux__))
     const char *path;
     char *out;
-    unsigned long long room;
+    unsigned long long capacity;
     const char *text;
     const char *field;
     unsigned int pid;
@@ -41,7 +41,7 @@ static char s_command[CLI_PROCESS_TEXT];
 #if defined(__linux__)
 static char s_line[CLI_PROCESS_TEXT];
 
-// the file at `path` read into `out`, sized for `room`: the bytes read, -1 where it cannot be opened
+// the file at `path` read into `out`, sized for `capacity`: the bytes read, -1 where it cannot be opened
 EMBED_INLINE long long processes_read(const PosixProcessesCtx *args)
 {
     const int file = open(args->path, O_RDONLY | O_CLOEXEC);
@@ -52,7 +52,7 @@ EMBED_INLINE long long processes_read(const PosixProcessesCtx *args)
     unsigned long long used = 0ull;
     for (;;)
     {
-        const ssize_t count = read(file, args->out + used, args->room - used);
+        const ssize_t count = read(file, args->out + used, args->capacity - used);
         if (count <= 0)
         {
             break;
@@ -78,7 +78,7 @@ static void processes_entry(const CliEachNameIsFolderCfg *args)
     int number = args->is_folder && (args->name[0] != '\0') &&
                  (cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}) <= 10u);
     const unsigned long long digits = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
-    number = number && (EMBED_CALL(cli_text_at_size_classes.past_class, CliTextAtSizeClassesCfg, .text = args->name,
+    number = number && (EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = args->name,
                                    .at = 0ull, .size = digits, .classes = CLI_TEXT_DIGITS, .set = "") == digits);
     pid = number ? EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = args->name, .at = 0ull, .size = digits,
                               .end = NULL)
@@ -94,7 +94,7 @@ static void processes_entry(const CliEachNameIsFolderCfg *args)
     mmgr_line_put(&named, "/comm");
     mmgr_line_finish(&named);
     const long long name_size =
-        EMBED_CALL(processes_read, PosixProcessesCtx, .path = path, .out = s_name, .room = sizeof(s_name) - 1u);
+        EMBED_CALL(processes_read, PosixProcessesCtx, .path = path, .out = s_name, .capacity = sizeof(s_name) - 1u);
     if (name_size < 0ll)
     {
         return;
@@ -112,7 +112,7 @@ static void processes_entry(const CliEachNameIsFolderCfg *args)
     mmgr_line_put(&named, "/cmdline");
     mmgr_line_finish(&named);
     const long long line_size =
-        EMBED_CALL(processes_read, PosixProcessesCtx, .path = path, .out = s_line, .room = sizeof(s_line));
+        EMBED_CALL(processes_read, PosixProcessesCtx, .path = path, .out = s_line, .capacity = sizeof(s_line));
     VerbaLinea command = {s_command, sizeof(s_command), 0ull};
     unsigned long long word = 0ull;
     for (unsigned long long at = 0ull; at <= (unsigned long long)((line_size > 0ll) ? line_size : 0ll); at += 1ull)
@@ -143,17 +143,18 @@ void cli_processes_each(const CliContextCtx *args)
     const char *const words[4] = {"ps", "-eo", "pid=,comm=,args=", NULL};
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    CliRan *const ran = cli_ran_take();
+    CliRunResult *const run_result = cli_run_result_alloc();
     if (!EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = words, .folder = NULL, .settings = NULL, .count = 0u,
-                    .ran = ran, .err_msg = &err_msg))
+                    .run_result = run_result, .err_msg = &err_msg))
     {
-        EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+        EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
         return;
     }
-    for (unsigned long long start = 0ull; start < ran->out_size;)
+    for (unsigned long long start = 0ull; start < run_result->out_size;)
     {
-        const unsigned long long end =
-            EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = ran->out, .at = start, .size = ran->out_size).stop;
+        const unsigned long long end = EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = run_result->out,
+                                                  .at = start, .size = run_result->out_size)
+                                           .stop;
         // the line's words apart by spaces: its number, its name, then the words of its line joined by one space
         unsigned long long pid = 0ull;
         unsigned int index = 0u;
@@ -163,13 +164,13 @@ void cli_processes_each(const CliContextCtx *args)
         for (unsigned long long at = start; at < end;)
         {
             while ((at < end) && (cellul.chr(&(CatenaFinitaCfg){
-                                      .src = " \t\r\f\v", .cap = CLI_CELLS_POOL, .byte = ran->out[at]}) != NULL))
+                                      .src = " \t\r\f\v", .cap = CLI_CELLS_POOL, .byte = run_result->out[at]}) != NULL))
             {
                 at += 1ull;
             }
             const unsigned long long first = at;
             while ((at < end) && (cellul.chr(&(CatenaFinitaCfg){
-                                      .src = " \t\r\f\v", .cap = CLI_CELLS_POOL, .byte = ran->out[at]}) == NULL))
+                                      .src = " \t\r\f\v", .cap = CLI_CELLS_POOL, .byte = run_result->out[at]}) == NULL))
             {
                 at += 1ull;
             }
@@ -179,19 +180,20 @@ void cli_processes_each(const CliContextCtx *args)
             }
             for (unsigned long long digit = first; (index == 0u) && (digit < at); digit += 1ull)
             {
-                number = number && (ran->out[digit] >= '0') && (ran->out[digit] <= '9') && (at - first <= 10ull);
-                pid = (pid * 10ull) + (unsigned long long)(ran->out[digit] - '0');
+                number = number && (run_result->out[digit] >= '0') && (run_result->out[digit] <= '9') &&
+                         (at - first <= 10ull);
+                pid = (pid * 10ull) + (unsigned long long)(run_result->out[digit] - '0');
             }
             if (index == 1u)
             {
                 EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &name,
-                           .text_bytes = (const unsigned char *)ran->out + first, .length = at - first);
+                           .text_bytes = (const unsigned char *)run_result->out + first, .length = at - first);
             }
             else if (index > 1u)
             {
                 mmgr_line_put(&command, (command.at > 0ull) ? " " : "");
                 EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &command,
-                           .text_bytes = (const unsigned char *)ran->out + first, .length = at - first);
+                           .text_bytes = (const unsigned char *)run_result->out + first, .length = at - first);
             }
             index += 1u;
         }
@@ -204,7 +206,7 @@ void cli_processes_each(const CliContextCtx *args)
         }
         start = end + 1ull;
     }
-    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+    EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
 }
 #endif
 #endif
@@ -236,7 +238,7 @@ EMBED_INLINE unsigned long long processes_kilobytes(const PosixProcessesCtx *arg
         return 0ull;
     }
     at += cellul.len(&(CatenaFinitaCfg){.src = args->field, .cap = CLI_CELLS_POOL});
-    at += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ull,
+    at += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ull,
                      .size = cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL}), .set = " \t");
     unsigned long long kilobytes = 0ull;
     kilobytes = EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = at, .at = 0ull,
@@ -254,9 +256,9 @@ EMBED_INLINE int processes_proc_read(const PosixProcessesCtx *args)
     mmgr_line_decimal(&named, args->pid, 1u);
     mmgr_line_put(&named, args->file);
     (void)mmgr_line_finish(&named);
-    const long long size =
-        EMBED_CALL(processes_read, PosixProcessesCtx, .path = path, .out = args->out, .room = CLI_PROCESS_TEXT - 1u);
-    // a size read is below the room, which an unsigned long long counts
+    const long long size = EMBED_CALL(processes_read, PosixProcessesCtx, .path = path, .out = args->out,
+                                      .capacity = CLI_PROCESS_TEXT - 1u);
+    // a size read is below the capacity, which an unsigned long long counts
     args->out[(size > 0ll) ? (unsigned long long)size : 0ull] = '\0';
     return size >= 0ll;
 }
@@ -279,7 +281,7 @@ int cli_process_memory(const CliPidCtx *args)
     return read;
 }
 
-int cli_process_by_name(const CliRoomPidCtx *args)
+int cli_process_by_name(const CliCapacityPidCtx *args)
 {
     const int read =
         EMBED_CALL(processes_proc_read, PosixProcessesCtx, .pid = args->pid, .file = "/comm", .out = s_name);
@@ -289,7 +291,7 @@ int cli_process_by_name(const CliRoomPidCtx *args)
     {
         end -= 1ull;
     }
-    VerbaLinea written = {args->name_out, args->room_size, 0ull};
+    VerbaLinea written = {args->name_out, args->capacity_bytes, 0ull};
     mmgr_line_put_n(&written, s_name, end);
     (void)mmgr_line_finish(&written);
     return read;
@@ -310,10 +312,10 @@ int cli_process_memory(const CliPidCtx *args)
     return 1;
 }
 
-int cli_process_by_name(const CliRoomPidCtx *args)
+int cli_process_by_name(const CliCapacityPidCtx *args)
 {
-    // a process id the system gives is below what an int counts, and a room is far below what a uint32_t counts
-    return proc_name((int)args->pid, args->name_out, (uint32_t)args->room_size) > 0;
+    // a process id the system gives is below what an int counts, and a capacity is far below what a uint32_t counts
+    return proc_name((int)args->pid, args->name_out, (uint32_t)args->capacity_bytes) > 0;
 }
 #else
 int cli_process_memory(const CliPidCtx *args)
@@ -322,7 +324,7 @@ int cli_process_memory(const CliPidCtx *args)
     return 0;
 }
 
-int cli_process_by_name(const CliRoomPidCtx *args)
+int cli_process_by_name(const CliCapacityPidCtx *args)
 {
     (void)args;
     return 0;

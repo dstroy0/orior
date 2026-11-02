@@ -121,7 +121,7 @@ static void listing_drawn(void)
     s_drawn_once = 1;
     char why[512];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    cli_print_take();
+    cli_print_alloc();
     if (!EMBED_CALL(cli_print_json.faces, CliPrintJsonCfg, .err_msg = &err_msg))
     {
         TEST_IGNORE_MESSAGE("the system has no monospace face");
@@ -195,7 +195,7 @@ void test_the_red_run_draws_red(void)
     TEST_ASSERT_GREATER_THAN_UINT64(20ull, red);
 }
 
-void test_the_text_is_within_the_margins_near_the_top(void)
+void test_the_text_is_within_the_margins_adjacent_the_top(void)
 {
     listing_drawn();
     int top = 0;

@@ -97,7 +97,7 @@ int cli_db_export(const CliDbOutCfg *args);
 
 // the statement running stopped, and the schema's reading stopped: 1, or 0 with why given (db_run.c)
 int cli_db_stop(const CliDbErrMsgCfg *args);
-int cli_db_stop_reading(const CliDbErrMsgCfg *args);
+int cli_db_stop_read_state(const CliDbErrMsgCfg *args);
 
 // the level of the schema under `path`, `count` names: the schemas or databases at the top, a schema's objects under
 // it, and a table's columns, indexes, keys and triggers under it, written into `out`: 1, or 0 with the failure into
@@ -281,14 +281,14 @@ typedef struct
     void (*close)(const CliDbErrMsgCfg *args);
     const char *(*transaction)(const CliDbErrMsgCfg *args);
     int (*stop)(const CliDbErrMsgCfg *args);
-    int (*stop_reading)(const CliDbErrMsgCfg *args);
+    int (*stop_read_state)(const CliDbErrMsgCfg *args);
 } CliDbErrMsgNs;
-EMBED_TABLE_LAYOUT(CliDbErrMsgNs, close, transaction, stop, stop_reading);
+EMBED_TABLE_LAYOUT(CliDbErrMsgNs, close, transaction, stop, stop_read_state);
 EMBED_TABLE_STORAGE CliDbErrMsgNs cli_db_err_msg EMBED_UNUSED = {
     .close = cli_db_close,
     .transaction = cli_db_transaction,
     .stop = cli_db_stop,
-    .stop_reading = cli_db_stop_reading,
+    .stop_read_state = cli_db_stop_read_state,
 };
 
 typedef struct

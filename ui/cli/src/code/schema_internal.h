@@ -89,25 +89,25 @@ typedef struct
 
 // A JSON file as read: its text, its values and members, what prevented it from reading, its root, CLI_SCHEMA_NONE
 // where none was read, the texts of all, and 1 in `full` where a part of it did not fit. The values, the members and
-// the texts stand in one cell, `nodes_most`, `members_most` and `pool_most` places sized from the text, to
-// CLI_SCHEMA_NODES, CLI_SCHEMA_MEMBERS and CLI_SCHEMA_POOL at the most; the values' room holds a value for each member
-// and CLI_SCHEMA_CHECK_NODES past those read, for the keys a check makes values of
+// the texts stand in one cell, `nodes_max`, `members_max` and `pool_max` places sized from the text, to
+// CLI_SCHEMA_NODES, CLI_SCHEMA_MEMBERS and CLI_SCHEMA_POOL at the most; the values' capacity holds a value for each
+// member and CLI_SCHEMA_CHECK_NODES past those read, for the keys a check makes values of
 typedef struct
 {
     const char *text;
     unsigned long long size;
     CliSchemaNode *node;
     unsigned int nodes;
-    unsigned int nodes_most;
+    unsigned int nodes_max;
     CliSchemaMember *member;
     unsigned int members;
-    unsigned int members_most;
+    unsigned int members_max;
     CliSchemaError error[CLI_SCHEMA_ERRORS];
     unsigned int errors;
     unsigned int root;
     char *pool;
     unsigned int used;
-    unsigned int pool_most;
+    unsigned int pool_max;
     int full;
 } CliSchemaRead;
 
@@ -130,8 +130,8 @@ extern const char *const g_cli_schema_bundled[5][2];
 // deepest a value is checked
 #define CLI_SCHEMA_DOCUMENTS 32u
 #define CLI_SCHEMA_MISSING 64u
-#define CLI_SCHEMA_STORE_NODES_ROOM (1u << 18u)
-#define CLI_SCHEMA_STORE_TEXT_ROOM (16ull << 20u)
+#define CLI_SCHEMA_STORE_NODES_CAPACITY (1u << 18u)
+#define CLI_SCHEMA_STORE_TEXT_CAPACITY (16ull << 20u)
 #define CLI_SCHEMA_DEEPEST 64u
 
 // The schemas a check reaches, each by its URL or its path, read into one tree in a cell of its own, and those it could
@@ -177,7 +177,7 @@ int cli_schema_same_values(const CliSchemaReadOneCtx *args);
 // number as a message shows it; a type's name as a message names it; and whether `size` bytes of `text` match `pattern`
 // somewhere, as ECMAScript reads it: 1, 0, or -1 where orior_cli does not read the pattern
 void cli_schema_show(const CliSchemaJsonValueCtx *args);
-void cli_schema_shown_value(const CliSchemaReadNodeCtx *args);
+void cli_schema_displayed_value(const CliSchemaReadNodeCtx *args);
 void cli_schema_number_show(const CliSchemaOutCtx *args);
 void cli_schema_kind_write(const CliSchemaSizeOutCtx *args);
 int cli_schema_matches(const CliSchemaTextCtx *args);
@@ -401,7 +401,7 @@ struct CliSchemaJsonNodeValueU64sCtx
 struct CliSchemaUrlCtx
 {
     const char *url;
-    char *out_room;
+    char *out_capacity;
 };
 
 struct CliSchemaStoreCtx
@@ -558,11 +558,11 @@ EMBED_TABLE_STORAGE CliSchemaJsonValueNs cli_schema_json_value_internal EMBED_UN
 
 typedef struct
 {
-    void (*shown_value)(const CliSchemaReadNodeCtx *args);
+    void (*displayed_value)(const CliSchemaReadNodeCtx *args);
 } CliSchemaReadNodeNs;
-EMBED_TABLE_LAYOUT(CliSchemaReadNodeNs, shown_value);
+EMBED_TABLE_LAYOUT(CliSchemaReadNodeNs, displayed_value);
 EMBED_TABLE_STORAGE CliSchemaReadNodeNs cli_schema_read_node_internal EMBED_UNUSED = {
-    .shown_value = cli_schema_shown_value,
+    .displayed_value = cli_schema_displayed_value,
 };
 
 typedef struct

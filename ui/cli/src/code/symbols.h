@@ -14,14 +14,14 @@ typedef struct CliSymbolsPathTextSizeCfg CliSymbolsPathTextSizeCfg;
 typedef struct CliSymbolsPathTextSizeContextCfg CliSymbolsPathTextSizeContextCfg;
 typedef struct CliSymbolsPathTextSizeOutCfg CliSymbolsPathTextSizeOutCfg;
 typedef struct CliSymbolsPathTextSizeContextErrMsgCfg CliSymbolsPathTextSizeContextErrMsgCfg;
-typedef struct CliSymbolsPathTextSizeContextErrMsgFromSymbolPlaceCfg
-    CliSymbolsPathTextSizeContextErrMsgFromSymbolPlaceCfg;
+typedef struct CliSymbolsPathTextSizeContextErrMsgFromSymbolPositionCfg
+    CliSymbolsPathTextSizeContextErrMsgFromSymbolPositionCfg;
 typedef struct CliSymbolsPathContextLineCfg CliSymbolsPathContextLineCfg;
 typedef struct CliSymbolsPathTextSizeStateCfg CliSymbolsPathTextSizeStateCfg;
 typedef struct CliSymbolsPathNameCfg CliSymbolsPathNameCfg;
 typedef struct CliSymbolsQueryCfg CliSymbolsQueryCfg;
 typedef struct CliSymbolsRootCfg CliSymbolsRootCfg;
-typedef struct CliSymbolsQueryMostCfg CliSymbolsQueryMostCfg;
+typedef struct CliSymbolsQueryMaxCfg CliSymbolsQueryMaxCfg;
 typedef struct CliSymbolsContextCfg CliSymbolsContextCfg;
 typedef struct CliSymbolsCountCfg CliSymbolsCountCfg;
 typedef struct CliSymbolsAtCfg CliSymbolsAtCfg;
@@ -30,6 +30,7 @@ typedef struct CliSymbolsCfg CliSymbolsCfg;
 
 #include "../command_line/callback_cfg.h"
 #include "../command_line/cli_internal.h"
+#include "../text/edits.h"
 #include "embed_dispatch_layout.h"
 
 // one declaration found: its name, `length` bytes, what it is, and its line counted from 0
@@ -55,13 +56,13 @@ int cli_symbols_score(const CliSymbolsQueryCfg *args);
 // every branch forgotten, for a tree opened in place of the last
 void cli_tree_forgotten(void);
 // the tree at `root` listed, one time as it opens: every file git tracks or would track, or for a tree git cannot read
-// every file less `.git` and `target`, a branch under its closest parent, at most CLI_BRANCHES_MOST of them. Standing
+// every file less `.git` and `target`, a branch under its closest parent, at most CLI_BRANCHES_MAX of them. Standing
 // already, it is left as it stands. Whether it is listed, without listing it; whether git listed it; and when it was
 // last listed, in milliseconds
 void cli_tree_list(const CliSymbolsContextCfg *args);
 int cli_tree_is_list(const CliSymbolsRootCfg *args);
 int cli_tree_git(void);
-unsigned long long cli_tree_listed_at(void);
+unsigned long long cli_tree_listing_at(void);
 // the files of the tree standing, how many and the bytes of their paths with their ends; the next file at or past
 // `*at`, from 0, its path into `path`, sized for CLI_PATH_MAX_LEN, `*at` moved past it: 1, or 0 past the last; and
 // whether a branch of the listed tree stands at `path`, a file and a folder
@@ -93,32 +94,29 @@ int cli_tree_unwalked(void);
 // the declarations whose names answer `query`, at most `most` of them, the best first, written as `{"symbols":
 // [{"name", "kind", "path", "line", "text"}...], "reading"}`, `text` the declaration's own line trimmed, read from
 // its file as the answer is written
-void cli_tree_declarations_find(const CliSymbolsQueryMostCfg *args);
+typedef struct
+{
+    const char *name;
+    const char *kind;
+    const char *path;
+    unsigned int line;
+    const char *text;
+} CliFoundDeclaration;
+// The declarations a query finds in one cell, the best first, and whether the tree is still being read
+typedef struct
+{
+    unsigned int count;
+    int reading;
+    CliFoundDeclaration *found;
+} CliFoundDeclarations;
+CliFoundDeclarations *cli_tree_declarations_alloc(const CliSymbolsQueryMaxCfg *args);
 // the signature of the call the cursor stands in at `line`, `col` in UTF-16 units of `size` bytes of `text`, the lines
 // the page hands from the file at `path`, the first starting in its grammar's `state`: written as `{"name", "active",
 // "arguments": [{"text", "type"}], "declarations": [{"path", "line", "label", "params": [[from, to]], "types",
 // "count", "variadic", "differs"}], "reading"}`, the declarations every one of the call's name in the tree in order of
 // fit, or as `null` where the cursor stands in no call or the file's language is none read here: 1, or 0 with why
 // given where the cells cannot meet it (symbols_signature.c)
-int cli_symbols_signature(const CliSymbolsPathTextSizeOutCfg *args);
-// the definition of `name` in effect at line `line` of the tree's file at `path`, from a walk of the file to that
-// line: the defines the compilation database gives the file first, each include of a file of the tree walked where it
-// stands, each branch once, each condition read off its leaves; the last define of the name met in an active region
-// with no undefine after it, or for a name no define names, the last declaration of it the tree holds that the walk
-// met in an active region. Written as `{"name", "path", "line", "text"}`, `line` null and `path` the node it is given
-// to for a define the database gives, `text` a define's value or the declaration's line, or as `null` where none is in
-// effect: 1, or 0 with why given where the cells cannot meet the walk (symbols_effect.c)
-int cli_symbols_effect(const CliSymbolsPathNameCfg *args);
-// the slice of the tree clangd is given for the lines `first` to `last` of the tree's file at `path`, its text the
-// `size` bytes of `text` where they are given, the editor's, else the disk's, widened to the statements they cut: the
-// lines `opener`, `openers` of them, opening each region the first line stands inside, outermost first, each to the
-// bracket that opens its region; the locals declared above the first line in those regions that the lines name; the
-// lines themselves; and before them the definitions in effect at the first line of the names they name, and of the
-// names those name, with each include of no file of the tree, in the order a walk of the file meets them; the brackets
-// the lines leave open closed after. Written as `{"lines": [{"path", "line", "text"}...]}`, each line's branch and
-// line where it came from, both null for a bracket the slice closes: 1, or 0 with why given where the cells cannot
-// meet it (symbols_slice.c)
-int cli_symbols_slice(const CliSymbolsPathTextCfg *args);
+CliSignaturePanel *cli_symbols_signature_alloc(const CliSymbolsPathTextSizeOutCfg *args);
 // the line of no branch, a bracket the slice closes; what each line of a slice is handed to: the path of the branch it
 // came from, NULL for none, its line there, CLI_SLICE_NOWHERE for none, and its text, `length` bytes; and the same
 // slice handed to `each` a line at a time in place of being written (symbols_slice.c)
@@ -173,7 +171,7 @@ typedef struct
 {
     unsigned int line;
     unsigned int col;
-} CliSymbolPlace;
+} CliSymbolPosition;
 typedef struct
 {
     void *context;
@@ -183,7 +181,7 @@ typedef struct
     unsigned int to;
     const char *name;
     unsigned long long length;
-    const CliSymbolPlace *sites;
+    const CliSymbolPosition *sites;
     unsigned int count;
 } CliCallReachedCfg;
 
@@ -204,8 +202,8 @@ int cli_symbols_callees(const CliSymbolsPathContextLineCfg *args);
 typedef struct
 {
     void *context;
-    CliSymbolPlace from;
-    CliSymbolPlace to;
+    CliSymbolPosition from;
+    CliSymbolPosition to;
 } CliSpannedCfg;
 
 // one span Expand Selection steps through, from `from` to `to`
@@ -215,7 +213,7 @@ typedef void (*CliSpanned)(const CliSpannedCfg *args);
 // it, inside its brackets and with them, the statement it stands in among a region's, each region with its head, and
 // the whole text; each read by the roles its grammar names. 1, or 0 with why given where the cells cannot meet them
 // (symbols_spans.c)
-int cli_symbols_spans(const CliSymbolsPathTextSizeContextErrMsgFromSymbolPlaceCfg *args);
+int cli_symbols_spans(const CliSymbolsPathTextSizeContextErrMsgFromSymbolPositionCfg *args);
 // the bracket pair at `at` in `size` bytes of `text`, the editor's text of the tree's file at `path`, the first line
 // starting in its grammar's `state`: the bracket that ends at the place, else the one that starts at it, into `pair[0]`
 // and the bracket it pairs with into `pair[1]`, each a leaf that opens or closes by the roles its grammar names and
@@ -225,8 +223,8 @@ int cli_symbols_pair(const CliSymbolsPathTextSizeStateCfg *args);
 // the roles a token's name gives it as a text is walked, read off its segments as a leaf's are: it opens a region, it
 // closes one, or it closes a bracket pair, ends a statement or parts one; it is a bare name, nothing more; it declares
 // a local, or a parameter; it ends a statement or is a directive's; it is an operator on memory that binds no two
-// values, the name after it one reached through it; and it opens a pair whose depth it counts, or closes one; none for
-// a string's or a comment's (symbols_leaves.c)
+// values, the name after it one reached through it; it opens a pair whose depth it counts, or closes one; and it names
+// something, whatever else it does; none for a string's or a comment's (symbols_leaves.c)
 #define CLI_ROLE_REGION_OPENS 0x01u
 #define CLI_ROLE_REGION_CLOSES 0x02u
 #define CLI_ROLE_CLOSING 0x04u
@@ -237,6 +235,7 @@ int cli_symbols_pair(const CliSymbolsPathTextSizeStateCfg *args);
 #define CLI_ROLE_REACHES 0x80u
 #define CLI_ROLE_DEPTH_OPENS 0x100u
 #define CLI_ROLE_DEPTH_CLOSES 0x200u
+#define CLI_ROLE_WORD 0x400u
 unsigned int cli_symbols_name_roles(const CliSymbolsQueryCfg *args);
 
 struct CliSymbolsPathCfg
@@ -308,7 +307,7 @@ struct CliSymbolsPathTextSizeOutCfg
     const char *path;
     const char *text;
     unsigned long long size;
-    VerbaLinea *out;
+    CellOwner *owner;
     const char *state;
     unsigned int line;
     unsigned int col;
@@ -327,15 +326,15 @@ struct CliSymbolsPathTextSizeContextErrMsgCfg
     CliSliceWindow window;
 };
 
-struct CliSymbolsPathTextSizeContextErrMsgFromSymbolPlaceCfg
+struct CliSymbolsPathTextSizeContextErrMsgFromSymbolPositionCfg
 {
     const char *path;
     const char *text;
     unsigned long long size;
     void *context;
     VerbaLinea *err_msg;
-    CliSymbolPlace from_symbol_place;
-    CliSymbolPlace to_symbol_place;
+    CliSymbolPosition from_symbol_position;
+    CliSymbolPosition to_symbol_position;
     CliSpanned each_spanned;
 };
 
@@ -356,8 +355,8 @@ struct CliSymbolsPathTextSizeStateCfg
     const char *text;
     unsigned long long size;
     const char *state;
-    CliSymbolPlace at_symbol_place;
-    CliSymbolPlace *pair;
+    CliSymbolPosition at_symbol_position;
+    CliSymbolPosition *pair;
 };
 
 struct CliSymbolsPathNameCfg
@@ -384,11 +383,11 @@ struct CliSymbolsRootCfg
     unsigned int count;
 };
 
-struct CliSymbolsQueryMostCfg
+struct CliSymbolsQueryMaxCfg
 {
     const char *query;
     unsigned int most;
-    VerbaLinea *out;
+    CellOwner *owner;
 };
 
 struct CliSymbolsContextCfg
@@ -435,14 +434,12 @@ typedef struct
     int (*reads)(const CliSymbolsPathNameCfg *args);
     int (*tree_has_file)(const CliSymbolsPathNameCfg *args);
     int (*tree_has_folder)(const CliSymbolsPathNameCfg *args);
-    int (*effect)(const CliSymbolsPathNameCfg *args);
 } CliSymbolsPathNameNs;
-EMBED_TABLE_LAYOUT(CliSymbolsPathNameNs, reads, tree_has_file, tree_has_folder, effect);
+EMBED_TABLE_LAYOUT(CliSymbolsPathNameNs, reads, tree_has_file, tree_has_folder);
 EMBED_TABLE_STORAGE CliSymbolsPathNameNs cli_symbols_path_name EMBED_UNUSED = {
     .reads = cli_symbols_reads,
     .tree_has_file = cli_tree_has_file,
     .tree_has_folder = cli_tree_has_folder,
-    .effect = cli_symbols_effect,
 };
 
 typedef struct
@@ -524,29 +521,20 @@ EMBED_TABLE_STORAGE CliSymbolsDoneNs cli_symbols_done EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*tree_declarations_find)(const CliSymbolsQueryMostCfg *args);
-} CliSymbolsQueryMostNs;
-EMBED_TABLE_LAYOUT(CliSymbolsQueryMostNs, tree_declarations_find);
-EMBED_TABLE_STORAGE CliSymbolsQueryMostNs cli_symbols_query_most EMBED_UNUSED = {
-    .tree_declarations_find = cli_tree_declarations_find,
+    CliFoundDeclarations *(*tree_declarations_alloc)(const CliSymbolsQueryMaxCfg *args);
+} CliSymbolsQueryMaxNs;
+EMBED_TABLE_LAYOUT(CliSymbolsQueryMaxNs, tree_declarations_alloc);
+EMBED_TABLE_STORAGE CliSymbolsQueryMaxNs cli_symbols_query_max EMBED_UNUSED = {
+    .tree_declarations_alloc = cli_tree_declarations_alloc,
 };
 
 typedef struct
 {
-    int (*signature)(const CliSymbolsPathTextSizeOutCfg *args);
+    CliSignaturePanel *(*signature_alloc)(const CliSymbolsPathTextSizeOutCfg *args);
 } CliSymbolsPathTextSizeOutNs;
-EMBED_TABLE_LAYOUT(CliSymbolsPathTextSizeOutNs, signature);
+EMBED_TABLE_LAYOUT(CliSymbolsPathTextSizeOutNs, signature_alloc);
 EMBED_TABLE_STORAGE CliSymbolsPathTextSizeOutNs cli_symbols_path_text_size_out EMBED_UNUSED = {
-    .signature = cli_symbols_signature,
-};
-
-typedef struct
-{
-    int (*slice)(const CliSymbolsPathTextCfg *args);
-} CliSymbolsPathTextNs;
-EMBED_TABLE_LAYOUT(CliSymbolsPathTextNs, slice);
-EMBED_TABLE_STORAGE CliSymbolsPathTextNs cli_symbols_path_text EMBED_UNUSED = {
-    .slice = cli_symbols_slice,
+    .signature_alloc = cli_symbols_signature_alloc,
 };
 
 typedef struct
@@ -602,11 +590,11 @@ EMBED_TABLE_STORAGE CliSymbolsPathContextLineNs cli_symbols_path_context_line EM
 
 typedef struct
 {
-    int (*spans)(const CliSymbolsPathTextSizeContextErrMsgFromSymbolPlaceCfg *args);
-} CliSymbolsPathTextSizeContextErrMsgFromSymbolPlaceNs;
-EMBED_TABLE_LAYOUT(CliSymbolsPathTextSizeContextErrMsgFromSymbolPlaceNs, spans);
-EMBED_TABLE_STORAGE CliSymbolsPathTextSizeContextErrMsgFromSymbolPlaceNs
-    cli_symbols_path_text_size_context_err_msg_from_symbol_place EMBED_UNUSED = {
+    int (*spans)(const CliSymbolsPathTextSizeContextErrMsgFromSymbolPositionCfg *args);
+} CliSymbolsPathTextSizeContextErrMsgFromSymbolPositionNs;
+EMBED_TABLE_LAYOUT(CliSymbolsPathTextSizeContextErrMsgFromSymbolPositionNs, spans);
+EMBED_TABLE_STORAGE CliSymbolsPathTextSizeContextErrMsgFromSymbolPositionNs
+    cli_symbols_path_text_size_context_err_msg_from_symbol_position EMBED_UNUSED = {
         .spans = cli_symbols_spans,
 };
 

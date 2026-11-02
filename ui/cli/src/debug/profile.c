@@ -14,7 +14,7 @@
 // words and the PATH it runs with are allocated in, taken with its place and given back with it
 typedef struct
 {
-    int taken;
+    int reserved;
     CliJsonSink sink;
     CliSpawned spawned;
     int running;
@@ -82,13 +82,13 @@ void cli_profile_stop(void)
 // each byte at most `\u` and four digits
 EMBED_INLINE void profile_output_emit(const ProfileCtx *args)
 {
-    const unsigned long long room = (args->size * 6ull) + 64ull;
-    char *const json_buf = g_cli_cells->temporary_buf_alloc(room, &g_cli_profile_cells);
+    const unsigned long long capacity = (args->size * 6ull) + 64ull;
+    char *const json_buf = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_profile_cells);
     if (json_buf == NULL)
     {
         return;
     }
-    VerbaLinea out = {json_buf, room, 0ull};
+    VerbaLinea out = {json_buf, capacity, 0ull};
     mmgr_line_put(&out, "{\"kind\":\"output\",\"text\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &out,
                .text_bytes = (const unsigned char *)args->line, .length = args->size);
@@ -117,15 +117,15 @@ static void profile_line(const CliProfileLineSizeCfg *args)
     const char *const json = line + mark;
     const unsigned long long length = size - mark;
     // the counts compacted are no longer than they are written
-    const unsigned long long room = length + 64ull;
-    char *const json_buf = g_cli_cells->temporary_buf_alloc(room, &g_cli_profile_cells);
+    const unsigned long long capacity = length + 64ull;
+    char *const json_buf = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_profile_cells);
     if (json_buf == NULL)
     {
         return;
     }
-    VerbaLinea out = {json_buf, room, 0ull};
+    VerbaLinea out = {json_buf, capacity, 0ull};
     mmgr_line_put(&out, "{\"kind\":\"counts\",\"counts\":");
-    if (!EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg, .bytes = json, .size = length) ||
+    if (!EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = json, .size = length) ||
         !EMBED_CALL(cli_json_tree_text.json_compact, CliJsonTreeTextCfg, .text = json, .size = length, .out = &out))
     {
         mmgr_line_put(&out, "null");
@@ -164,30 +164,31 @@ static void profile_line(const CliProfileLineSizeCfg *args)
 static void profile_lines(const ProfileCtx *args)
 {
     char *const line = g_cli_cells->temporary_buf_alloc(CLI_PROFILE_LINE, &g_cli_profile_cells);
-    const unsigned long long room = (line != NULL) ? CLI_PROFILE_LINE : 0ull;
+    const unsigned long long capacity = (line != NULL) ? CLI_PROFILE_LINE : 0ull;
     unsigned long long used = 0ull;
     char piece[4096];
     for (;;)
     {
-        const unsigned long long count = EMBED_CALL(cli_room_pipe_handle_internal.spawn_read, CliRoomPipeHandleCtx,
-                                                    .pipe_handle = args->pipe, .piece = piece, .room = sizeof(piece));
+        const unsigned long long count =
+            EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx,
+                       .pipe_handle = args->pipe, .piece = piece, .capacity = sizeof(piece));
         if (count == 0ull)
         {
             break;
         }
         unsigned long long at = 0ull;
-        while ((room != 0ull) && (at < count))
+        while ((capacity != 0ull) && (at < count))
         {
             const unsigned long long stop =
                 EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = piece, .at = at, .size = count).stop;
-            const unsigned long long left = room - used;
+            const unsigned long long left = capacity - used;
             const unsigned long long fits = ((stop - at) < left) ? (stop - at) : left;
             memor.cpy(&(MemoriaCfg){.dst = line + used, .src = piece + at, .bytes = (size_t)fits});
             used += fits;
             at += fits;
             if (at < stop)
             {
-                // a line past the room is handed on as far as it reaches, the rest as a line after it
+                // a line past the capacity is handed on as far as it reaches, the rest as a line after it
                 EMBED_CALL(args->each_line, CliProfileLineSizeCfg, .profile = args->profile, .line = line,
                            .size = used);
                 used = 0ull;
@@ -225,7 +226,7 @@ EMBED_INLINE void profile_reader_end(const ProfileCtx *args)
     {
         EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &args->profile->spawned);
         profile_cells_free(args);
-        args->profile->taken = 0;
+        args->profile->reserved = 0;
         EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_wake);
     }
 }
@@ -292,7 +293,7 @@ static void profile_output_read(void *context)
 }
 
 // a profile's place taken once one is free, made empty
-EMBED_INLINE CliProfile *profile_take(const ProfileCtx *args)
+EMBED_INLINE CliProfile *profile_alloc(const ProfileCtx *args)
 {
     CliJsonSink sink = args->sink;
     CliProfile *profile = NULL;
@@ -300,14 +301,14 @@ EMBED_INLINE CliProfile *profile_take(const ProfileCtx *args)
     {
         for (unsigned int at = 0u; (at < CLI_PROFILES) && (profile == NULL); at += 1u)
         {
-            profile = s_profiles[at].taken ? NULL : &s_profiles[at];
+            profile = s_profiles[at].reserved ? NULL : &s_profiles[at];
         }
         if (profile == NULL)
         {
             EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_wake);
         }
     }
-    profile->taken = 1;
+    profile->reserved = 1;
     profile->sink = sink;
     profile->running = 0;
     profile->going = 0u;
@@ -329,7 +330,7 @@ EMBED_INLINE CliProfile *profile_take(const ProfileCtx *args)
 EMBED_INLINE void profile_let_go(const ProfileCtx *args)
 {
     profile_cells_free(args);
-    args->profile->taken = 0;
+    args->profile->reserved = 0;
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_wake);
 }
 
@@ -339,7 +340,7 @@ EMBED_INLINE void profile_quote(const ProfileCtx *args)
     VerbaLinea *out = args->out;
     const char *text = args->text;
     mmgr_line_ch(out, '\'');
-    EMBED_CALL(cli_text_set_table.put_replace, CliTextSetCfg, .out = out, .text = text, .set = "'", .with = "'\\''");
+    EMBED_CALL(cli_text_set_table.append_replace, CliTextSetCfg, .out = out, .text = text, .set = "'", .with = "'\\''");
     mmgr_line_ch(out, '\'');
 }
 
@@ -347,7 +348,7 @@ int cli_profile_start(const CliProfileCfg *args)
 {
     cli_profile_stop();
     const char *trimmed = (args->remote != NULL) ? args->remote : "";
-    trimmed += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = trimmed, .at = 0ull,
+    trimmed += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = trimmed, .at = 0ull,
                           .size = cellul.len(&(CatenaFinitaCfg){.src = trimmed, .cap = CLI_CELLS_POOL}), .set = " \t");
     const int far = (*trimmed != '\0');
     const char *const colon =
@@ -364,7 +365,7 @@ int cli_profile_start(const CliProfileCfg *args)
         mmgr_line_put(args->err_msg, "no Python is found: File, Toolchains takes its folder");
         return 0;
     }
-    CliProfile *const profile = EMBED_CALL(profile_take, ProfileCtx, .sink = args->sink);
+    CliProfile *const profile = EMBED_CALL(profile_alloc, ProfileCtx, .sink = args->sink);
     // the PATH a program here runs with, as long as the system lets an environment's value be
     profile->path = ((profile->words != NULL) && !far)
                         ? g_cli_cells->persistent_buf_alloc(CLI_PATH_TEXT, &g_cli_profile_cells)
@@ -394,7 +395,7 @@ int cli_profile_start(const CliProfileCfg *args)
         const char *const words[5] = {"ssh", "-o", "BatchMode=yes", host, shell};
         for (unsigned int at = 0u; at < 5u; at += 1u)
         {
-            EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = profile->words,
+            EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = profile->words,
                        .word = words[at]);
         }
     }
@@ -407,7 +408,7 @@ int cli_profile_start(const CliProfileCfg *args)
         const char *const words[4] = {python, "-", args->root, full};
         for (unsigned int at = 0u; at < 4u; at += 1u)
         {
-            EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = profile->words,
+            EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = profile->words,
                        .word = words[at]);
         }
     }
@@ -418,7 +419,7 @@ int cli_profile_start(const CliProfileCfg *args)
         EMBED_CALL(profile_let_go, ProfileCtx, .profile = profile);
         return 0;
     }
-    const int given =
+    const int supplied =
         EMBED_CALL(cli_pipe_handle_internal.spawn_write, CliPipeHandleCtx, .pipe_handle = profile->spawned.in,
                    .bytes = g_cli_profile_shim,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = g_cli_profile_shim, .cap = CLI_CELLS_POOL}));
@@ -426,7 +427,7 @@ int cli_profile_start(const CliProfileCfg *args)
     profile->running = 1;
     profile->going = 2u;
     s_running = profile;
-    if (!given)
+    if (!supplied)
     {
         mmgr_line_put(args->err_msg, "the shim could not be given to Python");
         cli_profile_stop();
@@ -441,5 +442,5 @@ int cli_profile_start(const CliProfileCfg *args)
     {
         profile_output_read(profile);
     }
-    return given;
+    return supplied;
 }

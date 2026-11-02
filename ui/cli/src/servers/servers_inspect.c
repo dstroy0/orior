@@ -125,10 +125,10 @@ static void inspect_supplied(const CliInspectSuppliedCfg *args)
     char key[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = path, .joined = full);
     EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = full, .key_out = key);
-    const char *beside = NULL;
+    const char *adjacent = NULL;
     unsigned long long size = 0ull;
-    const char *const stored = EMBED_CALL(cli_keyed_key_beside.get, CliKeyedKeyBesideCfg, .keyed = &s_supplied_new,
-                                          .key = key, .beside = &beside, .size = &size);
+    const char *const stored = EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &s_supplied_new,
+                                          .key = key, .adjacent = &adjacent, .size = &size);
     const unsigned long long class_size =
         cellul.len(&(CatenaFinitaCfg){.src = args->class_name, .cap = CLI_CELLS_POOL});
     const unsigned long long attribute_size =
@@ -146,13 +146,13 @@ static void inspect_supplied(const CliInspectSuppliedCfg *args)
     memor.cpy(
         &(MemoriaCfg){.dst = line + size + class_size + 1ull, .src = args->attribute, .bytes = (size_t)attribute_size});
     line[line_size - 1ull] = '\n';
-    (void)EMBED_CALL(cli_keyed_key_beside.put, CliKeyedKeyBesideCfg, .keyed_out = &s_supplied_new, .key = key,
-                     .beside_value = "", .text = line, .size_value = line_size);
+    (void)EMBED_CALL(cli_keyed_key_adjacent.put, CliKeyedKeyAdjacentCfg, .keyed_out = &s_supplied_new, .key = key,
+                     .adjacent_value = "", .text = line, .size_value = line_size);
     g_cli_cells->persistent_buf_release(line, &g_cli_servers_cells);
 }
 
 // what each family sets put in place of what was stored: 1 where it moved; under the checks' lock
-static int inspect_supplied_put(void)
+static int inspect_supplied_append(void)
 {
     unsigned int count = 0u;
     unsigned int made = 0u;
@@ -171,15 +171,15 @@ static int inspect_supplied_put(void)
             continue;
         }
         made += 1u;
-        const char *beside = NULL;
+        const char *adjacent = NULL;
         unsigned long long size = 0ull;
         unsigned long long other = 0ull;
         const char *const key = one->cell;
-        const char *const text = EMBED_CALL(cli_keyed_key_beside.get, CliKeyedKeyBesideCfg, .keyed = &s_supplied_new,
-                                            .key = key, .beside = &beside, .size = &size);
+        const char *const text = EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg,
+                                            .keyed = &s_supplied_new, .key = key, .adjacent = &adjacent, .size = &size);
         const char *const was =
-            EMBED_CALL(cli_keyed_key_beside.get, CliKeyedKeyBesideCfg, .keyed = &g_cli_servers_supplied, .key = key,
-                       .beside = &beside, .size = &other);
+            EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &g_cli_servers_supplied, .key = key,
+                       .adjacent = &adjacent, .size = &other);
         moved = (was == NULL) || (other != size) ||
                 (memor.cmp(&(MemoriaCfg){.src = was, .other = text, .bytes = (size_t)size}) != 0);
     }
@@ -196,14 +196,15 @@ static int inspect_supplied_put(void)
         {
             continue;
         }
-        const char *beside = NULL;
+        const char *adjacent = NULL;
         unsigned long long size = 0ull;
-        const char *const text = EMBED_CALL(cli_keyed_key_beside.get, CliKeyedKeyBesideCfg, .keyed = &s_supplied_new,
-                                            .key = one->cell, .beside = &beside, .size = &size);
+        const char *const text =
+            EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &s_supplied_new, .key = one->cell,
+                       .adjacent = &adjacent, .size = &size);
         if (text != NULL)
         {
-            (void)EMBED_CALL(cli_keyed_key_beside.put, CliKeyedKeyBesideCfg, .keyed_out = &g_cli_servers_supplied,
-                             .key = one->cell, .beside_value = "", .text = text, .size_value = size);
+            (void)EMBED_CALL(cli_keyed_key_adjacent.put, CliKeyedKeyAdjacentCfg, .keyed_out = &g_cli_servers_supplied,
+                             .key = one->cell, .adjacent_value = "", .text = text, .size_value = size);
         }
     }
     return 1;
@@ -228,11 +229,11 @@ EMBED_INLINE void inspect_passed_on(const ServersInspectCtx *args)
     EMBED_CALL(cli_keyed_name.clear, CliKeyedNameCfg, .keyed_out = &s_seen);
     // a file found changes by its key and its URI, each at most a path's; one stored and no longer found by what it
     // stored
-    const unsigned long long room =
+    const unsigned long long capacity =
         (args->found_files * CLI_PATH_MAX_LEN * 2ull) +
         EMBED_CALL(cli_keyed_table.listed_size, CliKeyedCfg, .keyed = &g_cli_servers_inspected) + 1ull;
-    char *const files = g_cli_cells->temporary_buf_alloc(room, &g_cli_servers_cells);
-    VerbaLinea changed = mmgr_line_over(files, room);
+    char *const files = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_servers_cells);
+    VerbaLinea changed = mmgr_line_over(files, capacity);
     for (unsigned long long at = 0ull; at < size;)
     {
         const char *const path = args->found_text + at;
@@ -246,19 +247,19 @@ EMBED_INLINE void inspect_passed_on(const ServersInspectCtx *args)
         EMBED_CALL(cli_servers_path_uri_internal.uri_get, CliServersPathUriCtx, .path = full, .uri_out = uri);
         EMBED_CALL(cli_lsp_length.key_get, CliLspLengthCfg, .uri = uri,
                    .length = cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}), .key = key);
-        (void)EMBED_CALL(cli_keyed_key_beside.put, CliKeyedKeyBesideCfg, .keyed_out = &s_seen, .key = key,
-                         .beside_value = "", .text = "", .size_value = 0ull);
-        const char *beside = NULL;
+        (void)EMBED_CALL(cli_keyed_key_adjacent.put, CliKeyedKeyAdjacentCfg, .keyed_out = &s_seen, .key = key,
+                         .adjacent_value = "", .text = "", .size_value = 0ull);
+        const char *adjacent = NULL;
         unsigned long long stored_size = 0ull;
         const char *const stored =
-            EMBED_CALL(cli_keyed_key_beside.get, CliKeyedKeyBesideCfg, .keyed = &g_cli_servers_inspected, .key = key,
-                       .beside = &beside, .size = &stored_size);
+            EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &g_cli_servers_inspected,
+                       .key = key, .adjacent = &adjacent, .size = &stored_size);
         const int same = (stored != NULL) && (stored_size == values_size) &&
                          (memor.cmp(&(MemoriaCfg){.src = stored, .other = values, .bytes = (size_t)values_size}) == 0);
         if (((stored != NULL) || (values_size > 2u)) && !same)
         {
-            (void)EMBED_CALL(cli_keyed_key_beside.put, CliKeyedKeyBesideCfg, .keyed_out = &g_cli_servers_inspected,
-                             .key = key, .beside_value = uri, .text = values, .size_value = values_size);
+            (void)EMBED_CALL(cli_keyed_key_adjacent.put, CliKeyedKeyAdjacentCfg, .keyed_out = &g_cli_servers_inspected,
+                             .key = key, .adjacent_value = uri, .text = values, .size_value = values_size);
             EMBED_CALL(inspect_change, ServersInspectCtx, .changed = &changed, .key = key, .uri = uri);
         }
     }
@@ -267,14 +268,14 @@ EMBED_INLINE void inspect_passed_on(const ServersInspectCtx *args)
         CliKeyedEntry *const one =
             EMBED_CALL(cli_keyed_table.entry, CliKeyedCfg, .keyed = &g_cli_servers_inspected, .at = at);
         const char *const key = one->cell;
-        const char *beside = NULL;
+        const char *adjacent = NULL;
         unsigned long long stored_size = 0ull;
-        if (one->used && (EMBED_CALL(cli_keyed_key_beside.get, CliKeyedKeyBesideCfg, .keyed = &s_seen, .key = key,
-                                     .beside = &beside, .size = &stored_size) == NULL))
+        if (one->used && (EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &s_seen, .key = key,
+                                     .adjacent = &adjacent, .size = &stored_size) == NULL))
         {
-            (void)EMBED_CALL(cli_keyed_key_beside.get, CliKeyedKeyBesideCfg, .keyed = &g_cli_servers_inspected,
-                             .key = key, .beside = &beside, .size = &stored_size);
-            EMBED_CALL(inspect_change, ServersInspectCtx, .changed = &changed, .key = key, .uri = beside);
+            (void)EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &g_cli_servers_inspected,
+                             .key = key, .adjacent = &adjacent, .size = &stored_size);
+            EMBED_CALL(inspect_change, ServersInspectCtx, .changed = &changed, .key = key, .uri = adjacent);
             one->used = 0;
         }
     }
@@ -283,8 +284,7 @@ EMBED_INLINE void inspect_passed_on(const ServersInspectCtx *args)
     {
         const char *const key = files + at;
         const char *const uri = key + cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) + 1u;
-        EMBED_CALL(cli_servers_sink_key_internal.emit_whole, CliServersSinkKeyCtx, .key = key, .uri = uri,
-                   .sink = sink);
+        EMBED_CALL(cli_servers_sink_key_internal.emit_file, CliServersSinkKeyCtx, .key = key, .uri = uri, .sink = sink);
         at += cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) + 1u +
               cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}) + 1u;
     }
@@ -313,10 +313,10 @@ EMBED_INLINE int inspect_tree_read(const ServersInspectCtx *args)
         char path[CLI_PATH_MAX_LEN];
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = one, .joined = path);
         unsigned long long size = 0ull;
-        const unsigned char *const mapped = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = path,
+        const unsigned char *const mapped = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                        .size_pointer = &size, .owner = &g_cli_servers_cells);
         if ((mapped != NULL) &&
-            EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg, .bytes = (const char *)mapped, .size = size))
+            EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = (const char *)mapped, .size = size))
         {
             (void)EMBED_CALL(cli_inspect_tree_path_language.set, CliInspectTreePathLanguageCfg, .path = one,
                              .language = language, .text = (const char *)mapped, .size = size);
@@ -370,7 +370,7 @@ static void inspect_job(const CliServersJobCfg *args)
     EMBED_CALL(cli_keyed_name.clear, CliKeyedNameCfg, .keyed_out = &s_supplied_new);
     EMBED_CALL(cli_inspect_tree_context_each_supplied.supplied, CliInspectTreeContextEachSuppliedCfg,
                .each_inspect_supplied = inspect_supplied, .context = (void *)read->root);
-    const int moved = inspect_supplied_put();
+    const int moved = inspect_supplied_append();
     if (mmgr_line_ok(&line))
     {
         EMBED_CALL(inspect_passed_on, ServersInspectCtx, .root = read->root, .found_text = line.out, .size = line.at,
@@ -392,7 +392,7 @@ static void inspect_job(const CliServersJobCfg *args)
         EMBED_CALL(cli_servers_path_uri_internal.uri_get, CliServersPathUriCtx, .path = full, .uri_out = uri);
         EMBED_CALL(cli_lsp_length.key_get, CliLspLengthCfg, .uri = uri,
                    .length = cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}), .key = key);
-        EMBED_CALL(cli_servers_sink_key_internal.emit_whole, CliServersSinkKeyCtx, .key = key, .uri = uri,
+        EMBED_CALL(cli_servers_sink_key_internal.emit_file, CliServersSinkKeyCtx, .key = key, .uri = uri,
                    .sink = &read->sink);
     }
 }
@@ -421,7 +421,7 @@ void cli_servers_inspect(const CliServersPathSizeRootSinkCtx *args)
     memor.set(&(MemoriaCfg){.dst = read, .val = 0, .bytes = sizeof(*read)});
     memor.cpy(&(MemoriaCfg){.dst = read->root, .src = args->root, .bytes = top + 1u});
     VerbaLinea file = {read->file, CLI_PATH_MAX_LEN, 0ull};
-    (void)EMBED_CALL(cli_text_from.put_swap, CliTextFromCfg, .out = &file, .text = path + top + 1u, .from = '\\',
+    (void)EMBED_CALL(cli_text_from.append_swap, CliTextFromCfg, .out = &file, .text = path + top + 1u, .from = '\\',
                      .to = '/');
     (void)mmgr_line_finish(&file);
     read->sink = *sink;

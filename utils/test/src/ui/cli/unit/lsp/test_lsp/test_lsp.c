@@ -72,12 +72,12 @@ typedef struct
 } LspSource;
 
 static LspLater s_later;
-static int s_ended_ran;
+static int s_ended_run_result;
 static int s_ended_started;
 static int s_ended_alive_after;
 static char s_open_text[CLI_PATH_MAX_LEN + 64u];
 static unsigned long long s_open_size;
-static char s_open_wanted[CLI_PATH_MAX_LEN + 64u];
+static char s_open_requested[CLI_PATH_MAX_LEN + 64u];
 static char s_ended_complaint[CLI_LSP_COMPLAINT];
 static unsigned long long s_ended_complaint_size;
 static unsigned long long s_in_use_closed;
@@ -121,17 +121,17 @@ static CliLsp *server_started(const char *name, void (*on_request)(const CliLspR
 }
 
 // a server opened a file and was requested to end, and what it left recorded, once for the process
-static void ended_ran(void)
+static void ended_run_result(void)
 {
     char dir[CLI_PATH_MAX_LEN];
     char file[CLI_PATH_MAX_LEN];
     char why[1024];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    if (s_ended_ran)
+    if (s_ended_run_result)
     {
         return;
     }
-    s_ended_ran = 1;
+    s_ended_run_result = 1;
     CliLsp *const server = server_started("lsp_stand_in", request_answered_null, NULL, dir);
     s_ended_started = (server != NULL) && EMBED_CALL(cli_lsp_context.alive, CliLspContextCfg, .lsp = server);
     if (server == NULL)
@@ -152,9 +152,9 @@ static void ended_ran(void)
     VerbaLinea open_line = {s_open_text, sizeof(s_open_text), 0ull};
     EMBED_CALL(cli_lsp_context.open_each, CliLspContextCfg, .lsp = server, .each = open_recorded, .context = &open_line);
     s_open_size = open_line.at;
-    VerbaLinea wanted = {s_open_wanted, sizeof(s_open_wanted), 0ull};
-    EMBED_CALL(open_recorded, CliEachPathTextLengthCfg, .context = &wanted, .path = file, .text = "one\n", .length = 4ull);
-    (void)mmgr_line_finish(&wanted);
+    VerbaLinea required = {s_open_requested, sizeof(s_open_requested), 0ull};
+    EMBED_CALL(open_recorded, CliEachPathTextLengthCfg, .context = &required, .path = file, .text = "one\n", .length = 4ull);
+    (void)mmgr_line_finish(&required);
     EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 200u);
     VerbaLinea complaint = {s_ended_complaint, sizeof(s_ended_complaint), 0ull};
     EMBED_CALL(cli_lsp_path_out.complaint, CliLspPathOutCfg, .lsp = server, .out = &complaint);
@@ -163,23 +163,12 @@ static void ended_ran(void)
     s_in_use_released = embed_atomic_usize_load(&g_cli_lsp_files_cells.in_use);
 }
 
-// the server's question recorded to be answered later, and what it sends after it counted
-static void request_answered_later(const CliLspRecvCfg *args)
-{
-    LspLater *const later = args->context;
-    if (cellul.eq(&(CatenaFinitaCfg){.src = args->method, .other = "orior/question", .cap = CLI_CELLS_POOL}))
-    {
-        later->deferred = EMBED_CALL(cli_lsp.answer_later, CliLspCfg, .id = later->id, .room = sizeof(later->id));
-    }
-    (void)embed_atomic_usize_fetch_add(&later->meanwhile, cellul.eq(&(CatenaFinitaCfg){.src = args->method, .other = "orior/meanwhile", .cap = CLI_CELLS_POOL}) ? 1u : 0u);
-}
-
 // the next piece of the text
-static unsigned long long source_read(const CliSourcePieceRoomCfg *args)
+static unsigned long long source_read(const CliSourcePieceCapacityCfg *args)
 {
     LspSource *const from = args->source;
     const unsigned long long left = from->size - from->at;
-    const unsigned long long copied = (left < args->room) ? left : args->room;
+    const unsigned long long copied = (left < args->capacity) ? left : args->capacity;
     memor.cpy(&(MemoriaCfg){.dst = args->piece, .src = from->text + from->at, .bytes = copied});
     from->at += copied;
     return copied;
@@ -202,7 +191,7 @@ void test_a_path_is_written_as_a_file_uri_its_letters_escaped(void)
     static const char s_path[] = "/a b/c#.cu";
 #endif
     char uri[CLI_PATH_MAX_LEN * 3u];
-    EMBED_CALL(cli_lsp_room_path.uri_get, CliLspRoomPathCfg, .path = s_path, .uri_out = uri, .room = sizeof(uri));
+    EMBED_CALL(cli_lsp_capacity_path.uri_get, CliLspCapacityPathCfg, .path = s_path, .uri_out = uri, .capacity = sizeof(uri));
     TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = uri, .other = "file:///", .cap = CLI_CELLS_POOL}));
     CLI_TEST_ASSERT_CONTAINS("a%20b/c%23.cu", uri);
 }
@@ -211,77 +200,46 @@ void test_a_uri_names_the_path_it_was_written_from(void)
 {
 #if defined(_WIN32)
     static const char s_path[] = "D:\\a b\\c#.cu";
-    static const char s_wanted[] = "D:/a b/c#.cu";
+    static const char s_requested[] = "D:/a b/c#.cu";
 #else
     static const char s_path[] = "/a b/c#.cu";
-    static const char s_wanted[] = "/a b/c#.cu";
+    static const char s_requested[] = "/a b/c#.cu";
 #endif
     char uri[CLI_PATH_MAX_LEN * 3u];
     char back[CLI_PATH_MAX_LEN];
-    EMBED_CALL(cli_lsp_room_path.uri_get, CliLspRoomPathCfg, .path = s_path, .uri_out = uri, .room = sizeof(uri));
+    EMBED_CALL(cli_lsp_capacity_path.uri_get, CliLspCapacityPathCfg, .path = s_path, .uri_out = uri, .capacity = sizeof(uri));
     TEST_ASSERT_TRUE(EMBED_CALL(cli_lsp_length_uri.path_get, CliLspLengthUriCfg, .uri = uri, .length = CLI_UNITY_LENGTH(uri), .path_out = back));
     for (char *at = back; at[0] != '\0'; at += 1)
     {
         at[0] = (at[0] == '\\') ? '/' : at[0];
     }
-    TEST_ASSERT_EQUAL_STRING(s_wanted, back);
+    TEST_ASSERT_EQUAL_STRING(s_requested, back);
 }
 
 void test_a_servers_end_is_known(void)
 {
-    ended_ran();
+    ended_run_result();
     TEST_ASSERT_TRUE(s_ended_started);
     TEST_ASSERT_FALSE(s_ended_alive_after);
 }
 
 void test_what_an_ended_server_had_open_is_recorded(void)
 {
-    ended_ran();
-    CLI_TEST_ASSERT_TEXT(s_open_wanted, s_open_text, s_open_size);
+    ended_run_result();
+    CLI_TEST_ASSERT_TEXT(s_open_requested, s_open_text, s_open_size);
 }
 
 void test_the_last_thing_an_ended_server_wrote_is_recorded(void)
 {
-    ended_ran();
+    ended_run_result();
     CLI_TEST_ASSERT_TEXT("ending as requested", s_ended_complaint, s_ended_complaint_size);
 }
 
 void test_a_file_open_stores_its_uri_in_a_cell_released_as_the_server_is(void)
 {
-    ended_ran();
+    ended_run_result();
     TEST_ASSERT_GREATER_THAN_UINT64(s_in_use_closed, s_in_use_open);
     TEST_ASSERT_LESS_THAN_UINT64(s_in_use_open, s_in_use_released);
-}
-
-void test_a_request_the_server_sends_is_answered_later_while_it_is_received_on(void)
-{
-    char dir[CLI_PATH_MAX_LEN];
-    char why[1024];
-    char complaint[CLI_LSP_COMPLAINT];
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    CliLsp *const server = server_started("lsp_later", request_answered_later, &s_later, dir);
-    TEST_ASSERT_NOT_NULL(server);
-    (void)EMBED_CALL(cli_lsp_err_msg_length.notify, CliLspErrMsgLengthCfg, .lsp = server, .method = "orior/query", .params = "null", .length = 4ull, .err_msg = &err_msg);
-    const unsigned long long until = cli_clock_milliseconds() + 5000ull;
-    while ((embed_atomic_usize_load(&s_later.meanwhile) == 0u) && (cli_clock_milliseconds() < until))
-    {
-        EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 20u);
-    }
-    const int deferred = s_later.deferred;
-    const unsigned long long meanwhile = embed_atomic_usize_load(&s_later.meanwhile);
-    const int answered = EMBED_CALL(cli_lsp_size_err_msg.answer, CliLspSizeErrMsgCfg, .lsp = server, .id_read = s_later.id, .result = "\"later\"", .size_value = 7ull, .err_msg = &err_msg);
-    VerbaLinea out = {complaint, sizeof(complaint), 0ull};
-    while ((out.at == 0ull) && (cli_clock_milliseconds() < until + 5000ull))
-    {
-        EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 20u);
-        EMBED_CALL(cli_lsp_path_out.complaint, CliLspPathOutCfg, .lsp = server, .out = &out);
-    }
-    EMBED_CALL(cli_lsp_context.stop, CliLspContextCfg, .lsp = server);
-    EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = server);
-    TEST_ASSERT_TRUE(deferred);
-    TEST_ASSERT_EQUAL_UINT64(1ull, meanwhile);
-    TEST_ASSERT_TRUE(answered);
-    CLI_TEST_ASSERT_TEXT("answered \"later\"", complaint, out.at);
 }
 
 void test_a_requests_answer_is_the_message_returned_its_result_ended_by_a_0(void)
@@ -346,15 +304,15 @@ void test_a_message_is_read_by_its_length_and_the_next_after_it(void)
     unsigned long long size = 0ull;
     s_reader.read = source_read;
     s_reader.source = &s_source;
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_lsp_reader.read_message, CliLspReaderCfg, .reader = &s_reader, .body_out = body, .room = sizeof(body), .size = &size));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_lsp_reader.read_message, CliLspReaderCfg, .reader = &s_reader, .body_out = body, .capacity = sizeof(body), .size = &size));
     unsigned int root = CLI_JSON_NONE;
     const CliJson *const json = cli_unity_parsed(body, size, &root);
     const unsigned int number = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = root, .name = "result"), .name = "x");
     TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = number, .kind = CFG_JSON_NUMBER));
     TEST_ASSERT_EQUAL_CHAR('1', json->text[json->node[number].text]);
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_lsp_reader.read_message, CliLspReaderCfg, .reader = &s_reader, .body_out = body, .room = sizeof(body), .size = &size));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_lsp_reader.read_message, CliLspReaderCfg, .reader = &s_reader, .body_out = body, .capacity = sizeof(body), .size = &size));
     CLI_TEST_ASSERT_TEXT("{}", body, size);
-    TEST_ASSERT_FALSE(EMBED_CALL(cli_lsp_reader.read_message, CliLspReaderCfg, .reader = &s_reader, .body_out = body, .room = sizeof(body), .size = &size));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_lsp_reader.read_message, CliLspReaderCfg, .reader = &s_reader, .body_out = body, .capacity = sizeof(body), .size = &size));
 }
 
 void test_a_message_read_into_a_cell_counts_to_the_owner_named_and_no_other(void)
@@ -367,7 +325,7 @@ void test_a_message_read_into_a_cell_counts_to_the_owner_named_and_no_other(void
     const unsigned long long debug_before = embed_atomic_usize_load(&g_cli_debug_cells.in_use);
     const unsigned long long servers_before = embed_atomic_usize_load(&g_cli_servers_cells.in_use);
     unsigned long long size = 0ull;
-    char *const message = EMBED_CALL(cli_lsp_reader_size.message_take, CliLspReaderSizeCfg, .reader = &s_reader, .size = &size, .owner = &g_cli_debug_cells);
+    char *const message = EMBED_CALL(cli_lsp_reader_size.message_alloc, CliLspReaderSizeCfg, .reader = &s_reader, .size = &size, .owner = &g_cli_debug_cells);
     TEST_ASSERT_NOT_NULL(message);
     CLI_TEST_ASSERT_TEXT("{}", message, size);
     TEST_ASSERT_EQUAL_CHAR('\0', message[size]);

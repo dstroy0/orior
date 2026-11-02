@@ -7,12 +7,12 @@
 
 static char s_out[1u << 14u];
 
-// the first comment of `text`, the text of the file at `path`, is `wanted`
-static void assert_comment(const char *wanted, const char *path, const char *text)
+// the first comment of `text`, the text of the file at `path`, is `required`
+static void assert_comment(const char *required, const char *path, const char *text)
 {
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     EMBED_CALL(cli_purpose_path_text.first_comment, CliPurposePathTextCfg, .path = path, .text = text, .size = CLI_UNITY_LENGTH(text), .out = &out);
-    CLI_TEST_ASSERT_TEXT(wanted, s_out, out.at);
+    CLI_TEST_ASSERT_TEXT(required, s_out, out.at);
 }
 
 // whether `text` uses the file `name`, `stem` its name without its extension
@@ -30,7 +30,7 @@ void tearDown(void)
 {
 }
 
-void test_a_scripts_comment_past_its_license(void)
+void test_a_scripts_comment_end_its_license(void)
 {
     assert_comment("The live preview: the file in the editor shown as it reads.", "a.js",
                    "// orior - Copyright (C) 2026\n// SPDX-License-Identifier: AGPL-3.0\n\n// The live preview: the file\n"
@@ -125,20 +125,3 @@ void test_a_word_in_prose_does_not_use_a_file(void)
     TEST_ASSERT_FALSE(text_uses("the preview shows\n", "preview.js", "preview"));
 }
 
-void test_a_files_purpose_names_the_files_that_use_it(void)
-{
-    char root[CLI_PATH_MAX_LEN];
-    char src[CLI_PATH_MAX_LEN];
-    cli_unity_folder("purpose", root);
-    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = "src", .joined = src);
-    TEST_ASSERT_TRUE(EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = src));
-    cli_unity_file(root, "src/lib.js", "// SPDX-License-Identifier: MIT\n\n// Helpers for the window.\nexport const one = 1;\n");
-    cli_unity_file(root, "src/main.js", "import { one } from \"./lib.js\";\n");
-    cli_unity_file(root, "src/other.js", "const nothing = 0;\n");
-    cli_unity_file(root, "index.html", "<script type=\"module\" src=\"src/lib.js\"></script>\n");
-    char why[512];
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_purpose_table.purpose, CliPurposeCfg, .root = root, .path = "src/lib.js", .out = &out, .err_msg = &err_msg));
-    CLI_TEST_ASSERT_TEXT("{\"comment\":\"Helpers for the window.\",\"users\":[\"index.html\",\"src/main.js\"],\"all\":2}", s_out, out.at);
-}

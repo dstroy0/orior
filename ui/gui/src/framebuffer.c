@@ -13,9 +13,9 @@
 static CellOwner s_owner = MMGR_CELL_OWNER("gui_framebuffer");
 
 ParsMemoriaeHospes(gui_frames_pool);
-ParsMemoriaeHospes(gui_ground_pool);
+ParsMemoriaeHospes(gui_background_pool);
 MemoriaAnularis(s_frames, gui_frames_pool);
-MemoriaAnularis(s_ground, gui_ground_pool);
+MemoriaAnularis(s_background, gui_background_pool);
 
 typedef struct
 {
@@ -46,57 +46,57 @@ EMBED_INLINE void framebuffer_raster_layout(const FramebufferCtx *args)
     args->raster->pages = pages;
     args->raster->pages_bytes = pages_bytes;
     // the segment's distance into the pages, which the ring's capacity bounds
-    args->raster->placed = (unsigned long long)(pixels - (uint8_t *)pages);
+    args->raster->positioned = (unsigned long long)(pixels - (uint8_t *)pages);
 }
 
-int gui_framebuffer_init(const GuiFramebufferMostWidthCfg *args)
+int gui_framebuffer_init(const GuiFramebufferMaxWidthCfg *args)
 {
     memor.set(&(MemoriaCfg){.dst = args->framebuffer, .val = 0, .bytes = sizeof(*args->framebuffer)});
     const unsigned long long window =
         EMBED_CALL(framebuffer_window_bytes, FramebufferCtx, .width = args->width, .height = args->height);
     const unsigned long long most =
-        EMBED_CALL(framebuffer_window_bytes, FramebufferCtx, .width = args->most_width, .height = args->most_height);
+        EMBED_CALL(framebuffer_window_bytes, FramebufferCtx, .width = args->max_width, .height = args->max_height);
     const unsigned long long larger = (window > most) ? window : most;
-    // the next raster's place lies at the end of this one's room, which so ends on a place boundary, a power of two
-    args->framebuffer->room = (larger + GUI_FRAMEBUFFER_PLACE - 1ull) & ~(GUI_FRAMEBUFFER_PLACE - 1ull);
-    if (args->framebuffer->room == 0ull)
+    // the next raster's place lies at the end of this one's capacity, which so ends on a place boundary, a power of two
+    args->framebuffer->capacity = (larger + GUI_FRAMEBUFFER_POSITION - 1ull) & ~(GUI_FRAMEBUFFER_POSITION - 1ull);
+    if (args->framebuffer->capacity == 0ull)
     {
         return 0;
     }
-    const unsigned long long frames_bytes = 2ull * args->framebuffer->room;
+    const unsigned long long frames_bytes = 2ull * args->framebuffer->capacity;
     args->framebuffer->pages = EMBED_CALL(gui_system_bytes.pages, GuiSystemBytesCfg, .bytes = frames_bytes);
-    args->framebuffer->ground_pages =
-        EMBED_CALL(gui_system_bytes.pages, GuiSystemBytesCfg, .bytes = args->framebuffer->room);
+    args->framebuffer->background_pages =
+        EMBED_CALL(gui_system_bytes.pages, GuiSystemBytesCfg, .bytes = args->framebuffer->capacity);
     // the pages lie in this process's memory, whose sizes a size_t counts
-    if ((args->framebuffer->pages == NULL) || (args->framebuffer->ground_pages == NULL) ||
+    if ((args->framebuffer->pages == NULL) || (args->framebuffer->background_pages == NULL) ||
         !anularis.init(&(AnularisCfg){.ring = &s_frames,
                                       .buf = args->framebuffer->pages,
                                       .capacity = (size_t)frames_bytes,
                                       .segment_count = 2u,
-                                      .segment_bytes = (size_t)args->framebuffer->room}) ||
-        !anularis.init(&(AnularisCfg){.ring = &s_ground,
-                                      .buf = args->framebuffer->ground_pages,
-                                      .capacity = (size_t)args->framebuffer->room,
+                                      .segment_bytes = (size_t)args->framebuffer->capacity}) ||
+        !anularis.init(&(AnularisCfg){.ring = &s_background,
+                                      .buf = args->framebuffer->background_pages,
+                                      .capacity = (size_t)args->framebuffer->capacity,
                                       .segment_count = 1u,
-                                      .segment_bytes = (size_t)args->framebuffer->room}))
+                                      .segment_bytes = (size_t)args->framebuffer->capacity}))
     {
-        gui_framebuffer_most_width.free(args);
+        gui_framebuffer_max_width.free(args);
         return 0;
     }
     // a registration refused is the owner registered by the window before this one, or the queue full
     (void)mmgr_owner_register(&s_owner);
-    mmgr_owner_bytes_taken(&s_owner, (size_t)(frames_bytes + args->framebuffer->room));
+    mmgr_owner_bytes_taken(&s_owner, (size_t)(frames_bytes + args->framebuffer->capacity));
     for (size_t segment = 0u; segment < 2u; segment += 1u)
     {
         EMBED_CALL(framebuffer_raster_layout, FramebufferCtx, .raster = &args->framebuffer->raster[segment],
                    .ring = &s_frames, .segment = segment, .pages = args->framebuffer->pages,
                    .pages_bytes = frames_bytes);
     }
-    EMBED_CALL(framebuffer_raster_layout, FramebufferCtx, .raster = &args->framebuffer->raster[GUI_FRAMEBUFFER_GROUND],
-               .ring = &s_ground, .segment = 0u, .pages = args->framebuffer->ground_pages,
-               .pages_bytes = args->framebuffer->room);
-    // the room holds the window
-    (void)gui_framebuffer_most_width.fit(args);
+    EMBED_CALL(framebuffer_raster_layout, FramebufferCtx,
+               .raster = &args->framebuffer->raster[GUI_FRAMEBUFFER_BACKGROUND], .ring = &s_background, .segment = 0u,
+               .pages = args->framebuffer->background_pages, .pages_bytes = args->framebuffer->capacity);
+    // the capacity holds the window
+    (void)gui_framebuffer_max_width.fit(args);
     return 1;
 }
 
@@ -104,10 +104,10 @@ int gui_framebuffer_fits(const GuiFramebufferCfg *args)
 {
     return (args->framebuffer_read->pages != NULL) &&
            (EMBED_CALL(framebuffer_window_bytes, FramebufferCtx, .width = args->width, .height = args->height) <=
-            args->framebuffer_read->room);
+            args->framebuffer_read->capacity);
 }
 
-int gui_framebuffer_fit(const GuiFramebufferMostWidthCfg *args)
+int gui_framebuffer_fit(const GuiFramebufferMaxWidthCfg *args)
 {
     unsigned int width = args->width;
     unsigned int height = args->height;
@@ -125,7 +125,7 @@ int gui_framebuffer_fit(const GuiFramebufferMostWidthCfg *args)
     return 1;
 }
 
-GuiRaster *gui_framebuffer_flip(const GuiFramebufferMostWidthCfg *args)
+GuiRaster *gui_framebuffer_flip(const GuiFramebufferMaxWidthCfg *args)
 {
     anularis.seg_publish(&(AnularisCfg){.ring = &s_frames});
     if (anularis.seg_inflight(&(AnularisCfg){.ring = &s_frames}) == 2u)
@@ -138,23 +138,23 @@ GuiRaster *gui_framebuffer_flip(const GuiFramebufferMostWidthCfg *args)
     return &args->framebuffer->raster[next];
 }
 
-void gui_framebuffer_free(const GuiFramebufferMostWidthCfg *args)
+void gui_framebuffer_free(const GuiFramebufferMaxWidthCfg *args)
 {
-    const unsigned long long frames_bytes = 2ull * args->framebuffer->room;
+    const unsigned long long frames_bytes = 2ull * args->framebuffer->capacity;
     if ((args->framebuffer->pages != NULL) && (args->framebuffer->raster[0].pixels != NULL))
     {
         // the pages lie in this process's memory, whose sizes a size_t counts
-        mmgr_owner_bytes_given(&s_owner, (size_t)(frames_bytes + args->framebuffer->room));
+        mmgr_owner_bytes_given(&s_owner, (size_t)(frames_bytes + args->framebuffer->capacity));
     }
     if (args->framebuffer->pages != NULL)
     {
         EMBED_CALL(gui_system_bytes.pages_free, GuiSystemBytesCfg, .pages = args->framebuffer->pages,
                    .bytes = frames_bytes);
     }
-    if (args->framebuffer->ground_pages != NULL)
+    if (args->framebuffer->background_pages != NULL)
     {
-        EMBED_CALL(gui_system_bytes.pages_free, GuiSystemBytesCfg, .pages = args->framebuffer->ground_pages,
-                   .bytes = args->framebuffer->room);
+        EMBED_CALL(gui_system_bytes.pages_free, GuiSystemBytesCfg, .pages = args->framebuffer->background_pages,
+                   .bytes = args->framebuffer->capacity);
     }
     memor.set(&(MemoriaCfg){.dst = args->framebuffer, .val = 0, .bytes = sizeof(*args->framebuffer)});
 }

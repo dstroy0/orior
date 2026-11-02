@@ -77,7 +77,7 @@ EMBED_INLINE void messages_trim(const ValidateMessagesCtx *args)
 }
 
 // the whole number `part` of the member `key` of `object`, as serde reads a u64: 1, or 0 where there is none
-EMBED_INLINE int messages_place(const ValidateMessagesCtx *args)
+EMBED_INLINE int messages_position(const ValidateMessagesCtx *args)
 {
     const CliJson *json = args->json;
     unsigned int object = args->object;
@@ -108,7 +108,7 @@ EMBED_INLINE int messages_place(const ValidateMessagesCtx *args)
 }
 
 // a text put in the messages' texts: its place, or CLI_VALIDATE_NONE where it does not fit
-EMBED_INLINE unsigned long long messages_put(const ValidateMessagesCtx *args)
+EMBED_INLINE unsigned long long messages_write(const ValidateMessagesCtx *args)
 {
     if (args->messages->used + args->length > CLI_VALIDATE_MESSAGE_TEXT)
     {
@@ -128,10 +128,10 @@ EMBED_INLINE void messages_append(const ValidateMessagesCtx *args)
     const char *kind = args->kind;
     unsigned long long kind_size = args->kind_size;
     args->message->text =
-        EMBED_CALL(messages_put, ValidateMessagesCtx, .messages = args->messages, .text = text, .length = text_size);
+        EMBED_CALL(messages_write, ValidateMessagesCtx, .messages = args->messages, .text = text, .length = text_size);
     args->message->text_size = text_size;
     args->message->kind =
-        EMBED_CALL(messages_put, ValidateMessagesCtx, .messages = args->messages, .text = kind, .length = kind_size);
+        EMBED_CALL(messages_write, ValidateMessagesCtx, .messages = args->messages, .text = kind, .length = kind_size);
     args->message->kind_size = kind_size;
     if ((args->messages->count < CLI_VALIDATE_MESSAGES) && (args->message->text != CLI_VALIDATE_NONE) &&
         (args->message->kind != CLI_VALIDATE_NONE))
@@ -155,14 +155,14 @@ void cli_validate_messages_get(const CliValidateSizeCtx *args)
                       .start = &start, .length_pointer = &length))
     {
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &json,
-                   .node_json_node_pointer = g_cli_validate->line_nodes, .nodes_most = CLI_VALIDATE_LINE_NODES,
-                   .text_out = g_cli_validate->line_text, .text_most = CLI_VALIDATE_LINE_TEXT);
+                   .node_json_node_pointer = g_cli_validate->line_nodes, .nodes_max = CLI_VALIDATE_LINE_NODES,
+                   .text_out = g_cli_validate->line_text, .text_max = CLI_VALIDATE_LINE_TEXT);
         char why[CLI_ERR_MSG_MAX_LEN];
         VerbaLinea unread = {why, sizeof(why), 0ull};
         const unsigned int value =
             EMBED_CALL(cli_json_tree_text_size_tokens.json_read, CliJsonTreeTextSizeTokensCfg, .json = &json,
                        .text = args->output + start, .size = length, .tokens = g_cli_validate->line_tokens,
-                       .tokens_most = CLI_VALIDATE_LINE_NODES, .err_msg = &unread);
+                       .tokens_max = CLI_VALIDATE_LINE_NODES, .err_msg = &unread);
         if (value == CLI_JSON_NONE)
         {
             EMBED_CALL(messages_trim, ValidateMessagesCtx, .text = args->output, .start = &start,
@@ -178,19 +178,19 @@ void cli_validate_messages_get(const CliValidateSizeCtx *args)
         unsigned long long col = 0ull;
         unsigned long long end_line = 0ull;
         unsigned long long end_col = 0ull;
-        (void)EMBED_CALL(messages_place, ValidateMessagesCtx, .json = &json, .object = value, .key = "pos",
+        (void)EMBED_CALL(messages_position, ValidateMessagesCtx, .json = &json, .object = value, .key = "pos",
                          .part = "line", .value = &line);
-        (void)EMBED_CALL(messages_place, ValidateMessagesCtx, .json = &json, .object = value, .key = "pos",
+        (void)EMBED_CALL(messages_position, ValidateMessagesCtx, .json = &json, .object = value, .key = "pos",
                          .part = "column", .value = &col);
         // lines from 1 are read as lines from 0, a 32-bit number's wrapping as Rust's has it
         CliProverMessage message;
         message.line = (unsigned int)((line > 1ull) ? line : 1ull) - 1u;
         message.col = (unsigned int)col;
-        message.end_line = EMBED_CALL(messages_place, ValidateMessagesCtx, .json = &json, .object = value,
+        message.end_line = EMBED_CALL(messages_position, ValidateMessagesCtx, .json = &json, .object = value,
                                       .key = "endPos", .part = "line", .value = &end_line)
                                ? (unsigned int)((end_line > 1ull) ? end_line : 1ull) - 1u
                                : message.line;
-        message.end_col = EMBED_CALL(messages_place, ValidateMessagesCtx, .json = &json, .object = value,
+        message.end_col = EMBED_CALL(messages_position, ValidateMessagesCtx, .json = &json, .object = value,
                                      .key = "endPos", .part = "column", .value = &end_col)
                               ? (unsigned int)end_col
                               : message.col + 1u;
@@ -309,12 +309,12 @@ int cli_validate_axioms_get(const CliValidateTextCtx *args)
     unsigned long long start = at + sizeof(s_mark) - 1ull;
     unsigned long long length = args->size - start;
     EMBED_CALL(messages_trim, ValidateMessagesCtx, .text = args->text, .start = &start, .length_pointer = &length);
-    const unsigned long long lead = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg,
+    const unsigned long long lead = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg,
                                                .text = args->text, .at = start, .size = start + length, .set = "[") -
                                     start;
     start += lead;
     length -= lead;
-    length = EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = args->text + start,
+    length = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = args->text + start,
                         .at = length, .set = "]");
     *list = start;
     *list_size = length;
@@ -414,7 +414,7 @@ unsigned long long cli_validate_copy_get(const CliValidateTextSizeCtx *args)
     for (unsigned int theorem = 0u; tool->audited && (theorem < g_cli_validate->theorem_count); theorem += 1u)
     {
         const char *const name = g_cli_validate->names + g_cli_validate->theorems[theorem];
-        EMBED_CALL(cli_text_out_name.put_fill, CliTextOutNameCfg, .out = &out, .text = tool->print, .name = "{name}",
+        EMBED_CALL(cli_text_out_name.append_fill, CliTextOutNameCfg, .out = &out, .text = tool->print, .name = "{name}",
                    .value = name);
         mmgr_line_ch(&out, '\n');
     }

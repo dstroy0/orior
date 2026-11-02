@@ -18,7 +18,7 @@ typedef struct
     const wchar_t *key;
     const char *name;
     char *out;
-    unsigned long long room;
+    unsigned long long capacity;
 #endif
 } WindowsRegistryCtx;
 // a value of `key` under `root` read into `out` in UTF-8: 1, or 0 where it is none or no text
@@ -44,8 +44,8 @@ EMBED_INLINE int cli_read(const WindowsRegistryCtx *args)
         return 0;
     }
     s_data[size / sizeof(wchar_t)] = L'\0';
-    // the room is far below what an int counts
-    const int written = WideCharToMultiByte(CP_UTF8, 0u, s_data, -1, args->out, (int)args->room, NULL, NULL);
+    // the capacity is far below what an int counts
+    const int written = WideCharToMultiByte(CP_UTF8, 0u, s_data, -1, args->out, (int)args->capacity, NULL, NULL);
     return written > 0;
 }
 
@@ -53,13 +53,13 @@ int cli_registry_machine_path(const CliOutCtx *args)
 {
     return EMBED_CALL(cli_read, WindowsRegistryCtx, .root = HKEY_LOCAL_MACHINE,
                       .key = L"SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment", .name = "Path",
-                      .out = args->out, .room = args->room);
+                      .out = args->out, .capacity = args->capacity);
 }
 
-int cli_registry_user_value(const CliOutRoomCtx *args)
+int cli_registry_user_value(const CliOutCapacityCtx *args)
 {
     return EMBED_CALL(cli_read, WindowsRegistryCtx, .root = HKEY_CURRENT_USER, .key = L"Environment",
-                      .name = args->name, .out = args->out, .room = args->room);
+                      .name = args->name, .out = args->out, .capacity = args->capacity);
 }
 
 int cli_registry_set_user_value(const CliErrMsgNameCtx *args)
@@ -106,10 +106,11 @@ void cli_registry_expand(const CliOutCtx *args)
     static wchar_t s_expanded[CLI_REGISTRY_UNITS];
     const int read = MultiByteToWideChar(CP_UTF8, 0, args->text, -1, s_source, CLI_REGISTRY_UNITS);
     const DWORD written = (read != 0) ? ExpandEnvironmentStringsW(s_source, s_expanded, CLI_REGISTRY_UNITS) : 0u;
-    // the room is far below what an int counts
-    const int converted = ((written != 0u) && (written <= CLI_REGISTRY_UNITS))
-                              ? WideCharToMultiByte(CP_UTF8, 0u, s_expanded, -1, args->out, (int)args->room, NULL, NULL)
-                              : 0;
+    // the capacity is far below what an int counts
+    const int converted =
+        ((written != 0u) && (written <= CLI_REGISTRY_UNITS))
+            ? WideCharToMultiByte(CP_UTF8, 0u, s_expanded, -1, args->out, (int)args->capacity, NULL, NULL)
+            : 0;
     if (converted == 0)
     {
         memor.cpy(

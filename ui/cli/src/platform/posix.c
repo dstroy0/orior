@@ -38,12 +38,12 @@
 static unsigned int s_outside[1024];
 static unsigned int s_outsides;
 
-// what the walk over /proc records: the processes found, their count and room
+// what the walk over /proc records: the processes found, their count and capacity
 typedef struct
 {
     CliProcess *processes;
     unsigned int count;
-    unsigned int room;
+    unsigned int capacity;
 } CliProcWalk;
 
 #if defined(__linux__)
@@ -91,20 +91,21 @@ int cli_started_outside(const CliWordsIdCtx *args)
     return 1;
 }
 
-unsigned int cli_processes_list(const CliRoomProcessesCtx *args)
+unsigned int cli_processes_list(const CliCapacityProcessesCtx *args)
 {
     unsigned int count = 0u;
 #if defined(__linux__)
     // each numbered folder of /proc, its stat's fourth field the parent, after the program's name in parentheses
     // which may contain spaces of its own
-    CliProcWalk walk = {args->processes, 0u, args->room_u32};
+    CliProcWalk walk = {args->processes, 0u, args->capacity_u32};
     EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = "/proc", .each = cli_proc_walk,
                .context_bytess = &walk);
     count = walk.count;
 #elif defined(__APPLE__)
     static int s_ids[8192];
-    const int listed = proc_listpids(PROC_ALL_PIDS, 0u, s_ids, (int)sizeof(s_ids));
-    for (int at = 0; (listed > 0) && (at < (listed / (int)sizeof(int))) && (count < args->room_u32); at += 1)
+    const int list_entries = proc_listpids(PROC_ALL_PIDS, 0u, s_ids, (int)sizeof(s_ids));
+    for (int at = 0; (list_entries > 0) && (at < (list_entries / (int)sizeof(int))) && (count < args->capacity_u32);
+         at += 1)
     {
         struct proc_bsdinfo info;
         if (proc_pidinfo(s_ids[at], PROC_PIDTBSDINFO, 0u, &info, (int)sizeof(info)) == (int)sizeof(info))
@@ -125,7 +126,7 @@ unsigned int cli_processes_list(const CliRoomProcessesCtx *args)
 static void cli_proc_walk(const CliEachNameIsFolderCfg *args)
 {
     CliProcWalk *const walk = (CliProcWalk *)args->context;
-    if (!args->is_folder || (args->name[0] < '0') || (args->name[0] > '9') || (walk->count >= walk->room))
+    if (!args->is_folder || (args->name[0] < '0') || (args->name[0] > '9') || (walk->count >= walk->capacity))
     {
         return;
     }
@@ -172,16 +173,16 @@ static void cli_proc_walk(const CliEachNameIsFolderCfg *args)
 
 unsigned int cli_container_members(const CliIdsCtx *args)
 {
-    unsigned int room = args->room_u32;
-    static CliProcess s_all[CLI_PROCESSES_MOST];
-    static unsigned int s_found[CLI_PROCESSES_MOST];
-    const unsigned int all = EMBED_CALL(cli_room_processes_internal.processes_list, CliRoomProcessesCtx,
-                                        .processes = s_all, .room_u32 = CLI_PROCESSES_MOST);
+    unsigned int capacity = args->capacity_u32;
+    static CliProcess s_all[CLI_PROCESSES_MAX];
+    static unsigned int s_found[CLI_PROCESSES_MAX];
+    const unsigned int all = EMBED_CALL(cli_capacity_processes_internal.processes_list, CliCapacityProcessesCtx,
+                                        .processes = s_all, .capacity_u32 = CLI_PROCESSES_MAX);
     const unsigned int found =
         EMBED_CALL(cli_container_root.descendants, CliContainerRootCfg, .root = cli_process_own(), .parents = s_all,
-                   .count = all, .found = s_found, .room = CLI_PROCESSES_MOST);
+                   .count = all, .found = s_found, .capacity = CLI_PROCESSES_MAX);
     unsigned int count = 0u;
-    for (unsigned int at = 0u; (at < found) && (count < room); at += 1u)
+    for (unsigned int at = 0u; (at < found) && (count < capacity); at += 1u)
     {
         int outside = 0;
         for (unsigned int each = 0u; !outside && (each < s_outsides); each += 1u)
@@ -200,9 +201,9 @@ unsigned int cli_container_members(const CliIdsCtx *args)
 
 void cli_container_members_end(void)
 {
-    static unsigned int s_ids[CLI_PROCESSES_MOST];
+    static unsigned int s_ids[CLI_PROCESSES_MAX];
     const unsigned int count =
-        EMBED_CALL(cli_ids_internal.container_members, CliIdsCtx, .ids = s_ids, .room_u32 = CLI_PROCESSES_MOST);
+        EMBED_CALL(cli_ids_internal.container_members, CliIdsCtx, .ids = s_ids, .capacity_u32 = CLI_PROCESSES_MAX);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         // kill takes any process id and signal number, and reports by its answer whether the process was there
@@ -221,20 +222,20 @@ unsigned int cli_process_own(void)
     return (unsigned int)getpid();
 }
 
-int cli_program_own(const CliPathRoomCtx *args)
+int cli_program_own(const CliPathCapacityCtx *args)
 {
 #if defined(__linux__)
-    const ssize_t length = readlink("/proc/self/exe", args->path_out, args->room_size - 1u);
+    const ssize_t length = readlink("/proc/self/exe", args->path_out, args->capacity_bytes - 1u);
     if (length <= 0)
     {
         return 0;
     }
-    // a link's length read is positive and under the room
+    // a link's length read is positive and under the capacity
     args->path_out[length] = '\0';
     return 1;
 #elif defined(__APPLE__)
-    // a room is far below what a uint32_t counts
-    uint32_t size = (uint32_t)args->room_size;
+    // a capacity is far below what a uint32_t counts
+    uint32_t size = (uint32_t)args->capacity_bytes;
     return _NSGetExecutablePath(args->path_out, &size) == 0;
 #else
     return 0;
@@ -258,14 +259,14 @@ typedef struct
 {
 #if (!defined(_WIN32))
     const char **words;
-    unsigned int room;
+    unsigned int capacity;
 #endif
 } PosixCtx;
 // the words this program was started with, read of the system where its main hands none: on Linux /proc/self/cmdline,
 // each word ended by a 0, and on macOS the words the system saved for the program
 EMBED_INLINE unsigned int cli_arguments_own(const PosixCtx *args)
 {
-    unsigned int taken = 0u;
+    unsigned int reserved = 0u;
 #if defined(__linux__)
     static char s_text[CLI_ARGUMENTS_TEXT];
     const int file = open("/proc/self/cmdline", O_RDONLY | O_CLOEXEC);
@@ -286,47 +287,47 @@ EMBED_INLINE unsigned int cli_arguments_own(const PosixCtx *args)
     s_text[used] = '\0';
     // the program's own name first, passed over
     unsigned long long at = cellul.len(&(CatenaFinitaCfg){.src = s_text, .cap = sizeof(s_text)}) + 1ull;
-    while ((at < used) && (taken < args->room))
+    while ((at < used) && (reserved < args->capacity))
     {
-        args->words[taken] = s_text + at;
-        taken += 1u;
+        args->words[reserved] = s_text + at;
+        reserved += 1u;
         at += cellul.len(&(CatenaFinitaCfg){.src = s_text + at, .cap = sizeof(s_text)}) + 1ull;
     }
 #elif defined(__APPLE__)
     const int count = *_NSGetArgc();
-    char **const given = *_NSGetArgv();
-    for (int at = 1; (at < count) && (taken < args->room); at += 1)
+    char **const supplied = *_NSGetArgv();
+    for (int at = 1; (at < count) && (reserved < args->capacity); at += 1)
     {
-        args->words[taken] = given[at];
-        taken += 1u;
+        args->words[reserved] = supplied[at];
+        reserved += 1u;
     }
 #else
 #endif
-    return taken;
+    return reserved;
 }
 
-unsigned int cli_arguments(const CliRoomCountCtx *args)
+unsigned int cli_arguments(const CliCapacityCountCtx *args)
 {
-    if (args->given == NULL)
+    if (args->supplied == NULL)
     {
-        return EMBED_CALL(cli_arguments_own, PosixCtx, .words = args->words_read, .room = args->room_u32);
+        return EMBED_CALL(cli_arguments_own, PosixCtx, .words = args->words_read, .capacity = args->capacity_u32);
     }
-    unsigned int taken = 0u;
-    for (int at = 1; (at < args->count_i32) && (taken < args->room_u32); at += 1)
+    unsigned int reserved = 0u;
+    for (int at = 1; (at < args->count_i32) && (reserved < args->capacity_u32); at += 1)
     {
-        args->words_read[taken] = args->given[at];
-        taken += 1u;
+        args->words_read[reserved] = args->supplied[at];
+        reserved += 1u;
     }
-    return taken;
+    return reserved;
 }
 
 void cli_console_let_go(void)
 {
 }
 
-int cli_folder_current(const CliPathRoomCtx *args)
+int cli_folder_current(const CliPathCapacityCtx *args)
 {
-    return getcwd(args->path_out, args->room_size) != NULL;
+    return getcwd(args->path_out, args->capacity_bytes) != NULL;
 }
 
 int cli_file_runnable(const CliPathFileCtx *args)
@@ -493,9 +494,9 @@ int cli_socket_read(const CliSizeBytesCtx *args)
     return 1;
 }
 
-long long cli_socket_some(const CliRoomCtx *args)
+long long cli_socket_some(const CliCapacityCtx *args)
 {
-    const ssize_t read = recv((int)(args->sock->handle - 1ull), (char *)args->bytes_out, (size_t)args->room, 0);
+    const ssize_t read = recv((int)(args->sock->handle - 1ull), (char *)args->bytes_out, (size_t)args->capacity, 0);
     if (read > 0)
     {
         return (long long)read;

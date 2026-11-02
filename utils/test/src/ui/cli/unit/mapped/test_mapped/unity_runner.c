@@ -7,7 +7,7 @@
 extern void setUp(void);
 extern void tearDown(void);
 extern void test_a_file_of_many_pages_maps_as_written(void);
-extern void test_a_file_past_a_mebibyte_maps_as_written(void);
+extern void test_a_file_end_a_mebibyte_maps_as_written(void);
 extern void test_an_empty_file_maps_to_no_bytes(void);
 extern void test_a_missing_file_does_not_map(void);
 
@@ -72,7 +72,7 @@ int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\mapped\\test_mapped\\test_mapped.c");
   run_test(test_a_file_of_many_pages_maps_as_written, "test_a_file_of_many_pages_maps_as_written", 39);
-  run_test(test_a_file_past_a_mebibyte_maps_as_written, "test_a_file_past_a_mebibyte_maps_as_written", 44);
+  run_test(test_a_file_end_a_mebibyte_maps_as_written, "test_a_file_end_a_mebibyte_maps_as_written", 44);
   run_test(test_an_empty_file_maps_to_no_bytes, "test_an_empty_file_maps_to_no_bytes", 49);
   run_test(test_a_missing_file_does_not_map, "test_a_missing_file_does_not_map", 61);
 

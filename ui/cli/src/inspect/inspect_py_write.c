@@ -23,7 +23,7 @@ typedef struct
     unsigned long long returns_start;
     unsigned long long returns_end;
     int has_returns;
-    int gives;
+    int releases;
     int yields;
     char raised[CLI_PY_PARAMS][CLI_NAME_MAX_LEN];
     unsigned int raises;
@@ -257,7 +257,7 @@ EMBED_INLINE void write_signature(const InspectPyWriteCtx *args)
                         .tok = EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = line, .at = 1u),
                         .word = "None"))
         {
-            s_sign.gives = 1;
+            s_sign.releases = 1;
         }
         s_sign.yields =
             s_sign.yields || EMBED_CALL(cli_inspect_py_src_word.py_contains, CliInspectPySrcWordCfg, .src = src,
@@ -291,7 +291,7 @@ EMBED_INLINE void write_signature(const InspectPyWriteCtx *args)
     }
     const int none = s_sign.has_returns && (s_sign.returns_end - s_sign.returns_start == 4u) &&
                      (memor.cmp(&(MemoriaCfg){.src = src + s_sign.returns_start, .other = "None", .bytes = 4u}) == 0);
-    s_sign.gives = s_sign.gives || (s_sign.has_returns && !none);
+    s_sign.releases = s_sign.releases || (s_sign.has_returns && !none);
 }
 
 // the lines of the docstring being drawn up, each its start and length in their pool, and how many there are
@@ -354,9 +354,9 @@ EMBED_INLINE void write_part(const InspectPyWriteCtx *args)
 }
 
 // the fields of reStructuredText's form put on the docstring
-EMBED_INLINE void write_rest(const InspectPyWriteCtx *args)
+EMBED_INLINE void write_remainder(const InspectPyWriteCtx *args)
 {
-    if ((s_sign.params > 0u) || s_sign.gives || s_sign.yields || (s_sign.raises > 0u))
+    if ((s_sign.params > 0u) || s_sign.releases || s_sign.yields || (s_sign.raises > 0u))
     {
         EMBED_CALL(write_text_line, InspectPyWriteCtx, .text = "");
     }
@@ -376,7 +376,7 @@ EMBED_INLINE void write_rest(const InspectPyWriteCtx *args)
             write_line_finish();
         }
     }
-    if (s_sign.gives || s_sign.yields)
+    if (s_sign.releases || s_sign.yields)
     {
         EMBED_CALL(write_text_line, InspectPyWriteCtx, .text = s_sign.yields ? ":yield:" : ":return:");
         if (s_sign.has_returns)
@@ -420,7 +420,7 @@ EMBED_INLINE void write_sections(const InspectPyWriteCtx *args)
             write_line_finish();
         }
     }
-    if (s_sign.gives || s_sign.yields)
+    if (s_sign.releases || s_sign.yields)
     {
         EMBED_CALL(write_section, InspectPyWriteCtx, .form = args->form, .title = s_sign.yields ? "Yields" : "Returns");
         VerbaLinea *const line = write_line();
@@ -461,7 +461,7 @@ int cli_inspect_py_docstring(const CliInspectSizeSrcCtx *args)
 {
     const char *src = args->src;
     CliInspectEdit *edit = args->edit;
-    CliInspectPlace *summary = args->summary;
+    CliInspectPosition *summary = args->summary;
     EMBED_CALL(cli_inspect_py_src_size.py_read, CliInspectPySrcSizeCfg, .src = src, .size = args->size);
     const unsigned int at =
         EMBED_CALL(write_function_around, InspectPyWriteCtx, .src = src, .line = args->line, .head = "def");
@@ -497,21 +497,21 @@ int cli_inspect_py_docstring(const CliInspectSizeSrcCtx *args)
     while (indent < args->size)
     {
         unsigned int letter = 0u;
-        const unsigned long long taken =
+        const unsigned long long reserved =
             EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
                        .text_bytes = (const unsigned char *)src, .length = args->size, .at = indent, .letter = &letter);
         if ((letter == '\n') || !EMBED_CALL(cli_inspect_internal.white, CliInspectCtx, .letter = letter))
         {
             break;
         }
-        indent += taken;
+        indent += reserved;
         units += (letter >= 0x10000u) ? 2u : 1u;
     }
     s_pool_line = (VerbaLinea){s_pool, sizeof(s_pool), 0ull};
     s_lines = 0u;
     if (cellul.eq(&(CatenaFinitaCfg){.src = args->form, .other = "rest", .cap = CLI_CELLS_POOL}))
     {
-        EMBED_CALL(write_rest, InspectPyWriteCtx, .src = src);
+        EMBED_CALL(write_remainder, InspectPyWriteCtx, .src = src);
     }
     else if (!cellul.eq(&(CatenaFinitaCfg){.src = args->form, .other = "plain", .cap = CLI_CELLS_POOL}))
     {
@@ -538,8 +538,8 @@ int cli_inspect_py_docstring(const CliInspectSizeSrcCtx *args)
         mmgr_line_put_n(args->text, src + body, indent - body);
         mmgr_line_put(args->text, "\"\"\"\n");
     }
-    const CliInspectPlace place = {header_end + 1u, 0u};
+    const CliInspectPosition place = {header_end + 1u, 0u};
     *edit = (CliInspectEdit){place, place, {0u, 0u}};
-    *summary = (CliInspectPlace){header_end + 1u, units + 3u};
+    *summary = (CliInspectPosition){header_end + 1u, units + 3u};
     return 1;
 }

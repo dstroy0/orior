@@ -19,7 +19,7 @@
 //   indentAfter             a pattern a line ends with to indent the next deeper
 //   grammar                 lists of words by name and the tokenizer, as editor/tokens.js reads one; a pattern is
 //                           a string, or { pattern, flags } where it takes flags; a list may be read from a table of
-//                           the tree and a pattern may be a list's words (cli_plugins_grammar_whole)
+//                           the tree and a pattern may be a list's words (cli_plugins_grammar_resolved)
 //   hovers                  a word and the text hovering it shows, where it has any
 //   snippets                { label, body } for the completion list, `${1:name}` a stop in a body
 //   reads, writes           for a script plugin, the patterns of the tree's files it reads and writes, `*` any
@@ -64,7 +64,7 @@ typedef struct CliPluginsTreeCfg CliPluginsTreeCfg;
 extern CellOwner g_cli_plugins_cells;
 
 // the bytes a plugin's text and its sample are written in, as a plugin is written
-#define CLI_PLUGIN_TEXT_ROOM (1ull << 20u)
+#define CLI_PLUGIN_TEXT_CAPACITY (1ull << 20u)
 
 // A plugin that comes with orior: its id, the text of its plugin.json, `size` bytes, and the code it runs as a script
 // plugin, `code_size` bytes, NULL for one that runs none
@@ -101,12 +101,12 @@ typedef struct
 
 // The language each extension, whole name and pattern of paths opens as: `/<name>` for a whole name, `?<pattern>` for
 // a pattern, and the extension itself; each key with its language id, a later plugin's standing in for an earlier's,
-// in a cell of `room`, given back with cli_plugins_languages_free
+// in a cell of `capacity`, given back with cli_plugins_languages_free
 typedef struct
 {
     CliLanguagePair *pair;
     unsigned int count;
-    unsigned int room;
+    unsigned int capacity;
 } CliLanguages;
 
 typedef struct
@@ -118,8 +118,8 @@ typedef struct
 // every plugin handed to `each`: those that come with orior, then the reader's, each in the order of its id
 void cli_plugins_each(const CliPluginsEachCfg *args);
 // the language each extension opens as, by the language plugins, a reader's plugin standing in for one that comes with
-// orior, a key whose room could not be taken left out; the same for a caller giving it back within its call, from the
-// temporary tier; and the languages' cell given back, either way
+// orior, a key whose capacity could not be taken left out; the same for a caller giving it back within its call, from
+// the temporary tier; and the languages' cell given back, either way
 void cli_plugins_languages(const CliPluginsCfg *args);
 void cli_plugins_languages_for_call(const CliPluginsCfg *args);
 void cli_plugins_languages_free(const CliPluginsCfg *args);
@@ -141,12 +141,12 @@ int cli_plugins_tree(const CliPluginsTreeCfg *args);
 // of `match` or its whole match, none `skip` matches, none where the table does not read; and each rule whose pattern
 // is a word list, `{"words", "before", "after"}`, given the list's words, escaped, the longest first, between `before`
 // and `after` as its pattern, a rule whose list has none left out. 1, or 0 with why given (plugins_tables.c)
-int cli_plugins_grammar_whole(const CliPluginsErrMsgJsonCfg *args);
+int cli_plugins_grammar_resolved(const CliPluginsErrMsgJsonCfg *args);
 // whether the folder `name` is one of the languages of the plugin whose `each`, `{"folder", "table", "unless":
 // {"column", "match"}, "except"}`, is at `each` in `json`: its table read from the folder of that name in `folder` of
 // the tree `tree`, no row's cell in `unless`'s column matched by its pattern, and the name not among `except`
 // (plugins_tables.c)
-int cli_plugins_folder_stands(const CliPluginsJsonCfg *args);
+int cli_plugins_folder_exists(const CliPluginsJsonCfg *args);
 // the code the script plugin `id` runs into `out`: the file its plugin.json names as `main`, or each of a list of them
 // there in order, joined by a line's end, plugin.js where it names none, in the plugin's own folder, or the code built
 // into the program for one that comes with orior. A name that leaves the folder is refused. 1, or 0 with why given
@@ -336,20 +336,20 @@ EMBED_TABLE_STORAGE CliPluginsTreeNs cli_plugins_tree_table EMBED_UNUSED = {
 
 typedef struct
 {
-    int (*grammar_whole)(const CliPluginsErrMsgJsonCfg *args);
+    int (*grammar_resolved)(const CliPluginsErrMsgJsonCfg *args);
 } CliPluginsErrMsgJsonNs;
-EMBED_TABLE_LAYOUT(CliPluginsErrMsgJsonNs, grammar_whole);
+EMBED_TABLE_LAYOUT(CliPluginsErrMsgJsonNs, grammar_resolved);
 EMBED_TABLE_STORAGE CliPluginsErrMsgJsonNs cli_plugins_err_msg_json EMBED_UNUSED = {
-    .grammar_whole = cli_plugins_grammar_whole,
+    .grammar_resolved = cli_plugins_grammar_resolved,
 };
 
 typedef struct
 {
-    int (*folder_stands)(const CliPluginsJsonCfg *args);
+    int (*folder_exists)(const CliPluginsJsonCfg *args);
 } CliPluginsJsonNs;
-EMBED_TABLE_LAYOUT(CliPluginsJsonNs, folder_stands);
+EMBED_TABLE_LAYOUT(CliPluginsJsonNs, folder_exists);
 EMBED_TABLE_STORAGE CliPluginsJsonNs cli_plugins_json EMBED_UNUSED = {
-    .folder_stands = cli_plugins_folder_stands,
+    .folder_exists = cli_plugins_folder_exists,
 };
 
 typedef struct

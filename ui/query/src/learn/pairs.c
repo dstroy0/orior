@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pairs.c: the bridge's pairs put to the part, and the other modes of `orior_klq_identity` (klq_identity.cu): `stall`,
-// `register`, `past`, `queue`, `cost` and `curve` over the stick's questions and the host's answers to them,
+// `register`, `end`, `queue`, `cost` and `curve` over the stick's questions and the host's answers to them,
 // `text_identity` over every identity between texts in `Lstar.klq`, each side a kernel of a stick of its own, and
 // `stick`, the no-argument run, which slices the stick's questions into identities, computes the integer questions on
 // the host over every case, and sifts the engine's writing through what nvcc writes. Every mode that puts questions
@@ -62,7 +62,7 @@ int query_pairs_read(const QueryPairsErrMsgCtx *args)
             *field = args->words_letters[at + 1u];
             at += 1u;
         }
-        else if (mode->word_count < QUERY_WORDS_MOST)
+        else if (mode->word_count < QUERY_WORDS_MAX)
         {
             mode->words[mode->word_count] = word;
             mode->word_count += 1u;
@@ -79,29 +79,29 @@ int query_pairs_read(const QueryPairsErrMsgCtx *args)
 
 void query_part_read(const QueryPairsPartNameCtx *args)
 {
-    VerbaLinea line = {args->name, args->room, 0ull};
+    VerbaLinea line = {args->name, args->capacity, 0ull};
     const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = args->part, .cap = CLI_CELLS_POOL});
     for (unsigned long long at = 0ull; at < whole;)
     {
         const unsigned long long stop = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
                                                    .text = args->part, .at = at, .size = whole, .set = "_");
         const size_t from = line.at;
-        const size_t taken = mmgr_line_put_n(&line, args->part + at, (size_t)(stop - at));
-        EMBED_CALL(cli_text_size_from.raise, CliTextSizeFromCfg, .text_out = line.out + from, .size = taken);
+        const size_t reserved = mmgr_line_put_n(&line, args->part + at, (size_t)(stop - at));
+        EMBED_CALL(cli_text_size_from.raise, CliTextSizeFromCfg, .text_out = line.out + from, .size = reserved);
         at = stop + 1ull;
     }
     mmgr_line_finish(&line);
 }
 
-int query_pairs_carry(const QueryPairsPartContextDryCtx *args)
+int query_pairs_machine_transfer(const QueryPairsPartContextDryCtx *args)
 {
     QueryContext *context = args->context;
     VerbaLinea *err_msg = args->err_msg;
-    static char s_carrier[QUERY_PATH_MAX_LEN];
+    static char s_transport[QUERY_PATH_MAX_LEN];
     static char s_cross[QUERY_PATH_MAX_LEN];
     static char s_nvdisasm[QUERY_PATH_MAX_LEN];
     if (!EMBED_CALL(query_loops_err_msg_context.context_tool, QueryLoopsErrMsgContextCfg, .context_read = context,
-                    .name = "orior_cubin_run", .binary = s_carrier, .err_msg = err_msg) ||
+                    .name = "orior_cubin_run", .binary = s_transport, .err_msg = err_msg) ||
         !EMBED_CALL(query_loops_err_msg_context.context_tool, QueryLoopsErrMsgContextCfg, .context_read = context,
                     .name = "orior_measuring_stick_query", .binary = s_cross, .err_msg = err_msg) ||
         !EMBED_CALL(query_loops_err_msg.nvdisasm, QueryLoopsErrMsgCfg, .context_read = context, .path = s_nvdisasm,
@@ -121,22 +121,22 @@ int query_pairs_carry(const QueryPairsPartContextDryCtx *args)
                .path_out = machine);
     EMBED_CALL(query_context_under_internal.at, QueryContextUnderCtx, .context_read = context,
                .under = QUERY_NVIDIA "/elf64_nvidia.tsv", .path_out = layout);
-    EMBED_CALL(query_pairs_part_dry_internal.carry_words, QueryPairsPartDryCtx, .words = args->words,
-               .carrier = s_carrier, .cross = s_cross, .nvdisasm = s_nvdisasm, .machine = machine, .layout = layout,
+    EMBED_CALL(query_pairs_part_dry_internal.machine_transfer_words, QueryPairsPartDryCtx, .words = args->words,
+               .transport = s_transport, .cross = s_cross, .nvdisasm = s_nvdisasm, .machine = machine, .layout = layout,
                .part = args->part, .dry = args->dry);
     return 1;
 }
 
-void query_pairs_carry_words(const QueryPairsPartDryCtx *args)
+void query_pairs_machine_transfer_words(const QueryPairsPartDryCtx *args)
 {
     QueryWords *words = args->words;
     char reader[64];
     EMBED_CALL(query_pairs_part_name_internal.part_read, QueryPairsPartNameCtx, .part = args->part, .name = reader,
-               .room = sizeof(reader));
+               .capacity = sizeof(reader));
     // the carrier, its dry flags first where `dry` as it reads them, its gated list and its lessons, the machine file
     // and the layout; the pop, dry and full; and the cross with the vendor's reader
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
-               .word = args->carrier);
+               .word = args->transport);
     if (args->dry)
     {
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
@@ -157,7 +157,7 @@ void query_pairs_carry_words(const QueryPairsPartDryCtx *args)
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
                .word = "--pop");
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
-               .word = args->carrier);
+               .word = args->transport);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
                .word = "--dry");
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
@@ -240,8 +240,8 @@ int query_host_answer(const QueryPairsContextCtx *args)
     mmgr_line_put(&source_line, args->out);
     mmgr_line_put(&source_line, "/host_questions.cpp");
     mmgr_line_finish(&source_line);
-    EMBED_CALL(query_name_room_internal.binary_name, QueryNameRoomCtx, .name = "host_questions", .binary = base,
-               .room = sizeof(base));
+    EMBED_CALL(query_name_capacity_internal.binary_name, QueryNameCapacityCtx, .name = "host_questions", .binary = base,
+               .capacity = sizeof(base));
     VerbaLinea program_line = {program, sizeof(program), 0ull};
     mmgr_line_put(&program_line, args->out);
     mmgr_line_ch(&program_line, '/');
@@ -255,8 +255,9 @@ int query_host_answer(const QueryPairsContextCtx *args)
         return 0;
     }
     static char s_cxx[QUERY_PATH_MAX_LEN];
-    if (!EMBED_CALL(context->programs->program, QueryEachRolePathRoomErrMsgCfg, .context = context->programs->context,
-                    .role = QUERY_ROLE_CXX, .path = s_cxx, .room = sizeof(s_cxx), .err_msg = err_msg))
+    if (!EMBED_CALL(context->programs->program, QueryEachRolePathCapacityErrMsgCfg,
+                    .context = context->programs->context, .role = QUERY_ROLE_CXX, .path = s_cxx,
+                    .capacity = sizeof(s_cxx), .err_msg = err_msg))
     {
         return 0;
     }
@@ -293,7 +294,7 @@ int query_host_answer(const QueryPairsContextCtx *args)
 }
 
 // the vendor's writer as the identity reads it (identity_settings.h): its program, its part, and the part's layout and
-// mnemonics, each in its room and ended by a NUL
+// mnemonics, each in its capacity and ended by a NUL
 static unsigned char s_writer_setting[1024u + 64u + 1024u + 1024u];
 static unsigned char s_seed_setting[8];
 static char s_ruleset_setting[64];
@@ -307,20 +308,20 @@ typedef struct
 } PairsCtx;
 EMBED_INLINE int query_identity_writer(const PairsCtx *args)
 {
-    static const unsigned int s_rooms[4] = {1024u, 64u, 1024u, 1024u};
+    static const unsigned int s_capacities[4] = {1024u, 64u, 1024u, 1024u};
     memor.set(&(MemoriaCfg){.dst = s_writer_setting, .val = 0, .bytes = sizeof(s_writer_setting)});
     unsigned int at = 0u;
     for (unsigned int field = 0u; field < 4u; field += 1u)
     {
         const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->fields[field], .cap = CLI_CELLS_POOL});
-        if (length >= s_rooms[field])
+        if (length >= s_capacities[field])
         {
             mmgr_line_put(args->err_msg, args->fields[field]);
-            mmgr_line_put(args->err_msg, " does not fit the writer's room");
+            mmgr_line_put(args->err_msg, " does not fit the writer's capacity");
             return 0;
         }
         memor.cpy(&(MemoriaCfg){.dst = &s_writer_setting[at], .src = args->fields[field], .bytes = length});
-        at += s_rooms[field];
+        at += s_capacities[field];
     }
     return 1;
 }
@@ -422,7 +423,7 @@ static int query_pairs_mode_run(const PairsCtx *args)
         return -1;
     }
     char folder[QUERY_PATH_MAX_LEN];
-    EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_room = folder, .text = mode->trace,
+    EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_capacity = folder, .text = mode->trace,
                .otherwise = QUERY_PAIRS_FOLDER);
     int code = -1;
     if (cellul.eq(&(CatenaFinitaCfg){.src = mode->mode, .other = "text_identity", .cap = CLI_CELLS_POOL}))

@@ -59,13 +59,13 @@ extern CellOwner g_cli_git_cells;
 // the most bytes of the texts of one list git gives
 #define CLI_GIT_TEXT (1u << 22u)
 
-// The texts of a list, in a cell of `room` at their most: each one ended by a 0 at its place, the place 0 containing
-// the empty text, and 1 in `full` where one did not fit and was left empty
+// The texts of a list, in a cell of `capacity` at their most: each one ended by a 0 at its place, the place 0
+// containing the empty text, and 1 in `full` where one did not fit and was left empty
 typedef struct
 {
     char *bytes;
     unsigned long long used;
-    unsigned long long room;
+    unsigned long long capacity;
     int full;
 } CliGitText;
 
@@ -73,7 +73,7 @@ typedef struct
 // the text at a place, the empty text where the list has no cell; and the texts' cell given back, the list containing
 // none
 void cli_git_text_begin(const CliGitTextCfg *args);
-unsigned int cli_git_text_put(const CliGitTextCfg *args);
+unsigned int cli_git_text_append(const CliGitTextCfg *args);
 const char *cli_git_text_get(const CliGitTextAtCfg *args);
 void cli_git_text_free(const CliGitTextCfg *args);
 
@@ -364,19 +364,6 @@ int cli_git_init(const CliGitOutCfg *args);
 int cli_git_clone_folder(const CliGitErrMsgFolderCfg *args);
 int cli_git_clone(const CliGitErrMsgCfg *args);
 
-// each list written as the page reads it, a JSON array of objects whose members are the fields above by their names, a
-// state a letter of its own, a path or a branch one has not `null`; a touched file's path and the path it had each
-// written after `repo` and a `/` where `repo` is not empty; and a file's line history as `{"commits", "lines"}`
-// (git_written.c)
-void cli_git_repositories_write(const CliGitOutFoundRepositoriesCfg *args);
-void cli_git_changed_write(const CliGitOutFoundChangedListCfg *args);
-void cli_git_commits_write(const CliGitOutFoundCfg *args);
-void cli_git_branches_write(const CliGitOutFoundBranchesCfg *args);
-void cli_git_stashes_write(const CliGitOutFoundStashesCfg *args);
-void cli_git_graph_write(const CliGitOutFoundGraphCfg *args);
-void cli_git_touched_write(const CliGitOutFoundTouchedListCfg *args);
-void cli_git_line_history_write(const CliGitOutFoundLineHistoryCfg *args);
-
 struct CliGitRootCfg
 {
     const char *root;
@@ -384,7 +371,7 @@ struct CliGitRootCfg
     const char *message;
     VerbaLinea *err_msg;
     const char *const *whole;
-    unsigned int whole_count;
+    unsigned int full_files_count;
     const CliGitPart *parts;
     unsigned int part_count;
 };
@@ -631,13 +618,13 @@ struct CliGitTextAtCfg
 typedef struct
 {
     void (*text_begin)(const CliGitTextCfg *args);
-    unsigned int (*text_put)(const CliGitTextCfg *args);
+    unsigned int (*text_append)(const CliGitTextCfg *args);
     void (*text_free)(const CliGitTextCfg *args);
 } CliGitTextNs;
-EMBED_TABLE_LAYOUT(CliGitTextNs, text_begin, text_put, text_free);
+EMBED_TABLE_LAYOUT(CliGitTextNs, text_begin, text_append, text_free);
 EMBED_TABLE_STORAGE CliGitTextNs cli_git_text EMBED_UNUSED = {
     .text_begin = cli_git_text_begin,
-    .text_put = cli_git_text_put,
+    .text_append = cli_git_text_append,
     .text_free = cli_git_text_free,
 };
 
@@ -875,78 +862,6 @@ typedef struct
 EMBED_TABLE_LAYOUT(CliGitErrMsgNs, clone);
 EMBED_TABLE_STORAGE CliGitErrMsgNs cli_git_err_msg EMBED_UNUSED = {
     .clone = cli_git_clone,
-};
-
-typedef struct
-{
-    void (*repositories_write)(const CliGitOutFoundRepositoriesCfg *args);
-} CliGitOutFoundRepositoriesNs;
-EMBED_TABLE_LAYOUT(CliGitOutFoundRepositoriesNs, repositories_write);
-EMBED_TABLE_STORAGE CliGitOutFoundRepositoriesNs cli_git_out_found_repositories EMBED_UNUSED = {
-    .repositories_write = cli_git_repositories_write,
-};
-
-typedef struct
-{
-    void (*changed_write)(const CliGitOutFoundChangedListCfg *args);
-} CliGitOutFoundChangedListNs;
-EMBED_TABLE_LAYOUT(CliGitOutFoundChangedListNs, changed_write);
-EMBED_TABLE_STORAGE CliGitOutFoundChangedListNs cli_git_out_found_changed_list EMBED_UNUSED = {
-    .changed_write = cli_git_changed_write,
-};
-
-typedef struct
-{
-    void (*commits_write)(const CliGitOutFoundCfg *args);
-} CliGitOutFoundNs;
-EMBED_TABLE_LAYOUT(CliGitOutFoundNs, commits_write);
-EMBED_TABLE_STORAGE CliGitOutFoundNs cli_git_out_found EMBED_UNUSED = {
-    .commits_write = cli_git_commits_write,
-};
-
-typedef struct
-{
-    void (*branches_write)(const CliGitOutFoundBranchesCfg *args);
-} CliGitOutFoundBranchesNs;
-EMBED_TABLE_LAYOUT(CliGitOutFoundBranchesNs, branches_write);
-EMBED_TABLE_STORAGE CliGitOutFoundBranchesNs cli_git_out_found_branches EMBED_UNUSED = {
-    .branches_write = cli_git_branches_write,
-};
-
-typedef struct
-{
-    void (*stashes_write)(const CliGitOutFoundStashesCfg *args);
-} CliGitOutFoundStashesNs;
-EMBED_TABLE_LAYOUT(CliGitOutFoundStashesNs, stashes_write);
-EMBED_TABLE_STORAGE CliGitOutFoundStashesNs cli_git_out_found_stashes EMBED_UNUSED = {
-    .stashes_write = cli_git_stashes_write,
-};
-
-typedef struct
-{
-    void (*graph_write)(const CliGitOutFoundGraphCfg *args);
-} CliGitOutFoundGraphNs;
-EMBED_TABLE_LAYOUT(CliGitOutFoundGraphNs, graph_write);
-EMBED_TABLE_STORAGE CliGitOutFoundGraphNs cli_git_out_found_graph EMBED_UNUSED = {
-    .graph_write = cli_git_graph_write,
-};
-
-typedef struct
-{
-    void (*touched_write)(const CliGitOutFoundTouchedListCfg *args);
-} CliGitOutFoundTouchedListNs;
-EMBED_TABLE_LAYOUT(CliGitOutFoundTouchedListNs, touched_write);
-EMBED_TABLE_STORAGE CliGitOutFoundTouchedListNs cli_git_out_found_touched_list EMBED_UNUSED = {
-    .touched_write = cli_git_touched_write,
-};
-
-typedef struct
-{
-    void (*line_history_write)(const CliGitOutFoundLineHistoryCfg *args);
-} CliGitOutFoundLineHistoryNs;
-EMBED_TABLE_LAYOUT(CliGitOutFoundLineHistoryNs, line_history_write);
-EMBED_TABLE_STORAGE CliGitOutFoundLineHistoryNs cli_git_out_found_line_history EMBED_UNUSED = {
-    .line_history_write = cli_git_line_history_write,
 };
 
 #endif

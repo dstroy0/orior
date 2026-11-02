@@ -26,10 +26,10 @@ typedef struct
     unsigned int *start;
     unsigned int *length;
     unsigned int lines;
-    unsigned int lines_most;
+    unsigned int lines_max;
     CliDecl *decl;
     unsigned int decls;
-    unsigned int decls_most;
+    unsigned int decls_max;
     unsigned int head;
     unsigned char *matched;
 } CliSide;
@@ -38,7 +38,7 @@ typedef struct
 #define CLI_MOVE_MIN_SHARE 60ull
 #define CLI_REVIEW_DECLS 16384u
 
-// The comparison: the two sides of the file compared, the pieces added and taken out across the files, and room to
+// The comparison: the two sides of the file compared, the pieces added and taken out across the files, and capacity to
 // sort the pieces
 typedef struct
 {
@@ -46,13 +46,13 @@ typedef struct
     CliSide now;
     CliReviewPiece added[CLI_REVIEW_PIECES];
     unsigned int addeds;
-    unsigned char taken[CLI_REVIEW_PIECES];
+    unsigned char reserved[CLI_REVIEW_PIECES];
     CliReviewPiece removed[CLI_REVIEW_PIECES];
     unsigned int removeds;
-    CliReviewPiece spare[CLI_REVIEW_PIECES];
+    CliReviewPiece reserve[CLI_REVIEW_PIECES];
 } CliCompare;
 
-// the comparison, in the review's room for it
+// the comparison, in the review's capacity for it
 static CliCompare *s_compare;
 
 unsigned long long cli_review_compared_bytes(void)
@@ -122,10 +122,10 @@ EMBED_INLINE void cli_side_set(const ReviewCompareCtx *args)
                                    .bytes = (unsigned long long)args->lines * sizeof(unsigned int));
     args->side->length = EMBED_CALL(cli_side_part, ReviewCompareCtx, .at = args->at,
                                     .bytes = (unsigned long long)args->lines * sizeof(unsigned int));
-    args->side->lines_most = args->lines;
+    args->side->lines_max = args->lines;
     args->side->decl = EMBED_CALL(cli_side_part, ReviewCompareCtx, .at = args->at,
                                   .bytes = (unsigned long long)decls * sizeof(CliDecl));
-    args->side->decls_most = decls;
+    args->side->decls_max = decls;
     args->side->matched = EMBED_CALL(cli_side_part, ReviewCompareCtx, .at = args->at, .bytes = decls);
 }
 
@@ -137,9 +137,9 @@ EMBED_INLINE unsigned long long cli_side_bytes(const ReviewCompareCtx *args)
            ((unsigned long long)decls * sizeof(CliDecl)) + decls + (4ull * 8ull);
 }
 
-unsigned int cli_review_piece_text_put(const CliReviewTextLengthCtx *args)
+unsigned int cli_review_piece_text_append(const CliReviewTextLengthCtx *args)
 {
-    if ((args->length + 1ull) > (g_cli_review.texts_room - g_cli_review.texts_used))
+    if ((args->length + 1ull) > (g_cli_review.texts_capacity - g_cli_review.texts_used))
     {
         return 0u;
     }
@@ -158,7 +158,7 @@ EMBED_INLINE void cli_lines_get(const ReviewCompareCtx *args)
     unsigned long long size = args->size;
     args->side->text = text;
     args->side->lines = 0u;
-    for (unsigned long long at = 0ull; (at < size) && (args->side->lines < args->side->lines_most);)
+    for (unsigned long long at = 0ull; (at < size) && (args->side->lines < args->side->lines_max);)
     {
         const CliTextLine bounds = EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = text, .at = at, .size = size);
         const unsigned long long end = bounds.stop;
@@ -181,7 +181,7 @@ EMBED_INLINE unsigned int cli_join(const ReviewCompareCtx *args)
     {
         size += args->side_read->length[line] + ((line != args->from) ? 1ull : 0ull);
     }
-    if ((size + 1ull) > (g_cli_review.texts_room - at))
+    if ((size + 1ull) > (g_cli_review.texts_capacity - at))
     {
         return 0u;
     }
@@ -218,12 +218,12 @@ static void cli_declare(const CliDeclaredCfg *args)
 {
     unsigned long long length = args->length;
     CliSide *const side = (CliSide *)args->context;
-    if (side->decls < side->decls_most)
+    if (side->decls < side->decls_max)
     {
         side->decl[side->decls] = (CliDecl){
-            EMBED_CALL(cli_review_text_length_internal.piece_text_put, CliReviewTextLengthCtx, .text = args->name,
+            EMBED_CALL(cli_review_text_length_internal.piece_text_append, CliReviewTextLengthCtx, .text = args->name,
                        .length = length),
-            EMBED_CALL(cli_review_text_length_internal.piece_text_put, CliReviewTextLengthCtx, .text = args->kind,
+            EMBED_CALL(cli_review_text_length_internal.piece_text_append, CliReviewTextLengthCtx, .text = args->kind,
                        .length = cellul.len(&(CatenaFinitaCfg){.src = args->kind, .cap = CLI_CELLS_POOL})),
             args->line, 0u};
         side->decls += 1u;
@@ -298,7 +298,7 @@ EMBED_INLINE int cli_same_trim(const ReviewCompareCtx *args)
 }
 
 // a file named apart
-EMBED_INLINE void cli_other_put(const ReviewCompareCtx *args)
+EMBED_INLINE void cli_other_append(const ReviewCompareCtx *args)
 {
     if (g_cli_review.others < CLI_REVIEW_FILES)
     {
@@ -310,7 +310,7 @@ EMBED_INLINE void cli_other_put(const ReviewCompareCtx *args)
 // a piece made: its file, its declaration and how the change touched it, its line and its texts
 EMBED_INLINE CliReviewPiece cli_piece(const ReviewCompareCtx *args)
 {
-    return (CliReviewPiece){EMBED_CALL(cli_review_text_length_internal.piece_text_put, CliReviewTextLengthCtx,
+    return (CliReviewPiece){EMBED_CALL(cli_review_text_length_internal.piece_text_append, CliReviewTextLengthCtx,
                                        .text = g_cli_review.text + args->path,
                                        .length = cellul.len(&(CatenaFinitaCfg){.src = g_cli_review.text + args->path,
                                                                                .cap = CLI_CELLS_POOL})),
@@ -327,7 +327,7 @@ EMBED_INLINE CliReviewPiece cli_piece(const ReviewCompareCtx *args)
 }
 
 // a piece put after `list`, sized for CLI_REVIEW_PIECES
-EMBED_INLINE void cli_piece_put(const ReviewCompareCtx *args)
+EMBED_INLINE void cli_piece_append(const ReviewCompareCtx *args)
 {
     unsigned int *count = args->count;
     if (*count < CLI_REVIEW_PIECES)
@@ -344,7 +344,7 @@ EMBED_INLINE void cli_file_compare(const ReviewCompareCtx *args)
     const char *const path = g_cli_review.text + args->file->path;
     if (!EMBED_CALL(cli_symbols_path_name.reads, CliSymbolsPathNameCfg, .path = path))
     {
-        EMBED_CALL(cli_other_put, ReviewCompareCtx, .path = args->file->path);
+        EMBED_CALL(cli_other_append, ReviewCompareCtx, .path = args->file->path);
         return;
     }
     CliSide *const was = &s_compare->was;
@@ -362,14 +362,14 @@ EMBED_INLINE void cli_file_compare(const ReviewCompareCtx *args)
                                           &g_cli_code_cells);
     if (cell == NULL)
     {
-        EMBED_CALL(cli_other_put, ReviewCompareCtx, .path = args->file->path);
+        EMBED_CALL(cli_other_append, ReviewCompareCtx, .path = args->file->path);
         return;
     }
     unsigned char *at_cell = cell;
     EMBED_CALL(cli_side_set, ReviewCompareCtx, .side = was, .at = &at_cell, .lines = was_lines);
     EMBED_CALL(cli_side_set, ReviewCompareCtx, .side = now, .at = &at_cell, .lines = now_lines);
-    const unsigned int empty =
-        EMBED_CALL(cli_review_text_length_internal.piece_text_put, CliReviewTextLengthCtx, .text = "", .length = 0ull);
+    const unsigned int empty = EMBED_CALL(cli_review_text_length_internal.piece_text_append, CliReviewTextLengthCtx,
+                                          .text = "", .length = 0ull);
     EMBED_CALL(cli_spans, ReviewCompareCtx, .path_text = g_cli_review.text + args->file->was_path, .text = was_text,
                .size = was_size, .side = was);
     EMBED_CALL(cli_spans, ReviewCompareCtx, .path_text = path, .text = now_text, .size = now_size, .side = now);
@@ -377,7 +377,7 @@ EMBED_INLINE void cli_file_compare(const ReviewCompareCtx *args)
                     .other = g_cli_review.texts + now->head) &&
         args->file->has_was && args->file->has_now)
     {
-        EMBED_CALL(cli_other_put, ReviewCompareCtx, .path = args->file->path);
+        EMBED_CALL(cli_other_append, ReviewCompareCtx, .path = args->file->path);
     }
     for (unsigned int at = 0u; at < now->decls; at += 1u)
     {
@@ -398,7 +398,7 @@ EMBED_INLINE void cli_file_compare(const ReviewCompareCtx *args)
         }
         if (match == was->decls)
         {
-            EMBED_CALL(cli_piece_put, ReviewCompareCtx, .list = s_compare->added, .count = &s_compare->addeds,
+            EMBED_CALL(cli_piece_append, ReviewCompareCtx, .list = s_compare->added, .count = &s_compare->addeds,
                        .piece = EMBED_CALL(cli_piece, ReviewCompareCtx, .path = args->file->path, .decl = one,
                                            .how = "added", .was = empty, .now = one->text));
             continue;
@@ -408,7 +408,7 @@ EMBED_INLINE void cli_file_compare(const ReviewCompareCtx *args)
                                           .other = g_cli_review.texts + one->text,
                                           .cap = CLI_CELLS_POOL}))
         {
-            EMBED_CALL(cli_piece_put, ReviewCompareCtx, .list = g_cli_review.piece, .count = &g_cli_review.pieces,
+            EMBED_CALL(cli_piece_append, ReviewCompareCtx, .list = g_cli_review.piece, .count = &g_cli_review.pieces,
                        .piece = EMBED_CALL(cli_piece, ReviewCompareCtx, .path = args->file->path, .decl = one,
                                            .how = "changed", .was = was->decl[match].text, .now = one->text));
         }
@@ -416,21 +416,21 @@ EMBED_INLINE void cli_file_compare(const ReviewCompareCtx *args)
     // those taken out, by their lines
     for (unsigned int line_order = 0u; line_order < was->decls; line_order += 1u)
     {
-        unsigned int least = was->decls;
+        unsigned int min = was->decls;
         for (unsigned int old = 0u; old < was->decls; old += 1u)
         {
             const int open = !was->matched[old];
-            least = (open && ((least == was->decls) || (was->decl[old].line < was->decl[least].line))) ? old : least;
+            min = (open && ((min == was->decls) || (was->decl[old].line < was->decl[min].line))) ? old : min;
         }
-        if (least == was->decls)
+        if (min == was->decls)
         {
             break;
         }
-        was->matched[least] = 1u;
-        EMBED_CALL(cli_piece_put, ReviewCompareCtx, .list = s_compare->removed, .count = &s_compare->removeds,
+        was->matched[min] = 1u;
+        EMBED_CALL(cli_piece_append, ReviewCompareCtx, .list = s_compare->removed, .count = &s_compare->removeds,
                    .piece =
-                       EMBED_CALL(cli_piece, ReviewCompareCtx, .path = args->file->was_path, .decl = &was->decl[least],
-                                  .how = "removed", .was = was->decl[least].text, .now = empty));
+                       EMBED_CALL(cli_piece, ReviewCompareCtx, .path = args->file->was_path, .decl = &was->decl[min],
+                                  .how = "removed", .was = was->decl[min].text, .now = empty));
     }
     g_cli_cells->persistent_buf_release(cell, &g_cli_code_cells);
 }
@@ -449,7 +449,7 @@ EMBED_INLINE int cli_piece_before(const ReviewCompareCtx *args)
 static void cli_pieces_sort(void)
 {
     CliReviewPiece *from = g_cli_review.piece;
-    CliReviewPiece *into = s_compare->spare;
+    CliReviewPiece *into = s_compare->reserve;
     const unsigned int count = g_cli_review.pieces;
     for (unsigned int width = 1u; width < count; width *= 2u)
     {
@@ -485,26 +485,26 @@ static void cli_moves(void)
 {
     for (unsigned int index = 0u; index < s_compare->removeds; index += 1u)
     {
-        const CliReviewPiece *const gone = &s_compare->removed[index];
+        const CliReviewPiece *const deleted = &s_compare->removed[index];
         unsigned int best = s_compare->addeds;
         unsigned long long best_same = 0ull;
         unsigned long long best_longest = 1ull;
         for (unsigned int at = 0u; at < s_compare->addeds; at += 1u)
         {
             const CliReviewPiece *const one = &s_compare->added[at];
-            if (s_compare->taken[at] ||
+            if (s_compare->reserved[at] ||
                 (!cellul.eq(&(CatenaFinitaCfg){.src = g_cli_review.texts + one->name,
-                                               .other = g_cli_review.texts + gone->name,
+                                               .other = g_cli_review.texts + deleted->name,
                                                .cap = CLI_CELLS_POOL})) ||
                 (!cellul.eq(&(CatenaFinitaCfg){.src = g_cli_review.texts + one->kind,
-                                               .other = g_cli_review.texts + gone->kind,
+                                               .other = g_cli_review.texts + deleted->kind,
                                                .cap = CLI_CELLS_POOL})))
             {
                 continue;
             }
             unsigned long long same = 0ull;
             unsigned long long longest = 1ull;
-            if (!EMBED_CALL(cli_review_one_internal.share, CliReviewOneCtx, .one = g_cli_review.texts + gone->was,
+            if (!EMBED_CALL(cli_review_one_internal.share, CliReviewOneCtx, .one = g_cli_review.texts + deleted->was,
                             .other = g_cli_review.texts + one->now, .same = &same, .longest = &longest))
             {
                 continue;
@@ -520,32 +520,33 @@ static void cli_moves(void)
         }
         if (best == s_compare->addeds)
         {
-            EMBED_CALL(cli_piece_put, ReviewCompareCtx, .list = g_cli_review.piece, .count = &g_cli_review.pieces,
-                       .piece = *gone);
+            EMBED_CALL(cli_piece_append, ReviewCompareCtx, .list = g_cli_review.piece, .count = &g_cli_review.pieces,
+                       .piece = *deleted);
             continue;
         }
-        s_compare->taken[best] = 1u;
+        s_compare->reserved[best] = 1u;
         CliReviewPiece moved = s_compare->added[best];
         moved.how = "moved";
-        moved.was = gone->was;
-        moved.has_from = !cellul.eq(&(CatenaFinitaCfg){
-            .src = g_cli_review.texts + gone->path, .other = g_cli_review.texts + moved.path, .cap = CLI_CELLS_POOL});
-        moved.from = gone->path;
-        EMBED_CALL(cli_piece_put, ReviewCompareCtx, .list = g_cli_review.piece, .count = &g_cli_review.pieces,
+        moved.was = deleted->was;
+        moved.has_from = !cellul.eq(&(CatenaFinitaCfg){.src = g_cli_review.texts + deleted->path,
+                                                       .other = g_cli_review.texts + moved.path,
+                                                       .cap = CLI_CELLS_POOL});
+        moved.from = deleted->path;
+        EMBED_CALL(cli_piece_append, ReviewCompareCtx, .list = g_cli_review.piece, .count = &g_cli_review.pieces,
                    .piece = moved);
     }
     for (unsigned int at = 0u; at < s_compare->addeds; at += 1u)
     {
-        if (!s_compare->taken[at])
+        if (!s_compare->reserved[at])
         {
-            EMBED_CALL(cli_piece_put, ReviewCompareCtx, .list = g_cli_review.piece, .count = &g_cli_review.pieces,
+            EMBED_CALL(cli_piece_append, ReviewCompareCtx, .list = g_cli_review.piece, .count = &g_cli_review.pieces,
                        .piece = s_compare->added[at]);
         }
     }
 }
 
-// room made for one call more: 1, or 0 where the review contains the most or the cell is refused
-static int compare_call_room(void)
+// capacity made for one call more: 1, or 0 where the review contains the most or the cell is refused
+static int compare_call_capacity(void)
 {
     return g_cli_review.calls < CLI_REVIEW_CALLS;
 }
@@ -563,7 +564,7 @@ void cli_review_compare(void)
     {
         EMBED_CALL(cli_file_compare, ReviewCompareCtx, .file = &g_cli_review.file[at]);
     }
-    memor.set(&(MemoriaCfg){.dst = s_compare->taken, .val = 0, .bytes = sizeof(s_compare->taken)});
+    memor.set(&(MemoriaCfg){.dst = s_compare->reserved, .val = 0, .bytes = sizeof(s_compare->reserved)});
     cli_moves();
     cli_pieces_sort();
     for (unsigned int at = 0u; at < g_cli_review.pieces; at += 1u)
@@ -580,7 +581,8 @@ void cli_review_compare(void)
             if ((other != at) &&
                 (!cellul.eq(&(CatenaFinitaCfg){
                     .src = name, .other = g_cli_review.texts + piece->name, .cap = CLI_CELLS_POOL})) &&
-                EMBED_CALL(cli_review_internal.calls, CliReviewCtx, .text = body, .name = name) && compare_call_room())
+                EMBED_CALL(cli_review_internal.calls, CliReviewCtx, .text = body, .name = name) &&
+                compare_call_capacity())
             {
                 g_cli_review.call[g_cli_review.calls] = other;
                 g_cli_review.calls += 1u;

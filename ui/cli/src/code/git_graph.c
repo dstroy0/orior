@@ -48,10 +48,10 @@ EMBED_INLINE void cli_on_lower(const GitGraphCtx *args)
     static unsigned int s_letters[CLI_GIT_GRAPH_TEXT_MAX];
     const unsigned long long count =
         EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = text, .size = args->length, .letters = s_letters,
-                   .room_u64 = CLI_GIT_GRAPH_TEXT_MAX);
+                   .capacity_u64 = CLI_GIT_GRAPH_TEXT_MAX);
     for (unsigned long long at = 0ull; at < count; at += 1ull)
     {
-        EMBED_CALL(cli_line_letter_internal.utf8_put, CliLineLetterCtx, .line = line,
+        EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = line,
                    .letter = EMBED_CALL(cli_regexp_letter.lower, CliRegexpLetterCfg, .letter = s_letters[at]));
     }
 }
@@ -257,7 +257,7 @@ EMBED_INLINE int cli_commit_matches(const GitGraphCtx *args)
 
 // the commit of a line `id\x1fparents\x1fauthor\x1fwhen\x1fnames\x1fsubject` put after those found: 1, or 0 where the
 // line is no commit's
-EMBED_INLINE int cli_draw_put(const GitGraphCtx *args)
+EMBED_INLINE int cli_draw_append(const GitGraphCtx *args)
 {
     const char *stop = args->stop;
     const char *at = args->line_text;
@@ -275,27 +275,28 @@ EMBED_INLINE int cli_draw_put(const GitGraphCtx *args)
         return 0;
     }
     CliDrawn *const drawn = &args->found->item[args->found->count];
-    drawn->id = EMBED_CALL(cli_git_text.text_put, CliGitTextCfg, .text = &args->found->text, .from = fields[0],
+    drawn->id = EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &args->found->text, .from = fields[0],
                            .length = lengths[0]);
     drawn->parents = 0u;
     const char *word = fields[1];
     const char *const parents_end = fields[1] + lengths[1];
     while (word < parents_end)
     {
-        word += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = word, .at = 0ull,
+        word += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = word, .at = 0ull,
                            .size = (unsigned long long)(parents_end - word), .set = " ");
-        const char *word_end = word;
-        word_end += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = word_end, .at = 0ull,
-                               .size = (unsigned long long)(parents_end - word_end), .set = " ");
-        if ((word_end > word) && (drawn->parents < CLI_GIT_PARENTS))
+        const char *word_past = word;
+        word_past += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = word_past, .at = 0ull,
+                                .size = (unsigned long long)(parents_end - word_past), .set = " ");
+        if ((word_past > word) && (drawn->parents < CLI_GIT_PARENTS))
         {
-            drawn->parent[drawn->parents] = EMBED_CALL(cli_git_text.text_put, CliGitTextCfg, .text = &args->found->text,
-                                                       .from = word, .length = (unsigned long long)(word_end - word));
+            drawn->parent[drawn->parents] =
+                EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &args->found->text, .from = word,
+                           .length = (unsigned long long)(word_past - word));
             drawn->parents += 1u;
         }
-        word = word_end;
+        word = word_past;
     }
-    drawn->author = EMBED_CALL(cli_git_text.text_put, CliGitTextCfg, .text = &args->found->text, .from = fields[2],
+    drawn->author = EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &args->found->text, .from = fields[2],
                                .length = lengths[2]);
     drawn->when = when;
     drawn->refs = 0u;
@@ -309,13 +310,13 @@ EMBED_INLINE int cli_draw_put(const GitGraphCtx *args)
         name_end = ((name_end + 1) < names_end) ? name_end : names_end;
         if ((name_end > name) && (drawn->refs < CLI_GIT_REFS))
         {
-            drawn->ref[drawn->refs] = EMBED_CALL(cli_git_text.text_put, CliGitTextCfg, .text = &args->found->text,
+            drawn->ref[drawn->refs] = EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &args->found->text,
                                                  .from = name, .length = (unsigned long long)(name_end - name));
             drawn->refs += 1u;
         }
         name = name_end + 2;
     }
-    drawn->subject = (at <= stop) ? EMBED_CALL(cli_git_text.text_put, CliGitTextCfg, .text = &args->found->text,
+    drawn->subject = (at <= stop) ? EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &args->found->text,
                                                .from = at, .length = (unsigned long long)(stop - at))
                                   : 0u;
     drawn->lane = 0u;
@@ -335,7 +336,7 @@ void cli_git_graph(const CliGitRootQueryCfg *args)
     const char *word = args->query;
     while ((word[0] != '\0') && (words < CLI_GIT_QUERY_WORDS))
     {
-        word += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = word, .at = 0ull,
+        word += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = word, .at = 0ull,
                            .size = cellul.len(&(CatenaFinitaCfg){.src = word, .cap = CLI_CELLS_POOL}),
                            .set = CLI_TEXT_WHITE);
         const char *end = word;
@@ -355,13 +356,13 @@ void cli_git_graph(const CliGitRootQueryCfg *args)
     static const char *const s_format = "--format=%H%x1f%P%x1f%an%x1f%at%x1f%D%x1f%s";
     const char *const drawn[5] = {"log", "-n2000", "--all", "--date-order", s_format};
     const char *const searched[4] = {"log", "--all", "--date-order", s_format};
-    CliGitGave *const gave = cli_git_take();
-    const int queried = (words == 0u) ? EMBED_CALL(cli_git_gave_internal.query, CliGitGaveCtx, .root = args->root,
-                                                   .request = drawn, .count = 5u, .gave = gave)
-                                      : EMBED_CALL(cli_git_gave_internal.query, CliGitGaveCtx, .root = args->root,
-                                                   .request = searched, .count = 4u, .gave = gave);
-    const char *line = gave->out;
-    const char *const end = gave->out + gave->out_size;
+    CliGitResult *const result = cli_git_alloc();
+    const int queried = (words == 0u) ? EMBED_CALL(cli_git_result_internal.query, CliGitResultCtx, .root = args->root,
+                                                   .request = drawn, .count = 5u, .result = result)
+                                      : EMBED_CALL(cli_git_result_internal.query, CliGitResultCtx, .root = args->root,
+                                                   .request = searched, .count = 4u, .result = result);
+    const char *line = result->out;
+    const char *const end = result->out + result->out_size;
     while (queried && (line < end) && (args->found_graph_pointer->count < CLI_GIT_GRAPH))
     {
         const char *stop = line;
@@ -371,7 +372,8 @@ void cli_git_graph(const CliGitRootQueryCfg *args)
         stop -= ((stop > line) && (stop[-1] == '\r')) ? 1 : 0;
         // a commit the search does not find leaves its texts in place, and is taken back
         const unsigned long long used = args->found_graph_pointer->text.used;
-        if (EMBED_CALL(cli_draw_put, GitGraphCtx, .found = args->found_graph_pointer, .line_text = line, .stop = stop))
+        if (EMBED_CALL(cli_draw_append, GitGraphCtx, .found = args->found_graph_pointer, .line_text = line,
+                       .stop = stop))
         {
             if ((words == 0u) ||
                 EMBED_CALL(cli_commit_matches, GitGraphCtx, .found_read = args->found_graph_pointer,
@@ -387,7 +389,7 @@ void cli_git_graph(const CliGitRootQueryCfg *args)
         }
         line = next;
     }
-    EMBED_CALL(cli_git_gave_internal.free, CliGitGaveCtx, .gave = gave);
+    EMBED_CALL(cli_git_result_internal.free, CliGitResultCtx, .result = result);
     if (words == 0u)
     {
         EMBED_CALL(cli_git_found_internal.layout_out, CliGitFoundCtx, .found = args->found_graph_pointer);

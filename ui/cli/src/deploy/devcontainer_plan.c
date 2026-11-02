@@ -25,7 +25,7 @@ int cli_plan_description_read(const CliDevcontainerCtx *args)
 {
     s_full = 0;
     unsigned long long size = 0ull;
-    const unsigned char *const raw = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = args->file,
+    const unsigned char *const raw = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->file,
                                                 .size_pointer = &size, .owner = &g_cli_devcontainer_cells);
     if ((raw == NULL) || (size > CLI_DESCRIPTION_BYTES))
     {
@@ -119,7 +119,7 @@ unsigned int cli_plan_member_get(const CliDevcontainerNameCtx *args)
 
 unsigned int cli_plan_strings(const CliDevcontainerValueCtx *args)
 {
-    if ((args->value != 0u) && (s_tokens[args->value].kind == CFG_JSON_STRING) && (args->room != 0u))
+    if ((args->value != 0u) && (s_tokens[args->value].kind == CFG_JSON_STRING) && (args->capacity != 0u))
     {
         args->tokens[0] = args->value;
         return 1u;
@@ -127,7 +127,7 @@ unsigned int cli_plan_strings(const CliDevcontainerValueCtx *args)
     unsigned int count = 0u;
     unsigned int at = args->value + 1u;
     for (unsigned int each = 0u; (args->value != 0u) && (s_tokens[args->value].kind == CFG_JSON_ARRAY) &&
-                                 (each < s_tokens[args->value].count) && (count < args->room);
+                                 (each < s_tokens[args->value].count) && (count < args->capacity);
          each += 1u)
     {
         if (s_tokens[at].kind == CFG_JSON_STRING)
@@ -147,13 +147,13 @@ typedef struct
     unsigned int object;
     unsigned int *keys;
     unsigned int *values;
-    unsigned int room;
+    unsigned int capacity;
     const char *path;
     CliPlan *plan;
     unsigned int value;
     CliPlanCommand *commands;
     unsigned int *count;
-    const CliPlanPlaces *places;
+    const CliPlanPositions *positions;
 } DevcontainerPlanCtx;
 // whether two keys are written the same
 EMBED_INLINE int cli_same_key(const DevcontainerPlanCtx *args)
@@ -185,7 +185,7 @@ EMBED_INLINE unsigned int cli_members(const DevcontainerPlanCtx *args)
         {
             args->values[seen] = key + 1u;
         }
-        else if (count < args->room)
+        else if (count < args->capacity)
         {
             args->keys[count] = key;
             args->values[count] = key + 1u;
@@ -201,7 +201,7 @@ EMBED_INLINE unsigned int cli_members(const DevcontainerPlanCtx *args)
 }
 
 // The empty text at 0 where `text` does not fit
-unsigned int cli_plan_put(const CliDevcontainerPlanTextCtx *args)
+unsigned int cli_plan_append(const CliDevcontainerPlanTextCtx *args)
 {
     const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL}) + 1ull;
     if ((args->plan->used + size) > CLI_PLAN_TEXT)
@@ -218,12 +218,12 @@ unsigned int cli_plan_put(const CliDevcontainerPlanTextCtx *args)
 
 void cli_plan_list(const CliDevcontainerPlanTextCtx *args)
 {
-    if (args->list->count >= CLI_PLAN_LIST_MOST)
+    if (args->list->count >= CLI_PLAN_LIST_MAX)
     {
         s_full = 1;
         return;
     }
-    args->list->at[args->list->count] = cli_devcontainer_plan_text_internal.plan_put(args);
+    args->list->at[args->list->count] = cli_devcontainer_plan_text_internal.plan_append(args);
     args->list->count += 1u;
 }
 
@@ -258,26 +258,26 @@ void cli_plan_expand(const CliDevcontainerOutCtx *args)
         mmgr_line_finish(&name_line);
         if (cellul.eq(&(CatenaFinitaCfg){.src = named, .other = "localWorkspaceFolder", .cap = CLI_CELLS_POOL}))
         {
-            mmgr_line_put(&line, args->places->root);
+            mmgr_line_put(&line, args->positions->root);
         }
         else if (cellul.eq(
                      &(CatenaFinitaCfg){.src = named, .other = "localWorkspaceFolderBasename", .cap = CLI_CELLS_POOL}))
         {
-            mmgr_line_put(&line, EMBED_CALL(cli_last_part, DevcontainerPlanCtx, .path = args->places->root));
+            mmgr_line_put(&line, EMBED_CALL(cli_last_part, DevcontainerPlanCtx, .path = args->positions->root));
         }
         else if (cellul.eq(
                      &(CatenaFinitaCfg){.src = named, .other = "containerWorkspaceFolder", .cap = CLI_CELLS_POOL}))
         {
-            mmgr_line_put(&line, args->places->folder);
+            mmgr_line_put(&line, args->positions->folder);
         }
         else if (cellul.eq(&(CatenaFinitaCfg){
                      .src = named, .other = "containerWorkspaceFolderBasename", .cap = CLI_CELLS_POOL}))
         {
             const char *const slash = EMBED_CALL(
-                cli_text_byte.last, CliTextByteCfg, .text = args->places->folder,
-                .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->places->folder, .cap = CLI_CELLS_POOL}),
+                cli_text_byte.last, CliTextByteCfg, .text = args->positions->folder,
+                .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->positions->folder, .cap = CLI_CELLS_POOL}),
                 .byte = '/');
-            mmgr_line_put(&line, (slash != NULL) ? (slash + 1) : args->places->folder);
+            mmgr_line_put(&line, (slash != NULL) ? (slash + 1) : args->positions->folder);
         }
         else if (cellul.starts(&(CatenaFinitaCfg){.src = named, .other = "localEnv:", .cap = CLI_CELLS_POOL}))
         {
@@ -339,14 +339,14 @@ static void cli_commands_get(const DevcontainerPlanCtx *args)
     const CfgJsonKind kind = s_tokens[value].kind;
     if ((kind == CFG_JSON_STRING) || (kind == CFG_JSON_ARRAY))
     {
-        if (*count >= CLI_PLAN_COMMANDS_MOST)
+        if (*count >= CLI_PLAN_COMMANDS_MAX)
         {
             s_full = 1;
             return;
         }
-        unsigned int tokens[CLI_PLAN_LIST_MOST];
+        unsigned int tokens[CLI_PLAN_LIST_MAX];
         const unsigned int words = EMBED_CALL(cli_devcontainer_value_internal.plan_strings, CliDevcontainerValueCtx,
-                                              .value = value, .tokens = tokens, .room = CLI_PLAN_LIST_MOST);
+                                              .value = value, .tokens = tokens, .capacity = CLI_PLAN_LIST_MAX);
         const CliPlanCommand command = {kind == CFG_JSON_STRING, plan->words.count, words};
         for (unsigned int at = 0u; at < words; at += 1u)
         {
@@ -362,10 +362,10 @@ static void cli_commands_get(const DevcontainerPlanCtx *args)
     }
     else if (kind == CFG_JSON_OBJECT)
     {
-        unsigned int keys[CLI_PLAN_LIST_MOST];
-        unsigned int values[CLI_PLAN_LIST_MOST];
+        unsigned int keys[CLI_PLAN_LIST_MAX];
+        unsigned int values[CLI_PLAN_LIST_MAX];
         const unsigned int members = EMBED_CALL(cli_members, DevcontainerPlanCtx, .object = value, .keys = keys,
-                                                .values = values, .room = CLI_PLAN_LIST_MOST);
+                                                .values = values, .capacity = CLI_PLAN_LIST_MAX);
         for (unsigned int at = 0u; at < members; at += 1u)
         {
             EMBED_CALL(cli_commands_get, DevcontainerPlanCtx, .plan = plan, .value = values[at],
@@ -390,10 +390,10 @@ void cli_plan_pairs(const CliDevcontainerObjectCtx *args)
     static char s_key[CLI_STRING_MAX_LEN];
     static char s_value[CLI_STRING_MAX_LEN];
     static char s_read[CLI_STRING_MAX_LEN];
-    unsigned int keys[CLI_PLAN_LIST_MOST];
-    unsigned int values[CLI_PLAN_LIST_MOST];
+    unsigned int keys[CLI_PLAN_LIST_MAX];
+    unsigned int values[CLI_PLAN_LIST_MAX];
     const unsigned int members = EMBED_CALL(cli_members, DevcontainerPlanCtx, .object = args->object, .keys = keys,
-                                            .values = values, .room = CLI_PLAN_LIST_MOST);
+                                            .values = values, .capacity = CLI_PLAN_LIST_MAX);
     for (unsigned int at = 0u; at < members; at += 1u)
     {
         if (cfg_json_string(s_plain, &s_tokens[keys[at]], s_key, sizeof(s_key)) &&
@@ -401,7 +401,7 @@ void cli_plan_pairs(const CliDevcontainerObjectCtx *args)
                        .out = s_value))
         {
             EMBED_CALL(cli_devcontainer_out_internal.plan_expand, CliDevcontainerOutCtx, .text = s_value,
-                       .places = args->places, .out = s_read);
+                       .positions = args->positions, .out = s_read);
             EMBED_CALL(cli_devcontainer_plan_text_internal.plan_list, CliDevcontainerPlanTextCtx, .plan = args->plan,
                        .list = args->list, .text = s_key);
             EMBED_CALL(cli_devcontainer_plan_text_internal.plan_list, CliDevcontainerPlanTextCtx, .plan = args->plan,
@@ -415,7 +415,7 @@ EMBED_INLINE void cli_mount_get(const DevcontainerPlanCtx *args)
 {
     CliPlan *plan = args->plan;
     unsigned int value = args->value;
-    const CliPlanPlaces *places = args->places;
+    const CliPlanPositions *positions = args->positions;
     static char s_mount[CLI_STRING_MAX_LEN];
     static char s_read[CLI_STRING_MAX_LEN];
     static char s_part[CLI_STRING_MAX_LEN];
@@ -423,8 +423,8 @@ EMBED_INLINE void cli_mount_get(const DevcontainerPlanCtx *args)
     if (EMBED_CALL(cli_devcontainer_value_out_internal.plan_string, CliDevcontainerValueOutCtx, .value = value,
                    .out = s_mount))
     {
-        EMBED_CALL(cli_devcontainer_out_internal.plan_expand, CliDevcontainerOutCtx, .text = s_mount, .places = places,
-                   .out = s_read);
+        EMBED_CALL(cli_devcontainer_out_internal.plan_expand, CliDevcontainerOutCtx, .text = s_mount,
+                   .positions = positions, .out = s_read);
         EMBED_CALL(cli_devcontainer_plan_text_internal.plan_list, CliDevcontainerPlanTextCtx, .plan = plan,
                    .list = &plan->mounts, .text = s_read);
         return;
@@ -434,10 +434,10 @@ EMBED_INLINE void cli_mount_get(const DevcontainerPlanCtx *args)
         return;
     }
     VerbaLinea line = {s_mount, sizeof(s_mount), 0ull};
-    unsigned int keys[CLI_PLAN_LIST_MOST];
-    unsigned int values[CLI_PLAN_LIST_MOST];
+    unsigned int keys[CLI_PLAN_LIST_MAX];
+    unsigned int values[CLI_PLAN_LIST_MAX];
     const unsigned int members = EMBED_CALL(cli_members, DevcontainerPlanCtx, .object = value, .keys = keys,
-                                            .values = values, .room = CLI_PLAN_LIST_MOST);
+                                            .values = values, .capacity = CLI_PLAN_LIST_MAX);
     unsigned int written = 0u;
     for (unsigned int at = 0u; at < members; at += 1u)
     {
@@ -458,8 +458,8 @@ EMBED_INLINE void cli_mount_get(const DevcontainerPlanCtx *args)
     }
     s_full = s_full || !mmgr_line_ok(&line);
     mmgr_line_finish(&line);
-    EMBED_CALL(cli_devcontainer_out_internal.plan_expand, CliDevcontainerOutCtx, .text = s_mount, .places = places,
-               .out = s_read);
+    EMBED_CALL(cli_devcontainer_out_internal.plan_expand, CliDevcontainerOutCtx, .text = s_mount,
+               .positions = positions, .out = s_read);
     EMBED_CALL(cli_devcontainer_plan_text_internal.plan_list, CliDevcontainerPlanTextCtx, .plan = plan,
                .list = &plan->mounts, .text = s_read);
 }
@@ -472,7 +472,7 @@ void cli_plan_mounts(const CliDevcontainerObjectCtx *args)
     for (unsigned int each = 0u;
          (mounts != 0u) && (s_tokens[mounts].kind == CFG_JSON_ARRAY) && (each < s_tokens[mounts].count); each += 1u)
     {
-        EMBED_CALL(cli_mount_get, DevcontainerPlanCtx, .plan = args->plan, .value = at, .places = args->places);
+        EMBED_CALL(cli_mount_get, DevcontainerPlanCtx, .plan = args->plan, .value = at, .positions = args->positions);
         at = s_tokens[at].next;
     }
 }

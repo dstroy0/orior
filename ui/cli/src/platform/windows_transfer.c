@@ -34,23 +34,23 @@ int cli_region_with(const CliTransferRegionBytesCfg *args)
 {
     const void *bytes = args->bytes;
     memor.set(&(MemoriaCfg){.dst = args->region, .val = 0, .bytes = sizeof(*args->region)});
-    if (args->size > CLI_TRANSFER_MOST)
+    if (args->size > CLI_TRANSFER_MAX)
     {
         mmgr_line_decimal(args->err_msg, args->size, 1u);
         mmgr_line_put(args->err_msg, " bytes is past the most a region supports");
         return 0;
     }
-    const unsigned long long room = (args->size > 0ull) ? args->size : 1ull;
+    const unsigned long long capacity = (args->size > 0ull) ? args->size : 1ull;
     // the section's size given as its two halves, as Windows takes it
-    const HANDLE section = CreateFileMappingW(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, (DWORD)(room >> 32u),
-                                              (DWORD)(room & 0xffffffffull), NULL);
+    const HANDLE section = CreateFileMappingW(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, (DWORD)(capacity >> 32u),
+                                              (DWORD)(capacity & 0xffffffffull), NULL);
     if (section == NULL)
     {
         EMBED_CALL(transfer_fail, WindowsTransferCtx, .err_msg = args->err_msg, .what = "the system made no region");
         return 0;
     }
     unsigned char *const view =
-        (unsigned char *)MapViewOfFile(section, FILE_MAP_READ | FILE_MAP_WRITE, 0u, 0u, (SIZE_T)room);
+        (unsigned char *)MapViewOfFile(section, FILE_MAP_READ | FILE_MAP_WRITE, 0u, 0u, (SIZE_T)capacity);
     if (view == NULL)
     {
         EMBED_CALL(transfer_fail, WindowsTransferCtx, .err_msg = args->err_msg, .what = "the system showed no region");
@@ -83,11 +83,11 @@ int cli_region_free(const CliTransferCfg *args)
         return 0;
     }
     HANDLE made = NULL;
-    const BOOL given = DuplicateHandle(GetCurrentProcess(), (HANDLE)(uintptr_t)args->region_read->section, target,
-                                       &made, FILE_MAP_READ, FALSE, 0u);
+    const BOOL supplied = DuplicateHandle(GetCurrentProcess(), (HANDLE)(uintptr_t)args->region_read->section, target,
+                                          &made, FILE_MAP_READ, FALSE, 0u);
     const DWORD error = GetLastError();
     CloseHandle(target);
-    if (!given)
+    if (!supplied)
     {
         mmgr_line_put(err_msg, "the region was not given to process ");
         mmgr_line_decimal(err_msg, args->process, 1u);
@@ -106,7 +106,7 @@ EMBED_INLINE int transfer_map(const WindowsTransferCtx *args)
     HANDLE section = args->section;
     unsigned long long length = args->length;
     memor.set(&(MemoriaCfg){.dst = args->region, .val = 0, .bytes = sizeof(*args->region)});
-    if (length > CLI_TRANSFER_MOST)
+    if (length > CLI_TRANSFER_MAX)
     {
         CloseHandle(section);
         mmgr_line_decimal(args->err_msg, length, 1u);
@@ -133,7 +133,7 @@ EMBED_INLINE int transfer_map(const WindowsTransferCtx *args)
     return 1;
 }
 
-int cli_region_take(const CliTransferRegionCfg *args)
+int cli_region_alloc(const CliTransferRegionCfg *args)
 {
     CliRegion *region = args->region;
     unsigned long long length = args->length;
@@ -152,11 +152,11 @@ int cli_region_take(const CliTransferRegionCfg *args)
         return 0;
     }
     HANDLE own = NULL;
-    const BOOL taken =
+    const BOOL reserved =
         DuplicateHandle(source, (HANDLE)(uintptr_t)args->handle, GetCurrentProcess(), &own, FILE_MAP_READ, FALSE, 0u);
     const DWORD error = GetLastError();
     CloseHandle(source);
-    if (!taken)
+    if (!reserved)
     {
         mmgr_line_put(err_msg, "the region of process ");
         mmgr_line_decimal(err_msg, args->process, 1u);

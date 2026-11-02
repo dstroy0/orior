@@ -33,18 +33,18 @@ static void cli_version(const ReportPageCtx *args)
     }
     const char *const commit[5] = {"git", "rev-parse", "--short=10", "HEAD", NULL};
     const char *const status[5] = {"git", "status", "--porcelain", "--untracked-files=no", NULL};
-    CliRan *const ran = cli_ran_take();
+    CliRunResult *const run_result = cli_run_result_alloc();
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea unstarted = {why, sizeof(why), 0ull};
     if (EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = commit, .folder = args->root, .settings = NULL,
-                   .count = 0u, .ran = ran, .err_msg = &unstarted) &&
-        (ran->code == 0ll))
+                   .count = 0u, .run_result = run_result, .err_msg = &unstarted) &&
+        (run_result->code == 0ll))
     {
-        const char *from = ran->out;
-        const char *to = ran->out + ran->out_size;
-        from += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
+        const char *from = run_result->out;
+        const char *to = run_result->out + run_result->out_size;
+        from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
                            .size = (unsigned long long)(to - from), .set = CLI_TEXT_WHITE);
-        to = from + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = from,
+        to = from + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = from,
                                .at = (unsigned long long)(to - from), .set = CLI_TEXT_WHITE);
         char short_commit[64];
         VerbaLinea line = {short_commit, sizeof(short_commit), 0ull};
@@ -53,19 +53,20 @@ static void cli_version(const ReportPageCtx *args)
         unstarted.at = 0ull;
         int changed = 0;
         if (EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = status, .folder = args->root, .settings = NULL,
-                       .count = 0u, .ran = ran, .err_msg = &unstarted) &&
-            (ran->code == 0ll))
+                       .count = 0u, .run_result = run_result, .err_msg = &unstarted) &&
+            (run_result->code == 0ll))
         {
-            for (unsigned long long at = 0ull; !changed && (at < ran->out_size); at += 1ull)
+            for (unsigned long long at = 0ull; !changed && (at < run_result->out_size); at += 1ull)
             {
-                changed = !((ran->out[at] == ' ') || ((ran->out[at] >= '\t') && (ran->out[at] <= '\r')));
+                changed =
+                    !((run_result->out[at] == ' ') || ((run_result->out[at] >= '\t') && (run_result->out[at] <= '\r')));
             }
         }
         mmgr_line_put(args->out, " at ");
         mmgr_line_put(args->out, short_commit);
         mmgr_line_put(args->out, changed ? " with changes" : "");
     }
-    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+    EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
 }
 
 // this system and its processor, as Rust names them, into `out`
@@ -95,9 +96,9 @@ EMBED_INLINE void cli_field(const ReportPageCtx *args)
     const char *text = args->text;
     const char *from = text;
     const char *to = text + cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
-    from += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
+    from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
                        .size = (unsigned long long)(to - from), .set = CLI_TEXT_WHITE);
-    to = from + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = from,
+    to = from + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = from,
                            .at = (unsigned long long)(to - from), .set = CLI_TEXT_WHITE);
     if (from == to)
     {
@@ -125,9 +126,9 @@ void cli_report_body(const CliReportCtx *args)
     const char *from = args->report->logs;
     const char *to =
         args->report->logs + cellul.len(&(CatenaFinitaCfg){.src = args->report->logs, .cap = CLI_CELLS_POOL});
-    from += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
+    from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
                        .size = (unsigned long long)(to - from), .set = CLI_TEXT_WHITE);
-    to = from + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = from,
+    to = from + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = from,
                            .at = (unsigned long long)(to - from), .set = CLI_TEXT_WHITE);
     if (from == to)
     {

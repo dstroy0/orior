@@ -14,8 +14,8 @@ unsigned int cli_archive_kind_get(const CliArchiveCfg *args)
                                            ".apk", ".nupkg", ".vsix", ".xpi", ".epub"};
     char lower[CLI_PATH_MAX_LEN];
     unsigned long long length = 0ull;
-    length = EMBED_CALL(cli_text_out_room.lowered_into, CliTextOutRoomCfg, .out_room = lower, .room = sizeof(lower),
-                        .text = args->name);
+    length = EMBED_CALL(cli_text_out_capacity.lowered_into, CliTextOutCapacityCfg, .out_capacity = lower,
+                        .capacity = sizeof(lower), .text = args->name);
     lower[length] = '\0';
     for (unsigned int at = 0u; at < 10u; at += 1u)
     {
@@ -81,13 +81,13 @@ unsigned int cli_archive_name_store(const CliArchiveMembersCtx *args)
         }
     }
     {
-        const unsigned long long lead = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg,
+        const unsigned long long lead = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg,
                                                    .text = name, .at = 0ull, .size = length, .set = "/");
         name += lead;
         length -= lead;
     }
     length =
-        EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = name, .at = length, .set = "/");
+        EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = name, .at = length, .set = "/");
     if ((args->members->used + length + 1ull) > CLI_ARCHIVE_NAMES)
     {
         return 0u;
@@ -100,7 +100,7 @@ unsigned int cli_archive_name_store(const CliArchiveMembersCtx *args)
     return at;
 }
 
-void cli_archive_member_put(const CliArchiveSizeCtx *args)
+void cli_archive_member_append(const CliArchiveSizeCtx *args)
 {
     if (args->members->count >= CLI_ARCHIVE_MEMBERS)
     {
@@ -127,7 +127,7 @@ void cli_gz_inner(const CliArchiveNameOutCtx *args)
         (length >= 3ull) &&
         ((cellul.eq(&(CatenaFinitaCfg){.src = base + length - 3ull, .other = ".gz", .cap = CLI_CELLS_POOL})) ||
          (cellul.eq(&(CatenaFinitaCfg){.src = base + length - 3ull, .other = ".GZ", .cap = CLI_CELLS_POOL})));
-    VerbaLinea line = {args->out_room, CLI_NAME_MAX_LEN, 0ull};
+    VerbaLinea line = {args->out_capacity, CLI_NAME_MAX_LEN, 0ull};
     mmgr_line_put_n(&line, base, gz ? (length - 3ull) : length);
     mmgr_line_finish(&line);
 }
@@ -164,11 +164,11 @@ int cli_members_get(const CliArchiveBytesSizeErrMsgCtx *args)
             mmgr_line_put(err_msg, (size < 18ull) ? "a gzip is cut" : "");
             return 0;
         }
-        if (!EMBED_CALL(cli_archive_err_msg_room_internal.room, CliArchiveErrMsgRoomCtx,
-                        .room_room_pointer = args->unpacked, .need = trailer_size + 1ull, .what = "an archive unpacked",
+        if (!EMBED_CALL(cli_archive_err_msg_buffer_internal.capacity, CliArchiveErrMsgBufferCtx,
+                        .buffer_pointer = args->unpacked, .need = trailer_size + 1ull, .what = "an archive unpacked",
                         .err_msg = err_msg) ||
             !EMBED_CALL(cli_archive_bytes.gunzip, CliArchiveBytesCfg, .bytes = bytes, .size = size,
-                        .out = args->unpacked->bytes, .room = args->unpacked->room, .out_size = unpacked_size,
+                        .out = args->unpacked->bytes, .capacity = args->unpacked->capacity, .out_size = unpacked_size,
                         .err_msg = err_msg))
         {
             return 0;
@@ -179,7 +179,7 @@ int cli_members_get(const CliArchiveBytesSizeErrMsgCtx *args)
                               .bytes = args->unpacked->bytes, .size = *unpacked_size, .members = args->members,
                               .err_msg = err_msg);
         }
-        EMBED_CALL(cli_archive_size_internal.member_put, CliArchiveSizeCtx, .members = args->members,
+        EMBED_CALL(cli_archive_size_internal.member_append, CliArchiveSizeCtx, .members = args->members,
                    .name_u32 =
                        EMBED_CALL(cli_archive_members_internal.name_store, CliArchiveMembersCtx,
                                   .members = args->members, .name = args->inner,
@@ -189,10 +189,10 @@ int cli_members_get(const CliArchiveBytesSizeErrMsgCtx *args)
     }
     // each name's blobs joined, the name a member of its own
     const unsigned int count = EMBED_CALL(cli_qry_data.member_names, CliQryDataCfg, .data = bytes, .size = size,
-                                          .names = s_names, .room = CLI_QRY_NAMES);
+                                          .names = s_names, .capacity = CLI_QRY_NAMES);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        EMBED_CALL(cli_archive_size_internal.member_put, CliArchiveSizeCtx, .members = args->members,
+        EMBED_CALL(cli_archive_size_internal.member_append, CliArchiveSizeCtx, .members = args->members,
                    .name_u32 =
                        EMBED_CALL(cli_archive_members_internal.name_store, CliArchiveMembersCtx,
                                   .members = args->members, .name = s_names[at],
@@ -206,7 +206,7 @@ int cli_data_get(const CliArchiveBytesCtx *args)
 {
     const unsigned char *bytes = args->bytes;
     unsigned long long size = args->size;
-    CliRoom *out = args->out_room_pointer;
+    CliByteBuffer *out = args->out_buffer_pointer;
     unsigned long long *out_size = args->out_size;
     const char *const name = args->members_read->text + args->member->name;
     const unsigned long long length =
@@ -214,7 +214,7 @@ int cli_data_get(const CliArchiveBytesCtx *args)
         : (args->kind == CLI_ARCHIVE_QRY)
             ? EMBED_CALL(cli_qry_out.member_size, CliQryOutCfg, .data = bytes, .size = size, .name = name)
             : args->member->size;
-    if (!EMBED_CALL(cli_archive_err_msg_room_internal.room, CliArchiveErrMsgRoomCtx, .room_room_pointer = out,
+    if (!EMBED_CALL(cli_archive_err_msg_buffer_internal.capacity, CliArchiveErrMsgBufferCtx, .buffer_pointer = out,
                     .need = length + 1ull, .what = "a member of an archive", .err_msg = args->err_msg))
     {
         return 0;
@@ -223,11 +223,11 @@ int cli_data_get(const CliArchiveBytesCtx *args)
     {
         return EMBED_CALL(cli_archive_bytes_size_err_msg_members_internal.zip_data, CliArchiveBytesSizeErrMsgMembersCtx,
                           .bytes = bytes, .size = size, .members_read = args->members_read, .member = args->member,
-                          .out = out->bytes, .room = out->room, .out_size = out_size, .err_msg = args->err_msg);
+                          .out = out->bytes, .capacity = out->capacity, .out_size = out_size, .err_msg = args->err_msg);
     }
     if (args->kind == CLI_ARCHIVE_QRY)
     {
-        VerbaLinea line = {(char *)out->bytes, out->room, 0ull};
+        VerbaLinea line = {(char *)out->bytes, out->capacity, 0ull};
         EMBED_CALL(cli_qry_out.member_join, CliQryOutCfg, .data = bytes, .size = size, .name = name, .out = &line);
         if (!mmgr_line_ok(&line))
         {

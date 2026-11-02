@@ -21,7 +21,7 @@ typedef struct CliRequestsSizeAnswerCtx CliRequestsSizeAnswerCtx;
 typedef struct CliRequestsOutHopCtx CliRequestsOutHopCtx;
 typedef struct CliRequestsOutBaseCtx CliRequestsOutBaseCtx;
 typedef struct CliRequestsParsedCtx CliRequestsParsedCtx;
-typedef struct CliRequestsErrMsgRoomCtx CliRequestsErrMsgRoomCtx;
+typedef struct CliRequestsErrMsgWorkStateCtx CliRequestsErrMsgWorkStateCtx;
 typedef struct CliRequestsTextSizeParsedCtx CliRequestsTextSizeParsedCtx;
 typedef struct CliRequestsSentCtx CliRequestsSentCtx;
 typedef struct CliRequestsTextStartCtx CliRequestsTextStartCtx;
@@ -43,7 +43,7 @@ extern CellOwner g_cli_requests_cells;
 // the most requests a file contains that are read, headers a request contains, variables a file sets, values an
 // environment gives, and the bytes their texts take; the most of an answer's body read, and of it stored with the
 // answers; how many answers each request retains; and the most redirects one request follows
-#define CLI_REQUESTS_MOST 1024u
+#define CLI_REQUESTS_MAX 1024u
 #define CLI_REQUESTS_HEADERS 64u
 #define CLI_REQUESTS_VARIABLES 256u
 #define CLI_REQUESTS_VALUES 512u
@@ -93,13 +93,13 @@ typedef struct
 {
     CliRequest *requests;
     unsigned int count;
-    unsigned int requests_room;
+    unsigned int requests_capacity;
     CliRequestsText variable_name[CLI_REQUESTS_VARIABLES];
     CliRequestsText variable_value[CLI_REQUESTS_VARIABLES];
     unsigned int variables;
     char *text;
     unsigned long long used;
-    unsigned long long text_room;
+    unsigned long long text_capacity;
     int full;
 } CliRequestsParsed;
 
@@ -112,7 +112,7 @@ typedef struct
     unsigned int count;
     char *text;
     unsigned long long used;
-    unsigned long long room;
+    unsigned long long capacity;
 } CliRequestsValues;
 
 // A request ready to go: its method, address and headers with its variables filled in, its body read, and whether it
@@ -145,7 +145,7 @@ typedef struct
 // the longest line of a head and one read past it
 #define CLI_REQUESTS_HEAD (1u << 20u)
 #define CLI_REQUESTS_ANSWER_HEADERS 4096u
-#define CLI_REQUESTS_READING ((64u << 10u) + (16u << 10u) + 1u)
+#define CLI_REQUESTS_READ_STATE ((64u << 10u) + (16u << 10u) + 1u)
 
 // An answer: when it came, its address, its status, its reason, version and headers stored in the pool of its head, its
 // body, its size, whether it was cut, whether it is not text, how long each part took, the redirects followed on the
@@ -185,11 +185,12 @@ typedef struct
 
 // the bytes a request's body and an answer's body as read are written in, each a line at their most, the answer's to
 // CLI_REQUESTS_BODY at the most
-#define CLI_REQUESTS_HEAD_ROOM (1ull << 20u)
+#define CLI_REQUESTS_HEAD_CAPACITY (1ull << 20u)
 
-// The room a request is sent in: the request as it was made ready and its body, a line, the request as it goes on each
-// hop and its address taken apart, its answer, the answer's body as read, a line, and as undone, a cell of
-// `unpacked_room` taken as it is undone, and the bytes read from the connection not yet taken, from `start` to `end`
+// The work state a request is sent in: the request as it was made ready and its body, a line, the request as it goes on
+// each hop and its address taken apart, its answer, the answer's body as read, a line, and as undone, a cell of
+// `unpacked_capacity` taken as it is undone, and the bytes read from the connection not yet taken, from `start` to
+// `end`
 typedef struct
 {
     CliRequestsSent sent;
@@ -199,11 +200,11 @@ typedef struct
     CliRequestsAnswer answer;
     VerbaLinea raw;
     unsigned char *unpacked;
-    unsigned long long unpacked_room;
-    unsigned char reading[CLI_REQUESTS_READING];
+    unsigned long long unpacked_capacity;
+    unsigned char *read_state;
     unsigned long long start;
     unsigned long long end;
-} CliRequestsRoom;
+} CliRequestsWorkState;
 
 // the lock a file of requests is read under, and the file read under it (requests_parse.c)
 extern CliRequestsParsed g_cli_requests_parsed;
@@ -228,13 +229,13 @@ void cli_requests_key(const CliRequestsParsedCtx *args);
 // the nearest file `name` beside the file at `path` or in a folder above it within the tree, into `found`: 1, or 0
 // where there is none; the values of environment `env`, or of none, for the file at `path`: the shared file's then the
 // private file's, `$shared` under the environment's own: 1, or 0 with why given; the values' pool given back and the
-// values left empty; a value put, in place of one of its name: 1, or 0 where it does not fit or its room is refused; a
-// name's value, NULL where it has none; and whether the peer's certificate is checked for environment `env`
+// values left empty; a value put, in place of one of its name: 1, or 0 where it does not fit or its work state is
+// refused; a name's value, NULL where it has none; and whether the peer's certificate is checked for environment `env`
 // (requests_values.c)
 int cli_requests_nearest(const CliRequestsRootCtx *args);
 int cli_requests_values(const CliRequestsErrMsgRootCtx *args);
 void cli_requests_values_free(const CliRequestsErrMsgRootCtx *args);
-int cli_requests_value_put(const CliRequestsNameCtx *args);
+int cli_requests_value_append(const CliRequestsNameCtx *args);
 const CliRequestsText *cli_requests_value(const CliRequestsSizeNameCtx *args);
 int cli_requests_verifies(const CliRequestsErrMsgRootCtx *args);
 // `size` bytes of `text` with each `{{name}}` given its value, a value that names others given theirs in turn, eight
@@ -274,17 +275,11 @@ void cli_requests_head_write(const CliRequestsOutHopCtx *args);
 int cli_requests_decode(const CliRequestsSizeErrMsgCtx *args);
 int cli_requests_is_text(const CliRequestsNameAnswerCtx *args);
 
-// the room's hop sent once, to its own address, the peer's certificate checked where `verify` is 1, and the whole
-// answer read into the room's answer, its body read into `raw`, undone into `unpacked`, a cell taken for it, where it
-// was packed: 1, or 0 with why given (requests_http.c)
-int cli_requests_once(const CliRequestsErrMsgRoomCtx *args);
-
-// a room of the two a request is sent in taken, waiting while both are in use, and given back; and `sent` sent and
-// its answer read into the room's, following redirects where it does, the peer's certificate checked where `verify`
-// is 1: an answer that reports what failed where nothing answered (requests_send.c)
-CliRequestsRoom *cli_requests_room_take(void);
-void cli_requests_room_free(const CliRequestsSizeErrMsgCtx *args);
-void cli_requests_send(const CliRequestsSentCtx *args);
+// a work state of the two a request is sent in taken, waiting while both are in use, and given back; and `sent` sent
+// and its answer read into the work state's, following redirects where it does, the peer's certificate checked where
+// `verify` is 1: an answer that reports what failed where nothing answered (requests_send.c)
+CliRequestsWorkState *cli_requests_work_state_alloc(void);
+void cli_requests_work_state_free(const CliRequestsSizeErrMsgCtx *args);
 
 // an answer written as serde writes it, with what was sent, its body cut to `most` bytes of its text at a letter's
 // start, `cut` then true; and the answer stored first among the answers of the request named `key` of the file at
@@ -423,7 +418,7 @@ struct CliRequestsSizeErrMsgCtx
 {
     unsigned long long size;
     VerbaLinea *err_msg;
-    CliRequestsRoom *room;
+    CliRequestsWorkState *work_state;
 };
 
 struct CliRequestsSizeAnswerCtx
@@ -454,10 +449,10 @@ struct CliRequestsParsedCtx
     VerbaLinea *out;
 };
 
-struct CliRequestsErrMsgRoomCtx
+struct CliRequestsErrMsgWorkStateCtx
 {
     VerbaLinea *err_msg;
-    CliRequestsRoom *room;
+    CliRequestsWorkState *work_state;
     int verify;
 };
 
@@ -471,7 +466,7 @@ struct CliRequestsTextSizeParsedCtx
 struct CliRequestsSentCtx
 {
     const CliRequestsSent *sent;
-    CliRequestsRoom *room;
+    CliRequestsWorkState *work_state;
     int verify;
 };
 
@@ -618,11 +613,11 @@ EMBED_TABLE_STORAGE CliRequestsErrMsgRootNs cli_requests_err_msg_root_internal E
 
 typedef struct
 {
-    int (*value_put)(const CliRequestsNameCtx *args);
+    int (*value_append)(const CliRequestsNameCtx *args);
 } CliRequestsNameNs;
-EMBED_TABLE_LAYOUT(CliRequestsNameNs, value_put);
+EMBED_TABLE_LAYOUT(CliRequestsNameNs, value_append);
 EMBED_TABLE_STORAGE CliRequestsNameNs cli_requests_name_internal EMBED_UNUSED = {
-    .value_put = cli_requests_value_put,
+    .value_append = cli_requests_value_append,
 };
 
 typedef struct
@@ -740,30 +735,12 @@ EMBED_TABLE_STORAGE CliRequestsOutHopNs cli_requests_out_hop_internal EMBED_UNUS
 typedef struct
 {
     int (*decode)(const CliRequestsSizeErrMsgCtx *args);
-    void (*room_free)(const CliRequestsSizeErrMsgCtx *args);
+    void (*capacity_free)(const CliRequestsSizeErrMsgCtx *args);
 } CliRequestsSizeErrMsgNs;
-EMBED_TABLE_LAYOUT(CliRequestsSizeErrMsgNs, decode, room_free);
+EMBED_TABLE_LAYOUT(CliRequestsSizeErrMsgNs, decode, capacity_free);
 EMBED_TABLE_STORAGE CliRequestsSizeErrMsgNs cli_requests_size_err_msg_internal EMBED_UNUSED = {
     .decode = cli_requests_decode,
-    .room_free = cli_requests_room_free,
-};
-
-typedef struct
-{
-    int (*once)(const CliRequestsErrMsgRoomCtx *args);
-} CliRequestsErrMsgRoomNs;
-EMBED_TABLE_LAYOUT(CliRequestsErrMsgRoomNs, once);
-EMBED_TABLE_STORAGE CliRequestsErrMsgRoomNs cli_requests_err_msg_room_internal EMBED_UNUSED = {
-    .once = cli_requests_once,
-};
-
-typedef struct
-{
-    void (*send)(const CliRequestsSentCtx *args);
-} CliRequestsSentNs;
-EMBED_TABLE_LAYOUT(CliRequestsSentNs, send);
-EMBED_TABLE_STORAGE CliRequestsSentNs cli_requests_sent_internal EMBED_UNUSED = {
-    .send = cli_requests_send,
+    .capacity_free = cli_requests_work_state_free,
 };
 
 typedef struct

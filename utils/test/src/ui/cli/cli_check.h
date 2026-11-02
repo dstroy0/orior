@@ -13,8 +13,8 @@
 void cli_check_begun(void);
 // a check made: whether it passed, and what it checks
 void cli_check(int passed, const char *what);
-// a check that `size` bytes of `text` are `wanted`, printed with what it checks and, where it failed, what came
-void cli_check_text(const char *text, unsigned long long size, const char *wanted, const char *what);
+// a check that `size` bytes of `text` are `required`, printed with what it checks and, where it failed, what came
+void cli_check_text(const char *text, unsigned long long size, const char *required, const char *what);
 // the folder `name` of the run's folder, removed whole and made anew, its full path into `full`, which is sized for
 // CLI_PATH_MAX_LEN
 void cli_check_folder(const char *name, char *full);

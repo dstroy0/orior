@@ -19,7 +19,7 @@
 #ifndef CARGO_TESTS_H
 #define CARGO_TESTS_H
 typedef struct CliCargoTestsIdCfg CliCargoTestsIdCfg;
-typedef struct CliCargoTestsGivenCfg CliCargoTestsGivenCfg;
+typedef struct CliCargoTestsInputCfg CliCargoTestsInputCfg;
 typedef struct CliCargoTestsCfg CliCargoTestsCfg;
 
 #include "embed_dispatch_layout.h"
@@ -60,7 +60,7 @@ typedef struct CliCargoPieceStruct
 {
     struct CliCargoPieceStruct *next;
     unsigned long long used;
-    unsigned long long room;
+    unsigned long long capacity;
     char text[];
 } CliCargoPiece;
 
@@ -71,7 +71,7 @@ typedef struct
 {
     CliCargoFound *found;
     unsigned int count;
-    unsigned int room;
+    unsigned int capacity;
     CliCargoPiece *pieces;
     unsigned long long used;
     int full;
@@ -83,8 +83,8 @@ int cli_cargo_is_rust(const CliCargoTestsIdCfg *args);
 // it contained before given back; and the tests' cells given back, the tests left empty
 void cli_cargo_find(const CliCargoTestsCfg *args);
 void cli_cargo_tests_free(const CliCargoTestsCfg *args);
-// how many cargo tests a run of `given`, `count` tests by their names or files by their paths, starts (cargo_run.c)
-unsigned int cli_cargo_targets_free(const CliCargoTestsGivenCfg *args);
+// how many cargo tests a run of `supplied`, `count` tests by their names or files by their paths, starts (cargo_run.c)
+unsigned int cli_cargo_targets_free(const CliCargoTestsInputCfg *args);
 // the program that runs the test `id` and the name the harness gives it, built as cargo test builds it, with the
 // package's folder for it to run in, for a debugger to start it: each into what is sized for CLI_PATH_MAX_LEN, 1, or 0
 // with why given (cargo_binary.c)
@@ -100,10 +100,10 @@ struct CliCargoTestsIdCfg
     VerbaLinea *err_msg;
 };
 
-struct CliCargoTestsGivenCfg
+struct CliCargoTestsInputCfg
 {
     const char *root;
-    const char *const *given;
+    const char *const *supplied;
     unsigned int count;
 };
 
@@ -137,10 +137,10 @@ EMBED_TABLE_STORAGE CliCargoTestsNs cli_cargo_tests_table EMBED_UNUSED = {
 
 typedef struct
 {
-    unsigned int (*cargo_targets_free)(const CliCargoTestsGivenCfg *args);
-} CliCargoTestsGivenNs;
-EMBED_TABLE_LAYOUT(CliCargoTestsGivenNs, cargo_targets_free);
-EMBED_TABLE_STORAGE CliCargoTestsGivenNs cli_cargo_tests_given_table EMBED_UNUSED = {
+    unsigned int (*cargo_targets_free)(const CliCargoTestsInputCfg *args);
+} CliCargoTestsInputNs;
+EMBED_TABLE_LAYOUT(CliCargoTestsInputNs, cargo_targets_free);
+EMBED_TABLE_STORAGE CliCargoTestsInputNs cli_cargo_tests_input_table EMBED_UNUSED = {
     .cargo_targets_free = cli_cargo_targets_free,
 };
 

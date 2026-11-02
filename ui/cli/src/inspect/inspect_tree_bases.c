@@ -20,8 +20,8 @@ typedef struct
     unsigned int file;
     const char *spec;
     unsigned long long spec_size;
-    const char *taken;
-    unsigned long long taken_size;
+    const char *reserved;
+    unsigned long long allocated_size;
     const char *name;
     unsigned int depth;
     unsigned int *found_file;
@@ -45,8 +45,8 @@ EMBED_INLINE CliInspectText bases_call(const InspectTreeBasesCtx *args)
                                                       : args->name_inspect_name_pointer->name;
 }
 
-// the class `name` names in the module `spec`, `spec_size` bytes of it, found from the file at `file` with `taken`
-// after it where `taken_size` is not 0, `depth` imports in
+// the class `name` names in the module `spec`, `spec_size` bytes of it, found from the file at `file` with `reserved`
+// after it where `allocated_size` is not 0, `depth` imports in
 EMBED_INLINE int bases_in_module(const InspectTreeBasesCtx *args)
 {
     unsigned int file = args->file;
@@ -58,10 +58,10 @@ EMBED_INLINE int bases_in_module(const InspectTreeBasesCtx *args)
     char joined[CLI_PATH_MAX_LEN * 2u];
     VerbaLinea line = {joined, sizeof(joined), 0ull};
     mmgr_line_put_n(&line, spec, args->spec_size);
-    if (args->taken_size > 0u)
+    if (args->allocated_size > 0u)
     {
         mmgr_line_put(&line, ((args->spec_size > 0u) && (spec[args->spec_size - 1u] == '.')) ? "" : ".");
-        mmgr_line_put_n(&line, args->taken, args->taken_size);
+        mmgr_line_put_n(&line, args->reserved, args->allocated_size);
     }
     if (!mmgr_line_ok(&line))
     {
@@ -99,15 +99,16 @@ EMBED_INLINE int bases_bare(const InspectTreeBasesCtx *args)
         const CliInspectImport *const one = &facts->import[import];
         for (unsigned int at = 0u; at < one->names; at += 1u)
         {
-            const CliInspectName *const taken = &facts->name[one->name_first + at];
+            const CliInspectName *const reserved = &facts->name[one->name_first + at];
             if (EMBED_CALL(bases_same, InspectTreeBasesCtx, .facts = facts,
-                           .text = EMBED_CALL(bases_call, InspectTreeBasesCtx, .name_inspect_name_pointer = taken),
+                           .text = EMBED_CALL(bases_call, InspectTreeBasesCtx, .name_inspect_name_pointer = reserved),
                            .bytes = args->name, .size = args->size))
             {
                 return EMBED_CALL(bases_in_module, InspectTreeBasesCtx, .file = args->file,
-                                  .spec = facts->text + one->spec.at, .spec_size = one->spec.size, .taken = NULL,
-                                  .taken_size = 0ull, .name = facts->text + taken->name.at, .size = taken->name.size,
-                                  .depth = args->depth, .found_file = found_file, .found_class = found_class);
+                                  .spec = facts->text + one->spec.at, .spec_size = one->spec.size, .reserved = NULL,
+                                  .allocated_size = 0ull, .name = facts->text + reserved->name.at,
+                                  .size = reserved->name.size, .depth = args->depth, .found_file = found_file,
+                                  .found_class = found_class);
             }
         }
     }
@@ -130,20 +131,20 @@ EMBED_INLINE int bases_dot(const InspectTreeBasesCtx *args)
         if ((one->names == 0u) && whole)
         {
             return EMBED_CALL(bases_in_module, InspectTreeBasesCtx, .file = args->file, .spec = spec,
-                              .spec_size = one->spec.size, .taken = NULL, .taken_size = 0ull, .name = args->name,
+                              .spec_size = one->spec.size, .reserved = NULL, .allocated_size = 0ull, .name = args->name,
                               .size = args->size, .depth = args->depth, .found_file = args->found_file,
                               .found_class = args->found_class);
         }
         for (unsigned int at = 0u; at < one->names; at += 1u)
         {
-            const CliInspectName *const taken = &facts->name[one->name_first + at];
+            const CliInspectName *const reserved = &facts->name[one->name_first + at];
             if (EMBED_CALL(bases_same, InspectTreeBasesCtx, .facts = facts,
-                           .text = EMBED_CALL(bases_call, InspectTreeBasesCtx, .name_inspect_name_pointer = taken),
+                           .text = EMBED_CALL(bases_call, InspectTreeBasesCtx, .name_inspect_name_pointer = reserved),
                            .bytes = args->module, .size = args->module_size))
             {
                 return EMBED_CALL(bases_in_module, InspectTreeBasesCtx, .file = args->file, .spec = spec,
-                                  .spec_size = one->spec.size, .taken = facts->text + taken->name.at,
-                                  .taken_size = taken->name.size, .name = args->name, .size = args->size,
+                                  .spec_size = one->spec.size, .reserved = facts->text + reserved->name.at,
+                                  .allocated_size = reserved->name.size, .name = args->name, .size = args->size,
                                   .depth = args->depth, .found_file = args->found_file,
                                   .found_class = args->found_class);
             }

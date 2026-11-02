@@ -36,13 +36,13 @@ int cli_executables_init(const CliExecutablesPathCfg *args);
 void cli_executables_built_advice(const CliExecutablesRootCfg *args);
 void cli_executables_compare_build(const CliExecutablesCfg *args);
 void cli_executables_signature_print(const CliExecutablesCfg *args);
-void cli_executables_ran_advice(const CliExecutablesRootCfg *args);
+void cli_executables_run_result_advice(const CliExecutablesRootCfg *args);
 void cli_executables_advice(const CliExecutablesRootCfg *args);
-// the commands that sign the program `file`, each into `commands` with its line into `shown`, sized for `room`: their
-// count, or -1 with why given
+// the commands that sign the program `file`, each into `commands` with its line into `displayed`, sized for `capacity`:
+// their count, or -1 with why given
 int cli_executables_sign_steps(const CliExecutablesErrMsgCfg *args);
 // the command that runs the program `file` the build made, with the PATH a program opened on its own gets where
-// `system`, into `command`, with its line into `shown`
+// `system`, into `command`, with its line into `displayed`
 void cli_executables_run_command(const CliExecutablesValuesCfg *args);
 
 struct CliExecutablesPathCfg
@@ -72,7 +72,7 @@ struct CliExecutablesValuesCfg
     const char *file;
     int system;
     CliCommand *command;
-    VerbaLinea *shown_verba_linea_pointer;
+    VerbaLinea *displayed_verba_linea_pointer;
 };
 
 struct CliExecutablesErrMsgCfg
@@ -80,8 +80,8 @@ struct CliExecutablesErrMsgCfg
     VerbaLinea *err_msg;
     const char *file;
     CliCommand *commands;
-    char (*shown)[CLI_PATH_MAX_LEN * 4u];
-    unsigned int room;
+    char (*displayed)[CLI_PATH_MAX_LEN * 4u];
+    unsigned int capacity;
 };
 
 struct CliExecutablesCfg
@@ -138,13 +138,13 @@ EMBED_TABLE_STORAGE CliExecutablesPathNs cli_executables_path EMBED_UNUSED = {
 typedef struct
 {
     void (*built_advice)(const CliExecutablesRootCfg *args);
-    void (*ran_advice)(const CliExecutablesRootCfg *args);
+    void (*run_result_advice)(const CliExecutablesRootCfg *args);
     void (*advice)(const CliExecutablesRootCfg *args);
 } CliExecutablesRootNs;
-EMBED_TABLE_LAYOUT(CliExecutablesRootNs, built_advice, ran_advice, advice);
+EMBED_TABLE_LAYOUT(CliExecutablesRootNs, built_advice, run_result_advice, advice);
 EMBED_TABLE_STORAGE CliExecutablesRootNs cli_executables_root EMBED_UNUSED = {
     .built_advice = cli_executables_built_advice,
-    .ran_advice = cli_executables_ran_advice,
+    .run_result_advice = cli_executables_run_result_advice,
     .advice = cli_executables_advice,
 };
 

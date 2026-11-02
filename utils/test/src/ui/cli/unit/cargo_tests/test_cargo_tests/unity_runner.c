@@ -9,13 +9,13 @@
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
 extern void tearDown(void);
-extern void test_tests_are_found_past_strings_comments_and_lifetimes(void);
+extern void test_tests_are_found_end_strings_comments_and_lifetimes(void);
 extern void test_the_modules_a_file_names_are_found(void);
 extern void test_the_tokens_cell_is_the_size_of_their_count(void);
 extern void test_every_cell_of_the_scan_is_released(void);
 extern void test_a_packages_targets_and_modules_name_each_test(void);
 extern void test_a_found_test_reports_its_line(void);
-extern void test_the_tests_are_stored_in_grown_room_with_their_texts_in_one_piece(void);
+extern void test_the_tests_are_stored_in_grown_capacity_with_their_texts_in_one_piece(void);
 extern void test_the_searchs_cells_are_released_as_it_ends(void);
 extern void test_a_rust_test_is_rust(void);
 extern void test_a_rust_file_is_rust(void);
@@ -87,13 +87,13 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\cargo_tests\\test_cargo_tests\\test_cargo_tests.c");
-  run_test(test_tests_are_found_past_strings_comments_and_lifetimes, "test_tests_are_found_past_strings_comments_and_lifetimes", 135);
+  run_test(test_tests_are_found_end_strings_comments_and_lifetimes, "test_tests_are_found_end_strings_comments_and_lifetimes", 135);
   run_test(test_the_modules_a_file_names_are_found, "test_the_modules_a_file_names_are_found", 142);
   run_test(test_the_tokens_cell_is_the_size_of_their_count, "test_the_tokens_cell_is_the_size_of_their_count", 149);
   run_test(test_every_cell_of_the_scan_is_released, "test_every_cell_of_the_scan_is_released", 159);
   run_test(test_a_packages_targets_and_modules_name_each_test, "test_a_packages_targets_and_modules_name_each_test", 166);
   run_test(test_a_found_test_reports_its_line, "test_a_found_test_reports_its_line", 190);
-  run_test(test_the_tests_are_stored_in_grown_room_with_their_texts_in_one_piece, "test_the_tests_are_stored_in_grown_room_with_their_texts_in_one_piece", 199);
+  run_test(test_the_tests_are_stored_in_grown_capacity_with_their_texts_in_one_piece, "test_the_tests_are_stored_in_grown_capacity_with_their_texts_in_one_piece", 199);
   run_test(test_the_searchs_cells_are_released_as_it_ends, "test_the_searchs_cells_are_released_as_it_ends", 208);
   run_test(test_a_rust_test_is_rust, "test_a_rust_test_is_rust", 216);
   run_test(test_a_rust_file_is_rust, "test_a_rust_file_is_rust", 221);

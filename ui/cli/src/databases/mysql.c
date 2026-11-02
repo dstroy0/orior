@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// mysql.c: a MySQL connection's packets, read off the socket through a room of their own and sent in pieces of at
+// mysql.c: a MySQL connection's packets, read off the socket through a capacity of their own and sent in pieces of at
 // most 16 MiB; and the handshake and sign-in, by mysql_native_password, caching_sha2_password, or the password sealed
 // by the server's RSA key where caching_sha2_password requests it whole
 #include "../text/digest.h"
@@ -14,16 +14,17 @@ typedef struct
     unsigned long long size;
 } MysqlCtx;
 
-// `size` bytes read whole off the connection, through its room, or passed over where `out` is NULL: 1, or 0 where it
-// broke
+// `size` bytes read whole off the connection, through its capacity, or passed over where `out` is NULL: 1, or 0 where
+// it broke
 EMBED_INLINE int mysql_read(const MysqlCtx *args)
 {
     for (unsigned long long at = 0ull; at < args->size;)
     {
         if (args->mysql->start == args->mysql->end)
         {
-            const long long got = EMBED_CALL(cli_room_internal.socket_some, CliRoomCtx, .sock = &args->mysql->socket,
-                                             .bytes_out = args->mysql->in, .room = sizeof(args->mysql->in));
+            const long long got =
+                EMBED_CALL(cli_capacity_internal.socket_some, CliCapacityCtx, .sock = &args->mysql->socket,
+                           .bytes_out = args->mysql->in, .capacity = sizeof(args->mysql->in));
             if (got <= 0ll)
             {
                 return 0;
@@ -78,7 +79,7 @@ int cli_mysql_packet(const CliMysqlFailureCtx *args)
     if (!fits)
     {
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure,
-                   .message = "a packet is past the room orior_cli reads one in");
+                   .message = "a packet is past the capacity of the buffer orior_cli reads one in");
     }
     return fits;
 }

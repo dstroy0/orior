@@ -12,9 +12,6 @@ extern void test_a_file_with_no_server_opens_without_one(void);
 extern void test_a_file_with_no_server_receives_its_findings(void);
 extern void test_a_file_of_the_tree_no_tab_shows_is_inspected(void);
 extern void test_a_class_that_sets_one_attribute_twice_is_inspected(void);
-extern void test_a_findings_fix_is_offered(void);
-extern void test_the_fix_removes_the_declaration(void);
-extern void test_a_files_findings_clear_once_it_is_changed(void);
 
 
 /*=======Mock Management=====*/
@@ -76,13 +73,10 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\servers_inspect\\test_servers_inspect\\test_servers_inspect.c");
-  run_test(test_a_file_with_no_server_opens_without_one, "test_a_file_with_no_server_opens_without_one", 189);
-  run_test(test_a_file_with_no_server_receives_its_findings, "test_a_file_with_no_server_receives_its_findings", 194);
-  run_test(test_a_file_of_the_tree_no_tab_shows_is_inspected, "test_a_file_of_the_tree_no_tab_shows_is_inspected", 201);
-  run_test(test_a_class_that_sets_one_attribute_twice_is_inspected, "test_a_class_that_sets_one_attribute_twice_is_inspected", 207);
-  run_test(test_a_findings_fix_is_offered, "test_a_findings_fix_is_offered", 213);
-  run_test(test_the_fix_removes_the_declaration, "test_the_fix_removes_the_declaration", 219);
-  run_test(test_a_files_findings_clear_once_it_is_changed, "test_a_files_findings_clear_once_it_is_changed", 225);
+  run_test(test_a_file_with_no_server_opens_without_one, "test_a_file_with_no_server_opens_without_one", 65);
+  run_test(test_a_file_with_no_server_receives_its_findings, "test_a_file_with_no_server_receives_its_findings", 70);
+  run_test(test_a_file_of_the_tree_no_tab_shows_is_inspected, "test_a_file_of_the_tree_no_tab_shows_is_inspected", 77);
+  run_test(test_a_class_that_sets_one_attribute_twice_is_inspected, "test_a_class_that_sets_one_attribute_twice_is_inspected", 83);
 
   return UNITY_END();
 }

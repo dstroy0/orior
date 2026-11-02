@@ -7,8 +7,8 @@
 #include "../text/text.h"
 #include "review_internal.h"
 
-// A text's lines, each where it starts and its bytes, less a carriage return before its newline, in a cell with room
-// for `most` of them
+// A text's lines, each where it starts and its bytes, less a carriage return before its newline, in a cell with
+// capacity for `most` of them
 typedef struct
 {
     unsigned int *start;
@@ -24,7 +24,7 @@ typedef struct
     CliTextLines *lines;
 } ReviewTextCtx;
 // the lines `size` bytes of `text` can contain, its newlines and one, up to CLI_REVIEW_LINES
-EMBED_INLINE unsigned int text_lines_most(const ReviewTextCtx *args)
+EMBED_INLINE unsigned int text_lines_max(const ReviewTextCtx *args)
 {
     unsigned int most = 1u;
     for (unsigned long long at = 0ull; (at < args->size) && (most < CLI_REVIEW_LINES); at += 1ull)
@@ -34,7 +34,7 @@ EMBED_INLINE unsigned int text_lines_most(const ReviewTextCtx *args)
     return most;
 }
 
-// a text's lines read, `size` bytes of it, up to the lines it has room for
+// a text's lines read, `size` bytes of it, up to the lines it has capacity for
 EMBED_INLINE void cli_lines_get(const ReviewTextCtx *args)
 {
     const char *text = args->text;
@@ -86,17 +86,17 @@ int cli_review_share(const CliReviewOneCtx *args)
     const unsigned long long one_size = cellul.len(&(CatenaFinitaCfg){.src = args->one, .cap = CLI_CELLS_POOL});
     const unsigned long long other_size = cellul.len(&(CatenaFinitaCfg){.src = other, .cap = CLI_CELLS_POOL});
     // both texts' lines, and a mark for each of the first's that one of the second's contains, in one cell
-    const unsigned int one_most = EMBED_CALL(text_lines_most, ReviewTextCtx, .text = args->one, .size = one_size);
-    const unsigned int other_most = EMBED_CALL(text_lines_most, ReviewTextCtx, .text = other, .size = other_size);
-    const unsigned long long words = (2ull * one_most) + (2ull * other_most);
+    const unsigned int one_max = EMBED_CALL(text_lines_max, ReviewTextCtx, .text = args->one, .size = one_size);
+    const unsigned int other_max = EMBED_CALL(text_lines_max, ReviewTextCtx, .text = other, .size = other_size);
+    const unsigned long long words = (2ull * one_max) + (2ull * other_max);
     unsigned int *const cell =
-        g_cli_cells->temporary_buf_alloc((words * sizeof(unsigned int)) + one_most, &g_cli_review_cells);
+        g_cli_cells->temporary_buf_alloc((words * sizeof(unsigned int)) + one_max, &g_cli_review_cells);
     if (cell == NULL)
     {
         return 0;
     }
-    CliTextLines first = {cell, cell + one_most, 0u, one_most};
-    CliTextLines second = {cell + (2u * one_most), cell + (2u * one_most) + other_most, 0u, other_most};
+    CliTextLines first = {cell, cell + one_max, 0u, one_max};
+    CliTextLines second = {cell + (2u * one_max), cell + (2u * one_max) + other_max, 0u, other_max};
     unsigned char *const used = (unsigned char *)(cell + words);
     EMBED_CALL(cli_lines_get, ReviewTextCtx, .text = args->one, .size = one_size, .lines = &first);
     EMBED_CALL(cli_lines_get, ReviewTextCtx, .text = other, .size = other_size, .lines = &second);

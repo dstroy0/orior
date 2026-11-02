@@ -19,8 +19,6 @@ typedef struct CliHistoryCfg CliHistoryCfg;
 // `before_size` bytes of `before`, the text the file contained, ahead of it where the file has none yet and `before` is
 // not NULL: 1, or 0 with why given
 int cli_history_save(const CliHistoryBeforeCfg *args);
-// the snapshots of the file at `path`, the newest first, written as `[{"at": milliseconds, "size": bytes}...]`
-void cli_history_list(const CliHistoryCfg *args);
 // the text of the snapshot stored at `at` put into `out`: 1, or 0 with why given
 int cli_history_read(const CliHistoryCfg *args);
 
@@ -55,12 +53,10 @@ EMBED_TABLE_STORAGE CliHistoryBeforeNs cli_history_before EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*list)(const CliHistoryCfg *args);
     int (*read)(const CliHistoryCfg *args);
 } CliHistoryNs;
-EMBED_TABLE_LAYOUT(CliHistoryNs, list, read);
+EMBED_TABLE_LAYOUT(CliHistoryNs, read);
 EMBED_TABLE_STORAGE CliHistoryNs cli_history EMBED_UNUSED = {
-    .list = cli_history_list,
     .read = cli_history_read,
 };
 

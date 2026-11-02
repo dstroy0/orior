@@ -28,12 +28,12 @@ EMBED_INLINE int query_pull(const TablesPullCtx *args)
     EMBED_CALL(query_context_under_internal.at, QueryContextUnderCtx, .context_read = context,
                .under = QUERY_TABLES_OUT, .path_out = out);
     EMBED_CALL(query_tables_folder_internal.in, QueryTablesFolderCtx, .folder = out, .name = "tables", .path = tables);
-    static char s_wanted[QUERY_ARCHITECTURES_MOST][16];
-    static char s_missing[QUERY_ARCHITECTURES_MOST][16];
-    const unsigned int wanted =
+    static char s_requested[QUERY_ARCHITECTURES_MAX][16];
+    static char s_missing[QUERY_ARCHITECTURES_MAX][16];
+    const unsigned int required =
         EMBED_CALL(query_tables_err_msg_internal.architectures, QueryTablesErrMsgCtx, .context = context, .run = run,
-                   .words = words, .count = args->count, .arches = s_wanted, .err_msg = err_msg);
-    if (wanted == 0u)
+                   .words = words, .count = args->count, .arches = s_requested, .err_msg = err_msg);
+    if (required == 0u)
     {
         return -1;
     }
@@ -42,29 +42,29 @@ EMBED_INLINE int query_pull(const TablesPullCtx *args)
     char latencies[QUERY_PATH_MAX_LEN];
     char line_text[QUERY_PATH_MAX_LEN + 128u];
     VerbaLinea line = {line_text, sizeof(line_text), 0ull};
-    for (unsigned int at = 0u; at < wanted; at += 1u)
+    for (unsigned int at = 0u; at < required; at += 1u)
     {
-        EMBED_CALL(query_tables_out_internal.get, QueryTablesOutCtx, .out = out, .arch = s_wanted[at],
+        EMBED_CALL(query_tables_out_internal.get, QueryTablesOutCtx, .out = out, .arch = s_requested[at],
                    .instructions = instructions, .latencies = latencies);
         if (EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = instructions) &&
             EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = latencies))
         {
             line.at = 0ull;
             mmgr_line_put(&line, "  ");
-            mmgr_line_put(&line, s_wanted[at]);
+            mmgr_line_put(&line, s_requested[at]);
             mmgr_line_put(&line, ": its tables stand");
             mmgr_line_finish(&line);
             EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = line_text);
             continue;
         }
-        memor.cpy(&(MemoriaCfg){.dst = s_missing[missing], .src = s_wanted[at], .bytes = 16u});
+        memor.cpy(&(MemoriaCfg){.dst = s_missing[missing], .src = s_requested[at], .bytes = 16u});
         missing += 1u;
     }
     if (missing == 0u)
     {
         line.at = 0ull;
         mmgr_line_put(&line, "tables: every one of ");
-        mmgr_line_decimal(&line, wanted, 0u);
+        mmgr_line_decimal(&line, required, 0u);
         mmgr_line_put(&line, " architectures stands under ");
         mmgr_line_put(&line, tables);
         mmgr_line_finish(&line);
@@ -72,7 +72,7 @@ EMBED_INLINE int query_pull(const TablesPullCtx *args)
         return 0;
     }
     static char s_disassembler[QUERY_PATH_MAX_LEN];
-    static char s_cubins[QUERY_ARCHITECTURES_MOST][QUERY_PATH_MAX_LEN];
+    static char s_cubins[QUERY_ARCHITECTURES_MAX][QUERY_PATH_MAX_LEN];
     if (!EMBED_CALL(query_tables_out_err_msg_internal.disassembler, QueryTablesOutErrMsgCtx, .context = context,
                     .run = run, .out = out, .program = s_disassembler, .err_msg = err_msg))
     {
@@ -210,7 +210,7 @@ EMBED_INLINE int query_pull(const TablesPullCtx *args)
 
 // The two readings of a pulled table, `read <arch> [--bank <size>] <low> <high>...` and `fields <arch>`: 1 where the
 // words request one, its mode in `mode`, 0 where they request a pull, -1 with why given
-int query_reading(const QueryLoopsErrMsgWordsCountModeCfg *args)
+int query_read_state(const QueryLoopsErrMsgWordsCountModeCfg *args)
 {
     const char **mode = args->mode;
     if (args->count == 0u)
@@ -261,7 +261,7 @@ int query_tables_run(const QueryLoopCfg *args)
     unsigned int count = args->count;
     VerbaLinea *err_msg = args->err_msg;
     const char *mode = NULL;
-    const int parsed = EMBED_CALL(query_loops_err_msg_words_count_mode.reading, QueryLoopsErrMsgWordsCountModeCfg,
+    const int parsed = EMBED_CALL(query_loops_err_msg_words_count_mode.read_state, QueryLoopsErrMsgWordsCountModeCfg,
                                   .words = words, .count = count, .mode = &mode, .err_msg = err_msg);
     if (parsed < 0)
     {
@@ -317,12 +317,12 @@ int query_tables_run(const QueryLoopCfg *args)
                 EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
                            .word = words[at]);
             }
-            long long ran = -1ll;
+            long long run_result = -1ll;
             // an exit code is far below what an int represents
             code = EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
                               .context = context, .run = &s_run, .name = "orior_tables_read", .words = s_words.word,
-                              .code = &ran, .err_msg = &failed)
-                       ? (int)ran
+                              .code = &run_result, .err_msg = &failed)
+                       ? (int)run_result
                        : -1;
         }
     }

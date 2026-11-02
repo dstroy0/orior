@@ -46,7 +46,7 @@ const char *const g_cli_maven_common_properties[6] = {"maven.compiler.release",
                                                       "project.build.sourceEncoding",
                                                       "project.reporting.outputEncoding",
                                                       "maven.compiler.encoding"};
-const char *const g_cli_maven_given_heads[16] = {"project", "pom",     "env",      "settings",  "java", "os",
+const char *const g_cli_maven_input_heads[16] = {"project", "pom",     "env",      "settings",  "java", "os",
                                                  "user",    "maven",   "file",     "line",      "path", "sun",
                                                  "session", "basedir", "revision", "changelist"};
 const char *const g_cli_maven_project_properties[11] = {"project.groupId",         "project.artifactId",

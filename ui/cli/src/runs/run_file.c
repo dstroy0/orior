@@ -38,8 +38,8 @@ void cli_run_file_quote(const CliRunFileCfg *args)
         const unsigned long long stop = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
                                                    .text = args->path, .at = at, .size = whole, .set = "'");
         const size_t from = args->out->at;
-        const size_t taken = mmgr_line_put_n(args->out, args->path + at, (size_t)(stop - at));
-        EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = args->out->out + from, .size = taken,
+        const size_t reserved = mmgr_line_put_n(args->out, args->path + at, (size_t)(stop - at));
+        EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = args->out->out + from, .size = reserved,
                    .from = '\\', .to = '/');
         if (stop < whole)
         {
@@ -80,10 +80,10 @@ EMBED_INLINE const char *cli_name_split(const RunFileCtx *args)
     const char **name = args->name;
     unsigned long long *stem = args->stem;
     const char *start = args->path;
-    const unsigned long long start_past =
+    const unsigned long long start_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
                    .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
-    start = (start_past != 0ull) ? (args->path + start_past) : start;
+    start = (start_end != 0ull) ? (args->path + start_end) : start;
     *name = start;
     const char *const dot =
         EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = start,
@@ -105,7 +105,7 @@ EMBED_INLINE unsigned int cli_ways(const RunFileCtx *args)
     VerbaLinea with = {keys[0], sizeof(keys[0]), 0ull};
     mmgr_line_put(&with, args->language);
     mmgr_line_ch(&with, '.');
-    EMBED_CALL(cli_text_out_name.put_lower, CliTextOutNameCfg, .out = &with,
+    EMBED_CALL(cli_text_out_name.append_lower, CliTextOutNameCfg, .out = &with,
                .text = (args->extension != NULL) ? args->extension : "");
     mmgr_line_finish(&with);
     memor.cpy(
@@ -153,7 +153,7 @@ EMBED_INLINE int cli_on_fill(const RunFileCtx *args)
     }
     else if (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "path", .cap = CLI_CELLS_POOL}))
     {
-        (void)EMBED_CALL(cli_text_from.put_swap, CliTextFromCfg, .out = args->line, .text = args->filling->path,
+        (void)EMBED_CALL(cli_text_from.append_swap, CliTextFromCfg, .out = args->line, .text = args->filling->path,
                          .from = '\\', .to = '/');
     }
     else if (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "dir", .cap = CLI_CELLS_POOL}))
@@ -269,13 +269,13 @@ EMBED_INLINE int run_file_find(const RunFileCtx *args)
     {
         for (unsigned int at = 0u; at < args->named_u32; at += 1u)
         {
-            const char *const shown =
+            const char *const displayed =
                 EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
                            .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                               .object = args->ways[at].tool, .name = "name"),
                            .length_pointer = NULL);
             mmgr_line_put(args->err_msg, (at != 0u) ? " or " : "");
-            mmgr_line_put(args->err_msg, (shown != NULL) ? shown : "");
+            mmgr_line_put(args->err_msg, (displayed != NULL) ? displayed : "");
         }
         mmgr_line_put(args->err_msg,
                       " runs it, and is not found: File, Toolchains opens its install page or takes its folder");
@@ -340,7 +340,7 @@ int cli_run_file_line(const CliRunFileCfg *args)
     else
     {
         unsigned int count = 0u;
-        char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&count, &g_cli_runs_cells);
+        char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_allocated(&count, &g_cli_runs_cells);
         done = EMBED_CALL(run_file_find, RunFileCtx, .root = args->root, .path = args->path, .language = args->language,
                           .json = &json, .ways = ways, .named_u32 = named,
                           .folders = (const char (*)[CLI_PATH_MAX_LEN])folders, .count = count, .out = args->out,

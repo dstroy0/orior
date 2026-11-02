@@ -17,11 +17,6 @@ typedef struct CliFillCfg CliFillCfg;
 #include "../text/edits.h"
 #include "embed_dispatch_layout.h"
 
-// the paragraph of documentation at `line` of `size` bytes of `text` filled to `width` columns: the edit that writes
-// it again into `edit`, its text written into `written`: 1, or 0 with why given, or with nothing given where the
-// paragraph does not fit `written`
-int cli_fill(const CliFillCfg *args);
-
 struct CliFillCfg
 {
     const char *text;
@@ -31,15 +26,6 @@ struct CliFillCfg
     VerbaLinea *written;
     CliTextEdit *edit;
     VerbaLinea *err_msg;
-};
-
-typedef struct
-{
-    int (*fill)(const CliFillCfg *args);
-} CliFillNs;
-EMBED_TABLE_LAYOUT(CliFillNs, fill);
-EMBED_TABLE_STORAGE CliFillNs cli_fill_table EMBED_UNUSED = {
-    .fill = cli_fill,
 };
 
 #endif

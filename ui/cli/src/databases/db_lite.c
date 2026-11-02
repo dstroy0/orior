@@ -47,7 +47,7 @@ EMBED_INLINE int lite_write(const DbLiteCtx *args)
     return written;
 }
 
-// the next line the process prints read into its room, without its newline: 1, or 0 with the failure given
+// the next line the process prints read into its capacity, without its newline: 1, or 0 with the failure given
 EMBED_INLINE int lite_line(const DbLiteCtx *args)
 {
     CliDbFailure *failure = args->failure;
@@ -57,9 +57,10 @@ EMBED_INLINE int lite_line(const DbLiteCtx *args)
     {
         if (args->lite->start == args->lite->end)
         {
-            const unsigned long long got = EMBED_CALL(cli_room_pipe_handle_internal.spawn_read, CliRoomPipeHandleCtx,
-                                                      .pipe_handle = args->lite->child.out,
-                                                      .piece = (char *)args->lite->in, .room = sizeof(args->lite->in));
+            const unsigned long long got =
+                EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx,
+                           .pipe_handle = args->lite->child.out, .piece = (char *)args->lite->in,
+                           .capacity = sizeof(args->lite->in));
             if (got == 0ull)
             {
                 EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure,
@@ -136,15 +137,15 @@ EMBED_INLINE int lite_query(const DbLiteCtx *args)
     if (EMBED_CALL(lite_member, DbLiteCtx, .lite_read = args->lite, .name = "error", .start = &start,
                    .length = &length))
     {
-        args->lite->reading = 0;
+        args->lite->read_state = 0;
         memor.set(&(MemoriaCfg){.dst = failure, .val = 0, .bytes = sizeof(*failure)});
-        (void)EMBED_CALL(cli_lsp_room.string, CliLspRoomCfg, .text = args->lite->line + start, .length = length,
-                         .out_room = failure->message, .room = sizeof(failure->message));
+        (void)EMBED_CALL(cli_lsp_capacity.string, CliLspCapacityCfg, .text = args->lite->line + start, .length = length,
+                         .out_capacity = failure->message, .capacity = sizeof(failure->message));
         if (EMBED_CALL(lite_member, DbLiteCtx, .lite_read = args->lite, .name = "code", .start = &start,
                        .length = &length))
         {
-            (void)EMBED_CALL(cli_lsp_room.string, CliLspRoomCfg, .text = args->lite->line + start, .length = length,
-                             .out_room = failure->code, .room = sizeof(failure->code));
+            (void)EMBED_CALL(cli_lsp_capacity.string, CliLspCapacityCfg, .text = args->lite->line + start,
+                             .length = length, .out_capacity = failure->code, .capacity = sizeof(failure->code));
         }
         return 0;
     }
@@ -209,14 +210,14 @@ CliDbLite *cli_db_lite_open(const CliDbFailureFileCtx *args)
     if (lite == NULL)
     {
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = args->failure,
-                   .message = (entry_at < CLI_DB_LITES) ? "no room is left to open a SQLite database in"
+                   .message = (entry_at < CLI_DB_LITES) ? "no capacity is left to open a SQLite database in"
                                                         : "orior_cli has as many SQLite databases open as it can");
         return NULL;
     }
     lite->start = 0ull;
     lite->end = 0ull;
     lite->in_transaction = 0;
-    lite->reading = 0;
+    lite->read_state = 0;
     lite->count = 0ull;
     EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = lite->path_text,
                .size = sizeof(lite->path_text));
@@ -255,8 +256,8 @@ CliDbLite *cli_db_lite_open(const CliDbFailureFileCtx *args)
     lite->version[0] = '\0';
     if (EMBED_CALL(lite_member, DbLiteCtx, .lite_read = lite, .name = "version", .start = &start, .length = &length))
     {
-        (void)EMBED_CALL(cli_lsp_room.string, CliLspRoomCfg, .text = lite->line + start, .length = length,
-                         .out_room = lite->version, .room = sizeof(lite->version));
+        (void)EMBED_CALL(cli_lsp_capacity.string, CliLspCapacityCfg, .text = lite->line + start, .length = length,
+                         .out_capacity = lite->version, .capacity = sizeof(lite->version));
     }
     return lite;
 }
@@ -371,8 +372,8 @@ static void lite_column(const CliEachItemSizeCfg *args)
     {
         CliDbColumn *const column = &lite->head.columns[lite->head.column_count];
         column->name[0] = '\0';
-        (void)EMBED_CALL(cli_lsp_room.string, CliLspRoomCfg, .text = args->item, .length = args->size,
-                         .out_room = column->name, .room = sizeof(column->name));
+        (void)EMBED_CALL(cli_lsp_capacity.string, CliLspCapacityCfg, .text = args->item, .length = args->size,
+                         .out_capacity = column->name, .capacity = sizeof(column->name));
         column->kind[0] = '\0';
         column->numeric = 0;
         lite->head.column_count += 1u;
@@ -382,7 +383,7 @@ static void lite_column(const CliEachItemSizeCfg *args)
 int cli_db_lite_start(const CliDbFailureStatementCtx *args)
 {
     char tag[CLI_DB_TAG];
-    for (int done = !args->lite->reading; !done;)
+    for (int done = !args->lite->read_state; !done;)
     {
         if (!EMBED_CALL(cli_db_failure_internal.lite_rows, CliDbFailureCtx, .lite = args->lite, .count = 4096ull,
                         .each_row = NULL, .context = NULL, .done = &done, .tag = tag, .failure = args->failure))
@@ -393,9 +394,9 @@ int cli_db_lite_start(const CliDbFailureStatementCtx *args)
     // the request a cell of the statement's quoted size, six bytes at most for each of its bytes, and no more than a
     // line SQLite's process reads
     const unsigned long long quoted = (6ull * args->size) + 16ull;
-    const unsigned long long room = (quoted < CLI_DB_LITE_LINE) ? quoted : CLI_DB_LITE_LINE;
-    char *const request = g_cli_cells->temporary_buf_alloc(room, &g_cli_db_cells);
-    VerbaLinea query = mmgr_line_over(request, room);
+    const unsigned long long capacity = (quoted < CLI_DB_LITE_LINE) ? quoted : CLI_DB_LITE_LINE;
+    char *const request = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_db_cells);
+    VerbaLinea query = mmgr_line_over(request, capacity);
     mmgr_line_put(&query, "{\"start\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &query,
                .text_bytes = (const unsigned char *)args->statement, .length = args->size);
@@ -408,7 +409,7 @@ int cli_db_lite_start(const CliDbFailureStatementCtx *args)
     {
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = args->failure,
                    .message = (request != NULL) ? "the statement is longer than orior_cli sends SQLite's process"
-                                                : "no room is left to send the statement in");
+                                                : "no capacity is left to send the statement in");
     }
     if (!answered)
     {
@@ -423,11 +424,11 @@ int cli_db_lite_start(const CliDbFailureStatementCtx *args)
     {
         args->lite->head.rows = 0;
         args->lite->head.tag[0] = '\0';
-        (void)EMBED_CALL(cli_lsp_room.string, CliLspRoomCfg, .text = args->lite->line + start, .length = length,
-                         .out_room = args->lite->head.tag, .room = sizeof(args->lite->head.tag));
+        (void)EMBED_CALL(cli_lsp_capacity.string, CliLspCapacityCfg, .text = args->lite->line + start, .length = length,
+                         .out_capacity = args->lite->head.tag, .capacity = sizeof(args->lite->head.tag));
         return 1;
     }
-    args->lite->reading = 1;
+    args->lite->read_state = 1;
     args->lite->count = 0ull;
     args->lite->head.rows = 1;
     if (EMBED_CALL(lite_member, DbLiteCtx, .lite_read = args->lite, .name = "columns", .start = &start,
@@ -469,8 +470,8 @@ static void lite_value(const CliEachItemSizeCfg *args)
         return;
     }
     char *const text = lite->text + read->used;
-    if (!EMBED_CALL(cli_lsp_room.string, CliLspRoomCfg, .text = args->item, .length = args->size, .out_room = text,
-                    .room = sizeof(lite->text) - read->used))
+    if (!EMBED_CALL(cli_lsp_capacity.string, CliLspCapacityCfg, .text = args->item, .length = args->size,
+                    .out_capacity = text, .capacity = sizeof(lite->text) - read->used))
     {
         *value = (CliDbValue){"", 0ull, 0};
         return;
@@ -503,7 +504,7 @@ int cli_db_lite_rows(const CliDbFailureCtx *args)
     int *done = args->done;
     *done = 0;
     args->tag[0] = '\0';
-    if (!args->lite->reading)
+    if (!args->lite->read_state)
     {
         *done = 1;
         return 1;
@@ -539,7 +540,7 @@ int cli_db_lite_rows(const CliDbFailureCtx *args)
              (memor.cmp(&(MemoriaCfg){.src = args->lite->line + start, .other = "true", .bytes = 4u}) == 0));
         if (ended)
         {
-            args->lite->reading = 0;
+            args->lite->read_state = 0;
             VerbaLinea out = {args->tag, CLI_DB_TAG, 0ull};
             mmgr_line_decimal(&out, args->lite->count, 1u);
             mmgr_line_put(&out, (args->lite->count == 1ull) ? " row read" : " rows read");

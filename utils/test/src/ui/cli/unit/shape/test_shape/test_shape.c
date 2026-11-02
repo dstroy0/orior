@@ -41,13 +41,13 @@ static unsigned int matches_of(const char *language, const char *src, const char
     return s_count;
 }
 
-// `src` with each match of `pattern` rewritten as `template_text` is `wanted`
-static void assert_replaced(const char *wanted, const char *language, const char *src, const char *pattern, const char *template_text)
+// `src` with each match of `pattern` rewritten as `template_text` is `required`
+static void assert_replaced(const char *required, const char *language, const char *src, const char *pattern, const char *template_text)
 {
     (void)matches_of(language, src, pattern, template_text);
     VerbaLinea after = {s_after, sizeof(s_after), 0ull};
     (void)EMBED_CALL(cli_edits_out.text_apply, CliEditsOutCfg, .text = src, .size = CLI_UNITY_LENGTH(src), .edits = s_edits, .count = s_count, .out = &after);
-    CLI_TEST_ASSERT_TEXT(wanted, s_after, after.at);
+    CLI_TEST_ASSERT_TEXT(required, s_after, after.at);
 }
 
 void setUp(void)
@@ -61,7 +61,7 @@ void tearDown(void)
     EMBED_CALL(cli_symbols.languages_free, CliSymbolsCfg, .read = s_languages);
 }
 
-void test_an_expression_placeholder_matches_each_whole_call(void)
+void test_an_expression_placeholder_matches_each_complete_call(void)
 {
     TEST_ASSERT_EQUAL_UINT(3u, matches_of("python", s_calls, "len($a$)", NULL));
     TEST_ASSERT_EQUAL_UINT(0u, s_edits[0].from.line);
@@ -90,7 +90,7 @@ void test_an_expression_named_twice_matches_the_same_text_both_times(void)
     assert_replaced("a += 1\nb = c + 1\nd.e += 1\n", "python", s_names, "$x$ = $x$ + 1", "$x$ += 1");
 }
 
-void test_statements_match_past_spaces_and_comments(void)
+void test_statements_match_end_spaces_and_comments(void)
 {
     TEST_ASSERT_EQUAL_UINT(2u, matches_of("javascript", s_script, "if ($c$) { $body:stmt$ }", NULL));
 }
@@ -101,7 +101,7 @@ void test_statements_are_written_back_unchanged(void)
                     "if ($c$) { $body:stmt$ }", "when($c$, () => { $body$ })");
 }
 
-void test_an_expression_last_in_a_pattern_takes_the_rest_of_its_statement(void)
+void test_an_expression_last_in_a_pattern_allocs_the_remainder_of_its_statement(void)
 {
     assert_replaced("total = (a + b * c)\nname = \"a + b\"\n", "python", s_total, "total = $v$", "total = ($v$)");
 }

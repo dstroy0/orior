@@ -36,7 +36,7 @@
 // 0 with the lock given back where it stays locked
 static int clipboard_open(void)
 {
-    for (unsigned int asked = 0u; asked < CLI_CLIPBOARD_TRIES; asked += 1u)
+    for (unsigned int requested = 0u; requested < CLI_CLIPBOARD_TRIES; requested += 1u)
     {
         if (OpenClipboard(NULL))
         {
@@ -66,12 +66,12 @@ int cli_clipboard_text_read(const CliCtx *args)
         return 0;
     }
     const HANDLE clipboard_data = GetClipboardData(CF_UNICODETEXT);
-    const wchar_t *const wide = (clipboard_data != NULL) ? (const wchar_t *)GlobalLock(clipboard_data) : NULL;
-    if (wide != NULL)
+    const wchar_t *const pixel_width = (clipboard_data != NULL) ? (const wchar_t *)GlobalLock(clipboard_data) : NULL;
+    if (pixel_width != NULL)
     {
-        const SIZE_T units_most = GlobalSize(clipboard_data) / sizeof(wchar_t);
+        const SIZE_T units_max = GlobalSize(clipboard_data) / sizeof(wchar_t);
         SIZE_T units = 0u;
-        while ((units < units_most) && (wide[units] != L'\0'))
+        while ((units < units_max) && (pixel_width[units] != L'\0'))
         {
             units += 1u;
         }
@@ -80,11 +80,11 @@ int cli_clipboard_text_read(const CliCtx *args)
         {
             SIZE_T count = ((units - at) < CLI_CLIPBOARD_PIECE) ? (units - at) : CLI_CLIPBOARD_PIECE;
             // a letter of two units is not cut between pieces
-            const wchar_t last = wide[at + count - 1u];
+            const wchar_t last = pixel_width[at + count - 1u];
             count -= ((at + count < units) && (last >= 0xd800u) && (last <= 0xdbffu)) ? 1u : 0u;
             // a piece is at most CLI_CLIPBOARD_PIECE units, which an int counts
             const int bytes =
-                WideCharToMultiByte(CP_UTF8, 0u, wide + at, (int)count, piece, (int)sizeof(piece), NULL, NULL);
+                WideCharToMultiByte(CP_UTF8, 0u, pixel_width + at, (int)count, piece, (int)sizeof(piece), NULL, NULL);
             mmgr_line_put_n(args->text_verba_linea_pointer, piece, (bytes > 0) ? (unsigned long long)bytes : 0ull);
             at += count;
         }
@@ -105,7 +105,7 @@ typedef struct
 } WindowsClipboardCtx;
 // `memory` put on the clipboard as `format`, and `more` as `more_format` where it is not NULL, the clipboard emptied
 // first: 1, or 0 with each the clipboard did not take given back
-EMBED_INLINE int clipboard_put(const WindowsClipboardCtx *args)
+EMBED_INLINE int clipboard_append(const WindowsClipboardCtx *args)
 {
     if (!clipboard_open())
     {
@@ -114,18 +114,19 @@ EMBED_INLINE int clipboard_put(const WindowsClipboardCtx *args)
         return 0;
     }
     EmptyClipboard();
-    const int taken = SetClipboardData(args->format, args->memory) != NULL;
-    const int more_taken = taken && ((args->more == NULL) || (SetClipboardData(args->more_format, args->more) != NULL));
+    const int reserved = SetClipboardData(args->format, args->memory) != NULL;
+    const int more_allocated =
+        reserved && ((args->more == NULL) || (SetClipboardData(args->more_format, args->more) != NULL));
     clipboard_close();
-    if (!taken)
+    if (!reserved)
     {
         GlobalFree(args->memory);
     }
-    if (!more_taken)
+    if (!more_allocated)
     {
         GlobalFree(args->more);
     }
-    return taken && more_taken;
+    return reserved && more_allocated;
 }
 
 int cli_clipboard_text_write(const CliSizeTextCtx *args)
@@ -137,8 +138,8 @@ int cli_clipboard_text_write(const CliSizeTextCtx *args)
     // the size is at most what an int counts, as checked above
     const int units = (args->size > 0ull) ? MultiByteToWideChar(CP_UTF8, 0u, args->text, (int)args->size, NULL, 0) : 0;
     const HGLOBAL memory = GlobalAlloc(GMEM_MOVEABLE, ((SIZE_T)units + 1u) * sizeof(wchar_t));
-    wchar_t *const wide = (memory != NULL) ? (wchar_t *)GlobalLock(memory) : NULL;
-    if (wide == NULL)
+    wchar_t *const pixel_width = (memory != NULL) ? (wchar_t *)GlobalLock(memory) : NULL;
+    if (pixel_width == NULL)
     {
         GlobalFree(memory);
         return 0;
@@ -146,15 +147,15 @@ int cli_clipboard_text_write(const CliSizeTextCtx *args)
     if (units > 0)
     {
         // the size is at most what an int counts, as checked above
-        (void)MultiByteToWideChar(CP_UTF8, 0u, args->text, (int)args->size, wide, units);
+        (void)MultiByteToWideChar(CP_UTF8, 0u, args->text, (int)args->size, pixel_width, units);
     }
-    wide[units] = L'\0';
+    pixel_width[units] = L'\0';
     GlobalUnlock(memory);
-    return EMBED_CALL(clipboard_put, WindowsClipboardCtx, .format = CF_UNICODETEXT, .memory = memory, .more_format = 0u,
-                      .more = NULL);
+    return EMBED_CALL(clipboard_append, WindowsClipboardCtx, .format = CF_UNICODETEXT, .memory = memory,
+                      .more_format = 0u, .more = NULL);
 }
 
-int cli_clipboard_files_put(const CliCountCtx *args)
+int cli_clipboard_files_append(const CliCountCtx *args)
 {
     // the list's head, then each path in UTF-16 with a 0 after it, and one 0 more at the end
     SIZE_T units = 1u;
@@ -194,7 +195,7 @@ int cli_clipboard_files_put(const CliCountCtx *args)
     GlobalUnlock(memory);
     *effect_value = args->cut ? CLI_CLIPBOARD_MOVE : (CLI_CLIPBOARD_COPY | CLI_CLIPBOARD_LINK);
     GlobalUnlock(effect);
-    return EMBED_CALL(clipboard_put, WindowsClipboardCtx, .format = CF_HDROP, .memory = memory,
+    return EMBED_CALL(clipboard_append, WindowsClipboardCtx, .format = CF_HDROP, .memory = memory,
                       .more_format = clipboard_effect_format(), .more = effect);
 }
 
@@ -211,10 +212,11 @@ unsigned int cli_clipboard_files_read(const CliEachCtx *args)
     const UINT files = (clipboard_data != NULL) ? DragQueryFileW(clipboard_data, 0xffffffffu, NULL, 0u) : 0u;
     for (UINT at = 0u; at < files; at += 1u)
     {
-        wchar_t wide[CLI_PATH_MAX_LEN];
+        wchar_t pixel_width[CLI_PATH_MAX_LEN];
         char path[CLI_PATH_MAX_LEN];
-        const int converted = (DragQueryFileW(clipboard_data, at, wide, CLI_PATH_MAX_LEN) != 0u) &&
-                              (WideCharToMultiByte(CP_UTF8, 0u, wide, -1, path, (int)sizeof(path), NULL, NULL) > 0);
+        const int converted =
+            (DragQueryFileW(clipboard_data, at, pixel_width, CLI_PATH_MAX_LEN) != 0u) &&
+            (WideCharToMultiByte(CP_UTF8, 0u, pixel_width, -1, path, (int)sizeof(path), NULL, NULL) > 0);
         if (converted)
         {
             EMBED_CALL(args->each, CliEachPathCfg, .context = args->context, .path = path);

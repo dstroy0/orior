@@ -11,7 +11,7 @@ void cli_maven_model_free(const CliMavenTextSizeModelCtx *args)
     *model = (CliMavenModel){NULL, NULL, NULL, NULL, 0u, 0u, NULL, NULL, 0u, 0u, 0, 0, NULL, 0u, 0u};
 }
 
-void cli_maven_model_take(const CliMavenTextSizeModelCtx *args)
+void cli_maven_model_alloc(const CliMavenTextSizeModelCtx *args)
 {
     const unsigned long long lists_bytes =
         ((4ull * CLI_MAVEN_PROPERTIES) + (2ull * CLI_MAVEN_MANAGED)) * sizeof(unsigned int);
@@ -25,18 +25,18 @@ void cli_maven_model_take(const CliMavenTextSizeModelCtx *args)
     args->model->name_size = lists + CLI_MAVEN_PROPERTIES;
     args->model->value_at = lists + (2u * CLI_MAVEN_PROPERTIES);
     args->model->value_size = lists + (3u * CLI_MAVEN_PROPERTIES);
-    args->model->property_room = CLI_MAVEN_PROPERTIES;
+    args->model->property_capacity = CLI_MAVEN_PROPERTIES;
     args->model->managed_at = lists + (4u * CLI_MAVEN_PROPERTIES);
     args->model->managed_size = args->model->managed_at + CLI_MAVEN_MANAGED;
-    args->model->managed_room = CLI_MAVEN_MANAGED;
+    args->model->managed_capacity = CLI_MAVEN_MANAGED;
     args->model->text = (char *)(void *)(args->model->managed_size + CLI_MAVEN_MANAGED);
-    args->model->text_room = CLI_MAVEN_MODEL_TEXT;
+    args->model->text_capacity = CLI_MAVEN_MODEL_TEXT;
 }
 
 unsigned int cli_maven_model_text_store(const CliMavenSizeModelCtx *args)
 {
     const char *bytes = args->bytes;
-    if (args->size > args->model->text_room - args->model->used)
+    if (args->size > args->model->text_capacity - args->model->used)
     {
         return CLI_MAVEN_MODEL_TEXT;
     }

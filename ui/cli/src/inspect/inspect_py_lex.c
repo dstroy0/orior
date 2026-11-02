@@ -11,10 +11,11 @@
 CliPyLine *g_cli_py_line;
 unsigned int g_cli_py_lines;
 
-void cli_inspect_py_lex_layout(const CliInspectCarveCtx *args)
+void cli_inspect_py_lex_layout(const CliInspectPartitionCtx *args)
 {
-    g_cli_py_line = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
-                               .bytes = (unsigned long long)CLI_INSPECT_LINES * sizeof(CliPyLine));
+    g_cli_py_line =
+        EMBED_CALL(cli_inspect_partition_internal.partition, CliInspectPartitionCtx, .partition = args->partition,
+                   .bytes = (unsigned long long)CLI_INSPECT_LINES * sizeof(CliPyLine));
 }
 
 const char *const g_cli_py_keywords[35] = {"False",  "None",   "True",    "and",      "as",       "assert", "async",
@@ -42,7 +43,7 @@ typedef struct
     unsigned long long start;
     unsigned long long end;
     CliInspectScan *scan;
-    CliInspectPlace from;
+    CliInspectPosition from;
     unsigned long long prefix_size;
     unsigned int indent;
     unsigned int *first;
@@ -91,7 +92,7 @@ static void lex_string(const InspectPyLexCtx *args)
 {
     CliInspectScan *scan = args->scan;
     unsigned long long start = args->start;
-    CliInspectPlace from = args->from;
+    CliInspectPosition from = args->from;
     const unsigned int peeked = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan);
     const unsigned int quote = (peeked == CLI_INSPECT_END) ? '"' : peeked;
     const int triple = (EMBED_CALL(cli_inspect_scan_ahead_internal.peek_at, CliInspectScanAheadCtx, .scan = scan,
@@ -157,7 +158,7 @@ static void lex_string(const InspectPyLexCtx *args)
             const int after_digit =
                 (scan->pos > 0u) && (scan->src[scan->pos - 1u] >= '0') && (scan->src[scan->pos - 1u] <= '9');
             const unsigned long long name_start = scan->pos;
-            const CliInspectPlace name_from =
+            const CliInspectPosition name_from =
                 EMBED_CALL(cli_inspect_scan_internal.place, CliInspectScanCtx, .scan = scan);
             while (EMBED_CALL(
                 lex_name, InspectPyLexCtx,
@@ -181,8 +182,8 @@ static void lex_string(const InspectPyLexCtx *args)
         }
         (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
     }
-    EMBED_CALL(cli_inspect_scan_internal.tok_put, CliInspectScanCtx, .scan = scan, .kind = CLI_PY_STR, .start = start,
-               .from = from, .field = 0);
+    EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .kind = CLI_PY_STR,
+               .start = start, .from = from, .field = 0);
     for (unsigned int at = 0u; at < names; at += 1u)
     {
         if (g_cli_inspect_toks == CLI_INSPECT_TOKENS)
@@ -196,7 +197,7 @@ static void lex_string(const InspectPyLexCtx *args)
 }
 
 // the logical line of the tokens from `first` put on the lines where it contains any
-EMBED_INLINE void lex_line_put(const InspectPyLexCtx *args)
+EMBED_INLINE void lex_line_append(const InspectPyLexCtx *args)
 {
     unsigned int *first = args->first;
     if (g_cli_inspect_toks > *first)
@@ -219,7 +220,7 @@ EMBED_INLINE void lex_number(const InspectPyLexCtx *args)
 {
     CliInspectScan *scan = args->scan;
     const unsigned long long start = scan->pos;
-    const CliInspectPlace from = EMBED_CALL(cli_inspect_scan_internal.place, CliInspectScanCtx, .scan = scan);
+    const CliInspectPosition from = EMBED_CALL(cli_inspect_scan_internal.place, CliInspectScanCtx, .scan = scan);
     for (unsigned int letter = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan);
          (letter != CLI_INSPECT_END) &&
          (EMBED_CALL(cli_inspect_internal.alphanumeric, CliInspectCtx, .letter = letter) || (letter == '_') ||
@@ -237,7 +238,7 @@ EMBED_INLINE void lex_number(const InspectPyLexCtx *args)
             (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
         }
     }
-    EMBED_CALL(cli_inspect_scan_internal.tok_put, CliInspectScanCtx, .scan = scan, .kind = CLI_PY_NUMBER,
+    EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .kind = CLI_PY_NUMBER,
                .start = start, .from = from, .field = 0);
 }
 
@@ -247,7 +248,7 @@ EMBED_INLINE void lex_operator(const InspectPyLexCtx *args)
     CliInspectScan *scan = args->scan;
     int *depth = args->depth;
     const unsigned long long start = scan->pos;
-    const CliInspectPlace from = EMBED_CALL(cli_inspect_scan_internal.place, CliInspectScanCtx, .scan = scan);
+    const CliInspectPosition from = EMBED_CALL(cli_inspect_scan_internal.place, CliInspectScanCtx, .scan = scan);
     const char *op = NULL;
     for (unsigned int at = 0u; (op == NULL) && (at < 47u); at += 1u)
     {
@@ -273,7 +274,7 @@ EMBED_INLINE void lex_operator(const InspectPyLexCtx *args)
             *depth -= 1;
         }
     }
-    EMBED_CALL(cli_inspect_scan_internal.tok_put, CliInspectScanCtx, .scan = scan, .kind = CLI_PY_OP, .start = start,
+    EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .kind = CLI_PY_OP, .start = start,
                .from = from, .field = 0);
 }
 
@@ -356,13 +357,13 @@ void cli_py_read(const CliInspectPySrcSizeCfg *args)
             break;
         }
         const unsigned long long start = scan.pos;
-        const CliInspectPlace from = EMBED_CALL(cli_inspect_scan_internal.place, CliInspectScanCtx, .scan = &scan);
+        const CliInspectPosition from = EMBED_CALL(cli_inspect_scan_internal.place, CliInspectScanCtx, .scan = &scan);
         if (letter == '\n')
         {
             (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = &scan);
             if (depth == 0)
             {
-                EMBED_CALL(lex_line_put, InspectPyLexCtx, .indent = indent, .first = &first);
+                EMBED_CALL(lex_line_append, InspectPyLexCtx, .indent = indent, .first = &first);
                 at_start = 1;
             }
         }
@@ -408,7 +409,7 @@ void cli_py_read(const CliInspectPySrcSizeCfg *args)
             }
             else
             {
-                EMBED_CALL(cli_inspect_scan_internal.tok_put, CliInspectScanCtx, .scan = &scan, .kind = CLI_PY_NAME,
+                EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = &scan, .kind = CLI_PY_NAME,
                            .start = start, .from = from, .field = 0);
             }
         }
@@ -426,7 +427,7 @@ void cli_py_read(const CliInspectPySrcSizeCfg *args)
             EMBED_CALL(lex_operator, InspectPyLexCtx, .scan = &scan, .depth = &depth);
         }
     }
-    EMBED_CALL(lex_line_put, InspectPyLexCtx, .indent = indent, .first = &first);
+    EMBED_CALL(lex_line_append, InspectPyLexCtx, .indent = indent, .first = &first);
 }
 
 const CliInspectTok *cli_py_tok(const CliInspectPyCfg *args)

@@ -43,7 +43,7 @@ typedef struct
     const CliReply *reply_read;
     unsigned long long array;
     const char *match;
-    const char *wanted;
+    const char *required;
     const char *key;
     const CliReply *target;
     const CliReply *model;
@@ -80,7 +80,7 @@ EMBED_INLINE int cli_same_case_aside(const ExecutablesCmakeCtx *args)
     return cellul.eq(&(CatenaFinitaCfg){.src = args->one, .other = other, .cap = CLI_CELLS_POOL, .ci = 1});
 }
 
-// the member `key` of the first item of the array at `array` whose member `match` is `wanted`, decoded into `out`,
+// the member `key` of the first item of the array at `array` whose member `match` is `required`, decoded into `out`,
 // which is sized for CLI_PATH_MAX_LEN: 1, or 0 where none is
 EMBED_INLINE int cli_found_in(const ExecutablesCmakeCtx *args)
 {
@@ -94,7 +94,7 @@ EMBED_INLINE int cli_found_in(const ExecutablesCmakeCtx *args)
         if (EMBED_CALL(cli_reply_at.string_is, CliReplyAtCfg, .reply = reply,
                        .at = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = reply, .object = item,
                                         .key = args->match),
-                       .word = args->wanted))
+                       .word = args->required))
         {
             return EMBED_CALL(cli_reply_at_out.string, CliReplyAtOutCfg, .reply = reply,
                               .at = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = reply,
@@ -194,7 +194,7 @@ int cli_cmake_artifact(const CliExecutablesNameOutCtx *args)
         cli_found_in, ExecutablesCmakeCtx, .reply_read = &reply,
         .array = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = &reply,
                             .object = EMBED_CALL(cli_reply.root, CliReplyCfg, .reply = &reply), .key = "objects"),
-        .match = "kind", .wanted = "codemodel", .key = "jsonFile", .out = file);
+        .match = "kind", .required = "codemodel", .key = "jsonFile", .out = file);
     EMBED_CALL(cli_reply_path.let_go, CliReplyPathCfg, .reply_out = &reply);
     if (!modelled)
     {
@@ -219,7 +219,7 @@ int cli_cmake_artifact(const CliExecutablesNameOutCtx *args)
         targeted = EMBED_CALL(cli_found_in, ExecutablesCmakeCtx, .reply_read = &model,
                               .array = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = &model,
                                                   .object = chosen, .key = "targets"),
-                              .match = "name", .wanted = args->name, .key = "jsonFile", .out = file);
+                              .match = "name", .required = args->name, .key = "jsonFile", .out = file);
         if (!targeted)
         {
             mmgr_line_put(args->err_msg, "CMake's code model contains no target ");
@@ -264,15 +264,16 @@ int cli_cmake_artifact(const CliExecutablesNameOutCtx *args)
 int cli_meson_artifact(const CliExecutablesNameOutCtx *args)
 {
     const char *const arguments[3] = {"introspect", "--targets", args->build};
-    CliRan *const ran = cli_ran_take();
+    CliRunResult *const run_result = cli_run_result_alloc();
     if (!EMBED_CALL(cli_executables_name_internal.output, CliExecutablesNameCtx, .tool = "meson", .name = "meson",
-                    .request = arguments, .count = 3u, .folder = NULL, .ran = ran, .err_msg = args->err_msg))
+                    .request = arguments, .count = 3u, .folder = NULL, .run_result = run_result,
+                    .err_msg = args->err_msg))
     {
-        EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+        EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
         return 0;
     }
     // the program's output read where it stands
-    const CliReply reply = {ran->out, ran->out_size};
+    const CliReply reply = {run_result->out, run_result->out_size};
     const unsigned long long targets = EMBED_CALL(cli_reply.root, CliReplyCfg, .reply = &reply);
     int found = 0;
     for (unsigned long long item =
@@ -301,7 +302,7 @@ int cli_meson_artifact(const CliExecutablesNameOutCtx *args)
                     ? 1
                     : -1;
     }
-    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+    EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
     if (found != 1)
     {
         mmgr_line_put(args->err_msg, "Meson names no executable ");

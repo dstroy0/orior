@@ -37,7 +37,7 @@ void cli_dos(const CliArchiveBytesSizeCfg *args)
 {
     for (unsigned long long at = 0ull; at < args->size; at += 1ull)
     {
-        EMBED_CALL(cli_line_letter_internal.utf8_put, CliLineLetterCtx, .line = args->out_verba_linea_pointer,
+        EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = args->out_verba_linea_pointer,
                    .letter = (args->bytes[at] < 128u) ? args->bytes[at] : s_dos[args->bytes[at] - 128u]);
     }
 }
@@ -265,8 +265,8 @@ int cli_zip_members(const CliArchiveBytesSizeErrMsgCtx *args)
             plain ? 0u
                   : EMBED_CALL(cli_archive_members_internal.name_store, CliArchiveMembersCtx, .members = args->members,
                                .name = (const char *)record.name, .length = record.name_length);
-        EMBED_CALL(cli_archive_size_internal.member_put, CliArchiveSizeCtx, .members = args->members, .name_u32 = name,
-                   .raw = raw, .has_raw = !plain, .dir = dir, .size = record.size, .at = at);
+        EMBED_CALL(cli_archive_size_internal.member_append, CliArchiveSizeCtx, .members = args->members,
+                   .name_u32 = name, .raw = raw, .has_raw = !plain, .dir = dir, .size = record.size, .at = at);
         at += record.length;
     }
     return 1;
@@ -277,7 +277,7 @@ int cli_zip_data(const CliArchiveBytesSizeErrMsgMembersCtx *args)
     const unsigned char *bytes = args->bytes;
     unsigned long long size = args->size;
     unsigned char *out = args->out;
-    unsigned long long room = args->room;
+    unsigned long long capacity = args->capacity;
     unsigned long long *out_size = args->out_size;
     VerbaLinea *err_msg = args->err_msg;
     const char *const name = args->members_read->text + args->member->name;
@@ -324,7 +324,7 @@ int cli_zip_data(const CliArchiveBytesSizeErrMsgMembersCtx *args)
     const unsigned char *const packed = bytes + start;
     if (record.method == 0ull)
     {
-        if (record.packed > room)
+        if (record.packed > capacity)
         {
             mmgr_line_put(err_msg, name);
             mmgr_line_put(err_msg, " is larger than orior_cli supports");
@@ -337,7 +337,7 @@ int cli_zip_data(const CliArchiveBytesSizeErrMsgMembersCtx *args)
     {
         unsigned long long used = 0ull;
         if (!EMBED_CALL(cli_archive_size.inflate, CliArchiveSizeCfg, .data = packed, .size = record.packed, .out = out,
-                        .room = room, .out_size = out_size, .used = &used, .err_msg = err_msg))
+                        .capacity = capacity, .out_size = out_size, .used = &used, .err_msg = err_msg))
         {
             return 0;
         }
@@ -360,7 +360,7 @@ int cli_zip_data(const CliArchiveBytesSizeErrMsgMembersCtx *args)
 }
 
 // a little-endian number of `width` bytes put at `at` of `bytes`
-EMBED_INLINE void cli_put_number(const ArchiveZipCtx *args)
+EMBED_INLINE void cli_append_number(const ArchiveZipCtx *args)
 {
     for (unsigned int byte = 0u; byte < args->width; byte += 1u)
     {
@@ -375,7 +375,7 @@ int cli_zip_with(const CliArchiveBytesSizeCtx *args)
     unsigned long long size = args->size;
     const unsigned char *data = args->data;
     unsigned char *out = args->out;
-    unsigned long long room = args->room;
+    unsigned long long capacity = args->capacity;
     unsigned long long *out_size = args->out_size;
     unsigned long long start = 0ull;
     unsigned long long count = 0ull;
@@ -387,17 +387,17 @@ int cli_zip_with(const CliArchiveBytesSizeCtx *args)
     }
     // the directory written again, as long as it was, and the member changed deflated, which is retained only where it
     // is smaller than the member: one cell for the writing, the directory first
-    const unsigned long long directory_room = end - start;
-    const unsigned long long deflated_room = args->data_size;
+    const unsigned long long directory_capacity = end - start;
+    const unsigned long long deflated_capacity = args->data_size;
     unsigned char *const writing =
-        g_cli_cells->temporary_buf_alloc(directory_room + deflated_room + 1ull, &g_cli_editor_cells);
+        g_cli_cells->temporary_buf_alloc(directory_capacity + deflated_capacity + 1ull, &g_cli_editor_cells);
     if (writing == NULL)
     {
         mmgr_line_put(args->err_msg, "a zip's writing could not be taken");
         return 0;
     }
     unsigned char *const written_directory = writing;
-    unsigned char *const written_deflated = writing + directory_room;
+    unsigned char *const written_deflated = writing + directory_capacity;
     unsigned long long used = 0ull;
     unsigned long long directory = 0ull;
     unsigned long long at = start;
@@ -441,7 +441,7 @@ int cli_zip_with(const CliArchiveBytesSizeCtx *args)
         {
             const unsigned long long deflated =
                 EMBED_CALL(cli_archive_size.deflate, CliArchiveSizeCfg, .data = data, .size = args->data_size,
-                           .out = written_deflated, .room = deflated_room);
+                           .out = written_deflated, .capacity = deflated_capacity);
             const int smaller = (deflated != 0ull) && (deflated < args->data_size);
             method = smaller ? 8ull : 0ull;
             body = smaller ? written_deflated : data;
@@ -462,7 +462,7 @@ int cli_zip_with(const CliArchiveBytesSizeCtx *args)
             body = bytes + from;
         }
         // the local header as it was, its sizes and check set here, and no record after the data
-        if ((used + head_length + packed) > room)
+        if ((used + head_length + packed) > capacity)
         {
             mmgr_line_put(args->err_msg, "the zip is larger than orior_cli supports");
             done = 0;
@@ -473,16 +473,18 @@ int cli_zip_with(const CliArchiveBytesSizeCtx *args)
         unsigned long long flags = 0ull;
         EMBED_CALL(cli_archive_bytes_size_at_internal.number, CliArchiveBytesSizeAtCtx, .bytes = bytes, .size = size,
                    .at = record.local + 6ull, .width = 2u, .value = &flags, .err_msg = args->err_msg);
-        EMBED_CALL(cli_put_number, ArchiveZipCtx, .bytes_out = out, .at = used + 6ull, .value = flags & ~(1ull << 3u),
-                   .width = 2u);
-        EMBED_CALL(cli_put_number, ArchiveZipCtx, .bytes_out = out, .at = used + 8ull, .value = method, .width = 2u);
-        EMBED_CALL(cli_put_number, ArchiveZipCtx, .bytes_out = out, .at = used + 14ull, .value = crc, .width = 4u);
-        EMBED_CALL(cli_put_number, ArchiveZipCtx, .bytes_out = out, .at = used + 18ull, .value = packed, .width = 4u);
-        EMBED_CALL(cli_put_number, ArchiveZipCtx, .bytes_out = out, .at = used + 22ull, .value = length, .width = 4u);
+        EMBED_CALL(cli_append_number, ArchiveZipCtx, .bytes_out = out, .at = used + 6ull,
+                   .value = flags & ~(1ull << 3u), .width = 2u);
+        EMBED_CALL(cli_append_number, ArchiveZipCtx, .bytes_out = out, .at = used + 8ull, .value = method, .width = 2u);
+        EMBED_CALL(cli_append_number, ArchiveZipCtx, .bytes_out = out, .at = used + 14ull, .value = crc, .width = 4u);
+        EMBED_CALL(cli_append_number, ArchiveZipCtx, .bytes_out = out, .at = used + 18ull, .value = packed,
+                   .width = 4u);
+        EMBED_CALL(cli_append_number, ArchiveZipCtx, .bytes_out = out, .at = used + 22ull, .value = length,
+                   .width = 4u);
         used += head_length;
         memor.cpy(&(MemoriaCfg){.dst = out + used, .src = body, .bytes = packed});
         used += packed;
-        if ((directory + record.length) > directory_room)
+        if ((directory + record.length) > directory_capacity)
         {
             mmgr_line_put(args->err_msg, "the zip's directory is larger than orior_cli supports");
             done = 0;
@@ -492,24 +494,24 @@ int cli_zip_with(const CliArchiveBytesSizeCtx *args)
         unsigned long long central_flags = 0ull;
         EMBED_CALL(cli_archive_bytes_size_at_internal.number, CliArchiveBytesSizeAtCtx, .bytes = bytes, .size = size,
                    .at = at + 8ull, .width = 2u, .value = &central_flags, .err_msg = args->err_msg);
-        EMBED_CALL(cli_put_number, ArchiveZipCtx, .bytes_out = written_directory, .at = directory + 8ull,
+        EMBED_CALL(cli_append_number, ArchiveZipCtx, .bytes_out = written_directory, .at = directory + 8ull,
                    .value = central_flags & ~(1ull << 3u), .width = 2u);
-        EMBED_CALL(cli_put_number, ArchiveZipCtx, .bytes_out = written_directory, .at = directory + 10ull,
+        EMBED_CALL(cli_append_number, ArchiveZipCtx, .bytes_out = written_directory, .at = directory + 10ull,
                    .value = method, .width = 2u);
-        EMBED_CALL(cli_put_number, ArchiveZipCtx, .bytes_out = written_directory, .at = directory + 16ull, .value = crc,
-                   .width = 4u);
-        EMBED_CALL(cli_put_number, ArchiveZipCtx, .bytes_out = written_directory, .at = directory + 20ull,
+        EMBED_CALL(cli_append_number, ArchiveZipCtx, .bytes_out = written_directory, .at = directory + 16ull,
+                   .value = crc, .width = 4u);
+        EMBED_CALL(cli_append_number, ArchiveZipCtx, .bytes_out = written_directory, .at = directory + 20ull,
                    .value = packed, .width = 4u);
-        EMBED_CALL(cli_put_number, ArchiveZipCtx, .bytes_out = written_directory, .at = directory + 24ull,
+        EMBED_CALL(cli_append_number, ArchiveZipCtx, .bytes_out = written_directory, .at = directory + 24ull,
                    .value = length, .width = 4u);
-        EMBED_CALL(cli_put_number, ArchiveZipCtx, .bytes_out = written_directory, .at = directory + 42ull,
+        EMBED_CALL(cli_append_number, ArchiveZipCtx, .bytes_out = written_directory, .at = directory + 42ull,
                    .value = offset, .width = 4u);
         directory += record.length;
         at += record.length;
     }
     const unsigned long long directory_at = used;
     const unsigned long long tail = size - end;
-    if (done && ((used + directory + tail) > room))
+    if (done && ((used + directory + tail) > capacity))
     {
         mmgr_line_put(args->err_msg, "the zip is larger than orior_cli supports");
         done = 0;
@@ -519,11 +521,11 @@ int cli_zip_with(const CliArchiveBytesSizeCtx *args)
         memor.cpy(&(MemoriaCfg){.dst = out + used, .src = written_directory, .bytes = directory});
         used += directory;
         memor.cpy(&(MemoriaCfg){.dst = out + used, .src = bytes + end, .bytes = tail});
-        EMBED_CALL(cli_put_number, ArchiveZipCtx, .bytes_out = out, .at = used + 8ull, .value = count, .width = 2u);
-        EMBED_CALL(cli_put_number, ArchiveZipCtx, .bytes_out = out, .at = used + 10ull, .value = count, .width = 2u);
-        EMBED_CALL(cli_put_number, ArchiveZipCtx, .bytes_out = out, .at = used + 12ull, .value = directory,
+        EMBED_CALL(cli_append_number, ArchiveZipCtx, .bytes_out = out, .at = used + 8ull, .value = count, .width = 2u);
+        EMBED_CALL(cli_append_number, ArchiveZipCtx, .bytes_out = out, .at = used + 10ull, .value = count, .width = 2u);
+        EMBED_CALL(cli_append_number, ArchiveZipCtx, .bytes_out = out, .at = used + 12ull, .value = directory,
                    .width = 4u);
-        EMBED_CALL(cli_put_number, ArchiveZipCtx, .bytes_out = out, .at = used + 16ull, .value = directory_at,
+        EMBED_CALL(cli_append_number, ArchiveZipCtx, .bytes_out = out, .at = used + 16ull, .value = directory_at,
                    .width = 4u);
         used += tail;
         *out_size = used;

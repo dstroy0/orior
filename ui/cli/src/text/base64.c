@@ -49,7 +49,7 @@ int cli_unbase64(const CliBase64TextCfg *args)
     *size = 0ull;
     unsigned int group = 0u;
     unsigned int bits = 0u;
-    unsigned int taken = 0u;
+    unsigned int reserved = 0u;
     int padded = 0;
     for (unsigned long long at = 0ull; at <= args->length; at += 1ull)
     {
@@ -75,13 +75,13 @@ int cli_unbase64(const CliBase64TextCfg *args)
                 group = (group << 6u) | sextet;
                 bits += 1u;
             }
-            taken += 1u;
+            reserved += 1u;
         }
-        if ((taken == 4u) || (ended && (taken > 0u)))
+        if ((reserved == 4u) || (ended && (reserved > 0u)))
         {
             group <<= 6u * (4u - bits);
             const unsigned int bytes = (bits > 1u) ? (bits - 1u) : 0u;
-            if ((*size + bytes) > args->room)
+            if ((*size + bytes) > args->capacity)
             {
                 return 0;
             }
@@ -93,7 +93,7 @@ int cli_unbase64(const CliBase64TextCfg *args)
             }
             group = 0u;
             bits = 0u;
-            taken = 0u;
+            reserved = 0u;
             padded = 0;
         }
     }

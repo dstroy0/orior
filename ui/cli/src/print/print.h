@@ -10,7 +10,7 @@
 // PDF and the raster both draw the pages laid out here, the one as text and the other as pixels.
 //
 // Every call that lays a listing out works on the one layout page.c stores, and is made with the print lock acquired
-// (cli_print_take, cli_print_give)
+// (cli_print_alloc, cli_print_release)
 #ifndef PRINT_H
 #define PRINT_H
 typedef struct CliPrintLayoutCfg CliPrintLayoutCfg;
@@ -72,19 +72,19 @@ typedef struct
 } CliPrintLine;
 
 // What prints: its title, its lines and their runs, a tab as wide as `tab` spaces, and the texts they occupy, in the
-// room's cell, up to CLI_PRINT_LINES lines, CLI_PRINT_RUNS runs and CLI_PRINT_TEXT bytes of text
+// capacity's cell, up to CLI_PRINT_LINES lines, CLI_PRINT_RUNS runs and CLI_PRINT_TEXT bytes of text
 typedef struct
 {
     char title[CLI_PATH_MAX_LEN];
     CliPrintLine *line;
     unsigned int lines;
-    unsigned int lines_room;
+    unsigned int lines_capacity;
     CliPrintRun *run;
     unsigned int runs;
-    unsigned int runs_room;
+    unsigned int runs_capacity;
     char *text;
     unsigned int text_used;
-    unsigned int text_room;
+    unsigned int text_capacity;
     unsigned long long tab;
 } CliPrintListing;
 
@@ -121,20 +121,20 @@ typedef struct
 } CliPrintRow;
 
 // The pages laid out: the rows, a page `rows_per_page` of them, the pieces and their text, and the columns the numbers
-// take, in the room's cell, up to CLI_PRINT_ROWS rows, CLI_PRINT_PIECES pieces and CLI_PRINT_TEXT bytes of text
+// take, in the capacity's cell, up to CLI_PRINT_ROWS rows, CLI_PRINT_PIECES pieces and CLI_PRINT_TEXT bytes of text
 typedef struct
 {
     CliPrintRow *row;
     unsigned int rows;
-    unsigned int rows_room;
+    unsigned int rows_capacity;
     unsigned int rows_per_page;
     unsigned int pages;
     CliPrintPiece *piece;
     unsigned int pieces;
-    unsigned int pieces_room;
+    unsigned int pieces_capacity;
     char *text;
     unsigned int text_used;
-    unsigned int text_room;
+    unsigned int text_capacity;
     unsigned long long number_columns;
     int full;
 } CliPrintLaid;
@@ -150,8 +150,8 @@ typedef struct
 
 // the print lock taken with the cell the listing and its layout are stored in, and both given back; where the cells
 // cannot meet it, a listing read with the lock acquired is refused (page.c)
-void cli_print_take(void);
-void cli_print_give(void);
+void cli_print_alloc(void);
+void cli_print_release(void);
 // the listing the window hands as JSON, `{title, lines: [{number, runs: [{text, color, bold, italic}]}], tab}`, read
 // into the one listing; and a layout's JSON, `{paper, landscape, gray, pages, copies}`, each left out its default:
 // 1, or 0 with why given
@@ -159,7 +159,7 @@ int cli_print_listing_read(const CliPrintJsonCfg *args);
 void cli_print_layout_read(const CliPrintJsonNodeCfg *args);
 // the paper's width and height in points, as it lies; the paper's name as IPP and PWG write it; whether the page
 // numbered `page`, counted from 1, is one to print; and the page ranges as IPP takes them into `low` and `high`,
-// each sized for `room`: their count
+// each sized for `capacity`: their count
 void cli_print_size(const CliPrintLayoutWidthCfg *args);
 const char *cli_print_media(const CliPrintLayoutCfg *args);
 int cli_print_prints(const CliPrintCfg *args);
@@ -242,7 +242,7 @@ struct CliPrintLayoutLowCfg
     const CliPrintLayout *layout;
     int *low;
     int *high;
-    unsigned int room;
+    unsigned int capacity;
 };
 
 struct CliPrintJsonNodeCfg

@@ -39,7 +39,7 @@ void test_two_three_and_four_byte_sequences_pass_through(void)
     TEST_ASSERT_EQUAL_STRING(letters, s_out);
 }
 
-void test_an_invalid_lead_byte_and_a_truncated_sequence_become_replacement_characters(void)
+void test_an_invalid_prefix_byte_and_a_truncated_sequence_become_replacement_characters(void)
 {
     const char broken[] = "a\xff"
                           "b\xc3";
@@ -61,7 +61,7 @@ void test_each_byte_of_a_surrogate_becomes_a_replacement_character(void)
 
 void test_a_full_line_stops_before_a_character_that_does_not_fit(void)
 {
-    // "ab", the euro sign's three bytes, "cd": five bytes of room hold four and the euro sign does not fit
+    // "ab", the euro sign's three bytes, "cd": five bytes of capacity hold four and the euro sign does not fit
     const char text[] = "ab\xe2\x82\xac"
                         "cd";
     TEST_ASSERT_FALSE(decoded(text, sizeof(text) - 1u, 5ull));
@@ -70,14 +70,14 @@ void test_a_full_line_stops_before_a_character_that_does_not_fit(void)
 
 void test_a_full_line_stops_before_a_replacement_that_does_not_fit(void)
 {
-    // "ab", a byte that starts no character, "c": four bytes of room hold three and U+FFFD's three bytes do not fit after "ab"
+    // "ab", a byte that starts no character, "c": four bytes of capacity hold three and U+FFFD's three bytes do not fit after "ab"
     const char text[] = "ab\xff"
                         "c";
     TEST_ASSERT_FALSE(decoded(text, sizeof(text) - 1u, 4ull));
     TEST_ASSERT_EQUAL_STRING("ab", s_out);
 }
 
-void test_a_full_line_saves_a_character_that_fits_whole(void)
+void test_a_full_line_saves_a_character_that_fits_complete(void)
 {
     const char text[] = "ab\xe2\x82\xac"
                         "cd";

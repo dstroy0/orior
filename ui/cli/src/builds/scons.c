@@ -149,7 +149,7 @@ int cli_scons_read(const CliSconsTextSizeClassOfCtx *args)
         if (rest[0] == '#')
         {
             end = EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = rest, .length_value = left,
-                             .wanted = "\n", .size = 1u, .at_pointer = &found)
+                             .required = "\n", .size = 1u, .at_pointer = &found)
                       ? at + found
                       : size;
         }
@@ -187,7 +187,7 @@ void cli_scons_calls(const CliSconsNameCtx *args)
             continue;
         }
         unsigned long long open = at + length;
-        open = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = text, .at = open,
+        open = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = text, .at = open,
                           .size = size, .set = " \t");
         if ((open >= size) || (text[open] != '('))
         {

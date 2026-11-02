@@ -82,7 +82,7 @@ void cli_scons_read_scripts(const CliSconsContextEachScriptCtx *args);
 void cli_scons_check(const CliSconsTextCtx *args);
 void cli_scons_free(const CliSconsTextSizeContextCtx *args);
 void cli_scons_complete(const CliSconsTextSizeCtx *args);
-// the scons checks' own report, `<pool's bytes> <their mark> 0`, the most their rooms occupied of the cellblock at
+// the scons checks' own report, `<pool's bytes> <their mark> 0`, the most their capacities occupied of the cellblock at
 // once, written into `out` (scons_check.c)
 void cli_scons_cells_usage_write(const CliSconsCtx *args);
 

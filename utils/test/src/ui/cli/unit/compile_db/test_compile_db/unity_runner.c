@@ -9,8 +9,8 @@
 extern void setUp(void);
 extern void tearDown(void);
 extern void test_a_look_stores_only_the_files_it_read_and_a_second_look_stores_no_more(void);
-extern void test_a_cmake_reply_gives_each_source_the_debug_configurations_command(void);
-extern void test_clangd_is_given_the_written_folder(void);
+extern void test_a_cmake_reply_releases_each_source_the_debug_configurations_command(void);
+extern void test_clangd_is_input_the_written_folder(void);
 extern void test_a_database_that_names_cl_is_msvcs(void);
 extern void test_cl_is_not_queried_for_its_headers(void);
 extern void test_the_files_a_look_reads_are_in_the_temporary_tier(void);
@@ -18,7 +18,7 @@ extern void test_the_database_a_trees_clangd_names_is_its_own(void);
 extern void test_a_trees_own_database_is_read_for_its_compiler(void);
 extern void test_clangd_may_query_a_trees_own_compiler(void);
 extern void test_nothing_is_written_over_a_trees_own_database(void);
-extern void test_a_command_lines_quoted_words_stay_whole(void);
+extern void test_a_command_lines_quoted_words_stay_complete(void);
 
 
 /*=======Mock Management=====*/
@@ -81,8 +81,8 @@ int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\compile_db\\test_compile_db\\test_compile_db.c");
   run_test(test_a_look_stores_only_the_files_it_read_and_a_second_look_stores_no_more, "test_a_look_stores_only_the_files_it_read_and_a_second_look_stores_no_more", 160);
-  run_test(test_a_cmake_reply_gives_each_source_the_debug_configurations_command, "test_a_cmake_reply_gives_each_source_the_debug_configurations_command", 168);
-  run_test(test_clangd_is_given_the_written_folder, "test_clangd_is_given_the_written_folder", 193);
+  run_test(test_a_cmake_reply_releases_each_source_the_debug_configurations_command, "test_a_cmake_reply_releases_each_source_the_debug_configurations_command", 168);
+  run_test(test_clangd_is_input_the_written_folder, "test_clangd_is_input_the_written_folder", 193);
   run_test(test_a_database_that_names_cl_is_msvcs, "test_a_database_that_names_cl_is_msvcs", 202);
   run_test(test_cl_is_not_queried_for_its_headers, "test_cl_is_not_queried_for_its_headers", 208);
   run_test(test_the_files_a_look_reads_are_in_the_temporary_tier, "test_the_files_a_look_reads_are_in_the_temporary_tier", 216);
@@ -90,7 +90,7 @@ int main(void)
   run_test(test_a_trees_own_database_is_read_for_its_compiler, "test_a_trees_own_database_is_read_for_its_compiler", 232);
   run_test(test_clangd_may_query_a_trees_own_compiler, "test_clangd_may_query_a_trees_own_compiler", 241);
   run_test(test_nothing_is_written_over_a_trees_own_database, "test_nothing_is_written_over_a_trees_own_database", 249);
-  run_test(test_a_command_lines_quoted_words_stay_whole, "test_a_command_lines_quoted_words_stay_whole", 257);
+  run_test(test_a_command_lines_quoted_words_stay_complete, "test_a_command_lines_quoted_words_stay_complete", 257);
 
   return UNITY_END();
 }

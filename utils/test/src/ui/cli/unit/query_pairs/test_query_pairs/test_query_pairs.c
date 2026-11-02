@@ -10,10 +10,10 @@ static QueryWords s_words;
 static char s_out[1024];
 static QueryPairsMode s_mode;
 
-// the words joined by spaces from `from` into `out`, `room` bytes
-static const char *words_joined(unsigned int from, char *out, unsigned long long room)
+// the words joined by spaces from `from` into `out`, `capacity` bytes
+static const char *words_joined(unsigned int from, char *out, unsigned long long capacity)
 {
-    VerbaLinea line = {out, room, 0ull};
+    VerbaLinea line = {out, capacity, 0ull};
     for (unsigned int at = from; at < s_words.count; at += 1u)
     {
         mmgr_line_put(&line, (at > from) ? " " : "");
@@ -44,10 +44,10 @@ static const char *targets_of(const char *mode, const char *const *words, unsign
 }
 
 // the words of the carrier, dry or live
-static void carrier_words(int dry)
+static void transport_words(int dry)
 {
     memor.set(&(MemoriaCfg){.dst = &s_words, .val = 0, .bytes = sizeof(s_words)});
-    EMBED_CALL(query_pairs_part_dry_internal.carry_words, QueryPairsPartDryCtx, .words = &s_words, .carrier = "C", .cross = "X", .nvdisasm = "N", .machine = "M", .layout = "L", .part = "sm_86", .dry = dry);
+    EMBED_CALL(query_pairs_part_dry_internal.machine_transfer_words, QueryPairsPartDryCtx, .words = &s_words, .transport = "C", .cross = "X", .nvdisasm = "N", .machine = "M", .layout = "L", .part = "sm_86", .dry = dry);
 }
 
 // `words` read as a pairs' mode into s_mode: 1, or 0 where they are refused
@@ -70,14 +70,14 @@ void tearDown(void)
 void test_a_parts_name_for_the_vendors_reader(void)
 {
     char name[64];
-    EMBED_CALL(query_pairs_part_name_internal.part_read, QueryPairsPartNameCtx, .part = "sm_86", .name = name, .room = sizeof(name));
+    EMBED_CALL(query_pairs_part_name_internal.part_read, QueryPairsPartNameCtx, .part = "sm_86", .name = name, .capacity = sizeof(name));
     TEST_ASSERT_EQUAL_STRING("SM86", name);
 }
 
 void test_a_parts_name_with_a_letter_after_it(void)
 {
     char name[64];
-    EMBED_CALL(query_pairs_part_name_internal.part_read, QueryPairsPartNameCtx, .part = "sm_120a", .name = name, .room = sizeof(name));
+    EMBED_CALL(query_pairs_part_name_internal.part_read, QueryPairsPartNameCtx, .part = "sm_120a", .name = name, .capacity = sizeof(name));
     TEST_ASSERT_EQUAL_STRING("SM120A", name);
 }
 
@@ -119,24 +119,24 @@ void test_the_register_frame_and_fixed_modes_have_no_targets(void)
     TEST_ASSERT_EQUAL_STRING("", targets_of("fixed", NULL, 0u));
 }
 
-void test_the_dry_carriers_flags_come_first(void)
+void test_the_dry_transports_flags_come_first(void)
 {
-    carrier_words(1);
+    transport_words(1);
     TEST_ASSERT_EQUAL_STRING("C --dry --full --gated gated.txt --lessons overseer.txt M L --pop C --dry --full --lessons overseer.txt M L --cross X N SM86 airlock.md gated.txt", words_joined(0u, s_out, sizeof(s_out)));
 }
 
-void test_a_live_carrier_has_no_dry_flags(void)
+void test_a_live_transport_has_no_dry_flags(void)
 {
-    carrier_words(0);
+    transport_words(0);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = words_joined(0u, s_out, sizeof(s_out)), .other_pointer = "C --gated gated.txt --lessons overseer.txt M L ", .size = 46u));
 }
 
-void test_a_live_carriers_remaining_words_match_the_dry_ones(void)
+void test_a_live_transports_remaining_words_match_the_dry_ones(void)
 {
     char rest[1024];
-    carrier_words(1);
+    transport_words(1);
     (void)words_joined(9u, rest, sizeof(rest));
-    carrier_words(0);
+    transport_words(0);
     TEST_ASSERT_EQUAL_STRING(rest, words_joined(7u, s_out, sizeof(s_out)));
 }
 
@@ -155,14 +155,14 @@ void test_the_kernels_words(void)
     TEST_ASSERT_EQUAL_STRING("kernel", s_words.word[5]);
 }
 
-void test_the_kernel_is_handed_before_the_frame_the_fixed_and_the_pairs(void)
+void test_the_kernel_is_transferred_before_the_frame_the_fixed_and_the_pairs(void)
 {
     TEST_ASSERT_TRUE(EMBED_CALL(query_pairs_internal.kernel_dispatch, QueryPairsCtx, .mode_text = "frame"));
     TEST_ASSERT_TRUE(EMBED_CALL(query_pairs_internal.kernel_dispatch, QueryPairsCtx, .mode_text = "fixed"));
     TEST_ASSERT_TRUE(EMBED_CALL(query_pairs_internal.kernel_dispatch, QueryPairsCtx, .mode_text = "pair"));
 }
 
-void test_the_kernel_is_not_handed_before_the_register_mode(void)
+void test_the_kernel_is_not_transferred_before_the_register_mode(void)
 {
     TEST_ASSERT_FALSE(EMBED_CALL(query_pairs_internal.kernel_dispatch, QueryPairsCtx, .mode_text = "register"));
 }

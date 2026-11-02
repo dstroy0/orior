@@ -20,10 +20,10 @@ static void check_line(const VerbaLinea *line)
 }
 
 // ORIOR_CELLS_OWNERS set: the pool's report and MMgr's owner table written, each owner's bytes now and its peak
-static void check_owners_told(void)
+static void check_owners_reported(void)
 {
-    char asked[8];
-    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_CELLS_OWNERS", .value_out = asked, .room = sizeof(asked)))
+    char requested[8];
+    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_CELLS_OWNERS", .value_out = requested, .capacity = sizeof(requested)))
     {
         return;
     }
@@ -49,25 +49,25 @@ void cli_check(int passed, const char *what)
     // the table at the first failure, where a pool that has filled is still as it filled
     if (!passed && (s_failed == 0ull))
     {
-        check_owners_told();
+        check_owners_reported();
     }
     s_checks += 1ull;
     s_failed += passed ? 0ull : 1ull;
 }
 
-void cli_check_text(const char *text, unsigned long long size, const char *wanted, const char *what)
+void cli_check_text(const char *text, unsigned long long size, const char *required, const char *what)
 {
-    const int matches = (cellul.len(&(CatenaFinitaCfg){.src = wanted, .cap = CLI_CELLS_POOL}) == size) &&
-                        (memor.cmp(&(MemoriaCfg){.src = text, .other = wanted, .bytes = size}) == 0);
+    const int matches = (cellul.len(&(CatenaFinitaCfg){.src = required, .cap = CLI_CELLS_POOL}) == size) &&
+                        (memor.cmp(&(MemoriaCfg){.src = text, .other = required, .bytes = size}) == 0);
     cli_check(matches, what);
     if (!matches)
     {
-        static char s_came[1u << 16u];
-        VerbaLinea line = {s_came, sizeof(s_came), 0ull};
+        static char s_received[1u << 16u];
+        VerbaLinea line = {s_received, sizeof(s_received), 0ull};
         mmgr_line_put(&line, "    came: ");
         mmgr_line_put_n(&line, text, size);
         mmgr_line_put(&line, "\n    wanted: ");
-        mmgr_line_put(&line, wanted);
+        mmgr_line_put(&line, required);
         mmgr_line_ch(&line, '\n');
         check_line(&line);
     }
@@ -75,7 +75,7 @@ void cli_check_text(const char *text, unsigned long long size, const char *wante
 
 void cli_check_folder(const char *name, char *full)
 {
-    if (!EMBED_CALL(query_room_path_internal.path_full, QueryRoomPathCtx, .path = name, .full = full, .room = CLI_PATH_MAX_LEN))
+    if (!EMBED_CALL(query_capacity_path_internal.path_full, QueryCapacityPathCtx, .path = name, .full = full, .capacity = CLI_PATH_MAX_LEN))
     {
         memor.cpy(&(MemoriaCfg){.dst = full,
                                 .src = name,
@@ -94,7 +94,7 @@ const CliJson *cli_check_parsed(const char *text, unsigned long long size, unsig
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &s_json);
     char why[512];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    *root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg, .json = &s_json, .text = text, .size = size, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = &g_checks_cells);
+    *root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &s_json, .text = text, .size = size, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = &g_checks_cells);
     return &s_json;
 }
 
@@ -166,7 +166,7 @@ void cli_check_server(const char *name, unsigned int port, char *host, unsigned 
                             .src = "127.0.0.1",
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = "127.0.0.1", .cap = CLI_CELLS_POOL}) + 1u});
     *at = port;
-    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = variable, .value_out = named, .room = sizeof(named)))
+    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = variable, .value_out = named, .capacity = sizeof(named)))
     {
         return;
     }
@@ -201,6 +201,6 @@ int cli_on_check(void)
     EMBED_CALL(cli_cells_table.usage_write, CliCellsCfg, .out = &line);
     mmgr_line_ch(&line, '\n');
     check_line(&line);
-    check_owners_told();
+    check_owners_reported();
     return (s_failed > 0ull) ? 1 : 0;
 }

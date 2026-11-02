@@ -11,7 +11,7 @@ typedef struct QueryTablesPathCtx QueryTablesPathCtx;
 typedef struct QueryTablesOutCtx QueryTablesOutCtx;
 typedef struct QueryTablesOutputCtx QueryTablesOutputCtx;
 typedef struct QueryTablesCtx QueryTablesCtx;
-typedef struct QueryTablesRoomCtx QueryTablesRoomCtx;
+typedef struct QueryTablesCapacityCtx QueryTablesCapacityCtx;
 typedef struct QueryTablesRootCtx QueryTablesRootCtx;
 typedef struct QueryTablesFolderCtx QueryTablesFolderCtx;
 
@@ -30,7 +30,7 @@ typedef struct QueryTablesFolderCtx QueryTablesFolderCtx;
 #define QUERY_TABLES_KEY "__global__ void kernel(float *out) { out[0] = 0; }\n"
 
 // the most architectures nvcc lists
-#define QUERY_ARCHITECTURES_MOST 64u
+#define QUERY_ARCHITECTURES_MAX 64u
 
 void query_tables_in(const QueryTablesFolderCtx *args);
 void query_tables_get(const QueryTablesOutCtx *args);
@@ -42,10 +42,10 @@ int query_key_cubin(const QueryTablesOutArchCtx *args);
 
 // the compiler's version, `V13.3.73`, read off `nvcc --version` into `version`: 1, or 0 where it names none; the
 // architectures `nvcc --list-gpu-arch` lists, `compute_86` read as `sm_86`, into `arches`: their count; and the
-// vendor's archive of nvdisasm at `version` named into `archive`, sized for `room` (tables.c)
+// vendor's archive of nvdisasm at `version` named into `archive`, sized for `capacity` (tables.c)
 int query_version_get(const QueryTablesOutputCtx *args);
 unsigned int query_architectures_get(const QueryTablesCtx *args);
-void query_archive_by_name(const QueryTablesRoomCtx *args);
+void query_archive_by_name(const QueryTablesCapacityCtx *args);
 
 struct QueryTablesErrMsgCtx
 {
@@ -97,7 +97,7 @@ struct QueryTablesOutputCtx
     const unsigned char *output;
     unsigned long long size;
     char *version;
-    size_t room;
+    size_t capacity;
 };
 
 struct QueryTablesCtx
@@ -107,9 +107,9 @@ struct QueryTablesCtx
     unsigned long long size;
 };
 
-struct QueryTablesRoomCtx
+struct QueryTablesCapacityCtx
 {
-    size_t room;
+    size_t capacity;
     const char *version_read;
     char *archive;
 };
@@ -211,10 +211,10 @@ EMBED_TABLE_STORAGE QueryTablesNs query_tables_internal EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*archive_by_name)(const QueryTablesRoomCtx *args);
-} QueryTablesRoomNs;
-EMBED_TABLE_LAYOUT(QueryTablesRoomNs, archive_by_name);
-EMBED_TABLE_STORAGE QueryTablesRoomNs query_tables_room_internal EMBED_UNUSED = {
+    void (*archive_by_name)(const QueryTablesCapacityCtx *args);
+} QueryTablesCapacityNs;
+EMBED_TABLE_LAYOUT(QueryTablesCapacityNs, archive_by_name);
+EMBED_TABLE_STORAGE QueryTablesCapacityNs query_tables_capacity_internal EMBED_UNUSED = {
     .archive_by_name = query_archive_by_name,
 };
 

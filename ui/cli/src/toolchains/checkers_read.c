@@ -22,7 +22,7 @@ typedef struct
     char fixes[CLI_CHECK_FIXES];
 } CliCheckRead;
 
-static CliCheckRead s_room;
+static CliCheckRead s_capacity;
 static CliCheckRead *s_read;
 
 typedef struct
@@ -105,35 +105,36 @@ unsigned int cli_checkers_file(const CliCheckersPathCtx *args)
 
 unsigned int cli_checkers_file_get(const CliCheckersCtx *args)
 {
-    char given[CLI_PATH_MAX_LEN];
+    char supplied[CLI_PATH_MAX_LEN];
     const unsigned long long copied_len = (args->length < CLI_PATH_MAX_LEN) ? args->length : (CLI_PATH_MAX_LEN - 1ull);
-    memor.cpy(&(MemoriaCfg){.dst = given, .src = args->name, .bytes = copied_len});
-    given[copied_len] = '\0';
-    const int input = (cellul.eq(&(CatenaFinitaCfg){.src = given, .other = "-", .cap = CLI_CELLS_POOL})) ||
-                      (cellul.eq(&(CatenaFinitaCfg){.src = given, .other = "<stdin>", .cap = CLI_CELLS_POOL})) ||
-                      (cellul.eq(&(CatenaFinitaCfg){.src = given, .other = "stdin", .cap = CLI_CELLS_POOL}));
+    memor.cpy(&(MemoriaCfg){.dst = supplied, .src = args->name, .bytes = copied_len});
+    supplied[copied_len] = '\0';
+    const int input = (cellul.eq(&(CatenaFinitaCfg){.src = supplied, .other = "-", .cap = CLI_CELLS_POOL})) ||
+                      (cellul.eq(&(CatenaFinitaCfg){.src = supplied, .other = "<stdin>", .cap = CLI_CELLS_POOL})) ||
+                      (cellul.eq(&(CatenaFinitaCfg){.src = supplied, .other = "stdin", .cap = CLI_CELLS_POOL}));
     if (input && (s_read->path != NULL))
     {
         return EMBED_CALL(cli_checkers_path_internal.file, CliCheckersPathCtx, .findings = s_read->findings,
                           .path = s_read->path, .first = 0);
     }
-    const int absolute = (given[0] == '/') || (given[0] == '\\') || ((given[0] != '\0') && (given[1] == ':'));
+    const int absolute =
+        (supplied[0] == '/') || (supplied[0] == '\\') || ((supplied[0] != '\0') && (supplied[1] == ':'));
     char path[CLI_PATH_MAX_LEN];
     if (absolute)
     {
         memor.cpy(&(MemoriaCfg){.dst = path,
-                                .src = given,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = given, .cap = CLI_CELLS_POOL}) + 1u});
+                                .src = supplied,
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = supplied, .cap = CLI_CELLS_POOL}) + 1u});
     }
     else
     {
-        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_read->root, .relative = given, .joined = path);
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_read->root, .relative = supplied, .joined = path);
     }
     return EMBED_CALL(cli_checkers_path_internal.file, CliCheckersPathCtx, .findings = s_read->findings, .path = path,
                       .first = 0);
 }
 
-void cli_checkers_finding_put(const CliCheckersFileCtx *args)
+void cli_checkers_finding_append(const CliCheckersFileCtx *args)
 {
     CliFindings *const findings = s_read->findings;
     if ((args->file >= findings->files) || (findings->findings >= CLI_CHECK_FINDINGS))
@@ -187,7 +188,7 @@ void cli_checkers_finding_put(const CliCheckersFileCtx *args)
 }
 
 // a whole number member of a node, or `otherwise` where it is none
-EMBED_INLINE unsigned long long cli_whole(const CheckersReadCtx *args)
+EMBED_INLINE unsigned long long cli_span_is_whole_word(const CheckersReadCtx *args)
 {
     unsigned int node = args->node;
     const unsigned int member = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
@@ -234,18 +235,18 @@ EMBED_INLINE unsigned int cli_json_get(const CheckersReadCtx *args)
     unsigned long long size = args->size;
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea unread = {why, sizeof(why), 0ull};
-    return EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg, .json = &s_read->json,
+    return EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &s_read->json,
                       .text = args->out, .size = size, .nodes_more = 0u, .text_more = 0ull, .err_msg = &unread,
                       .owner = &g_cli_toolchains_cells);
 }
 
 // a place in ruff's findings, its row and column counted from one, written counted from zero as `{"line", "col"}`
-EMBED_INLINE void cli_place_write(const CheckersReadCtx *args)
+EMBED_INLINE void cli_position_write(const CheckersReadCtx *args)
 {
     const unsigned long long row =
-        EMBED_CALL(cli_whole, CheckersReadCtx, .node = args->place, .key = "row", .otherwise = 1ull);
+        EMBED_CALL(cli_span_is_whole_word, CheckersReadCtx, .node = args->place, .key = "row", .otherwise = 1ull);
     const unsigned long long column =
-        EMBED_CALL(cli_whole, CheckersReadCtx, .node = args->place, .key = "column", .otherwise = 1ull);
+        EMBED_CALL(cli_span_is_whole_word, CheckersReadCtx, .node = args->place, .key = "column", .otherwise = 1ull);
     mmgr_line_put(args->out_verba_linea_pointer, "{\"line\":");
     mmgr_line_decimal(args->out_verba_linea_pointer, (row > 0ull) ? (row - 1ull) : 0ull, 0u);
     mmgr_line_put(args->out_verba_linea_pointer, ",\"col\":");
@@ -291,11 +292,11 @@ EMBED_INLINE void cli_ruff_read(const CheckersReadCtx *args)
                 const unsigned int one_edit = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                                          .json_read = json, .array = edits, .index = edit);
                 mmgr_line_put(&fixes, (edit != 0u) ? ",{\"from\":" : "{\"from\":");
-                EMBED_CALL(cli_place_write, CheckersReadCtx, .out_verba_linea_pointer = &fixes,
+                EMBED_CALL(cli_position_write, CheckersReadCtx, .out_verba_linea_pointer = &fixes,
                            .place = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                .json_read = json, .object = one_edit, .name = "location"));
                 mmgr_line_put(&fixes, ",\"to\":");
-                EMBED_CALL(cli_place_write, CheckersReadCtx, .out_verba_linea_pointer = &fixes,
+                EMBED_CALL(cli_position_write, CheckersReadCtx, .out_verba_linea_pointer = &fixes,
                            .place = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                .json_read = json, .object = one_edit, .name = "end_location"));
                 const char *const content = EMBED_CALL(cli_text, CheckersReadCtx, .node = one_edit, .key = "content",
@@ -316,11 +317,11 @@ EMBED_INLINE void cli_ruff_read(const CheckersReadCtx *args)
         const char *const name = EMBED_CALL(cli_text, CheckersReadCtx, .node = one, .key = "filename",
                                             .otherwise_text = "-", .length = &name_length);
         CliFinding finding = {
-            EMBED_CALL(cli_whole, CheckersReadCtx, .node = location, .key = "row", .otherwise = 1ull),
-            EMBED_CALL(cli_whole, CheckersReadCtx, .node = location, .key = "column", .otherwise = 1ull),
+            EMBED_CALL(cli_span_is_whole_word, CheckersReadCtx, .node = location, .key = "row", .otherwise = 1ull),
+            EMBED_CALL(cli_span_is_whole_word, CheckersReadCtx, .node = location, .key = "column", .otherwise = 1ull),
             1,
-            EMBED_CALL(cli_whole, CheckersReadCtx, .node = end, .key = "row", .otherwise = 1ull),
-            EMBED_CALL(cli_whole, CheckersReadCtx, .node = end, .key = "column", .otherwise = 1ull),
+            EMBED_CALL(cli_span_is_whole_word, CheckersReadCtx, .node = end, .key = "row", .otherwise = 1ull),
+            EMBED_CALL(cli_span_is_whole_word, CheckersReadCtx, .node = end, .key = "column", .otherwise = 1ull),
             2u,
             NULL,
             0ull,
@@ -331,7 +332,7 @@ EMBED_INLINE void cli_ruff_read(const CheckersReadCtx *args)
                                      .length = &finding.message_length);
         finding.code = EMBED_CALL(cli_text, CheckersReadCtx, .node = one, .key = "code", .otherwise_text = "",
                                   .length = &finding.code_length);
-        EMBED_CALL(cli_checkers_file_internal.finding_put, CliCheckersFileCtx,
+        EMBED_CALL(cli_checkers_file_internal.finding_append, CliCheckersFileCtx,
                    .file =
                        EMBED_CALL(cli_checkers_internal.file_get, CliCheckersCtx, .name = name, .length = name_length),
                    .finding = &finding);
@@ -365,12 +366,13 @@ EMBED_INLINE void cli_eslint_read(const CheckersReadCtx *args)
                                                               .json_read = json, .object = one, .name = "endLine"),
                                            .kind = CFG_JSON_NUMBER);
             CliFinding finding = {
-                EMBED_CALL(cli_whole, CheckersReadCtx, .node = one, .key = "line", .otherwise = 1ull),
-                EMBED_CALL(cli_whole, CheckersReadCtx, .node = one, .key = "column", .otherwise = 1ull),
+                EMBED_CALL(cli_span_is_whole_word, CheckersReadCtx, .node = one, .key = "line", .otherwise = 1ull),
+                EMBED_CALL(cli_span_is_whole_word, CheckersReadCtx, .node = one, .key = "column", .otherwise = 1ull),
                 has_end,
-                EMBED_CALL(cli_whole, CheckersReadCtx, .node = one, .key = "endLine", .otherwise = 1ull),
-                EMBED_CALL(cli_whole, CheckersReadCtx, .node = one, .key = "endColumn", .otherwise = 1ull),
-                (EMBED_CALL(cli_whole, CheckersReadCtx, .node = one, .key = "severity", .otherwise = 0ull) == 2ull)
+                EMBED_CALL(cli_span_is_whole_word, CheckersReadCtx, .node = one, .key = "endLine", .otherwise = 1ull),
+                EMBED_CALL(cli_span_is_whole_word, CheckersReadCtx, .node = one, .key = "endColumn", .otherwise = 1ull),
+                (EMBED_CALL(cli_span_is_whole_word, CheckersReadCtx, .node = one, .key = "severity",
+                            .otherwise = 0ull) == 2ull)
                     ? 1u
                     : 2u,
                 NULL,
@@ -383,7 +385,7 @@ EMBED_INLINE void cli_eslint_read(const CheckersReadCtx *args)
             finding.code = EMBED_CALL(cli_text, CheckersReadCtx, .node = one, .key = "ruleId", .otherwise_text = "",
                                       .length = &finding.code_length);
             EMBED_CALL(
-                cli_checkers_file_internal.finding_put, CliCheckersFileCtx,
+                cli_checkers_file_internal.finding_append, CliCheckersFileCtx,
                 .file = EMBED_CALL(cli_checkers_internal.file_get, CliCheckersCtx, .name = name, .length = name_length),
                 .finding = &finding);
         }
@@ -419,7 +421,8 @@ EMBED_INLINE void cli_shellcheck_read(const CheckersReadCtx *args)
             VerbaLinea written = {code, sizeof(code), 0ull};
             mmgr_line_put(&written, "SC");
             mmgr_line_decimal(
-                &written, EMBED_CALL(cli_whole, CheckersReadCtx, .node = one, .key = "code", .otherwise = 0ull), 0u);
+                &written,
+                EMBED_CALL(cli_span_is_whole_word, CheckersReadCtx, .node = one, .key = "code", .otherwise = 0ull), 0u);
             mmgr_line_finish(&written);
         }
         const int has_end = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
@@ -427,11 +430,11 @@ EMBED_INLINE void cli_shellcheck_read(const CheckersReadCtx *args)
                                                           .json_read = json, .object = one, .name = "endLine"),
                                        .kind = CFG_JSON_NUMBER);
         CliFinding finding = {
-            EMBED_CALL(cli_whole, CheckersReadCtx, .node = one, .key = "line", .otherwise = 1ull),
-            EMBED_CALL(cli_whole, CheckersReadCtx, .node = one, .key = "column", .otherwise = 1ull),
+            EMBED_CALL(cli_span_is_whole_word, CheckersReadCtx, .node = one, .key = "line", .otherwise = 1ull),
+            EMBED_CALL(cli_span_is_whole_word, CheckersReadCtx, .node = one, .key = "column", .otherwise = 1ull),
             has_end,
-            EMBED_CALL(cli_whole, CheckersReadCtx, .node = one, .key = "endLine", .otherwise = 1ull),
-            EMBED_CALL(cli_whole, CheckersReadCtx, .node = one, .key = "endColumn", .otherwise = 1ull),
+            EMBED_CALL(cli_span_is_whole_word, CheckersReadCtx, .node = one, .key = "endLine", .otherwise = 1ull),
+            EMBED_CALL(cli_span_is_whole_word, CheckersReadCtx, .node = one, .key = "endColumn", .otherwise = 1ull),
             severity,
             NULL,
             0ull,
@@ -443,7 +446,7 @@ EMBED_INLINE void cli_shellcheck_read(const CheckersReadCtx *args)
         unsigned long long name_length = 0ull;
         const char *const name = EMBED_CALL(cli_text, CheckersReadCtx, .node = one, .key = "file",
                                             .otherwise_text = "-", .length = &name_length);
-        EMBED_CALL(cli_checkers_file_internal.finding_put, CliCheckersFileCtx,
+        EMBED_CALL(cli_checkers_file_internal.finding_append, CliCheckersFileCtx,
                    .file =
                        EMBED_CALL(cli_checkers_internal.file_get, CliCheckersCtx, .name = name, .length = name_length),
                    .finding = &finding);
@@ -456,7 +459,7 @@ void cli_checkers_read(const CliCheckersNameCtx *args)
     const char *root = args->root;
     const char *path = args->path;
     CliFindings *findings = args->findings;
-    s_read = &s_room;
+    s_read = &s_capacity;
     s_read->name = name;
     s_read->root = root;
     s_read->path = path;

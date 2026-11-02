@@ -16,7 +16,7 @@ static void step_across_clear(void *context)
                                                .id = session->cleared, .err_msg = &err_msg);
     if (native != NULL)
     {
-        CliDebugAnswer *const answer = cli_debug_answer_take();
+        CliDebugAnswer *const answer = cli_debug_answer_alloc();
         mmgr_line_put(&answer->args,
                       "{\"expression\":\"`breakpoint delete --force " CLI_DEBUG_ACROSS "\",\"context\":\"repl\"}");
         (void)EMBED_CALL(cli_debug_session_command_internal.request, CliDebugSessionCommandCtx, .session = native,
@@ -27,9 +27,9 @@ static void step_across_clear(void *context)
     }
     session->clearing = 0;
     session->users -= 1u;
-    if (!session->listed && session->adapter_ended && (session->users == 0u))
+    if (!session->list_entries && session->adapter_ended && (session->users == 0u))
     {
-        EMBED_CALL(cli_debug_internal.place_free, CliDebugCtx, .place = session);
+        EMBED_CALL(cli_debug_internal.position_free, CliDebugCtx, .place = session);
     }
 }
 
@@ -63,7 +63,7 @@ EMBED_INLINE int stop_rewritten(const DebugEventsCtx *args)
     const unsigned int hit = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                         .object = args->root, .name = "hitBreakpointIds");
     int any = 0;
-    int placed = 0;
+    int positioned = 0;
     for (unsigned int at = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                           .json_read = json, .array = hit, .index = at) != CLI_JSON_NONE;
          at += 1u)
@@ -77,12 +77,12 @@ EMBED_INLINE int stop_rewritten(const DebugEventsCtx *args)
             continue;
         }
         any = 1;
-        for (unsigned int one = 0u; one < args->session->placed_count; one += 1u)
+        for (unsigned int one = 0u; one < args->session->positioned_count; one += 1u)
         {
-            placed = placed || (args->session->placed[one] == number);
+            positioned = positioned || (args->session->positioned[one] == number);
         }
     }
-    if (!any || placed)
+    if (!any || positioned)
     {
         return 0;
     }
@@ -108,7 +108,7 @@ EMBED_INLINE int data_stop_rewritten(const DebugEventsCtx *args)
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     const unsigned int root =
-        EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
+        EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
                    .text = args->body, .size = size, .nodes_more = CLI_DEBUG_EVENT_MORE_NODES,
                    .text_more = CLI_DEBUG_EVENT_MORE_TEXT, .err_msg = &err_msg, .owner = &g_cli_debug_cells);
     const int written = EMBED_CALL(stop_rewritten, DebugEventsCtx, .session = args->session, .json = &json,
@@ -131,7 +131,7 @@ void cli_debug_event(void *context, const char *event, const char *body, unsigne
         char why[CLI_ERR_MSG_MAX_LEN];
         VerbaLinea err_msg = {why, sizeof(why), 0ull};
         unsigned long long pid = 0ull;
-        const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg,
+        const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                              .json = &json, .text = body, .size = size, .nodes_more = 0u,
                                              .text_more = 0ull, .err_msg = &err_msg, .owner = &g_cli_debug_cells);
         if (EMBED_CALL(cli_debug_json_node_value_u_64s_internal.debug_unsigned, CliDebugJsonNodeValueU64sCtx,
@@ -163,9 +163,10 @@ void cli_debug_event(void *context, const char *event, const char *body, unsigne
     }
     // a stop rewritten is the body with two members written again, in a cell of the body's size and some over
     const int stopped = cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "stopped", .cap = CLI_CELLS_POOL});
-    const unsigned long long rewritten_room = stopped ? (size + CLI_DEBUG_EVENT_MORE_TEXT) : 0ull;
-    char *const rewritten_cell = stopped ? g_cli_cells->temporary_buf_alloc(rewritten_room, &g_cli_debug_cells) : NULL;
-    VerbaLinea rewritten_body = mmgr_line_over(rewritten_cell, rewritten_room);
+    const unsigned long long rewritten_capacity = stopped ? (size + CLI_DEBUG_EVENT_MORE_TEXT) : 0ull;
+    char *const rewritten_cell =
+        stopped ? g_cli_cells->temporary_buf_alloc(rewritten_capacity, &g_cli_debug_cells) : NULL;
+    VerbaLinea rewritten_body = mmgr_line_over(rewritten_cell, rewritten_capacity);
     const int rewritten = stopped && EMBED_CALL(data_stop_rewritten, DebugEventsCtx, .session = session, .body = body,
                                                 .size = size, .out = &rewritten_body);
     EMBED_CALL(session->sink.emit, CliDebugEventCfg, .context = session->sink.context, .session = session->info.id,
@@ -176,9 +177,9 @@ void cli_debug_event(void *context, const char *event, const char *body, unsigne
     {
         // the adapter's last event: its place may be freed once nothing else uses it
         session->adapter_ended = 1;
-        if (!session->listed && (session->users == 0u))
+        if (!session->list_entries && (session->users == 0u))
         {
-            EMBED_CALL(cli_debug_internal.place_free, CliDebugCtx, .place = session);
+            EMBED_CALL(cli_debug_internal.position_free, CliDebugCtx, .place = session);
         }
     }
 }

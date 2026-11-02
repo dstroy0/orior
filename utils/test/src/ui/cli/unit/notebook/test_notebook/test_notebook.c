@@ -26,20 +26,20 @@ static char s_text[1u << 18u];
 static CfgJsonToken s_token[1u << 14u];
 static CliJson s_json;
 static char s_out[1u << 16u];
-static char s_why[256];
+static char s_error[256];
 
 // the tree emptied
 static CliJson *tree_emptied(void)
 {
-    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &s_json, .node_json_node_pointer = s_node, .nodes_most = sizeof(s_node) / sizeof(s_node[0]), .text_out = s_text, .text_most = sizeof(s_text));
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &s_json, .node_json_node_pointer = s_node, .nodes_max = sizeof(s_node) / sizeof(s_node[0]), .text_out = s_text, .text_max = sizeof(s_text));
     return &s_json;
 }
 
 // the text `text` of the file `path` read into the tree: its node
 static unsigned int read_as(const char *path, const char *text, unsigned long long size)
 {
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
-    return EMBED_CALL(cli_notebook_path.read, CliNotebookPathCfg, .json = tree_emptied(), .path = path, .text = text, .size = size, .tokens = s_token, .tokens_most = sizeof(s_token) / sizeof(s_token[0]), .err_msg = &err_msg);
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
+    return EMBED_CALL(cli_notebook_path.read, CliNotebookPathCfg, .json = tree_emptied(), .path = path, .text = text, .size = size, .tokens = s_token, .tokens_max = sizeof(s_token) / sizeof(s_token[0]), .err_msg = &err_msg);
 }
 
 // a string reached from `node` by `count` members or items, each a name or, where it starts with `#`, an index of one digit; the empty
@@ -70,8 +70,8 @@ static unsigned int notebook_of(const char *const (*cells)[2], unsigned int coun
         mmgr_line_put(&line, ",\"metadata\":{}}");
     }
     mmgr_line_put(&line, "]}");
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
-    return EMBED_CALL(cli_json_tree_text_size_tokens.json_read, CliJsonTreeTextSizeTokensCfg, .json = &s_json, .text = text, .size = line.at, .tokens = s_token, .tokens_most = sizeof(s_token) / sizeof(s_token[0]), .err_msg = &err_msg);
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
+    return EMBED_CALL(cli_json_tree_text_size_tokens.json_read, CliJsonTreeTextSizeTokensCfg, .json = &s_json, .text = text, .size = line.at, .tokens = s_token, .tokens_max = sizeof(s_token) / sizeof(s_token[0]), .err_msg = &err_msg);
 }
 
 // a cell's source as one string into `line`, a list of lines joined
@@ -94,8 +94,8 @@ static void source_written(unsigned int cell, VerbaLinea *line)
     }
 }
 
-// a merge's entries, each taken cell's source or `<ours|theirs>`, `;` between them, are `wanted`
-static void assert_merged(const char *wanted, unsigned int merged)
+// a merge's entries, each taken cell's source or `<ours|theirs>`, `;` between them, are `required`
+static void assert_merged(const char *required, unsigned int merged)
 {
     char text[1024];
     VerbaLinea line = {text, sizeof(text), 0ull};
@@ -117,7 +117,7 @@ static void assert_merged(const char *wanted, unsigned int merged)
         source_written(EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json, .object = conflict, .name = "theirs"), &line);
         mmgr_line_ch(&line, '>');
     }
-    CLI_TEST_ASSERT_TEXT(wanted, text, line.at);
+    CLI_TEST_ASSERT_TEXT(required, text, line.at);
 }
 
 void setUp(void)
@@ -198,7 +198,7 @@ void test_a_plain_script_is_not_a_notebook(void)
     TEST_ASSERT_FALSE(EMBED_CALL(cli_notebook_path.is, CliNotebookPathCfg, .path = "plain.py", .text = "print(1)\n", .size = 9ull));
 }
 
-void test_a_merge_takes_each_sides_changes(void)
+void test_a_merge_allocs_each_sides_changes(void)
 {
     (void)tree_emptied();
     const unsigned int base = notebook_of(s_base, 4u);
@@ -239,17 +239,17 @@ void test_a_merges_memory_is_sized_to_its_notebooks_and_released(void)
 
 void test_a_diff_reads_sources_and_outputs(void)
 {
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    (void)EMBED_CALL(cli_notebook_text.for_diff, CliNotebookTextCfg, .json = tree_emptied(), .text = s_notebook, .size = sizeof(s_notebook) - 1u, .tokens = s_token, .tokens_most = sizeof(s_token) / sizeof(s_token[0]), .out = &out, .err_msg = &err_msg);
+    (void)EMBED_CALL(cli_notebook_text.for_diff, CliNotebookTextCfg, .json = tree_emptied(), .text = s_notebook, .size = sizeof(s_notebook) - 1u, .tokens = s_token, .tokens_max = sizeof(s_token) / sizeof(s_token[0]), .out = &out, .err_msg = &err_msg);
     CLI_TEST_ASSERT_TEXT("# cell 1 (code)\nprint('hi')\nx = 1\n## stream\nhi\n# cell 2 (markdown)\n# Title\n", s_out, out.at);
 }
 
 void test_a_notebook_without_outputs_has_no_run_counts_or_outputs(void)
 {
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    (void)EMBED_CALL(cli_notebook_text.without_outputs, CliNotebookTextCfg, .json = tree_emptied(), .text = s_notebook, .size = sizeof(s_notebook) - 1u, .tokens = s_token, .tokens_most = sizeof(s_token) / sizeof(s_token[0]), .out = &out, .err_msg = &err_msg);
+    (void)EMBED_CALL(cli_notebook_text.without_outputs, CliNotebookTextCfg, .json = tree_emptied(), .text = s_notebook, .size = sizeof(s_notebook) - 1u, .tokens = s_token, .tokens_max = sizeof(s_token) / sizeof(s_token[0]), .out = &out, .err_msg = &err_msg);
     (void)mmgr_line_finish(&out);
     CLI_TEST_ASSERT_CONTAINS("\"execution_count\": null", s_out);
     CLI_TEST_ASSERT_CONTAINS("\"outputs\": []", s_out);

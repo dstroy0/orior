@@ -43,15 +43,15 @@ typedef struct
     unsigned int back_height;
     ID3D12Heap *heap;
     void *heap_pages;
-    ID3D12Resource *placed[2];
-    unsigned long long placed_at[2];
+    ID3D12Resource *positioned[2];
+    unsigned long long positioned_at[2];
 } SystemDevice;
 struct GuiSystem
 {
     HWND window;
     const GuiSystemEvents *events;
     void *context;
-    const GuiRaster *shown;
+    const GuiRaster *displayed;
     int closed;
     unsigned short high_surrogate;
     unsigned int mods;
@@ -59,7 +59,7 @@ struct GuiSystem
     unsigned int frame_ms;
     SystemDevice device;
     DWORD leave_watched;
-    int owned;
+    int owner;
 };
 // the message another thread posts to wake the window's thread
 #define GUI_WAKE_MESSAGE (WM_APP + 1u)
@@ -96,7 +96,7 @@ typedef struct
     WPARAM key;
     int down;
     char *name;
-    unsigned long long room;
+    unsigned long long capacity;
     WPARAM unit;
     HDC context;
     unsigned int from;
@@ -105,7 +105,7 @@ typedef struct
     unsigned int hit;
     int active;
     HWND owner;
-    const CliWindowPlace *place;
+    const CliWindowPosition *place;
     const char *title;
     const GuiSystemEvents *events;
     void *context_bytess;
@@ -127,8 +127,8 @@ EMBED_INLINE void system_surfaces_release(const SystemWindowsCtx *args)
     }
     for (unsigned int at = 0u; at < 2u; at += 1u)
     {
-        SYSTEM_RELEASED(args->device->placed[at], ID3D12Resource_Release);
-        args->device->placed_at[at] = 0ull;
+        SYSTEM_RELEASED(args->device->positioned[at], ID3D12Resource_Release);
+        args->device->positioned_at[at] = 0ull;
     }
     SYSTEM_RELEASED(args->device->heap, ID3D12Heap_Release);
     args->device->heap_pages = NULL;
@@ -173,9 +173,9 @@ EMBED_INLINE int system_device_init(const SystemWindowsCtx *args)
     {
         return 0;
     }
-    const HRESULT asked = ID3D12Device_QueryInterface(made, &IID_ID3D12Device3, (void **)&args->device->device);
+    const HRESULT requested = ID3D12Device_QueryInterface(made, &IID_ID3D12Device3, (void **)&args->device->device);
     ID3D12Device_Release(made);
-    if (FAILED(asked))
+    if (FAILED(requested))
     {
         return 0;
     }
@@ -203,7 +203,7 @@ EMBED_INLINE int system_device_init(const SystemWindowsCtx *args)
     chain_desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
     chain_desc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
     args->device->fence_event = CreateEventW(NULL, FALSE, FALSE, NULL);
-    const int made_all =
+    const int created_all =
         pinned && (args->device->fence_event != NULL) &&
         SUCCEEDED(ID3D12Device3_CreateCommandQueue(args->device->device, &queue_desc, &IID_ID3D12CommandQueue,
                                                    (void **)&args->device->queue)) &&
@@ -226,7 +226,7 @@ EMBED_INLINE int system_device_init(const SystemWindowsCtx *args)
         IDXGIFactory4_Release(factory);
     }
     SYSTEM_RELEASED(chain, IDXGISwapChain1_Release);
-    if (!made_all)
+    if (!created_all)
     {
         system_device_release(args);
         return 0;
@@ -273,7 +273,7 @@ EMBED_INLINE int system_back_resize(const SystemWindowsCtx *args)
 
 // the buffer placed over `raster`'s pixels in the heap over its pages, the heap opened over the pages where the one
 // open stands over others: the buffer, or NULL where the device refuses it
-EMBED_INLINE ID3D12Resource *system_place(const SystemWindowsCtx *args)
+EMBED_INLINE ID3D12Resource *system_position(const SystemWindowsCtx *args)
 {
     if (args->device->heap_pages != args->raster->pages)
     {
@@ -287,33 +287,33 @@ EMBED_INLINE ID3D12Resource *system_place(const SystemWindowsCtx *args)
     }
     for (unsigned int at = 0u; at < 2u; at += 1u)
     {
-        if ((args->device->placed[at] != NULL) && (args->device->placed_at[at] == args->raster->placed))
+        if ((args->device->positioned[at] != NULL) && (args->device->positioned_at[at] == args->raster->positioned))
         {
-            return args->device->placed[at];
+            return args->device->positioned[at];
         }
     }
-    const unsigned int entry = (args->device->placed[0] == NULL) ? 0u : 1u;
-    SYSTEM_RELEASED(args->device->placed[entry], ID3D12Resource_Release);
+    const unsigned int entry = (args->device->positioned[0] == NULL) ? 0u : 1u;
+    SYSTEM_RELEASED(args->device->positioned[entry], ID3D12Resource_Release);
     D3D12_RESOURCE_DESC desc;
     memor.set(&(MemoriaCfg){.dst = &desc, .val = 0, .bytes = sizeof(desc)});
     desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-    // the buffer reaches from the raster's place to the region's end, which has the raster at any size its room fits:
-    // a raster sized again in the same region is copied through the buffer already placed
-    desc.Width = (UINT64)(args->raster->pages_bytes - args->raster->placed);
+    // the buffer reaches from the raster's place to the region's end, which has the raster at any size its capacity
+    // fits: a raster sized again in the same region is copied through the buffer already placed
+    desc.Width = (UINT64)(args->raster->pages_bytes - args->raster->positioned);
     desc.Height = 1u;
     desc.DepthOrArraySize = 1u;
     desc.MipLevels = 1u;
     desc.SampleDesc.Count = 1u;
     desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
     desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_CROSS_ADAPTER;
-    if (FAILED(ID3D12Device3_CreatePlacedResource(args->device->device, args->device->heap, args->raster->placed, &desc,
-                                                  D3D12_RESOURCE_STATE_COMMON, NULL, &IID_ID3D12Resource,
-                                                  (void **)&args->device->placed[entry])))
+    if (FAILED(ID3D12Device3_CreatePlacedResource(args->device->device, args->device->heap, args->raster->positioned,
+                                                  &desc, D3D12_RESOURCE_STATE_COMMON, NULL, &IID_ID3D12Resource,
+                                                  (void **)&args->device->positioned[entry])))
     {
         return NULL;
     }
-    args->device->placed_at[entry] = args->raster->placed;
-    return args->device->placed[entry];
+    args->device->positioned_at[entry] = args->raster->positioned;
+    return args->device->positioned[entry];
 }
 
 // `raster` copied by the device from where it lies into the swapchain's buffer and flipped onto the screen, the copy
@@ -328,7 +328,8 @@ static int system_flip(const SystemWindowsCtx *args)
     {
         return 0;
     }
-    ID3D12Resource *const source = EMBED_CALL(system_place, SystemWindowsCtx, .device = device, .raster = args->raster);
+    ID3D12Resource *const source =
+        EMBED_CALL(system_position, SystemWindowsCtx, .device = device, .raster = args->raster);
     if (source == NULL)
     {
         return 0;
@@ -378,13 +379,13 @@ static int system_flip(const SystemWindowsCtx *args)
     ID3D12CommandQueue_ExecuteCommandLists(device->queue, 1u, lists);
     device->fence_value += 1ull;
     ID3D12CommandQueue_Signal(device->queue, device->fence, device->fence_value);
-    const HRESULT shown = IDXGISwapChain3_Present(device->chain, 1u, 0u);
+    const HRESULT displayed = IDXGISwapChain3_Present(device->chain, 1u, 0u);
     if (ID3D12Fence_GetCompletedValue(device->fence) < device->fence_value)
     {
         ID3D12Fence_SetEventOnCompletion(device->fence, device->fence_value, device->fence_event);
         WaitForSingleObject(device->fence_event, INFINITE);
     }
-    return SUCCEEDED(shown);
+    return SUCCEEDED(displayed);
 }
 
 void *gui_system_pages(const GuiSystemBytesCfg *args)
@@ -451,7 +452,7 @@ EMBED_INLINE int system_modifier_key(const SystemWindowsCtx *args)
     return 1;
 }
 
-// a virtual key's name as the page's editor names a key, into `name`, which is sized for `room`: 1, or 0 for a key
+// a virtual key's name as the page's editor names a key, into `name`, which is sized for `capacity`: 1, or 0 for a key
 // that has no name, a modifier among them
 EMBED_INLINE int system_key_by_name(const SystemWindowsCtx *args)
 {
@@ -468,7 +469,7 @@ EMBED_INLINE int system_key_by_name(const SystemWindowsCtx *args)
                    {VK_OEM_6, "]"},        {VK_OEM_2, "/"},       {VK_OEM_5, "\\"},      {VK_OEM_PERIOD, "."},
                    {VK_OEM_COMMA, ","},    {VK_OEM_1, ";"},       {VK_OEM_7, "'"},       {VK_OEM_3, "`"},
                    {VK_OEM_MINUS, "-"},    {VK_OEM_PLUS, "="}};
-    VerbaLinea line = {name, args->room, 0ull};
+    VerbaLinea line = {name, args->capacity, 0ull};
     for (unsigned int at = 0u; at < sizeof(s_named) / sizeof(s_named[0]); at += 1u)
     {
         if (s_named[at].key == key)
@@ -496,7 +497,7 @@ EMBED_INLINE int system_key_by_name(const SystemWindowsCtx *args)
 EMBED_INLINE void system_key_press(const SystemWindowsCtx *args)
 {
     char own[32];
-    if (!EMBED_CALL(system_key_by_name, SystemWindowsCtx, .key = args->key, .name = own, .room = sizeof(own)))
+    if (!EMBED_CALL(system_key_by_name, SystemWindowsCtx, .key = args->key, .name = own, .capacity = sizeof(own)))
     {
         return;
     }
@@ -539,7 +540,7 @@ EMBED_INLINE void system_char_type(const SystemWindowsCtx *args)
     }
     char text[8];
     VerbaLinea line = {text, sizeof(text), 0ull};
-    EMBED_CALL(cli_line_letter_internal.utf8_put, CliLineLetterCtx, .line = &line, .letter = letter);
+    EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &line, .letter = letter);
     EMBED_CALL(args->system->events->input, GuiEachInputCfg, .context = args->system->context,
                .input = GUI_TEXT_INPUT(text, line.at));
 }
@@ -556,7 +557,7 @@ EMBED_INLINE int system_scale_get(const SystemWindowsCtx *args)
 // the raster shown blitted into `context`, its `rows` rows from the row `from`, as a bitmap of those rows alone
 EMBED_INLINE void system_blit(const SystemWindowsCtx *args)
 {
-    const GuiRaster *const raster = args->system->shown;
+    const GuiRaster *const raster = args->system->displayed;
     if ((raster == NULL) || (raster->pixels == NULL) || (args->from >= raster->height) || (args->rows == 0u))
     {
         return;
@@ -632,23 +633,23 @@ EMBED_INLINE void system_border_color(const SystemWindowsCtx *args)
     DwmSetWindowAttribute(args->window, DWMWA_BORDER_COLOR, &color, sizeof(color));
 }
 
-static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM wide, LPARAM low)
+static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM pixel_width, LPARAM low)
 {
     GuiSystem *const system = (GuiSystem *)GetWindowLongPtrW(window, GWLP_USERDATA);
     if (system == NULL)
     {
-        return DefWindowProcW(window, message, wide, low);
+        return DefWindowProcW(window, message, pixel_width, low);
     }
     switch (message)
     {
     case WM_NCCALCSIZE:
         // the client is the whole window
-        return (wide != 0u) ? 0 : DefWindowProcW(window, message, wide, low);
+        return (pixel_width != 0u) ? 0 : DefWindowProcW(window, message, pixel_width, low);
     case WM_NCACTIVATE:
         // the window taking or losing the focus: its border colored for the state, and the system told not to paint
         // its own frame over the client, which -1 in place of the update region does
-        EMBED_CALL(system_border_color, SystemWindowsCtx, .window = window, .active = wide != 0u);
-        return DefWindowProcW(window, message, wide, (LPARAM)-1);
+        EMBED_CALL(system_border_color, SystemWindowsCtx, .window = window, .active = pixel_width != 0u);
+        return DefWindowProcW(window, message, pixel_width, (LPARAM)-1);
     case WM_NCPAINT:
         // there is no non-client area to paint
         return 0;
@@ -660,13 +661,13 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM wide, L
                                             .input = GUI_MOVED_INPUT(at.x, at.y)));
     }
     case WM_SIZE:
-        if (wide == SIZE_MINIMIZED)
+        if (pixel_width == SIZE_MINIMIZED)
         {
-            EMBED_CALL(system->events->shown, GuiEachShownCfg, .context = system->context, .shown = 0);
+            EMBED_CALL(system->events->displayed, GuiEachDisplayedCfg, .context = system->context, .displayed = 0);
         }
         else
         {
-            EMBED_CALL(system->events->shown, GuiEachShownCfg, .context = system->context, .shown = 1);
+            EMBED_CALL(system->events->displayed, GuiEachDisplayedCfg, .context = system->context, .displayed = 1);
             // the client's sides, as the message carries them, are not negative
             EMBED_CALL(system->events->sized, GuiEachWidthHeightScaleCfg, .context = system->context,
                        .width = (unsigned int)LOWORD(low), .height = (unsigned int)HIWORD(low),
@@ -677,7 +678,7 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM wide, L
         }
         return 0;
     case WM_SETTINGCHANGE:
-        if (wide == SPI_SETCLIENTAREAANIMATION)
+        if (pixel_width == SPI_SETCLIENTAREAANIMATION)
         {
             system->events->motion(system->context);
         }
@@ -686,8 +687,8 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM wide, L
         // the least size the window is dragged to, at its monitor's scale; a size at a scale is far inside a LONG
         MINMAXINFO *const limits = (MINMAXINFO *)low;
         const int scale = EMBED_CALL(system_scale_get, SystemWindowsCtx, .window = window);
-        limits->ptMinTrackSize.x = (LONG)((CLI_PLACE_LEAST_WIDTH * scale) / 100);
-        limits->ptMinTrackSize.y = (LONG)((CLI_PLACE_LEAST_HEIGHT * scale) / 100);
+        limits->ptMinTrackSize.x = (LONG)((CLI_POSITION_MIN_WIDTH * scale) / 100);
+        limits->ptMinTrackSize.y = (LONG)((CLI_POSITION_MIN_HEIGHT * scale) / 100);
         return 0;
     }
     case WM_DPICHANGED: {
@@ -703,11 +704,11 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM wide, L
     case WM_PAINT: {
         PAINTSTRUCT paint;
         HDC context = BeginPaint(window, &paint);
-        if ((system->shown == NULL) ||
-            !EMBED_CALL(system_flip, SystemWindowsCtx, .system = system, .raster = system->shown))
+        if ((system->displayed == NULL) ||
+            !EMBED_CALL(system_flip, SystemWindowsCtx, .system = system, .raster = system->displayed))
         {
             EMBED_CALL(system_blit, SystemWindowsCtx, .system = system, .context = context, .from = 0u,
-                       .rows = (system->shown != NULL) ? system->shown->height : 0u);
+                       .rows = (system->displayed != NULL) ? system->displayed->height : 0u);
         }
         EndPaint(window, &paint);
         return 0;
@@ -717,7 +718,7 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM wide, L
     case WM_NCMOUSEMOVE:
         EMBED_CALL(system_leave_watch, SystemWindowsCtx, .system = system, .window = window,
                    .flags = TME_LEAVE | TME_NONCLIENT);
-        return DefWindowProcW(window, message, wide, low);
+        return DefWindowProcW(window, message, pixel_width, low);
     case WM_MOUSELEAVE:
     case WM_NCMOUSELEAVE:
         system->leave_watched = 0;
@@ -753,23 +754,23 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM wide, L
         return 0;
     case WM_KEYDOWN:
     case WM_SYSKEYDOWN:
-        if (!EMBED_CALL(system_modifier_key, SystemWindowsCtx, .system = system, .key = wide, .down = 1))
+        if (!EMBED_CALL(system_modifier_key, SystemWindowsCtx, .system = system, .key = pixel_width, .down = 1))
         {
-            EMBED_CALL(system_key_press, SystemWindowsCtx, .system = system, .key = wide);
+            EMBED_CALL(system_key_press, SystemWindowsCtx, .system = system, .key = pixel_width);
         }
         return 0;
     case WM_KEYUP:
     case WM_SYSKEYUP:
-        (void)EMBED_CALL(system_modifier_key, SystemWindowsCtx, .system = system, .key = wide, .down = 0);
+        (void)EMBED_CALL(system_modifier_key, SystemWindowsCtx, .system = system, .key = pixel_width, .down = 0);
         return 0;
     case WM_CHAR:
-        EMBED_CALL(system_char_type, SystemWindowsCtx, .system = system, .unit = wide);
+        EMBED_CALL(system_char_type, SystemWindowsCtx, .system = system, .unit = pixel_width);
         return 0;
     case WM_MOUSEWHEEL: {
         POINT at = {GET_X_LPARAM(low), GET_Y_LPARAM(low)};
         ScreenToClient(window, &at);
         // a notch is WHEEL_DELTA, positive away from the user, which scrolls up
-        const int notches = -GET_WHEEL_DELTA_WPARAM(wide) / WHEEL_DELTA;
+        const int notches = -GET_WHEEL_DELTA_WPARAM(pixel_width) / WHEEL_DELTA;
         EMBED_CALL(system->events->input, GuiEachInputCfg, .context = system->context,
                    .input = GUI_WHEEL_INPUT(at.x, at.y, notches * GUI_WHEEL_ROWS));
         return 0;
@@ -778,7 +779,7 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM wide, L
         system->events->woken(system->context);
         return 0;
     case WM_TIMER:
-        if (wide == GUI_TICK_TIMER)
+        if (pixel_width == GUI_TICK_TIMER)
         {
             KillTimer(window, GUI_TICK_TIMER);
             system->events->ticked(system->context);
@@ -792,13 +793,13 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM wide, L
     case WM_DESTROY:
         system->closed = 1;
         // the loop is the owner's: a window owned going leaves it running
-        if (!system->owned)
+        if (!system->owner)
         {
             PostQuitMessage(0);
         }
         return 0;
     default:
-        return DefWindowProcW(window, message, wide, low);
+        return DefWindowProcW(window, message, pixel_width, low);
     }
 }
 
@@ -855,7 +856,7 @@ static BOOL CALLBACK system_monitor_measure(HMONITOR monitor, HDC context, LPREC
     return TRUE;
 }
 
-void gui_system_display_most(const GuiSystemWidthCfg *args)
+void gui_system_display_max(const GuiSystemWidthCfg *args)
 {
     unsigned int *width = args->width;
     unsigned int *height = args->height;
@@ -913,16 +914,17 @@ static GuiSystem *system_window_init(const SystemWindowsCtx *args)
         mmgr_line_put(args->err_msg, "the window's class could not be registered");
         return NULL;
     }
-    wchar_t wide_title[CLI_NAME_MAX_LEN];
-    const int wrote = MultiByteToWideChar(CP_UTF8, 0, args->title, -1, wide_title, CLI_NAME_MAX_LEN);
+    wchar_t width_title[CLI_NAME_MAX_LEN];
+    const int wrote = MultiByteToWideChar(CP_UTF8, 0, args->title, -1, width_title, CLI_NAME_MAX_LEN);
     if (wrote <= 0)
     {
-        wide_title[0] = L'\0';
+        width_title[0] = L'\0';
     }
     // the place's sides are far inside what an int represents
-    system->window = CreateWindowExW(
-        0, s_class, wide_title, WS_POPUP | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU, args->place->x,
-        args->place->y, (int)args->place->width, (int)args->place->height, args->owner, NULL, class_of.hInstance, NULL);
+    system->window = CreateWindowExW(0, s_class, width_title,
+                                     WS_POPUP | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU,
+                                     args->place->x, args->place->y, (int)args->place->width, (int)args->place->height,
+                                     args->owner, NULL, class_of.hInstance, NULL);
     if (system->window == NULL)
     {
         g_cli_cells->persistent_buf_release(system, &g_gui_system_cells);
@@ -939,7 +941,7 @@ static GuiSystem *system_window_init(const SystemWindowsCtx *args)
     return system;
 }
 
-GuiSystem *gui_system_open(const GuiSystemPlaceTitleCfg *args)
+GuiSystem *gui_system_open(const GuiSystemPositionTitleCfg *args)
 {
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     GuiSystem *const system =
@@ -957,7 +959,7 @@ GuiSystem *gui_system_open(const GuiSystemPlaceTitleCfg *args)
     return system;
 }
 
-GuiSystem *gui_system_owned_open(const GuiSystemPlaceTitleCfg *args)
+GuiSystem *gui_system_owner_open(const GuiSystemPositionTitleCfg *args)
 {
     GuiSystem *const system = EMBED_CALL(system_window_init, SystemWindowsCtx, .owner = args->owner->window,
                                          .place = args->place, .title = args->title, .events = args->events,
@@ -966,7 +968,7 @@ GuiSystem *gui_system_owned_open(const GuiSystemPlaceTitleCfg *args)
     {
         return NULL;
     }
-    system->owned = 1;
+    system->owner = 1;
     ShowWindow(system->window, SW_SHOW);
     return system;
 }
@@ -974,7 +976,7 @@ GuiSystem *gui_system_owned_open(const GuiSystemPlaceTitleCfg *args)
 // one message dispatched: a key pressed with control or alt down in the window it is sent to is a key, not text, and is
 // not translated to a character; the character a key makes is queued behind the messages posted already, which would
 // put it past the modifiers' release
-EMBED_INLINE void system_message_take(const SystemWindowsCtx *args)
+EMBED_INLINE void system_message_alloc(const SystemWindowsCtx *args)
 {
     const GuiSystem *const system =
         (args->message->hwnd != NULL) ? (const GuiSystem *)GetWindowLongPtrW(args->message->hwnd, GWLP_USERDATA) : NULL;
@@ -992,7 +994,7 @@ void gui_system_run(const GuiSystemCfg *args)
     MSG message;
     while (!args->system->closed && (GetMessageW(&message, NULL, 0u, 0u) > 0))
     {
-        EMBED_CALL(system_message_take, SystemWindowsCtx, .message = &message);
+        EMBED_CALL(system_message_alloc, SystemWindowsCtx, .message = &message);
         if (!args->system->closed && !PeekMessageW(&message, NULL, 0u, 0u, PM_NOREMOVE))
         {
             args->system->events->idle(args->system->context);
@@ -1005,11 +1007,11 @@ void gui_system_pumped(const GuiSystemCfg *args)
     MSG message;
     while (!args->system->closed && PeekMessageW(&message, NULL, 0u, 0u, PM_REMOVE))
     {
-        EMBED_CALL(system_message_take, SystemWindowsCtx, .message = &message);
+        EMBED_CALL(system_message_alloc, SystemWindowsCtx, .message = &message);
     }
 }
 
-void *gui_system_native(const GuiSystemPlaceCfg *args)
+void *gui_system_native(const GuiSystemPositionCfg *args)
 {
     return (void *)args->system_read->window;
 }
@@ -1036,7 +1038,7 @@ void gui_system_free(const GuiSystemCfg *args)
 
 void gui_system_present(const GuiSystemRasterCfg *args)
 {
-    args->system->shown = args->raster;
+    args->system->displayed = args->raster;
     if (!EMBED_CALL(system_flip, SystemWindowsCtx, .system = args->system, .raster = args->raster))
     {
         HDC context = GetDC(args->system->window);
@@ -1049,7 +1051,7 @@ void gui_system_present(const GuiSystemRasterCfg *args)
 
 void gui_system_present_part(const GuiSystemRasterCfg *args)
 {
-    args->system->shown = args->raster;
+    args->system->displayed = args->raster;
     // a flip shows a whole buffer: the device flips the raster whole, and the system's drawing calls write the part
     if (EMBED_CALL(system_flip, SystemWindowsCtx, .system = args->system, .raster = args->raster))
     {
@@ -1170,28 +1172,28 @@ void gui_system_act(const GuiSystemCfg *args)
     }
 }
 
-void gui_system_on_place(const GuiSystemPlaceCfg *args)
+void gui_system_on_position(const GuiSystemPositionCfg *args)
 {
     WINDOWPLACEMENT placement;
     placement.length = sizeof(placement);
     GetWindowPlacement(args->system_read->window, &placement);
     const RECT *const rect = &placement.rcNormalPosition;
-    args->place_out->x = rect->left;
-    args->place_out->y = rect->top;
+    args->position_out->x = rect->left;
+    args->position_out->y = rect->top;
     // a window's sides are not negative
-    args->place_out->width = (unsigned int)(rect->right - rect->left);
-    args->place_out->height = (unsigned int)(rect->bottom - rect->top);
-    args->place_out->maximized = (placement.showCmd == SW_SHOWMAXIMIZED) ? 1 : 0;
+    args->position_out->width = (unsigned int)(rect->right - rect->left);
+    args->position_out->height = (unsigned int)(rect->bottom - rect->top);
+    args->position_out->maximized = (placement.showCmd == SW_SHOWMAXIMIZED) ? 1 : 0;
 }
 
-int gui_system_motion_reduce(const GuiSystemPlaceCfg *args)
+int gui_system_motion_reduce(const GuiSystemPositionCfg *args)
 {
     (void)args;
     BOOL animates = TRUE;
     return SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION, 0u, &animates, 0u) && !animates;
 }
 
-int gui_system_scale(const GuiSystemPlaceCfg *args)
+int gui_system_scale(const GuiSystemPositionCfg *args)
 {
     return EMBED_CALL(system_scale_get, SystemWindowsCtx, .window = args->system_read->window);
 }

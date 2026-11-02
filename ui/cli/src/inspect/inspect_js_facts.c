@@ -12,9 +12,10 @@
 static unsigned int s_declared[CLI_JS_DECLARED];
 static CliInspectSet s_reads;
 
-void cli_inspect_js_facts_layout(const CliInspectCarveCtx *args)
+void cli_inspect_js_facts_layout(const CliInspectPartitionCtx *args)
 {
-    EMBED_CALL(cli_inspect_carve_set_internal.set_layout, CliInspectCarveSetCtx, .set = &s_reads, .carve = args->carve);
+    EMBED_CALL(cli_inspect_partition_set_internal.set_layout, CliInspectPartitionSetCtx, .set = &s_reads,
+               .partition = args->partition);
 }
 
 typedef struct
@@ -24,15 +25,15 @@ typedef struct
     unsigned long long size;
     unsigned int from;
     unsigned int to;
-    CliInspectPlace *start;
-    CliInspectPlace *end;
+    CliInspectPosition *start;
+    CliInspectPosition *end;
     unsigned int name_at;
     CliFacts *facts;
     unsigned int open;
     unsigned int close;
 } InspectJsFactsCtx;
 // the token past the bracket at `at` where it opens one that closes after it, else the token after it
-EMBED_INLINE unsigned int facts_past(const InspectJsFactsCtx *args)
+EMBED_INLINE unsigned int facts_end(const InspectJsFactsCtx *args)
 {
     const char *src = args->src;
     unsigned int at = args->at;
@@ -46,12 +47,12 @@ EMBED_INLINE unsigned int facts_past(const InspectJsFactsCtx *args)
 
 // the span of the lines from the line of token `from` to the line of token `to` whole, where nothing else stands on
 // them: 1, or 0 where something does
-EMBED_INLINE int facts_whole_lines(const InspectJsFactsCtx *args)
+EMBED_INLINE int facts_full_line_span(const InspectJsFactsCtx *args)
 {
     const char *src = args->src;
     unsigned long long size = args->size;
-    CliInspectPlace *start = args->start;
-    CliInspectPlace *end = args->end;
+    CliInspectPosition *start = args->start;
+    CliInspectPosition *end = args->end;
     const CliInspectTok *const first = &g_cli_inspect_tok[args->from];
     const CliInspectTok *const last = &g_cli_inspect_tok[args->to];
     unsigned long long line_start = first->start;
@@ -74,8 +75,8 @@ EMBED_INLINE int facts_whole_lines(const InspectJsFactsCtx *args)
             return 0;
         }
     }
-    *start = (CliInspectPlace){first->from.line, 0u};
-    *end = (line_end < size) ? (CliInspectPlace){last->to.line + 1u, 0u} : last->to;
+    *start = (CliInspectPosition){first->from.line, 0u};
+    *end = (line_end < size) ? (CliInspectPosition){last->to.line + 1u, 0u} : last->to;
     return 1;
 }
 
@@ -103,7 +104,7 @@ EMBED_INLINE void facts_declaration_fix(const InspectJsFactsCtx *args)
         {
             return;
         }
-        end = EMBED_CALL(facts_past, InspectJsFactsCtx, .src = src, .at = end);
+        end = EMBED_CALL(facts_end, InspectJsFactsCtx, .src = src, .at = end);
     }
     if (end >= g_cli_inspect_toks)
     {
@@ -125,22 +126,22 @@ EMBED_INLINE void facts_declaration_fix(const InspectJsFactsCtx *args)
         mmgr_line_ch(&titled, ' ');
         mmgr_line_put_n(&titled, src + name->start, name->end - name->start);
         mmgr_line_put(&titled, " =` and retain its value");
-        EMBED_CALL(cli_inspect_facts_internal.fix_put, CliInspectFactsCtx, .facts = facts, .title = &titled);
-        EMBED_CALL(cli_inspect_text_internal.edit_put, CliInspectTextCtx, .facts = facts, .from = keyword_tok->from,
+        EMBED_CALL(cli_inspect_facts_internal.fix_append, CliInspectFactsCtx, .facts = facts, .title = &titled);
+        EMBED_CALL(cli_inspect_text_internal.edit_append, CliInspectTextCtx, .facts = facts, .from = keyword_tok->from,
                    .to = g_cli_inspect_tok[args->name_at + 2u].from, .text_text = "", .size = 0ull);
         return;
     }
-    CliInspectPlace from = {0u, 0u};
-    CliInspectPlace to = {0u, 0u};
-    if (!EMBED_CALL(facts_whole_lines, InspectJsFactsCtx, .src = src, .size = size, .from = keyword, .to = end,
+    CliInspectPosition from = {0u, 0u};
+    CliInspectPosition to = {0u, 0u};
+    if (!EMBED_CALL(facts_full_line_span, InspectJsFactsCtx, .src = src, .size = size, .from = keyword, .to = end,
                     .start = &from, .end = &to))
     {
         return;
     }
     mmgr_line_put(&titled, "Take out the declaration of ");
     mmgr_line_put_n(&titled, src + name->start, name->end - name->start);
-    EMBED_CALL(cli_inspect_facts_internal.fix_put, CliInspectFactsCtx, .facts = facts, .title = &titled);
-    EMBED_CALL(cli_inspect_text_internal.edit_put, CliInspectTextCtx, .facts = facts, .from = from, .to = to,
+    EMBED_CALL(cli_inspect_facts_internal.fix_append, CliInspectFactsCtx, .facts = facts, .title = &titled);
+    EMBED_CALL(cli_inspect_text_internal.edit_append, CliInspectTextCtx, .facts = facts, .from = from, .to = to,
                .text_text = "", .size = 0ull);
 }
 
@@ -156,7 +157,7 @@ EMBED_INLINE void facts_unread(const InspectJsFactsCtx *args)
         return;
     }
     unsigned int declared = 0u;
-    EMBED_CALL(cli_inspect_carve_set_internal.set_clear, CliInspectCarveSetCtx, .set = &s_reads);
+    EMBED_CALL(cli_inspect_partition_set_internal.set_clear, CliInspectPartitionSetCtx, .set = &s_reads);
     unsigned int nested_end = 0u;
     for (unsigned int at = args->open + 1u; at < close; at += 1u)
     {
@@ -170,14 +171,14 @@ EMBED_INLINE void facts_unread(const InspectJsFactsCtx *args)
             EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at, .word = "let") ||
             EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at, .word = "var");
         const int named = (at + 1u < g_cli_inspect_toks) && (g_cli_inspect_tok[at + 1u].kind == CLI_JS_NAME);
-        const int given =
+        const int supplied =
             EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at + 2u, .word = "=") ||
             EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at + 2u, .word = ";");
         const int looped =
             (at >= 2u) &&
             EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at - 1u, .word = "(") &&
             EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at - 2u, .word = "for");
-        if (direct && declares && named && given && !looped)
+        if (direct && declares && named && supplied && !looped)
         {
             if (declared < CLI_JS_DECLARED)
             {
@@ -194,7 +195,7 @@ EMBED_INLINE void facts_unread(const InspectJsFactsCtx *args)
         if (EMBED_CALL(cli_inspect_js_at_word.js_is_read, CliInspectJsAtWordCfg, .src = src, .at = at) && !own)
         {
             const CliInspectTok *const tok = &g_cli_inspect_tok[at];
-            EMBED_CALL(cli_inspect_set_internal.set_put, CliInspectSetCtx, .set = &s_reads, .at = src + tok->start,
+            EMBED_CALL(cli_inspect_set_internal.set_append, CliInspectSetCtx, .set = &s_reads, .at = src + tok->start,
                        .size_u32 = tok->end - tok->start);
         }
     }
@@ -217,7 +218,7 @@ EMBED_INLINE void facts_unread(const InspectJsFactsCtx *args)
         mmgr_line_ch(&msg, '`');
         mmgr_line_put_n(&msg, src + name->start, name->end - name->start);
         mmgr_line_put(&msg, "` is declared and never read.");
-        EMBED_CALL(cli_inspect_from_internal.finding_put, CliInspectFromCtx, .facts = facts, .from = name->from,
+        EMBED_CALL(cli_inspect_from_internal.finding_append, CliInspectFromCtx, .facts = facts, .from = name->from,
                    .to = name->to, .severity = CLI_INSPECT_WARNING, .message = &msg, .code = "unread", .href = NULL);
         EMBED_CALL(facts_declaration_fix, InspectJsFactsCtx, .src = src, .size = size, .name_at = s_declared[index],
                    .facts = facts);
@@ -259,7 +260,7 @@ static void facts_unreachable(const InspectJsFactsCtx *args)
         while ((end < close) &&
                !EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = end, .word = ";"))
         {
-            end = EMBED_CALL(facts_past, InspectJsFactsCtx, .src = src, .at = end);
+            end = EMBED_CALL(facts_end, InspectJsFactsCtx, .src = src, .at = end);
         }
         const unsigned int first = end + 1u;
         if ((end >= close) || (first >= close) ||
@@ -280,22 +281,22 @@ static void facts_unreachable(const InspectJsFactsCtx *args)
             next = last + 1u;
         }
         const CliInspectTok *const word = &g_cli_inspect_tok[at];
-        char message[CLI_INSPECT_UNREACHED_ROOM];
+        char message[CLI_INSPECT_UNREACHED_CAPACITY];
         VerbaLinea msg = {message, sizeof(message), 0ull};
         mmgr_line_put(&msg, CLI_INSPECT_UNREACHED_BEFORE);
         mmgr_line_put_n(&msg, src + word->start, word->end - word->start);
         mmgr_line_put(&msg, CLI_INSPECT_UNREACHED_AFTER);
-        EMBED_CALL(cli_inspect_from_internal.finding_put, CliInspectFromCtx, .facts = facts,
+        EMBED_CALL(cli_inspect_from_internal.finding_append, CliInspectFromCtx, .facts = facts,
                    .from = g_cli_inspect_tok[first].from, .to = g_cli_inspect_tok[last].to,
                    .severity = CLI_INSPECT_WARNING, .message = &msg, .code = "unreachable", .href = NULL);
-        CliInspectPlace from = {0u, 0u};
-        CliInspectPlace to = {0u, 0u};
-        if (EMBED_CALL(facts_whole_lines, InspectJsFactsCtx, .src = src, .size = size, .from = first, .to = last,
+        CliInspectPosition from = {0u, 0u};
+        CliInspectPosition to = {0u, 0u};
+        if (EMBED_CALL(facts_full_line_span, InspectJsFactsCtx, .src = src, .size = size, .from = first, .to = last,
                        .start = &from, .end = &to))
         {
             EMBED_CALL(cli_inspect_facts_title_internal.fix_title, CliInspectFactsTitleCtx, .facts = facts,
                        .title_text = "Take out the code no path reaches");
-            EMBED_CALL(cli_inspect_text_internal.edit_put, CliInspectTextCtx, .facts = facts, .from = from, .to = to,
+            EMBED_CALL(cli_inspect_text_internal.edit_append, CliInspectTextCtx, .facts = facts, .from = from, .to = to,
                        .text_text = "", .size = 0ull);
         }
         at = next;
@@ -398,7 +399,7 @@ EMBED_INLINE void facts_calls(const InspectJsFactsCtx *args)
             !EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = before,
                         .word = "function"))
         {
-            (void)EMBED_CALL(cli_inspect_size_from_internal.name_put, CliInspectSizeFromCtx, .facts = facts,
+            (void)EMBED_CALL(cli_inspect_size_from_internal.name_append, CliInspectSizeFromCtx, .facts = facts,
                              .name = src + tok->start, .size = tok->end - tok->start, .alias = NULL, .alias_size = 0ull,
                              .from = tok->from, .to = tok->to);
         }
@@ -426,7 +427,7 @@ EMBED_INLINE void facts_functions(const InspectJsFactsCtx *args)
         }
         const unsigned int call_first = facts->names;
         EMBED_CALL(facts_calls, InspectJsFactsCtx, .src = src, .open = open, .close = close, .facts = facts);
-        if (facts->functions == facts->functions_most)
+        if (facts->functions == facts->functions_max)
         {
             facts->full = 1;
             return;
@@ -502,7 +503,7 @@ EMBED_INLINE void facts_imports(const InspectJsFactsCtx *args)
         {
             continue;
         }
-        if (facts->imports == facts->imports_most)
+        if (facts->imports == facts->imports_max)
         {
             facts->full = 1;
             return;

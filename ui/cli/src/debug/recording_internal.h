@@ -65,39 +65,39 @@ typedef struct
 // A recorded run, read from the recorder's lines in its file, which is stays mapped as it is read from: its steps, its
 // frames by number, its steps by frame, its files, threads and raises, the names they take, the program's exit code,
 // and whether the recording stopped short of the run's end. The steps, frames, files, threads, raises and names are
-// parts of one cell, `room`, sized by a count of the file's lines by kind before they are read, and given back with
+// parts of one cell, `capacity`, sized by a count of the file's lines by kind before they are read, and given back with
 // the recording; each part's `most` is what the count found
 typedef struct
 {
     char path[CLI_PATH_MAX_LEN];
     const char *text;
     unsigned long long size;
-    void *room;
+    void *capacity;
     CliRecordedStep *steps;
     unsigned int step_count;
-    unsigned int step_most;
+    unsigned int step_max;
     CliRecordedFrame *frames;
-    unsigned int frame_most;
+    unsigned int frame_max;
     unsigned int *by_frame;
     unsigned int *files;
     unsigned int file_count;
-    unsigned int file_most;
+    unsigned int file_max;
     unsigned long long *thread_ids;
     unsigned int *thread_names;
     unsigned int thread_count;
-    unsigned int thread_most;
+    unsigned int thread_max;
     CliRecordedRaise *raised;
     unsigned int raised_count;
-    unsigned int raised_most;
+    unsigned int raised_max;
     char *names;
     unsigned int used;
-    unsigned long long names_most;
+    unsigned long long names_max;
     int has_code;
     long long code;
     int cut;
 } CliRecording;
 
-// A value a frame's name contains as a step was about to run, the name and the value in a room of their own
+// A value a frame's name contains as a step was about to run, the name and the value in a capacity of their own
 typedef struct
 {
     char name[256];
@@ -122,7 +122,7 @@ typedef struct
 } CliReplay;
 
 // the replay, a cell taken as a replay first begins or a recording is first read, and retained for the replays after
-// it; and it taken where it is not: 1, or 0 where no room for it is left (recording_read.c, recording_request.c)
+// it; and it taken where it is not: 1, or 0 where no capacity for it is left (recording_read.c, recording_request.c)
 extern CliReplay *g_cli_replay;
 int cli_replay_lock(void);
 
@@ -133,7 +133,7 @@ extern const char g_cli_recording_shim[];
 // the recording the recorder wrote at `path` read into the replay's, the file retained until the next is read; the
 // recording let go; a text of its names; the last step of frame `serial` at or before step `at`, CLI_RECORDING_NO_STEP
 // for none; the values of frame `serial`'s names as step `at` was about to run, by name, `most` of them at the most, in
-// a cell of their count into `taken`, given back with g_cli_cells->persistent_buf_release: their count; the frames
+// a cell of their count into `reserved`, given back with g_cli_cells->persistent_buf_release: their count; the frames
 // standing at step `at`, the innermost first, each frame's number and the step of its line then: their count; and each
 // step where `name` of frame `serial` took a new value, the line that gave it and the value, handed to `each`
 // (recording_read.c, recording_values.c, the last step recording_replay.c)
@@ -179,7 +179,7 @@ unsigned int cli_replay_thread_get(const CliRecordingSerialStepCtx *args);
 unsigned int cli_replay_thread(void);
 const char *cli_replay_go(const CliRecordingHowCtx *args);
 void cli_replay_frame_write(const CliRecordingSerialStepCtx *args);
-int cli_replay_whole(const CliRecordingJsonCtx *args);
+int cli_replay_integer(const CliRecordingJsonCtx *args);
 unsigned int cli_replay_frame_get(const CliRecordingJsonCtx *args);
 
 struct CliRecordingDapCtx
@@ -196,7 +196,7 @@ struct CliRecordingAtCtx
 {
     unsigned int at;
     unsigned int serial;
-    CliRecordedValue **taken;
+    CliRecordedValue **reserved;
     unsigned int most;
     CellOwner *owner;
 };
@@ -220,7 +220,7 @@ struct CliRecordingAtFramesCtx
 {
     unsigned int at;
     unsigned int (*frames)[2];
-    unsigned int room;
+    unsigned int capacity;
 };
 
 struct CliRecordingSerialStepCtx
@@ -385,12 +385,12 @@ EMBED_TABLE_STORAGE CliRecordingHowNs cli_recording_how_internal EMBED_UNUSED = 
 
 typedef struct
 {
-    int (*replay_whole)(const CliRecordingJsonCtx *args);
+    int (*replay_integer)(const CliRecordingJsonCtx *args);
     unsigned int (*replay_frame_get)(const CliRecordingJsonCtx *args);
 } CliRecordingJsonNs;
-EMBED_TABLE_LAYOUT(CliRecordingJsonNs, replay_whole, replay_frame_get);
+EMBED_TABLE_LAYOUT(CliRecordingJsonNs, replay_integer, replay_frame_get);
 EMBED_TABLE_STORAGE CliRecordingJsonNs cli_recording_json_internal EMBED_UNUSED = {
-    .replay_whole = cli_replay_whole,
+    .replay_integer = cli_replay_integer,
     .replay_frame_get = cli_replay_frame_get,
 };
 

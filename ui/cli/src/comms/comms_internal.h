@@ -24,7 +24,7 @@ extern CellOwner g_cli_comms_cells;
 // `send_grant` past the grants to listen, and how many messages it sent and had refused
 typedef struct
 {
-    int taken;
+    int reserved;
     char key[CLI_COMMS_KEY];
     char name[CLI_NAME_MAX_LEN];
     int has_process;
@@ -42,7 +42,7 @@ typedef struct
 // handed each message under the lock, and where messages go
 typedef struct
 {
-    int taken;
+    int reserved;
     unsigned int part;
     char pattern[CLI_NAME_MAX_LEN];
     int queued;
@@ -50,15 +50,15 @@ typedef struct
     void *context;
 } CliCommsListener;
 
-// A message stored as a channel's last, in a cell of `room` bytes, `from` its first byte: the part that sent it, ended
-// by a 0, and its body after, whole where it is shorter than CLI_COMMS_STORED_BODY_MAX and else given by its size,
-// `size` bytes
+// A message stored as a channel's last, in a cell of `capacity` bytes, `from` its first byte: the part that sent it,
+// ended by a 0, and its body after, whole where it is shorter than CLI_COMMS_STORED_BODY_MAX and else given by its
+// size, `size` bytes
 typedef struct
 {
     char *from;
     const char *body;
     unsigned long long size;
-    unsigned long long room;
+    unsigned long long capacity;
 } CliCommsStoredMsg;
 
 // A channel's traffic: its name, how many messages and bytes it carried, the bytes that went through the transfer
@@ -75,19 +75,19 @@ typedef struct
     unsigned int count;
 } CliCommsTraffic;
 
-// The comms layer: its parts, listeners and channels, each table in a cell of `*_room` places at their most, and their
-// lock
+// The comms layer: its parts, listeners and channels, each table in a cell of `*_capacity` places at their most, and
+// their lock
 typedef struct
 {
     CliCommsPart *parts;
-    unsigned int parts_room;
+    unsigned int parts_capacity;
     CliCommsListener *listeners;
-    unsigned int listeners_room;
+    unsigned int listeners_capacity;
     CliCommsTraffic *traffic;
     unsigned int channels;
-    unsigned int channels_room;
-} CliCommsRoom;
+    unsigned int channels_capacity;
+} CliCommsWorkState;
 
-extern CliCommsRoom g_cli_comms;
+extern CliCommsWorkState g_cli_comms;
 
 #endif

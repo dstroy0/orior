@@ -25,7 +25,7 @@ typedef struct CliTransferSizeCfg CliTransferSizeCfg;
 // the least body, in bytes, that goes through the transfer layer, a smaller one going in its frame; and the most a
 // region contains
 #define CLI_TRANSFER_SMALL (64u << 10u)
-#define CLI_TRANSFER_MOST (1ull << 30u)
+#define CLI_TRANSFER_MAX (1ull << 30u)
 
 // A region of memory shared with another process: its section's handle on Windows, its descriptor elsewhere, this
 // process's view of it, its length, and whether it contains one
@@ -49,7 +49,7 @@ void cli_region_close(const CliTransferRegionBytesCfg *args);
 // into `theirs`; and the region of `length` bytes the process `process` names by its handle `handle` there, taken into
 // this process to be read. Each 1, or 0 with why given
 int cli_region_free(const CliTransferCfg *args);
-int cli_region_take(const CliTransferRegionCfg *args);
+int cli_region_alloc(const CliTransferRegionCfg *args);
 #else
 // the most descriptors retained that came with bytes read and are not yet taken
 #define CLI_DESCRIPTORS_PENDING_MAX 64u
@@ -64,12 +64,12 @@ typedef struct
 } CliDescriptors;
 
 // `size` bytes of `frame` written to `socket`, the descriptor `fd` going with the first byte: 1, or 0 where it could
-// not be; what came on `socket` read into `buffer`, sized for `room`, each descriptor that came with it stored in
+// not be; what came on `socket` read into `buffer`, sized for `capacity`, each descriptor that came with it stored in
 // `pending`: the count read, 0 at the end, -1 where the read failed; the first descriptor stored taken, -1 where none
 // is; and every descriptor pending closed
 int cli_socket_sent_with(const CliTransferSizeCfg *args);
 long long cli_socket_receive(const CliTransferSocketCfg *args);
-int cli_descriptor_take(const CliTransferSocketCfg *args);
+int cli_descriptor_alloc(const CliTransferSocketCfg *args);
 void cli_descriptors_close(const CliTransferSocketCfg *args);
 #endif
 
@@ -107,7 +107,7 @@ struct CliTransferSocketCfg
 #if !((defined(_WIN32)))
     int socket;
     void *buffer;
-    unsigned long long room;
+    unsigned long long capacity;
     CliDescriptors *pending;
 #endif
 };

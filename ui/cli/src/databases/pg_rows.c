@@ -139,7 +139,7 @@ int cli_pg_start(const CliPgFailureSqlCfg *args)
 {
     CliDbFailure *failure = args->failure;
     char tag[CLI_DB_TAG];
-    if (args->pg->reading &&
+    if (args->pg->read_state &&
         !EMBED_CALL(cli_pg_failure.finish, CliPgFailureCfg, .pg = args->pg, .tag = tag, .failure = failure))
     {
         return 0;
@@ -164,7 +164,7 @@ int cli_pg_start(const CliPgFailureSqlCfg *args)
         }
         if (kind == 'T')
         {
-            args->pg->reading = 1;
+            args->pg->read_state = 1;
             args->pg->head.rows = 1;
             EMBED_CALL(rows_columns, PgRowsCtx, .pg = args->pg);
             return 1;
@@ -201,7 +201,7 @@ int cli_pg_start(const CliPgFailureSqlCfg *args)
         }
         else if (kind == 'H')
         {
-            args->pg->reading = 1;
+            args->pg->read_state = 1;
             args->pg->head.rows = 1;
             args->pg->head.column_count = 1u;
             memor.cpy(
@@ -237,7 +237,7 @@ int cli_pg_rows(const CliPgFailureCfg *args)
     int has_tag = 0;
     *done = 0;
     args->tag[0] = '\0';
-    if (!args->pg->reading)
+    if (!args->pg->read_state)
     {
         *done = 1;
         return 1;
@@ -263,7 +263,7 @@ int cli_pg_rows(const CliPgFailureCfg *args)
         else if (kind == 'd')
         {
             unsigned long long size = args->pg->size;
-            size = EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = args->pg->message,
+            size = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = args->pg->message,
                               .at = size, .set = "\n");
             args->pg->row[0] = (CliDbValue){(const char *)args->pg->message, size, 0};
             read += 1ull;
@@ -296,7 +296,7 @@ int cli_pg_rows(const CliPgFailureCfg *args)
         else if (kind == 'Z')
         {
             args->pg->status = (args->pg->size > 0u) ? (char)args->pg->message[0] : 'I';
-            args->pg->reading = 0;
+            args->pg->read_state = 0;
             if (args->pg->has_failed)
             {
                 args->pg->has_failed = 0;
@@ -321,7 +321,7 @@ int cli_pg_finish(const CliPgFailureCfg *args)
 {
     char done_tag[CLI_DB_TAG];
     args->tag[0] = '\0';
-    while (args->pg->reading)
+    while (args->pg->read_state)
     {
         int done = 0;
         if (!EMBED_CALL(cli_pg_failure.rows, CliPgFailureCfg, .pg = args->pg, .count = 4096ull, .each_row = rows_pass,

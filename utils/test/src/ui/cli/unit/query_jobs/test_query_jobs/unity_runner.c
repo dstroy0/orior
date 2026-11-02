@@ -21,7 +21,7 @@ extern void test_a_part_is_a_choice_and_not_required(void);
 extern void test_a_querys_command_is_its_values(void);
 extern void test_a_query_with_no_part_names_the_bridge_alone(void);
 extern void test_a_learn_jobs_command_is_its_values(void);
-extern void test_the_toolchains_find_the_c_compiler_or_report_why(void);
+extern void test_the_toolchains_find_the_c_compiler_or_report_error(void);
 extern void test_every_program_runs_with_a_path(void);
 
 
@@ -94,7 +94,7 @@ int main(void)
   run_test(test_a_querys_command_is_its_values, "test_a_querys_command_is_its_values", 145);
   run_test(test_a_query_with_no_part_names_the_bridge_alone, "test_a_query_with_no_part_names_the_bridge_alone", 152);
   run_test(test_a_learn_jobs_command_is_its_values, "test_a_learn_jobs_command_is_its_values", 158);
-  run_test(test_the_toolchains_find_the_c_compiler_or_report_why, "test_the_toolchains_find_the_c_compiler_or_report_why", 164);
+  run_test(test_the_toolchains_find_the_c_compiler_or_report_error, "test_the_toolchains_find_the_c_compiler_or_report_error", 164);
   run_test(test_every_program_runs_with_a_path, "test_every_program_runs_with_a_path", 182);
 
   return UNITY_END();

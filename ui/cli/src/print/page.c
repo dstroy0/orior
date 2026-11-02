@@ -10,20 +10,21 @@
 
 #include <math.h>
 
-// The listing, its layout and the letters a run is laid out from, sized to the longest run: the room, a cell taken with
-// the lock printing is done under, its lists cells of their own at their most, every one given back with the lock
+// The listing, its layout and the letters a run is laid out from, sized to the longest run: the work state, a cell
+// taken with the lock printing is done under, its lists cells of their own at their most, every one given back with the
+// lock
 typedef struct
 {
     CliPrintListing listing;
     CliPrintLaid laid;
     unsigned int *letters;
-    unsigned int letters_room;
-} CliPrintRoom;
+    unsigned int letters_capacity;
+} CliPrintWorkState;
 
-// the room, NULL where the cells could not meet it, and the lock printing is done under
-static CliPrintRoom *s_room;
+// the work state, NULL where the cells could not meet it, and the lock printing is done under
+static CliPrintWorkState *s_work_state;
 
-void cli_print_take(void)
+void cli_print_alloc(void)
 {
     const unsigned long long line_bytes = (unsigned long long)CLI_PRINT_LINES * sizeof(CliPrintLine);
     const unsigned long long run_bytes = (unsigned long long)CLI_PRINT_RUNS * sizeof(CliPrintRun);
@@ -31,41 +32,41 @@ void cli_print_take(void)
     const unsigned long long piece_bytes = (unsigned long long)CLI_PRINT_PIECES * sizeof(CliPrintPiece);
     const unsigned long long letter_bytes = (unsigned long long)CLI_PRINT_LETTERS * sizeof(unsigned int);
     const unsigned long long list_bytes = line_bytes + run_bytes + row_bytes + piece_bytes + letter_bytes;
-    s_room = g_cli_cells->persistent_buf_alloc(sizeof(*s_room), &g_cli_print_cells);
-    char *const cell = (s_room != NULL)
+    s_work_state = g_cli_cells->persistent_buf_alloc(sizeof(*s_work_state), &g_cli_print_cells);
+    char *const cell = (s_work_state != NULL)
                            ? g_cli_cells->persistent_buf_alloc(list_bytes + (2ull * CLI_PRINT_TEXT), &g_cli_print_cells)
                            : NULL;
     if (cell == NULL)
     {
-        g_cli_cells->persistent_buf_release(s_room, &g_cli_print_cells);
-        s_room = NULL;
+        g_cli_cells->persistent_buf_release(s_work_state, &g_cli_print_cells);
+        s_work_state = NULL;
         return;
     }
-    memor.set(&(MemoriaCfg){.dst = s_room, .val = 0, .bytes = sizeof(*s_room)});
-    s_room->listing.line = (CliPrintLine *)(void *)cell;
-    s_room->listing.lines_room = CLI_PRINT_LINES;
-    s_room->listing.run = (CliPrintRun *)(void *)(cell + line_bytes);
-    s_room->listing.runs_room = CLI_PRINT_RUNS;
-    s_room->laid.row = (CliPrintRow *)(void *)(cell + line_bytes + run_bytes);
-    s_room->laid.rows_room = CLI_PRINT_ROWS;
-    s_room->laid.piece = (CliPrintPiece *)(void *)(cell + line_bytes + run_bytes + row_bytes);
-    s_room->laid.pieces_room = CLI_PRINT_PIECES;
-    s_room->letters = (unsigned int *)(void *)(cell + line_bytes + run_bytes + row_bytes + piece_bytes);
-    s_room->letters_room = CLI_PRINT_LETTERS;
-    s_room->listing.text = cell + list_bytes;
-    s_room->listing.text_room = CLI_PRINT_TEXT;
-    s_room->laid.text = cell + list_bytes + CLI_PRINT_TEXT;
-    s_room->laid.text_room = CLI_PRINT_TEXT;
+    memor.set(&(MemoriaCfg){.dst = s_work_state, .val = 0, .bytes = sizeof(*s_work_state)});
+    s_work_state->listing.line = (CliPrintLine *)(void *)cell;
+    s_work_state->listing.lines_capacity = CLI_PRINT_LINES;
+    s_work_state->listing.run = (CliPrintRun *)(void *)(cell + line_bytes);
+    s_work_state->listing.runs_capacity = CLI_PRINT_RUNS;
+    s_work_state->laid.row = (CliPrintRow *)(void *)(cell + line_bytes + run_bytes);
+    s_work_state->laid.rows_capacity = CLI_PRINT_ROWS;
+    s_work_state->laid.piece = (CliPrintPiece *)(void *)(cell + line_bytes + run_bytes + row_bytes);
+    s_work_state->laid.pieces_capacity = CLI_PRINT_PIECES;
+    s_work_state->letters = (unsigned int *)(void *)(cell + line_bytes + run_bytes + row_bytes + piece_bytes);
+    s_work_state->letters_capacity = CLI_PRINT_LETTERS;
+    s_work_state->listing.text = cell + list_bytes;
+    s_work_state->listing.text_capacity = CLI_PRINT_TEXT;
+    s_work_state->laid.text = cell + list_bytes + CLI_PRINT_TEXT;
+    s_work_state->laid.text_capacity = CLI_PRINT_TEXT;
 }
 
-void cli_print_give(void)
+void cli_print_release(void)
 {
-    if (s_room != NULL)
+    if (s_work_state != NULL)
     {
-        g_cli_cells->persistent_buf_release(s_room->listing.line, &g_cli_print_cells);
+        g_cli_cells->persistent_buf_release(s_work_state->listing.line, &g_cli_print_cells);
     }
-    g_cli_cells->persistent_buf_release(s_room, &g_cli_print_cells);
-    s_room = NULL;
+    g_cli_cells->persistent_buf_release(s_work_state, &g_cli_print_cells);
+    s_work_state = NULL;
 }
 
 typedef struct
@@ -95,7 +96,7 @@ typedef struct
 EMBED_INLINE unsigned int cli_text_store(const PageCtx *args)
 {
     int *full = args->full;
-    if ((args->listing->text_used + args->length) > args->listing->text_room)
+    if ((args->listing->text_used + args->length) > args->listing->text_capacity)
     {
         *full = 1;
         return 0u;
@@ -110,12 +111,12 @@ EMBED_INLINE unsigned int cli_text_store(const PageCtx *args)
 int cli_print_listing_read(const CliPrintJsonCfg *args)
 {
     CliPrintListing **listing = args->listing_pointer;
-    if (s_room == NULL)
+    if (s_work_state == NULL)
     {
         mmgr_line_put(args->err_msg, "the listing could not be read: the cells cannot meet it");
         return 0;
     }
-    CliPrintListing *const listing_at = &s_room->listing;
+    CliPrintListing *const listing_at = &s_work_state->listing;
     int full = 0;
     unsigned int longest = 0u;
     listing_at->lines = 0u;
@@ -127,7 +128,8 @@ int cli_print_listing_read(const CliPrintJsonCfg *args)
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
                                       .object = args->node, .name = "title"),
                    .length_pointer = NULL);
-    EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_room = listing_at->title, .text = title, .otherwise = "");
+    EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_capacity = listing_at->title, .text = title,
+               .otherwise = "");
     const unsigned int tab = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
                                         .object = args->node, .name = "tab");
     unsigned long long tab_value = 0ull;
@@ -146,7 +148,7 @@ int cli_print_listing_read(const CliPrintJsonCfg *args)
                                  : CLI_JSON_NONE;
          item != CLI_JSON_NONE; item = args->json->node[item].next)
     {
-        if (listing_at->lines >= listing_at->lines_room)
+        if (listing_at->lines >= listing_at->lines_capacity)
         {
             full = 1;
             break;
@@ -174,7 +176,7 @@ int cli_print_listing_read(const CliPrintJsonCfg *args)
                                     : CLI_JSON_NONE;
              run != CLI_JSON_NONE; run = args->json->node[run].next)
         {
-            if (listing_at->runs >= listing_at->runs_room)
+            if (listing_at->runs >= listing_at->runs_capacity)
             {
                 full = 1;
                 break;
@@ -214,7 +216,7 @@ int cli_print_listing_read(const CliPrintJsonCfg *args)
         listing_at->lines += 1u;
     }
     // the letters a run is laid out from, a place for each byte of the longest run and its end
-    full = full || ((longest + 1u) > s_room->letters_room);
+    full = full || ((longest + 1u) > s_work_state->letters_capacity);
     if (full)
     {
         mmgr_line_put(args->err_msg, "the listing contains more than orior_cli prints");
@@ -249,7 +251,7 @@ void cli_print_layout_read(const CliPrintJsonNodeCfg *args)
                                       .object = args->node, .name = "pages"),
                    .length_pointer = NULL);
     args->layout_out->has_pages = pages != NULL;
-    EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_room = args->layout_out->pages, .text = pages,
+    EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_capacity = args->layout_out->pages, .text = pages,
                .otherwise = "");
     const unsigned int copies = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                            .json_read = args->json, .object = args->node, .name = "copies");
@@ -276,10 +278,10 @@ void cli_print_size(const CliPrintLayoutWidthCfg *args)
     float *width = args->width;
     float *height = args->height;
     const int letter = EMBED_CALL(cli_by_name, PageCtx, .name = args->layout->paper, .word = "letter");
-    const float wide = letter ? 612.0f : 595.276f;
+    const float pixel_width = letter ? 612.0f : 595.276f;
     const float high = letter ? 792.0f : 841.89f;
-    *width = args->layout->landscape ? high : wide;
-    *height = args->layout->landscape ? wide : high;
+    *width = args->layout->landscape ? high : pixel_width;
+    *height = args->layout->landscape ? pixel_width : high;
 }
 
 const char *cli_print_media(const CliPrintLayoutCfg *args)
@@ -293,9 +295,9 @@ EMBED_INLINE void cli_trim(const PageCtx *args)
 {
     const char **from = args->from;
     const char **to = args->to;
-    *from += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = *from, .at = 0ull,
+    *from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = *from, .at = 0ull,
                         .size = (unsigned long long)(*to - *from), .set = CLI_TEXT_WHITE);
-    *to = *from + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = *from,
+    *to = *from + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = *from,
                              .at = (unsigned long long)(*to - *from), .set = CLI_TEXT_WHITE);
 }
 
@@ -395,7 +397,7 @@ typedef struct
 {
     int *low;
     int *high;
-    unsigned int room;
+    unsigned int capacity;
     unsigned int count;
 } CliRanges;
 
@@ -432,7 +434,7 @@ static int cli_range_part(const CliEachFromDashToCfg *args)
                    ? high
                    : 0x7fffffffull;
     }
-    if (ranges->count < ranges->room)
+    if (ranges->count < ranges->capacity)
     {
         // each is below the most an int represents, checked as it was read
         ranges->low[ranges->count] = (int)low;
@@ -444,7 +446,7 @@ static int cli_range_part(const CliEachFromDashToCfg *args)
 
 unsigned int cli_print_ranges(const CliPrintLayoutLowCfg *args)
 {
-    CliRanges ranges = {args->low, args->high, args->room, 0u};
+    CliRanges ranges = {args->low, args->high, args->capacity, 0u};
     EMBED_CALL(cli_parts, PageCtx, .layout = args->layout, .each = cli_range_part, .context = &ranges);
     return ranges.count;
 }
@@ -463,7 +465,7 @@ void cli_print_color(const CliPrintTextCfg *args)
     const char *from = args->text;
     const char *to = args->text + args->length;
     EMBED_CALL(cli_trim, PageCtx, .from = &from, .to = &to);
-    from += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
+    from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
                        .size = (unsigned long long)(to - from), .set = "#");
     const unsigned long long size = (unsigned long long)(to - from);
     for (unsigned int at = 0u; at < 3u; at += 1u)
@@ -486,13 +488,13 @@ void cli_print_color(const CliPrintTextCfg *args)
 }
 
 // The piece being made ended where it contains text: put after the row's pieces
-EMBED_INLINE void cli_piece_put(const PageCtx *args)
+EMBED_INLINE void cli_piece_append(const PageCtx *args)
 {
     if (args->piece->length == 0u)
     {
         return;
     }
-    if (args->laid->pieces >= args->laid->pieces_room)
+    if (args->laid->pieces >= args->laid->pieces_capacity)
     {
         args->laid->full = 1;
         args->piece->length = 0u;
@@ -506,9 +508,9 @@ EMBED_INLINE void cli_piece_put(const PageCtx *args)
 }
 
 // the row being made put after the rows, and a row with no number begun after it
-EMBED_INLINE void cli_row_put(const PageCtx *args)
+EMBED_INLINE void cli_row_append(const PageCtx *args)
 {
-    if (args->laid->rows < args->laid->rows_room)
+    if (args->laid->rows < args->laid->rows_capacity)
     {
         args->laid->row[args->laid->rows] = *args->row;
         args->laid->rows += 1u;
@@ -524,17 +526,18 @@ EMBED_INLINE void cli_row_put(const PageCtx *args)
 }
 
 // one letter put after the piece being made, in UTF-8 among the layout's texts
-EMBED_INLINE void cli_letter_put(const PageCtx *args)
+EMBED_INLINE void cli_letter_append(const PageCtx *args)
 {
     unsigned int letter = args->letter;
     // a letter is at most four bytes
-    if ((args->laid->text_used + 4u) > args->laid->text_room)
+    if ((args->laid->text_used + 4u) > args->laid->text_capacity)
     {
         args->laid->full = 1;
         return;
     }
-    VerbaLinea line = {args->laid->text + args->laid->text_used, args->laid->text_room - args->laid->text_used, 0ull};
-    EMBED_CALL(cli_line_letter_internal.utf8_put, CliLineLetterCtx, .line = &line, .letter = letter);
+    VerbaLinea line = {args->laid->text + args->laid->text_used, args->laid->text_capacity - args->laid->text_used,
+                       0ull};
+    EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &line, .letter = letter);
     if (!mmgr_line_ok(&line))
     {
         args->laid->full = 1;
@@ -547,8 +550,8 @@ EMBED_INLINE void cli_letter_put(const PageCtx *args)
 
 const CliPrintLaid *cli_print_lay_out(const CliPrintLayoutListingOutCfg *args)
 {
-    unsigned int *const letters = s_room->letters;
-    CliPrintLaid *const laid = &s_room->laid;
+    unsigned int *const letters = s_work_state->letters;
+    CliPrintLaid *const laid = &s_work_state->laid;
     laid->rows = 0u;
     laid->pieces = 0u;
     laid->text_used = 0u;
@@ -597,7 +600,7 @@ const CliPrintLaid *cli_print_lay_out(const CliPrintLayoutListingOutCfg *args)
             piece.text = laid->text_used;
             const unsigned long long count =
                 EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = args->listing->text + run->text,
-                           .size = run->length, .letters = letters, .room_u64 = s_room->letters_room);
+                           .size = run->length, .letters = letters, .capacity_u64 = s_work_state->letters_capacity);
             for (unsigned long long at = 0ull; at < count; at += 1ull)
             {
                 const unsigned int letter = letters[at];
@@ -608,19 +611,19 @@ const CliPrintLaid *cli_print_lay_out(const CliPrintLayoutListingOutCfg *args)
                 {
                     if (column == columns)
                     {
-                        EMBED_CALL(cli_piece_put, PageCtx, .laid = laid, .row = &row, .piece = &piece);
-                        EMBED_CALL(cli_row_put, PageCtx, .laid = laid, .row = &row);
+                        EMBED_CALL(cli_piece_append, PageCtx, .laid = laid, .row = &row, .piece = &piece);
+                        EMBED_CALL(cli_row_append, PageCtx, .laid = laid, .row = &row);
                         column = 0ull;
                         piece.column = 0ull;
                     }
-                    EMBED_CALL(cli_letter_put, PageCtx, .laid = laid, .piece = &piece,
+                    EMBED_CALL(cli_letter_append, PageCtx, .laid = laid, .piece = &piece,
                                .letter = (letter == '\t') ? ' ' : letter);
                     column += 1ull;
                 }
             }
-            EMBED_CALL(cli_piece_put, PageCtx, .laid = laid, .row = &row, .piece = &piece);
+            EMBED_CALL(cli_piece_append, PageCtx, .laid = laid, .row = &row, .piece = &piece);
         }
-        EMBED_CALL(cli_row_put, PageCtx, .laid = laid, .row = &row);
+        EMBED_CALL(cli_row_append, PageCtx, .laid = laid, .row = &row);
     }
     laid->pages = (laid->rows + laid->rows_per_page - 1u) / laid->rows_per_page;
     return laid;

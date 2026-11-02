@@ -127,22 +127,22 @@ void test_no_process_is_not_this_trees(void)
 
 void test_the_parts_allowed_use_defaults_to_ten(void)
 {
-    TEST_ASSERT_EQUAL_INT64(10ll, EMBED_CALL(query_retention_given_internal.part_used_most, QueryRetentionGivenCtx, .given = NULL));
+    TEST_ASSERT_EQUAL_INT64(10ll, EMBED_CALL(query_retention_input_internal.part_used_max, QueryRetentionInputCtx, .supplied = NULL));
 }
 
 void test_the_parts_allowed_use_is_read(void)
 {
-    TEST_ASSERT_EQUAL_INT64(25ll, EMBED_CALL(query_retention_given_internal.part_used_most, QueryRetentionGivenCtx, .given = "25"));
+    TEST_ASSERT_EQUAL_INT64(25ll, EMBED_CALL(query_retention_input_internal.part_used_max, QueryRetentionInputCtx, .supplied = "25"));
 }
 
 void test_a_negative_bound_is_read_and_marks_the_part_used(void)
 {
-    TEST_ASSERT_EQUAL_INT64(-1ll, EMBED_CALL(query_retention_given_internal.part_used_most, QueryRetentionGivenCtx, .given = "-1"));
+    TEST_ASSERT_EQUAL_INT64(-1ll, EMBED_CALL(query_retention_input_internal.part_used_max, QueryRetentionInputCtx, .supplied = "-1"));
 }
 
 void test_a_bound_that_is_not_a_number_uses_the_default(void)
 {
-    TEST_ASSERT_EQUAL_INT64(10ll, EMBED_CALL(query_retention_given_internal.part_used_most, QueryRetentionGivenCtx, .given = "many"));
+    TEST_ASSERT_EQUAL_INT64(10ll, EMBED_CALL(query_retention_input_internal.part_used_max, QueryRetentionInputCtx, .supplied = "many"));
 }
 
 void test_folders_with_runs_skip_gits_and_the_restored(void)
@@ -164,7 +164,7 @@ void test_folders_with_runs_skip_gits_and_the_restored(void)
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = base, .relative = s_files[at], .joined = path);
         TEST_ASSERT_TRUE(EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path, .bytes = "", .size = 0ull));
     }
-    const unsigned int count = EMBED_CALL(query_retention_root_found_internal.folders_with_runs, QueryRetentionRootFoundCtx, .root = base, .found = s_found, .room = 64u);
+    const unsigned int count = EMBED_CALL(query_retention_root_found_internal.folders_with_runs, QueryRetentionRootFoundCtx, .root = base, .found = s_found, .capacity = 64u);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = base, .relative = "a/qry", .joined = path);
     TEST_ASSERT_EQUAL_UINT(1u, count);
     TEST_ASSERT_EQUAL_STRING(path, s_found[0]);
@@ -222,7 +222,7 @@ void test_a_folder_whose_newest_writer_runs_is_left(void)
     char compiler[QUERY_PATH_MAX_LEN];
     char why[1024];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    if (!EMBED_CALL(s_programs.program, QueryEachRolePathRoomErrMsgCfg, .context = s_programs.context, .role = QUERY_ROLE_C, .path = compiler, .room = sizeof(compiler), .err_msg = &err_msg))
+    if (!EMBED_CALL(s_programs.program, QueryEachRolePathCapacityErrMsgCfg, .context = s_programs.context, .role = QUERY_ROLE_C, .path = compiler, .capacity = sizeof(compiler), .err_msg = &err_msg))
     {
         TEST_IGNORE_MESSAGE("no C compiler to build the writer with");
     }

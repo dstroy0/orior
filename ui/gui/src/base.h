@@ -86,7 +86,7 @@ typedef struct
     GuiBaseEntry entry[GUI_BASE_ENTRIES];
     unsigned int *tile_red_blue;
     unsigned int *tile_green;
-    unsigned int *tile_rest;
+    unsigned int *tile_remainder;
     GuiBaseLayer layer[GUI_BASE_LAYERS];
     unsigned int layers;
     unsigned int band_from[GUI_BASE_BANDS + 1u];
@@ -94,8 +94,8 @@ typedef struct
     unsigned int bands;
     GuiBaseRun run[GUI_BASE_BANDS * GUI_BASE_RUNS];
     GuiFrame frame;
-    GuiColor editor_ground;
-    GuiColor side_ground;
+    GuiColor editor_background;
+    GuiColor side_background;
     GuiColor surface;
     GuiColor glass;
     int controls_steady;
@@ -117,7 +117,7 @@ int gui_base_layout(const GuiBaseFrameCfg *args);
 unsigned int gui_base_layer_at(const GuiBaseCfg *args);
 // the entries made for `palette`'s colors, where they are not already; a map read over them saves its runs
 void gui_base_paint(const GuiBaseFrameCfg *args);
-// every pixel of `raster` written once from `ground`'s pixel, or `color` where the ground is not the raster's
+// every pixel of `raster` written once from `background_fill`'s pixel, or `color` where the ground is not the raster's
 // size, through the runs of its row's band; and the same through `map`, a map made for a stage, which the base's own
 // entries color
 void gui_base_draw(const GuiBaseRasterCfg *args);
@@ -126,7 +126,7 @@ struct GuiBaseRasterCfg
 {
     const GuiBase *base_read;
     GuiRaster *raster;
-    const GuiRaster *ground;
+    const GuiRaster *background_fill;
     GuiColor color;
     const GuiBaseMap *map;
 };

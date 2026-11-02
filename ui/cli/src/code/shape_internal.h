@@ -75,7 +75,7 @@ int cli_shape_tokens(const CliShapeLanguagesCtx *args);
 // The match of a pattern against the code: the code and its tokens; the pattern and its tokens, each part a word to
 // match as written or the placeholder at `hole_of`, CLI_SHAPE_HOLES for none; the steps taken; the placeholders bound
 // so far, each its name and the tokens it took; and the stack of ends tried, `ends_top` of them in a cell of
-// `ends_room`, given back with cli_shape_ends_free
+// `ends_capacity`, given back with cli_shape_ends_free
 typedef struct
 {
     const char *src;
@@ -92,10 +92,11 @@ typedef struct
     unsigned int bound_count;
     unsigned int *ends;
     unsigned int ends_top;
-    unsigned int ends_room;
+    unsigned int ends_capacity;
 } CliShapeMatcher;
 
-// the cells a search occupies while it runs, its room, its ends tried and a match's template written (shape_search.c)
+// the cells a search occupies while it runs, its capacity, its ends tried and a match's template written
+// (shape_search.c)
 extern CellOwner g_cli_shape_cells;
 
 // the matcher's stack of ends given back (shape_match.c)

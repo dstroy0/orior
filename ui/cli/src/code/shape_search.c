@@ -20,9 +20,9 @@ typedef struct
 } CliShapeWalk;
 // the bytes a match's template is written in
 
-// A search's room, a cell taken with the search's lock and given back with it: the code's tokens and the pattern's
-// parts, each part's hole, the holes and the matcher, the tokens' and the holes' lists after it in the same cell, as
-// long as the code and the pattern are in bytes
+// A search's work state, a cell taken with the search's lock and given back with it: the code's tokens and the
+// pattern's parts, each part's hole, the holes and the matcher, the tokens' and the holes' lists after it in the same
+// cell, as long as the code and the pattern are in bytes
 typedef struct
 {
     unsigned int *hole_of;
@@ -30,9 +30,9 @@ typedef struct
     CliShapeTokens parts;
     CliShapeHoles holes;
     CliShapeMatcher matcher;
-} CliShapeSearchRoom;
+} CliShapeSearchWorkState;
 
-static CliShapeSearchRoom *s_room;
+static CliShapeSearchWorkState *s_work_state;
 
 typedef struct
 {
@@ -45,11 +45,11 @@ typedef struct
     const char *pattern;
     const char *template_text;
     VerbaLinea *out;
-    unsigned int code_room;
-    unsigned int part_room;
+    unsigned int code_capacity;
+    unsigned int part_capacity;
 } ShapeSearchCtx;
 // the walk moved forward to `byte`: the place it stands at
-EMBED_INLINE CliTextPlace search_walk(const ShapeSearchCtx *args)
+EMBED_INLINE CliTextPosition search_walk(const ShapeSearchCtx *args)
 {
     unsigned long long size = args->size;
     while (args->walk->at < args->byte)
@@ -69,7 +69,7 @@ EMBED_INLINE CliTextPlace search_walk(const ShapeSearchCtx *args)
             args->walk->col += (letter >= 0x10000u) ? 2u : 1u;
         }
     }
-    return (CliTextPlace){args->walk->line, args->walk->col};
+    return (CliTextPosition){args->walk->line, args->walk->col};
 }
 
 // the pattern read as its parts into the matcher's storage: their count, 0 where its language is none read here
@@ -78,40 +78,40 @@ EMBED_INLINE unsigned int search_pattern(const ShapeSearchCtx *args)
     CliSymbolsLanguages *languages = args->languages;
     const char *language = args->language;
     unsigned long long size = args->size;
-    s_room->holes.count = 0u;
+    s_work_state->holes.count = 0u;
     if (!EMBED_CALL(cli_shape_languages_internal.tokens, CliShapeLanguagesCtx, .languages = languages,
-                    .language = language, .src = args->pattern, .size = size, .tokens = &s_room->parts,
-                    .holes = &s_room->holes))
+                    .language = language, .src = args->pattern, .size = size, .tokens = &s_work_state->parts,
+                    .holes = &s_work_state->holes))
     {
         return 0u;
     }
-    for (unsigned int at = 0u; at < s_room->parts.count; at += 1u)
+    for (unsigned int at = 0u; at < s_work_state->parts.count; at += 1u)
     {
-        s_room->hole_of[at] = CLI_SHAPE_HOLES;
+        s_work_state->hole_of[at] = CLI_SHAPE_HOLES;
     }
-    for (unsigned int at = 0u; at < s_room->holes.count; at += 1u)
+    for (unsigned int at = 0u; at < s_work_state->holes.count; at += 1u)
     {
-        if (s_room->holes.hole[at].token < s_room->parts.count)
+        if (s_work_state->holes.hole[at].token < s_work_state->parts.count)
         {
-            s_room->hole_of[s_room->holes.hole[at].token] = at;
+            s_work_state->hole_of[s_work_state->holes.hole[at].token] = at;
         }
     }
     // a statement's end and a block's close the pattern's own end puts are no parts of it
-    unsigned int count = s_room->parts.count;
-    while ((count > 0u) && (s_room->hole_of[count - 1u] == CLI_SHAPE_HOLES) &&
-           ((s_room->parts.kind[count - 1u] == CLI_SHAPE_BREAK) ||
-            (s_room->parts.start[count - 1u] == s_room->parts.end[count - 1u])))
+    unsigned int count = s_work_state->parts.count;
+    while ((count > 0u) && (s_work_state->hole_of[count - 1u] == CLI_SHAPE_HOLES) &&
+           ((s_work_state->parts.kind[count - 1u] == CLI_SHAPE_BREAK) ||
+            (s_work_state->parts.start[count - 1u] == s_work_state->parts.end[count - 1u])))
     {
         count -= 1u;
     }
-    s_room->matcher.parts = &s_room->parts;
+    s_work_state->matcher.parts = &s_work_state->parts;
     return count;
 }
 
 // the template written with each placeholder as the code it took into `out`
 EMBED_INLINE void search_fill(const ShapeSearchCtx *args)
 {
-    const CliShapeTokens *const code = s_room->matcher.tokens;
+    const CliShapeTokens *const code = s_work_state->matcher.tokens;
     const char *rest = args->template_text;
     for (const char *open = cellul.chr(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL, .byte = '$'});
          open != NULL; open = cellul.chr(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL, .byte = '$'}))
@@ -127,67 +127,69 @@ EMBED_INLINE void search_fill(const ShapeSearchCtx *args)
         }
         const char *const colon = memor.chr(&(MemoriaCfg){.src = after, .val = ':', .bytes = (size_t)(close - after)});
         const unsigned long long name_size = (unsigned long long)(((colon != NULL) ? colon : close) - after);
-        const unsigned int bound = EMBED_CALL(cli_shape_internal.bind, CliShapeCtx, .matcher_read = &s_room->matcher,
-                                              .name = after, .size = name_size);
+        const unsigned int bound = EMBED_CALL(cli_shape_internal.bind, CliShapeCtx,
+                                              .matcher_read = &s_work_state->matcher, .name = after, .size = name_size);
         if (bound == CLI_SHAPE_HOLES)
         {
             mmgr_line_ch(args->out, '$');
             rest = after;
             continue;
         }
-        const unsigned int from = s_room->matcher.bound_from[bound];
-        unsigned int to = s_room->matcher.bound_to[bound];
+        const unsigned int from = s_work_state->matcher.bound_from[bound];
+        unsigned int to = s_work_state->matcher.bound_to[bound];
         while ((to > from) && (code->kind[to - 1u] == CLI_SHAPE_BREAK))
         {
             to -= 1u;
         }
         if (to > from)
         {
-            mmgr_line_put_n(args->out, s_room->matcher.src + code->start[from], code->end[to - 1u] - code->start[from]);
+            mmgr_line_put_n(args->out, s_work_state->matcher.src + code->start[from],
+                            code->end[to - 1u] - code->start[from]);
         }
         rest = close + 1;
     }
     mmgr_line_put(args->out, rest);
 }
 
-// the search's room and its ends given back, and the lock with it
+// the search's work state and its ends given back, and the lock with it
 static void search_release(void)
 {
-    EMBED_CALL(cli_shape_matcher_internal.ends_free, CliShapeMatcherCtx, .matcher = &s_room->matcher);
-    g_cli_cells->persistent_buf_release(s_room, &g_cli_shape_cells);
-    s_room = NULL;
+    EMBED_CALL(cli_shape_matcher_internal.ends_free, CliShapeMatcherCtx, .matcher = &s_work_state->matcher);
+    g_cli_cells->persistent_buf_release(s_work_state, &g_cli_shape_cells);
+    s_work_state = NULL;
 }
 
-// the search's room taken for `code_room` tokens of the code and `part_room` of the pattern, the lock taken with it:
-// 1, or 0 with the lock given back where the cellblock could not meet it
-EMBED_INLINE int search_room_take(const ShapeSearchCtx *args)
+// the search's work state taken for `code_capacity` tokens of the code and `part_capacity` of the pattern, the lock
+// taken with it: 1, or 0 with the lock given back where the cellblock could not meet it
+EMBED_INLINE int search_work_state_alloc(const ShapeSearchCtx *args)
 {
     // the starts and ends of both and each part's hole, then the kinds of both, then their roles
-    const unsigned long long words = (2ull * args->code_room) + (3ull * args->part_room);
-    const unsigned long long bytes = 2ull * ((unsigned long long)args->code_room + args->part_room);
-    s_room =
-        g_cli_cells->persistent_buf_alloc(sizeof(*s_room) + (words * sizeof(unsigned int)) + bytes, &g_cli_shape_cells);
-    if (s_room == NULL)
+    const unsigned long long words = (2ull * args->code_capacity) + (3ull * args->part_capacity);
+    const unsigned long long bytes = 2ull * ((unsigned long long)args->code_capacity + args->part_capacity);
+    s_work_state = g_cli_cells->persistent_buf_alloc(sizeof(*s_work_state) + (words * sizeof(unsigned int)) + bytes,
+                                                     &g_cli_shape_cells);
+    if (s_work_state == NULL)
     {
         return 0;
     }
-    // the lists start past the room, on a boundary of the room's pointers, the kinds past the words and the roles past
-    // the kinds
-    unsigned int *const listed = (unsigned int *)(void *)(s_room + 1);
-    unsigned char *const kinds = (unsigned char *)(void *)(listed + words);
-    unsigned char *const roles = kinds + args->code_room + args->part_room;
-    s_room->code = (CliShapeTokens){kinds, roles, listed, listed + args->code_room, 0u, args->code_room, 0};
-    s_room->parts = (CliShapeTokens){kinds + args->code_room,
-                                     roles + args->code_room,
-                                     listed + (2ull * args->code_room),
-                                     listed + (2ull * args->code_room) + args->part_room,
-                                     0u,
-                                     args->part_room,
-                                     0};
-    s_room->hole_of = listed + (2ull * args->code_room) + (2ull * args->part_room);
-    s_room->matcher.ends = NULL;
-    s_room->matcher.ends_top = 0u;
-    s_room->matcher.ends_room = 0u;
+    // the lists start past the work state, on a boundary of the work state's pointers, the kinds past the words and the
+    // roles past the kinds
+    unsigned int *const list_entries = (unsigned int *)(void *)(s_work_state + 1);
+    unsigned char *const kinds = (unsigned char *)(void *)(list_entries + words);
+    unsigned char *const roles = kinds + args->code_capacity + args->part_capacity;
+    s_work_state->code =
+        (CliShapeTokens){kinds, roles, list_entries, list_entries + args->code_capacity, 0u, args->code_capacity, 0};
+    s_work_state->parts = (CliShapeTokens){kinds + args->code_capacity,
+                                           roles + args->code_capacity,
+                                           list_entries + (2ull * args->code_capacity),
+                                           list_entries + (2ull * args->code_capacity) + args->part_capacity,
+                                           0u,
+                                           args->part_capacity,
+                                           0};
+    s_work_state->hole_of = list_entries + (2ull * args->code_capacity) + (2ull * args->part_capacity);
+    s_work_state->matcher.ends = NULL;
+    s_work_state->matcher.ends_top = 0u;
+    s_work_state->matcher.ends_capacity = 0u;
     return 1;
 }
 
@@ -202,41 +204,45 @@ void cli_shape_search(const CliShapeLanguagesCfg *args)
                .to_u64s = &to);
     // a token takes a byte at the least: the code contains no more tokens than bytes, nor the pattern; each below
     // its most, which an unsigned int stores
-    const unsigned int code_room = (args->size < CLI_SHAPE_TOKENS) ? ((unsigned int)args->size + 1u) : CLI_SHAPE_TOKENS;
-    const unsigned int part_room =
+    const unsigned int code_capacity =
+        (args->size < CLI_SHAPE_TOKENS) ? ((unsigned int)args->size + 1u) : CLI_SHAPE_TOKENS;
+    const unsigned int part_capacity =
         ((to - from) < CLI_SHAPE_PATTERN) ? ((unsigned int)(to - from) + 1u) : CLI_SHAPE_PATTERN;
-    if (!EMBED_CALL(search_room_take, ShapeSearchCtx, .code_room = code_room, .part_room = part_room))
+    if (!EMBED_CALL(search_work_state_alloc, ShapeSearchCtx, .code_capacity = code_capacity,
+                    .part_capacity = part_capacity))
     {
         return;
     }
-    s_room->matcher.pattern = pattern + from;
-    s_room->matcher.part_count = EMBED_CALL(search_pattern, ShapeSearchCtx, .languages = args->languages,
-                                            .language = args->language, .pattern = pattern + from, .size = to - from);
-    s_room->matcher.hole_of = s_room->hole_of;
-    s_room->matcher.holes = &s_room->holes;
-    if ((s_room->matcher.part_count == 0u) ||
+    s_work_state->matcher.pattern = pattern + from;
+    s_work_state->matcher.part_count =
+        EMBED_CALL(search_pattern, ShapeSearchCtx, .languages = args->languages, .language = args->language,
+                   .pattern = pattern + from, .size = to - from);
+    s_work_state->matcher.hole_of = s_work_state->hole_of;
+    s_work_state->matcher.holes = &s_work_state->holes;
+    if ((s_work_state->matcher.part_count == 0u) ||
         !EMBED_CALL(cli_shape_languages_internal.tokens, CliShapeLanguagesCtx, .languages = args->languages,
-                    .language = args->language, .src = src, .size = args->size, .tokens = &s_room->code, .holes = NULL))
+                    .language = args->language, .src = src, .size = args->size, .tokens = &s_work_state->code,
+                    .holes = NULL))
     {
         search_release();
         return;
     }
-    s_room->matcher.src = src;
-    s_room->matcher.tokens = &s_room->code;
+    s_work_state->matcher.src = src;
+    s_work_state->matcher.tokens = &s_work_state->code;
     CliShapeWalk walk = {0ull, 0u, 0u, 0ull};
-    for (unsigned int at = 0u; at < s_room->code.count;)
+    for (unsigned int at = 0u; at < s_work_state->code.count;)
     {
         unsigned int end = 0u;
-        s_room->matcher.steps = 0u;
-        s_room->matcher.bound_count = 0u;
-        if ((s_room->code.kind[at] == CLI_SHAPE_BREAK) ||
-            !EMBED_CALL(cli_shape_matcher_internal.from, CliShapeMatcherCtx, .matcher = &s_room->matcher, .part = 0u,
-                        .at = at, .end = &end))
+        s_work_state->matcher.steps = 0u;
+        s_work_state->matcher.bound_count = 0u;
+        if ((s_work_state->code.kind[at] == CLI_SHAPE_BREAK) ||
+            !EMBED_CALL(cli_shape_matcher_internal.from, CliShapeMatcherCtx, .matcher = &s_work_state->matcher,
+                        .part = 0u, .at = at, .end = &end))
         {
             at += 1u;
             continue;
         }
-        while ((end > at) && (s_room->code.kind[end - 1u] == CLI_SHAPE_BREAK))
+        while ((end > at) && (s_work_state->code.kind[end - 1u] == CLI_SHAPE_BREAK))
         {
             end -= 1u;
         }
@@ -247,7 +253,7 @@ void cli_shape_search(const CliShapeLanguagesCfg *args)
         }
         CliShapeFound found = {{0u, 0u}, {0u, 0u}, NULL, 0ull, NULL, 0ull, 0};
         found.from = EMBED_CALL(search_walk, ShapeSearchCtx, .src = src, .size = args->size, .walk = &walk,
-                                .byte = s_room->code.start[at]);
+                                .byte = s_work_state->code.start[at]);
         found.line = src + walk.line_start;
         const unsigned long long line_size = EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = found.line,
                                                         .at = 0ull, .size = args->size - walk.line_start)
@@ -255,17 +261,19 @@ void cli_shape_search(const CliShapeLanguagesCfg *args)
         found.line_size =
             EMBED_CALL(cli_text_size_byte.trimmed_end, CliTextSizeByteCfg, .text = found.line, .size = line_size);
         found.to = EMBED_CALL(search_walk, ShapeSearchCtx, .src = src, .size = args->size, .walk = &walk,
-                              .byte = s_room->code.end[end - 1u]);
+                              .byte = s_work_state->code.end[end - 1u]);
         VerbaLinea with = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
         if (args->template_text != NULL)
         {
             // the template's bytes, and for each placeholder, 3 bytes of it at the least, what the match spans at most
             const unsigned long long template_length =
                 cellul.len(&(CatenaFinitaCfg){.src = args->template_text, .cap = CLI_CELLS_POOL});
-            const unsigned long long span = (unsigned long long)(s_room->code.end[end - 1u] - s_room->code.start[at]);
-            const unsigned long long with_room = template_length + (((template_length / 3ull) + 1ull) * span) + 1ull;
-            char *const with_cell = g_cli_cells->temporary_buf_alloc(with_room, &g_cli_shape_cells);
-            with = mmgr_line_over(with_cell, with_room);
+            const unsigned long long span =
+                (unsigned long long)(s_work_state->code.end[end - 1u] - s_work_state->code.start[at]);
+            const unsigned long long with_capacity =
+                template_length + (((template_length / 3ull) + 1ull) * span) + 1ull;
+            char *const with_cell = g_cli_cells->temporary_buf_alloc(with_capacity, &g_cli_shape_cells);
+            with = mmgr_line_over(with_cell, with_capacity);
             EMBED_CALL(search_fill, ShapeSearchCtx, .template_text = args->template_text, .out = &with);
             found.has_with = mmgr_line_ok(&with);
             found.with = with.out;
@@ -276,29 +284,4 @@ void cli_shape_search(const CliShapeLanguagesCfg *args)
         at = end;
     }
     search_release();
-}
-
-void cli_shape_found_write(const CliShapeCfg *args)
-{
-    mmgr_line_put(args->out, "{\"path\":");
-    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out, .text = args->path,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}));
-    mmgr_line_put(args->out, ",\"from\":");
-    EMBED_CALL(cli_edits_place.text_place_write, CliEditsPlaceCfg, .place = args->found->from, .out = args->out);
-    mmgr_line_put(args->out, ",\"to\":");
-    EMBED_CALL(cli_edits_place.text_place_write, CliEditsPlaceCfg, .place = args->found->to, .out = args->out);
-    mmgr_line_put(args->out, ",\"line\":");
-    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
-               .text = args->found->line, .length = args->found->line_size);
-    mmgr_line_put(args->out, ",\"with\":");
-    if (args->found->has_with)
-    {
-        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
-                   .text = args->found->with, .length = args->found->with_size);
-    }
-    else
-    {
-        mmgr_line_put(args->out, "null");
-    }
-    mmgr_line_ch(args->out, '}');
 }

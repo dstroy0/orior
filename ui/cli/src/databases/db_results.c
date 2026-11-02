@@ -93,7 +93,7 @@ EMBED_INLINE int results_real(const DbResultsCtx *args)
         }
     }
     unsigned long long digits = 0ull;
-    digits = EMBED_CALL(cli_text_at_size_classes.past_class, CliTextAtSizeClassesCfg, .text = text, .at = at,
+    digits = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = text, .at = at,
                         .size = size, .classes = CLI_TEXT_DIGITS, .set = "") -
              at;
     at += digits;
@@ -101,7 +101,7 @@ EMBED_INLINE int results_real(const DbResultsCtx *args)
     {
         at += 1ull;
         const unsigned long long more =
-            EMBED_CALL(cli_text_at_size_classes.past_class, CliTextAtSizeClassesCfg, .text = text, .at = at,
+            EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = text, .at = at,
                        .size = size, .classes = CLI_TEXT_DIGITS, .set = "") -
             at;
         at += more;
@@ -112,7 +112,7 @@ EMBED_INLINE int results_real(const DbResultsCtx *args)
         at += ((at + 1u < size) && ((text[at + 1u] == '-') || (text[at + 1u] == '+'))) ? 2ull : 1ull;
         unsigned long long exponent = 0ull;
         const unsigned long long more =
-            EMBED_CALL(cli_text_at_size_classes.past_class, CliTextAtSizeClassesCfg, .text = text, .at = at,
+            EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = text, .at = at,
                        .size = size, .classes = CLI_TEXT_DIGITS, .set = "") -
             at;
         at += more;
@@ -142,7 +142,7 @@ static int results_row(const CliDbRowCfg *args)
     CliDbResultsReader *const reader = (CliDbResultsReader *)args->context;
     CliDbResults *const results = &reader->open->results;
     // the row written where the pending bytes end, the pending bytes written out first where it does not fit after
-    // them, and buffered as its values' nulls where it does not fit the room at all, so that the rows after retain
+    // them, and buffered as its values' nulls where it does not fit the capacity at all, so that the rows after retain
     // their places
     VerbaLinea line = {results->pending + results->pending_size, sizeof(results->pending) - results->pending_size,
                        0ull};
@@ -266,11 +266,11 @@ static int results_read_on(const CliEachLinkFailureCfg *args)
     void *context = args->context;
     CliDbLink *link = args->link;
     CliDbFailure *failure = args->failure;
-    CliDbReadOn *const reading = (CliDbReadOn *)context;
-    CliDbResultsReader reader = {reading->open, NULL, 0ull, 0, {0}};
-    return EMBED_CALL(cli_db_link_failure_internal.link_rows, CliDbLinkFailureCtx, .link = link, .count = reading->want,
-                      .each_row = results_row, .context = &reader, .done = &reading->done, .tag = reading->tag,
-                      .failure = failure);
+    CliDbReadOn *const read_state = (CliDbReadOn *)context;
+    CliDbResultsReader reader = {read_state->open, NULL, 0ull, 0, {0}};
+    return EMBED_CALL(cli_db_link_failure_internal.link_rows, CliDbLinkFailureCtx, .link = link,
+                      .count = read_state->want, .each_row = results_row, .context = &reader, .done = &read_state->done,
+                      .tag = read_state->tag, .failure = failure);
 }
 
 // the lines of the buffered rows from `start` to `end` handed to `each`, read from their file from the mark before the
@@ -281,7 +281,7 @@ void cli_db_results_lines(const CliDbContextCtx *args)
     (void)EMBED_CALL(results_flush, DbResultsCtx, .results = results);
     unsigned long long size = 0ull;
     const unsigned char *const bytes = (args->start < args->end)
-                                           ? EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = results->path,
+                                           ? EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = results->path,
                                                         .size_pointer = &size, .owner = &g_cli_db_cells)
                                            : NULL;
     if (bytes == NULL)
@@ -320,18 +320,18 @@ int cli_db_rows(const CliDbOutFailureOpenCfg *args)
     while ((results->rows < args->from + args->count_u64) && results->has_columns && !results->has_done)
     {
         const unsigned long long short_of = args->from + args->count_u64 - results->rows;
-        CliDbReadOn reading = {args->open, (short_of > 200u) ? short_of : 200ull, 0, ""};
+        CliDbReadOn read_state = {args->open, (short_of > 200u) ? short_of : 200ull, 0, ""};
         if (!EMBED_CALL(cli_db_failure_context_internal.with_query, CliDbFailureContextCtx, .open = args->open,
-                        .work = results_read_on, .context = &reading, .failure = args->failure))
+                        .work = results_read_on, .context = &read_state, .failure = args->failure))
         {
             (void)EMBED_CALL(results_flush, DbResultsCtx, .results = results);
             return 0;
         }
         (void)EMBED_CALL(results_flush, DbResultsCtx, .results = results);
-        results->has_done = reading.done;
+        results->has_done = read_state.done;
         memor.cpy(&(MemoriaCfg){
-            .dst = results->done, .bytes = sizeof(results->done), .src = reading.done ? reading.tag : ""});
-        if (!reading.done && (results->rows < args->from + args->count_u64) && (reading.want > 0u))
+            .dst = results->done, .bytes = sizeof(results->done), .src = read_state.done ? read_state.tag : ""});
+        if (!read_state.done && (results->rows < args->from + args->count_u64) && (read_state.want > 0u))
         {
             // a run that gave fewer rows than requested and did not end gives no more now
             break;

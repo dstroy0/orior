@@ -130,13 +130,14 @@ int cli_watch_system_start(const CliRootContextCtx *args)
     CliChangeFn emit = args->emit;
     void *context = args->context;
     cli_watch_system_stop();
-    wchar_t wide[CLI_PATH_MAX_LEN];
-    if (MultiByteToWideChar(CP_UTF8, 0, args->root, -1, wide, CLI_PATH_MAX_LEN) == 0)
+    wchar_t pixel_width[CLI_PATH_MAX_LEN];
+    if (MultiByteToWideChar(CP_UTF8, 0, args->root, -1, pixel_width, CLI_PATH_MAX_LEN) == 0)
     {
         return 0;
     }
-    const HANDLE folder = CreateFileW(wide, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-                                      NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, NULL);
+    const HANDLE folder =
+        CreateFileW(pixel_width, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL,
+                    OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, NULL);
     if (folder == INVALID_HANDLE_VALUE)
     {
         return 0;

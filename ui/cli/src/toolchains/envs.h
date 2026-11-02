@@ -25,18 +25,11 @@ typedef struct CliEnvsOutFolderCfg CliEnvsOutFolderCfg;
 // that took it returns (envs.c)
 extern CellOwner g_cli_envs_cells;
 
-// every environment the tree at `root` contains, nearest the top first, written as `[{"kind", "place", "requires"}]`;
-// the packages a folder's `setup.cfg`, Pipfile or `requirements.txt` requires, by name, in order, written as a JSON
-// array of names
-void cli_envs_find(const CliEnvsCfg *args);
-void cli_envs_requires_in(const CliEnvsOutFolderCfg *args);
-
 // the environment at `place` in the tree at `root`, of `kind`, made ready to use into `environment`: for Pipenv, the
 // virtual environment Pipenv stores for the folder; for Nix, the folders its development shell puts on the PATH. 1, or
 // 0 with why given; and the packages `count` of `requires` names that the environment's Python has not installed,
 // written as a JSON array of names
 int cli_envs_resolve(const CliEnvsRootCfg *args);
-void cli_envs_missing(const CliEnvsOutCfg *args);
 
 struct CliEnvsRootCfg
 {
@@ -70,38 +63,11 @@ struct CliEnvsOutFolderCfg
 
 typedef struct
 {
-    void (*find)(const CliEnvsCfg *args);
-} CliEnvsNs;
-EMBED_TABLE_LAYOUT(CliEnvsNs, find);
-EMBED_TABLE_STORAGE CliEnvsNs cli_envs_table EMBED_UNUSED = {
-    .find = cli_envs_find,
-};
-
-typedef struct
-{
-    void (*requires_in)(const CliEnvsOutFolderCfg *args);
-} CliEnvsOutFolderNs;
-EMBED_TABLE_LAYOUT(CliEnvsOutFolderNs, requires_in);
-EMBED_TABLE_STORAGE CliEnvsOutFolderNs cli_envs_out_folder EMBED_UNUSED = {
-    .requires_in = cli_envs_requires_in,
-};
-
-typedef struct
-{
     int (*resolve)(const CliEnvsRootCfg *args);
 } CliEnvsRootNs;
 EMBED_TABLE_LAYOUT(CliEnvsRootNs, resolve);
 EMBED_TABLE_STORAGE CliEnvsRootNs cli_envs_root EMBED_UNUSED = {
     .resolve = cli_envs_resolve,
-};
-
-typedef struct
-{
-    void (*missing)(const CliEnvsOutCfg *args);
-} CliEnvsOutNs;
-EMBED_TABLE_LAYOUT(CliEnvsOutNs, missing);
-EMBED_TABLE_STORAGE CliEnvsOutNs cli_envs_out EMBED_UNUSED = {
-    .missing = cli_envs_missing,
 };
 
 #endif

@@ -9,7 +9,7 @@
 #include "requests_internal.h"
 
 // the most headers and pieces of data a curl line gives that are read
-#define CLI_REQUESTS_CURL_MOST 4096u
+#define CLI_REQUESTS_CURL_MAX 4096u
 // A text of a curl line read: where it is and its length
 typedef struct
 {
@@ -22,31 +22,31 @@ typedef struct
 {
     CurlText method;
     CurlText url;
-    CurlText name[CLI_REQUESTS_CURL_MOST];
-    CurlText value[CLI_REQUESTS_CURL_MOST];
+    CurlText name[CLI_REQUESTS_CURL_MAX];
+    CurlText value[CLI_REQUESTS_CURL_MAX];
     unsigned int headers;
-    CurlText form_name[CLI_REQUESTS_CURL_MOST];
-    CurlText form_value[CLI_REQUESTS_CURL_MOST];
+    CurlText form_name[CLI_REQUESTS_CURL_MAX];
+    CurlText form_value[CLI_REQUESTS_CURL_MAX];
     unsigned int forms;
     unsigned int data;
     int get;
 } CurlRead;
 
-// A reading's room, a cell taken with the lock and given back with it: the line's words, the line with its carets
+// A reading's work state, a cell taken with the lock and given back with it: the line's words, the line with its carets
 // taken off, the texts made and the body, the request written, and what is read
 typedef struct
 {
     CliRequestsWords words;
     char uncareted[CLI_REQUESTS_CURL_TEXT];
     char made[CLI_REQUESTS_CURL_TEXT];
-    VerbaLinea made_line;
+    VerbaLinea created_line;
     char body[CLI_REQUESTS_CURL_TEXT];
     VerbaLinea body_line;
     char written[CLI_REQUESTS_CURL_TEXT];
     CurlRead read;
-} CliCurlRoom;
+} CliCurlWorkState;
 
-static CliCurlRoom *s_curl;
+static CliCurlWorkState *s_curl;
 
 typedef struct
 {
@@ -95,7 +95,7 @@ EMBED_INLINE int curl_has(const RequestsCurlCtx *args)
 // a header put on the line read: 1, or 0 where it contains the most
 EMBED_INLINE int curl_header(const RequestsCurlCtx *args)
 {
-    if (args->read_out->headers == CLI_REQUESTS_CURL_MOST)
+    if (args->read_out->headers == CLI_REQUESTS_CURL_MAX)
     {
         return 0;
     }
@@ -108,8 +108,8 @@ EMBED_INLINE int curl_header(const RequestsCurlCtx *args)
 // `size` bytes made into the pool of texts made: where they stand
 EMBED_INLINE CurlText curl_init(const RequestsCurlCtx *args)
 {
-    const CurlText made = {s_curl->made + s_curl->made_line.at, args->size};
-    mmgr_line_put_n(&s_curl->made_line, args->bytes, args->size);
+    const CurlText made = {s_curl->made + s_curl->created_line.at, args->size};
+    mmgr_line_put_n(&s_curl->created_line, args->bytes, args->size);
     return made;
 }
 
@@ -186,13 +186,13 @@ EMBED_INLINE int curl_flag(const RequestsCurlCtx *args)
                                          "--key",
                                          "-c",
                                          "--cookie-jar"};
-    int takes = 0;
-    for (unsigned int index = 0u; !takes && (index < sizeof(valued) / sizeof(valued[0])); index += 1u)
+    int allocs = 0;
+    for (unsigned int index = 0u; !allocs && (index < sizeof(valued) / sizeof(valued[0])); index += 1u)
     {
-        takes =
+        allocs =
             EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word = valued[index]);
     }
-    if (takes && (value.at == NULL))
+    if (allocs && (value.at == NULL))
     {
         *at += 1u;
         if (*at >= s_curl->words.count)
@@ -269,7 +269,7 @@ EMBED_INLINE int curl_flag(const RequestsCurlCtx *args)
               EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word = "--form")) &&
              (equals != NULL))
     {
-        fits = (args->read_out->forms < CLI_REQUESTS_CURL_MOST);
+        fits = (args->read_out->forms < CLI_REQUESTS_CURL_MAX);
         if (fits)
         {
             const unsigned long long name = (unsigned long long)(equals - value.at);
@@ -281,12 +281,13 @@ EMBED_INLINE int curl_flag(const RequestsCurlCtx *args)
     else if (EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word = "-u") ||
              EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word = "--user"))
     {
-        const unsigned long long start = s_curl->made_line.at;
-        mmgr_line_put(&s_curl->made_line, "Basic ");
-        EMBED_CALL(cli_base64_table.base64, CliBase64Cfg, .out = &s_curl->made_line,
+        const unsigned long long start = s_curl->created_line.at;
+        mmgr_line_put(&s_curl->created_line, "Basic ");
+        EMBED_CALL(cli_base64_table.base64, CliBase64Cfg, .out = &s_curl->created_line,
                    .bytes = (const unsigned char *)value.at, .size = value.size);
-        fits = EMBED_CALL(curl_header, RequestsCurlCtx, .read_out = args->read_out, .name = "Authorization",
-                          .name_size = 13u, .value = s_curl->made + start, .value_size = s_curl->made_line.at - start);
+        fits =
+            EMBED_CALL(curl_header, RequestsCurlCtx, .read_out = args->read_out, .name = "Authorization",
+                       .name_size = 13u, .value = s_curl->made + start, .value_size = s_curl->created_line.at - start);
     }
     else if (EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word = "-A") ||
              EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size,
@@ -321,7 +322,7 @@ EMBED_INLINE int curl_flag(const RequestsCurlCtx *args)
     {
         args->read_out->url = value;
     }
-    else if (!takes && ((args->flag.size == 0u) || (args->flag.at[0] != '-')))
+    else if (!allocs && ((args->flag.size == 0u) || (args->flag.at[0] != '-')))
     {
         args->read_out->url = args->flag;
     }
@@ -471,7 +472,7 @@ EMBED_INLINE void curl_write(const RequestsCurlCtx *args)
 EMBED_INLINE int curl_read(const RequestsCurlCtx *args)
 {
     memor.set(&(MemoriaCfg){.dst = &s_curl->read, .val = 0, .bytes = sizeof(s_curl->read)});
-    s_curl->made_line = (VerbaLinea){s_curl->made, sizeof(s_curl->made), 0ull};
+    s_curl->created_line = (VerbaLinea){s_curl->made, sizeof(s_curl->made), 0ull};
     s_curl->body_line = (VerbaLinea){s_curl->body, sizeof(s_curl->body), 0ull};
     for (unsigned int at = 1u; at < s_curl->words.count; at += 1u)
     {
@@ -487,7 +488,7 @@ EMBED_INLINE int curl_read(const RequestsCurlCtx *args)
             return 0;
         }
     }
-    if (!mmgr_line_ok(&s_curl->made_line) || !mmgr_line_ok(&s_curl->body_line))
+    if (!mmgr_line_ok(&s_curl->created_line) || !mmgr_line_ok(&s_curl->body_line))
     {
         mmgr_line_put(args->err_msg, "the curl line is larger than orior_cli supports");
         return 0;

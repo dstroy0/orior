@@ -48,7 +48,7 @@ typedef struct
     const char **to;
     unsigned int tos;
     unsigned long long retain;
-    int in_place;
+    int in_position;
 } CliDeployment;
 
 // A place a deployment sends to: a machine orior_cli reaches, or a folder on this one, by its path
@@ -57,7 +57,7 @@ typedef struct
     int here;
     CliLinkAddress address;
     char path[CLI_PATH_MAX_LEN];
-} CliDeployPlace;
+} CliDeployPosition;
 
 // A file a deployment sends: its path under the folder sent, its mode, and the SHA-256 of its bytes, empty where they
 // could not be read
@@ -105,8 +105,8 @@ typedef struct
 typedef struct
 {
     CliDeployment deployment;
-    CliDeployPlace *place;
-    unsigned int places;
+    CliDeployPosition *place;
+    unsigned int positions;
     const char **pattern;
     unsigned int patterns;
     CliDeploySent *sent;
@@ -115,8 +115,8 @@ typedef struct
     unsigned int outs;
     CliDeployPair **changed_list;
     unsigned int *changed;
-    CliDeployPair **gone_list;
-    unsigned int *gone;
+    CliDeployPair **removed_list;
+    unsigned int *deleted;
     CliDeployPool pool;
     const char *root;
     CliDeployPrintFn print;
@@ -135,13 +135,13 @@ extern CliDeployRun g_cli_deploy;
 void cli_deploy_print(const CliDeployCtx *args);
 // the lines of `new_text` that differ from `old`, each printed through the run's teller marked `-` for a line taken
 // out and `+` for a line put in, around the run of lines the two do not share at their heads and tails
-// (deploy_standing.c)
+// (deploy_existing.c)
 void cli_deploy_difference(const CliDeployOldCtx *args);
 
 // `size` bytes placed in `pool` at a multiple of 8: where they stand, NULL with the pool marked refused where a page
 // could not be taken; `size` bytes of `text` stored there with a 0 after, an empty text where they could not be; and
 // every page of a pool given back, the pool left empty (deploy_read.c)
-void *cli_deploy_on_place(const CliDeployPoolCtx *args);
+void *cli_deploy_on_position(const CliDeployPoolCtx *args);
 const char *cli_deploy_text_store(const CliDeployPoolCtx *args);
 void cli_deploy_pool_free(const CliDeployPoolCtx *args);
 // two texts in the order of their bytes: below 0 where `left` comes first, 0 where they are the same, above 0 where
@@ -154,9 +154,9 @@ int cli_deploy_order(const CliDeployLeftCtx *args);
 // for a password informed how a key reaches it (deploy_read.c)
 int cli_deploy_read(const CliDeployRootCtx *args);
 void cli_deploy_tree_free(const CliDeployRootCtx *args);
-int cli_deploy_place(const CliDeployTextCtx *args);
-void cli_deploy_place_name(const CliDeploySizeCtx *args);
-const char *cli_deploy_place_folder(const CliDeploySizeCtx *args);
+int cli_deploy_position(const CliDeployTextCtx *args);
+void cli_deploy_position_name(const CliDeploySizeCtx *args);
+const char *cli_deploy_position_folder(const CliDeploySizeCtx *args);
 int cli_deploy_remote_run(const CliDeploySizeCtx *args);
 
 // whether `name` fits the glob `pattern`, `*` taking any run of letters and `?` any one; the pattern of `patterns`,
@@ -201,8 +201,8 @@ int cli_deploy_hashes(const CliDeployErrMsgIndexCtx *args);
 
 // what the place at `index` has under `folder` against what was last sent there and what goes now, recorded in the run,
 // and printed as it is found: 1, or 0 with why given; and the record of the hashes last sent to a place written after a
-// send, the files it retained there recorded as they are there (deploy_standing.c)
-int cli_deploy_standing(const CliDeployErrMsgIndexCtx *args);
+// send, the files it retained there recorded as they are there (deploy_existing.c)
+int cli_deploy_existing(const CliDeployErrMsgIndexCtx *args);
 void cli_deploy_record(const CliDeployErrMsgIndexCtx *args);
 
 // the files sent to the place at `index`, into a new release `release` where `releases`, else into its folder itself,
@@ -233,7 +233,7 @@ struct CliDeploySizeCtx
 {
     unsigned long long size;
     VerbaLinea *err_msg;
-    const CliDeployPlace *place;
+    const CliDeployPosition *place;
     VerbaLinea *out;
     const char *line_text;
     const char *input;
@@ -279,7 +279,7 @@ struct CliDeployTextCtx
     const char *text;
     const char *root;
     VerbaLinea *err_msg;
-    CliDeployPlace *place_out;
+    CliDeployPosition *position_out;
 };
 
 struct CliDeployCountCtx
@@ -385,7 +385,7 @@ typedef struct
 } CliDeployPoolNs;
 EMBED_TABLE_LAYOUT(CliDeployPoolNs, place, text_store, pool_free, modes_read);
 EMBED_TABLE_STORAGE CliDeployPoolNs cli_deploy_pool_internal EMBED_UNUSED = {
-    .place = cli_deploy_on_place,
+    .place = cli_deploy_on_position,
     .text_store = cli_deploy_text_store,
     .pool_free = cli_deploy_pool_free,
     .modes_read = cli_deploy_modes_read,
@@ -419,21 +419,21 @@ typedef struct
 } CliDeployTextNs;
 EMBED_TABLE_LAYOUT(CliDeployTextNs, place, gather, roll_back);
 EMBED_TABLE_STORAGE CliDeployTextNs cli_deploy_text_internal EMBED_UNUSED = {
-    .place = cli_deploy_place,
+    .place = cli_deploy_position,
     .gather = cli_deploy_gather,
     .roll_back = cli_deploy_roll_back,
 };
 
 typedef struct
 {
-    void (*place_name)(const CliDeploySizeCtx *args);
-    const char *(*place_folder)(const CliDeploySizeCtx *args);
+    void (*position_name)(const CliDeploySizeCtx *args);
+    const char *(*position_folder)(const CliDeploySizeCtx *args);
     int (*remote_run)(const CliDeploySizeCtx *args);
 } CliDeploySizeNs;
-EMBED_TABLE_LAYOUT(CliDeploySizeNs, place_name, place_folder, remote_run);
+EMBED_TABLE_LAYOUT(CliDeploySizeNs, position_name, position_folder, remote_run);
 EMBED_TABLE_STORAGE CliDeploySizeNs cli_deploy_size_internal EMBED_UNUSED = {
-    .place_name = cli_deploy_place_name,
-    .place_folder = cli_deploy_place_folder,
+    .position_name = cli_deploy_position_name,
+    .position_folder = cli_deploy_position_folder,
     .remote_run = cli_deploy_remote_run,
 };
 
@@ -515,15 +515,15 @@ typedef struct
 {
     void (*last_read)(const CliDeployErrMsgIndexCtx *args);
     int (*hashes)(const CliDeployErrMsgIndexCtx *args);
-    int (*standing)(const CliDeployErrMsgIndexCtx *args);
+    int (*existing)(const CliDeployErrMsgIndexCtx *args);
     void (*record)(const CliDeployErrMsgIndexCtx *args);
     int (*remove)(const CliDeployErrMsgIndexCtx *args);
 } CliDeployErrMsgIndexNs;
-EMBED_TABLE_LAYOUT(CliDeployErrMsgIndexNs, last_read, hashes, standing, record, remove);
+EMBED_TABLE_LAYOUT(CliDeployErrMsgIndexNs, last_read, hashes, existing, record, remove);
 EMBED_TABLE_STORAGE CliDeployErrMsgIndexNs cli_deploy_err_msg_index_internal EMBED_UNUSED = {
     .last_read = cli_deploy_last_read,
     .hashes = cli_deploy_hashes,
-    .standing = cli_deploy_standing,
+    .existing = cli_deploy_existing,
     .record = cli_deploy_record,
     .remove = cli_deploy_remove,
 };

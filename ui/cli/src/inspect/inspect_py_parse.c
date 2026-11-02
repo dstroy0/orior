@@ -23,12 +23,13 @@ static unsigned int s_scopes;
 static unsigned int *s_params;
 static unsigned int s_param_count;
 
-void cli_inspect_py_parse_layout(const CliInspectCarveCtx *args)
+void cli_inspect_py_parse_layout(const CliInspectPartitionCtx *args)
 {
-    EMBED_CALL(cli_inspect_carve_set_internal.set_layout, CliInspectCarveSetCtx, .set = &s_classes,
-               .carve = args->carve);
-    s_params = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
-                          .bytes = (unsigned long long)(CLI_INSPECT_TOKENS / 4u) * sizeof(unsigned int));
+    EMBED_CALL(cli_inspect_partition_set_internal.set_layout, CliInspectPartitionSetCtx, .set = &s_classes,
+               .partition = args->partition);
+    s_params =
+        EMBED_CALL(cli_inspect_partition_internal.partition, CliInspectPartitionCtx, .partition = args->partition,
+                   .bytes = (unsigned long long)(CLI_INSPECT_TOKENS / 4u) * sizeof(unsigned int));
 }
 static unsigned int s_stack[CLI_PY_STACK];
 
@@ -234,16 +235,16 @@ EMBED_INLINE void parse_string(const InspectPyParseCtx *args)
                        ((memor.cmp(&(MemoriaCfg){.src = whole + open, .other = "\"\"\"", .bytes = 3u}) == 0) ||
                         (memor.cmp(&(MemoriaCfg){.src = whole + open, .other = "'''", .bytes = 3u}) == 0));
     const unsigned int quotes = triple ? 3u : 1u;
-    EMBED_CALL(cli_inspect_from_to_parsed_internal.range_put, CliInspectFromToParsedCtx, .parsed = parsed,
+    EMBED_CALL(cli_inspect_from_to_parsed_internal.range_append, CliInspectFromToParsedCtx, .parsed = parsed,
                .from = args->tok->from, .to = args->tok->to);
     if (length >= open + (quotes * 2u))
     {
         const unsigned int to_col = (args->tok->to.col > quotes) ? (args->tok->to.col - quotes) : 0u;
-        EMBED_CALL(cli_inspect_from_to_parsed_internal.range_put, CliInspectFromToParsedCtx, .parsed = parsed,
-                   .from = (CliInspectPlace){args->tok->from.line, args->tok->from.col + open + quotes},
-                   .to = (CliInspectPlace){args->tok->to.line, to_col});
+        EMBED_CALL(cli_inspect_from_to_parsed_internal.range_append, CliInspectFromToParsedCtx, .parsed = parsed,
+                   .from = (CliInspectPosition){args->tok->from.line, args->tok->from.col + open + quotes},
+                   .to = (CliInspectPosition){args->tok->to.line, to_col});
     }
-    EMBED_CALL(cli_inspect_parsed_internal.fold_put, CliInspectParsedCtx, .parsed = parsed,
+    EMBED_CALL(cli_inspect_parsed_internal.fold_append, CliInspectParsedCtx, .parsed = parsed,
                .first = args->tok->from.line, .last = args->tok->to.line);
 }
 
@@ -318,11 +319,11 @@ EMBED_INLINE void parse_line(const InspectPyParseCtx *args)
                     stack -= 1u;
                     const CliInspectTok *const opened =
                         EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = line, .at = s_stack[stack]);
-                    EMBED_CALL(cli_inspect_from_to_parsed_internal.range_put, CliInspectFromToParsedCtx,
+                    EMBED_CALL(cli_inspect_from_to_parsed_internal.range_append, CliInspectFromToParsedCtx,
                                .parsed = parsed, .from = opened->to, .to = tok->from);
-                    EMBED_CALL(cli_inspect_from_to_parsed_internal.range_put, CliInspectFromToParsedCtx,
+                    EMBED_CALL(cli_inspect_from_to_parsed_internal.range_append, CliInspectFromToParsedCtx,
                                .parsed = parsed, .from = opened->from, .to = tok->to);
-                    EMBED_CALL(cli_inspect_parsed_internal.fold_put, CliInspectParsedCtx, .parsed = parsed,
+                    EMBED_CALL(cli_inspect_parsed_internal.fold_append, CliInspectParsedCtx, .parsed = parsed,
                                .first = opened->from.line, .last = tok->to.line);
                 }
             }
@@ -342,11 +343,11 @@ EMBED_INLINE void parse_line(const InspectPyParseCtx *args)
             EMBED_CALL(parse_string, InspectPyParseCtx, .src = src, .tok = tok, .parsed = parsed);
         }
     }
-    const CliInspectPlace last =
+    const CliInspectPosition last =
         EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = line, .at = line->count - 1u)->to;
-    EMBED_CALL(cli_inspect_from_to_parsed_internal.range_put, CliInspectFromToParsedCtx, .parsed = parsed,
+    EMBED_CALL(cli_inspect_from_to_parsed_internal.range_append, CliInspectFromToParsedCtx, .parsed = parsed,
                .from = head->from, .to = last);
-    EMBED_CALL(cli_inspect_parsed_internal.fold_put, CliInspectParsedCtx, .parsed = parsed, .first = head->from.line,
+    EMBED_CALL(cli_inspect_parsed_internal.fold_append, CliInspectParsedCtx, .parsed = parsed, .first = head->from.line,
                .last = last.line);
     if (!EMBED_CALL(cli_inspect_py_src_line.py_opens, CliInspectPySrcLineCfg, .src = src, .line = line))
     {
@@ -358,16 +359,16 @@ EMBED_INLINE void parse_line(const InspectPyParseCtx *args)
         return;
     }
     const CliPyLine *const closing = &g_cli_py_line[end - 1u];
-    const CliInspectPlace close =
+    const CliInspectPosition close =
         EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = closing, .at = closing->count - 1u)->to;
-    EMBED_CALL(cli_inspect_from_to_parsed_internal.range_put, CliInspectFromToParsedCtx, .parsed = parsed,
+    EMBED_CALL(cli_inspect_from_to_parsed_internal.range_append, CliInspectFromToParsedCtx, .parsed = parsed,
                .from = head->from, .to = close);
     EMBED_CALL(
-        cli_inspect_from_to_parsed_internal.range_put, CliInspectFromToParsedCtx, .parsed = parsed,
+        cli_inspect_from_to_parsed_internal.range_append, CliInspectFromToParsedCtx, .parsed = parsed,
         .from = EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = &g_cli_py_line[args->index + 1u], .at = 0u)
                     ->from,
         .to = close);
-    EMBED_CALL(cli_inspect_parsed_internal.fold_put, CliInspectParsedCtx, .parsed = parsed, .first = head->from.line,
+    EMBED_CALL(cli_inspect_parsed_internal.fold_append, CliInspectParsedCtx, .parsed = parsed, .first = head->from.line,
                .last = close.line);
     // a decorated function or class, with its decorators
     unsigned int first = args->index;
@@ -382,7 +383,7 @@ EMBED_INLINE void parse_line(const InspectPyParseCtx *args)
     if (first < args->index)
     {
         EMBED_CALL(
-            cli_inspect_from_to_parsed_internal.range_put, CliInspectFromToParsedCtx, .parsed = parsed,
+            cli_inspect_from_to_parsed_internal.range_append, CliInspectFromToParsedCtx, .parsed = parsed,
             .from = EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = &g_cli_py_line[first], .at = 0u)->from,
             .to = close);
     }
@@ -402,7 +403,7 @@ void cli_inspect_py_parse(const CliInspectSizeSrcParsedCtx *args)
         EMBED_CALL(cli_inspect_from_to_internal.paint, CliInspectFromToCtx, .from = g_cli_inspect_comment[at].from,
                    .to = g_cli_inspect_comment[at].to, .class_of = CLI_INSPECT_COMMENT);
     }
-    EMBED_CALL(cli_inspect_carve_set_internal.set_clear, CliInspectCarveSetCtx, .set = &s_classes);
+    EMBED_CALL(cli_inspect_partition_set_internal.set_clear, CliInspectPartitionSetCtx, .set = &s_classes);
     for (unsigned int at = 0u; at < g_cli_py_lines; at += 1u)
     {
         const CliPyLine *const line = &g_cli_py_line[at];
@@ -419,7 +420,7 @@ void cli_inspect_py_parse(const CliInspectSizeSrcParsedCtx *args)
             {
                 const CliInspectTok *const name =
                     EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = line, .at = offset + 1u);
-                EMBED_CALL(cli_inspect_set_internal.set_put, CliInspectSetCtx, .set = &s_classes,
+                EMBED_CALL(cli_inspect_set_internal.set_append, CliInspectSetCtx, .set = &s_classes,
                            .at = args->src + name->start, .size_u32 = name->end - name->start);
                 break;
             }
@@ -434,7 +435,7 @@ void cli_inspect_py_parse(const CliInspectSizeSrcParsedCtx *args)
     }
     for (unsigned int at = 0u; at < g_cli_inspect_comments; at += 1u)
     {
-        EMBED_CALL(cli_inspect_from_to_parsed_internal.range_put, CliInspectFromToParsedCtx, .parsed = args->parsed,
+        EMBED_CALL(cli_inspect_from_to_parsed_internal.range_append, CliInspectFromToParsedCtx, .parsed = args->parsed,
                    .from = g_cli_inspect_comment[at].from, .to = g_cli_inspect_comment[at].to);
     }
     cli_inspect_size_src_parsed_internal.paint_runs(args);

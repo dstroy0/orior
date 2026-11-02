@@ -8,15 +8,15 @@
 static void assert_round_trip(const char *text)
 {
     CliJson json;
-    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &json, .node_json_node_pointer = NULL, .nodes_most = 0u, .text_out = NULL, .text_most = 0ull);
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &json, .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg, .json = &json, .text = text, .size = CLI_UNITY_LENGTH(text), .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = &g_cli_text_cells);
+    const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json, .text = text, .size = CLI_UNITY_LENGTH(text), .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = &g_cli_text_cells);
     TEST_ASSERT_NOT_EQUAL(CLI_JSON_NONE, root);
-    const unsigned long long room = EMBED_CALL(cli_json_tree_node_out.json_write_room, CliJsonTreeNodeOutCfg, .json_read = &json);
-    char *const written = g_cli_cells->temporary_buf_alloc(room, &g_cli_text_cells);
+    const unsigned long long capacity = EMBED_CALL(cli_json_tree_node_out.json_write_capacity, CliJsonTreeNodeOutCfg, .json_read = &json);
+    char *const written = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_text_cells);
     TEST_ASSERT_NOT_NULL(written);
-    VerbaLinea line = mmgr_line_over(written, room);
+    VerbaLinea line = mmgr_line_over(written, capacity);
     EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = &json, .node = root, .out = &line, .indent = 0u, .sorted = 0);
     TEST_ASSERT_TRUE(mmgr_line_ok(&line));
     CLI_TEST_ASSERT_TEXT(text, written, line.at);

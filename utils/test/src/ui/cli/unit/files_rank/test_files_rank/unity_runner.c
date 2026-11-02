@@ -8,16 +8,11 @@
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
 extern void tearDown(void);
-extern void test_a_name_as_typed_ranks_first_with_or_without_its_extension(void);
-extern void test_fuzzy_matching_takes_the_letters_in_order_anywhere(void);
-extern void test_with_fuzzy_matching_off_only_the_text_as_typed_answers(void);
-extern void test_until_the_tree_is_read_the_recent_files_answer(void);
-extern void test_once_the_tree_is_read_it_answers(void);
 extern void test_a_slice_is_read_about_its_bytes(void);
-extern void test_a_slice_is_whole_lines_from_a_lines_first_byte(void);
+extern void test_a_slice_is_complete_lines_from_a_lines_first_byte(void);
 extern void test_the_slice_below_starts_where_it_ends_with_the_line_after_its_last(void);
 extern void test_the_slice_above_ends_where_it_starts_with_the_line_before_its_first(void);
-extern void test_a_slice_past_the_end_ends_at_the_files_end(void);
+extern void test_a_slice_end_the_end_ends_at_the_files_end(void);
 extern void test_a_typed_name_matches_its_letters_in_the_name(void);
 extern void test_a_name_without_the_letters_does_not_match(void);
 extern void test_an_empty_query_matches_with_no_hits(void);
@@ -85,22 +80,17 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\files_rank\\test_files_rank\\test_files_rank.c");
-  run_test(test_a_name_as_typed_ranks_first_with_or_without_its_extension, "test_a_name_as_typed_ranks_first_with_or_without_its_extension", 180);
-  run_test(test_fuzzy_matching_takes_the_letters_in_order_anywhere, "test_fuzzy_matching_takes_the_letters_in_order_anywhere", 187);
-  run_test(test_with_fuzzy_matching_off_only_the_text_as_typed_answers, "test_with_fuzzy_matching_off_only_the_text_as_typed_answers", 198);
-  run_test(test_until_the_tree_is_read_the_recent_files_answer, "test_until_the_tree_is_read_the_recent_files_answer", 203);
-  run_test(test_once_the_tree_is_read_it_answers, "test_once_the_tree_is_read_it_answers", 219);
-  run_test(test_a_slice_is_read_about_its_bytes, "test_a_slice_is_read_about_its_bytes", 236);
-  run_test(test_a_slice_is_whole_lines_from_a_lines_first_byte, "test_a_slice_is_whole_lines_from_a_lines_first_byte", 244);
-  run_test(test_the_slice_below_starts_where_it_ends_with_the_line_after_its_last, "test_the_slice_below_starts_where_it_ends_with_the_line_after_its_last", 255);
-  run_test(test_the_slice_above_ends_where_it_starts_with_the_line_before_its_first, "test_the_slice_above_ends_where_it_starts_with_the_line_before_its_first", 272);
-  run_test(test_a_slice_past_the_end_ends_at_the_files_end, "test_a_slice_past_the_end_ends_at_the_files_end", 284);
-  run_test(test_a_typed_name_matches_its_letters_in_the_name, "test_a_typed_name_matches_its_letters_in_the_name", 291);
-  run_test(test_a_name_without_the_letters_does_not_match, "test_a_name_without_the_letters_does_not_match", 296);
-  run_test(test_an_empty_query_matches_with_no_hits, "test_an_empty_query_matches_with_no_hits", 301);
-  run_test(test_each_score_is_the_palettes_own, "test_each_score_is_the_palettes_own", 306);
-  run_test(test_a_match_too_torn_is_no_match, "test_a_match_too_torn_is_no_match", 312);
-  run_test(test_a_query_torn_into_too_many_pieces_is_no_match, "test_a_query_torn_into_too_many_pieces_is_no_match", 317);
+  run_test(test_a_slice_is_read_about_its_bytes, "test_a_slice_is_read_about_its_bytes", 138);
+  run_test(test_a_slice_is_complete_lines_from_a_lines_first_byte, "test_a_slice_is_complete_lines_from_a_lines_first_byte", 146);
+  run_test(test_the_slice_below_starts_where_it_ends_with_the_line_after_its_last, "test_the_slice_below_starts_where_it_ends_with_the_line_after_its_last", 157);
+  run_test(test_the_slice_above_ends_where_it_starts_with_the_line_before_its_first, "test_the_slice_above_ends_where_it_starts_with_the_line_before_its_first", 174);
+  run_test(test_a_slice_end_the_end_ends_at_the_files_end, "test_a_slice_end_the_end_ends_at_the_files_end", 186);
+  run_test(test_a_typed_name_matches_its_letters_in_the_name, "test_a_typed_name_matches_its_letters_in_the_name", 193);
+  run_test(test_a_name_without_the_letters_does_not_match, "test_a_name_without_the_letters_does_not_match", 198);
+  run_test(test_an_empty_query_matches_with_no_hits, "test_an_empty_query_matches_with_no_hits", 203);
+  run_test(test_each_score_is_the_palettes_own, "test_each_score_is_the_palettes_own", 208);
+  run_test(test_a_match_too_torn_is_no_match, "test_a_match_too_torn_is_no_match", 214);
+  run_test(test_a_query_torn_into_too_many_pieces_is_no_match, "test_a_query_torn_into_too_many_pieces_is_no_match", 219);
 
   return UNITY_END();
 }

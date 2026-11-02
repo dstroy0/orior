@@ -5,15 +5,15 @@
 #include "../text/text.h"
 #include "pages_internal.h"
 
-void cli_page_beside(const CliPagesPathCtx *args)
+void cli_page_adjacent(const CliPagesPathCtx *args)
 {
     char parent[CLI_PATH_MAX_LEN];
     const char *name = args->path;
-    const unsigned long long name_past =
+    const unsigned long long name_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
                    .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
-    name = (name_past != 0ull) ? (args->path + name_past) : name;
-    VerbaLinea line = {args->beside, CLI_PATH_MAX_LEN, 0ull};
+    name = (name_end != 0ull) ? (args->path + name_end) : name;
+    VerbaLinea line = {args->adjacent, CLI_PATH_MAX_LEN, 0ull};
     if (EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->path, .out = parent))
     {
         mmgr_line_put(&line, parent);
@@ -33,7 +33,7 @@ unsigned long long cli_page_write_at(const CliPagesPieceCtx *args)
     }
     unsigned long long size = 0ull;
     const unsigned char *const bytes =
-        EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = args->one_read->shadow, .size_pointer = &size,
+        EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->one_read->shadow, .size_pointer = &size,
                    .owner = &g_cli_editor_cells);
     const unsigned long long end = (args->piece->to < size) ? args->piece->to : size;
     unsigned long long at = args->piece->from;

@@ -82,7 +82,7 @@ void cli_py_functions(const CliInspectPySrcSizeCfg *args)
                 {
                     continue;
                 }
-                (void)EMBED_CALL(cli_inspect_size_from_internal.name_put, CliInspectSizeFromCtx, .facts = facts,
+                (void)EMBED_CALL(cli_inspect_size_from_internal.name_append, CliInspectSizeFromCtx, .facts = facts,
                                  .name = args->src + tok->start, .size = tok->end - tok->start, .alias = NULL,
                                  .alias_size = 0ull, .from = tok->from, .to = tok->to);
             }
@@ -90,7 +90,7 @@ void cli_py_functions(const CliInspectPySrcSizeCfg *args)
         const CliInspectTok *const name =
             EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = line, .at = name_at);
         const CliPyLine *const last = &g_cli_py_line[end - 1u];
-        if (facts->functions == facts->functions_most)
+        if (facts->functions == facts->functions_max)
         {
             facts->full = 1;
             return;
@@ -126,7 +126,7 @@ EMBED_INLINE void facts_import(const InspectPyFactsCtx *args)
 {
     CliFacts *facts = args->facts;
     const CliPyLine *line = args->line;
-    if (facts->imports == facts->imports_most)
+    if (facts->imports == facts->imports_max)
     {
         facts->full = 1;
         return;
@@ -263,7 +263,7 @@ EMBED_INLINE void facts_from_import(const InspectPyFactsCtx *args)
         if ((name != NULL) &&
             !EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = name, .word = "*"))
         {
-            (void)EMBED_CALL(cli_inspect_size_from_internal.name_put, CliInspectSizeFromCtx, .facts = facts,
+            (void)EMBED_CALL(cli_inspect_size_from_internal.name_append, CliInspectSizeFromCtx, .facts = facts,
                              .name = src + name->start, .size = name->end - name->start,
                              .alias = (alias != NULL) ? (src + alias->start) : NULL,
                              .alias_size = (alias != NULL) ? (alias->end - alias->start) : 0ull, .from = name->from,

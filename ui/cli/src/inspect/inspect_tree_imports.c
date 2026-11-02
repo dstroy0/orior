@@ -58,7 +58,7 @@ unsigned int cli_tree_python_module(const CliInspectTreeSizeFileCtx *args)
     const char *const path = CLI_TREE_FILE(args->file).path;
     const unsigned long long path_size = CLI_TREE_FILE(args->file).path_size;
     unsigned long long dots = 0ull;
-    dots = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = args->spec, .at = dots,
+    dots = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = args->spec, .at = dots,
                       .size = args->size, .set = ".");
     const char *const dotted = args->spec + dots;
     const unsigned long long dotted_size = args->size - dots;
@@ -120,8 +120,8 @@ EMBED_INLINE unsigned int imports_python(const InspectTreeImportsCtx *args)
     const unsigned long long size = args->import->spec.size;
     unsigned int count = 0u;
     unsigned long long dots = 0ull;
-    dots = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = spec, .at = dots,
-                      .size = size, .set = ".");
+    dots = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = spec, .at = dots, .size = size,
+                      .set = ".");
     char joined[CLI_PATH_MAX_LEN * 2u];
     VerbaLinea line = {joined, sizeof(joined), 0ull};
     mmgr_line_put_n(&line, spec, dots);

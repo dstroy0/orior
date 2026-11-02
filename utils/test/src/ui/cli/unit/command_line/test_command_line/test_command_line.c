@@ -41,7 +41,7 @@ static const char s_usage[] = "orior_cli file new-plugin <name> --ext <ext,...> 
 static WrappedLines s_lines;
 static RunMessages s_messages = {CLI_WAKE_INIT};
 static char s_help[1u << 18u];
-static CliItem s_items[CLI_ITEMS_MOST];
+static CliItem s_items[CLI_ITEMS_MAX];
 static CliJob s_jobs[8];
 static CliParam s_params[8];
 static CliStep s_steps[8];
@@ -51,10 +51,10 @@ static char s_text[8192];
 static CliCatalog s_catalog;
 static CliValues s_values;
 static CliWords s_words;
-static char s_why[1024];
+static char s_error[1024];
 static unsigned int s_values_job;
 
-static int s_channel_ran;
+static int s_channel_run_result;
 static int s_channel_python;
 static int s_channel_joined;
 static int s_channel_code;
@@ -99,7 +99,7 @@ static int message_recorded(const CliCommsRecvCfg *args)
 }
 
 // a door opened, a window and a terminal registered on it, and a job run as the terminal, its messages recorded, once for the process
-static void channel_ran(void)
+static void channel_run_result(void)
 {
     static const char *const s_all[1] = {"*"};
     static const char *const s_runs[1] = {"runs/*"};
@@ -119,28 +119,26 @@ static void channel_ran(void)
     char script[CLI_PATH_MAX_LEN];
     unsigned int listener = 0u;
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    if (s_channel_ran)
+    if (s_channel_run_result)
     {
         return;
     }
-    s_channel_ran = 1;
+    s_channel_run_result = 1;
     s_channel_python = EMBED_CALL(cli_test_runs.test_python, CliTestRunsCfg, .python = python);
     if (!s_channel_python)
     {
         return;
     }
-    s_channel_joined = EMBED_CALL(cli_door_address.open, CliDoorAddressCfg, .address = address, .err_msg = &err_msg) && EMBED_CALL(cli_comms_name.comms_register, CliCommsNameCfg, .name = "window", .has_process = 0, .process = 0u, .listen = s_all, .listens = 1u, .send_grant = NULL, .send_grants = 0u, .key_out = window, .err_msg = &err_msg) && EMBED_CALL(cli_comms_channel.listen, CliCommsChannelCfg, .key = window, .channel = "runs/*", .queued = 0, .recv = message_recorded, .context = NULL, .listener = &listener, .err_msg = &err_msg) && EMBED_CALL(cli_comms_name.comms_register, CliCommsNameCfg, .name = "terminal", .has_process = 0, .process = 0u, .listen = s_runs, .listens = 1u, .send_grant = s_runs, .send_grants = 1u, .key_out = terminal, .err_msg = &err_msg);
+    s_channel_joined = EMBED_CALL(cli_ipc_address.open, CliIpcAddressCfg, .address = address, .err_msg = &err_msg) && EMBED_CALL(cli_comms_name.comms_register, CliCommsNameCfg, .name = "window", .has_process = 0, .process = 0u, .listen = s_all, .listens = 1u, .send_grant = NULL, .send_grants = 0u, .key_out = window, .err_msg = &err_msg) && EMBED_CALL(cli_comms_channel.listen, CliCommsChannelCfg, .key = window, .channel = "runs/*", .queued = 0, .recv = message_recorded, .context = NULL, .listener = &listener, .err_msg = &err_msg) && EMBED_CALL(cli_comms_name.comms_register, CliCommsNameCfg, .name = "terminal", .has_process = 0, .process = 0u, .listen = s_runs, .listens = 1u, .send_grant = s_runs, .send_grants = 1u, .key_out = terminal, .err_msg = &err_msg);
     if (!s_channel_joined)
     {
         return;
     }
     EMBED_CALL(cli_comms_process.bind, CliCommsProcessCfg, .key = terminal, .process = cli_process_own());
-    (void)EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = CLI_DOOR_ADDRESS_VARIABLE, .value = address);
-    (void)EMBED_CALL(query_name_internal.environment_set, QueryNameCtx, .name = CLI_DOOR_KEY_VARIABLE, .value = terminal);
     cli_unity_folder("channel", root);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = "print.py", .joined = script);
     (void)EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = script, .bytes = "print('done')\n", .size = 14ull);
-    EMBED_CALL(cli_catalog_jobs_most.begin, CliCatalogJobsMostCfg, .catalog = &s_run_catalog, .jobs = s_run_jobs, .jobs_most = 4u, .params = s_run_params, .params_most = 4u, .steps = s_run_steps, .steps_most = 4u, .request = s_run_args, .args_most = 4u, .lists = s_run_lists, .lists_most = 16u, .text_out = s_run_text, .text_most = 4096u);
+    EMBED_CALL(cli_catalog_jobs_max.begin, CliCatalogJobsMaxCfg, .catalog = &s_run_catalog, .jobs = s_run_jobs, .jobs_max = 4u, .params = s_run_params, .params_max = 4u, .steps = s_run_steps, .steps_max = 4u, .request = s_run_args, .args_max = 4u, .lists = s_run_lists, .lists_max = 16u, .text_out = s_run_text, .text_max = 4096u);
     const unsigned int job = EMBED_CALL(cli_catalog_id_group.job, CliCatalogIdGroupCfg, .catalog = &s_run_catalog, .id = "test/print", .group = "test", .title = "print", .file = "print.py", .about = "", .opens = "");
     EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = &s_run_catalog, .program = CLI_PROGRAM_PYTHON, .text = "print.py", .tool_program = NULL, .system = 0);
     s_channel_code = EMBED_CALL(cli_command_line_root_internal.job_run, CliCommandLineRootCtx, .root = root, .catalog = &s_run_catalog, .job = job, .words = NULL, .count = 0u);
@@ -155,7 +153,7 @@ static void channel_ran(void)
 // the run made and asserted to have joined, the case ignored with no Python
 static void channel_ready(void)
 {
-    channel_ran();
+    channel_run_result();
     if (!s_channel_python)
     {
         TEST_IGNORE_MESSAGE("no Python on this machine");
@@ -166,7 +164,7 @@ static void channel_ready(void)
 // a catalog of three jobs, two of one title
 static void jobs_named(void)
 {
-    EMBED_CALL(cli_catalog_jobs_most.begin, CliCatalogJobsMostCfg, .catalog = &s_catalog, .jobs = s_jobs, .jobs_most = 8u, .params = s_params, .params_most = 8u, .steps = s_steps, .steps_most = 8u, .request = s_args, .args_most = 8u, .lists = s_lists, .lists_most = 32u, .text_out = s_text, .text_most = 8192u);
+    EMBED_CALL(cli_catalog_jobs_max.begin, CliCatalogJobsMaxCfg, .catalog = &s_catalog, .jobs = s_jobs, .jobs_max = 8u, .params = s_params, .params_max = 8u, .steps = s_steps, .steps_max = 8u, .request = s_args, .args_max = 8u, .lists = s_lists, .lists_max = 32u, .text_out = s_text, .text_max = 8192u);
     (void)EMBED_CALL(cli_catalog_id_group.job, CliCatalogIdGroupCfg, .catalog = &s_catalog, .id = "build/src/build_engine.sh", .group = "test", .title = "src/build_engine.sh", .file = "", .about = "", .opens = "");
     (void)EMBED_CALL(cli_catalog_id_group.job, CliCatalogIdGroupCfg, .catalog = &s_catalog, .id = "sim/wave", .group = "test", .title = "wave", .file = "", .about = "", .opens = "");
     (void)EMBED_CALL(cli_catalog_id_group.job, CliCatalogIdGroupCfg, .catalog = &s_catalog, .id = "view/a/build_wave_view.py", .group = "test", .title = "wave", .file = "", .about = "", .opens = "");
@@ -175,7 +173,7 @@ static void jobs_named(void)
 // a job of three parameters: a choice, a many and free words
 static void job_with_values(void)
 {
-    EMBED_CALL(cli_catalog_jobs_most.begin, CliCatalogJobsMostCfg, .catalog = &s_catalog, .jobs = s_jobs, .jobs_most = 8u, .params = s_params, .params_most = 8u, .steps = s_steps, .steps_most = 8u, .request = s_args, .args_most = 8u, .lists = s_lists, .lists_most = 32u, .text_out = s_text, .text_most = 8192u);
+    EMBED_CALL(cli_catalog_jobs_max.begin, CliCatalogJobsMaxCfg, .catalog = &s_catalog, .jobs = s_jobs, .jobs_max = 8u, .params = s_params, .params_max = 8u, .steps = s_steps, .steps_max = 8u, .request = s_args, .args_max = 8u, .lists = s_lists, .lists_max = 32u, .text_out = s_text, .text_max = 8192u);
     s_values_job = EMBED_CALL(cli_catalog_id_group.job, CliCatalogIdGroupCfg, .catalog = &s_catalog, .id = "run/x", .group = "test", .title = "x", .file = "", .about = "", .opens = "");
     EMBED_CALL(cli_catalog_key_kind.param, CliCatalogKeyKindCfg, .catalog = &s_catalog, .key = "cfg", .kind = "choice", .required = 0);
     EMBED_CALL(cli_catalog_choice_table.choice, CliCatalogChoiceCfg, .catalog = &s_catalog, .choice = "a.cfg");
@@ -186,7 +184,7 @@ static void job_with_values(void)
 // the words of a run read as values of the job
 static int values_read(const char *const *words, unsigned int count)
 {
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     return EMBED_CALL(cli_command_line_catalog_internal.job_values, CliCommandLineCatalogCtx, .catalog = &s_catalog, .job = s_values_job, .words = words, .count = count, .values = &s_values, .err_msg = &err_msg);
 }
 
@@ -222,7 +220,7 @@ void test_a_long_usage_wraps_onto_more_than_one_line(void)
     TEST_ASSERT_GREATER_THAN_UINT(1u, s_lines.count);
 }
 
-void test_every_wrapped_line_is_40_letters_at_most(void)
+void test_every_wrapped_line_is_40_letters_at_max(void)
 {
     EMBED_CALL(cli_command_line_text_each_internal.help_wrap, CliCommandLineTextEachCtx, .text = s_usage, .width = 40ull, .indent = 2ull, .each = line_recorded, .context = &s_lines);
     for (unsigned int at = 0u; at < s_lines.count; at += 1u)
@@ -284,7 +282,7 @@ void test_the_help_names_every_command_of_every_menu(void)
     {
         char word[CLI_LABEL_MAX_LEN];
         EMBED_CALL(cli_commands_menu_word.menu_word, CliCommandsMenuWordCfg, .menu = menu, .word_out = word);
-        const unsigned int items = EMBED_CALL(cli_commands_menu_room.menu_items, CliCommandsMenuRoomCfg, .menu = menu, .items = s_items, .room = CLI_ITEMS_MOST);
+        const unsigned int items = EMBED_CALL(cli_commands_menu_capacity.menu_items, CliCommandsMenuCapacityCfg, .menu = menu, .items = s_items, .capacity = CLI_ITEMS_MAX);
         for (unsigned int at = 0u; at < items; at += 1u)
         {
             char usage[CLI_LABEL_MAX_LEN * 2u + 16u];
@@ -351,7 +349,7 @@ void test_the_last_message_reports_the_run_ended_with_0(void)
 
 void test_a_name_ending_a_jobs_id_names_it(void)
 {
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     jobs_named();
     const unsigned int job = EMBED_CALL(cli_command_line_catalog_among_internal.job_by_name, CliCommandLineCatalogAmongCtx, .catalog = &s_catalog, .among = NULL, .among_count = 0u, .name = "build_engine.sh", .err_msg = &err_msg);
     TEST_ASSERT_NOT_EQUAL(CLI_CATALOG_NONE, job);
@@ -360,7 +358,7 @@ void test_a_name_ending_a_jobs_id_names_it(void)
 
 void test_a_jobs_id_names_it(void)
 {
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     jobs_named();
     const unsigned int job = EMBED_CALL(cli_command_line_catalog_among_internal.job_by_name, CliCommandLineCatalogAmongCtx, .catalog = &s_catalog, .among = NULL, .among_count = 0u, .name = "sim/wave", .err_msg = &err_msg);
     TEST_ASSERT_NOT_EQUAL(CLI_CATALOG_NONE, job);
@@ -369,17 +367,17 @@ void test_a_jobs_id_names_it(void)
 
 void test_a_title_of_two_jobs_is_refused(void)
 {
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     jobs_named();
     const unsigned int job = EMBED_CALL(cli_command_line_catalog_among_internal.job_by_name, CliCommandLineCatalogAmongCtx, .catalog = &s_catalog, .among = NULL, .among_count = 0u, .name = "wave", .err_msg = &err_msg);
     (void)mmgr_line_finish(&err_msg);
     TEST_ASSERT_EQUAL_UINT(CLI_CATALOG_NONE, job);
-    CLI_TEST_ASSERT_CONTAINS("2 jobs", s_why);
+    CLI_TEST_ASSERT_CONTAINS("2 jobs", s_error);
 }
 
 void test_an_unknown_name_names_no_job(void)
 {
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     jobs_named();
     TEST_ASSERT_EQUAL_UINT(CLI_CATALOG_NONE, EMBED_CALL(cli_command_line_catalog_among_internal.job_by_name, CliCommandLineCatalogAmongCtx, .catalog = &s_catalog, .among = NULL, .among_count = 0u, .name = "none", .err_msg = &err_msg));
 }
@@ -400,10 +398,10 @@ void test_a_key_sent_twice_contains_both(void)
     TEST_ASSERT_EQUAL_STRING("one|two", values_joined("run"));
 }
 
-void test_the_words_after_a_double_dash_come_back_whole(void)
+void test_the_words_after_a_double_dash_come_back_complete(void)
 {
     static const char *const s_sent[6] = {"run=one", "run=two", "--", "--steps", "a b", "echo \"hi\""};
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     job_with_values();
     TEST_ASSERT_TRUE(values_read(s_sent, 6u));
     const char *const after = EMBED_CALL(cli_catalog_key.values_first, CliCatalogKeyCfg, .values = &s_values, .key = "arguments");

@@ -8,7 +8,7 @@
 
 #include "../text/text.h"
 
-CliCommsRoom g_cli_comms = {0};
+CliCommsWorkState g_cli_comms = {0};
 
 // the parts, the listeners and the channels' traffic taken at their most in one cell, all empty, as the first of them
 // is needed; under the lock
@@ -29,17 +29,17 @@ static void comms_tables_init(void)
     }
     memor.set(&(MemoriaCfg){.dst = cell, .val = 0, .bytes = (size_t)bytes});
     g_cli_comms.parts = (CliCommsPart *)(void *)cell;
-    g_cli_comms.parts_room = CLI_COMMS_PARTS;
+    g_cli_comms.parts_capacity = CLI_COMMS_PARTS;
     g_cli_comms.listeners = (CliCommsListener *)(void *)(cell + part_bytes);
-    g_cli_comms.listeners_room = CLI_COMMS_LISTENERS;
+    g_cli_comms.listeners_capacity = CLI_COMMS_LISTENERS;
     g_cli_comms.traffic = (CliCommsTraffic *)(void *)(cell + part_bytes + listener_bytes);
-    g_cli_comms.channels_room = CLI_COMMS_CHANNELS;
+    g_cli_comms.channels_capacity = CLI_COMMS_CHANNELS;
 }
 
 typedef struct
 {
     const char *key;
-    const char *const *wanted;
+    const char *const *required;
     unsigned int count;
     const char (*granted)[CLI_NAME_MAX_LEN];
     unsigned int granted_count;
@@ -52,9 +52,9 @@ typedef struct
 // the place of the part of `key`, CLI_COMMS_PARTS where it is no part's, under the lock
 EMBED_INLINE unsigned int comms_part_get(const CommsCtx *args)
 {
-    for (unsigned int at = 0u; at < g_cli_comms.parts_room; at += 1u)
+    for (unsigned int at = 0u; at < g_cli_comms.parts_capacity; at += 1u)
     {
-        if (g_cli_comms.parts[at].taken &&
+        if (g_cli_comms.parts[at].reserved &&
             (cellul.eq(
                 &(CatenaFinitaCfg){.src = g_cli_comms.parts[at].key, .other = args->key, .cap = CLI_CELLS_POOL})))
         {
@@ -92,9 +92,9 @@ int cli_comms_register(const CliCommsNameCfg *args)
     mmgr_line_finish(&written);
     comms_tables_init();
     CliCommsPart *part = NULL;
-    for (unsigned int at = 0u; (at < g_cli_comms.parts_room) && (part == NULL); at += 1u)
+    for (unsigned int at = 0u; (at < g_cli_comms.parts_capacity) && (part == NULL); at += 1u)
     {
-        part = g_cli_comms.parts[at].taken ? NULL : &g_cli_comms.parts[at];
+        part = g_cli_comms.parts[at].reserved ? NULL : &g_cli_comms.parts[at];
     }
     const unsigned int grants = listens + send_grants;
     char (*const granted)[CLI_NAME_MAX_LEN] =
@@ -107,7 +107,7 @@ int cli_comms_register(const CliCommsNameCfg *args)
         return 0;
     }
     memor.set(&(MemoriaCfg){.dst = part, .val = 0, .bytes = sizeof(*part)});
-    part->taken = 1;
+    part->reserved = 1;
     part->listen = granted;
     part->send_grant = (granted != NULL) ? (granted + listens) : NULL;
     memor.cpy(&(MemoriaCfg){.dst = part->key,
@@ -153,8 +153,8 @@ int cli_comms_register_persistent(const CliCommsNameCfg *args)
     return 1;
 }
 
-// the first of `wanted`, `count` of them, that no grant of `granted`, `granted_count` of them, contains within it, NULL
-// where each is granted
+// the first of `required`, `count` of them, that no grant of `granted`, `granted_count` of them, contains within it,
+// NULL where each is granted
 EMBED_INLINE const char *comms_beyond(const CommsCtx *args)
 {
     for (unsigned int at = 0u; at < args->count; at += 1u)
@@ -162,12 +162,12 @@ EMBED_INLINE const char *comms_beyond(const CommsCtx *args)
         int within = 0;
         for (unsigned int grant = 0u; (grant < args->granted_count) && !within; grant += 1u)
         {
-            within = EMBED_CALL(cli_comms_inner.within, CliCommsInnerCfg, .inner = args->wanted[at],
+            within = EMBED_CALL(cli_comms_inner.within, CliCommsInnerCfg, .inner = args->required[at],
                                 .outer = args->granted[grant]);
         }
         if (!within)
         {
-            return args->wanted[at];
+            return args->required[at];
         }
     }
     return NULL;
@@ -183,11 +183,11 @@ int cli_comms_register_under(const CliCommsNameCfg *args)
     }
     const CliCommsPart *const granter = &g_cli_comms.parts[at];
     const char *beyond =
-        EMBED_CALL(comms_beyond, CommsCtx, .wanted = args->listen, .count = args->listens,
+        EMBED_CALL(comms_beyond, CommsCtx, .required = args->listen, .count = args->listens,
                    .granted = (const char (*)[CLI_NAME_MAX_LEN])granter->listen, .granted_count = granter->listens);
     beyond = (beyond != NULL)
                  ? beyond
-                 : EMBED_CALL(comms_beyond, CommsCtx, .wanted = args->send_grant, .count = args->send_grants,
+                 : EMBED_CALL(comms_beyond, CommsCtx, .required = args->send_grant, .count = args->send_grants,
                               .granted = (const char (*)[CLI_NAME_MAX_LEN])granter->send_grant,
                               .granted_count = granter->send_grants);
     if (beyond != NULL)
@@ -224,14 +224,14 @@ void cli_comms_leave(const CliCommsProcessCfg *args)
     const unsigned int at = EMBED_CALL(comms_part_get, CommsCtx, .key = args->key);
     if (at < CLI_COMMS_PARTS)
     {
-        g_cli_comms.parts[at].taken = 0;
+        g_cli_comms.parts[at].reserved = 0;
         g_cli_cells->persistent_buf_release(g_cli_comms.parts[at].listen, &g_cli_comms_cells);
         g_cli_comms.parts[at].listen = NULL;
         g_cli_comms.parts[at].send_grant = NULL;
-        for (unsigned int one = 0u; one < g_cli_comms.listeners_room; one += 1u)
+        for (unsigned int one = 0u; one < g_cli_comms.listeners_capacity; one += 1u)
         {
             CliCommsListener *const listener = &g_cli_comms.listeners[one];
-            listener->taken = (listener->taken && (listener->part == at)) ? 0 : listener->taken;
+            listener->reserved = (listener->reserved && (listener->part == at)) ? 0 : listener->reserved;
         }
     }
 }
@@ -282,12 +282,13 @@ int cli_comms_listen(const CliCommsChannelCfg *args)
         return 0;
     }
     comms_tables_init();
-    unsigned int vacant = g_cli_comms.listeners_room;
-    for (unsigned int one = 0u; (one < g_cli_comms.listeners_room) && (vacant == g_cli_comms.listeners_room); one += 1u)
+    unsigned int vacant = g_cli_comms.listeners_capacity;
+    for (unsigned int one = 0u; (one < g_cli_comms.listeners_capacity) && (vacant == g_cli_comms.listeners_capacity);
+         one += 1u)
     {
-        vacant = g_cli_comms.listeners[one].taken ? vacant : one;
+        vacant = g_cli_comms.listeners[one].reserved ? vacant : one;
     }
-    if (vacant < g_cli_comms.listeners_room)
+    if (vacant < g_cli_comms.listeners_capacity)
     {
         CliCommsListener *const place = &g_cli_comms.listeners[vacant];
         *place = (CliCommsListener){1, at, "", args->queued, args->recv, args->context};
@@ -304,9 +305,9 @@ int cli_comms_listen(const CliCommsChannelCfg *args)
 
 void cli_comms_unlisten(const CliCommsListenerCfg *args)
 {
-    if (args->listener_value < g_cli_comms.listeners_room)
+    if (args->listener_value < g_cli_comms.listeners_capacity)
     {
-        g_cli_comms.listeners[args->listener_value].taken = 0;
+        g_cli_comms.listeners[args->listener_value].reserved = 0;
     }
 }
 
@@ -322,7 +323,7 @@ EMBED_INLINE CliCommsTraffic *comms_traffic_get(const CommsCtx *args)
         }
     }
     comms_tables_init();
-    if (g_cli_comms.channels >= g_cli_comms.channels_room)
+    if (g_cli_comms.channels >= g_cli_comms.channels_capacity)
     {
         return NULL;
     }
@@ -355,7 +356,7 @@ EMBED_INLINE void comms_store(const CommsCtx *args)
     const unsigned int place = (args->traffic->first + args->traffic->count) % CLI_COMMS_STORED_MAX;
     CliCommsStoredMsg *const stored_msg = &args->traffic->last[place];
     const int full = args->traffic->count == CLI_COMMS_STORED_MAX;
-    const int fits = full && (need <= stored_msg->room);
+    const int fits = full && (need <= stored_msg->capacity);
     char *const cell = fits ? stored_msg->from : g_cli_cells->persistent_buf_alloc(need, &g_cli_comms_cells);
     if (cell == NULL)
     {
@@ -378,14 +379,14 @@ EMBED_INLINE void comms_store(const CommsCtx *args)
     stored_msg->from = cell;
     stored_msg->body = cell + from_size;
     stored_msg->size = stored_size;
-    stored_msg->room = fits ? stored_msg->room : need;
+    stored_msg->capacity = fits ? stored_msg->capacity : need;
 }
 
 int cli_comms_send(const CliCommsChannelErrMsgCfg *args)
 {
     unsigned long long *delivered = args->delivered;
-    // the listeners called once the lock is let go, each its function and context, in this speaker's own room, as a
-    // listener called may send in turn
+    // the listeners called once the lock is let go, each its function and context, in this speaker's own work state, as
+    // a listener called may send in turn
     CliCommsRecvFn recv_fns[CLI_COMMS_LISTENERS];
     void *calls_context[CLI_COMMS_LISTENERS];
     const unsigned int at = EMBED_CALL(comms_part_get, CommsCtx, .key = args->key);
@@ -427,10 +428,10 @@ int cli_comms_send(const CliCommsChannelErrMsgCfg *args)
     }
     unsigned long long count = 0ull;
     unsigned int calls = 0u;
-    for (unsigned int one = 0u; one < g_cli_comms.listeners_room; one += 1u)
+    for (unsigned int one = 0u; one < g_cli_comms.listeners_capacity; one += 1u)
     {
         CliCommsListener *const listener = &g_cli_comms.listeners[one];
-        if (!listener->taken ||
+        if (!listener->reserved ||
             !EMBED_CALL(cli_comms_grant.grants, CliCommsGrantCfg, .grant = listener->pattern, .channel = args->channel))
         {
             continue;
@@ -448,7 +449,7 @@ int cli_comms_send(const CliCommsChannelErrMsgCfg *args)
                                        .channel = args->channel, .from = name, .body = args->body, .size = args->size);
             count += (got > 0) ? 1ull : 0ull;
             // a listener whose reader is gone is let go
-            listener->taken = (got == 0) ? 0 : listener->taken;
+            listener->reserved = (got == 0) ? 0 : listener->reserved;
         }
     }
     for (unsigned int one = 0u; one < calls; one += 1u)

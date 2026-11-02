@@ -184,7 +184,7 @@ static void names_dir_string(const CliSconsSpanCfg *args)
     const CliSconsCall *const call = args->context;
     const char *const text = g_cli_scons.text;
     unsigned long long end = args->to;
-    end = (args->from + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg,
+    end = (args->from + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg,
                                    .text = text + args->from, .at = end - args->from, .set = "/"));
     static char s_written[1u << 12u];
     VerbaLinea written = {s_written, sizeof(s_written), 0ull};

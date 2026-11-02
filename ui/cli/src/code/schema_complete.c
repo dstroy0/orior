@@ -97,7 +97,7 @@ int cli_schema_spot(const CliSchemaReadTextCtx *args)
                        .size = args->size - at, .prefix = "//"))
         {
             at = EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = args->text + at,
-                            .length_value = args->size - at, .wanted = "\n", .size = 1u, .at_pointer = &end)
+                            .length_value = args->size - at, .required = "\n", .size = 1u, .at_pointer = &end)
                      ? at + end
                      : args->size;
             continue;
@@ -106,7 +106,7 @@ int cli_schema_spot(const CliSchemaReadTextCtx *args)
                        .size = args->size - at, .prefix = "/*"))
         {
             at = EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = args->text + at + 2u,
-                            .length_value = args->size - at - 2u, .wanted = "*/", .size = 2u, .at_pointer = &end)
+                            .length_value = args->size - at - 2u, .required = "*/", .size = 2u, .at_pointer = &end)
                      ? at + 2u + end + 2u
                      : args->size;
             continue;
@@ -308,11 +308,11 @@ static void complete_schemas_at(const SchemaCompleteCtx *args)
                                                    .json_read = json, .node = items, .kind = CFG_JSON_ARRAY)
                                             ? items
                                             : CLI_JSON_NONE);
-    const unsigned int placed = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
-                                           .json_read = json, .array = tuple, .index = step->index);
-    if (placed != CLI_JSON_NONE)
+    const unsigned int positioned = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                               .json_read = json, .array = tuple, .index = step->index);
+    if (positioned != CLI_JSON_NONE)
     {
-        EMBED_CALL(complete_schemas_at, SchemaCompleteCtx, .text = text, .schema = placed, .base = base,
+        EMBED_CALL(complete_schemas_at, SchemaCompleteCtx, .text = text, .schema = positioned, .base = base,
                    .at_u32 = args->at_u32 + 1u, .depth = args->depth + 1u);
         return;
     }

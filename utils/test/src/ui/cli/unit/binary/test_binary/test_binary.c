@@ -7,16 +7,16 @@
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
 // the bytes of a program made here
-#define BINARY_ROOM 0x1400u
+#define BINARY_CAPACITY 0x1400u
 
-static unsigned char s_bytes[BINARY_ROOM];
-static char s_why[512];
+static unsigned char s_bytes[BINARY_CAPACITY];
+static char s_error[512];
 static VerbaLinea s_err_msg;
 static CliDynamic s_dynamic;
 static CliBinaryReport s_report;
 
 // `value` written little-endian, `width` bytes of it, at `at`
-static void number_put(unsigned int at, unsigned long long value, unsigned int width)
+static void number_append(unsigned int at, unsigned long long value, unsigned int width)
 {
     for (unsigned int each = 0u; each < width; each += 1u)
     {
@@ -30,30 +30,30 @@ static void windows_program_written(const char *const *names, unsigned int count
 {
     memor.set(&(MemoriaCfg){.dst = s_bytes, .val = 0, .bytes = sizeof(s_bytes)});
     memor.cpy(&(MemoriaCfg){.dst = s_bytes, .src = "MZ", .bytes = 2u});
-    number_put(0x3Cu, 0x80u, 4u);
+    number_append(0x3Cu, 0x80u, 4u);
     memor.cpy(&(MemoriaCfg){.dst = s_bytes + 0x80u, .src = "PE\0\0", .bytes = 4u});
-    number_put(0x84u, 0x8664u, 2u);
-    number_put(0x86u, 1u, 2u);
-    number_put(0x94u, 240u, 2u);
-    number_put(0x98u, 0x20bu, 2u);
+    number_append(0x84u, 0x8664u, 2u);
+    number_append(0x86u, 1u, 2u);
+    number_append(0x94u, 240u, 2u);
+    number_append(0x98u, 0x20bu, 2u);
     const unsigned int section = 0x98u + 240u;
-    number_put(section + 8u, 0x1000u, 4u);
-    number_put(section + 12u, 0x1000u, 4u);
-    number_put(section + 16u, 0x1000u, 4u);
-    number_put(section + 20u, 0x400u, 4u);
+    number_append(section + 8u, 0x1000u, 4u);
+    number_append(section + 12u, 0x1000u, 4u);
+    number_append(section + 16u, 0x1000u, 4u);
+    number_append(section + 20u, 0x400u, 4u);
     const unsigned int directories = 0x98u + 112u;
-    number_put(directories + 8u, 0x1000u, 4u);
-    number_put(directories + 13u * 8u, 0x1200u, 4u);
+    number_append(directories + 8u, 0x1000u, 4u);
+    number_append(directories + 13u * 8u, 0x1200u, 4u);
     unsigned int name_rva = 0x1300u;
     for (unsigned int index = 0u; index + 1u < count; index += 1u)
     {
-        number_put(0x400u + index * 20u + 12u, name_rva, 4u);
+        number_append(0x400u + index * 20u + 12u, name_rva, 4u);
         memor.cpy(&(MemoriaCfg){.dst = s_bytes + (name_rva - 0x1000u + 0x400u), .src = names[index], .bytes = CLI_UNITY_LENGTH(names[index])});
         // a name of a dozen letters is far below what an unsigned int counts
         name_rva += (unsigned int)CLI_UNITY_LENGTH(names[index]) + 1u;
     }
-    number_put(0x600u, 1u, 4u);
-    number_put(0x604u, name_rva, 4u);
+    number_append(0x600u, 1u, 4u);
+    number_append(0x604u, name_rva, 4u);
     memor.cpy(&(MemoriaCfg){.dst = s_bytes + (name_rva - 0x1000u + 0x400u), .src = names[count - 1u], .bytes = CLI_UNITY_LENGTH(names[count - 1u])});
 }
 
@@ -68,28 +68,28 @@ static void linux_program_written(void)
                             .src = "\x7f"
                                    "ELF\x02\x01",
                             .bytes = 6u});
-    number_put(0x20u, 0x40u, 8u);
-    number_put(0x38u, 2u, 2u);
+    number_append(0x20u, 0x40u, 8u);
+    number_append(0x38u, 2u, 2u);
     for (unsigned int head = 0u; head < 2u; head += 1u)
     {
-        number_put(s_heads[head][0], s_heads[head][1], 4u);
-        number_put(s_heads[head][0] + 8u, s_heads[head][2], 8u);
-        number_put(s_heads[head][0] + 16u, s_heads[head][2], 8u);
-        number_put(s_heads[head][0] + 32u, s_heads[head][3], 8u);
+        number_append(s_heads[head][0], s_heads[head][1], 4u);
+        number_append(s_heads[head][0] + 8u, s_heads[head][2], 8u);
+        number_append(s_heads[head][0] + 16u, s_heads[head][2], 8u);
+        number_append(s_heads[head][0] + 32u, s_heads[head][3], 8u);
     }
     memor.cpy(&(MemoriaCfg){.dst = s_bytes + 0x300u, .src = s_strings, .bytes = sizeof(s_strings) - 1u});
     for (unsigned int index = 0u; index < 6u; index += 1u)
     {
-        number_put(0x200u + index * 16u, s_entries[index][0], 8u);
-        number_put(0x208u + index * 16u, s_entries[index][1], 8u);
+        number_append(0x200u + index * 16u, s_entries[index][0], 8u);
+        number_append(0x208u + index * 16u, s_entries[index][1], 8u);
     }
-    number_put(0x380u, 1u, 2u);
-    number_put(0x382u, 2u, 2u);
-    number_put(0x384u, 1u, 4u);
-    number_put(0x388u, 16u, 4u);
-    number_put(0x390u + 8u, 55u, 4u);
-    number_put(0x390u + 12u, 16u, 4u);
-    number_put(0x390u + 16u + 8u, 66u, 4u);
+    number_append(0x380u, 1u, 2u);
+    number_append(0x382u, 2u, 2u);
+    number_append(0x384u, 1u, 4u);
+    number_append(0x388u, 16u, 4u);
+    number_append(0x390u + 8u, 55u, 4u);
+    number_append(0x390u + 12u, 16u, 4u);
+    number_append(0x390u + 16u + 8u, 66u, 4u);
 }
 
 #if defined(_WIN32)
@@ -156,7 +156,7 @@ static void program_read(void)
 void setUp(void)
 {
     cli_unity_begun();
-    s_err_msg = (VerbaLinea){s_why, sizeof(s_why), 0ull};
+    s_err_msg = (VerbaLinea){s_error, sizeof(s_error), 0ull};
     memor.set(&(MemoriaCfg){.dst = &s_report, .val = 0, .bytes = sizeof(s_report)});
 }
 
@@ -164,13 +164,13 @@ void tearDown(void)
 {
 }
 
-void test_a_windows_program_gives_its_machine_imports_and_delayed_imports(void)
+void test_a_windows_program_releases_its_machine_imports_and_delayed_imports(void)
 {
     static const char *const s_names[3] = {"KERNEL32.dll", "libstdc++-6.dll", "late.dll"};
     static char s_found[8][CLI_NAME_MAX_LEN];
     unsigned int machine = 0u;
     windows_program_written(s_names, 3u);
-    TEST_ASSERT_EQUAL_INT(3, EMBED_CALL(cli_binary_err_msg.pe_imports, CliBinaryErrMsgCfg, .bytes = s_bytes, .size = sizeof(s_bytes), .machine = &machine, .names = s_found, .count_i32 = 0, .room_u32 = 8u, .err_msg = &s_err_msg));
+    TEST_ASSERT_EQUAL_INT(3, EMBED_CALL(cli_binary_err_msg.pe_imports, CliBinaryErrMsgCfg, .bytes = s_bytes, .size = sizeof(s_bytes), .machine = &machine, .names = s_found, .count_i32 = 0, .capacity_u32 = 8u, .err_msg = &s_err_msg));
     TEST_ASSERT_EQUAL_HEX(0x8664u, machine);
     TEST_ASSERT_EQUAL_STRING("KERNEL32.dll", s_found[0]);
     TEST_ASSERT_EQUAL_STRING("libstdc++-6.dll", s_found[1]);
@@ -231,13 +231,13 @@ void test_windows_the_library_only_orior_cli_finds_is_reported(void)
 #endif
 }
 
-void test_windows_only_the_library_orior_cli_finds_is_copied_beside_the_program(void)
+void test_windows_only_the_library_orior_cli_finds_is_copied_adjacent_the_program(void)
 {
 #if defined(_WIN32)
     char path[CLI_PATH_MAX_LEN];
     program_read();
     VerbaLinea copied = {s_copied, sizeof(s_copied), 0ull};
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_binary_path.copy_beside, CliBinaryPathCfg, .path = s_program, .report_read = &s_report, .copied = name_copied, .context = &copied, .err_msg = &s_err_msg));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_binary_path.copy_adjacent, CliBinaryPathCfg, .path = s_program, .report_read = &s_report, .copied = name_copied, .context = &copied, .err_msg = &s_err_msg));
     CLI_TEST_ASSERT_TEXT("helper.dll\n", s_copied, copied.at);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_app, .relative = "helper.dll", .joined = path);
     TEST_ASSERT_TRUE(EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = path));
@@ -246,7 +246,7 @@ void test_windows_only_the_library_orior_cli_finds_is_copied_beside_the_program(
 #endif
 }
 
-void test_a_linux_program_gives_the_libraries_it_needs(void)
+void test_a_linux_program_releases_the_libraries_it_needs(void)
 {
     linux_program_written();
     TEST_ASSERT_TRUE(EMBED_CALL(cli_binary_err_msg_bytes.elf_dynamic, CliBinaryErrMsgBytesCfg, .bytes = s_bytes, .size = 0x1000u, .found = &s_dynamic, .err_msg = &s_err_msg));
@@ -255,14 +255,14 @@ void test_a_linux_program_gives_the_libraries_it_needs(void)
     TEST_ASSERT_EQUAL_STRING("libfoo.so", s_dynamic.needed[1]);
 }
 
-void test_a_linux_program_gives_its_run_paths(void)
+void test_a_linux_program_releases_its_run_paths(void)
 {
     linux_program_written();
     TEST_ASSERT_TRUE(EMBED_CALL(cli_binary_err_msg_bytes.elf_dynamic, CliBinaryErrMsgBytesCfg, .bytes = s_bytes, .size = 0x1000u, .found = &s_dynamic, .err_msg = &s_err_msg));
     TEST_ASSERT_EQUAL_STRING("$ORIGIN/../lib:/home/me/build/lib", s_dynamic.runpath);
 }
 
-void test_a_linux_program_gives_the_newest_glibc_it_requires(void)
+void test_a_linux_program_releases_the_newest_glibc_it_requires(void)
 {
     linux_program_written();
     TEST_ASSERT_TRUE(EMBED_CALL(cli_binary_err_msg_bytes.elf_dynamic, CliBinaryErrMsgBytesCfg, .bytes = s_bytes, .size = 0x1000u, .found = &s_dynamic, .err_msg = &s_err_msg));

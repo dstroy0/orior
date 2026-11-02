@@ -12,7 +12,7 @@
 static char s_root[QUERY_PATH_MAX_LEN];
 static QueryPaths s_found;
 static char s_header[1u << 16u];
-static char s_why[1024];
+static char s_error[1024];
 
 // the number the interface's header defines under `name`, read from its `#define` line; the test failed where it has none
 static unsigned long long interface_number(const char *name)
@@ -51,14 +51,14 @@ static unsigned long long interface_number(const char *name)
 static void assert_reaches(const char *pattern)
 {
     const char *const patterns[2] = {pattern, NULL};
-    (void)EMBED_CALL(query_paths_internal.paths_take, QueryPathsCtx, .paths = &s_found, .count = QUERY_SOURCES_MOST);
+    (void)EMBED_CALL(query_paths_internal.paths_alloc, QueryPathsCtx, .paths = &s_found, .count = QUERY_SOURCES_MAX);
     const unsigned int found = EMBED_CALL(query_tools_root_internal.sources, QueryToolsRootCtx, .root = s_root, .patterns = patterns, .found = &s_found);
     EMBED_CALL(query_paths_internal.paths_free, QueryPathsCtx, .paths = &s_found);
     TEST_ASSERT_GREATER_THAN_UINT_MESSAGE(0u, found, pattern);
 }
 
 // no program is found, each reported as the window reports it
-static int no_program(const QueryEachRolePathRoomErrMsgCfg *args)
+static int no_program(const QueryEachRolePathCapacityErrMsgCfg *args)
 {
     QueryRole role = args->role;
     args->path[0] = '\0';
@@ -82,7 +82,7 @@ static const QueryTool *writer_binary_named(char *binary)
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = "build/query_test/stale", .joined = out);
     (void)EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = out);
     TEST_ASSERT_TRUE(EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = out));
-    EMBED_CALL(query_name_room_internal.binary_name, QueryNameRoomCtx, .name = WRITER_TOOL, .binary = name, .room = sizeof(name));
+    EMBED_CALL(query_name_capacity_internal.binary_name, QueryNameCapacityCtx, .name = WRITER_TOOL, .binary = name, .capacity = sizeof(name));
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = out, .relative = name, .joined = binary);
     const QueryTool *const tool = EMBED_CALL(query_tools_internal.tool_by_name, QueryToolsCtx, .name = WRITER_TOOL);
     TEST_ASSERT_NOT_NULL(tool);
@@ -90,19 +90,19 @@ static const QueryTool *writer_binary_named(char *binary)
 }
 
 // the writer built into `out` and its path into `binary`; the test ignored where there is no C compiler
-static void writer_built(char *binary, unsigned long long room)
+static void writer_built(char *binary, unsigned long long capacity)
 {
     const QueryPrograms programs = query_on_path();
     char compiler[QUERY_PATH_MAX_LEN];
     char out[QUERY_PATH_MAX_LEN];
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
-    if (!EMBED_CALL(programs.program, QueryEachRolePathRoomErrMsgCfg, .context = programs.context, .role = QUERY_ROLE_C, .path = compiler, .room = sizeof(compiler), .err_msg = &err_msg))
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
+    if (!EMBED_CALL(programs.program, QueryEachRolePathCapacityErrMsgCfg, .context = programs.context, .role = QUERY_ROLE_C, .path = compiler, .capacity = sizeof(compiler), .err_msg = &err_msg))
     {
         TEST_IGNORE_MESSAGE("no C compiler to build the writer with");
     }
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = "build/query_test/tools", .joined = out);
     err_msg.at = 0ull;
-    TEST_ASSERT_TRUE(EMBED_CALL(query_name_room_internal.tool_built_into, QueryNameRoomCtx, .root = s_root, .programs = &programs, .name = WRITER_TOOL, .out_text = out, .binary = binary, .room = room, .err_msg = &err_msg));
+    TEST_ASSERT_TRUE(EMBED_CALL(query_name_capacity_internal.tool_built_into, QueryNameCapacityCtx, .root = s_root, .programs = &programs, .name = WRITER_TOOL, .out_text = out, .binary = binary, .capacity = capacity, .err_msg = &err_msg));
 }
 
 void setUp(void)
@@ -158,7 +158,7 @@ void test_every_pattern_of_every_tool_reaches_a_file_of_the_tree(void)
 
 void test_no_two_sources_of_a_tool_share_an_object(void)
 {
-    static char s_named[3u * QUERY_SOURCES_MOST][QUERY_PATH_MAX_LEN];
+    static char s_named[3u * QUERY_SOURCES_MAX][QUERY_PATH_MAX_LEN];
     for (const QueryTool *tool = g_query_tools; tool->name != NULL; tool += 1)
     {
         unsigned int c = 0u;
@@ -172,7 +172,7 @@ void test_no_two_sources_of_a_tool_share_an_object(void)
         {
             for (unsigned int at = 0u; at < counts[list]; at += 1u)
             {
-                EMBED_CALL(query_tools_root_objects_internal.object_get, QueryToolsRootObjectsCtx, .root = s_root, .objects = "objects", .source_text = lists[list][at], .object_room = s_named[count]);
+                EMBED_CALL(query_tools_root_objects_internal.object_get, QueryToolsRootObjectsCtx, .root = s_root, .objects = "objects", .source_text = lists[list][at], .object_capacity = s_named[count]);
                 count += 1u;
             }
         }
@@ -191,7 +191,7 @@ void test_no_two_sources_of_a_tool_share_an_object(void)
 
 void test_the_file_definitions_are_what_every_program_links(void)
 {
-    (void)EMBED_CALL(query_paths_internal.paths_take, QueryPathsCtx, .paths = &s_found, .count = QUERY_SOURCES_MOST);
+    (void)EMBED_CALL(query_paths_internal.paths_alloc, QueryPathsCtx, .paths = &s_found, .count = QUERY_SOURCES_MAX);
     const unsigned int count = EMBED_CALL(query_tools_root_internal.sources, QueryToolsRootCtx, .root = s_root, .patterns = g_query_file_defs, .found = &s_found);
     int kfile_lines = 0;
     int kdm = 0;
@@ -202,22 +202,22 @@ void test_the_file_definitions_are_what_every_program_links(void)
         kfile_lines = kfile_lines || ((length >= 14ull) && cellul.eq(&(CatenaFinitaCfg){.src = found + length - 14u, .other = "/kfile_lines.c", .cap = CLI_CELLS_POOL}));
         kdm = kdm || ((length >= 6ull) && cellul.eq(&(CatenaFinitaCfg){.src = found + length - 6u, .other = "/kdm.c", .cap = CLI_CELLS_POOL}));
     }
-    const unsigned int room = s_found.room;
+    const unsigned int capacity = s_found.capacity;
     EMBED_CALL(query_paths_internal.paths_free, QueryPathsCtx, .paths = &s_found);
     TEST_ASSERT_TRUE(kfile_lines);
     TEST_ASSERT_TRUE(kdm);
     TEST_ASSERT_GREATER_THAN_UINT(10u, count);
-    TEST_ASSERT_EQUAL_UINT(QUERY_SOURCES_MOST, room);
+    TEST_ASSERT_EQUAL_UINT(QUERY_SOURCES_MAX, capacity);
 }
 
-void test_paths_given_the_compilers_use_forward_slashes(void)
+void test_paths_input_the_compilers_use_forward_slashes(void)
 {
     char source[QUERY_PATH_MAX_LEN];
     char objects[QUERY_PATH_MAX_LEN];
     char object[QUERY_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = "src/cu/includes/file_defs/kfile_lines/kfile_lines.c", .joined = source);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = "build/objects", .joined = objects);
-    EMBED_CALL(query_tools_root_objects_internal.object_get, QueryToolsRootObjectsCtx, .root = s_root, .objects = objects, .source_text = source, .object_room = object);
+    EMBED_CALL(query_tools_root_objects_internal.object_get, QueryToolsRootObjectsCtx, .root = s_root, .objects = objects, .source_text = source, .object_capacity = object);
     TEST_ASSERT_NULL(cellul.chr(&(CatenaFinitaCfg){.src = source, .cap = CLI_CELLS_POOL, .byte = '\\'}));
     TEST_ASSERT_NULL(cellul.chr(&(CatenaFinitaCfg){.src = object, .cap = CLI_CELLS_POOL, .byte = '\\'}));
 }
@@ -278,13 +278,13 @@ void test_a_missing_compiler_is_reported_and_nothing_is_built(void)
     char binary[QUERY_PATH_MAX_LEN];
     char name[QUERY_PATH_MAX_LEN];
     char path[QUERY_PATH_MAX_LEN];
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = "build/query_test/noc", .joined = out);
     (void)EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = out);
-    TEST_ASSERT_FALSE(EMBED_CALL(query_name_room_internal.tool_built_into, QueryNameRoomCtx, .root = s_root, .programs = &none, .name = "orior_sass_listing_seeds", .out_text = out, .binary = binary, .room = sizeof(binary), .err_msg = &err_msg));
+    TEST_ASSERT_FALSE(EMBED_CALL(query_name_capacity_internal.tool_built_into, QueryNameCapacityCtx, .root = s_root, .programs = &none, .name = "orior_sass_listing_seeds", .out_text = out, .binary = binary, .capacity = sizeof(binary), .err_msg = &err_msg));
     TEST_ASSERT_NOT_EQUAL(0ull, mmgr_line_finish(&err_msg));
-    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_why, .other = "the C compiler is not found", .cap = CLI_CELLS_POOL}));
-    EMBED_CALL(query_name_room_internal.binary_name, QueryNameRoomCtx, .name = "orior_sass_listing_seeds", .binary = name, .room = sizeof(name));
+    TEST_ASSERT_TRUE(cellul.starts(&(CatenaFinitaCfg){.src = s_error, .other = "the C compiler is not found", .cap = CLI_CELLS_POOL}));
+    EMBED_CALL(query_name_capacity_internal.binary_name, QueryNameCapacityCtx, .name = "orior_sass_listing_seeds", .binary = name, .capacity = sizeof(name));
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = out, .relative = name, .joined = path);
     TEST_ASSERT_FALSE(EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = path));
 }
@@ -294,12 +294,12 @@ void test_the_writer_with_no_words_exits_2(void)
     char binary[QUERY_PATH_MAX_LEN];
     writer_built(binary, sizeof(binary));
     const char *const words[2] = {binary, NULL};
-    CliRan *const ran = cli_ran_take();
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
-    const int ran_well = EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = words, .folder = NULL, .settings = NULL, .count = 0u, .ran = ran, .err_msg = &err_msg);
-    const long long code = ran->code;
-    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
-    TEST_ASSERT_TRUE(ran_well);
+    CliRunResult *const run_result = cli_run_result_alloc();
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
+    const int run_result_well = EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = words, .folder = NULL, .settings = NULL, .count = 0u, .run_result = run_result, .err_msg = &err_msg);
+    const long long code = run_result->code;
+    EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
+    TEST_ASSERT_TRUE(run_result_well);
     TEST_ASSERT_EQUAL_INT64(2ll, code);
 }
 

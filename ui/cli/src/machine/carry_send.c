@@ -1,16 +1,16 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// carry_send.c: what travels written to one file, or laid out in a folder, which, where it is a repository, is
-// committed and pushed
+// machine_transfer_send.c: what travels written to one file, or laid out in a folder, which, where it is a repository,
+// is committed and pushed
 #include "../code/git.h"
 #include "carry_internal.h"
 
-// The room a sending takes: what travels and the files the folder contains that travel, their cells given back as the
-// sending ends
+// The capacity a sending takes: what travels and the files the folder contains that travel, their cells given back as
+// the sending ends
 typedef struct
 {
-    CliCarried packed;
-    CliCarried there;
+    CliTransferred packed;
+    CliTransferred there;
 } CliSending;
 
 static CliSending s_send;
@@ -39,28 +39,29 @@ EMBED_INLINE void cli_send(const CarrySendCtx *args)
 EMBED_INLINE int cli_file_send(const CarrySendCtx *args)
 {
     // the file written in a cell sized to what travels
-    const unsigned long long file_room =
-        EMBED_CALL(cli_carry_carried_internal.carried_sent_room, CliCarryCarriedCtx, .carried = &s_send.packed);
-    char *const file_cell = g_cli_cells->temporary_buf_alloc(file_room, &g_cli_machine_cells);
-    VerbaLinea file = mmgr_line_over(file_cell, file_room);
+    const unsigned long long file_capacity =
+        EMBED_CALL(cli_machine_transfer_transferred_internal.transferred_sent_capacity,
+                   CliMachineTransferTransferredCtx, .carried = &s_send.packed);
+    char *const file_cell = g_cli_cells->temporary_buf_alloc(file_capacity, &g_cli_machine_cells);
+    VerbaLinea file = mmgr_line_over(file_cell, file_capacity);
     if (file.out == NULL)
     {
         mmgr_line_put(args->err_msg, args->to);
         mmgr_line_put(args->err_msg, ": no cell could be taken to write it in");
         return 0;
     }
-    mmgr_line_put(&file, "{\n  \"orior\": \"" CLI_CARRY_MARK "\",\n  \"files\": {");
+    mmgr_line_put(&file, "{\n  \"orior\": \"" CLI_MACHINE_TRANSFER_MARK "\",\n  \"files\": {");
     for (unsigned int at = 0u; at < s_send.packed.count; at += 1u)
     {
-        const char *const place = EMBED_CALL(cli_carry_carried_at_internal.carried_place, CliCarryCarriedAtCtx,
-                                             .carried = &s_send.packed, .at = at);
+        const char *const place = EMBED_CALL(cli_machine_transfer_transferred_at_internal.transferred_position,
+                                             CliMachineTransferTransferredAtCtx, .carried = &s_send.packed, .at = at);
         mmgr_line_put(&file, (at != 0u) ? ",\n    " : "\n    ");
         EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &file, .text = place,
                    .length = cellul.len(&(CatenaFinitaCfg){.src = place, .cap = CLI_CELLS_POOL}));
         mmgr_line_put(&file, ": ");
         EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &file,
-                   .text = EMBED_CALL(cli_carry_carried_at_internal.carried_value, CliCarryCarriedAtCtx,
-                                      .carried = &s_send.packed, .at = at),
+                   .text = EMBED_CALL(cli_machine_transfer_transferred_at_internal.transferred_value,
+                                      CliMachineTransferTransferredAtCtx, .carried = &s_send.packed, .at = at),
                    .length = s_send.packed.size[at]);
     }
     mmgr_line_put(&file, (s_send.packed.count != 0u) ? "\n  }\n}\n" : "}\n}\n");
@@ -105,14 +106,17 @@ EMBED_INLINE int cli_has_remote(const CarrySendCtx *args)
 // the folder `to` made to contain exactly what travels: 1, or 0 with why given
 EMBED_INLINE int cli_folder_layout(const CarrySendCtx *args)
 {
-    EMBED_CALL(cli_carry_folder_internal.files, CliCarryFolderCtx, .folder = args->to, .found = &s_send.there);
+    EMBED_CALL(cli_machine_transfer_folder_internal.files, CliMachineTransferFolderCtx, .folder = args->to,
+               .found = &s_send.there);
     for (unsigned int at = 0u; at < s_send.there.count; at += 1u)
     {
-        const char *const path = EMBED_CALL(cli_carry_carried_at_internal.carried_value, CliCarryCarriedAtCtx,
-                                            .carried = &s_send.there, .at = at);
-        if ((EMBED_CALL(cli_carry_carried_internal.carried_find, CliCarryCarriedCtx, .carried = &s_send.packed,
-                        .place = EMBED_CALL(cli_carry_carried_at_internal.carried_place, CliCarryCarriedAtCtx,
-                                            .carried = &s_send.there, .at = at)) == s_send.packed.count) &&
+        const char *const path = EMBED_CALL(cli_machine_transfer_transferred_at_internal.transferred_value,
+                                            CliMachineTransferTransferredAtCtx, .carried = &s_send.there, .at = at);
+        if ((EMBED_CALL(cli_machine_transfer_transferred_internal.transferred_find, CliMachineTransferTransferredCtx,
+                        .carried = &s_send.packed,
+                        .place = EMBED_CALL(cli_machine_transfer_transferred_at_internal.transferred_position,
+                                            CliMachineTransferTransferredAtCtx, .carried = &s_send.there, .at = at)) ==
+             s_send.packed.count) &&
             !EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = path))
         {
             mmgr_line_put(args->err_msg, path);
@@ -125,16 +129,17 @@ EMBED_INLINE int cli_folder_layout(const CarrySendCtx *args)
         char path[CLI_PATH_MAX_LEN];
         char parent[CLI_PATH_MAX_LEN];
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->to,
-                   .relative = EMBED_CALL(cli_carry_carried_at_internal.carried_place, CliCarryCarriedAtCtx,
-                                          .carried = &s_send.packed, .at = at),
+                   .relative = EMBED_CALL(cli_machine_transfer_transferred_at_internal.transferred_position,
+                                          CliMachineTransferTransferredAtCtx, .carried = &s_send.packed, .at = at),
                    .joined = path);
         const int made =
             !EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = path, .out = parent) ||
             EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = parent);
-        if (!made || !EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path,
-                                 .bytes = EMBED_CALL(cli_carry_carried_at_internal.carried_value, CliCarryCarriedAtCtx,
-                                                     .carried = &s_send.packed, .at = at),
-                                 .size = s_send.packed.size[at]))
+        if (!made ||
+            !EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = path,
+                        .bytes = EMBED_CALL(cli_machine_transfer_transferred_at_internal.transferred_value,
+                                            CliMachineTransferTransferredAtCtx, .carried = &s_send.packed, .at = at),
+                        .size = s_send.packed.size[at]))
         {
             mmgr_line_put(args->err_msg, path);
             mmgr_line_put(args->err_msg, ": it could not be written");
@@ -166,10 +171,10 @@ EMBED_INLINE int cli_commit(const CarrySendCtx *args)
     char name[CLI_NAME_MAX_LEN];
 #if defined(_WIN32)
     const int named = EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "COMPUTERNAME",
-                                 .value_out = name, .room = sizeof(name));
+                                 .value_out = name, .capacity = sizeof(name));
 #else
     const int named = EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "HOSTNAME",
-                                 .value_out = name, .room = sizeof(name));
+                                 .value_out = name, .capacity = sizeof(name));
 #endif
     char message[CLI_NAME_MAX_LEN * 2u];
     VerbaLinea line = {message, sizeof(message), 0ull};
@@ -199,10 +204,10 @@ EMBED_INLINE int cli_commit(const CarrySendCtx *args)
     return 1;
 }
 
-int cli_carry_send(const CliCarryHomeToCfg *args)
+int cli_machine_transfer_send(const CliMachineTransferHomeToCfg *args)
 {
-    int sent =
-        EMBED_CALL(cli_carry.pack, CliCarryCfg, .home = args->home, .packed = &s_send.packed, .err_msg = args->err_msg);
+    int sent = EMBED_CALL(cli_machine_transfer.pack, CliMachineTransferCfg, .home = args->home,
+                          .packed = &s_send.packed, .err_msg = args->err_msg);
     if (sent && !EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = args->to))
     {
         sent = EMBED_CALL(cli_file_send, CarrySendCtx, .to = args->to, .err_msg = args->err_msg);
@@ -211,8 +216,8 @@ int cli_carry_send(const CliCarryHomeToCfg *args)
             EMBED_CALL(cli_send, CarrySendCtx, .out = args->out, .count = s_send.packed.count,
                        .how = " files written to ", .to = args->to, .after = "");
         }
-        EMBED_CALL(cli_carry_carried_place_internal.carried_clear, CliCarryCarriedPlaceCtx,
-                   .carried_out = &s_send.packed);
+        EMBED_CALL(cli_machine_transfer_transferred_position_internal.transferred_clear,
+                   CliMachineTransferTransferredPositionCtx, .transferred_out = &s_send.packed);
         return sent;
     }
     char git[CLI_PATH_MAX_LEN];
@@ -236,7 +241,9 @@ int cli_carry_send(const CliCarryHomeToCfg *args)
     {
         sent = EMBED_CALL(cli_commit, CarrySendCtx, .to = args->to, .out = args->out, .err_msg = args->err_msg);
     }
-    EMBED_CALL(cli_carry_carried_place_internal.carried_clear, CliCarryCarriedPlaceCtx, .carried_out = &s_send.there);
-    EMBED_CALL(cli_carry_carried_place_internal.carried_clear, CliCarryCarriedPlaceCtx, .carried_out = &s_send.packed);
+    EMBED_CALL(cli_machine_transfer_transferred_position_internal.transferred_clear,
+               CliMachineTransferTransferredPositionCtx, .transferred_out = &s_send.there);
+    EMBED_CALL(cli_machine_transfer_transferred_position_internal.transferred_clear,
+               CliMachineTransferTransferredPositionCtx, .transferred_out = &s_send.packed);
     return sent;
 }

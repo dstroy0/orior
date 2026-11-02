@@ -27,11 +27,11 @@ void cli_cargo_failures_each(const CliCargoReportSizeOutCfg *args);
 
 // a path and a line from `path:line:column` into `path`, sized for CLI_PATH_MAX_LEN, with forward slashes, and
 // `line`: 1, or 0 where the text is none
-int cli_cargo_place_get(const CliCargoReportSizeTextPathCfg *args);
+int cli_cargo_position_get(const CliCargoReportSizeTextPathCfg *args);
 
-// the compiler's first error in what a build printed into `error`, sized for `room`, its size into `length`, and the
-// place it names into `path` and `line`, `path` empty where it names none: 1, or 0 where it printed no error; and the
-// last line of a text that is not blank, trimmed, or `none` where every line is, the same way
+// the compiler's first error in what a build printed into `error`, sized for `capacity`, its size into `length`, and
+// the place it names into `path` and `line`, `path` empty where it names none: 1, or 0 where it printed no error; and
+// the last line of a text that is not blank, trimmed, or `none` where every line is, the same way
 int cli_cargo_build_error(const CliCargoReportSizeCfg *args);
 void cli_cargo_last_line(const CliCargoReportSizeTextCfg *args);
 
@@ -46,7 +46,7 @@ struct CliCargoReportSizeCfg
     long long *line;
     const char *output;
     char *error;
-    unsigned long long room;
+    unsigned long long capacity;
     unsigned long long *length;
 };
 
@@ -54,7 +54,7 @@ struct CliCargoReportSizeTextCfg
 {
     unsigned long long size;
     const char *text;
-    unsigned long long room;
+    unsigned long long capacity;
     unsigned long long *length;
     const char *none;
     char *out_out;
@@ -112,11 +112,11 @@ EMBED_TABLE_STORAGE CliCargoReportSizeOutNs cli_cargo_report_size_out EMBED_UNUS
 
 typedef struct
 {
-    int (*cargo_place_get)(const CliCargoReportSizeTextPathCfg *args);
+    int (*cargo_position_get)(const CliCargoReportSizeTextPathCfg *args);
 } CliCargoReportSizeTextPathNs;
-EMBED_TABLE_LAYOUT(CliCargoReportSizeTextPathNs, cargo_place_get);
+EMBED_TABLE_LAYOUT(CliCargoReportSizeTextPathNs, cargo_position_get);
 EMBED_TABLE_STORAGE CliCargoReportSizeTextPathNs cli_cargo_report_size_text_path EMBED_UNUSED = {
-    .cargo_place_get = cli_cargo_place_get,
+    .cargo_position_get = cli_cargo_position_get,
 };
 
 typedef struct

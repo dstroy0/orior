@@ -30,9 +30,9 @@ int cli_git_clone_parent(const CliGitErrMsgFolderCfg *args)
     static const char s_home[] = "HOME";
 #endif
     return EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = s_home,
-                      .value_out = args->folder, .room = CLI_PATH_MAX_LEN) ||
-           EMBED_CALL(cli_path_room_internal.folder_current, CliPathRoomCtx, .path_out = args->folder,
-                      .room_size = CLI_PATH_MAX_LEN);
+                      .value_out = args->folder, .capacity = CLI_PATH_MAX_LEN) ||
+           EMBED_CALL(cli_path_capacity_internal.folder_current, CliPathCapacityCtx, .path_out = args->folder,
+                      .capacity_bytes = CLI_PATH_MAX_LEN);
 }
 
 int cli_git_opened_parent(const CliGitErrMsgFolderCfg *args)
@@ -72,7 +72,7 @@ int cli_git_clone_folder(const CliGitErrMsgFolderCfg *args)
     const char *from = args->url;
     const char *to = args->url + cellul.len(&(CatenaFinitaCfg){.src = args->url, .cap = CLI_CELLS_POOL});
     EMBED_CALL(cli_git_from_internal.trim, CliGitFromCtx, .from = &from, .to = &to);
-    to = from + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = from,
+    to = from + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = from,
                            .at = (unsigned long long)(to - from), .set = "/\\");
     if (((to - from) >= 4) && (memor.cmp(&(MemoriaCfg){.src = to - 4, .other = ".git", .bytes = 4u}) == 0))
     {
@@ -230,8 +230,9 @@ int cli_git_clone(const CliGitErrMsgCfg *args)
     for (;;)
     {
         char chunk[4096];
-        const unsigned long long read = EMBED_CALL(cli_room_pipe_handle_internal.spawn_read, CliRoomPipeHandleCtx,
-                                                   .pipe_handle = spawned.err, .piece = chunk, .room = sizeof(chunk));
+        const unsigned long long read =
+            EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx,
+                       .pipe_handle = spawned.err, .piece = chunk, .capacity = sizeof(chunk));
         if (read == 0ull)
         {
             break;
@@ -254,8 +255,8 @@ int cli_git_clone(const CliGitErrMsgCfg *args)
     for (;;)
     {
         char chunk[4096];
-        if (EMBED_CALL(cli_room_pipe_handle_internal.spawn_read, CliRoomPipeHandleCtx, .pipe_handle = spawned.out,
-                       .piece = chunk, .room = sizeof(chunk)) == 0ull)
+        if (EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx,
+                       .pipe_handle = spawned.out, .piece = chunk, .capacity = sizeof(chunk)) == 0ull)
         {
             break;
         }

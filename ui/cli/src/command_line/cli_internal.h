@@ -13,7 +13,7 @@ typedef struct CliPathCtx CliPathCtx;
 typedef struct CliPathFromCtx CliPathFromCtx;
 typedef struct CliPathErrMsgCtx CliPathErrMsgCtx;
 typedef struct CliWordsErrMsgSettingsCtx CliWordsErrMsgSettingsCtx;
-typedef struct CliRoomCountCtx CliRoomCountCtx;
+typedef struct CliCapacityCountCtx CliCapacityCountCtx;
 typedef struct CliPathBytesCtx CliPathBytesCtx;
 typedef struct CliRootCtx CliRootCtx;
 typedef struct CliServiceCtx CliServiceCtx;
@@ -23,22 +23,22 @@ typedef struct CliSizeCtx CliSizeCtx;
 typedef struct CliBytesCtx CliBytesCtx;
 typedef struct CliCountCtx CliCountCtx;
 typedef struct CliEachCtx CliEachCtx;
-typedef struct CliPathRoomCtx CliPathRoomCtx;
+typedef struct CliPathCapacityCtx CliPathCapacityCtx;
 typedef struct CliPathCountCtx CliPathCountCtx;
 typedef struct CliPathSizeCtx CliPathSizeCtx;
 typedef struct CliPathErrMsgNameCtx CliPathErrMsgNameCtx;
-typedef struct CliRoomNamesCtx CliRoomNamesCtx;
-typedef struct CliRoomPidCtx CliRoomPidCtx;
+typedef struct CliCapacityNamesCtx CliCapacityNamesCtx;
+typedef struct CliCapacityPidCtx CliCapacityPidCtx;
 typedef struct CliErrMsgFromCtx CliErrMsgFromCtx;
 typedef struct CliOutCtx CliOutCtx;
 typedef struct CliErrMsgNameCtx CliErrMsgNameCtx;
-typedef struct CliOutRoomCtx CliOutRoomCtx;
+typedef struct CliOutCapacityCtx CliOutCapacityCtx;
 typedef struct CliPathRootCtx CliPathRootCtx;
 typedef struct CliErrMsgPortCtx CliErrMsgPortCtx;
 typedef struct CliSizeBytesCtx CliSizeBytesCtx;
-typedef struct CliRoomCtx CliRoomCtx;
+typedef struct CliCapacityCtx CliCapacityCtx;
 typedef struct CliBytesSizeCtx CliBytesSizeCtx;
-typedef struct CliRoomPipeHandleCtx CliRoomPipeHandleCtx;
+typedef struct CliCapacityPipeHandleCtx CliCapacityPipeHandleCtx;
 typedef struct CliColsCtx CliColsCtx;
 typedef struct CliPipeHandleCtx CliPipeHandleCtx;
 typedef struct CliPathErrMsgFullCtx CliPathErrMsgFullCtx;
@@ -52,12 +52,12 @@ typedef struct CliOwnerCtx CliOwnerCtx;
 typedef struct CliFileStageCtx CliFileStageCtx;
 typedef struct CliLineCtx CliLineCtx;
 typedef struct CliPathErrMsgKindCtx CliPathErrMsgKindCtx;
-typedef struct CliRoomLogonCtx CliRoomLogonCtx;
-typedef struct CliRoomFoldersCtx CliRoomFoldersCtx;
+typedef struct CliCapacityLogonCtx CliCapacityLogonCtx;
+typedef struct CliCapacityFoldersCtx CliCapacityFoldersCtx;
 typedef struct CliPathOutKindCtx CliPathOutKindCtx;
 typedef struct CliPidCtx CliPidCtx;
 typedef struct CliContextCtx CliContextCtx;
-typedef struct CliRoomProcessesCtx CliRoomProcessesCtx;
+typedef struct CliCapacityProcessesCtx CliCapacityProcessesCtx;
 typedef struct CliListenerCtx CliListenerCtx;
 typedef struct CliSockCtx CliSockCtx;
 typedef struct CliSpawnedCtx CliSpawnedCtx;
@@ -89,9 +89,9 @@ typedef struct CliTreeCtx CliTreeCtx;
 #define CLI_VERSION "0.1.0"
 
 // the most processes the system lists, the most mounts a window lists, and the longest name of one
-#define CLI_PROCESSES_MOST 65536u
+#define CLI_PROCESSES_MAX 65536u
 
-#define CLI_MOUNTS_MOST 64u
+#define CLI_MOUNTS_MAX 64u
 
 #define CLI_NAME_MAX_LEN 256u
 
@@ -109,19 +109,19 @@ typedef struct
 int cli_container_init(void);
 int cli_started_outside(const CliWordsIdCtx *args);
 unsigned int cli_container_members(const CliIdsCtx *args);
-unsigned int cli_processes_list(const CliRoomProcessesCtx *args);
+unsigned int cli_processes_list(const CliCapacityProcessesCtx *args);
 void cli_container_members_end(void);
 unsigned int cli_process_own(void);
-int cli_program_own(const CliPathRoomCtx *args);
+int cli_program_own(const CliPathCapacityCtx *args);
 // the folder this process stands in, into `path`
-int cli_folder_current(const CliPathRoomCtx *args);
+int cli_folder_current(const CliPathCapacityCtx *args);
 // 1 where this process's errors go to a terminal, and where its output does (platform/windows.c, platform/posix.c)
 int cli_errors_terminal(void);
 int cli_output_terminal(void);
-// the words this program was given after its name, at most `room` of them, into `words`, each UTF-8: on Windows as the
-// system stores them, wide, and elsewhere the `count` words of `given`, or as the system saves them where `given` is
-// NULL: their count
-unsigned int cli_arguments(const CliRoomCountCtx *args);
+// the words this program was given after its name, at most `capacity` of them, into `words`, each UTF-8: on Windows as
+// the system stores them, wide, and elsewhere the `count` words of `supplied`, or as the system saves them where
+// `supplied` is NULL: their count
+unsigned int cli_arguments(const CliCapacityCountCtx *args);
 // the file at `path` made one its owner runs, on POSIX
 int cli_file_runnable(const CliPathFileCtx *args);
 // 1 where the file at `path` is there and is a file the system calls a link to elsewhere, never followed
@@ -130,9 +130,9 @@ int cli_is_link(const CliPathFileCtx *args);
 unsigned long long cli_clock_milliseconds(void);
 // the seconds since 1970 the machine started at, as this reading makes it, a few either way from one reading to the
 // next, 0 where the system does not say; and the reader's log in as the system names it, every log in a new name, into
-// `logon`, sized for `room`, empty where the system names none (platform/windows_system.c, platform/posix_system.c)
+// `logon`, sized for `capacity`, empty where the system names none (platform/windows_system.c, platform/posix_system.c)
 unsigned long long cli_booted_seconds(void);
-void cli_logon_by_name(const CliRoomLogonCtx *args);
+void cli_logon_by_name(const CliCapacityLogonCtx *args);
 // the size of the file at `path` into `size`: 1, or 0 where it is not there; and the milliseconds since 1970 the wall
 // clock reads (platform/windows_files.c, platform/posix_files.c)
 int cli_file_size(const CliPathSizeCtx *args);
@@ -148,9 +148,9 @@ int cli_file_read_at(const CliPathFromCtx *args);
 // count into `*size`, fewer where the file ends first. NULL where the file could not be read or the cells cannot meet
 // it; a file of no bytes is bytes of none. And a cell of a file's bytes given back to `owner`, NULL being none
 // (machine/file_cell.c)
-unsigned char *cli_file_take(const CliPathCtx *args);
-unsigned char *cli_file_take_utf8(const CliPathCtx *args);
-unsigned char *cli_file_piece_take(const CliPathCtx *args);
+unsigned char *cli_file_alloc(const CliPathCtx *args);
+unsigned char *cli_file_alloc_utf8(const CliPathCtx *args);
+unsigned char *cli_file_piece_alloc(const CliPathCtx *args);
 void cli_file_free(const CliOwnerCtx *args);
 // the bytes of every file under `root`, the folders of version control and of cargo's build passed over: the request a
 // tree's pool is made for (machine/file_cell.c)
@@ -161,21 +161,21 @@ unsigned int cli_system_error(void);
 void cli_system_reason(const CliErrorCtx *args);
 // `secret` stored for `account` of `service`, such as "database" or "plugin sonarqube", in the system's keychain, on
 // this machine alone, under the service's name "orior " and `service`; the secret stored for `account` of `service`
-// into `out`, sized for `room`: 1, or 0 where none is stored; and the secret taken out (platform/windows_keychain.c,
-// platform/posix_keychain.c)
+// into `out`, sized for `capacity`: 1, or 0 where none is stored; and the secret taken out
+// (platform/windows_keychain.c, platform/posix_keychain.c)
 int cli_keychain_store(const CliErrMsgServiceCtx *args);
 int cli_keychain_read(const CliServiceCtx *args);
 int cli_keychain_forget(const CliErrMsgServiceCtx *args);
 unsigned long long cli_wall_milliseconds(void);
 // one letter written in UTF-8 (words.c)
-void cli_utf8_put(const CliLineLetterCtx *args);
+void cli_utf8_append(const CliLineLetterCtx *args);
 // the staged file `from` copied over `to` with the rights the system requires of the reader: on Windows orior's own
 // program run again as `orior_cli write-raised`, raised; on Linux cp through pkexec; on macOS cp with the system's
 // authorization. 1, or 0 with why given
 int cli_raised_platform(const CliErrMsgFromCtx *args);
 
 // the most words of one command a program is run with, and the most bytes they take
-#define CLI_WORDS_MOST 512u
+#define CLI_WORDS_MAX 512u
 
 #define CLI_WORDS_TEXT (1u << 16u)
 
@@ -183,7 +183,7 @@ int cli_raised_platform(const CliErrMsgFromCtx *args);
 // word did not fit
 typedef struct
 {
-    const char *word[CLI_WORDS_MOST + 1u];
+    const char *word[CLI_WORDS_MAX + 1u];
     unsigned int count;
     char text[CLI_WORDS_TEXT];
     unsigned int used;
@@ -191,7 +191,7 @@ typedef struct
 } CliWords;
 
 // `word` put after the words so far (words.c)
-void cli_words_put(const CliWordsWordsCtx *args);
+void cli_words_append(const CliWordsWordsCtx *args);
 
 // A wake threads wait on: a generation word cli_wake_all moves on, a wait sleeping on the word's address until it
 // moves or the wait's time is up. A wait is free to return early, so a waiter tests what it waits for in a loop
@@ -245,7 +245,7 @@ int cli_spawn_as(const CliWordsErrMsgCtx *args);
 // `priority`; `size` bytes written whole to that pipe: 1, or 0 where the process stopped reading; and the pipe closed,
 // which the process reads as its input's end
 int cli_spawn_feed(const CliWordsErrMsgCtx *args);
-int cli_spawn_fed_as(const CliWordsErrMsgCtx *args);
+int cli_spawn_piped_as(const CliWordsErrMsgCtx *args);
 int cli_spawn_write(const CliPipeHandleCtx *args);
 // a process started as cli_spawn starts one, in a pseudo-terminal `cols` wide and `rows` tall of its own, a terminal's
 // shell: its output and errors read from `out` and the keys typed written to `in`, the pseudo-console in `group` on
@@ -275,19 +275,19 @@ typedef struct
     int whole;
     long long code;
     int stopped;
-} CliRan;
+} CliRunResult;
 
 // what one program run gave taken from those retained, waiting while each is in use, and given back; and a program run
 // as cli_spawn starts one, detached, its errors read on a thread of their own while its output is read, and waited on:
-// what it gave into `ran`, 1, or 0 with why it did not start given (ran.c)
-CliRan *cli_ran_take(void);
-void cli_ran_free(const CliWordsCtx *args);
+// what it gave into `run_result`, 1, or 0 with why it did not start given (ran.c)
+CliRunResult *cli_run_result_alloc(void);
+void cli_run_result_free(const CliWordsCtx *args);
 int cli_on_run(const CliWordsCtx *args);
 // a program run as cli_on_run runs one, `length` bytes of `input` written to its standard input on a thread of their
 // own
-int cli_ran_feed(const CliWordsCtx *args);
-// a program run as cli_ran_feed runs one, ended with every process under it where it runs past `milliseconds`
-int cli_ran_within(const CliWordsCtx *args);
+int cli_run_result_feed(const CliWordsCtx *args);
+// a program run as cli_run_result_feed runs one, ended with every process under it where it runs past `milliseconds`
+int cli_run_result_within(const CliWordsCtx *args);
 
 // `size` bytes of `data` added to the Windows program at `path` as the RCDATA resource `name`: 1, or 0 with why given,
 // off Windows always (platform/windows_files.c, platform/posix_files.c)
@@ -323,7 +323,7 @@ _Static_assert(CLI_PATH_MAX_LEN <= KSG_PATH_MAX_LEN, "a path of the command line
 // were not; and the file begun on the disk and put in place of `path` where `whole` is 1, or taken away where it is 0:
 // 1, or 0 where it was not put in place (file_writing.c)
 int cli_file_begin(const CliPathFileCtx *args);
-int cli_file_put(void *context, const char *bytes, size_t size);
+int cli_file_write_chunk(void *context, const char *bytes, size_t size);
 int cli_file_end(const CliFileCtx *args);
 
 // a line over `stage`, which is sized for CLI_STAGE_BYTES + 1, handing each whole stage to the file begun; and the
@@ -370,29 +370,29 @@ void cli_temporary_file_let_go(const CliFileTemporaryFileCtx *args);
 #define CLI_PICK_FOLDER 1u
 #define CLI_PICK_SAVE 2u
 
-// the system's picker shown for the reader to pick `kind`, waited on: the path chosen into `path`, sized for `room`, 1,
-// or 0 where none was chosen (platform/windows_picker.c, platform/posix_picker.c)
-int cli_file_pick(const CliPathRoomCtx *args);
+// the system's picker shown for the reader to pick `kind`, waited on: the path chosen into `path`, sized for
+// `capacity`, 1, or 0 where none was chosen (platform/windows_picker.c, platform/posix_picker.c)
+int cli_file_pick(const CliPathCapacityCtx *args);
 
 int cli_clipboard_text_read(const CliCtx *args);
 int cli_clipboard_text_write(const CliSizeTextCtx *args);
-int cli_clipboard_files_put(const CliCountCtx *args);
+int cli_clipboard_files_append(const CliCountCtx *args);
 unsigned int cli_clipboard_files_read(const CliEachCtx *args);
 void cli_clipboard_clear(void);
 // a piece of a started process's output or errors read, 0 at its end; the process waited on, its exit code, or -1
 // where a signal ended it; its job ended; its job and pipes let go; and the process group `leader` leads ended,
 // requested first, or on Windows the process `id` and every process under it
-unsigned long long cli_spawn_read(const CliRoomPipeHandleCtx *args);
+unsigned long long cli_spawn_read(const CliCapacityPipeHandleCtx *args);
 long long cli_spawn_wait(const CliSpawnedCtx *args);
 // whether a started process has ended, without waiting: 1 with its exit code into `code`, -1 where a signal ended it,
 // or 0 where it goes on
 int cli_spawn_poll(const CliSpawnedCtx *args);
-// the system's PATH and the reader's as the registry stores them now, each into `out`, sized for `room`; a variable of
-// the reader's own read, and set as text whose %NAME% parts expand; every open program notified the environment
+// the system's PATH and the reader's as the registry stores them now, each into `out`, sized for `capacity`; a variable
+// of the reader's own read, and set as text whose %NAME% parts expand; every open program notified the environment
 // changed; and a text's %NAME% parts expanded. Each 1, or 0 where there is none or off Windows
 // (platform/windows_registry.c, platform/posix_registry.c)
 int cli_registry_machine_path(const CliOutCtx *args);
-int cli_registry_user_value(const CliOutRoomCtx *args);
+int cli_registry_user_value(const CliOutCapacityCtx *args);
 int cli_registry_set_user_value(const CliErrMsgNameCtx *args);
 void cli_registry_announce(void);
 void cli_registry_expand(const CliOutCtx *args);
@@ -403,9 +403,9 @@ void cli_spawn_tree_end(const CliIdCtx *args);
 // on Windows, where no signal interrupts a process
 void cli_spawn_kill(const CliColsCtx *args);
 int cli_spawn_interrupt(const CliColsCtx *args);
-// the folders of the PATH this process runs with, each into `folders`, sized for `room`: their count; and the PATH
+// the folders of the PATH this process runs with, each into `folders`, sized for `capacity`: their count; and the PATH
 // those folders, `count` of them, make, into `path`, sized for `size`
-unsigned int cli_path_folders(const CliRoomFoldersCtx *args);
+unsigned int cli_path_folders(const CliCapacityFoldersCtx *args);
 void cli_path_join(const CliPathCountSizeCtx *args);
 
 // What a thread runs: the function and its context, retained by its starter for as long as the thread lives, and the
@@ -473,9 +473,9 @@ typedef struct
 int cli_socket_connect(const CliErrMsgCtx *args);
 int cli_socket_write(const CliBytesSizeCtx *args);
 int cli_socket_read(const CliSizeBytesCtx *args);
-// what came, at most `room` bytes, read into `bytes`: its count, CLI_SOCKET_CLOSED where the peer closed,
+// what came, at most `capacity` bytes, read into `bytes`: its count, CLI_SOCKET_CLOSED where the peer closed,
 // CLI_SOCKET_WAITED where the wait ran out, CLI_SOCKET_FAILED where the read failed
-long long cli_socket_some(const CliRoomCtx *args);
+long long cli_socket_some(const CliCapacityCtx *args);
 void cli_socket_wait(const CliSockCtx *args);
 // the wait of a write set, 0 for none
 void cli_socket_write_wait(const CliSockCtx *args);
@@ -523,10 +523,10 @@ typedef struct
 } CliProcessMemory;
 
 // what the process `pid` holds into `memory`: 1, or 0 where the system does not say; and the name of the program it
-// runs, its file's name without its folder or `.exe`, into `name`, sized for `room`: 1, or 0 where the system does not
-// say (platform/windows_processes.c, platform/posix_processes.c)
+// runs, its file's name without its folder or `.exe`, into `name`, sized for `capacity`: 1, or 0 where the system does
+// not say (platform/windows_processes.c, platform/posix_processes.c)
 int cli_process_memory(const CliPidCtx *args);
-int cli_process_by_name(const CliRoomPidCtx *args);
+int cli_process_by_name(const CliCapacityPidCtx *args);
 void cli_temp_folder(const CliFolderCtx *args);
 unsigned long long cli_event_inheritable(void);
 int cli_event_set(const CliEventCtx *args);
@@ -542,7 +542,7 @@ int cli_tree_on_find(const CliTreeCtx *args);
 int cli_mount(const CliPathErrMsgNameCtx *args);
 void cli_unmount(const CliErrMsgNameCtx *args);
 void cli_unmounted_all(void);
-unsigned int cli_mounts(const CliRoomNamesCtx *args);
+unsigned int cli_mounts(const CliCapacityNamesCtx *args);
 int cli_inside(const CliRootCtx *args);
 void cli_full(const CliRootCtx *args);
 void cli_relative(const CliPathRootCtx *args);
@@ -568,7 +568,7 @@ struct CliWordsCtx
     const char *folder;
     const CliSetting *settings;
     unsigned int count;
-    CliRan *ran;
+    CliRunResult *run_result;
     const char *input;
     unsigned long long length;
     unsigned long long milliseconds_u64;
@@ -644,11 +644,11 @@ struct CliWordsErrMsgSettingsCtx
     long long *code;
 };
 
-struct CliRoomCountCtx
+struct CliCapacityCountCtx
 {
-    unsigned int room_u32;
+    unsigned int capacity_u32;
     int count_i32;
-    char **given;
+    char **supplied;
     const char **words_read;
 };
 
@@ -673,7 +673,7 @@ struct CliServiceCtx
     const char *service;
     const char *account;
     char *out;
-    unsigned long long room;
+    unsigned long long capacity;
 };
 
 struct CliErrMsgServiceCtx
@@ -722,10 +722,10 @@ struct CliEachCtx
     int *cut_pointer;
 };
 
-struct CliPathRoomCtx
+struct CliPathCapacityCtx
 {
     char *path_out;
-    size_t room_size;
+    size_t capacity_bytes;
     unsigned int kind;
 };
 
@@ -750,16 +750,16 @@ struct CliPathErrMsgNameCtx
     char *name_out;
 };
 
-struct CliRoomNamesCtx
+struct CliCapacityNamesCtx
 {
-    unsigned int room_u32;
+    unsigned int capacity_u32;
     const char **names;
     const char **paths_read;
 };
 
-struct CliRoomPidCtx
+struct CliCapacityPidCtx
 {
-    size_t room_size;
+    size_t capacity_bytes;
     unsigned int pid;
     char *name_out;
 };
@@ -774,7 +774,7 @@ struct CliErrMsgFromCtx
 struct CliOutCtx
 {
     char *out;
-    unsigned long long room;
+    unsigned long long capacity;
     const char *text;
 };
 
@@ -785,10 +785,10 @@ struct CliErrMsgNameCtx
     const char *value;
 };
 
-struct CliOutRoomCtx
+struct CliOutCapacityCtx
 {
     char *out;
-    unsigned long long room;
+    unsigned long long capacity;
     const char *name;
 };
 
@@ -813,9 +813,9 @@ struct CliSizeBytesCtx
     const CliSocket *sock;
 };
 
-struct CliRoomCtx
+struct CliCapacityCtx
 {
-    unsigned long long room;
+    unsigned long long capacity;
     void *bytes_out;
     const CliSocket *sock;
 };
@@ -827,9 +827,9 @@ struct CliBytesSizeCtx
     const CliSocket *sock;
 };
 
-struct CliRoomPipeHandleCtx
+struct CliCapacityPipeHandleCtx
 {
-    unsigned long long room;
+    unsigned long long capacity;
     unsigned long long pipe_handle;
     char *piece;
 };
@@ -878,7 +878,7 @@ struct CliSizeTextCtx
 struct CliIdsCtx
 {
     unsigned int *ids;
-    unsigned int room_u32;
+    unsigned int capacity_u32;
 };
 
 struct CliPathFileCtx
@@ -917,15 +917,15 @@ struct CliPathErrMsgKindCtx
     VerbaLinea *err_msg;
 };
 
-struct CliRoomLogonCtx
+struct CliCapacityLogonCtx
 {
-    size_t room_size;
+    size_t capacity_bytes;
     char *logon;
 };
 
-struct CliRoomFoldersCtx
+struct CliCapacityFoldersCtx
 {
-    unsigned int room_u32;
+    unsigned int capacity_u32;
     char (*folders)[CLI_PATH_MAX_LEN];
 };
 
@@ -947,9 +947,9 @@ struct CliContextCtx
     void (*each_callback)(const CliEachPidNameCommandCfg *args);
 };
 
-struct CliRoomProcessesCtx
+struct CliCapacityProcessesCtx
 {
-    unsigned int room_u32;
+    unsigned int capacity_u32;
     CliProcess *processes;
 };
 
@@ -1055,21 +1055,21 @@ EMBED_TABLE_STORAGE CliIdsNs cli_ids_internal EMBED_UNUSED = {
 
 typedef struct
 {
-    unsigned int (*processes_list)(const CliRoomProcessesCtx *args);
-} CliRoomProcessesNs;
-EMBED_TABLE_LAYOUT(CliRoomProcessesNs, processes_list);
-EMBED_TABLE_STORAGE CliRoomProcessesNs cli_room_processes_internal EMBED_UNUSED = {
+    unsigned int (*processes_list)(const CliCapacityProcessesCtx *args);
+} CliCapacityProcessesNs;
+EMBED_TABLE_LAYOUT(CliCapacityProcessesNs, processes_list);
+EMBED_TABLE_STORAGE CliCapacityProcessesNs cli_capacity_processes_internal EMBED_UNUSED = {
     .processes_list = cli_processes_list,
 };
 
 typedef struct
 {
-    int (*program_own)(const CliPathRoomCtx *args);
-    int (*folder_current)(const CliPathRoomCtx *args);
-    int (*file_pick)(const CliPathRoomCtx *args);
-} CliPathRoomNs;
-EMBED_TABLE_LAYOUT(CliPathRoomNs, program_own, folder_current, file_pick);
-EMBED_TABLE_STORAGE CliPathRoomNs cli_path_room_internal EMBED_UNUSED = {
+    int (*program_own)(const CliPathCapacityCtx *args);
+    int (*folder_current)(const CliPathCapacityCtx *args);
+    int (*file_pick)(const CliPathCapacityCtx *args);
+} CliPathCapacityNs;
+EMBED_TABLE_LAYOUT(CliPathCapacityNs, program_own, folder_current, file_pick);
+EMBED_TABLE_STORAGE CliPathCapacityNs cli_path_capacity_internal EMBED_UNUSED = {
     .program_own = cli_program_own,
     .folder_current = cli_folder_current,
     .file_pick = cli_file_pick,
@@ -1077,10 +1077,10 @@ EMBED_TABLE_STORAGE CliPathRoomNs cli_path_room_internal EMBED_UNUSED = {
 
 typedef struct
 {
-    unsigned int (*arguments)(const CliRoomCountCtx *args);
-} CliRoomCountNs;
-EMBED_TABLE_LAYOUT(CliRoomCountNs, arguments);
-EMBED_TABLE_STORAGE CliRoomCountNs cli_room_count_internal EMBED_UNUSED = {
+    unsigned int (*arguments)(const CliCapacityCountCtx *args);
+} CliCapacityCountNs;
+EMBED_TABLE_LAYOUT(CliCapacityCountNs, arguments);
+EMBED_TABLE_STORAGE CliCapacityCountNs cli_capacity_count_internal EMBED_UNUSED = {
     .arguments = cli_arguments,
 };
 
@@ -1099,10 +1099,10 @@ EMBED_TABLE_STORAGE CliPathFileNs cli_path_file_internal EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*logon_by_name)(const CliRoomLogonCtx *args);
-} CliRoomLogonNs;
-EMBED_TABLE_LAYOUT(CliRoomLogonNs, logon_by_name);
-EMBED_TABLE_STORAGE CliRoomLogonNs cli_room_logon_internal EMBED_UNUSED = {
+    void (*logon_by_name)(const CliCapacityLogonCtx *args);
+} CliCapacityLogonNs;
+EMBED_TABLE_LAYOUT(CliCapacityLogonNs, logon_by_name);
+EMBED_TABLE_STORAGE CliCapacityLogonNs cli_capacity_logon_internal EMBED_UNUSED = {
     .logon_by_name = cli_logon_by_name,
 };
 
@@ -1128,15 +1128,15 @@ EMBED_TABLE_STORAGE CliPathFromNs cli_path_from_internal EMBED_UNUSED = {
 
 typedef struct
 {
-    unsigned char *(*file_take)(const CliPathCtx *args);
-    unsigned char *(*file_take_utf8)(const CliPathCtx *args);
-    unsigned char *(*file_piece_take)(const CliPathCtx *args);
+    unsigned char *(*file_alloc)(const CliPathCtx *args);
+    unsigned char *(*file_alloc_utf8)(const CliPathCtx *args);
+    unsigned char *(*file_piece_alloc)(const CliPathCtx *args);
 } CliPathNs;
-EMBED_TABLE_LAYOUT(CliPathNs, file_take, file_take_utf8, file_piece_take);
+EMBED_TABLE_LAYOUT(CliPathNs, file_alloc, file_alloc_utf8, file_piece_alloc);
 EMBED_TABLE_STORAGE CliPathNs cli_path_internal EMBED_UNUSED = {
-    .file_take = cli_file_take,
-    .file_take_utf8 = cli_file_take_utf8,
-    .file_piece_take = cli_file_piece_take,
+    .file_alloc = cli_file_alloc,
+    .file_alloc_utf8 = cli_file_alloc_utf8,
+    .file_piece_alloc = cli_file_piece_alloc,
 };
 
 typedef struct
@@ -1190,11 +1190,11 @@ EMBED_TABLE_STORAGE CliServiceNs cli_service_internal EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*utf8_put)(const CliLineLetterCtx *args);
+    void (*utf8_append)(const CliLineLetterCtx *args);
 } CliLineLetterNs;
-EMBED_TABLE_LAYOUT(CliLineLetterNs, utf8_put);
+EMBED_TABLE_LAYOUT(CliLineLetterNs, utf8_append);
 EMBED_TABLE_STORAGE CliLineLetterNs cli_line_letter_internal EMBED_UNUSED = {
-    .utf8_put = cli_utf8_put,
+    .utf8_append = cli_utf8_append,
 };
 
 typedef struct
@@ -1210,11 +1210,11 @@ EMBED_TABLE_STORAGE CliErrMsgFromNs cli_err_msg_from_internal EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*words_put)(const CliWordsWordsCtx *args);
+    void (*words_append)(const CliWordsWordsCtx *args);
 } CliWordsWordsNs;
-EMBED_TABLE_LAYOUT(CliWordsWordsNs, words_put);
+EMBED_TABLE_LAYOUT(CliWordsWordsNs, words_append);
 EMBED_TABLE_STORAGE CliWordsWordsNs cli_words_words_internal EMBED_UNUSED = {
-    .words_put = cli_words_put,
+    .words_append = cli_words_append,
 };
 
 typedef struct
@@ -1239,18 +1239,18 @@ typedef struct
     int (*spawn)(const CliWordsErrMsgCtx *args);
     int (*spawn_as)(const CliWordsErrMsgCtx *args);
     int (*spawn_feed)(const CliWordsErrMsgCtx *args);
-    int (*spawn_fed_as)(const CliWordsErrMsgCtx *args);
+    int (*spawn_piped_as)(const CliWordsErrMsgCtx *args);
     void (*priority_own)(const CliWordsErrMsgCtx *args);
     int (*private_folder_init)(const CliWordsErrMsgCtx *args);
     int (*is_tree_root)(const CliWordsErrMsgCtx *args);
 } CliWordsErrMsgNs;
-EMBED_TABLE_LAYOUT(CliWordsErrMsgNs, spawn, spawn_as, spawn_feed, spawn_fed_as, priority_own, private_folder_init,
+EMBED_TABLE_LAYOUT(CliWordsErrMsgNs, spawn, spawn_as, spawn_feed, spawn_piped_as, priority_own, private_folder_init,
                    is_tree_root);
 EMBED_TABLE_STORAGE CliWordsErrMsgNs cli_words_err_msg_internal EMBED_UNUSED = {
     .spawn = cli_spawn,
     .spawn_as = cli_spawn_as,
     .spawn_feed = cli_spawn_feed,
-    .spawn_fed_as = cli_spawn_fed_as,
+    .spawn_piped_as = cli_spawn_piped_as,
     .priority_own = cli_priority_own,
     .private_folder_init = cli_private_folder_init,
     .is_tree_root = cli_is_tree_root,
@@ -1317,17 +1317,17 @@ EMBED_TABLE_STORAGE CliWordsErrMsgSettingsNs cli_words_err_msg_settings_internal
 
 typedef struct
 {
-    void (*ran_free)(const CliWordsCtx *args);
+    void (*run_result_free)(const CliWordsCtx *args);
     int (*run)(const CliWordsCtx *args);
-    int (*ran_feed)(const CliWordsCtx *args);
-    int (*ran_within)(const CliWordsCtx *args);
+    int (*run_result_feed)(const CliWordsCtx *args);
+    int (*run_result_within)(const CliWordsCtx *args);
 } CliWordsNs;
-EMBED_TABLE_LAYOUT(CliWordsNs, ran_free, run, ran_feed, ran_within);
+EMBED_TABLE_LAYOUT(CliWordsNs, run_result_free, run, run_result_feed, run_result_within);
 EMBED_TABLE_STORAGE CliWordsNs cli_words_internal EMBED_UNUSED = {
-    .ran_free = cli_ran_free,
+    .run_result_free = cli_run_result_free,
     .run = cli_on_run,
-    .ran_feed = cli_ran_feed,
-    .ran_within = cli_ran_within,
+    .run_result_feed = cli_run_result_feed,
+    .run_result_within = cli_run_result_within,
 };
 
 typedef struct
@@ -1435,11 +1435,11 @@ EMBED_TABLE_STORAGE CliSizeTextNs cli_size_text_internal EMBED_UNUSED = {
 
 typedef struct
 {
-    int (*clipboard_files_put)(const CliCountCtx *args);
+    int (*clipboard_files_append)(const CliCountCtx *args);
 } CliCountNs;
-EMBED_TABLE_LAYOUT(CliCountNs, clipboard_files_put);
+EMBED_TABLE_LAYOUT(CliCountNs, clipboard_files_append);
 EMBED_TABLE_STORAGE CliCountNs cli_count_internal EMBED_UNUSED = {
-    .clipboard_files_put = cli_clipboard_files_put,
+    .clipboard_files_append = cli_clipboard_files_append,
 };
 
 typedef struct
@@ -1453,10 +1453,10 @@ EMBED_TABLE_STORAGE CliEachNs cli_each_internal EMBED_UNUSED = {
 
 typedef struct
 {
-    unsigned long long (*spawn_read)(const CliRoomPipeHandleCtx *args);
-} CliRoomPipeHandleNs;
-EMBED_TABLE_LAYOUT(CliRoomPipeHandleNs, spawn_read);
-EMBED_TABLE_STORAGE CliRoomPipeHandleNs cli_room_pipe_handle_internal EMBED_UNUSED = {
+    unsigned long long (*spawn_read)(const CliCapacityPipeHandleCtx *args);
+} CliCapacityPipeHandleNs;
+EMBED_TABLE_LAYOUT(CliCapacityPipeHandleNs, spawn_read);
+EMBED_TABLE_STORAGE CliCapacityPipeHandleNs cli_capacity_pipe_handle_internal EMBED_UNUSED = {
     .spawn_read = cli_spawn_read,
 };
 
@@ -1473,10 +1473,10 @@ EMBED_TABLE_STORAGE CliOutNs cli_out_internal EMBED_UNUSED = {
 
 typedef struct
 {
-    int (*registry_user_value)(const CliOutRoomCtx *args);
-} CliOutRoomNs;
-EMBED_TABLE_LAYOUT(CliOutRoomNs, registry_user_value);
-EMBED_TABLE_STORAGE CliOutRoomNs cli_out_room_internal EMBED_UNUSED = {
+    int (*registry_user_value)(const CliOutCapacityCtx *args);
+} CliOutCapacityNs;
+EMBED_TABLE_LAYOUT(CliOutCapacityNs, registry_user_value);
+EMBED_TABLE_STORAGE CliOutCapacityNs cli_out_capacity_internal EMBED_UNUSED = {
     .registry_user_value = cli_registry_user_value,
 };
 
@@ -1511,10 +1511,10 @@ EMBED_TABLE_STORAGE CliIdNs cli_id_internal EMBED_UNUSED = {
 
 typedef struct
 {
-    unsigned int (*path_folders)(const CliRoomFoldersCtx *args);
-} CliRoomFoldersNs;
-EMBED_TABLE_LAYOUT(CliRoomFoldersNs, path_folders);
-EMBED_TABLE_STORAGE CliRoomFoldersNs cli_room_folders_internal EMBED_UNUSED = {
+    unsigned int (*path_folders)(const CliCapacityFoldersCtx *args);
+} CliCapacityFoldersNs;
+EMBED_TABLE_LAYOUT(CliCapacityFoldersNs, path_folders);
+EMBED_TABLE_STORAGE CliCapacityFoldersNs cli_capacity_folders_internal EMBED_UNUSED = {
     .path_folders = cli_path_folders,
 };
 
@@ -1582,10 +1582,10 @@ EMBED_TABLE_STORAGE CliSizeBytesNs cli_size_bytes_internal EMBED_UNUSED = {
 
 typedef struct
 {
-    long long (*socket_some)(const CliRoomCtx *args);
-} CliRoomNs;
-EMBED_TABLE_LAYOUT(CliRoomNs, socket_some);
-EMBED_TABLE_STORAGE CliRoomNs cli_room_internal EMBED_UNUSED = {
+    long long (*socket_some)(const CliCapacityCtx *args);
+} CliCapacityNs;
+EMBED_TABLE_LAYOUT(CliCapacityNs, socket_some);
+EMBED_TABLE_STORAGE CliCapacityNs cli_capacity_internal EMBED_UNUSED = {
     .socket_some = cli_socket_some,
 };
 
@@ -1644,10 +1644,10 @@ EMBED_TABLE_STORAGE CliPidNs cli_pid_internal EMBED_UNUSED = {
 
 typedef struct
 {
-    int (*process_by_name)(const CliRoomPidCtx *args);
-} CliRoomPidNs;
-EMBED_TABLE_LAYOUT(CliRoomPidNs, process_by_name);
-EMBED_TABLE_STORAGE CliRoomPidNs cli_room_pid_internal EMBED_UNUSED = {
+    int (*process_by_name)(const CliCapacityPidCtx *args);
+} CliCapacityPidNs;
+EMBED_TABLE_LAYOUT(CliCapacityPidNs, process_by_name);
+EMBED_TABLE_STORAGE CliCapacityPidNs cli_capacity_pid_internal EMBED_UNUSED = {
     .process_by_name = cli_process_by_name,
 };
 
@@ -1708,10 +1708,10 @@ EMBED_TABLE_STORAGE CliPathErrMsgNameNs cli_path_err_msg_name_internal EMBED_UNU
 
 typedef struct
 {
-    unsigned int (*mounts)(const CliRoomNamesCtx *args);
-} CliRoomNamesNs;
-EMBED_TABLE_LAYOUT(CliRoomNamesNs, mounts);
-EMBED_TABLE_STORAGE CliRoomNamesNs cli_room_names_internal EMBED_UNUSED = {
+    unsigned int (*mounts)(const CliCapacityNamesCtx *args);
+} CliCapacityNamesNs;
+EMBED_TABLE_LAYOUT(CliCapacityNamesNs, mounts);
+EMBED_TABLE_STORAGE CliCapacityNamesNs cli_capacity_names_internal EMBED_UNUSED = {
     .mounts = cli_mounts,
 };
 

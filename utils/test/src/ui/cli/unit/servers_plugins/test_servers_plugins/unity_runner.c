@@ -11,16 +11,6 @@ extern void setUp(void);
 extern void tearDown(void);
 extern void test_the_folder_mark_in_options_is_the_folder_escaped_for_json(void);
 extern void test_the_folder_mark_in_an_argument_is_the_folder_unchanged(void);
-extern void test_a_plugins_server_starts_with_the_options_its_plugin_gives(void);
-extern void test_a_plugins_server_starts_with_the_arguments_its_plugin_gives(void);
-extern void test_a_file_of_its_languages_is_sent_and_its_diagnostics_join_the_files(void);
-extern void test_a_request_to_the_editor_goes_to_the_window_pending(void);
-extern void test_the_server_receives_the_plugins_answer(void);
-extern void test_the_servers_actions_are_among_the_files_each_with_the_plugins_id(void);
-extern void test_the_server_is_queried_with_the_diagnostics_it_gave_there(void);
-extern void test_an_action_whose_command_the_server_runs_is_run_by_it(void);
-extern void test_an_action_whose_command_it_does_not_run_goes_to_the_plugin(void);
-extern void test_a_stopped_plugin_server_is_sent_nothing(void);
 
 
 /*=======Mock Management=====*/
@@ -82,18 +72,8 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\servers_plugins\\test_servers_plugins\\test_servers_plugins.c");
-  run_test(test_the_folder_mark_in_options_is_the_folder_escaped_for_json, "test_the_folder_mark_in_options_is_the_folder_escaped_for_json", 188);
-  run_test(test_the_folder_mark_in_an_argument_is_the_folder_unchanged, "test_the_folder_mark_in_an_argument_is_the_folder_unchanged", 198);
-  run_test(test_a_plugins_server_starts_with_the_options_its_plugin_gives, "test_a_plugins_server_starts_with_the_options_its_plugin_gives", 207);
-  run_test(test_a_plugins_server_starts_with_the_arguments_its_plugin_gives, "test_a_plugins_server_starts_with_the_arguments_its_plugin_gives", 213);
-  run_test(test_a_file_of_its_languages_is_sent_and_its_diagnostics_join_the_files, "test_a_file_of_its_languages_is_sent_and_its_diagnostics_join_the_files", 219);
-  run_test(test_a_request_to_the_editor_goes_to_the_window_pending, "test_a_request_to_the_editor_goes_to_the_window_pending", 225);
-  run_test(test_the_server_receives_the_plugins_answer, "test_the_server_receives_the_plugins_answer", 232);
-  run_test(test_the_servers_actions_are_among_the_files_each_with_the_plugins_id, "test_the_servers_actions_are_among_the_files_each_with_the_plugins_id", 240);
-  run_test(test_the_server_is_queried_with_the_diagnostics_it_gave_there, "test_the_server_is_queried_with_the_diagnostics_it_gave_there", 248);
-  run_test(test_an_action_whose_command_the_server_runs_is_run_by_it, "test_an_action_whose_command_the_server_runs_is_run_by_it", 254);
-  run_test(test_an_action_whose_command_it_does_not_run_goes_to_the_plugin, "test_an_action_whose_command_it_does_not_run_goes_to_the_plugin", 264);
-  run_test(test_a_stopped_plugin_server_is_sent_nothing, "test_a_stopped_plugin_server_is_sent_nothing", 274);
+  run_test(test_the_folder_mark_in_options_is_the_folder_escaped_for_json, "test_the_folder_mark_in_options_is_the_folder_escaped_for_json", 94);
+  run_test(test_the_folder_mark_in_an_argument_is_the_folder_unchanged, "test_the_folder_mark_in_an_argument_is_the_folder_unchanged", 104);
 
   return UNITY_END();
 }

@@ -23,16 +23,16 @@ typedef struct
 
 static PaintFold *s_folds;
 
-void cli_inspect_paint_layout(const CliInspectCarveCtx *args)
+void cli_inspect_paint_layout(const CliInspectPartitionCtx *args)
 {
     const unsigned long long lines = CLI_INSPECT_LINES;
-    s_column = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
-                          .bytes = CLI_INSPECT_COLUMNS);
-    s_line_start = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
-                              .bytes = lines * sizeof(unsigned long long));
-    s_line_width = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
-                              .bytes = lines * sizeof(unsigned long long));
-    s_folds = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
+    s_column = EMBED_CALL(cli_inspect_partition_internal.partition, CliInspectPartitionCtx,
+                          .partition = args->partition, .bytes = CLI_INSPECT_COLUMNS);
+    s_line_start = EMBED_CALL(cli_inspect_partition_internal.partition, CliInspectPartitionCtx,
+                              .partition = args->partition, .bytes = lines * sizeof(unsigned long long));
+    s_line_width = EMBED_CALL(cli_inspect_partition_internal.partition, CliInspectPartitionCtx,
+                              .partition = args->partition, .bytes = lines * sizeof(unsigned long long));
+    s_folds = EMBED_CALL(cli_inspect_partition_internal.partition, CliInspectPartitionCtx, .partition = args->partition,
                          .bytes = 4ull * lines * sizeof(PaintFold));
 }
 
@@ -89,7 +89,7 @@ void cli_inspect_paint_runs(const CliInspectSizeSrcParsedCtx *args)
     const int has_lines = (args->parsed->line_first != NULL);
     for (unsigned int line = 0u; line < s_lines; line += 1u)
     {
-        if (args->parsed->lines == args->parsed->lines_most)
+        if (args->parsed->lines == args->parsed->lines_max)
         {
             args->parsed->full = 1;
             return;
@@ -113,7 +113,7 @@ void cli_inspect_paint_runs(const CliInspectSizeSrcParsedCtx *args)
                 }
                 continue;
             }
-            if (args->parsed->runs == args->parsed->runs_most)
+            if (args->parsed->runs == args->parsed->runs_max)
             {
                 args->parsed->full = 1;
                 return;
@@ -132,9 +132,9 @@ void cli_inspect_paint_runs(const CliInspectSizeSrcParsedCtx *args)
     }
 }
 
-void cli_inspect_fold_put(const CliInspectParsedCtx *args)
+void cli_inspect_fold_append(const CliInspectParsedCtx *args)
 {
-    if (args->parsed->folds == args->parsed->folds_most)
+    if (args->parsed->folds == args->parsed->folds_max)
     {
         args->parsed->full = 1;
         return;
@@ -147,9 +147,9 @@ void cli_inspect_fold_put(const CliInspectParsedCtx *args)
     args->parsed->folds += 1u;
 }
 
-void cli_inspect_range_put(const CliInspectFromToParsedCtx *args)
+void cli_inspect_range_append(const CliInspectFromToParsedCtx *args)
 {
-    if (args->parsed->ranges == args->parsed->ranges_most)
+    if (args->parsed->ranges == args->parsed->ranges_max)
     {
         args->parsed->full = 1;
         return;
@@ -213,8 +213,8 @@ void cli_inspect_folds_finish(const CliInspectSizeSrcParsedCtx *args)
 
 typedef struct
 {
-    CliInspectPlace one;
-    CliInspectPlace other;
+    CliInspectPosition one;
+    CliInspectPosition other;
 } InspectPaintCtx;
 // whether `one` stands at or before `other`
 EMBED_INLINE int paint_before(const InspectPaintCtx *args)

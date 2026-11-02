@@ -19,8 +19,8 @@ static const char s_text[] = "int main\n{\n    return 0;\n}\n";
 static const char s_words_text[] = "alpha beta\nalp gamma\n";
 
 static char s_out[1u << 16u];
-static char s_why[256];
-static int s_folder_made;
+static char s_error[256];
+static int s_folder_created;
 static char s_folder[CLI_PATH_MAX_LEN];
 static char s_numbered_path[CLI_PATH_MAX_LEN];
 static char s_numbered[300 * 16];
@@ -66,21 +66,13 @@ static CliViewInput view_size(unsigned int rows)
     return input;
 }
 
-static CliViewInput view_scroll(unsigned long long top)
-{
-    CliViewInput input = view_key("");
-    input.kind = CLI_VIEW_SCROLL;
-    input.top = top;
-    return input;
-}
-
 // the input sent to the view `key`, asserted accepted
 static void input_sent_to(const char *key, const CliViewInput *input)
 {
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     const int accepted = EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = key, .input = input, .err_msg = &err_msg);
     (void)mmgr_line_finish(&err_msg);
-    TEST_ASSERT_TRUE_MESSAGE(accepted, s_why);
+    TEST_ASSERT_TRUE_MESSAGE(accepted, s_error);
 }
 
 // the input sent to the view, asserted accepted
@@ -115,8 +107,8 @@ static void typed(const char *text)
 // the cursor asserted at line, col and the anchor at anchor_line, anchor_col
 static void assert_at(unsigned long long line, unsigned long long col, unsigned long long anchor_line, unsigned long long anchor_col)
 {
-    CliPlace cursor;
-    CliPlace anchor;
+    CliPosition cursor;
+    CliPosition anchor;
     TEST_ASSERT_TRUE(EMBED_CALL(cli_view_cursor_table.cursor, CliViewCursorCfg, .key = s_key, .cursor = &cursor, .anchor = &anchor));
     TEST_ASSERT_EQUAL_UINT64(line, cursor.line);
     TEST_ASSERT_EQUAL_UINT64(col, cursor.col);
@@ -124,13 +116,13 @@ static void assert_at(unsigned long long line, unsigned long long col, unsigned 
     TEST_ASSERT_EQUAL_UINT64(anchor_col, anchor.col);
 }
 
-// the text's lines from `first` to before `last` asserted to read as `wanted`, joined by "\n"
-static void assert_reads(unsigned long long first, unsigned long long last, const char *wanted)
+// the text's lines from `first` to before `last` asserted to read as `required`, joined by "\n"
+static void assert_reads(unsigned long long first, unsigned long long last, const char *required)
 {
     unsigned long long size = 0ull;
-    char *const lines = EMBED_CALL(cli_document_key.lines_take, CliDocumentKeyCfg, .key = s_key, .first = first, .last = last - 1ull, .size_pointer = &size, .state = NULL, .room = 0ull, .owner = &g_checks_cells);
+    char *const lines = EMBED_CALL(cli_document_key.lines_alloc, CliDocumentKeyCfg, .key = s_key, .first = first, .last = last - 1ull, .size_pointer = &size, .state = NULL, .capacity = 0ull, .owner = &g_checks_cells);
     TEST_ASSERT_NOT_NULL(lines);
-    CLI_TEST_ASSERT_TEXT(wanted, lines, size);
+    CLI_TEST_ASSERT_TEXT(required, lines, size);
     g_cli_cells->persistent_buf_release(lines, &g_checks_cells);
 }
 
@@ -141,39 +133,10 @@ static unsigned long long lines_now(void)
     return EMBED_CALL(cli_document_text.shape, CliDocumentTextCfg, .key = s_key, .shape = &shape) ? shape.lines : 0ull;
 }
 
-// the whole text asserted to read as `wanted`, its lines joined by "\n"
-static void assert_whole(const char *wanted)
+// the whole text asserted to read as `required`, its lines joined by "\n"
+static void assert_full_text(const char *required)
 {
-    assert_reads(0ull, lines_now(), wanted);
-}
-
-// the frame of the view `key` written into s_out, asserted written
-static void frame_written_of(const char *key_name)
-{
-    VerbaLinea frame = {s_out, sizeof(s_out), 0ull};
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_view_out.frame_write, CliViewOutCfg, .key = key_name, .out = &frame));
-    (void)mmgr_line_finish(&frame);
-}
-
-// the frame of the view written into s_out, asserted written
-static void frame_written(void)
-{
-    frame_written_of(s_key);
-}
-
-// the view's top as its frame writes it
-static unsigned long long frame_top(void)
-{
-    unsigned long long found = 0ull;
-    unsigned long long top = 0ull;
-    frame_written();
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = s_out, .length_value = CLI_UNITY_LENGTH(s_out), .wanted = "\"top\":", .size = 6ull, .at_pointer = &found));
-    for (const char *digit = s_out + found + 6ull; (*digit >= '0') && (*digit <= '9'); digit += 1)
-    {
-        // a digit's value is below 10
-        top = (top * 10ull) + (unsigned long long)(*digit - '0');
-    }
-    return top;
+    assert_reads(0ull, lines_now(), required);
 }
 
 // a view opened anew on `text` as the file `path`, its language the plugin's by the extension, sized twenty rows
@@ -201,7 +164,7 @@ static void main_view(void)
     char grammar[CLI_NAME_MAX_LEN];
     CliLanguages languages;
     const CliViewInput size = view_size(3u);
-    VerbaLinea why = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea why = {s_error, sizeof(s_error), 0ull};
     fresh_named(s_text, "check/view.c");
     EMBED_CALL(cli_plugins_table.languages, CliPluginsCfg, .languages = &languages);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg, .languages_read = &languages, .path = "check/view.c", .id_out = id));
@@ -227,19 +190,6 @@ static void main_at_line_two(void)
     key_times("Down", 2u);
 }
 
-// the C view with `(void)` typed, the pointer at the first line's end and the view scrolled to its third line, its frame written
-static void main_scrolled(void)
-{
-    const CliViewInput to_top = view_scroll(0ull);
-    const CliViewInput past = view_pointer(CLI_VIEW_POINTER_DOWN, 0ull, 40ull, 1u, 0);
-    const CliViewInput scroll = view_scroll(2ull);
-    main_typed();
-    input_sent(&to_top);
-    input_sent(&past);
-    input_sent(&scroll);
-    frame_written();
-}
-
 // the C view with `(void)` typed and the region opened on its second line folded, the cursor at that line's end
 static void main_folded(void)
 {
@@ -248,52 +198,6 @@ static void main_folded(void)
     EMBED_CALL(key, CliNameCfg, .name = "Mod+Home");
     EMBED_CALL(key, CliNameCfg, .name = "Down");
     EMBED_CALL(key, CliNameCfg, .name = "Mod+Shift+[");
-}
-
-// the gutter pressed at the second line's row
-static void gutter_pressed(void)
-{
-    const CliViewInput gutter = {CLI_VIEW_POINTER, NULL, NULL, 0ull, CLI_VIEW_POINTER_DOWN, 1ull, 0ull, 1u, 0, 0ull, 0u, 0u, 1};
-    input_sent(&gutter);
-}
-
-// find opened and `return` typed as its query on the C view
-static void return_sought(void)
-{
-    main_view();
-    EMBED_CALL(key, CliNameCfg, .name = "Mod+F");
-    typed("r");
-    typed("e");
-    typed("t");
-    typed("u");
-    typed("r");
-    typed("n");
-}
-
-// `rounds` rounds of the calls a tab shown makes of its view, over the views under `first` and `second` in turn: its size, then a scroll three rows down and
-// back, a frame written after each: 1 where every one was answered
-static int rounds_answered(const char *first, const char *second, unsigned int rounds)
-{
-    char why_text[256];
-    VerbaLinea why = {why_text, sizeof(why_text), 0ull};
-    CliViewInput sized = view_key("");
-    CliViewInput scroll = view_key("");
-    sized.kind = CLI_VIEW_SIZE;
-    sized.rows = 3u;
-    sized.columns = 40u;
-    scroll.kind = CLI_VIEW_SCROLL;
-    int answered = 1;
-    for (unsigned int round = 0u; round < rounds; round += 1u)
-    {
-        const char *const shown = ((round % 2u) == 0u) ? first : second;
-        for (unsigned int step = 0u; step < 3u; step += 1u)
-        {
-            VerbaLinea frame = {s_out, sizeof(s_out), 0ull};
-            scroll.top = (step == 1u) ? 3ull : 0ull;
-            answered = answered && EMBED_CALL(cli_view_input_table.input, CliViewInputCfg, .key = shown, .input = (step == 0u) ? &sized : &scroll, .err_msg = &why) && EMBED_CALL(cli_view_out.frame_write, CliViewOutCfg, .key = shown, .out = &frame);
-        }
-    }
-    return answered;
 }
 
 // a second text stored and viewed, its cursor pressed to after `alp` on the second line
@@ -319,10 +223,10 @@ static void paged_view(void)
     VerbaLinea opened = {s_out, sizeof(s_out), 0ull};
     unsigned long long lines = 0ull;
     int whole = 0;
-    if (!s_folder_made)
+    if (!s_folder_created)
     {
         VerbaLinea numbered = {s_numbered, sizeof(s_numbered), 0ull};
-        s_folder_made = 1;
+        s_folder_created = 1;
         cli_unity_folder("view", s_folder);
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_folder, .relative = "numbered.txt", .joined = s_numbered_path);
         for (unsigned long long line = 0ull; line < 300ull; line += 1ull)
@@ -361,18 +265,11 @@ static void paged_key(const char *name)
     input_sent_to(s_paged, &input);
 }
 
-// text typed into the paged view, asserted accepted
-static void paged_typed(const char *text)
-{
-    const CliViewInput input = view_text(text);
-    input_sent_to(s_paged, &input);
-}
-
 // the paged cursor asserted at line, col, the anchor there too
 static void assert_paged_at(unsigned long long line, unsigned long long col)
 {
-    CliPlace cursor;
-    CliPlace anchor;
+    CliPosition cursor;
+    CliPosition anchor;
     TEST_ASSERT_TRUE(EMBED_CALL(cli_view_cursor_table.cursor, CliViewCursorCfg, .key = s_paged, .cursor = &cursor, .anchor = &anchor));
     TEST_ASSERT_EQUAL_UINT64(line, cursor.line);
     TEST_ASSERT_EQUAL_UINT64(col, cursor.col);
@@ -399,30 +296,6 @@ void tearDown(void)
 {
     EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key);
-}
-
-void test_the_calls_of_a_tab_shown_store_nothing_that_stays(void)
-{
-    static const char s_round_one[] = "check:round one";
-    static const char s_round_two[] = "check:round two";
-    static const char s_round_text[] = "one\ntwo\nthree\nfour\nfive\nsix\nseven\neight\n";
-    CliShape shape;
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = s_round_one, .text = s_round_text, .size = sizeof(s_round_text) - 1u, .shape = &shape));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_view_table.open, CliViewCfg, .key = s_round_one, .path = "check/round_one.txt"));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = s_round_two, .text = s_round_text, .size = sizeof(s_round_text) - 1u, .shape = &shape));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_view_table.open, CliViewCfg, .key = s_round_two, .path = "check/round_two.txt"));
-    TEST_ASSERT_TRUE(rounds_answered(s_round_one, s_round_two, 4u));
-    cli_document_walk();
-    const unsigned long long views_before = embed_atomic_usize_load(&g_cli_views_cells.in_use);
-    const unsigned long long editor_before = embed_atomic_usize_load(&g_cli_editor_cells.in_use);
-    TEST_ASSERT_TRUE(rounds_answered(s_round_one, s_round_two, 40u));
-    cli_document_walk();
-    TEST_ASSERT_EQUAL_UINT64(views_before, embed_atomic_usize_load(&g_cli_views_cells.in_use));
-    TEST_ASSERT_EQUAL_UINT64(editor_before, embed_atomic_usize_load(&g_cli_editor_cells.in_use));
-    EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_round_one);
-    EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_round_two);
-    EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_round_one);
-    EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_round_two);
 }
 
 void test_a_view_does_not_open_on_a_text_not_stored(void)
@@ -500,7 +373,7 @@ void test_home_again_moves_to_the_lines_start(void)
     assert_at(2ull, 0ull, 2ull, 0ull);
 }
 
-void test_mod_right_moves_past_the_word(void)
+void test_mod_right_moves_end_the_word(void)
 {
     main_at_line_two();
     EMBED_CALL(key, CliNameCfg, .name = "Mod+Right");
@@ -712,7 +585,7 @@ void test_undo_restores_the_selection(void)
     assert_at(2ull, 0ull, 2ull, 2ull);
 }
 
-void test_mod_a_selects_the_whole_text(void)
+void test_mod_a_selects_the_complete_text(void)
 {
     main_view();
     EMBED_CALL(key, CliNameCfg, .name = "Mod+A");
@@ -731,7 +604,7 @@ void test_delete_removes_the_selection_and_undo_restores_it(void)
     assert_reads(0ull, 1ull, "int main(void)");
 }
 
-void test_the_pointer_pressed_places_the_cursor_at_its_cell(void)
+void test_the_pointer_pressed_positions_the_cursor_at_its_cell(void)
 {
     const CliViewInput down = view_pointer(CLI_VIEW_POINTER_DOWN, 2ull, 6ull, 1u, 0);
     main_view();
@@ -757,58 +630,21 @@ void test_a_double_press_selects_the_word(void)
     assert_at(2ull, 10ull, 2ull, 4ull);
 }
 
-void test_the_pointer_past_a_lines_end_places_the_cursor_at_its_end(void)
+void test_the_pointer_end_a_lines_end_positions_the_cursor_at_its_end(void)
 {
-    const CliViewInput past = view_pointer(CLI_VIEW_POINTER_DOWN, 0ull, 40ull, 1u, 0);
+    const CliViewInput end = view_pointer(CLI_VIEW_POINTER_DOWN, 0ull, 40ull, 1u, 0);
     main_typed();
-    input_sent(&past);
+    input_sent(&end);
     assert_at(0ull, 14ull, 0ull, 14ull);
 }
 
-void test_the_frame_carries_the_views_top(void)
-{
-    main_scrolled();
-    CLI_TEST_ASSERT_CONTAINS("\"top\":2,", s_out);
-}
-
-void test_the_frame_carries_the_rows_in_view(void)
-{
-    main_scrolled();
-    CLI_TEST_ASSERT_CONTAINS("\"from\":2,\"rows\":[\"    return 0;\",\"}\",\"\"]", s_out);
-}
-
-void test_the_frame_carries_the_cursor(void)
-{
-    main_scrolled();
-    CLI_TEST_ASSERT_CONTAINS("\"cursor\":{\"line\":0,\"col\":14}", s_out);
-}
-
-void test_the_frame_carries_the_indentation(void)
-{
-    main_scrolled();
-    CLI_TEST_ASSERT_CONTAINS("\"indent\":{\"tabs\":", s_out);
-}
-
-void test_the_map_of_the_lines_writes_a_bar_for_each_word_and_none_for_an_empty_line(void)
-{
-    VerbaLinea mapped = {s_out, sizeof(s_out), 0ull};
-    main_typed();
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_view_out.map_write, CliViewOutCfg, .key = s_key, .first = 0ull, .last = 4ull, .out = &mapped));
-    (void)mmgr_line_finish(&mapped);
-    CLI_TEST_ASSERT_CONTAINS("{\"from\":0,\"bars\":[[[0,3,", s_out);
-    CLI_TEST_ASSERT_CONTAINS("],[4,4,", s_out);
-    CLI_TEST_ASSERT_CONTAINS("],[[0,1,", s_out);
-    CLI_TEST_ASSERT_CONTAINS("],[[4,6,", s_out);
-    CLI_TEST_ASSERT_CONTAINS(",[]]}", s_out);
-}
-
-void test_the_word_at_a_place_is_the_word_the_place_touches(void)
+void test_the_word_at_a_position_is_the_word_the_position_touches(void)
 {
     unsigned long long from = 0ull;
     unsigned long long to = 0ull;
     char word[64];
     words_view();
-    const int found = EMBED_CALL(cli_view_line.word_at, CliViewLineCfg, .key = s_key2, .line_value = 0ull, .col_value = 7ull, .from = &from, .to = &to, .word = word, .room = sizeof(word));
+    const int found = EMBED_CALL(cli_view_line.word_at, CliViewLineCfg, .key = s_key2, .line_value = 0ull, .col_value = 7ull, .from = &from, .to = &to, .word = word, .capacity = sizeof(word));
     EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key2);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key2);
     TEST_ASSERT_TRUE(found);
@@ -817,14 +653,14 @@ void test_the_word_at_a_place_is_the_word_the_place_touches(void)
     TEST_ASSERT_EQUAL_STRING("beta", word);
 }
 
-void test_a_place_at_a_words_end_touches_it(void)
+void test_a_position_at_a_words_end_touches_it(void)
 {
     unsigned long long from = 0ull;
     unsigned long long to = 0ull;
     char word[64];
     words_view();
-    const int found = EMBED_CALL(cli_view_line.word_at, CliViewLineCfg, .key = s_key2, .line_value = 0ull, .col_value = 10ull, .from = &from, .to = &to, .word = word, .room = sizeof(word));
-    const int found_first = EMBED_CALL(cli_view_line.word_at, CliViewLineCfg, .key = s_key2, .line_value = 0ull, .col_value = 5ull, .from = &from, .to = &to, .word = word, .room = sizeof(word));
+    const int found = EMBED_CALL(cli_view_line.word_at, CliViewLineCfg, .key = s_key2, .line_value = 0ull, .col_value = 10ull, .from = &from, .to = &to, .word = word, .capacity = sizeof(word));
+    const int found_first = EMBED_CALL(cli_view_line.word_at, CliViewLineCfg, .key = s_key2, .line_value = 0ull, .col_value = 5ull, .from = &from, .to = &to, .word = word, .capacity = sizeof(word));
     EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key2);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key2);
     TEST_ASSERT_TRUE(found);
@@ -839,34 +675,34 @@ void test_an_empty_line_has_no_word(void)
     unsigned long long to = 0ull;
     char word[64];
     words_view();
-    const int found = EMBED_CALL(cli_view_line.word_at, CliViewLineCfg, .key = s_key2, .line_value = 2ull, .col_value = 0ull, .from = &from, .to = &to, .word = word, .room = sizeof(word));
+    const int found = EMBED_CALL(cli_view_line.word_at, CliViewLineCfg, .key = s_key2, .line_value = 2ull, .col_value = 0ull, .from = &from, .to = &to, .word = word, .capacity = sizeof(word));
     EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key2);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key2);
     TEST_ASSERT_FALSE(found);
 }
 
-void test_a_row_and_a_cell_from_the_views_top_place_a_line_and_a_column(void)
+void test_a_row_and_a_cell_from_the_views_top_position_a_line_and_a_column(void)
 {
     unsigned long long line = 0ull;
     unsigned long long col = 0ull;
     words_view();
-    const int placed = EMBED_CALL(cli_view_row.place_at, CliViewRowCfg, .key = s_key2, .row = 1ull, .column = 7ull, .line = &line, .col = &col);
+    const int positioned = EMBED_CALL(cli_view_row.position_at, CliViewRowCfg, .key = s_key2, .row = 1ull, .column = 7ull, .line = &line, .col = &col);
     EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key2);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key2);
-    TEST_ASSERT_TRUE(placed);
+    TEST_ASSERT_TRUE(positioned);
     TEST_ASSERT_EQUAL_UINT64(1ull, line);
     TEST_ASSERT_EQUAL_UINT64(7ull, col);
 }
 
-void test_a_cell_past_the_lines_end_places_its_end(void)
+void test_a_cell_end_the_lines_end_positions_its_end(void)
 {
     unsigned long long line = 0ull;
     unsigned long long col = 0ull;
     words_view();
-    const int placed = EMBED_CALL(cli_view_row.place_at, CliViewRowCfg, .key = s_key2, .row = 0ull, .column = 40ull, .line = &line, .col = &col);
+    const int positioned = EMBED_CALL(cli_view_row.position_at, CliViewRowCfg, .key = s_key2, .row = 0ull, .column = 40ull, .line = &line, .col = &col);
     EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key2);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key2);
-    TEST_ASSERT_TRUE(placed);
+    TEST_ASSERT_TRUE(positioned);
     TEST_ASSERT_EQUAL_UINT64(0ull, line);
     TEST_ASSERT_EQUAL_UINT64(10ull, col);
 }
@@ -876,7 +712,7 @@ void test_the_prefix_is_the_word_before_the_cursor(void)
     unsigned long long from = 0ull;
     char word[64];
     words_view();
-    const int found = EMBED_CALL(cli_view_from.prefix, CliViewFromCfg, .key = s_key2, .from = &from, .prefix = word, .room = sizeof(word));
+    const int found = EMBED_CALL(cli_view_from.prefix, CliViewFromCfg, .key = s_key2, .from = &from, .prefix = word, .capacity = sizeof(word));
     EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key2);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key2);
     TEST_ASSERT_TRUE(found);
@@ -884,43 +720,13 @@ void test_the_prefix_is_the_word_before_the_cursor(void)
     TEST_ASSERT_EQUAL_STRING("alp", word);
 }
 
-void test_the_files_words_are_items_the_word_at_the_cursor_left_out(void)
+void test_a_position_input_moves_the_cursor_to_the_line_and_unit(void)
 {
-    VerbaLinea words = {s_out, sizeof(s_out), 0ull};
+    const CliViewInput positioned = {CLI_VIEW_POSITION, NULL, NULL, 0ull, 0u, 0ull, 7ull, 0u, 0, 0ull, 0u, 0u, 0};
+    CliPosition cursor;
+    CliPosition anchor;
     words_view();
-    const int written = EMBED_CALL(cli_view_out.words_write, CliViewOutCfg, .key = s_key2, .out = &words);
-    (void)mmgr_line_finish(&words);
-    EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key2);
-    EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key2);
-    TEST_ASSERT_TRUE(written);
-    CLI_TEST_ASSERT_CONTAINS("{\"label\":\"alpha\",\"kind\":\"word\",\"insert\":\"alpha\"}", s_out);
-    CLI_TEST_ASSERT_CONTAINS("\"label\":\"gamma\"", s_out);
-    CLI_TEST_ASSERT_NOT_CONTAINS("\"label\":\"alp\"", s_out);
-}
-
-void test_a_completions_text_replaces_the_prefix_the_cursor_after_it_the_change_reported_once(void)
-{
-    const CliViewInput completed = {CLI_VIEW_COMPLETE, NULL, "alphabet", 8ull, 0u, 0ull, 3ull, 0u, 0, 0ull, 0u, 0u, 0};
-    words_view();
-    input_sent_to(s_key2, &completed);
-    frame_written_of(s_key2);
-    const int changed = EMBED_CALL(cli_view_table.changed_take, CliViewCfg, .key = s_key2);
-    const int changed_again = EMBED_CALL(cli_view_table.changed_take, CliViewCfg, .key = s_key2);
-    EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key2);
-    EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key2);
-    CLI_TEST_ASSERT_CONTAINS("\"alphabet gamma\"", s_out);
-    CLI_TEST_ASSERT_CONTAINS("\"cursor\":{\"line\":1,\"col\":8}", s_out);
-    TEST_ASSERT_TRUE(changed);
-    TEST_ASSERT_FALSE(changed_again);
-}
-
-void test_a_place_input_moves_the_cursor_to_the_line_and_unit(void)
-{
-    const CliViewInput placed = {CLI_VIEW_PLACE, NULL, NULL, 0ull, 0u, 0ull, 7ull, 0u, 0, 0ull, 0u, 0u, 0};
-    CliPlace cursor;
-    CliPlace anchor;
-    words_view();
-    input_sent_to(s_key2, &placed);
+    input_sent_to(s_key2, &positioned);
     const int read = EMBED_CALL(cli_view_cursor_table.cursor, CliViewCursorCfg, .key = s_key2, .cursor = &cursor, .anchor = &anchor);
     EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key2);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key2);
@@ -930,13 +736,13 @@ void test_a_place_input_moves_the_cursor_to_the_line_and_unit(void)
     TEST_ASSERT_EQUAL_UINT64(7ull, anchor.col);
 }
 
-void test_a_place_past_the_text_is_cut_to_its_last_line_and_that_lines_end(void)
+void test_a_position_end_the_text_is_cut_to_its_last_line_and_that_lines_end(void)
 {
-    const CliViewInput placed_far = {CLI_VIEW_PLACE, NULL, NULL, 0ull, 0u, 9ull, 90ull, 0u, 0, 0ull, 0u, 0u, 0};
-    CliPlace cursor;
-    CliPlace anchor;
+    const CliViewInput positioned_far = {CLI_VIEW_POSITION, NULL, NULL, 0ull, 0u, 9ull, 90ull, 0u, 0, 0ull, 0u, 0u, 0};
+    CliPosition cursor;
+    CliPosition anchor;
     words_view();
-    input_sent_to(s_key2, &placed_far);
+    input_sent_to(s_key2, &positioned_far);
     const int read = EMBED_CALL(cli_view_cursor_table.cursor, CliViewCursorCfg, .key = s_key2, .cursor = &cursor, .anchor = &anchor);
     EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key2);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key2);
@@ -962,62 +768,10 @@ void test_a_view_served_records_the_servers_path_found_until_it_closes(void)
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key2);
 }
 
-void test_a_size_the_same_as_the_views_leaves_the_top_where_it_is(void)
-{
-    const CliViewInput size = view_size(3u);
-    main_scrolled();
-    input_sent(&size);
-    frame_written();
-    CLI_TEST_ASSERT_CONTAINS("\"top\":2,", s_out);
-}
-
-void test_a_size_changed_moves_the_top_so_the_cursor_is_in_view(void)
-{
-    const CliViewInput taller = view_size(4u);
-    main_scrolled();
-    input_sent(&taller);
-    frame_written();
-    CLI_TEST_ASSERT_CONTAINS("\"top\":0,", s_out);
-}
-
-void test_the_view_follows_the_cursor_as_it_moves_out_of_view(void)
-{
-    main_scrolled();
-    EMBED_CALL(key, CliNameCfg, .name = "Down");
-    frame_written();
-    CLI_TEST_ASSERT_CONTAINS("\"top\":1,", s_out);
-}
-
-void test_the_frame_carries_the_bracket_pair_at_the_cursor_the_one_that_ends_there_first(void)
-{
-    main_typed();
-    EMBED_CALL(key, CliNameCfg, .name = "Mod+Home");
-    EMBED_CALL(key, CliNameCfg, .name = "End");
-    frame_written();
-    CLI_TEST_ASSERT_CONTAINS("\"pair\":[{\"line\":0,\"col\":13},{\"line\":0,\"col\":8}]", s_out);
-}
-
-void test_the_frame_carries_no_pair_where_no_bracket_is_at_the_cursor(void)
-{
-    main_typed();
-    EMBED_CALL(key, CliNameCfg, .name = "Mod+Home");
-    frame_written();
-    CLI_TEST_ASSERT_CONTAINS("\"pair\":null", s_out);
-}
-
 void test_mod_shift_bracket_folds_the_region_opened_on_the_line_the_cursor_at_its_end(void)
 {
     main_folded();
     assert_at(1ull, 1ull, 1ull, 1ull);
-}
-
-void test_the_frames_rows_step_over_the_lines_the_fold_hides(void)
-{
-    main_folded();
-    frame_written();
-    CLI_TEST_ASSERT_CONTAINS("\"rows\":[\"int main(void)\",\"{\",\"\"]", s_out);
-    CLI_TEST_ASSERT_CONTAINS("\"numbers\":[0,1,4]", s_out);
-    CLI_TEST_ASSERT_CONTAINS("\"folds\":[[1,3,1,1,\"}\"]]", s_out);
 }
 
 void test_down_steps_over_the_lines_hidden(void)
@@ -1050,47 +804,6 @@ void test_left_after_the_fold_goes_back_to_the_folded_lines_end(void)
     assert_at(1ull, 1ull, 1ull, 1ull);
 }
 
-void test_a_fold_moves_down_with_a_line_added_above_it_and_stays_closed(void)
-{
-    main_folded();
-    EMBED_CALL(key, CliNameCfg, .name = "Mod+Home");
-    typed("x\n");
-    assert_at(1ull, 0ull, 1ull, 0ull);
-    cli_document_walk();
-    frame_written();
-    CLI_TEST_ASSERT_CONTAINS("\"numbers\":[0,1,2]", s_out);
-    CLI_TEST_ASSERT_CONTAINS("\"folds\":[[2,4,1,1,\"}\"]]", s_out);
-}
-
-void test_the_gutter_pressed_at_the_folds_row_opens_it_the_cursor_where_it_was(void)
-{
-    main_folded();
-    EMBED_CALL(key, CliNameCfg, .name = "Mod+Home");
-    gutter_pressed();
-    assert_at(0ull, 0ull, 0ull, 0ull);
-    frame_written();
-    CLI_TEST_ASSERT_CONTAINS("\"numbers\":[0,1,2]", s_out);
-    CLI_TEST_ASSERT_CONTAINS("\"folds\":[[1,3,1,0,\"}\"]]", s_out);
-}
-
-void test_the_gutter_pressed_again_closes_the_fold(void)
-{
-    main_folded();
-    EMBED_CALL(key, CliNameCfg, .name = "Mod+Home");
-    gutter_pressed();
-    gutter_pressed();
-    frame_written();
-    CLI_TEST_ASSERT_CONTAINS("\"numbers\":[0,1,4]", s_out);
-}
-
-void test_mod_shift_closing_bracket_opens_the_fold_at_the_cursors_line(void)
-{
-    main_folded();
-    EMBED_CALL(key, CliNameCfg, .name = "Mod+Shift+]");
-    frame_written();
-    CLI_TEST_ASSERT_CONTAINS("\"numbers\":[0,1,2]", s_out);
-}
-
 void test_an_opener_typed_adds_its_closer_the_cursor_between_them(void)
 {
     main_view();
@@ -1110,7 +823,7 @@ void test_a_closer_typed_before_itself_steps_over_it(void)
     assert_at(4ull, 2ull, 4ull, 2ull);
 }
 
-void test_a_quote_typed_adds_its_mate(void)
+void test_a_quote_typed_adds_its_peer(void)
 {
     main_view();
     EMBED_CALL(key, CliNameCfg, .name = "Mod+End");
@@ -1119,7 +832,7 @@ void test_a_quote_typed_adds_its_mate(void)
     assert_at(4ull, 1ull, 4ull, 1ull);
 }
 
-void test_a_quote_typed_before_its_mate_steps_over_it(void)
+void test_a_quote_typed_before_its_peer_steps_over_it(void)
 {
     main_view();
     EMBED_CALL(key, CliNameCfg, .name = "Mod+End");
@@ -1182,7 +895,7 @@ void test_enter_between_a_pair_moves_the_closer_to_its_own_line_the_cursor_a_ste
     assert_at(5ull, 4ull, 5ull, 4ull);
 }
 
-void test_a_closing_bracket_typed_on_a_blank_lead_moves_the_lead_back_a_step(void)
+void test_a_closing_bracket_typed_on_a_blank_prefix_moves_the_prefix_back_a_step(void)
 {
     main_view();
     EMBED_CALL(key, CliNameCfg, .name = "Mod+End");
@@ -1223,51 +936,6 @@ void test_enter_after_a_plain_line_preserves_its_indentation(void)
     assert_at(7ull, 4ull, 7ull, 4ull);
 }
 
-void test_mod_f_opens_find_its_query_empty_and_the_keys_its_own(void)
-{
-    main_view();
-    EMBED_CALL(key, CliNameCfg, .name = "Mod+F");
-    frame_written();
-    CLI_TEST_ASSERT_CONTAINS("\"find\":{\"open\":1,\"focus\":1,\"query\":\"\",\"at\":0,\"regex\":0,\"case\":0,\"word\":0,\"count\":0,\"current\":null}", s_out);
-}
-
-void test_letters_typed_go_to_the_query_not_the_text_and_the_text_is_searched(void)
-{
-    return_sought();
-    assert_whole(s_text);
-    frame_written();
-    CLI_TEST_ASSERT_CONTAINS("\"query\":\"return\",\"at\":6,", s_out);
-    CLI_TEST_ASSERT_CONTAINS("\"count\":1,\"current\":0}", s_out);
-}
-
-void test_enter_selects_the_next_match_and_the_frame_carries_the_matches_among_its_rows(void)
-{
-    return_sought();
-    EMBED_CALL(key, CliNameCfg, .name = "Enter");
-    assert_at(2ull, 10ull, 2ull, 4ull);
-    frame_written();
-    CLI_TEST_ASSERT_CONTAINS("\"matches\":[[2,4,10]]", s_out);
-}
-
-void test_backspace_edits_the_query_and_alt_w_seeks_whole_words(void)
-{
-    return_sought();
-    EMBED_CALL(key, CliNameCfg, .name = "Enter");
-    EMBED_CALL(key, CliNameCfg, .name = "Backspace");
-    EMBED_CALL(key, CliNameCfg, .name = "Alt+W");
-    frame_written();
-    CLI_TEST_ASSERT_CONTAINS("\"query\":\"retur\",\"at\":5,", s_out);
-    CLI_TEST_ASSERT_CONTAINS("\"word\":1,\"count\":0,\"current\":null}", s_out);
-}
-
-void test_escape_closes_find(void)
-{
-    return_sought();
-    EMBED_CALL(key, CliNameCfg, .name = "Escape");
-    frame_written();
-    CLI_TEST_ASSERT_CONTAINS("\"find\":null,\"matches\":[]", s_out);
-}
-
 void test_mod_f_reads_a_selection_on_one_line_as_the_query_and_f3_seeks_it_with_find_closed(void)
 {
     main_view();
@@ -1283,7 +951,7 @@ void test_mod_f_reads_a_selection_on_one_line_as_the_query_and_f3_seeks_it_with_
     assert_at(0ull, 3ull, 0ull, 0ull);
 }
 
-void test_a_view_closed_is_gone(void)
+void test_a_view_closed_is_removed(void)
 {
     main_view();
     EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key);
@@ -1315,43 +983,6 @@ void test_mod_left_moves_a_word_through_the_pages(void)
     paged_closed();
 }
 
-void test_the_paged_frames_rows_come_through_the_pages_and_it_carries_the_cursor(void)
-{
-    paged_at_word();
-    frame_written_of(s_paged);
-    CLI_TEST_ASSERT_CONTAINS("\"from\":291,\"rows\":[\"line 291 here\"", s_out);
-    CLI_TEST_ASSERT_CONTAINS("\"cursor\":{\"line\":299,\"col\":9}", s_out);
-    paged_closed();
-}
-
-void test_text_typed_into_the_paged_text_is_written_and_undo_removes_it(void)
-{
-    paged_at_word();
-    paged_typed("there ");
-    assert_paged_at(299ull, 15ull);
-    frame_written_of(s_paged);
-    CLI_TEST_ASSERT_CONTAINS("\"line 299 there here\"", s_out);
-    paged_key("Mod+Z");
-    assert_paged_at(299ull, 9ull);
-    frame_written_of(s_paged);
-    CLI_TEST_ASSERT_CONTAINS("\"line 299 here\"", s_out);
-    paged_closed();
-}
-
-void test_letters_typed_one_at_a_time_land_each_after_the_last_and_undo_as_one_step(void)
-{
-    paged_at_word();
-    paged_typed("a");
-    paged_typed("b");
-    paged_typed("c");
-    assert_paged_at(299ull, 12ull);
-    frame_written_of(s_paged);
-    CLI_TEST_ASSERT_CONTAINS("\"line 299 abchere\"", s_out);
-    paged_key("Mod+Z");
-    assert_paged_at(299ull, 9ull);
-    paged_closed();
-}
-
 void test_enter_breaks_a_paged_line_and_backspace_joins_it(void)
 {
     unsigned long long lines = 0ull;
@@ -1372,10 +1003,10 @@ void test_mod_j_joins_the_line_to_the_next_with_one_space_and_undo_restores_it(v
 {
     fresh("a  \n   b\n\nc");
     EMBED_CALL(key, CliNameCfg, .name = "Mod+J");
-    assert_whole("a b\n\nc");
+    assert_full_text("a b\n\nc");
     assert_at(0ull, 3ull, 0ull, 0ull);
     EMBED_CALL(key, CliNameCfg, .name = "Mod+Z");
-    assert_whole("a  \n   b\n\nc");
+    assert_full_text("a  \n   b\n\nc");
 }
 
 void test_join_lines_joins_the_selections_lines_a_blank_line_adding_nothing(void)
@@ -1383,7 +1014,7 @@ void test_join_lines_joins_the_selections_lines_a_blank_line_adding_nothing(void
     fresh("one\n  two\n\nthree");
     key_times("Shift+Down", 3u);
     EMBED_CALL(key, CliNameCfg, .name = "join-lines");
-    assert_whole("one two three");
+    assert_full_text("one two three");
     assert_at(0ull, 13ull, 0ull, 0ull);
 }
 
@@ -1391,7 +1022,7 @@ void test_a_blank_line_joined_adds_no_space(void)
 {
     fresh("   \nb");
     EMBED_CALL(key, CliNameCfg, .name = "Mod+J");
-    assert_whole("b");
+    assert_full_text("b");
 }
 
 void test_the_last_line_joins_nothing(void)
@@ -1399,7 +1030,7 @@ void test_the_last_line_joins_nothing(void)
     fresh("x\ny");
     EMBED_CALL(key, CliNameCfg, .name = "Down");
     EMBED_CALL(key, CliNameCfg, .name = "Mod+J");
-    assert_whole("x\ny");
+    assert_full_text("x\ny");
 }
 
 void test_alt_down_moves_the_line_down_the_cursor_with_it(void)
@@ -1407,7 +1038,7 @@ void test_alt_down_moves_the_line_down_the_cursor_with_it(void)
     fresh("1\n2\n3\n4");
     EMBED_CALL(key, CliNameCfg, .name = "Down");
     EMBED_CALL(key, CliNameCfg, .name = "Alt+Down");
-    assert_whole("1\n3\n2\n4");
+    assert_full_text("1\n3\n2\n4");
     assert_at(2ull, 0ull, 2ull, 0ull);
 }
 
@@ -1417,7 +1048,7 @@ void test_alt_up_moves_the_line_up(void)
     EMBED_CALL(key, CliNameCfg, .name = "Down");
     EMBED_CALL(key, CliNameCfg, .name = "Alt+Down");
     key_times("Alt+Up", 2u);
-    assert_whole("2\n1\n3\n4");
+    assert_full_text("2\n1\n3\n4");
     assert_at(0ull, 0ull, 0ull, 0ull);
 }
 
@@ -1428,9 +1059,9 @@ void test_the_first_line_does_not_move_up_and_each_move_is_a_step_of_its_own(voi
     EMBED_CALL(key, CliNameCfg, .name = "Alt+Down");
     key_times("Alt+Up", 2u);
     EMBED_CALL(key, CliNameCfg, .name = "Alt+Up");
-    assert_whole("2\n1\n3\n4");
+    assert_full_text("2\n1\n3\n4");
     key_times("Mod+Z", 3u);
-    assert_whole("1\n2\n3\n4");
+    assert_full_text("1\n2\n3\n4");
 }
 
 void test_a_selection_ending_at_a_lines_start_leaves_that_line_out_and_moves_with_its_line(void)
@@ -1438,7 +1069,7 @@ void test_a_selection_ending_at_a_lines_start_leaves_that_line_out_and_moves_wit
     fresh("1\n2\n3\n4");
     EMBED_CALL(key, CliNameCfg, .name = "Shift+Down");
     EMBED_CALL(key, CliNameCfg, .name = "move-line-down");
-    assert_whole("2\n1\n3\n4");
+    assert_full_text("2\n1\n3\n4");
     assert_at(2ull, 0ull, 1ull, 0ull);
 }
 
@@ -1447,7 +1078,7 @@ void test_shift_alt_down_copies_the_line_down_the_cursor_on_the_copy(void)
     fresh("1\n2\n3");
     EMBED_CALL(key, CliNameCfg, .name = "Down");
     EMBED_CALL(key, CliNameCfg, .name = "Shift+Alt+Down");
-    assert_whole("1\n2\n2\n3");
+    assert_full_text("1\n2\n2\n3");
     assert_at(2ull, 0ull, 2ull, 0ull);
 }
 
@@ -1457,7 +1088,7 @@ void test_alt_shift_up_copies_the_line_up_the_cursor_staying(void)
     EMBED_CALL(key, CliNameCfg, .name = "Down");
     EMBED_CALL(key, CliNameCfg, .name = "Shift+Alt+Down");
     EMBED_CALL(key, CliNameCfg, .name = "Alt+Shift+Up");
-    assert_whole("1\n2\n2\n2\n3");
+    assert_full_text("1\n2\n2\n2\n3");
     assert_at(2ull, 0ull, 2ull, 0ull);
 }
 
@@ -1467,7 +1098,7 @@ void test_mod_shift_k_deletes_the_line_the_cursor_preserving_its_column(void)
     EMBED_CALL(key, CliNameCfg, .name = "Down");
     EMBED_CALL(key, CliNameCfg, .name = "End");
     EMBED_CALL(key, CliNameCfg, .name = "Mod+Shift+K");
-    assert_whole("one\nthree");
+    assert_full_text("one\nthree");
     assert_at(1ull, 3ull, 1ull, 3ull);
 }
 
@@ -1479,7 +1110,7 @@ void test_the_last_line_deleted_removes_the_line_break_before_it(void)
     EMBED_CALL(key, CliNameCfg, .name = "Mod+Shift+K");
     EMBED_CALL(key, CliNameCfg, .name = "End");
     EMBED_CALL(key, CliNameCfg, .name = "Mod+Shift+K");
-    assert_whole("one");
+    assert_full_text("one");
     assert_at(0ull, 3ull, 0ull, 3ull);
 }
 
@@ -1487,7 +1118,7 @@ void test_the_only_line_deleted_leaves_the_text_empty(void)
 {
     fresh("one");
     EMBED_CALL(key, CliNameCfg, .name = "Mod+Shift+K");
-    assert_whole("");
+    assert_full_text("");
     assert_at(0ull, 0ull, 0ull, 0ull);
 }
 
@@ -1495,10 +1126,10 @@ void test_mod_bracket_indents_the_line_and_outdents_it(void)
 {
     fresh("a\n\nb");
     EMBED_CALL(key, CliNameCfg, .name = "Mod+]");
-    assert_whole("    a\n\nb");
+    assert_full_text("    a\n\nb");
     assert_at(0ull, 4ull, 0ull, 4ull);
     EMBED_CALL(key, CliNameCfg, .name = "Mod+[");
-    assert_whole("a\n\nb");
+    assert_full_text("a\n\nb");
     assert_at(0ull, 0ull, 0ull, 0ull);
 }
 
@@ -1507,10 +1138,10 @@ void test_the_lines_selected_indent_a_blank_one_left(void)
     fresh("a\n\nb");
     EMBED_CALL(key, CliNameCfg, .name = "Mod+A");
     EMBED_CALL(key, CliNameCfg, .name = "Mod+]");
-    assert_whole("    a\n\n    b");
+    assert_full_text("    a\n\n    b");
     assert_at(2ull, 5ull, 0ull, 0ull);
     EMBED_CALL(key, CliNameCfg, .name = "Mod+[");
-    assert_whole("a\n\nb");
+    assert_full_text("a\n\nb");
     assert_at(2ull, 1ull, 0ull, 0ull);
 }
 
@@ -1519,24 +1150,24 @@ void test_tab_over_lines_indents_and_shift_tab_outdents(void)
     fresh("a\n\nb");
     EMBED_CALL(key, CliNameCfg, .name = "Mod+A");
     EMBED_CALL(key, CliNameCfg, .name = "Tab");
-    assert_whole("    a\n\n    b");
+    assert_full_text("    a\n\n    b");
     EMBED_CALL(key, CliNameCfg, .name = "Shift+Tab");
-    assert_whole("a\n\nb");
+    assert_full_text("a\n\nb");
 }
 
 void test_an_outdent_removes_a_tab(void)
 {
     fresh("\tx");
     EMBED_CALL(key, CliNameCfg, .name = "Shift+Tab");
-    assert_whole("x");
+    assert_full_text("x");
 }
 
-void test_mod_slash_marks_the_filled_lines_at_their_least_indentation(void)
+void test_mod_slash_marks_the_filled_lines_at_their_min_indentation(void)
 {
     fresh("  a\n\n    b");
     EMBED_CALL(key, CliNameCfg, .name = "Mod+A");
     EMBED_CALL(key, CliNameCfg, .name = "Mod+/");
-    assert_whole("  // a\n\n  //   b");
+    assert_full_text("  // a\n\n  //   b");
     assert_at(2ull, 8ull, 0ull, 0ull);
 }
 
@@ -1545,7 +1176,7 @@ void test_mod_slash_removes_the_marks_and_a_space_after_them(void)
     fresh("  a\n\n    b");
     EMBED_CALL(key, CliNameCfg, .name = "Mod+A");
     key_times("Mod+/", 2u);
-    assert_whole("  a\n\n    b");
+    assert_full_text("  a\n\n    b");
     assert_at(2ull, 5ull, 0ull, 0ull);
 }
 
@@ -1555,14 +1186,14 @@ void test_undo_restores_the_marked_lines_as_one_step(void)
     EMBED_CALL(key, CliNameCfg, .name = "Mod+A");
     key_times("Mod+/", 2u);
     EMBED_CALL(key, CliNameCfg, .name = "Mod+Z");
-    assert_whole("  // a\n\n  //   b");
+    assert_full_text("  // a\n\n  //   b");
 }
 
 void test_the_comment_command_marks_a_cursors_line(void)
 {
     fresh("x");
     EMBED_CALL(key, CliNameCfg, .name = "comment");
-    assert_whole("// x");
+    assert_full_text("// x");
     assert_at(0ull, 3ull, 0ull, 0ull);
 }
 
@@ -1571,7 +1202,7 @@ void test_blank_lines_get_no_mark(void)
     fresh("\n\n");
     EMBED_CALL(key, CliNameCfg, .name = "Mod+A");
     EMBED_CALL(key, CliNameCfg, .name = "Mod+/");
-    assert_whole("\n\n");
+    assert_full_text("\n\n");
 }
 
 void test_mod_slash_wraps_the_selection_in_a_languages_block_marks(void)
@@ -1579,7 +1210,7 @@ void test_mod_slash_wraps_the_selection_in_a_languages_block_marks(void)
     fresh_named("x y", "check/view.html");
     EMBED_CALL(key, CliNameCfg, .name = "Mod+A");
     EMBED_CALL(key, CliNameCfg, .name = "Mod+/");
-    assert_whole("<!-- x y -->");
+    assert_full_text("<!-- x y -->");
     assert_at(0ull, 8ull, 0ull, 5ull);
 }
 
@@ -1590,13 +1221,13 @@ void test_comment_over_a_wrapped_selection_removes_the_marks_and_the_space_insid
     EMBED_CALL(key, CliNameCfg, .name = "Mod+/");
     EMBED_CALL(key, CliNameCfg, .name = "Mod+A");
     EMBED_CALL(key, CliNameCfg, .name = "comment");
-    assert_whole("x y");
+    assert_full_text("x y");
     assert_at(0ull, 3ull, 0ull, 0ull);
     EMBED_CALL(key, CliNameCfg, .name = "Mod+Z");
-    assert_whole("<!-- x y -->");
+    assert_full_text("<!-- x y -->");
 }
 
-void test_mod_shift_backslash_moves_past_the_bracket_paired_with_the_one_at_the_cursor(void)
+void test_mod_shift_backslash_moves_end_the_bracket_paired_with_the_one_at_the_cursor(void)
 {
     fresh("f(a[1]) b");
     EMBED_CALL(key, CliNameCfg, .name = "Right");
@@ -1619,7 +1250,7 @@ void test_where_no_bracket_is_the_cursor_stays(void)
     assert_at(0ull, 0ull, 0ull, 0ull);
 }
 
-void test_expand_selection_grows_through_the_word_the_brackets_and_the_whole_text(void)
+void test_expand_selection_grows_through_the_word_the_brackets_and_the_complete_text(void)
 {
     fresh("f(ab)");
     key_times("Right", 3u);
@@ -1665,7 +1296,7 @@ void test_mod_enter_opens_a_line_below_at_the_lines_indentation(void)
     fresh("  a\nb");
     EMBED_CALL(key, CliNameCfg, .name = "End");
     EMBED_CALL(key, CliNameCfg, .name = "Mod+Enter");
-    assert_whole("  a\n  \nb");
+    assert_full_text("  a\n  \nb");
     assert_at(1ull, 2ull, 1ull, 2ull);
 }
 
@@ -1675,7 +1306,7 @@ void test_mod_shift_enter_opens_a_line_above(void)
     EMBED_CALL(key, CliNameCfg, .name = "End");
     EMBED_CALL(key, CliNameCfg, .name = "Mod+Enter");
     EMBED_CALL(key, CliNameCfg, .name = "Mod+Shift+Enter");
-    assert_whole("  a\n  \n  \nb");
+    assert_full_text("  a\n  \n  \nb");
     assert_at(1ull, 2ull, 1ull, 2ull);
 }
 
@@ -1695,7 +1326,7 @@ void test_mod_backspace_removes_the_word_before_the_cursor(void)
     fresh("foo bar");
     EMBED_CALL(key, CliNameCfg, .name = "End");
     EMBED_CALL(key, CliNameCfg, .name = "Mod+Backspace");
-    assert_whole("foo ");
+    assert_full_text("foo ");
     assert_at(0ull, 4ull, 0ull, 4ull);
 }
 
@@ -1703,7 +1334,7 @@ void test_mod_delete_removes_the_word_after_the_cursor(void)
 {
     fresh("foo ");
     EMBED_CALL(key, CliNameCfg, .name = "Mod+Delete");
-    assert_whole(" ");
+    assert_full_text(" ");
     assert_at(0ull, 0ull, 0ull, 0ull);
 }
 
@@ -1711,17 +1342,17 @@ void test_the_lines_sort_by_the_numbers_in_them_marks_before_digits_before_lette
 {
     fresh("b10\nB2\na\n_x\n9");
     EMBED_CALL(key, CliNameCfg, .name = "sort-ascending");
-    assert_whole("_x\n9\na\nB2\nb10");
+    assert_full_text("_x\n9\na\nB2\nb10");
     assert_at(4ull, 3ull, 0ull, 0ull);
     EMBED_CALL(key, CliNameCfg, .name = "sort-descending");
-    assert_whole("b10\nB2\na\n9\n_x");
+    assert_full_text("b10\nB2\na\n9\n_x");
 }
 
 void test_a_small_letter_sorts_before_its_capital(void)
 {
     fresh("A\na\nb\na");
     EMBED_CALL(key, CliNameCfg, .name = "sort-ascending");
-    assert_whole("a\na\nA\nb");
+    assert_full_text("a\na\nA\nb");
 }
 
 void test_a_selection_sorts_its_own_lines(void)
@@ -1729,21 +1360,21 @@ void test_a_selection_sorts_its_own_lines(void)
     fresh("c\nb\na\nz");
     key_times("Shift+Down", 3u);
     EMBED_CALL(key, CliNameCfg, .name = "sort-ascending");
-    assert_whole("a\nb\nc\nz");
+    assert_full_text("a\nb\nc\nz");
 }
 
 void test_the_duplicate_lines_are_removed_the_first_of_each_stored(void)
 {
     fresh("a\nb\na\nc\nb");
     EMBED_CALL(key, CliNameCfg, .name = "unique-lines");
-    assert_whole("a\nb\nc");
+    assert_full_text("a\nb\nc");
 }
 
 void test_upper_case_changes_the_word_at_the_cursor(void)
 {
     fresh("foo Bar");
     EMBED_CALL(key, CliNameCfg, .name = "upper-case");
-    assert_whole("FOO Bar");
+    assert_full_text("FOO Bar");
     assert_at(0ull, 3ull, 0ull, 0ull);
 }
 
@@ -1752,34 +1383,23 @@ void test_lower_case_and_title_case_change_the_selection(void)
     fresh("FOO Bar");
     EMBED_CALL(key, CliNameCfg, .name = "Mod+A");
     EMBED_CALL(key, CliNameCfg, .name = "lower-case");
-    assert_whole("foo bar");
+    assert_full_text("foo bar");
     EMBED_CALL(key, CliNameCfg, .name = "title-case");
-    assert_whole("Foo Bar");
+    assert_full_text("Foo Bar");
 }
 
-void test_a_letter_past_ascii_changes_case(void)
+void test_a_letter_end_ascii_changes_case(void)
 {
     fresh("\xc3\xa9t\xc3\xa9");
     EMBED_CALL(key, CliNameCfg, .name = "upper-case");
-    assert_whole("\xc3\x89T\xc3\x89");
+    assert_full_text("\xc3\x89T\xc3\x89");
 }
 
 void test_a_cursor_on_no_word_changes_nothing(void)
 {
     fresh(" a");
     EMBED_CALL(key, CliNameCfg, .name = "upper-case");
-    assert_whole(" a");
-}
-
-void test_mod_down_scrolls_a_line_the_cursor_staying_and_mod_up_scrolls_it_back(void)
-{
-    fresh("0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\n20\n21\n22\n23\n24\n25");
-    const unsigned long long top_before = frame_top();
-    EMBED_CALL(key, CliNameCfg, .name = "Mod+Down");
-    TEST_ASSERT_EQUAL_UINT64(top_before + 1ull, frame_top());
-    assert_at(0ull, 0ull, 0ull, 0ull);
-    EMBED_CALL(key, CliNameCfg, .name = "Mod+Up");
-    TEST_ASSERT_EQUAL_UINT64(top_before, frame_top());
+    assert_full_text(" a");
 }
 
 void test_a_key_that_adds_a_cursor_moves_none(void)

@@ -35,12 +35,12 @@ static CliInspectName s_names[1024];
 static char s_pool[1u << 16u];
 static CliFacts s_facts;
 static char s_applied[1u << 16u];
-static char s_wanted[1u << 16u];
+static char s_requested[1u << 16u];
 
 // the facts of `text` in `language` read into s_facts: 1, or 0
 static int facts_read(const char *language, const char *text)
 {
-    EMBED_CALL(cli_inspect_facts_table.facts_begin, CliInspectFactsCfg, .facts = &s_facts, .imports = s_imports, .imports_most = 256u, .classes = s_classes, .classes_most = 64u, .functions = s_functions, .functions_most = 256u, .findings = s_findings, .findings_most = 256u, .fixes = s_fixes, .fixes_most = 256u, .edits = s_edits, .edits_most = 1024u, .names = s_names, .names_most = 1024u, .text_out = s_pool, .text_most = sizeof(s_pool));
+    EMBED_CALL(cli_inspect_facts_table.facts_begin, CliInspectFactsCfg, .facts = &s_facts, .imports = s_imports, .imports_max = 256u, .classes = s_classes, .classes_max = 64u, .functions = s_functions, .functions_max = 256u, .findings = s_findings, .findings_max = 256u, .fixes = s_fixes, .fixes_max = 256u, .edits = s_edits, .edits_max = 1024u, .names = s_names, .names_max = 1024u, .text_out = s_pool, .text_max = sizeof(s_pool));
     return EMBED_CALL(cli_inspect_facts_language.facts, CliInspectFactsLanguageCfg, .language = language, .text = text, .size = CLI_UNITY_LENGTH(text), .facts = &s_facts);
 }
 
@@ -63,11 +63,11 @@ static const char *fix_applied(const char *text, unsigned int finding)
     return s_applied;
 }
 
-// `text` with its first `from` replaced by `to`, into s_wanted
+// `text` with its first `from` replaced by `to`, into s_requested
 static const char *text_replaced(const char *text, const char *from, const char *to)
 {
     const char *const at = cellul.find(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL, .other = from, .other_cap = CLI_CELLS_POOL});
-    VerbaLinea out = {s_wanted, sizeof(s_wanted), 0ull};
+    VerbaLinea out = {s_requested, sizeof(s_requested), 0ull};
     if (at != NULL)
     {
         // a find inside the text, at or past its start
@@ -76,7 +76,7 @@ static const char *text_replaced(const char *text, const char *from, const char 
         mmgr_line_put(&out, at + CLI_UNITY_LENGTH(from));
     }
     (void)mmgr_line_finish(&out);
-    return s_wanted;
+    return s_requested;
 }
 
 // each finding of s_facts written: `line:code name` where `codes`, else its name, the first word of its message without its backticks, joined by `|`
@@ -134,7 +134,7 @@ static void edit_applied(const char *source, const CliInspectEdit *edit, const c
 
 // the docstring of `form` generated for line `line` of `source` in `language`, written over it into s_applied: 1, its summary's place into `summary`,
 // or 0
-static int docstring_written(const char *language, const char *source, unsigned int line, const char *form, CliInspectPlace *summary)
+static int docstring_written(const char *language, const char *source, unsigned int line, const char *form, CliInspectPosition *summary)
 {
     static char s_text[1u << 14u];
     char why[512];
@@ -239,7 +239,7 @@ void test_a_docstring_out_of_pep_257s_form_is_found(void)
     CLI_TEST_ASSERT_TEXT("docstring-quotes|docstring-period|docstring-space|docstring-blank|docstring-close", codes, line.at);
 }
 
-void test_a_docstrings_quotes_are_made_double(void)
+void test_a_docstrings_quotes_are_created_double(void)
 {
     (void)facts_read("python", s_docs_text);
     TEST_ASSERT_EQUAL_STRING(text_replaced(s_docs_text, "'''Return one'''", "\"\"\"Return one\"\"\""), fix_applied(s_docs_text, 0u));
@@ -287,9 +287,9 @@ void test_javascript_code_after_a_return_is_removed(void)
     TEST_ASSERT_EQUAL_STRING(text_replaced(s_js_text, "  console.log(a);\n", ""), fix_applied(s_js_text, 2u));
 }
 
-void test_a_docstring_in_googles_form_places_its_summary_after_the_quotes(void)
+void test_a_docstring_in_googles_form_positions_its_summary_after_the_quotes(void)
 {
-    CliInspectPlace summary = {0u, 0u};
+    CliInspectPosition summary = {0u, 0u};
     TEST_ASSERT_TRUE(docstring_written("python", s_method_text, 3u, "google", &summary));
     TEST_ASSERT_EQUAL_UINT(2u, summary.line);
     TEST_ASSERT_EQUAL_UINT(11u, summary.col);
@@ -301,7 +301,7 @@ void test_a_docstring_in_googles_form_places_its_summary_after_the_quotes(void)
 
 void test_a_docstring_in_numpys_form(void)
 {
-    CliInspectPlace summary = {0u, 0u};
+    CliInspectPosition summary = {0u, 0u};
     TEST_ASSERT_TRUE(docstring_written("python", s_method_text, 3u, "numpy", &summary));
     CLI_TEST_ASSERT_CONTAINS("        Parameters\n        ----------\n        width : int\n        height\n   "
                              "     *rest\n\n        Returns\n        -------\n        float\n\n        Raises\n "
@@ -311,7 +311,7 @@ void test_a_docstring_in_numpys_form(void)
 
 void test_a_docstring_in_restructured_texts_form(void)
 {
-    CliInspectPlace summary = {0u, 0u};
+    CliInspectPosition summary = {0u, 0u};
     TEST_ASSERT_TRUE(docstring_written("python", s_method_text, 3u, "rest", &summary));
     CLI_TEST_ASSERT_CONTAINS("        \"\"\"\n\n        :param width:\n        :type width: int\n        "
                              ":param height:\n        :param *rest:\n        :return:\n        :rtype: float\n "
@@ -321,7 +321,7 @@ void test_a_docstring_in_restructured_texts_form(void)
 
 void test_a_plain_docstring_is_a_summary_line_alone(void)
 {
-    CliInspectPlace summary = {0u, 0u};
+    CliInspectPosition summary = {0u, 0u};
     TEST_ASSERT_TRUE(docstring_written("python", s_method_text, 3u, "plain", &summary));
     CLI_TEST_ASSERT_CONTAINS("-> float:\n        \"\"\"\"\"\"\n        if width", s_applied);
 }
@@ -329,7 +329,7 @@ void test_a_plain_docstring_is_a_summary_line_alone(void)
 void test_a_function_with_a_docstring_is_unchanged(void)
 {
     static char s_documented[1024];
-    CliInspectPlace summary = {0u, 0u};
+    CliInspectPosition summary = {0u, 0u};
     TEST_ASSERT_TRUE(docstring_written("python", s_method_text, 3u, "plain", &summary));
     memor.cpy(&(MemoriaCfg){.dst = s_documented, .src = s_applied, .bytes = CLI_UNITY_LENGTH(s_applied) + 1u});
     TEST_ASSERT_FALSE(docstring_written("python", s_documented, 3u, "google", &summary));
@@ -339,14 +339,14 @@ void test_a_jsdoc_comment_is_generated_for_a_javascript_function(void)
 {
     static const char s_js[] = "export function area(width, height = 2) {\n  if (width < 0) {\n    throw new "
                                "RangeError(\"width\");\n  }\n  return width * height;\n}\n";
-    char wanted[512];
-    CliInspectPlace summary = {0u, 0u};
-    VerbaLinea line = {wanted, sizeof(wanted), 0ull};
+    char required[512];
+    CliInspectPosition summary = {0u, 0u};
+    VerbaLinea line = {required, sizeof(required), 0ull};
     mmgr_line_put(&line, "/**\n * \n *\n * @param width\n * @param height\n * @returns\n * @throws {RangeError}\n */\n");
     mmgr_line_put(&line, s_js);
     (void)mmgr_line_finish(&line);
     TEST_ASSERT_TRUE(docstring_written("javascript", s_js, 1u, "google", &summary));
-    TEST_ASSERT_EQUAL_STRING(wanted, s_applied);
+    TEST_ASSERT_EQUAL_STRING(required, s_applied);
     TEST_ASSERT_EQUAL_UINT(1u, summary.line);
     TEST_ASSERT_EQUAL_UINT(3u, summary.col);
 }

@@ -14,7 +14,7 @@ extern void test_the_fuse_is_found(void);
 extern void test_a_flipped_fuse_is_refused(void);
 extern void test_a_signature_at_the_end_is_found(void);
 extern void test_a_program_with_its_signature_removed_has_none(void);
-extern void test_a_notes_segment_lies_past_the_others(void);
+extern void test_a_notes_segment_lies_end_the_others(void);
 extern void test_the_program_headers_move_with_the_note(void);
 extern void test_a_loaded_segment_contains_the_note(void);
 extern void test_a_note_header_names_the_note(void);
@@ -87,7 +87,7 @@ int main(void)
   run_test(test_a_flipped_fuse_is_refused, "test_a_flipped_fuse_is_refused", 127);
   run_test(test_a_signature_at_the_end_is_found, "test_a_signature_at_the_end_is_found", 134);
   run_test(test_a_program_with_its_signature_removed_has_none, "test_a_program_with_its_signature_removed_has_none", 144);
-  run_test(test_a_notes_segment_lies_past_the_others, "test_a_notes_segment_lies_past_the_others", 153);
+  run_test(test_a_notes_segment_lies_end_the_others, "test_a_notes_segment_lies_end_the_others", 153);
   run_test(test_the_program_headers_move_with_the_note, "test_the_program_headers_move_with_the_note", 160);
   run_test(test_a_loaded_segment_contains_the_note, "test_a_loaded_segment_contains_the_note", 167);
   run_test(test_a_note_header_names_the_note, "test_a_note_header_names_the_note", 174);

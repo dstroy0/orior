@@ -27,8 +27,8 @@ typedef struct
     VerbaLinea *out;
     VerbaLinea *err_msg;
 } PluginsCodeCtx;
-// `name` recorded as one of the files the plugin's code is read from, where room is left
-EMBED_INLINE void code_main_put(const PluginsCodeCtx *args)
+// `name` recorded as one of the files the plugin's code is read from, where capacity is left
+EMBED_INLINE void code_main_append(const PluginsCodeCtx *args)
 {
     CliCodeMains *mains = args->mains;
     if (mains->mains < CLI_PLUGINS_MAINS)
@@ -47,10 +47,10 @@ EMBED_INLINE int code_mains_read(const PluginsCodeCtx *args)
     CliCodeMains *mains = args->mains;
     CliJson json;
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &json,
-               .node_json_node_pointer = NULL, .nodes_most = 0u, .text_out = NULL, .text_most = 0ull);
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
     char why[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg,
+    const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                          .json = &json, .text = text, .size = size, .nodes_more = 0u, .text_more = 0ull,
                                          .err_msg = &err_msg, .owner = &g_cli_plugins_cells);
     mains->mains = 0u;
@@ -67,13 +67,13 @@ EMBED_INLINE int code_mains_read(const PluginsCodeCtx *args)
         const char *const name = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                             .json_read = &json, .node = item, .length_pointer = NULL);
         // a name that is no string is recorded empty and refused as no file of the folder's
-        EMBED_CALL(code_main_put, PluginsCodeCtx, .mains = mains, .name = (name != NULL) ? name : "");
+        EMBED_CALL(code_main_append, PluginsCodeCtx, .mains = mains, .name = (name != NULL) ? name : "");
     }
     const char *const one = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                        .json_read = &json, .node = main, .length_pointer = NULL);
     if (mains->mains == 0u)
     {
-        EMBED_CALL(code_main_put, PluginsCodeCtx, .mains = mains, .name = (one != NULL) ? one : "plugin.js");
+        EMBED_CALL(code_main_append, PluginsCodeCtx, .mains = mains, .name = (one != NULL) ? one : "plugin.js");
     }
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
     return root != CLI_JSON_NONE;
@@ -107,13 +107,14 @@ EMBED_INLINE int code_file_read(const PluginsCodeCtx *args)
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, args->name);
     unsigned long long file_size = 0ull;
-    const unsigned long long room = mmgr_line_ok(args->out) ? (args->out->capacity - args->out->at) : 0ull;
+    const unsigned long long capacity = mmgr_line_ok(args->out) ? (args->out->capacity - args->out->at) : 0ull;
     const int found =
         (mmgr_line_finish(&line) != 0ull) &&
         EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = file, .size_pointer = &file_size) &&
-        (room > file_size);
+        (capacity > file_size);
     const unsigned long long size =
-        found ? qry_member_file_read(file, (unsigned char *)(args->out->out + args->out->at), room) : QRY_MEMBER_UNREAD;
+        found ? qry_member_file_read(file, (unsigned char *)(args->out->out + args->out->at), capacity)
+              : QRY_MEMBER_UNREAD;
     if (size == QRY_MEMBER_UNREAD)
     {
         mmgr_line_put(args->err_msg, file);

@@ -1,13 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// test_carry.c: settings travel by a file, are compared before they are applied, and an application is undone; and settings travel by a
+// test_machine_transfer.c: settings travel by a file, are compared before they are applied, and an application is undone; and settings travel by a
 // folder that is a repository and are committed
 #include "ui/cli/src/code/git.h"
 #include "ui/cli/src/machine/carry_internal.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
-static CliCarried s_packed;
-static CliCarried s_there;
+static CliTransferred s_packed;
+static CliTransferred s_there;
 static char s_out[1u << 20u];
 static char s_now[4096];
 static char s_root[CLI_PATH_MAX_LEN];
@@ -17,7 +17,7 @@ static char s_file[CLI_PATH_MAX_LEN];
 static char s_home[CLI_PATH_MAX_LEN];
 static char s_repo[CLI_PATH_MAX_LEN];
 static char s_id[256];
-static char s_why[1024];
+static char s_error[1024];
 static VerbaLinea s_err_msg;
 static const CliJson *s_json;
 static unsigned int s_settings;
@@ -66,7 +66,7 @@ static void first_home_packed(void)
     file_written("one/plugin_settings/marks.json", "{\"every\": 3}");
     file_written("one/state.json", "{\"panes\": {}}");
     file_written("two/settings.json", "{\"zoom\": 1.0, \"sticky\": false, \"memory-budget\": 400, \"machine\": {\"zoom\": 2}}");
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_carry.pack, CliCarryCfg, .home = s_one, .packed = &s_packed, .err_msg = &s_err_msg));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_machine_transfer.pack, CliMachineTransferCfg, .home = s_one, .packed = &s_packed, .err_msg = &s_err_msg));
 }
 
 // the first home sent to a file and read back into s_there
@@ -75,8 +75,8 @@ static void file_read_back(void)
     first_home_packed();
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = "carried.json", .joined = s_file);
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_carry_home_to.send, CliCarryHomeToCfg, .home = s_one, .to = s_file, .out = &out, .err_msg = &s_err_msg));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_carry_from.read, CliCarryFromCfg, .from = s_file, .there_out = &s_there, .err_msg = &s_err_msg));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_machine_transfer_home_to.send, CliMachineTransferHomeToCfg, .home = s_one, .to = s_file, .out = &out, .err_msg = &s_err_msg));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_machine_transfer_from.read, CliMachineTransferFromCfg, .from = s_file, .there_out = &s_there, .err_msg = &s_err_msg));
 }
 
 // the differences of the second home from the file, parsed: the array's node
@@ -84,7 +84,7 @@ static unsigned int differences_read(void)
 {
     file_read_back();
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    EMBED_CALL(cli_carry_home.differences, CliCarryHomeCfg, .home = s_two, .there = &s_there, .out = &out);
+    EMBED_CALL(cli_machine_transfer_home.differences, CliMachineTransferHomeCfg, .home = s_two, .there = &s_there, .out = &out);
     unsigned int found = CLI_JSON_NONE;
     s_json = cli_unity_parsed(s_out, out.at, &found);
     return found;
@@ -97,10 +97,10 @@ static void settings_applied(void)
     static const char *const s_chosen_keys[2] = {"zoom", "sticky"};
     file_read_back();
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_carry_home.take, CliCarryHomeCfg, .home = s_two, .from = "carried.json", .there = &s_there, .places = s_chosen_files, .count = 3u, .keys = s_chosen_keys, .key_count = 2u, .out = &out, .err_msg = &s_err_msg));
-    unsigned int taking = CLI_JSON_NONE;
-    s_json = cli_unity_parsed(s_out, out.at, &taking);
-    const char *const id = cli_unity_member_text(taking, "id");
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_machine_transfer_home.take, CliMachineTransferHomeCfg, .home = s_two, .from = "carried.json", .there = &s_there, .positions = s_chosen_files, .count = 3u, .keys = s_chosen_keys, .key_count = 2u, .out = &out, .err_msg = &s_err_msg));
+    unsigned int allocating = CLI_JSON_NONE;
+    s_json = cli_unity_parsed(s_out, out.at, &allocating);
+    const char *const id = cli_unity_member_text(allocating, "id");
     memor.cpy(&(MemoriaCfg){.dst = s_id, .src = id, .bytes = CLI_UNITY_LENGTH(id) + 1ull});
     file_read("two/settings.json");
     s_json = cli_unity_parsed(s_now, CLI_UNITY_LENGTH(s_now), &s_settings);
@@ -110,23 +110,23 @@ static void settings_applied(void)
 static unsigned int applications_recorded(void)
 {
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    EMBED_CALL(cli_carry_home_to.takings, CliCarryHomeToCfg, .home = s_two, .out = &out);
-    unsigned int takings = CLI_JSON_NONE;
-    s_json = cli_unity_parsed(s_out, out.at, &takings);
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = s_json, .node = takings, .kind = CFG_JSON_ARRAY));
-    return s_json->node[takings].count;
+    EMBED_CALL(cli_machine_transfer_home_to.allocations, CliMachineTransferHomeToCfg, .home = s_two, .out = &out);
+    unsigned int allocations = CLI_JSON_NONE;
+    s_json = cli_unity_parsed(s_out, out.at, &allocations);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = s_json, .node = allocations, .kind = CFG_JSON_ARRAY));
+    return s_json->node[allocations].count;
 }
 
 // git run in the repository with `count` words, its output in `out`: whether it ended well
-static int git_ran(const char *const *words, unsigned int count, VerbaLinea *out)
+static int git_run_result(const char *const *words, unsigned int count, VerbaLinea *out)
 {
     out->at = 0ull;
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     return EMBED_CALL(cli_git_root_out_count_err_msg.run, CliGitRootOutCountErrMsgCfg, .root = s_repo, .request = words, .count = count, .out = out, .err_msg = &err_msg);
 }
 
 // a home written and a folder made a repository
-static void repository_made(void)
+static void repository_created(void)
 {
     static const char *const s_init[2] = {"init", "-q"};
     static const char *const s_email[3] = {"config", "user.email", "orior@example.com"};
@@ -138,9 +138,9 @@ static void repository_made(void)
     file_written("home/settings.json", "{\"zoom\": 1.1}");
     file_written("home/themes/Day.json", "{\"name\": \"Day\"}");
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    TEST_ASSERT_TRUE(git_ran(s_init, 2u, &out));
-    TEST_ASSERT_TRUE(git_ran(s_email, 3u, &out));
-    TEST_ASSERT_TRUE(git_ran(s_name, 3u, &out));
+    TEST_ASSERT_TRUE(git_run_result(s_init, 2u, &out));
+    TEST_ASSERT_TRUE(git_run_result(s_email, 3u, &out));
+    TEST_ASSERT_TRUE(git_run_result(s_name, 3u, &out));
     file_written("repo/themes/Gone.json", "{}");
 }
 
@@ -149,7 +149,7 @@ static int repository_sent(void)
 {
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     s_err_msg.at = 0ull;
-    const int sent = EMBED_CALL(cli_carry_home_to.send, CliCarryHomeToCfg, .home = s_home, .to = s_repo, .out = &out, .err_msg = &s_err_msg);
+    const int sent = EMBED_CALL(cli_machine_transfer_home_to.send, CliMachineTransferHomeToCfg, .home = s_home, .to = s_repo, .out = &out, .err_msg = &s_err_msg);
     s_out[out.at] = '\0';
     return sent;
 }
@@ -157,7 +157,7 @@ static int repository_sent(void)
 void setUp(void)
 {
     cli_unity_begun();
-    s_err_msg = (VerbaLinea){s_why, sizeof(s_why), 0ull};
+    s_err_msg = (VerbaLinea){s_error, sizeof(s_error), 0ull};
 }
 
 void tearDown(void)
@@ -166,22 +166,22 @@ void tearDown(void)
 
 void test_what_travels_is_the_settings_themes_plugins_and_their_settings(void)
 {
-    static const char *const s_places[4] = {"plugin_settings/marks.json", "plugins/marks/plugin.json", "settings.json", "themes/Night.json"};
+    static const char *const s_positions[4] = {"plugin_settings/marks.json", "plugins/marks/plugin.json", "settings.json", "themes/Night.json"};
     first_home_packed();
     TEST_ASSERT_EQUAL_UINT(4u, s_packed.count);
     for (unsigned int at = 0u; at < 4u; at += 1u)
     {
-        TEST_ASSERT_EQUAL_STRING(s_places[at], EMBED_CALL(cli_carry_carried_at_internal.carried_place, CliCarryCarriedAtCtx, .carried = &s_packed, .at = at));
+        TEST_ASSERT_EQUAL_STRING(s_positions[at], EMBED_CALL(cli_machine_transfer_transferred_at_internal.transferred_position, CliMachineTransferTransferredAtCtx, .carried = &s_packed, .at = at));
     }
 }
 
 void test_this_machines_own_settings_stay(void)
 {
     first_home_packed();
-    const unsigned int settings = EMBED_CALL(cli_carry_carried_internal.carried_find, CliCarryCarriedCtx, .carried = &s_packed, .place = "settings.json");
+    const unsigned int settings = EMBED_CALL(cli_machine_transfer_transferred_internal.transferred_find, CliMachineTransferTransferredCtx, .carried = &s_packed, .place = "settings.json");
     TEST_ASSERT_LESS_THAN_UINT(s_packed.count, settings);
-    CLI_TEST_ASSERT_NOT_CONTAINS("memory-budget", EMBED_CALL(cli_carry_carried_at_internal.carried_value, CliCarryCarriedAtCtx, .carried = &s_packed, .at = settings));
-    CLI_TEST_ASSERT_NOT_CONTAINS("machine", EMBED_CALL(cli_carry_carried_at_internal.carried_value, CliCarryCarriedAtCtx, .carried = &s_packed, .at = settings));
+    CLI_TEST_ASSERT_NOT_CONTAINS("memory-budget", EMBED_CALL(cli_machine_transfer_transferred_at_internal.transferred_value, CliMachineTransferTransferredAtCtx, .carried = &s_packed, .at = settings));
+    CLI_TEST_ASSERT_NOT_CONTAINS("machine", EMBED_CALL(cli_machine_transfer_transferred_at_internal.transferred_value, CliMachineTransferTransferredAtCtx, .carried = &s_packed, .at = settings));
 }
 
 void test_a_file_reads_back_as_what_was_packed(void)
@@ -190,8 +190,8 @@ void test_a_file_reads_back_as_what_was_packed(void)
     TEST_ASSERT_EQUAL_UINT(s_packed.count, s_there.count);
     for (unsigned int at = 0u; at < s_there.count; at += 1u)
     {
-        TEST_ASSERT_EQUAL_STRING(EMBED_CALL(cli_carry_carried_at_internal.carried_place, CliCarryCarriedAtCtx, .carried = &s_packed, .at = at), EMBED_CALL(cli_carry_carried_at_internal.carried_place, CliCarryCarriedAtCtx, .carried = &s_there, .at = at));
-        TEST_ASSERT_EQUAL_STRING(EMBED_CALL(cli_carry_carried_at_internal.carried_value, CliCarryCarriedAtCtx, .carried = &s_packed, .at = at), EMBED_CALL(cli_carry_carried_at_internal.carried_value, CliCarryCarriedAtCtx, .carried = &s_there, .at = at));
+        TEST_ASSERT_EQUAL_STRING(EMBED_CALL(cli_machine_transfer_transferred_at_internal.transferred_position, CliMachineTransferTransferredAtCtx, .carried = &s_packed, .at = at), EMBED_CALL(cli_machine_transfer_transferred_at_internal.transferred_position, CliMachineTransferTransferredAtCtx, .carried = &s_there, .at = at));
+        TEST_ASSERT_EQUAL_STRING(EMBED_CALL(cli_machine_transfer_transferred_at_internal.transferred_value, CliMachineTransferTransferredAtCtx, .carried = &s_packed, .at = at), EMBED_CALL(cli_machine_transfer_transferred_at_internal.transferred_value, CliMachineTransferTransferredAtCtx, .carried = &s_there, .at = at));
     }
 }
 
@@ -278,16 +278,16 @@ void test_an_undo_writes_a_file_back_as_it_was(void)
 {
     settings_applied();
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_carry_home_out.undo, CliCarryHomeOutCfg, .home = s_two, .id = s_id, .out = &out, .err_msg = &s_err_msg));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_machine_transfer_home_out.undo, CliMachineTransferHomeOutCfg, .home = s_two, .id = s_id, .out = &out, .err_msg = &s_err_msg));
     file_read("two/settings.json");
     CLI_TEST_ASSERT_CONTAINS("\"sticky\": false", s_now);
 }
 
-void test_an_undo_removes_a_file_the_application_made(void)
+void test_an_undo_removes_a_file_the_application_created(void)
 {
     settings_applied();
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_carry_home_out.undo, CliCarryHomeOutCfg, .home = s_two, .id = s_id, .out = &out, .err_msg = &s_err_msg));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_machine_transfer_home_out.undo, CliMachineTransferHomeOutCfg, .home = s_two, .id = s_id, .out = &out, .err_msg = &s_err_msg));
     TEST_ASSERT_FALSE(file_is("two/themes/Night.json"));
 }
 
@@ -295,42 +295,42 @@ void test_an_undo_removes_the_record(void)
 {
     settings_applied();
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_carry_home_out.undo, CliCarryHomeOutCfg, .home = s_two, .id = s_id, .out = &out, .err_msg = &s_err_msg));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_machine_transfer_home_out.undo, CliMachineTransferHomeOutCfg, .home = s_two, .id = s_id, .out = &out, .err_msg = &s_err_msg));
     TEST_ASSERT_EQUAL_UINT(0u, applications_recorded());
 }
 
-void test_a_file_that_carries_no_settings_is_refused(void)
+void test_a_file_that_transfers_no_settings_is_refused(void)
 {
     cli_unity_folder("carry", s_root);
     file_written("other.json", "{\"files\": {}}");
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = "other.json", .joined = s_file);
-    TEST_ASSERT_FALSE(EMBED_CALL(cli_carry_from.read, CliCarryFromCfg, .from = s_file, .there_out = &s_there, .err_msg = &s_err_msg));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_machine_transfer_from.read, CliMachineTransferFromCfg, .from = s_file, .there_out = &s_there, .err_msg = &s_err_msg));
     (void)mmgr_line_finish(&s_err_msg);
-    CLI_TEST_ASSERT_CONTAINS("no settings orior_cli carried", s_why);
+    CLI_TEST_ASSERT_CONTAINS("no settings orior_cli carried", s_error);
 }
 
 void test_settings_are_sent_to_a_repository_and_committed(void)
 {
-    repository_made();
+    repository_created();
     TEST_ASSERT_TRUE(repository_sent());
     CLI_TEST_ASSERT_CONTAINS("committed", s_out);
 }
 
 void test_the_repository_contains_what_travels_and_no_more(void)
 {
-    repository_made();
+    repository_created();
     TEST_ASSERT_TRUE(repository_sent());
     TEST_ASSERT_TRUE(file_is("repo/themes/Day.json"));
     TEST_ASSERT_FALSE(file_is("repo/themes/Gone.json"));
 }
 
-void test_one_commit_is_made(void)
+void test_one_commit_is_created(void)
 {
     static const char *const s_log[2] = {"log", "--format=%s"};
-    repository_made();
+    repository_created();
     TEST_ASSERT_TRUE(repository_sent());
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    (void)git_ran(s_log, 2u, &out);
+    (void)git_run_result(s_log, 2u, &out);
     // git's answer comes back trimmed: a log that is not empty has one line more than it has line ends
     unsigned int lines = (out.at != 0ull) ? 1u : 0u;
     for (unsigned long long at = 0ull; at < out.at; at += 1ull)
@@ -342,7 +342,7 @@ void test_one_commit_is_made(void)
 
 void test_sending_what_is_there_commits_nothing(void)
 {
-    repository_made();
+    repository_created();
     TEST_ASSERT_TRUE(repository_sent());
     TEST_ASSERT_TRUE(repository_sent());
     CLI_TEST_ASSERT_CONTAINS("already", s_out);
@@ -350,11 +350,11 @@ void test_sending_what_is_there_commits_nothing(void)
 
 void test_the_repository_reads_back_what_was_sent(void)
 {
-    repository_made();
+    repository_created();
     TEST_ASSERT_TRUE(repository_sent());
     s_err_msg.at = 0ull;
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_carry_from.read, CliCarryFromCfg, .from = s_repo, .there_out = &s_there, .err_msg = &s_err_msg));
-    const unsigned int day = EMBED_CALL(cli_carry_carried_internal.carried_find, CliCarryCarriedCtx, .carried = &s_there, .place = "themes/Day.json");
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_machine_transfer_from.read, CliMachineTransferFromCfg, .from = s_repo, .there_out = &s_there, .err_msg = &s_err_msg));
+    const unsigned int day = EMBED_CALL(cli_machine_transfer_transferred_internal.transferred_find, CliMachineTransferTransferredCtx, .carried = &s_there, .place = "themes/Day.json");
     TEST_ASSERT_LESS_THAN_UINT(s_there.count, day);
-    TEST_ASSERT_EQUAL_STRING("{\"name\": \"Day\"}", EMBED_CALL(cli_carry_carried_at_internal.carried_value, CliCarryCarriedAtCtx, .carried = &s_there, .at = day));
+    TEST_ASSERT_EQUAL_STRING("{\"name\": \"Day\"}", EMBED_CALL(cli_machine_transfer_transferred_at_internal.transferred_value, CliMachineTransferTransferredAtCtx, .carried = &s_there, .at = day));
 }

@@ -40,7 +40,7 @@ EMBED_INLINE int cli_snapshot_same(const HistoryCtx *args)
     unsigned long long size = args->size;
     unsigned long long read = 0ull;
     const unsigned char *const snapshot_bytes =
-        EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = args->snapshot, .size_pointer = &read,
+        EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->snapshot, .size_pointer = &read,
                    .owner = &g_cli_editor_cells);
     const int same = (snapshot_bytes != NULL) && (read == size) &&
                      (memor.cmp(&(MemoriaCfg){.src = snapshot_bytes, .other = args->text, .bytes = (size_t)size}) == 0);
@@ -50,7 +50,7 @@ EMBED_INLINE int cli_snapshot_same(const HistoryCtx *args)
 }
 
 // FNV-1a over the bytes, which names a folder the same on every run, sixteen hex digits
-EMBED_INLINE void cli_hash_put(const HistoryCtx *args)
+EMBED_INLINE void cli_hash_append(const HistoryCtx *args)
 {
     unsigned long long value = 0xcbf29ce484222325ull;
     for (const char *at = args->text; at[0] != '\0'; at += 1)
@@ -72,13 +72,13 @@ EMBED_INLINE int cli_folder_get(const HistoryCtx *args)
     const unsigned long long count =
         EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = name,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .letters = letters,
-                   .room_u64 = CLI_PATH_MAX_LEN);
+                   .capacity_u64 = CLI_PATH_MAX_LEN);
     VerbaLinea line = {args->folder_out, CLI_PATH_MAX_LEN, 0ull};
     mmgr_line_put(&line, args->home);
     mmgr_line_put(&line, "/history/");
-    EMBED_CALL(cli_hash_put, HistoryCtx, .line = &line, .text = args->root);
+    EMBED_CALL(cli_hash_append, HistoryCtx, .line = &line, .text = args->root);
     mmgr_line_ch(&line, '/');
-    EMBED_CALL(cli_hash_put, HistoryCtx, .line = &line, .text = args->path);
+    EMBED_CALL(cli_hash_append, HistoryCtx, .line = &line, .text = args->path);
     mmgr_line_ch(&line, '-');
     for (unsigned long long at = 0ull; at < count; at += 1ull)
     {
@@ -89,7 +89,7 @@ EMBED_INLINE int cli_folder_get(const HistoryCtx *args)
                        .letter = letter) ||
             (letter == '.') || (letter == '_') || (letter == '-'))
         {
-            EMBED_CALL(cli_line_letter_internal.utf8_put, CliLineLetterCtx, .line = &line, .letter = letter);
+            EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &line, .letter = letter);
         }
     }
     const int fits = mmgr_line_ok(&line);
@@ -238,35 +238,6 @@ int cli_history_save(const CliHistoryBeforeCfg *args)
     return saved;
 }
 
-void cli_history_list(const CliHistoryCfg *args)
-{
-    char home[CLI_PATH_MAX_LEN];
-    char folder[CLI_PATH_MAX_LEN];
-    char snapshot[CLI_PATH_MAX_LEN];
-    mmgr_line_ch(args->out, '[');
-    const unsigned int count = (EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = home) &&
-                                EMBED_CALL(cli_folder_get, HistoryCtx, .home = home, .root = args->root,
-                                           .path = args->path, .folder_out = folder))
-                                   ? EMBED_CALL(cli_stamps, HistoryCtx, .folder = folder)
-                                   : 0u;
-    for (unsigned int at = count; at > 0u; at -= 1u)
-    {
-        unsigned long long size = 0ull;
-        if (!EMBED_CALL(cli_snapshot_path, HistoryCtx, .folder = folder, .at = s_stamps[at - 1u],
-                        .path_out = snapshot) ||
-            !EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = snapshot, .size_pointer = &size))
-        {
-            size = 0ull;
-        }
-        mmgr_line_put(args->out, (at != count) ? ",{\"at\":" : "{\"at\":");
-        mmgr_line_decimal(args->out, s_stamps[at - 1u], 1u);
-        mmgr_line_put(args->out, ",\"size\":");
-        mmgr_line_decimal(args->out, size, 1u);
-        mmgr_line_ch(args->out, '}');
-    }
-    mmgr_line_ch(args->out, ']');
-}
-
 int cli_history_read(const CliHistoryCfg *args)
 {
     unsigned long long at = args->at;
@@ -279,15 +250,15 @@ int cli_history_read(const CliHistoryCfg *args)
         return 0;
     }
     unsigned long long file_size = 0ull;
-    const unsigned long long room = mmgr_line_ok(args->out) ? (args->out->capacity - args->out->at) : 0ull;
+    const unsigned long long capacity = mmgr_line_ok(args->out) ? (args->out->capacity - args->out->at) : 0ull;
     const int found =
         EMBED_CALL(cli_folder_get, HistoryCtx, .home = home, .root = args->root, .path = args->path,
                    .folder_out = folder) &&
         EMBED_CALL(cli_snapshot_path, HistoryCtx, .folder = folder, .at = at, .path_out = snapshot) &&
         EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = snapshot, .size_pointer = &file_size) &&
-        (room > file_size);
+        (capacity > file_size);
     const unsigned long long size =
-        found ? qry_member_file_read(snapshot, (unsigned char *)(args->out->out + args->out->at), room)
+        found ? qry_member_file_read(snapshot, (unsigned char *)(args->out->out + args->out->at), capacity)
               : QRY_MEMBER_UNREAD;
     if (size == QRY_MEMBER_UNREAD)
     {

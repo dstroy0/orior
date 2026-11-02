@@ -16,10 +16,9 @@ extern void test_a_message_reads_its_values_back(void);
 extern void test_a_messages_document_follows_it(void);
 extern void test_a_messages_memory_is_released_once_it_is_done(void);
 extern void test_an_address_with_no_port_uses_ipps(void);
-extern void test_an_address_gives_its_port(void);
+extern void test_an_address_releases_its_port(void);
 extern void test_an_ipv6_host_is_read_from_its_brackets(void);
 extern void test_an_encrypted_address_is_refused(void);
-extern void test_a_printer_reports_that_it_accepts_a_pdf(void);
 extern void test_a_job_is_accepted_and_its_state_reported(void);
 extern void test_a_canceled_job_ended(void);
 extern void test_a_format_the_printer_does_not_accept_is_refused(void);
@@ -92,13 +91,12 @@ int main(void)
   run_test(test_a_messages_document_follows_it, "test_a_messages_document_follows_it", 220);
   run_test(test_a_messages_memory_is_released_once_it_is_done, "test_a_messages_memory_is_released_once_it_is_done", 226);
   run_test(test_an_address_with_no_port_uses_ipps, "test_an_address_with_no_port_uses_ipps", 237);
-  run_test(test_an_address_gives_its_port, "test_an_address_gives_its_port", 242);
+  run_test(test_an_address_releases_its_port, "test_an_address_releases_its_port", 242);
   run_test(test_an_ipv6_host_is_read_from_its_brackets, "test_an_ipv6_host_is_read_from_its_brackets", 247);
   run_test(test_an_encrypted_address_is_refused, "test_an_encrypted_address_is_refused", 252);
-  run_test(test_a_printer_reports_that_it_accepts_a_pdf, "test_a_printer_reports_that_it_accepts_a_pdf", 262);
-  run_test(test_a_job_is_accepted_and_its_state_reported, "test_a_job_is_accepted_and_its_state_reported", 275);
-  run_test(test_a_canceled_job_ended, "test_a_canceled_job_ended", 291);
-  run_test(test_a_format_the_printer_does_not_accept_is_refused, "test_a_format_the_printer_does_not_accept_is_refused", 306);
+  run_test(test_a_job_is_accepted_and_its_state_reported, "test_a_job_is_accepted_and_its_state_reported", 262);
+  run_test(test_a_canceled_job_ended, "test_a_canceled_job_ended", 278);
+  run_test(test_a_format_the_printer_does_not_accept_is_refused, "test_a_format_the_printer_does_not_accept_is_refused", 293);
 
   return UNITY_END();
 }

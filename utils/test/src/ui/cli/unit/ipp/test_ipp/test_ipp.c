@@ -12,9 +12,9 @@ static char s_bytes[1u << 16u];
 static unsigned long long s_size;
 static char s_pdf[1u << 20u];
 static unsigned long long s_pdf_size;
-static char s_why[512];
+static char s_error[512];
 static VerbaLinea s_err_msg;
-static int s_message_taken;
+static int s_message_allocated;
 static char s_uri[CLI_PATH_MAX_LEN];
 static char s_host[CLI_NAME_MAX_LEN];
 static unsigned int s_port;
@@ -23,7 +23,7 @@ static unsigned int s_port;
 static void message_encoded(void)
 {
     EMBED_CALL(cli_ipp_message_code.begin, CliIppMessageCodeCfg, .message = &s_message, .code = 0x0002u, .request_id = 7u);
-    s_message_taken = 1;
+    s_message_allocated = 1;
     EMBED_CALL(cli_ipp_message_tag.group, CliIppMessageTagCfg, .message = &s_message, .tag = CLI_IPP_OPERATION);
     EMBED_CALL(cli_ipp_table.attribute, CliIppCfg, .message = &s_message, .name = "attributes-charset");
     EMBED_CALL(cli_ipp_message_tag.text, CliIppMessageTagCfg, .message = &s_message, .tag = CLI_IPP_CHARSET, .text = "utf-8");
@@ -70,7 +70,7 @@ static void assert_reaches(const char *uri, const char *host, unsigned int port,
 static void server_required(void)
 {
     char named[CLI_NAME_MAX_LEN];
-    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_CUPS", .value_out = named, .room = sizeof(named)))
+    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_CUPS", .value_out = named, .capacity = sizeof(named)))
     {
         TEST_IGNORE_MESSAGE("ORIOR_CUPS names no server");
     }
@@ -94,7 +94,7 @@ static void printer_found(void)
 {
     static CliIppShared s_shared[16];
     server_required();
-    TEST_ASSERT_GREATER_THAN_INT(0, EMBED_CALL(cli_ipp_err_msg_host.cups_printers, CliIppErrMsgHostCfg, .host_read = s_host, .port_value = s_port, .shared = s_shared, .room_u32 = 16u, .err_msg = &s_err_msg));
+    TEST_ASSERT_GREATER_THAN_INT(0, EMBED_CALL(cli_ipp_err_msg_host.cups_printers, CliIppErrMsgHostCfg, .host_read = s_host, .port_value = s_port, .shared = s_shared, .capacity_u32 = 16u, .err_msg = &s_err_msg));
     const char *const with = s_shared[0].uri;
     VerbaLinea line = {s_uri, sizeof(s_uri), 0ull};
     const char *const local = cellul.find(&(CatenaFinitaCfg){.src = with, .cap = CLI_CELLS_POOL, .other = "localhost", .other_cap = CLI_CELLS_POOL});
@@ -122,7 +122,7 @@ static void printer_found(void)
 }
 
 // a one-page PDF in s_pdf
-static void document_made(void)
+static void document_created(void)
 {
     static const char s_listing[] = "{\"title\":\"ipp test\",\"lines\":[{\"number\":1,\"runs\":[{\"text\":\"printed by orior\",\"color\":\"#000000\"}]}],\"tab\":4}";
     unsigned int read = CLI_JSON_NONE;
@@ -132,25 +132,25 @@ static void document_made(void)
     memor.set(&(MemoriaCfg){.dst = &layout, .val = 0, .bytes = sizeof(layout)});
     memor.cpy(&(MemoriaCfg){.dst = layout.paper, .src = "a4", .bytes = 3u});
     layout.copies = 1u;
-    cli_print_take();
+    cli_print_alloc();
     (void)EMBED_CALL(cli_print_json.listing_read, CliPrintJsonCfg, .json = json, .node = read, .listing_pointer = &listing, .err_msg = &s_err_msg);
     VerbaLinea document = {s_pdf, sizeof(s_pdf), 0ull};
     unsigned long long pages = 0ull;
     EMBED_CALL(cli_print_layout_listing_out.pdf, CliPrintLayoutListingOutCfg, .listing = listing, .layout = &layout, .out = &document, .pages = &pages);
-    cli_print_give();
+    cli_print_release();
     s_pdf_size = document.at;
 }
 
 void setUp(void)
 {
     cli_unity_begun();
-    s_err_msg = (VerbaLinea){s_why, sizeof(s_why), 0ull};
-    s_message_taken = 0;
+    s_err_msg = (VerbaLinea){s_error, sizeof(s_error), 0ull};
+    s_message_allocated = 0;
 }
 
 void tearDown(void)
 {
-    if (s_message_taken)
+    if (s_message_allocated)
     {
         EMBED_CALL(cli_ipp_message_code.free, CliIppMessageCodeCfg, .message = &s_message);
         EMBED_CALL(cli_ipp_message_code.free, CliIppMessageCodeCfg, .message = &s_back);
@@ -229,7 +229,7 @@ void test_a_messages_memory_is_released_once_it_is_done(void)
     const unsigned long long in_use = embed_atomic_usize_load(&g_cli_ipp_cells.in_use);
     EMBED_CALL(cli_ipp_message_code.free, CliIppMessageCodeCfg, .message = &s_message);
     EMBED_CALL(cli_ipp_message_code.free, CliIppMessageCodeCfg, .message = &s_back);
-    s_message_taken = 0;
+    s_message_allocated = 0;
     TEST_ASSERT_NOT_EQUAL(0ull, in_use);
     TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_ipp_cells.in_use));
 }
@@ -239,7 +239,7 @@ void test_an_address_with_no_port_uses_ipps(void)
     assert_reaches("ipp://printer.local/ipp/print", "printer.local", 631u, "/ipp/print");
 }
 
-void test_an_address_gives_its_port(void)
+void test_an_address_releases_its_port(void)
 {
     assert_reaches("ipp://10.0.0.5:8631/printers/office", "10.0.0.5", 8631u, "/printers/office");
 }
@@ -256,26 +256,13 @@ void test_an_encrypted_address_is_refused(void)
     unsigned int port = 0u;
     TEST_ASSERT_FALSE(EMBED_CALL(cli_ipp_err_msg.address, CliIppErrMsgCfg, .uri = "ipps://printer.local/ipp/print", .host = host, .port = &port, .path = path, .err_msg = &s_err_msg));
     TEST_ASSERT_GREATER_THAN_UINT64(0ull, mmgr_line_finish(&s_err_msg));
-    CLI_TEST_ASSERT_CONTAINS("encrypted", s_why);
-}
-
-void test_a_printer_reports_that_it_accepts_a_pdf(void)
-{
-    static CliIppPrinter s_printer;
-    printer_found();
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_ipp_err_msg_uri_printer.printer, CliIppErrMsgUriPrinterCfg, .uri = s_uri, .printer = &s_printer, .err_msg = &s_err_msg));
-    int pdf = 0;
-    for (unsigned int at = 0u; at < s_printer.format_count; at += 1u)
-    {
-        pdf |= cellul.eq(&(CatenaFinitaCfg){.src = s_printer.formats[at], .other = "application/pdf", .cap = CLI_CELLS_POOL});
-    }
-    TEST_ASSERT_TRUE(pdf);
+    CLI_TEST_ASSERT_CONTAINS("encrypted", s_error);
 }
 
 void test_a_job_is_accepted_and_its_state_reported(void)
 {
     printer_found();
-    document_made();
+    document_created();
     CliIppJob job = {"orior_cli ipp test", "application/pdf", 1u, 0, 1, "iso_a4_210x297mm"};
     int id = 0;
     TEST_ASSERT_TRUE(EMBED_CALL(cli_ipp_size_err_msg.print, CliIppSizeErrMsgCfg, .uri = s_uri, .job = &job, .document = (const unsigned char *)s_pdf, .size = s_pdf_size, .id_pointer = &id, .err_msg = &s_err_msg));
@@ -291,7 +278,7 @@ void test_a_job_is_accepted_and_its_state_reported(void)
 void test_a_canceled_job_ended(void)
 {
     printer_found();
-    document_made();
+    document_created();
     CliIppJob job = {"orior_cli cancel test", "application/pdf", 1u, 0, 1, "iso_a4_210x297mm"};
     int id = 0;
     (void)EMBED_CALL(cli_ipp_size_err_msg.print, CliIppSizeErrMsgCfg, .uri = s_uri, .job = &job, .document = (const unsigned char *)s_pdf, .size = s_pdf_size, .id_pointer = &id, .err_msg = &s_err_msg);
@@ -310,5 +297,5 @@ void test_a_format_the_printer_does_not_accept_is_refused(void)
     int id = 0;
     TEST_ASSERT_FALSE(EMBED_CALL(cli_ipp_size_err_msg.print, CliIppSizeErrMsgCfg, .uri = s_uri, .job = &job, .document = (const unsigned char *)"x", .size = 1ull, .id_pointer = &id, .err_msg = &s_err_msg));
     TEST_ASSERT_GREATER_THAN_UINT64(0ull, mmgr_line_finish(&s_err_msg));
-    CLI_TEST_ASSERT_CONTAINS("format", s_why);
+    CLI_TEST_ASSERT_CONTAINS("format", s_error);
 }

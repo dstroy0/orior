@@ -13,7 +13,7 @@
 // sequence of them, or alternatives of those no two of which start with the same character, steps along without going
 // deeper for each pass it takes, and a long run costs no stack; a string's `"(?:[^"\\]|\\.)*"` is one. Any other
 // repeats by going one level deeper a pass. A match that takes more than CLI_REGEXP_STEPS steps, or whose passes take
-// more than CLI_REGEXP_STACK_MOST bytes of the stack below where it began, is given up as no match. A pattern is read
+// more than CLI_REGEXP_STACK_MAX bytes of the stack below where it began, is given up as no match. A pattern is read
 // into a CliRegexp the caller owns; the text is its letters, each a code point (regexp_read.c, regexp_match.c)
 #ifndef REGEXP_H
 #define REGEXP_H
@@ -23,7 +23,7 @@ typedef struct CliRegexpSourceCfg CliRegexpSourceCfg;
 typedef struct CliRegexpCfg CliRegexpCfg;
 typedef struct CliRegexpIndexCfg CliRegexpIndexCfg;
 typedef struct CliRegexpLetterCfg CliRegexpLetterCfg;
-typedef struct CliRegexpRoomCfg CliRegexpRoomCfg;
+typedef struct CliRegexpWorkStateCfg CliRegexpWorkStateCfg;
 
 #include "../command_line/cli_internal.h"
 #include "embed_dispatch_layout.h"
@@ -43,7 +43,7 @@ typedef struct CliRegexpRoomCfg CliRegexpRoomCfg;
 // take before it is given up: well inside the stack any thread of the window is given
 #define CLI_REGEXP_STEPS 200000ull
 
-#define CLI_REGEXP_STACK_MOST (512u * 1024u)
+#define CLI_REGEXP_STACK_MAX (512u * 1024u)
 
 // a quantifier with no most, and a node or a group of none
 #define CLI_REGEXP_UNBOUNDED 0xffffffffu
@@ -92,8 +92,9 @@ typedef struct
 
 // A pattern read and ready to match: its nodes, items and parts, the first characters of each alternative of an
 // alternation at its part's place, its root, its count of groups, `fold` under the `i` flag, and its first characters
-// The arrays are where a room or a store of patterns places them: a pattern is read into a room, which contains the
-// most any pattern takes, and a store copies what it took, so many patterns are stored in the room of one
+// The arrays are where a work state or a store of patterns places them: a pattern is read into a work state, which
+// contains the most any pattern takes, and a store copies what it took, so many patterns are stored in the work state
+// of one
 typedef struct
 {
     CliRegexpNode *node;
@@ -111,17 +112,17 @@ typedef struct
     int anchored;
 } CliRegexp;
 
-// The room one pattern is read into: the most nodes, class items and child places a pattern contains
+// The work state one pattern is read into: the most nodes, class items and child places a pattern contains
 typedef struct
 {
     CliRegexpNode node[CLI_REGEXP_NODES];
     CliRegexpItem item[CLI_REGEXP_ITEMS];
     unsigned int part[CLI_REGEXP_PARTS];
     CliRegexpFirst part_first[CLI_REGEXP_PARTS];
-} CliRegexpRoom;
+} CliRegexpWorkState;
 
-// the pattern's arrays pointed at the room's, read into next
-void cli_regexp_on_room(const CliRegexpRoomCfg *args);
+// the pattern's arrays pointed at the work state's, read into next
+void cli_regexp_on_capacity(const CliRegexpWorkStateCfg *args);
 
 // one group's span in the text, from one letter up to another, and 1 in `set` where the group took part in the match
 typedef struct
@@ -166,9 +167,9 @@ enum
     CLI_REGEXP_LOWER
 };
 
-// `size` bytes of UTF-8 decoded into code points in `letters`, sized for `room`: their count
+// `size` bytes of UTF-8 decoded into code points in `letters`, sized for `capacity`: their count
 unsigned long long cli_regexp_letters(const CliRegexpTextCfg *args);
-// the pattern `source` with `flags` read into `regexp`, its arrays pointed at a room: 1, or 0 with why given,
+// the pattern `source` with `flags` read into `regexp`, its arrays pointed at a work state: 1, or 0 with why given,
 // `/<source>/: <why> at <place>`
 int cli_regexp_read(const CliRegexpSourceCfg *args);
 // whether a first set allows a match to start at `letter`: its ASCII bits, or `other` past them
@@ -199,7 +200,7 @@ struct CliRegexpTextCfg
     const char *text;
     unsigned long long size;
     unsigned int *letters;
-    unsigned long long room_u64;
+    unsigned long long capacity_u64;
 };
 
 struct CliRegexpSourceCfg
@@ -228,19 +229,19 @@ struct CliRegexpLetterCfg
     unsigned int property;
 };
 
-struct CliRegexpRoomCfg
+struct CliRegexpWorkStateCfg
 {
     CliRegexp *regexp_out;
-    CliRegexpRoom *room;
+    CliRegexpWorkState *work_state;
 };
 
 typedef struct
 {
-    void (*room)(const CliRegexpRoomCfg *args);
-} CliRegexpRoomNs;
-EMBED_TABLE_LAYOUT(CliRegexpRoomNs, room);
-EMBED_TABLE_STORAGE CliRegexpRoomNs cli_regexp_room EMBED_UNUSED = {
-    .room = cli_regexp_on_room,
+    void (*capacity)(const CliRegexpWorkStateCfg *args);
+} CliRegexpWorkStateNs;
+EMBED_TABLE_LAYOUT(CliRegexpWorkStateNs, capacity);
+EMBED_TABLE_STORAGE CliRegexpWorkStateNs cli_regexp_capacity EMBED_UNUSED = {
+    .capacity = cli_regexp_on_capacity,
 };
 
 typedef struct

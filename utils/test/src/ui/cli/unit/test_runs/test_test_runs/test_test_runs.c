@@ -21,7 +21,7 @@ static char s_events[1u << 20u];
 static unsigned long long s_events_at;
 static char s_seen[1u << 20u];
 static const CliJson *s_json;
-static int s_python_ran;
+static int s_python_run_result;
 static int s_python_usable;
 static int s_python_started;
 
@@ -70,7 +70,7 @@ static unsigned int line_found(const char *kind, const char *id, unsigned int fr
 }
 
 // a whole number member of a node of the shared tree, -1 where it is none
-static long long whole_member(unsigned int node, const char *name)
+static long long integer_member(unsigned int node, const char *name)
 {
     const unsigned int number = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = node, .name = name);
     if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = s_json, .node = number, .kind = CFG_JSON_NUMBER))
@@ -104,7 +104,7 @@ static int unittest_line_is(const char *line, const char *id, const char *outcom
 {
     char read_id[CLI_PATH_MAX_LEN];
     const char *read = NULL;
-    return EMBED_CALL(cli_test_runs_size_line_internal.test_unittest_line, CliTestRunsSizeLineCtx, .line = line, .size = CLI_UNITY_LENGTH(line), .id_out = read_id, .room = sizeof(read_id), .outcome_pointer = &read) && cellul.eq(&(CatenaFinitaCfg){.src = read_id, .other = id, .cap = CLI_CELLS_POOL}) && cellul.eq(&(CatenaFinitaCfg){.src = read, .other = outcome, .cap = CLI_CELLS_POOL});
+    return EMBED_CALL(cli_test_runs_size_line_internal.test_unittest_line, CliTestRunsSizeLineCtx, .line = line, .size = CLI_UNITY_LENGTH(line), .id_out = read_id, .capacity = sizeof(read_id), .outcome_pointer = &read) && cellul.eq(&(CatenaFinitaCfg){.src = read_id, .other = id, .cap = CLI_CELLS_POOL}) && cellul.eq(&(CatenaFinitaCfg){.src = read, .other = outcome, .cap = CLI_CELLS_POOL});
 }
 
 // a worker of the run set up to report into the recorded events, empty
@@ -117,7 +117,7 @@ static void report_ready(void)
 }
 
 // a real run of three test files under pytest with coverage, once for the process
-static void python_ran(void)
+static void python_run_result(void)
 {
     static const char *const s_files[3][2] = {
         {"shapes.py", "def area(width, height):\n    return width * height\n\n\ndef unused():\n    return 0\n"},
@@ -130,11 +130,11 @@ static void python_ran(void)
     char dir[CLI_PATH_MAX_LEN];
     char path[CLI_PATH_MAX_LEN];
     char why[512];
-    if (s_python_ran)
+    if (s_python_run_result)
     {
         return;
     }
-    s_python_ran = 1;
+    s_python_run_result = 1;
     cli_unity_folder("test_runs", dir);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = dir, .relative = "tests", .joined = path);
     (void)EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = path);
@@ -151,7 +151,7 @@ static void python_ran(void)
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     unsigned long long run = 0ull;
     s_events_at = 0ull;
-    s_python_started = EMBED_CALL(cli_test_runs_root.start, CliTestRunsRootCfg, .root = dir, .given = s_paths, .count = 2u, .parallel = 1, .cover = 1, .sink = (CliJsonSink){event_recorded, NULL}, .number = &run, .err_msg = &err_msg);
+    s_python_started = EMBED_CALL(cli_test_runs_root.start, CliTestRunsRootCfg, .root = dir, .supplied = s_paths, .count = 2u, .parallel = 1, .cover = 1, .sink = (CliJsonSink){event_recorded, NULL}, .number = &run, .err_msg = &err_msg);
     unsigned int lines = 0u;
     const unsigned long long until = cli_clock_milliseconds() + 120000ull;
     while (s_python_started && (line_found("done", NULL, 0u, &lines) == CLI_JSON_NONE) && (cli_clock_milliseconds() < until))
@@ -163,7 +163,7 @@ static void python_ran(void)
 // the real run made, the case ignored on a machine with no Python with pytest
 static void python_required(void)
 {
-    python_ran();
+    python_run_result();
     if (!s_python_usable)
     {
         TEST_IGNORE_MESSAGE("no Python with pytest on this machine");
@@ -192,13 +192,13 @@ void tearDown(void)
 {
 }
 
-void test_a_run_is_spread_by_whole_files_the_largest_first(void)
+void test_a_run_is_spread_by_complete_files_the_largest_first(void)
 {
     static const char *const s_paths[6] = {"a.py::t1", "a.py::t2", "a.py::t3", "b.py::t1", "c.py::t1", "c.py::t2"};
-    static const char *const s_wanted[2][3] = {{"a.py::t1", "a.py::t2", "a.py::t3"}, {"c.py::t1", "c.py::t2", "b.py::t1"}};
+    static const char *const s_requested[2][3] = {{"a.py::t1", "a.py::t2", "a.py::t3"}, {"c.py::t1", "c.py::t2", "b.py::t1"}};
     for (unsigned int at = 0u; at < 6u; at += 1u)
     {
-        s_run.given[at] = s_paths[at];
+        s_run.supplied[at] = s_paths[at];
     }
     EMBED_CALL(cli_test_runs_run_count_internal.test_shares, CliTestRunsRunCountCtx, .run = &s_run, .count = 6u, .most = 2u);
     TEST_ASSERT_EQUAL_UINT(2u, s_run.shares);
@@ -207,7 +207,7 @@ void test_a_run_is_spread_by_whole_files_the_largest_first(void)
         TEST_ASSERT_EQUAL_UINT(3u, s_run.share_size[share]);
         for (unsigned int at = 0u; at < 3u; at += 1u)
         {
-            TEST_ASSERT_EQUAL_STRING(s_wanted[share][at], s_run.given[s_run.order[s_run.share_from[share] + at]]);
+            TEST_ASSERT_EQUAL_STRING(s_requested[share][at], s_run.supplied[s_run.order[s_run.share_from[share] + at]]);
         }
     }
 }
@@ -217,7 +217,7 @@ void test_a_run_has_no_more_shares_than_files(void)
     static const char *const s_paths[5] = {"a.py::t1", "a.py::t2", "b.py::t1", "c.py::t1", "c.py::t2"};
     for (unsigned int at = 0u; at < 5u; at += 1u)
     {
-        s_run.given[at] = s_paths[at];
+        s_run.supplied[at] = s_paths[at];
     }
     EMBED_CALL(cli_test_runs_run_count_internal.test_shares, CliTestRunsRunCountCtx, .run = &s_run, .count = 5u, .most = 8u);
     TEST_ASSERT_EQUAL_UINT(3u, s_run.shares);
@@ -228,7 +228,7 @@ void test_a_run_has_one_share_where_one_is_requested(void)
     static const char *const s_paths[5] = {"a.py::t1", "a.py::t2", "b.py::t1", "c.py::t1", "c.py::t2"};
     for (unsigned int at = 0u; at < 5u; at += 1u)
     {
-        s_run.given[at] = s_paths[at];
+        s_run.supplied[at] = s_paths[at];
     }
     EMBED_CALL(cli_test_runs_run_count_internal.test_shares, CliTestRunsRunCountCtx, .run = &s_run, .count = 5u, .most = 1u);
     TEST_ASSERT_EQUAL_UINT(1u, s_run.shares);
@@ -276,7 +276,7 @@ void test_a_failure_has_its_message_and_the_line_it_failed_at(void)
     const unsigned int outcome = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = one, .name = "outcome");
     TEST_ASSERT_EQUAL_UINT(3u, lines);
     TEST_ASSERT_EQUAL_STRING("assert 1 == 2", cli_unity_member_text(outcome, "message"));
-    TEST_ASSERT_EQUAL_INT64(8ll, whole_member(outcome, "line"));
+    TEST_ASSERT_EQUAL_INT64(8ll, integer_member(outcome, "line"));
 }
 
 void test_a_test_that_passed_has_its_time(void)
@@ -301,7 +301,7 @@ void test_a_test_skipped_has_its_line(void)
     const unsigned int one = line_found("result", "tests/test_a.py::TestX::test_skip", 0u, &lines);
     const unsigned int outcome = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = one, .name = "outcome");
     TEST_ASSERT_EQUAL_STRING("skipped", cli_unity_member_text(outcome, "outcome"));
-    TEST_ASSERT_EQUAL_INT64(14ll, whole_member(outcome, "line"));
+    TEST_ASSERT_EQUAL_INT64(14ll, integer_member(outcome, "line"));
 }
 
 void test_a_reports_tags_and_texts_are_in_cells_sized_to_it_and_released(void)
@@ -327,14 +327,14 @@ void test_unittests_failures_are_read(void)
     EMBED_CALL(cli_test_runs_text_worker_internal.test_unittest_failures_emit, CliTestRunsTextWorkerCtx, .worker = &s_run.workers[0], .text = s_failures, .size = sizeof(s_failures) - 1u);
     const unsigned int one = line_found("result", "tests/test_a.py::Checks::test_two", 0u, &lines);
     TEST_ASSERT_EQUAL_UINT(1u, lines);
-    TEST_ASSERT_EQUAL_INT64(6ll, whole_member(EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = one, .name = "outcome"), "line"));
+    TEST_ASSERT_EQUAL_INT64(6ll, integer_member(EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = one, .name = "outcome"), "line"));
 }
 
 void test_two_files_use_two_processes(void)
 {
     unsigned int lines = 0u;
     python_required();
-    TEST_ASSERT_EQUAL_INT64(2ll, whole_member(line_found("started", NULL, 0u, &lines), "workers"));
+    TEST_ASSERT_EQUAL_INT64(2ll, integer_member(line_found("started", NULL, 0u, &lines), "workers"));
 }
 
 void test_a_runs_end_has_its_counts(void)
@@ -342,9 +342,9 @@ void test_a_runs_end_has_its_counts(void)
     unsigned int lines = 0u;
     python_required();
     const unsigned int found = line_found("done", NULL, 0u, &lines);
-    TEST_ASSERT_EQUAL_INT64(1ll, whole_member(found, "passed"));
-    TEST_ASSERT_EQUAL_INT64(1ll, whole_member(found, "failed"));
-    TEST_ASSERT_EQUAL_INT64(1ll, whole_member(found, "skipped"));
+    TEST_ASSERT_EQUAL_INT64(1ll, integer_member(found, "passed"));
+    TEST_ASSERT_EQUAL_INT64(1ll, integer_member(found, "failed"));
+    TEST_ASSERT_EQUAL_INT64(1ll, integer_member(found, "skipped"));
 }
 
 void test_a_real_failure_has_its_message_and_line(void)
@@ -365,7 +365,7 @@ void test_a_real_failure_has_its_message_and_line(void)
     }
     TEST_ASSERT_NOT_EQUAL(CLI_JSON_NONE, wrong);
     TEST_ASSERT_EQUAL_STRING("failed", cli_unity_member_text(wrong, "outcome"));
-    TEST_ASSERT_EQUAL_INT64(10ll, whole_member(wrong, "line"));
+    TEST_ASSERT_EQUAL_INT64(10ll, integer_member(wrong, "line"));
     CLI_TEST_ASSERT_CONTAINS("assert", cli_unity_member_text(wrong, "message"));
 }
 
@@ -377,7 +377,7 @@ void test_a_real_skipped_test_is_reported_skipped(void)
     TEST_ASSERT_EQUAL_STRING("skipped", cli_unity_member_text(EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = found, .name = "outcome"), "outcome"));
 }
 
-void test_coverage_reports_a_files_lines_ran_and_missed(void)
+void test_coverage_reports_a_files_lines_run_result_and_missed(void)
 {
     unsigned int lines = 0u;
     unsigned int shapes = CLI_JSON_NONE;

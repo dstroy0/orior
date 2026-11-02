@@ -8,7 +8,7 @@
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
 extern void tearDown(void);
-extern void test_the_container_is_made_from_its_image(void);
+extern void test_the_container_is_created_from_its_image(void);
 extern void test_the_tree_is_in_workspaces(void);
 extern void test_the_containers_settings_name_the_folder(void);
 extern void test_the_tree_is_mounted(void);
@@ -24,9 +24,9 @@ extern void test_the_image_is_built_with_its_args(void);
 extern void test_the_image_is_built_with_its_target(void);
 extern void test_the_image_is_built_in_its_context(void);
 extern void test_the_tree_is_in_the_folder_the_description_names(void);
-extern void test_a_compose_description_names_its_files_beside_it(void);
+extern void test_a_compose_description_names_its_files_adjacent_it(void);
 extern void test_a_compose_description_names_its_project(void);
-extern void test_a_compose_description_brings_up_its_service(void);
+extern void test_a_compose_description_fetches_up_its_service(void);
 extern void test_a_description_with_nothing_to_build_reports_it(void);
 extern void test_a_description_uses_memory_sized_to_it_and_releases_it(void);
 
@@ -90,7 +90,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\devcontainer\\test_devcontainer\\test_devcontainer.c");
-  run_test(test_the_container_is_made_from_its_image, "test_the_container_is_made_from_its_image", 123);
+  run_test(test_the_container_is_created_from_its_image, "test_the_container_is_created_from_its_image", 123);
   run_test(test_the_tree_is_in_workspaces, "test_the_tree_is_in_workspaces", 130);
   run_test(test_the_containers_settings_name_the_folder, "test_the_containers_settings_name_the_folder", 136);
   run_test(test_the_tree_is_mounted, "test_the_tree_is_mounted", 144);
@@ -106,9 +106,9 @@ int main(void)
   run_test(test_the_image_is_built_with_its_target, "test_the_image_is_built_with_its_target", 243);
   run_test(test_the_image_is_built_in_its_context, "test_the_image_is_built_in_its_context", 250);
   run_test(test_the_tree_is_in_the_folder_the_description_names, "test_the_tree_is_in_the_folder_the_description_names", 259);
-  run_test(test_a_compose_description_names_its_files_beside_it, "test_a_compose_description_names_its_files_beside_it", 266);
+  run_test(test_a_compose_description_names_its_files_adjacent_it, "test_a_compose_description_names_its_files_adjacent_it", 266);
   run_test(test_a_compose_description_names_its_project, "test_a_compose_description_names_its_project", 276);
-  run_test(test_a_compose_description_brings_up_its_service, "test_a_compose_description_brings_up_its_service", 283);
+  run_test(test_a_compose_description_fetches_up_its_service, "test_a_compose_description_fetches_up_its_service", 283);
   run_test(test_a_description_with_nothing_to_build_reports_it, "test_a_description_with_nothing_to_build_reports_it", 290);
   run_test(test_a_description_uses_memory_sized_to_it_and_releases_it, "test_a_description_uses_memory_sized_to_it_and_releases_it", 298);
 

@@ -13,22 +13,22 @@ static char s_line[1u << 16u];
 // What git's progress has written on the terminal's line: the letters of the line shown last, and whether git wrote
 typedef struct
 {
-    unsigned long long shown;
+    unsigned long long displayed;
     int wrote;
-} CliCloneShown;
+} CliCloneDisplayed;
 
 // a line of git's progress written over the one before it, ended where git ended it
 static void files_clone_line(const CliEachLineEndedCfg *args)
 {
-    CliCloneShown *const shown = args->context;
-    shown->wrote = 1;
+    CliCloneDisplayed *const displayed = args->context;
+    displayed->wrote = 1;
     const unsigned long long width =
         EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = args->line,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = args->line, .cap = CLI_CELLS_POOL}));
     VerbaLinea over = {s_line, sizeof(s_line), 0ull};
     mmgr_line_ch(&over, '\r');
     mmgr_line_put(&over, args->line);
-    for (unsigned long long at = width; at < shown->shown; at += 1ull)
+    for (unsigned long long at = width; at < displayed->displayed; at += 1ull)
     {
         mmgr_line_ch(&over, ' ');
     }
@@ -38,7 +38,7 @@ static void files_clone_line(const CliEachLineEndedCfg *args)
     }
     EMBED_CALL(query_errors_internal.terminal_write, QueryErrorsCtx, .errors = 1, .text = s_line,
                .length = mmgr_line_ok(&over) ? over.at : 0ull);
-    shown->shown = args->ended ? 0ull : width;
+    displayed->displayed = args->ended ? 0ull : width;
 }
 
 int cli_clone_words(const CliCommandLineWordsCountCtx *args)
@@ -47,14 +47,14 @@ int cli_clone_words(const CliCommandLineWordsCountCtx *args)
     char parent[CLI_PATH_MAX_LEN] = "";
     if (args->count > 1u)
     {
-        VerbaLinea given = {parent, sizeof(parent), 0ull};
-        mmgr_line_put(&given, args->words[1]);
-        (void)mmgr_line_finish(&given);
+        VerbaLinea supplied = {parent, sizeof(parent), 0ull};
+        mmgr_line_put(&supplied, args->words[1]);
+        (void)mmgr_line_finish(&supplied);
     }
     else
     {
-        (void)EMBED_CALL(cli_path_room_internal.folder_current, CliPathRoomCtx, .path_out = parent,
-                         .room_size = sizeof(parent));
+        (void)EMBED_CALL(cli_path_capacity_internal.folder_current, CliPathCapacityCtx, .path_out = parent,
+                         .capacity_bytes = sizeof(parent));
     }
     char target[CLI_PATH_MAX_LEN];
     static char s_err_buf[4096];
@@ -66,12 +66,12 @@ int cli_clone_words(const CliCommandLineWordsCountCtx *args)
                    .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
         return CLI_WRONG;
     }
-    CliCloneShown shown = {0ull, 0};
+    CliCloneDisplayed displayed = {0ull, 0};
     if (!EMBED_CALL(cli_git_err_msg.clone, CliGitErrMsgCfg, .url = url, .target = target,
-                    .progress_line = files_clone_line, .context = &shown, .err_msg = &err_msg))
+                    .progress_line = files_clone_line, .context = &displayed, .err_msg = &err_msg))
     {
         // where git wrote why, it is on the screen already
-        if (!shown.wrote)
+        if (!displayed.wrote)
         {
             EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = s_err_buf,
                        .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);

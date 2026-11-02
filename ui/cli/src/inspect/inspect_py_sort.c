@@ -14,21 +14,21 @@ static unsigned int *s_lasts;
 static const char **s_names;
 static unsigned int *s_name_sizes;
 
-void cli_inspect_py_sort_layout(const CliInspectCarveCtx *args)
+void cli_inspect_py_sort_layout(const CliInspectPartitionCtx *args)
 {
     const unsigned long long lines = CLI_INSPECT_LINES;
-    s_starts = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
-                          .bytes = lines * sizeof(unsigned long long));
-    s_ends = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
+    s_starts = EMBED_CALL(cli_inspect_partition_internal.partition, CliInspectPartitionCtx,
+                          .partition = args->partition, .bytes = lines * sizeof(unsigned long long));
+    s_ends = EMBED_CALL(cli_inspect_partition_internal.partition, CliInspectPartitionCtx, .partition = args->partition,
                         .bytes = lines * sizeof(unsigned long long));
-    s_firsts = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
-                          .bytes = lines * sizeof(unsigned int));
-    s_lasts = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
+    s_firsts = EMBED_CALL(cli_inspect_partition_internal.partition, CliInspectPartitionCtx,
+                          .partition = args->partition, .bytes = lines * sizeof(unsigned int));
+    s_lasts = EMBED_CALL(cli_inspect_partition_internal.partition, CliInspectPartitionCtx, .partition = args->partition,
                          .bytes = lines * sizeof(unsigned int));
-    s_names = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
+    s_names = EMBED_CALL(cli_inspect_partition_internal.partition, CliInspectPartitionCtx, .partition = args->partition,
                          .bytes = lines * sizeof(const char *));
-    s_name_sizes = EMBED_CALL(cli_inspect_carve_internal.carve, CliInspectCarveCtx, .carve = args->carve,
-                              .bytes = lines * sizeof(unsigned int));
+    s_name_sizes = EMBED_CALL(cli_inspect_partition_internal.partition, CliInspectPartitionCtx,
+                              .partition = args->partition, .bytes = lines * sizeof(unsigned int));
 }
 
 typedef struct
@@ -43,14 +43,14 @@ EMBED_INLINE int sort_comment(const InspectPySortCtx *args)
     while (at < s_ends[args->index])
     {
         unsigned int letter = 0u;
-        const unsigned long long taken = EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
-                                                    .text_bytes = (const unsigned char *)args->src,
-                                                    .length = s_ends[args->index], .at = at, .letter = &letter);
+        const unsigned long long reserved = EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+                                                       .text_bytes = (const unsigned char *)args->src,
+                                                       .length = s_ends[args->index], .at = at, .letter = &letter);
         if (!EMBED_CALL(cli_inspect_internal.white, CliInspectCtx, .letter = letter))
         {
             return letter == '#';
         }
-        at += taken;
+        at += reserved;
     }
     return 0;
 }

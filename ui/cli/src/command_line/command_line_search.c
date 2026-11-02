@@ -8,7 +8,7 @@
 #include "command_line_internal.h"
 
 // the bytes a search's hits are written in, and a hit's line
-#define CLI_SEARCH_HITS_ROOM (32ull << 20u)
+#define CLI_SEARCH_HITS_CAPACITY (32ull << 20u)
 #define CLI_SEARCH_LINE_MORE 64ull
 
 typedef struct
@@ -31,9 +31,9 @@ EMBED_INLINE void search_hit_write(const CommandLineSearchCtx *args)
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->hits,
                                       .object = args->hit, .name = "text"),
                    .length_pointer = &length);
-    const unsigned long long line_room = path_length + length + CLI_SEARCH_LINE_MORE;
-    char *const line_cell = g_cli_cells->temporary_buf_alloc(line_room, &g_cli_command_line_cells);
-    VerbaLinea line = mmgr_line_over(line_cell, line_room);
+    const unsigned long long line_capacity = path_length + length + CLI_SEARCH_LINE_MORE;
+    char *const line_cell = g_cli_cells->temporary_buf_alloc(line_capacity, &g_cli_command_line_cells);
+    VerbaLinea line = mmgr_line_over(line_cell, line_capacity);
     mmgr_line_put(&line, (path != NULL) ? path : "");
     static const char *const s_numbers[2] = {"line", "col"};
     for (unsigned int number = 0u; number < 2u; number += 1u)
@@ -96,8 +96,8 @@ int cli_console_search(const CliCommandLineWordsCountCtx *args)
         return CLI_NO_CODE;
     }
     static CliPatterns s_none;
-    char *const found_cell = g_cli_cells->temporary_buf_alloc(CLI_SEARCH_HITS_ROOM, &g_cli_command_line_cells);
-    VerbaLinea found = mmgr_line_over(found_cell, CLI_SEARCH_HITS_ROOM);
+    char *const found_cell = g_cli_cells->temporary_buf_alloc(CLI_SEARCH_HITS_CAPACITY, &g_cli_command_line_cells);
+    VerbaLinea found = mmgr_line_over(found_cell, CLI_SEARCH_HITS_CAPACITY);
     if (found.out == NULL)
     {
         EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx,
@@ -114,10 +114,10 @@ int cli_console_search(const CliCommandLineWordsCountCtx *args)
     }
     CliJson hits;
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &hits,
-               .node_json_node_pointer = NULL, .nodes_most = 0u, .text_out = NULL, .text_most = 0ull);
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
     err_msg.at = 0ull;
     const unsigned int list =
-        EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg, .json = &hits,
+        EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &hits,
                    .text = found.out, .size = mmgr_line_ok(&found) ? found.at : 0ull, .nodes_more = 0u,
                    .text_more = 0ull, .err_msg = &err_msg, .owner = &g_cli_command_line_cells);
     g_cli_cells->persistent_buf_release(found.out, &g_cli_command_line_cells);

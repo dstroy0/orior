@@ -54,13 +54,13 @@ static int lsp_input_write(const CliSinkBytesSizeCfg *args)
 
 // a server's cell taken, referenced once, numbered apart from every other started, and made empty: the server, or NULL
 // where the cells cannot meet it
-static CliLsp *lsp_place_take(void)
+static CliLsp *lsp_position_alloc(void)
 {
     static unsigned int s_started;
     CliLsp *const lsp = g_cli_cells->persistent_buf_alloc(sizeof(*lsp), &g_cli_servers_cells);
     if (lsp != NULL)
     {
-        lsp->taken = 1;
+        lsp->reserved = 1;
         lsp->refs = 1u;
         lsp->number = s_started;
         s_started += 1u;
@@ -73,7 +73,7 @@ static CliLsp *lsp_place_take(void)
         lsp->next = 1ull;
         memor.set(&(MemoriaCfg){.dst = lsp->waiters, .val = 0, .bytes = sizeof(lsp->waiters)});
         lsp->complaint_size = 0ull;
-        lsp->reading = 0u;
+        lsp->read_state = 0u;
         lsp->capabilities = NULL;
         lsp->capabilities_size = 0ull;
         lsp->input = (CliLspWriter){lsp_input_write, lsp};
@@ -95,9 +95,10 @@ EMBED_INLINE void lsp_initialize_params(const LspStartCtx *args)
     unsigned long long length = args->length;
     VerbaLinea *out = args->out;
     char uri[CLI_PATH_MAX_LEN * 3u];
-    EMBED_CALL(cli_lsp_room_path.uri_get, CliLspRoomPathCfg, .path = args->root, .uri_out = uri, .room = sizeof(uri));
+    EMBED_CALL(cli_lsp_capacity_path.uri_get, CliLspCapacityPathCfg, .path = args->root, .uri_out = uri,
+               .capacity = sizeof(uri));
     size_t end = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL});
-    end = (size_t)EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = args->root, .at = end,
+    end = (size_t)EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = args->root, .at = end,
                              .set = "/\\");
     size_t start = end;
     start = (size_t)EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->root,
@@ -125,7 +126,7 @@ CliLsp *cli_lsp_start(const CliLspErrMsgCfg *args)
     unsigned int count = args->count;
     CliLspRecvFn recv = args->recv;
     void *context = args->context;
-    CliLsp *const lsp = lsp_place_take();
+    CliLsp *const lsp = lsp_position_alloc();
     if (lsp == NULL)
     {
         mmgr_line_put(args->err_msg, "no more language servers are run at once");
@@ -136,11 +137,11 @@ CliLsp *cli_lsp_start(const CliLspErrMsgCfg *args)
     lsp->words.count = 0u;
     lsp->words.used = 0u;
     lsp->words.full = 0;
-    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &lsp->words,
+    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &lsp->words,
                .word = args->program);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &lsp->words,
+        EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &lsp->words,
                    .word = args->request[at]);
     }
     const unsigned int settings_used = (args->setting_count < 64u) ? args->setting_count : 64u;
@@ -156,9 +157,10 @@ CliLsp *cli_lsp_start(const CliLspErrMsgCfg *args)
     EMBED_CALL(cli_lsp_internal.readers_start, CliLspCtx, .lsp = lsp);
     // the params in a cell of the most they hold: the tree's URI twice, its folder's name escaped, what orior can do,
     // the server's options and the members around them
-    const unsigned long long params_room = (CLI_PATH_MAX_LEN * 12ull) + sizeof(s_capabilities) + args->length + 256ull;
-    char *const params_text = g_cli_cells->temporary_buf_alloc(params_room, &g_cli_servers_cells);
-    VerbaLinea params = mmgr_line_over(params_text, params_room);
+    const unsigned long long params_capacity =
+        (CLI_PATH_MAX_LEN * 12ull) + sizeof(s_capabilities) + args->length + 256ull;
+    char *const params_text = g_cli_cells->temporary_buf_alloc(params_capacity, &g_cli_servers_cells);
+    VerbaLinea params = mmgr_line_over(params_text, params_capacity);
     EMBED_CALL(lsp_initialize_params, LspStartCtx, .root = args->root, .options = args->options, .length = args->length,
                .out = &params);
     CliLspAnswer answer = {NULL, NULL, 0ull};

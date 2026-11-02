@@ -106,7 +106,7 @@ void cli_sha256_begin(const CliDigestCfg *args)
     args->sha->total = 0ull;
 }
 
-void cli_sha256_take(const CliDigestShaCfg *args)
+void cli_sha256_alloc(const CliDigestShaCfg *args)
 {
     const unsigned char *const from = (const unsigned char *)args->bytes;
     args->sha->total += args->size;
@@ -127,17 +127,17 @@ void cli_sha256_end(const CliDigestCfg *args)
     const unsigned long long bits = args->sha->total * 8ull;
     const unsigned char one = 0x80u;
     const unsigned char zero = 0u;
-    EMBED_CALL(cli_digest_sha.sha256_take, CliDigestShaCfg, .sha = args->sha, .bytes = &one, .size = 1ull);
+    EMBED_CALL(cli_digest_sha.sha256_alloc, CliDigestShaCfg, .sha = args->sha, .bytes = &one, .size = 1ull);
     while (args->sha->buffered != 56u)
     {
-        EMBED_CALL(cli_digest_sha.sha256_take, CliDigestShaCfg, .sha = args->sha, .bytes = &zero, .size = 1ull);
+        EMBED_CALL(cli_digest_sha.sha256_alloc, CliDigestShaCfg, .sha = args->sha, .bytes = &zero, .size = 1ull);
     }
     unsigned char length[8];
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
         length[at] = (unsigned char)((bits >> (56u - (8u * at))) & 0xffull);
     }
-    EMBED_CALL(cli_digest_sha.sha256_take, CliDigestShaCfg, .sha = args->sha, .bytes = length, .size = 8ull);
+    EMBED_CALL(cli_digest_sha.sha256_alloc, CliDigestShaCfg, .sha = args->sha, .bytes = length, .size = 8ull);
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
         args->digest[at * 4u] = (unsigned char)(args->sha->state[at] >> 24u);
@@ -151,7 +151,7 @@ void cli_sha256_bytes(const CliDigestBytesSizeCfg *args)
 {
     CliSha256 sha;
     EMBED_CALL(cli_digest.sha256_begin, CliDigestCfg, .sha = &sha);
-    EMBED_CALL(cli_digest_sha.sha256_take, CliDigestShaCfg, .sha = &sha, .bytes = args->bytes, .size = args->size);
+    EMBED_CALL(cli_digest_sha.sha256_alloc, CliDigestShaCfg, .sha = &sha, .bytes = args->bytes, .size = args->size);
     EMBED_CALL(cli_digest.sha256_end, CliDigestCfg, .sha = &sha, .digest = args->digest);
 }
 
@@ -193,8 +193,8 @@ void cli_hmac_sha256_bytes(const CliDigestKeyCfg *args)
     CliSha256 sha;
     unsigned char inner[32];
     EMBED_CALL(cli_digest.sha256_begin, CliDigestCfg, .sha = &sha);
-    EMBED_CALL(cli_digest_sha.sha256_take, CliDigestShaCfg, .sha = &sha, .bytes = pad, .size = 64ull);
-    EMBED_CALL(cli_digest_sha.sha256_take, CliDigestShaCfg, .sha = &sha, .bytes = args->message,
+    EMBED_CALL(cli_digest_sha.sha256_alloc, CliDigestShaCfg, .sha = &sha, .bytes = pad, .size = 64ull);
+    EMBED_CALL(cli_digest_sha.sha256_alloc, CliDigestShaCfg, .sha = &sha, .bytes = args->message,
                .size = args->message_size);
     EMBED_CALL(cli_digest.sha256_end, CliDigestCfg, .sha = &sha, .digest = inner);
     for (unsigned int at = 0u; at < 64u; at += 1u)
@@ -202,8 +202,8 @@ void cli_hmac_sha256_bytes(const CliDigestKeyCfg *args)
         pad[at] = block[at] ^ 0x5cu;
     }
     EMBED_CALL(cli_digest.sha256_begin, CliDigestCfg, .sha = &sha);
-    EMBED_CALL(cli_digest_sha.sha256_take, CliDigestShaCfg, .sha = &sha, .bytes = pad, .size = 64ull);
-    EMBED_CALL(cli_digest_sha.sha256_take, CliDigestShaCfg, .sha = &sha, .bytes = inner, .size = 32ull);
+    EMBED_CALL(cli_digest_sha.sha256_alloc, CliDigestShaCfg, .sha = &sha, .bytes = pad, .size = 64ull);
+    EMBED_CALL(cli_digest_sha.sha256_alloc, CliDigestShaCfg, .sha = &sha, .bytes = inner, .size = 32ull);
     EMBED_CALL(cli_digest.sha256_end, CliDigestCfg, .sha = &sha, .digest = args->signed_digest);
 }
 

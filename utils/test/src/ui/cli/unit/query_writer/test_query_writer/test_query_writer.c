@@ -10,7 +10,7 @@
 // What a run's life showed, read once for the process
 typedef struct
 {
-    int ran;
+    int run_result;
     int running_before_start;
     int started;
     int ready;
@@ -19,15 +19,15 @@ typedef struct
     int absent_read;
     int running_after_stop;
     int read_after_stop;
-    int read_whole;
+    int patterns_read;
     char whole[64];
-    unsigned long long whole_size;
+    unsigned long long full_size;
 } WriterRun;
 
 static char s_root[QUERY_PATH_MAX_LEN];
 static QueryPrograms s_programs;
 static WriterRun s_life;
-static char s_why[1024];
+static char s_error[1024];
 
 // a printed line discarded
 static void print_discarded(const CliEachLineSizeCfg *args)
@@ -48,7 +48,7 @@ static void folder_of(const char *path, char *folder)
 }
 
 // nothing is found, each reported by its name
-static int nothing_found(const QueryEachRolePathRoomErrMsgCfg *args)
+static int nothing_found(const QueryEachRolePathCapacityErrMsgCfg *args)
 {
     QueryRole role = args->role;
     args->path[0] = '\0';
@@ -76,9 +76,9 @@ static void tree_required(void)
 static void writer_built(const char *name, char *out, QueryWriter *writer)
 {
     char compiler[QUERY_PATH_MAX_LEN];
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     tree_required();
-    if (!EMBED_CALL(s_programs.program, QueryEachRolePathRoomErrMsgCfg, .context = s_programs.context, .role = QUERY_ROLE_C, .path = compiler, .room = sizeof(compiler), .err_msg = &err_msg))
+    if (!EMBED_CALL(s_programs.program, QueryEachRolePathCapacityErrMsgCfg, .context = s_programs.context, .role = QUERY_ROLE_C, .path = compiler, .capacity = sizeof(compiler), .err_msg = &err_msg))
     {
         TEST_IGNORE_MESSAGE("no C compiler to build the writer with");
     }
@@ -92,7 +92,7 @@ static void writer_built(const char *name, char *out, QueryWriter *writer)
     TEST_ASSERT_TRUE(EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = out));
     memor.set(&(MemoriaCfg){.dst = writer, .val = 0, .bytes = sizeof(*writer)});
     err_msg.at = 0ull;
-    TEST_ASSERT_TRUE_MESSAGE(EMBED_CALL(query_name_room_internal.tool_built_into, QueryNameRoomCtx, .root = s_root, .programs = &s_programs, .name = "orior_qry_writer", .out_text = out, .binary = writer->binary, .room = sizeof(writer->binary), .err_msg = &err_msg), "the writer is built");
+    TEST_ASSERT_TRUE_MESSAGE(EMBED_CALL(query_name_capacity_internal.tool_built_into, QueryNameCapacityCtx, .root = s_root, .programs = &s_programs, .name = "orior_qry_writer", .out_text = out, .binary = writer->binary, .capacity = sizeof(writer->binary), .err_msg = &err_msg), "the writer is built");
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = out, .relative = "query1-test.qry", .joined = writer->qry);
     memor.cpy(&(MemoriaCfg){.dst = writer->top, .src = s_root, .bytes = CLI_UNITY_LENGTH(s_root) + 1ull});
     writer->path = s_programs.run_path(s_programs.context);
@@ -110,14 +110,14 @@ static int latest_is(const QueryWriter *writer, const char *name, const char *te
 static void run_lived(void)
 {
     static QueryWriter s_writer;
-    if (s_life.ran)
+    if (s_life.run_result)
     {
         return;
     }
     char out[QUERY_PATH_MAX_LEN];
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     writer_built("writer", out, &s_writer);
-    s_life.ran = 1;
+    s_life.run_result = 1;
     s_life.running_before_start = EMBED_CALL(query_writer_internal.writer_runs, QueryWriterCtx, .writer = &s_writer);
     unsigned long long process = 0ull;
     s_life.started = EMBED_CALL(query_writer_internal.writer_start, QueryWriterCtx, .writer = &s_writer, .process_u64s = &process, .err_msg = &err_msg);
@@ -137,8 +137,8 @@ static void run_lived(void)
     s_life.running_after_stop = EMBED_CALL(query_writer_internal.writer_runs, QueryWriterCtx, .writer = &s_writer);
     s_life.read_after_stop = latest_is(&s_writer, "a.txt", "one\ntwo\n");
     VerbaLinea line = {s_life.whole, sizeof(s_life.whole), 0ull};
-    s_life.read_whole = EMBED_CALL(query_count_name_internal.writer_read, QueryCountNameCtx, .writer = &s_writer, .name = "a.txt", .joined = &line);
-    s_life.whole_size = line.at;
+    s_life.patterns_read = EMBED_CALL(query_count_name_internal.writer_read, QueryCountNameCtx, .writer = &s_writer, .name = "a.txt", .joined = &line);
+    s_life.full_size = line.at;
     (void)EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = out);
 }
 
@@ -167,8 +167,8 @@ void test_every_role_has_a_readable_name(void)
 void test_the_c_compiler_is_found_on_the_path_or_reported(void)
 {
     char path[QUERY_PATH_MAX_LEN];
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
-    const int found = EMBED_CALL(s_programs.program, QueryEachRolePathRoomErrMsgCfg, .context = s_programs.context, .role = QUERY_ROLE_C, .path = path, .room = sizeof(path), .err_msg = &err_msg);
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
+    const int found = EMBED_CALL(s_programs.program, QueryEachRolePathCapacityErrMsgCfg, .context = s_programs.context, .role = QUERY_ROLE_C, .path = path, .capacity = sizeof(path), .err_msg = &err_msg);
     (void)mmgr_line_finish(&err_msg);
     if (found)
     {
@@ -176,15 +176,15 @@ void test_the_c_compiler_is_found_on_the_path_or_reported(void)
     }
     else
     {
-        CLI_TEST_ASSERT_CONTAINS("the C compiler", s_why);
+        CLI_TEST_ASSERT_CONTAINS("the C compiler", s_error);
     }
 }
 
-void test_a_program_beside_nvcc_is_looked_for_beside_it(void)
+void test_a_program_adjacent_nvcc_is_looked_for_adjacent_it(void)
 {
     char nvcc[QUERY_PATH_MAX_LEN];
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
-    if (!EMBED_CALL(s_programs.program, QueryEachRolePathRoomErrMsgCfg, .context = s_programs.context, .role = QUERY_ROLE_NVCC, .path = nvcc, .room = sizeof(nvcc), .err_msg = &err_msg))
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
+    if (!EMBED_CALL(s_programs.program, QueryEachRolePathCapacityErrMsgCfg, .context = s_programs.context, .role = QUERY_ROLE_NVCC, .path = nvcc, .capacity = sizeof(nvcc), .err_msg = &err_msg))
     {
         TEST_IGNORE_MESSAGE("no nvcc is found");
     }
@@ -192,7 +192,7 @@ void test_a_program_beside_nvcc_is_looked_for_beside_it(void)
     char one[QUERY_PATH_MAX_LEN];
     char other[QUERY_PATH_MAX_LEN];
     err_msg.at = 0ull;
-    TEST_ASSERT_TRUE(EMBED_CALL(s_programs.program, QueryEachRolePathRoomErrMsgCfg, .context = s_programs.context, .role = QUERY_ROLE_NVDISASM, .path = nvdisasm, .room = sizeof(nvdisasm), .err_msg = &err_msg));
+    TEST_ASSERT_TRUE(EMBED_CALL(s_programs.program, QueryEachRolePathCapacityErrMsgCfg, .context = s_programs.context, .role = QUERY_ROLE_NVDISASM, .path = nvdisasm, .capacity = sizeof(nvdisasm), .err_msg = &err_msg));
     folder_of(nvcc, one);
     folder_of(nvdisasm, other);
     TEST_ASSERT_EQUAL_STRING(one, other);
@@ -202,10 +202,10 @@ void test_a_missing_program_is_reported_by_its_name(void)
 {
     const QueryPrograms nothing = {nothing_found, NULL, NULL};
     char path[QUERY_PATH_MAX_LEN];
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
-    TEST_ASSERT_FALSE(EMBED_CALL(nothing.program, QueryEachRolePathRoomErrMsgCfg, .context = nothing.context, .role = QUERY_ROLE_PYTHON, .path = path, .room = sizeof(path), .err_msg = &err_msg));
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
+    TEST_ASSERT_FALSE(EMBED_CALL(nothing.program, QueryEachRolePathCapacityErrMsgCfg, .context = nothing.context, .role = QUERY_ROLE_PYTHON, .path = path, .capacity = sizeof(path), .err_msg = &err_msg));
     TEST_ASSERT_NOT_EQUAL(0ull, mmgr_line_finish(&err_msg));
-    TEST_ASSERT_EQUAL_STRING("python is not found", s_why);
+    TEST_ASSERT_EQUAL_STRING("python is not found", s_error);
 }
 
 void test_no_writer_runs_before_it_is_started(void)
@@ -251,11 +251,11 @@ void test_a_record_is_read_from_the_qry_once_the_writer_stopped(void)
     TEST_ASSERT_TRUE(s_life.read_after_stop);
 }
 
-void test_a_name_is_read_whole_as_written(void)
+void test_a_name_is_read_complete_as_written(void)
 {
     run_lived();
-    TEST_ASSERT_TRUE(s_life.read_whole);
-    CLI_TEST_ASSERT_TEXT("one\ntwo\n", s_life.whole, s_life.whole_size);
+    TEST_ASSERT_TRUE(s_life.patterns_read);
+    CLI_TEST_ASSERT_TEXT("one\ntwo\n", s_life.whole, s_life.full_size);
 }
 
 void test_a_programs_exit_code_and_output_are_teed_into_the_run(void)
@@ -264,9 +264,9 @@ void test_a_programs_exit_code_and_output_are_teed_into_the_run(void)
     static char s_console[4096];
     char out[QUERY_PATH_MAX_LEN];
     char python[QUERY_PATH_MAX_LEN];
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     writer_built("tee", out, &s_writer);
-    if (!EMBED_CALL(s_programs.program, QueryEachRolePathRoomErrMsgCfg, .context = s_programs.context, .role = QUERY_ROLE_PYTHON, .path = python, .room = sizeof(python), .err_msg = &err_msg))
+    if (!EMBED_CALL(s_programs.program, QueryEachRolePathCapacityErrMsgCfg, .context = s_programs.context, .role = QUERY_ROLE_PYTHON, .path = python, .capacity = sizeof(python), .err_msg = &err_msg))
     {
         TEST_IGNORE_MESSAGE("no Python to tee with");
     }

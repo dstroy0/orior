@@ -90,15 +90,15 @@ int cli_files_write(const CliFilesRootErrMsgTextCfg *args)
                           .data = (const unsigned char *)args->text, .size = args->length, .err_msg = err_msg);
     }
     char path[CLI_PATH_MAX_LEN];
-    char beside[CLI_PATH_MAX_LEN];
+    char adjacent[CLI_PATH_MAX_LEN];
     if (!EMBED_CALL(cli_root_internal.inside, CliRootCtx, .root = root, .relative = file, .joined = path,
                     .err_msg = err_msg) ||
-        !EMBED_CALL(cli_files_path_err_msg.saving_beside, CliFilesPathErrMsgCfg, .path = path, .file = file,
-                    .beside = beside, .err_msg = err_msg))
+        !EMBED_CALL(cli_files_path_err_msg.saving_adjacent, CliFilesPathErrMsgCfg, .path = path, .file = file,
+                    .adjacent = adjacent, .err_msg = err_msg))
     {
         return 0;
     }
-    if (!EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = beside,
+    if (!EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = adjacent,
                     .bytes = args->text, .size = args->length))
     {
         const unsigned int error = cli_system_error();
@@ -106,11 +106,11 @@ int cli_files_write(const CliFilesRootErrMsgTextCfg *args)
         EMBED_CALL(cli_error_internal.system_reason, CliErrorCtx, .error = error, .err_msg = err_msg);
         return 0;
     }
-    return EMBED_CALL(cli_files_path.save, CliFilesPathCfg, .beside_read = beside, .path = path, .file = file,
+    return EMBED_CALL(cli_files_path.save, CliFilesPathCfg, .adjacent_read = adjacent, .path = path, .file = file,
                       .err_msg = err_msg);
 }
 
-int cli_files_saving_beside(const CliFilesPathErrMsgCfg *args)
+int cli_files_saving_adjacent(const CliFilesPathErrMsgCfg *args)
 {
     char parent[CLI_PATH_MAX_LEN];
     if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->path, .out = parent))
@@ -120,7 +120,7 @@ int cli_files_saving_beside(const CliFilesPathErrMsgCfg *args)
         return 0;
     }
     const char *name = args->path + cellul.len(&(CatenaFinitaCfg){.src = parent, .cap = CLI_CELLS_POOL});
-    name += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = name, .at = 0ull,
+    name += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = name, .at = 0ull,
                        .size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .set = "/\\");
     if (name[0] == '\0')
     {
@@ -128,7 +128,7 @@ int cli_files_saving_beside(const CliFilesPathErrMsgCfg *args)
         mmgr_line_put(args->err_msg, " has no name");
         return 0;
     }
-    VerbaLinea line = {args->beside, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea line = {args->adjacent, CLI_PATH_MAX_LEN, 0ull};
     mmgr_line_put(&line, parent);
     mmgr_line_put(&line, "/.");
     mmgr_line_put(&line, name);
@@ -143,10 +143,10 @@ int cli_files_saving_beside(const CliFilesPathErrMsgCfg *args)
 
 int cli_files_save(const CliFilesPathCfg *args)
 {
-    if (!EMBED_CALL(query_from_internal.file_rename, QueryFromCtx, .from = args->beside_read, .to = args->path))
+    if (!EMBED_CALL(query_from_internal.file_rename, QueryFromCtx, .from = args->adjacent_read, .to = args->path))
     {
         const unsigned int error = cli_system_error();
-        EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = args->beside_read);
+        EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = args->adjacent_read);
         EMBED_CALL(cli_unwritten, FilesWriteCtx, .path = args->file, .err_msg = args->err_msg);
         EMBED_CALL(cli_error_internal.system_reason, CliErrorCtx, .error = error, .err_msg = args->err_msg);
         return 0;

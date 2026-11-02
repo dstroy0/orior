@@ -191,7 +191,7 @@ int cli_notebook_without_outputs(const CliNotebookTextCfg *args)
 {
     const unsigned int book = EMBED_CALL(
         cli_json_tree_text_size_tokens.json_read, CliJsonTreeTextSizeTokensCfg, .json = args->json, .text = args->text,
-        .size = args->size, .tokens = args->tokens, .tokens_most = args->tokens_most, .err_msg = args->err_msg);
+        .size = args->size, .tokens = args->tokens, .tokens_max = args->tokens_max, .err_msg = args->err_msg);
     if (book == CLI_JSON_NONE)
     {
         return 0;

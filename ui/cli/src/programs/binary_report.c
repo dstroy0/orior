@@ -128,7 +128,7 @@ int cli_binary_print(const CliBinaryPathOriorPathCountCfg *args)
     return read;
 }
 
-int cli_binary_copy_beside(const CliBinaryPathCfg *args)
+int cli_binary_copy_adjacent(const CliBinaryPathCfg *args)
 {
     char folder[CLI_PATH_MAX_LEN];
     memor.cpy(&(MemoriaCfg){.dst = folder,

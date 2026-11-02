@@ -46,7 +46,7 @@ typedef struct
     const char *hash;
 } DeployThereCtx;
 // a file's path and hash stored before the pairs stored already
-EMBED_INLINE void there_pair_put(const DeployThereCtx *args)
+EMBED_INLINE void there_pair_append(const DeployThereCtx *args)
 {
     CliDeployPairNode *const node =
         EMBED_CALL(cli_deploy_pool_internal.place, CliDeployPoolCtx, .pool = &s_pool, .size = sizeof(*node));
@@ -125,7 +125,7 @@ int cli_deploy_record_path(const CliDeployIndexPathCtx *args)
     mmgr_line_ch(&key_line, '\n');
     mmgr_line_put(&key_line, run->deployment.name);
     mmgr_line_ch(&key_line, '\n');
-    EMBED_CALL(cli_deploy_size_internal.place_name, CliDeploySizeCtx, .place = &run->place[args->index],
+    EMBED_CALL(cli_deploy_size_internal.position_name, CliDeploySizeCtx, .place = &run->place[args->index],
                .out = &key_line);
     if (!EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = home) || !mmgr_line_ok(&key_line))
     {
@@ -156,7 +156,7 @@ void cli_deploy_last_read(const CliDeployErrMsgIndexCtx *args)
     const unsigned int top =
         EMBED_CALL(cli_deploy_index_path_internal.record_path, CliDeployIndexPathCtx, .index = args->index,
                    .path_out = path)
-            ? EMBED_CALL(cli_json_tree_err_msg.json_file_take, CliJsonTreeErrMsgCfg, .json = &s_record, .path = path,
+            ? EMBED_CALL(cli_json_tree_err_msg.json_file_alloc, CliJsonTreeErrMsgCfg, .json = &s_record, .path = path,
                          .nodes_more = 0u, .text_more = 0ull, .err_msg = &none, .owner = &g_cli_deploy_cells)
             : CLI_JSON_NONE;
     if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_record, .node = top,
@@ -225,7 +225,7 @@ static void there_walk(const CliEachNameIsFolderCfg *args)
         return;
     }
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = full,
+    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = full,
                                                   .size_pointer = &size, .owner = &g_cli_deploy_cells);
     if (bytes == NULL)
     {
@@ -235,7 +235,7 @@ static void there_walk(const CliEachNameIsFolderCfg *args)
     VerbaLinea digest_line = {digest, sizeof(digest), 0ull};
     EMBED_CALL(cli_digest_bytes.sha256_text, CliDigestBytesCfg, .bytes = bytes, .size = size, .text = &digest_line);
     EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_deploy_cells);
-    EMBED_CALL(there_pair_put, DeployThereCtx,
+    EMBED_CALL(there_pair_append, DeployThereCtx,
                .path = EMBED_CALL(cli_deploy_pool_internal.text_store, CliDeployPoolCtx, .pool = &s_pool, .text = path,
                                   .size = path_line.at),
                .hash = EMBED_CALL(cli_deploy_pool_internal.text_store, CliDeployPoolCtx, .pool = &s_pool,
@@ -246,7 +246,7 @@ static void there_walk(const CliEachNameIsFolderCfg *args)
 // placed in the place's pool at their count and sorted: 1, or 0 with why given
 int cli_deploy_hashes(const CliDeployErrMsgIndexCtx *args)
 {
-    const CliDeployPlace *const place = &g_cli_deploy.place[args->index];
+    const CliDeployPosition *const place = &g_cli_deploy.place[args->index];
     cli_deploy_there_free();
     s_walk_full = 0;
     if (place->here)
@@ -266,10 +266,10 @@ int cli_deploy_hashes(const CliDeployErrMsgIndexCtx *args)
         mmgr_line_finish(&command);
         s_listing = g_cli_cells->temporary_buf_alloc(CLI_DEPLOY_HASHES, &g_cli_deploy_cells);
         VerbaLinea listing = mmgr_line_over(s_listing, CLI_DEPLOY_HASHES);
-        const int ran =
+        const int run_result =
             EMBED_CALL(cli_deploy_size_internal.remote_run, CliDeploySizeCtx, .place = place, .line_text = line,
                        .input = NULL, .size = 0ull, .out = &listing, .err_msg = args->err_msg);
-        if (!ran)
+        if (!run_result)
         {
             return 0;
         }
@@ -296,9 +296,9 @@ int cli_deploy_hashes(const CliDeployErrMsgIndexCtx *args)
                 }
                 const char *hash = at;
                 hash +=
-                    EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = hash, .at = 0ull,
+                    EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = hash, .at = 0ull,
                                .size = cellul.len(&(CatenaFinitaCfg){.src = hash, .cap = CLI_CELLS_POOL}), .set = "\\");
-                EMBED_CALL(there_pair_put, DeployThereCtx, .path = path, .hash = hash);
+                EMBED_CALL(there_pair_append, DeployThereCtx, .path = path, .hash = hash);
             }
             at = more ? (end + 1) : end;
         }

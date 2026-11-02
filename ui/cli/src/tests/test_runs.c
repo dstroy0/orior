@@ -24,7 +24,7 @@ int cli_test_stop(void)
     return stopped;
 }
 
-const char *cli_test_put(const CliTestRunsRunTextCtx *args)
+const char *cli_test_append(const CliTestRunsRunTextCtx *args)
 {
     const char *put = "";
     if (args->run->used + args->length + 1ull <= CLI_TEST_TEXT)
@@ -77,7 +77,7 @@ typedef struct
 } TestRunsCtx;
 // the place a process's name is received at in the run's table, or the empty place it would take; CLI_TEST_SEEN_MAX
 // where the table is full
-EMBED_INLINE unsigned int test_seen_place(const TestRunsCtx *args)
+EMBED_INLINE unsigned int test_seen_position(const TestRunsCtx *args)
 {
     unsigned long long hash = 1469598103934665603ull ^ args->worker;
     for (unsigned long long at = 0ull; at < args->length; at += 1ull)
@@ -103,7 +103,7 @@ EMBED_INLINE unsigned int test_seen_place(const TestRunsCtx *args)
 
 int cli_test_visit(const CliTestRunsRunLengthCtx *args)
 {
-    const unsigned int place = EMBED_CALL(test_seen_place, TestRunsCtx, .run = args->run, .worker = args->worker_u32,
+    const unsigned int place = EMBED_CALL(test_seen_position, TestRunsCtx, .run = args->run, .worker = args->worker_u32,
                                           .name = args->name, .length = args->length);
     int fresh = 0;
     if ((place < CLI_TEST_SEEN_MAX) && (args->run->seen_name[place] == 0ull) &&
@@ -124,7 +124,7 @@ int cli_test_visit(const CliTestRunsRunLengthCtx *args)
 
 const char *cli_test_seen_outcome(const CliTestRunsRunLengthCtx *args)
 {
-    const unsigned int place = EMBED_CALL(test_seen_place, TestRunsCtx, .run = args->run, .worker = args->worker_u32,
+    const unsigned int place = EMBED_CALL(test_seen_position, TestRunsCtx, .run = args->run, .worker = args->worker_u32,
                                           .name = args->name, .length = args->length);
     const char *const outcome =
         ((place < CLI_TEST_SEEN_MAX) && (args->run->seen_name[place] != 0ull)) ? args->run->seen_outcome[place] : NULL;
@@ -247,8 +247,8 @@ void cli_test_runs_stop(void)
 }
 
 // a place for a run taken once one is free, the run a cell given back as it ends, made empty, its number the next: it,
-// or NULL where no room for it is left
-static CliTestRun *test_run_take(void)
+// or NULL where no capacity for it is left
+static CliTestRun *test_run_alloc(void)
 {
     CliTestRun *run = NULL;
     unsigned int at = CLI_TEST_RUNS;
@@ -331,7 +331,7 @@ EMBED_INLINE int test_check(const TestRunsCtx *args)
 int cli_test_runs_start(const CliTestRunsRootCfg *args)
 {
     const char *root = args->root;
-    const char *const *given = args->given;
+    const char *const *supplied = args->supplied;
     unsigned int count = args->count;
     CliJsonSink sink = args->sink;
     unsigned long long *number = args->number;
@@ -347,16 +347,16 @@ int cli_test_runs_start(const CliTestRunsRootCfg *args)
     unsigned int python_count = 0u;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        if (EMBED_CALL(cli_cargo_tests_id.cargo_is_rust, CliCargoTestsIdCfg, .id = given[at]) &&
+        if (EMBED_CALL(cli_cargo_tests_id.cargo_is_rust, CliCargoTestsIdCfg, .id = supplied[at]) &&
             (rust_count < CLI_TEST_NAMED))
         {
-            s_rust[rust_count] = given[at];
+            s_rust[rust_count] = supplied[at];
             rust_count += 1u;
         }
-        else if (!EMBED_CALL(cli_cargo_tests_id.cargo_is_rust, CliCargoTestsIdCfg, .id = given[at]) &&
+        else if (!EMBED_CALL(cli_cargo_tests_id.cargo_is_rust, CliCargoTestsIdCfg, .id = supplied[at]) &&
                  (python_count < CLI_TEST_NAMED))
         {
-            s_python[python_count] = given[at];
+            s_python[python_count] = supplied[at];
             python_count += 1u;
         }
     }
@@ -367,7 +367,7 @@ int cli_test_runs_start(const CliTestRunsRootCfg *args)
     {
         return 0;
     }
-    CliTestRun *const run = test_run_take();
+    CliTestRun *const run = test_run_alloc();
     if (run == NULL)
     {
         mmgr_line_put(args->err_msg, "a run of tests could not be taken");
@@ -379,8 +379,8 @@ int cli_test_runs_start(const CliTestRunsRootCfg *args)
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
     for (unsigned int at = 0u; at < python_count; at += 1u)
     {
-        run->given[at] = EMBED_CALL(
-            cli_test_runs_run_text_internal.test_put, CliTestRunsRunTextCtx, .run = run, .text = s_python[at],
+        run->supplied[at] = EMBED_CALL(
+            cli_test_runs_run_text_internal.test_append, CliTestRunsRunTextCtx, .run = run, .text = s_python[at],
             .length = cellul.len(&(CatenaFinitaCfg){.src = s_python[at], .cap = CLI_CELLS_POOL}));
     }
     if (python_count > 0u)
@@ -389,8 +389,8 @@ int cli_test_runs_start(const CliTestRunsRootCfg *args)
                    .count = python_count, .most = args->parallel ? cli_cores_for_work() : 1u);
     }
     const unsigned int cargo_runs =
-        (rust_count > 0u) ? EMBED_CALL(cli_cargo_tests_given_table.cargo_targets_free, CliCargoTestsGivenCfg,
-                                       .root = root, .given = s_rust, .count = rust_count)
+        (rust_count > 0u) ? EMBED_CALL(cli_cargo_tests_input_table.cargo_targets_free, CliCargoTestsInputCfg,
+                                       .root = root, .supplied = s_rust, .count = rust_count)
                           : 0u;
     const char *const python_runner = pytest ? "pytest" : "unittest";
     char started[512];
@@ -425,8 +425,8 @@ int cli_test_runs_start(const CliTestRunsRootCfg *args)
         run->scratch[0] = '\0';
     }
     going = going && ((rust_count == 0u) ||
-                      EMBED_CALL(cli_test_runs_run_given_internal.cargo_workers_start, CliTestRunsRunGivenCtx,
-                                 .run = run, .given = s_rust, .count = rust_count, .err_msg = args->err_msg));
+                      EMBED_CALL(cli_test_runs_run_input_internal.cargo_workers_start, CliTestRunsRunInputCtx,
+                                 .run = run, .supplied = s_rust, .count = rust_count, .err_msg = args->err_msg));
     going = going && ((python_count == 0u) ||
                       EMBED_CALL(cli_test_runs_run_internal.python_workers_start, CliTestRunsRunCtx, .run = run,
                                  .python = python, .pytest = pytest, .cover = args->cover, .err_msg = args->err_msg));
@@ -435,8 +435,8 @@ int cli_test_runs_start(const CliTestRunsRootCfg *args)
     {
         cli_test_runs_stop();
     }
-    run->ender = (CliThread){test_end, run};
-    if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &run->ender))
+    run->terminator = (CliThread){test_end, run};
+    if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &run->terminator))
     {
         test_end(run);
     }

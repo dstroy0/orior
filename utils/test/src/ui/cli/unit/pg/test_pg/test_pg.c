@@ -31,10 +31,10 @@ static char s_client_final[CLI_PG_SIGN_TEXT];
 static char s_signature[CLI_PG_SIGN_TEXT];
 static int s_done;
 static char s_tag[CLI_DB_TAG];
-static PgStopper s_stopper = {{"", 0u, 0u, {0u}, 0u}, 0};
+static PgStopper s_cancel_thread = {{"", 0u, 0u, {0u}, 0u}, 0};
 
 // SCRAM's final message made from RFC 7677's values
-static void scram_final_made(void)
+static void scram_final_created(void)
 {
     TEST_ASSERT_TRUE(EMBED_CALL(cli_pg_failure_internal.scram_final, CliPgFailureCtx, .password = "pencil", .first_bare = "n=user,r=rOprNGfwEbeRWgbNEkqO", .nonce = "rOprNGfwEbeRWgbNEkqO", .server_first = "r=rOprNGfwEbeRWgbNEkqO%hvYDpWUa2RaTCAfuxFIlj)hNlF$k0,s=W22ZaJ0SNY7soEsUEjb6gQ==,i=4096", .client_final = s_client_final, .signature = s_signature, .failure = &s_failure));
 }
@@ -57,7 +57,7 @@ static int row_recorded(const CliDbRowCfg *args)
 // the connection the tests sign in as postgres on, in s_pg; the test ignored where no password is named or no server answers
 static void server_required(void)
 {
-    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_PG_PASSWORD", .value_out = s_password, .room = sizeof(s_password)))
+    if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_PG_PASSWORD", .value_out = s_password, .capacity = sizeof(s_password)))
     {
         TEST_IGNORE_MESSAGE("ORIOR_PG_PASSWORD names no password");
     }
@@ -97,16 +97,16 @@ static void page_read(void)
 // the cancel sent after 400 milliseconds
 static void cancel_sent(void *context)
 {
-    PgStopper *const stopper = context;
+    PgStopper *const cancel_thread = context;
     EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 400u);
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    const int sent = EMBED_CALL(cli_pg.cancel_send, CliPgCfg, .cancel_read = &stopper->cancel, .err_msg = &err_msg);
-    stopper->sent = sent ? 1 : -1;
+    const int sent = EMBED_CALL(cli_pg.cancel_send, CliPgCfg, .cancel_read = &cancel_thread->cancel, .err_msg = &err_msg);
+    cancel_thread->sent = sent ? 1 : -1;
 }
 
 // the roles orior_md5 and orior_plain made on the server, and its connection closed
-static void roles_made(void)
+static void roles_created(void)
 {
     static const char *const s_setup[6] = {"drop role if exists orior_md5", "drop role if exists orior_plain", "set password_encryption = 'md5'", "create role orior_md5 login password 'md5 secret'", "reset password_encryption", "create role orior_plain login password 'plain secret'"};
     server_required();
@@ -121,7 +121,7 @@ static void roles_made(void)
 // `user` signs in with `password` and not with another
 static void assert_signs_in(const char *user, const char *password)
 {
-    roles_made();
+    roles_created();
     CliPg *const signed_in = EMBED_CALL(cli_pg_host.connect, CliPgHostCfg, .host = s_host, .port = s_port, .user = user, .password = password, .database = "postgres", .wait = 5000ull, .failure = &s_failure);
     TEST_ASSERT_NOT_NULL(signed_in);
     EMBED_CALL(cli_pg_failure_sql.close, CliPgFailureSqlCfg, .pg = signed_in);
@@ -152,13 +152,13 @@ void tearDown(void)
 
 void test_scrams_final_message_has_rfc_7677s_proof(void)
 {
-    scram_final_made();
+    scram_final_created();
     TEST_ASSERT_EQUAL_STRING("c=biws,r=rOprNGfwEbeRWgbNEkqO%hvYDpWUa2RaTCAfuxFIlj)hNlF$k0,p=dHzbZapWIk4jUhN+Ute9ytag9zjfMHgsqmmiz7AndVQ=", s_client_final);
 }
 
 void test_scrams_signature_is_rfc_7677s(void)
 {
-    scram_final_made();
+    scram_final_created();
     TEST_ASSERT_EQUAL_STRING("6rriTRBi23WpRR/wtup+mMhUZUn/dB5nLTJRsjl95G4=", s_signature);
 }
 
@@ -168,7 +168,7 @@ void test_the_server_reports_its_version(void)
     TEST_ASSERT_NOT_NULL(EMBED_CALL(cli_pg_name.parameter, CliPgNameCfg, .pg_read = s_pg, .name = "server_version"));
 }
 
-void test_a_query_gives_its_columns_each_of_its_type(void)
+void test_a_query_releases_its_columns_each_of_its_type(void)
 {
     query_started();
     TEST_ASSERT_EQUAL_UINT(4u, EMBED_CALL(cli_pg_cancel.head, CliPgCancelCfg, .pg_read = s_pg)->column_count);
@@ -178,7 +178,7 @@ void test_a_query_gives_its_columns_each_of_its_type(void)
     assert_column(3u, "at", "timestamptz", 0);
 }
 
-void test_a_page_of_rows_comes_and_the_rest_wait(void)
+void test_a_page_of_rows_comes_and_the_remainder_wait(void)
 {
     query_started();
     page_read();
@@ -227,7 +227,7 @@ void test_the_last_page_ends_with_the_statements_tag(void)
     TEST_ASSERT_EQUAL_STRING("SELECT 2500", s_tag);
 }
 
-void test_a_failure_gives_the_servers_code(void)
+void test_a_failure_releases_the_servers_code(void)
 {
     server_required();
     TEST_ASSERT_FALSE(EMBED_CALL(cli_pg_failure_sql.start, CliPgFailureSqlCfg, .pg = s_pg, .sql = "select 1/0", .size = 10ull, .failure = &s_failure));
@@ -252,9 +252,9 @@ void test_a_closed_transaction_is_reported(void)
 
 void test_a_cancel_stops_a_statement_and_the_connection_answers_after_it(void)
 {
-    static CliThread s_thread = {cancel_sent, &s_stopper};
+    static CliThread s_thread = {cancel_sent, &s_cancel_thread};
     server_required();
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_pg_cancel.canceller, CliPgCancelCfg, .pg_read = s_pg, .cancel = &s_stopper.cancel));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_pg_cancel.canceller, CliPgCancelCfg, .pg_read = s_pg, .cancel = &s_cancel_thread.cancel));
     TEST_ASSERT_TRUE(EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_thread));
     (void)EMBED_CALL(cli_pg_failure_sql.start, CliPgFailureSqlCfg, .pg = s_pg, .sql = "select pg_sleep(30)", .size = 19ull, .failure = &s_failure);
     const int rows = EMBED_CALL(cli_pg_cancel.head, CliPgCancelCfg, .pg_read = s_pg)->rows;
@@ -264,7 +264,7 @@ void test_a_cancel_stops_a_statement_and_the_connection_answers_after_it(void)
     while ((sent == 0) && (cli_clock_milliseconds() < until))
     {
         EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 20u);
-        sent = s_stopper.sent;
+        sent = s_cancel_thread.sent;
     }
     TEST_ASSERT_TRUE(stopped);
     TEST_ASSERT_EQUAL_INT(1, sent);

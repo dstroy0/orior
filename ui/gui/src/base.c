@@ -35,7 +35,7 @@ int gui_base_init(const GuiBaseWidthCfg *args)
         return 0;
     }
     args->base->tile_green = args->base->tile_red_blue + BASE_TILE_WORDS;
-    args->base->tile_rest = args->base->tile_green + BASE_TILE_WORDS;
+    args->base->tile_remainder = args->base->tile_green + BASE_TILE_WORDS;
     return 1;
 }
 
@@ -55,7 +55,7 @@ void gui_base_free(const GuiBaseWidthCfg *args)
     g_cli_cells->persistent_buf_release(args->base->tile_red_blue, &g_gui_base_cells);
     args->base->tile_red_blue = NULL;
     args->base->tile_green = NULL;
-    args->base->tile_rest = NULL;
+    args->base->tile_remainder = NULL;
     args->base->width = 0u;
     args->base->height = 0u;
     args->base->laid = 0;
@@ -90,18 +90,18 @@ typedef struct
 EMBED_INLINE void base_entry_set(const BaseCtx *args)
 {
     const unsigned int alpha = GUI_ALPHA_OF(args->color);
-    const unsigned int grain_rest = 255u - args->grain;
+    const unsigned int grain_remainder = 255u - args->grain;
     const unsigned int white = 255u * args->grain;
-    const unsigned int red = (((GUI_RED_OF(args->color) * alpha * grain_rest) + 127u) / 255u) + white;
-    const unsigned int green = (((GUI_GREEN_OF(args->color) * alpha * grain_rest) + 127u) / 255u) + white;
-    const unsigned int blue = (((GUI_BLUE_OF(args->color) * alpha * grain_rest) + 127u) / 255u) + white;
+    const unsigned int red = (((GUI_RED_OF(args->color) * alpha * grain_remainder) + 127u) / 255u) + white;
+    const unsigned int green = (((GUI_GREEN_OF(args->color) * alpha * grain_remainder) + 127u) / 255u) + white;
+    const unsigned int blue = (((GUI_BLUE_OF(args->color) * alpha * grain_remainder) + 127u) / 255u) + white;
     args->entry->red_blue = (red << 16u) + blue + 0x00800080u;
     args->entry->green = green + 0x80u;
-    args->entry->rest = (((255u - alpha) * grain_rest) + 127u) / 255u;
+    args->entry->rest = (((255u - alpha) * grain_remainder) + 127u) / 255u;
 }
 
 // `rect` of `layer` laid on the map, over everything laid before, no further than the map; a rectangle past the
-// room for them is not laid
+// capacity for them is not laid
 EMBED_INLINE void base_layout(const BaseCtx *args)
 {
     GuiRect rect = args->rect;
@@ -119,15 +119,15 @@ EMBED_INLINE void base_layout(const BaseCtx *args)
 // the pixel an edge in the frame's words falls in, the floor of its whole part
 EMBED_INLINE int base_pixel_get(const BaseCtx *args)
 {
-    return (args->edge >= 0) ? args->edge / GUI_WHOLE : -((-args->edge + (GUI_WHOLE - 1)) / GUI_WHOLE);
+    return (args->edge >= 0) ? args->edge / GUI_FIXED_ONE : -((-args->edge + (GUI_FIXED_ONE - 1)) / GUI_FIXED_ONE);
 }
 
-// the layer of a pane's edge at `share` of GUI_WHOLE of the pixel it falls in: the pane itself at a whole share, the
-// part at the nearest sixteenth, or nothing at none
+// the layer of a pane's edge at `share` of GUI_FIXED_ONE of the pixel it falls in: the pane itself at a whole share,
+// the part at the nearest sixteenth, or nothing at none
 EMBED_INLINE unsigned int base_part_layer(const BaseCtx *args)
 {
-    // a share of GUI_WHOLE in sixteenths, rounded, is a small count
-    const int part = ((args->share * (int)GUI_BASE_PARTS) + (GUI_WHOLE / 2)) / GUI_WHOLE;
+    // a share of GUI_FIXED_ONE in sixteenths, rounded, is a small count
+    const int part = ((args->share * (int)GUI_BASE_PARTS) + (GUI_FIXED_ONE / 2)) / GUI_FIXED_ONE;
     if (part >= (int)GUI_BASE_PARTS)
     {
         return GUI_BASE_PANE;
@@ -148,23 +148,23 @@ static void base_pane_layout(const BaseCtx *args)
     const int top_pixel = EMBED_CALL(base_pixel_get, BaseCtx, .edge = args->edges.top);
     const int right_pixel = EMBED_CALL(base_pixel_get, BaseCtx, .edge = args->edges.right);
     const int bottom_pixel = EMBED_CALL(base_pixel_get, BaseCtx, .edge = args->edges.bottom);
-    const int left_share = GUI_WHOLE - (args->edges.left - (left_pixel * GUI_WHOLE));
-    const int top_share = GUI_WHOLE - (args->edges.top - (top_pixel * GUI_WHOLE));
-    const int right_share = args->edges.right - (right_pixel * GUI_WHOLE);
-    const int bottom_share = args->edges.bottom - (bottom_pixel * GUI_WHOLE);
+    const int left_share = GUI_FIXED_ONE - (args->edges.left - (left_pixel * GUI_FIXED_ONE));
+    const int top_share = GUI_FIXED_ONE - (args->edges.top - (top_pixel * GUI_FIXED_ONE));
+    const int right_share = args->edges.right - (right_pixel * GUI_FIXED_ONE);
+    const int bottom_share = args->edges.bottom - (bottom_pixel * GUI_FIXED_ONE);
     const unsigned int left_layer = EMBED_CALL(base_part_layer, BaseCtx, .share = left_share);
     const unsigned int top_layer = EMBED_CALL(base_part_layer, BaseCtx, .share = top_share);
     const unsigned int right_layer = EMBED_CALL(base_part_layer, BaseCtx, .share = right_share);
     const unsigned int bottom_layer = EMBED_CALL(base_part_layer, BaseCtx, .share = bottom_share);
     // the pixels covered whole: from the edge's pixel where the edge covers it whole, else from the next
-    const int whole_left = (left_layer == GUI_BASE_PANE) ? left_pixel : left_pixel + 1;
-    const int whole_top = (top_layer == GUI_BASE_PANE) ? top_pixel : top_pixel + 1;
-    const int whole_right = right_pixel + ((right_layer == GUI_BASE_PANE) ? 1 : 0);
-    const int whole_bottom = bottom_pixel + ((bottom_layer == GUI_BASE_PANE) ? 1 : 0);
+    const int full_left = (left_layer == GUI_BASE_PANE) ? left_pixel : left_pixel + 1;
+    const int full_top = (top_layer == GUI_BASE_PANE) ? top_pixel : top_pixel + 1;
+    const int full_right = right_pixel + ((right_layer == GUI_BASE_PANE) ? 1 : 0);
+    const int full_bottom = bottom_pixel + ((bottom_layer == GUI_BASE_PANE) ? 1 : 0);
     const int across = right_pixel + ((right_layer == GUI_BASE_CLEAR) ? 0 : 1) - left_pixel;
     const int down = bottom_pixel + ((bottom_layer == GUI_BASE_CLEAR) ? 0 : 1) - top_pixel;
     EMBED_CALL(base_layout, BaseCtx, .base = args->base,
-               .rect = (GuiRect){whole_left, whole_top, whole_right - whole_left, whole_bottom - whole_top},
+               .rect = (GuiRect){full_left, full_top, full_right - full_left, full_bottom - full_top},
                .layer = GUI_BASE_PANE);
     if ((top_layer != GUI_BASE_PANE) && (top_layer != GUI_BASE_CLEAR))
     {
@@ -202,7 +202,7 @@ unsigned int gui_base_layer_at(const GuiBaseCfg *args)
 }
 
 // `value` put among `edges`, `count` of them in rising order, where it is not among them: the count after
-EMBED_INLINE unsigned int base_edge_put(const BaseCtx *args)
+EMBED_INLINE unsigned int base_edge_append(const BaseCtx *args)
 {
     unsigned int at = 0u;
     while ((at < args->count) && (args->edges_u32s[at] < args->value))
@@ -229,14 +229,14 @@ EMBED_INLINE void base_bands_read(const BaseCtx *args)
     GuiBase *base = args->base;
     unsigned int rows[GUI_BASE_BANDS + 1u];
     unsigned int cuts = 0u;
-    cuts = EMBED_CALL(base_edge_put, BaseCtx, .edges_u32s = rows, .count = cuts, .value = 0u);
-    cuts = EMBED_CALL(base_edge_put, BaseCtx, .edges_u32s = rows, .count = cuts, .value = base->height);
+    cuts = EMBED_CALL(base_edge_append, BaseCtx, .edges_u32s = rows, .count = cuts, .value = 0u);
+    cuts = EMBED_CALL(base_edge_append, BaseCtx, .edges_u32s = rows, .count = cuts, .value = base->height);
     for (unsigned int at = 0u; at < base->layers; at += 1u)
     {
         // a rectangle laid lies on the map: its edges are not negative
         const GuiRect rect = base->layer[at].rect;
-        cuts = EMBED_CALL(base_edge_put, BaseCtx, .edges_u32s = rows, .count = cuts, .value = (unsigned int)rect.y);
-        cuts = EMBED_CALL(base_edge_put, BaseCtx, .edges_u32s = rows, .count = cuts,
+        cuts = EMBED_CALL(base_edge_append, BaseCtx, .edges_u32s = rows, .count = cuts, .value = (unsigned int)rect.y);
+        cuts = EMBED_CALL(base_edge_append, BaseCtx, .edges_u32s = rows, .count = cuts,
                           .value = (unsigned int)(rect.y + rect.height));
     }
     base->bands = cuts - 1u;
@@ -253,16 +253,16 @@ EMBED_INLINE void base_bands_read(const BaseCtx *args)
         const int y = (int)base->band_from[band];
         unsigned int columns[GUI_BASE_RUNS + 1u];
         unsigned int edges = 0u;
-        edges = EMBED_CALL(base_edge_put, BaseCtx, .edges_u32s = columns, .count = edges, .value = 0u);
-        edges = EMBED_CALL(base_edge_put, BaseCtx, .edges_u32s = columns, .count = edges, .value = base->width);
+        edges = EMBED_CALL(base_edge_append, BaseCtx, .edges_u32s = columns, .count = edges, .value = 0u);
+        edges = EMBED_CALL(base_edge_append, BaseCtx, .edges_u32s = columns, .count = edges, .value = base->width);
         for (unsigned int at = 0u; at < base->layers; at += 1u)
         {
             const GuiRect rect = base->layer[at].rect;
             if ((y >= rect.y) && (y < rect.y + rect.height))
             {
-                edges = EMBED_CALL(base_edge_put, BaseCtx, .edges_u32s = columns, .count = edges,
+                edges = EMBED_CALL(base_edge_append, BaseCtx, .edges_u32s = columns, .count = edges,
                                    .value = (unsigned int)rect.x);
-                edges = EMBED_CALL(base_edge_put, BaseCtx, .edges_u32s = columns, .count = edges,
+                edges = EMBED_CALL(base_edge_append, BaseCtx, .edges_u32s = columns, .count = edges,
                                    .value = (unsigned int)(rect.x + rect.width));
             }
         }
@@ -287,24 +287,24 @@ EMBED_INLINE void base_bands_read(const BaseCtx *args)
 void gui_base_paint(const GuiBaseFrameCfg *args)
 {
     if ((args->base->tile_red_blue == NULL) ||
-        (args->base->painted && (args->base->editor_ground == args->palette->editor_ground) &&
-         (args->base->side_ground == args->palette->side_ground) && (args->base->surface == args->palette->surface) &&
-         (args->base->glass == args->palette->glass)))
+        (args->base->painted && (args->base->editor_background == args->palette->editor_background) &&
+         (args->base->side_background == args->palette->side_background) &&
+         (args->base->surface == args->palette->surface) && (args->base->glass == args->palette->glass)))
     {
         return;
     }
     args->base->painted = 1;
     args->base->laid = 0;
-    args->base->editor_ground = args->palette->editor_ground;
-    args->base->side_ground = args->palette->side_ground;
+    args->base->editor_background = args->palette->editor_background;
+    args->base->side_background = args->palette->side_background;
     args->base->surface = args->palette->surface;
     args->base->glass = args->palette->glass;
     const GuiColor pane = EMBED_CALL(gui_glass.pane_tint, GuiGlassCfg, .glass = args->palette->glass);
     EMBED_CALL(base_entry_set, BaseCtx, .entry = &args->base->entry[GUI_BASE_CLEAR], .color = 0u, .grain = 0u);
     EMBED_CALL(base_entry_set, BaseCtx, .entry = &args->base->entry[GUI_BASE_EDITOR],
-               .color = args->palette->editor_ground, .grain = 0u);
-    EMBED_CALL(base_entry_set, BaseCtx, .entry = &args->base->entry[GUI_BASE_SIDE], .color = args->palette->side_ground,
-               .grain = 0u);
+               .color = args->palette->editor_background, .grain = 0u);
+    EMBED_CALL(base_entry_set, BaseCtx, .entry = &args->base->entry[GUI_BASE_SIDE],
+               .color = args->palette->side_background, .grain = 0u);
     EMBED_CALL(base_entry_set, BaseCtx, .entry = &args->base->entry[GUI_BASE_TABS], .color = args->palette->surface,
                .grain = 0u);
     for (unsigned int level = 0u; level < GUI_BASE_GRAIN_LEVELS; level += 1u)
@@ -339,10 +339,10 @@ void gui_base_paint(const GuiBaseFrameCfg *args)
         const GuiBaseEntry *const paned = &args->base->entry[GUI_BASE_PANE + grain[at]];
         args->base->tile_red_blue[at] = sheet->red_blue;
         args->base->tile_green[at] = sheet->green;
-        args->base->tile_rest[at] = sheet->rest;
+        args->base->tile_remainder[at] = sheet->rest;
         args->base->tile_red_blue[(GUI_GRAIN_TILE * GUI_GRAIN_TILE) + at] = paned->red_blue;
         args->base->tile_green[(GUI_GRAIN_TILE * GUI_GRAIN_TILE) + at] = paned->green;
-        args->base->tile_rest[(GUI_GRAIN_TILE * GUI_GRAIN_TILE) + at] = paned->rest;
+        args->base->tile_remainder[(GUI_GRAIN_TILE * GUI_GRAIN_TILE) + at] = paned->rest;
     }
 }
 
@@ -430,7 +430,7 @@ EMBED_INLINE void base_tiled_draw(const BaseCtx *args)
         const unsigned int from = args->tile + (args->row * GUI_GRAIN_TILE) + column;
         const unsigned int *const red_blue = args->base_read->tile_red_blue + from;
         const unsigned int *const green = args->base_read->tile_green + from;
-        const unsigned int *const rest = args->base_read->tile_rest + from;
+        const unsigned int *const rest = args->base_read->tile_remainder + from;
         GuiColor *const run = args->out + at;
         if (args->under != NULL)
         {
@@ -523,7 +523,7 @@ void gui_base_draw(const GuiBaseRasterCfg *args)
         const GuiBaseMap own = {args->base_read->bands, args->base_read->band_from, args->base_read->run_first,
                                 args->base_read->run};
         EMBED_CALL(gui_base_raster.map_draw, GuiBaseRasterCfg, .base_read = args->base_read, .map = &own,
-                   .raster = args->raster, .ground = args->ground, .color = args->color);
+                   .raster = args->raster, .background_fill = args->background_fill, .color = args->color);
     }
 }
 
@@ -534,9 +534,9 @@ void gui_base_map_draw(const GuiBaseRasterCfg *args)
     {
         return;
     }
-    const int from_ground = (args->ground != NULL) && (args->ground->pixels != NULL) &&
-                            (args->ground->width == args->base_read->width) &&
-                            (args->ground->height == args->base_read->height);
+    const int from_background = (args->background_fill != NULL) && (args->background_fill->pixels != NULL) &&
+                                (args->background_fill->width == args->base_read->width) &&
+                                (args->background_fill->height == args->base_read->height);
     for (unsigned int band = 0u; band < args->map->bands; band += 1u)
     {
         const GuiBaseRun *const runs = &args->map->run[args->map->run_first[band]];
@@ -544,7 +544,8 @@ void gui_base_map_draw(const GuiBaseRasterCfg *args)
         for (unsigned int y = args->map->band_from[band]; y < args->map->band_from[band + 1u]; y += 1u)
         {
             GuiColor *const out = args->raster->pixels + (y * args->base_read->width);
-            const GuiColor *const under = from_ground ? args->ground->pixels + (y * args->base_read->width) : NULL;
+            const GuiColor *const under =
+                from_background ? args->background_fill->pixels + (y * args->base_read->width) : NULL;
             for (unsigned int at = 0u; at < count; at += 1u)
             {
                 const GuiBaseRun *const one = &runs[at];

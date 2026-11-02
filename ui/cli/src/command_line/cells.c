@@ -15,7 +15,7 @@
 // The pool: MMgr's host site, one block taken from the system for the bytes requested, zero as the system hands it out,
 // the cellblock's record at its start; made anew for another request, the block before given back whole, while no cell
 // is allocated. Minimum security: a cell is left as it is when given back and handed out unzeroed, so that a give costs
-// no bytes it did not use and no page it did not touch; a room writes what it reads
+// no bytes it did not use and no page it did not touch; a capacity writes what it reads
 LocusCarcerumHospes(cli_cells_site, MMGR_MINIMUM_SECURITY(cli_cells_pool));
 
 #define CLI_CELL_OWNER(name_, text_) CellOwner name_ = MMGR_CELL_OWNER(text_);
@@ -53,7 +53,7 @@ EMBED_INLINE void cells_log(const CellsCtx *args)
 }
 
 // An owner registered in MMgr's queue, where it does not stand there already. A refusal that leaves it unregistered, an
-// owner of a name already registered or a queue past its room, is logged: every take for that owner is refused
+// owner of a name already registered or a queue past its capacity, is logged: every take for that owner is refused
 EMBED_INLINE void cells_owner_ready(const CellsCtx *args)
 {
     if (mmgr_owner_registered(args->owner) || mmgr_owner_register(args->owner))
@@ -90,7 +90,7 @@ void mmgr_carcer_hw_misnamed(const CellOwner *named, const CellOwner *cell_owner
 
 const MinimumSecurityGuard *const g_cli_cells = &cli_cells_site.cli_cells_pool;
 
-// the turnstiles the option's storage has room for, which the machine's processors are bounded to, and the rows of
+// the turnstiles the option's storage has capacity for, which the machine's processors are bounded to, and the rows of
 // touches per thread it saves
 #define CELLS_WIDTH_MOST 256u
 #define CELLS_TOUCH_ROWS 64u
@@ -157,9 +157,9 @@ CellOwner *cli_cell_owner(const CliCellsCfg *args)
 // counts and has not written yet is passed over
 EMBED_INLINE unsigned int cells_owners_read(const CellsCtx *args)
 {
-    const size_t listed = mmgr_owner_count();
+    const size_t list_entries = mmgr_owner_count();
     unsigned int count = 0u;
-    for (size_t at = 0u; at < listed; at += 1u)
+    for (size_t at = 0u; at < list_entries; at += 1u)
     {
         const CellOwner *const owner = mmgr_owner_at(at);
         if (owner != NULL)
@@ -249,24 +249,6 @@ void cli_cells_owner_usage_write(const CliCellsCfg *args)
     VerbaLinea *out = args->out;
     EMBED_CALL(cells_write, CellsCtx, .out = out, .persistent = (unsigned long long)mmgr_owner_hw(args->owner),
                .temporary = 0ull);
-}
-
-void cli_cells_owners_write(const CliCellsCfg *args)
-{
-    CliCellsOwnerRead owners[MMGR_CARCER_OWNERS];
-    const unsigned int count = EMBED_CALL(cells_owners_read, CellsCtx, .owners = owners);
-    mmgr_line_ch(args->out, '[');
-    for (unsigned int at = 0u; at < count; at += 1u)
-    {
-        mmgr_line_put(args->out, (at != 0u) ? ",{\"name\":\"" : "{\"name\":\"");
-        mmgr_line_put(args->out, owners[at].name);
-        mmgr_line_put(args->out, "\",\"in_use\":");
-        mmgr_line_decimal(args->out, owners[at].in_use, 1u);
-        mmgr_line_put(args->out, ",\"hw\":");
-        mmgr_line_decimal(args->out, owners[at].hw, 1u);
-        mmgr_line_ch(args->out, '}');
-    }
-    mmgr_line_ch(args->out, ']');
 }
 
 void cli_cells_peaks_report(void)

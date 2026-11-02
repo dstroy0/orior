@@ -27,24 +27,24 @@
 int cli_home_folder(const CliFolderCtx *args)
 {
     if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_HOME",
-                   .value_out = args->folder_out, .room = CLI_PATH_MAX_LEN))
+                   .value_out = args->folder_out, .capacity = CLI_PATH_MAX_LEN))
     {
         return 1;
     }
     char base[CLI_PATH_MAX_LEN];
 #if defined(_WIN32)
     if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "APPDATA", .value_out = base,
-                    .room = sizeof(base)))
+                    .capacity = sizeof(base)))
     {
         return 0;
     }
 #else
     if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "XDG_CONFIG_HOME",
-                    .value_out = base, .room = sizeof(base)))
+                    .value_out = base, .capacity = sizeof(base)))
     {
         char home[CLI_PATH_MAX_LEN];
         if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "HOME",
-                        .value_out = home, .room = sizeof(home)))
+                        .value_out = home, .capacity = sizeof(home)))
         {
             return 0;
         }

@@ -7,7 +7,7 @@
 #include "../command_line/cli_internal.h"
 #include "../text/text.h"
 
-unsigned char *cli_file_piece_take(const CliPathCtx *args)
+unsigned char *cli_file_piece_alloc(const CliPathCtx *args)
 {
     unsigned long long *size = args->size_pointer;
     *size = 0ull;
@@ -30,24 +30,24 @@ unsigned char *cli_file_piece_take(const CliPathCtx *args)
     return cell;
 }
 
-unsigned char *cli_file_take(const CliPathCtx *args)
+unsigned char *cli_file_alloc(const CliPathCtx *args)
 {
     unsigned long long *size = args->size_pointer;
     unsigned long long whole = 0ull;
     *size = 0ull;
     return EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = args->path, .size_pointer = &whole)
-               ? EMBED_CALL(cli_path_internal.file_piece_take, CliPathCtx, .path = args->path, .from = 0ull,
+               ? EMBED_CALL(cli_path_internal.file_piece_alloc, CliPathCtx, .path = args->path, .from = 0ull,
                             .count_u64 = whole, .size_pointer = size, .owner = args->owner)
                : NULL;
 }
 
-unsigned char *cli_file_take_utf8(const CliPathCtx *args)
+unsigned char *cli_file_alloc_utf8(const CliPathCtx *args)
 {
     unsigned long long *size = args->size_pointer;
-    unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = args->path,
+    unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->path,
                                             .size_pointer = size, .owner = args->owner);
     if ((bytes != NULL) &&
-        !EMBED_CALL(cli_text_size_kind.utf8_whole, CliTextSizeKindCfg, .text_bytes = bytes, .size = *size))
+        !EMBED_CALL(cli_text_size_kind.utf8_valid, CliTextSizeKindCfg, .text_bytes = bytes, .size = *size))
     {
         g_cli_cells->persistent_buf_release(bytes, args->owner);
         *size = 0ull;

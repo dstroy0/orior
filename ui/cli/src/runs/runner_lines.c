@@ -18,23 +18,23 @@ typedef struct
     int ended;
     char *pending;
     unsigned long long pending_size;
-} CliCarrier;
+} CliTransport;
 // the most bytes of one line carried whole: a longer one is printed in pieces of this size
-#define CLI_CARRIED_LINE (1u << 18u)
+#define CLI_TRANSFERRED_LINE (1u << 18u)
 
 void cli_run_line(const CliRunnerRunStreamCtx *args)
 {
     const char *text = args->text;
     const double ms = EMBED_CALL(cli_runner_internal.run_since, CliRunnerCtx, .run_read = args->run);
-    cli_runs_take();
-    EMBED_CALL(cli_runner_lines.lines_put, CliRunnerLinesCfg, .lines = args->run->lines, .text = text,
+    cli_runs_alloc();
+    EMBED_CALL(cli_runner_lines.lines_append, CliRunnerLinesCfg, .lines = args->run->lines, .text = text,
                .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
     if (!args->run->has_first)
     {
         args->run->first = ms;
         args->run->has_first = 1;
     }
-    cli_runs_give();
+    cli_runs_release();
     const CliRunEvent event = {
         CLI_RUN_EVENT_LINE, args->run->run, NULL, args->stream, text, 0, 0ll, 0, NULL, 0u, NULL, ms};
     EMBED_CALL(args->run->sink.emit, CliEachEventCfg, .context = args->run->sink.context, .event = &event);
@@ -44,7 +44,7 @@ typedef struct
 {
     const unsigned char *at;
     const unsigned char *end;
-    CliCarrier *carrier;
+    CliTransport *transport;
     const char *bytes;
     unsigned long long length;
     unsigned long long size;
@@ -84,15 +84,15 @@ EMBED_INLINE unsigned int cli_sequence(const RunnerLinesCtx *args)
 EMBED_INLINE void cli_line_emit(const RunnerLinesCtx *args)
 {
     unsigned long long length = args->length;
-    length = EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = args->bytes, .at = length,
+    length = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = args->bytes, .at = length,
                         .set = "\n\r");
-    const unsigned long long room = (3ull * length) + 1ull;
-    char *const text = g_cli_cells->temporary_buf_alloc(room, &g_cli_runs_cells);
+    const unsigned long long capacity = (3ull * length) + 1ull;
+    char *const text = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_runs_cells);
     if (text == NULL)
     {
         return;
     }
-    VerbaLinea line = {text, room, 0ull};
+    VerbaLinea line = {text, capacity, 0ull};
     const unsigned char *at = (const unsigned char *)args->bytes;
     const unsigned char *const end = at + length;
     while (at < end)
@@ -108,8 +108,8 @@ EMBED_INLINE void cli_line_emit(const RunnerLinesCtx *args)
         at += size;
     }
     mmgr_line_finish(&line);
-    EMBED_CALL(cli_runner_run_stream_internal.run_line, CliRunnerRunStreamCtx, .run = args->carrier->run,
-               .stream = args->carrier->stream, .text = text);
+    EMBED_CALL(cli_runner_run_stream_internal.run_line, CliRunnerRunStreamCtx, .run = args->transport->run,
+               .stream = args->transport->stream, .text = text);
     g_cli_cells->persistent_buf_release(text, &g_cli_runs_cells);
 }
 
@@ -118,30 +118,30 @@ EMBED_INLINE void cli_line_emit(const RunnerLinesCtx *args)
 EMBED_INLINE void cli_pending_emit(const RunnerLinesCtx *args)
 {
     const char *bytes = args->bytes;
-    if (args->carrier->pending_size == 0ull)
+    if (args->transport->pending_size == 0ull)
     {
-        EMBED_CALL(cli_line_emit, RunnerLinesCtx, .carrier = args->carrier, .bytes = bytes, .length = args->size);
+        EMBED_CALL(cli_line_emit, RunnerLinesCtx, .transport = args->transport, .bytes = bytes, .length = args->size);
         return;
     }
     memor.cpy(&(MemoriaCfg){
-        .dst = args->carrier->pending + args->carrier->pending_size, .src = bytes, .bytes = (size_t)args->size});
-    EMBED_CALL(cli_line_emit, RunnerLinesCtx, .carrier = args->carrier, .bytes = args->carrier->pending,
-               .length = args->carrier->pending_size + args->size);
-    args->carrier->pending_size = 0ull;
+        .dst = args->transport->pending + args->transport->pending_size, .src = bytes, .bytes = (size_t)args->size});
+    EMBED_CALL(cli_line_emit, RunnerLinesCtx, .transport = args->transport, .bytes = args->transport->pending,
+               .length = args->transport->pending_size + args->size);
+    args->transport->pending_size = 0ull;
 }
 
-static CliWake s_carried_wake = CLI_WAKE_INIT;
+static CliWake s_transferred_wake = CLI_WAKE_INIT;
 
-// a stream read to its end, each line printed as it is whole, a line of CLI_CARRIED_LINE bytes printed where it has
+// a stream read to its end, each line printed as it is whole, a line of CLI_TRANSFERRED_LINE bytes printed where it has
 // come to that many with no end
-EMBED_INLINE void cli_on_carry(const RunnerLinesCtx *args)
+EMBED_INLINE void cli_on_machine_transfer(const RunnerLinesCtx *args)
 {
     char piece[4096];
     for (;;)
     {
         const unsigned long long got =
-            EMBED_CALL(cli_room_pipe_handle_internal.spawn_read, CliRoomPipeHandleCtx,
-                       .pipe_handle = args->carrier->pipe, .piece = piece, .room = sizeof(piece));
+            EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx,
+                       .pipe_handle = args->transport->pipe, .piece = piece, .capacity = sizeof(piece));
         if (got == 0ull)
         {
             break;
@@ -149,76 +149,76 @@ EMBED_INLINE void cli_on_carry(const RunnerLinesCtx *args)
         unsigned long long from = 0ull;
         for (unsigned long long at = 0ull; at < got; at += 1ull)
         {
-            const unsigned long long pending_size = args->carrier->pending_size + (at + 1ull - from);
-            if ((piece[at] == '\n') || (pending_size == CLI_CARRIED_LINE))
+            const unsigned long long pending_size = args->transport->pending_size + (at + 1ull - from);
+            if ((piece[at] == '\n') || (pending_size == CLI_TRANSFERRED_LINE))
             {
-                EMBED_CALL(cli_pending_emit, RunnerLinesCtx, .carrier = args->carrier, .bytes = piece + from,
+                EMBED_CALL(cli_pending_emit, RunnerLinesCtx, .transport = args->transport, .bytes = piece + from,
                            .size = at + 1ull - from);
                 from = at + 1ull;
             }
         }
-        if ((got > from) && (args->carrier->pending != NULL))
+        if ((got > from) && (args->transport->pending != NULL))
         {
-            memor.cpy(&(MemoriaCfg){.dst = args->carrier->pending + args->carrier->pending_size,
+            memor.cpy(&(MemoriaCfg){.dst = args->transport->pending + args->transport->pending_size,
                                     .src = piece + from,
                                     .bytes = (size_t)(got - from)});
-            args->carrier->pending_size += got - from;
+            args->transport->pending_size += got - from;
         }
         else if (got > from)
         {
             // a stream whose cell the pool could not meet is printed as it comes
-            EMBED_CALL(cli_line_emit, RunnerLinesCtx, .carrier = args->carrier, .bytes = piece + from,
+            EMBED_CALL(cli_line_emit, RunnerLinesCtx, .transport = args->transport, .bytes = piece + from,
                        .length = got - from);
         }
     }
-    if (args->carrier->pending_size != 0ull)
+    if (args->transport->pending_size != 0ull)
     {
-        EMBED_CALL(cli_pending_emit, RunnerLinesCtx, .carrier = args->carrier, .bytes = "", .size = 0ull);
+        EMBED_CALL(cli_pending_emit, RunnerLinesCtx, .transport = args->transport, .bytes = "", .size = 0ull);
     }
 }
 
-static void cli_errors_carry(void *context)
+static void cli_errors_machine_transfer(void *context)
 {
-    CliCarrier *const carrier = (CliCarrier *)context;
-    EMBED_CALL(cli_on_carry, RunnerLinesCtx, .carrier = carrier);
-    carrier->ended = 1;
-    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_carried_wake);
+    CliTransport *const transport = (CliTransport *)context;
+    EMBED_CALL(cli_on_machine_transfer, RunnerLinesCtx, .transport = transport);
+    transport->ended = 1;
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_transferred_wake);
 }
 
-void cli_run_carry(const CliRunnerRunSpawnedCtx *args)
+void cli_run_machine_transfer(const CliRunnerRunSpawnedCtx *args)
 {
     // the step's two carriers, retained as long as the step goes, each with a cell of the most a line holds
-    CliCarrier out_carrier = {args->run, args->spawned->out, "stdout", 0, NULL, 0ull};
-    CliCarrier err_carrier = {args->run, args->spawned->err, "stderr", 0, NULL, 0ull};
-    out_carrier.pending = g_cli_cells->temporary_buf_alloc(CLI_CARRIED_LINE, &g_cli_runs_cells);
-    err_carrier.pending = g_cli_cells->temporary_buf_alloc(CLI_CARRIED_LINE, &g_cli_runs_cells);
-    CliCarrier *const out = &out_carrier;
-    CliCarrier *const err = &err_carrier;
-    CliThread errors = {cli_errors_carry, err};
+    CliTransport out_transport = {args->run, args->spawned->out, "stdout", 0, NULL, 0ull};
+    CliTransport err_transport = {args->run, args->spawned->err, "stderr", 0, NULL, 0ull};
+    out_transport.pending = g_cli_cells->temporary_buf_alloc(CLI_TRANSFERRED_LINE, &g_cli_runs_cells);
+    err_transport.pending = g_cli_cells->temporary_buf_alloc(CLI_TRANSFERRED_LINE, &g_cli_runs_cells);
+    CliTransport *const out = &out_transport;
+    CliTransport *const err = &err_transport;
+    CliThread errors = {cli_errors_machine_transfer, err};
     const int threaded = EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &errors);
     if (!threaded)
     {
-        EMBED_CALL(cli_on_carry, RunnerLinesCtx, .carrier = err);
+        EMBED_CALL(cli_on_machine_transfer, RunnerLinesCtx, .transport = err);
     }
-    EMBED_CALL(cli_on_carry, RunnerLinesCtx, .carrier = out);
+    EMBED_CALL(cli_on_machine_transfer, RunnerLinesCtx, .transport = out);
     while (threaded && !err->ended)
     {
-        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_carried_wake);
+        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_transferred_wake);
     }
-    g_cli_cells->persistent_buf_release(out_carrier.pending, &g_cli_runs_cells);
-    g_cli_cells->persistent_buf_release(err_carrier.pending, &g_cli_runs_cells);
+    g_cli_cells->persistent_buf_release(out_transport.pending, &g_cli_runs_cells);
+    g_cli_cells->persistent_buf_release(err_transport.pending, &g_cli_runs_cells);
 }
 
 // a path put among the pages where it is in the tree, by its path there, once
-static void cli_page_put(const RunnerLinesCtx *args)
+static void cli_page_append(const RunnerLinesCtx *args)
 {
     const char *root = args->root;
     const char *path = args->path;
     unsigned int *count = args->count;
     char full[CLI_PATH_MAX_LEN];
     char relative[CLI_PATH_MAX_LEN];
-    if (!EMBED_CALL(query_room_path_internal.path_full, QueryRoomPathCtx, .path = path, .full = full,
-                    .room = sizeof(full)) ||
+    if (!EMBED_CALL(query_capacity_path_internal.path_full, QueryCapacityPathCtx, .path = path, .full = full,
+                    .capacity = sizeof(full)) ||
         !EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = full))
     {
         return;
@@ -238,7 +238,7 @@ static void cli_page_put(const RunnerLinesCtx *args)
             return;
         }
     }
-    if (*count >= CLI_VIEWS_MOST)
+    if (*count >= CLI_VIEWS_MAX)
     {
         return;
     }
@@ -282,7 +282,7 @@ static void cli_page_each(const CliEachNameIsFolderCfg *args)
         mmgr_line_put(&line, args->name);
         if (mmgr_line_finish(&line) != 0ull)
         {
-            EMBED_CALL(cli_page_put, RunnerLinesCtx, .root = walk->root, .path = path, .views = walk->views,
+            EMBED_CALL(cli_page_append, RunnerLinesCtx, .root = walk->root, .path = path, .views = walk->views,
                        .count = walk->count);
         }
     }
@@ -303,7 +303,7 @@ unsigned int cli_run_pages(const CliRunnerRootCtx *args)
             EMBED_CALL(cli_runner_lines_index.lines_at, CliRunnerLinesIndexCfg, .lines_read = lines, .index = index);
         while (at[0] != '\0')
         {
-            at += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ull,
+            at += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ull,
                              .size = cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL}),
                              .set = CLI_TEXT_WHITE);
             const char *end = at;
@@ -343,7 +343,7 @@ unsigned int cli_run_pages(const CliRunnerRootCtx *args)
                     {
                         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = word, .joined = path);
                     }
-                    EMBED_CALL(cli_page_put, RunnerLinesCtx, .root = root, .path = path, .views = views,
+                    EMBED_CALL(cli_page_append, RunnerLinesCtx, .root = root, .path = path, .views = views,
                                .count = &count);
                 }
             }

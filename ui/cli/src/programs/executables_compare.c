@@ -44,7 +44,7 @@ EMBED_INLINE void cli_print(const ExecutablesCompareCtx *args)
                .size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL}));
 }
 
-// a range recorded where there is room for it
+// a range recorded where there is capacity for it
 EMBED_INLINE void cli_range(const ExecutablesCompareCtx *args)
 {
     if (args->found->ranges < CLI_COMPARE_RANGES)
@@ -106,7 +106,7 @@ void cli_executables_compare_build(const CliExecutablesCfg *args)
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_CELLS_POOL}) + 1u});
     EMBED_CALL(cli_text_size.save, CliTextSizeCfg, .text_out = slug,
                .size = cellul.len(&(CatenaFinitaCfg){.src = slug, .cap = CLI_CELLS_POOL}),
-               .classes = CLI_TEXT_LETTERS | CLI_TEXT_DIGITS | CLI_TEXT_PAST_ASCII, .set = ".-", .other = '_');
+               .classes = CLI_TEXT_LETTERS | CLI_TEXT_DIGITS | CLI_TEXT_END_ASCII, .set = ".-", .other = '_');
     char folder[CLI_PATH_MAX_LEN];
     char folder_buf[CLI_PATH_MAX_LEN];
     char allowed[CLI_PATH_MAX_LEN];
@@ -139,14 +139,14 @@ void cli_executables_compare_build(const CliExecutablesCfg *args)
         return;
     }
     unsigned long long now_size = 0ull;
-    const unsigned char *const now = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = args->file,
+    const unsigned char *const now = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->file,
                                                 .size_pointer = &now_size, .owner = &g_cli_executables_cells);
     if (now == NULL)
     {
         return;
     }
     unsigned long long old_size = 0ull;
-    const unsigned char *const old = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = allowed,
+    const unsigned char *const old = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = allowed,
                                                 .size_pointer = &old_size, .owner = &g_cli_executables_cells);
     if (old != NULL)
     {
@@ -279,7 +279,7 @@ EMBED_INLINE void cli_dot_env(const ExecutablesCompareCtx *args)
         char name_buf[CLI_NAME_MAX_LEN];
         char value_buf[CLI_PATH_MAX_LEN];
         EMBED_CALL(cli_executables_length_text_internal.scan_copy, CliExecutablesLengthTextCtx, .text = name,
-                   .length = name_length, .out = name_buf, .room = sizeof(name_buf));
+                   .length = name_length, .out = name_buf, .capacity = sizeof(name_buf));
         if ((value_length > 0ull) && ((value[0] == '"') || (value[0] == '\'')))
         {
             unsigned long long end = 1ull;
@@ -288,7 +288,7 @@ EMBED_INLINE void cli_dot_env(const ExecutablesCompareCtx *args)
                 end += 1ull;
             }
             EMBED_CALL(cli_executables_length_text_internal.scan_copy, CliExecutablesLengthTextCtx, .text = value + 1,
-                       .length = end - 1ull, .out = value_buf, .room = sizeof(value_buf));
+                       .length = end - 1ull, .out = value_buf, .capacity = sizeof(value_buf));
         }
         else
         {
@@ -301,7 +301,7 @@ EMBED_INLINE void cli_dot_env(const ExecutablesCompareCtx *args)
             EMBED_CALL(cli_executables_text_length_internal.scan_trim, CliExecutablesTextLengthCtx,
                        .text_pointer = &bare, .length_pointer = &end);
             EMBED_CALL(cli_executables_length_text_internal.scan_copy, CliExecutablesLengthTextCtx, .text = bare,
-                       .length = end, .out = value_buf, .room = sizeof(value_buf));
+                       .length = end, .out = value_buf, .capacity = sizeof(value_buf));
         }
         EMBED_CALL(args->each, CliEachNameValueCfg, .context = args->context, .name = name_buf, .value = value_buf);
     }
@@ -311,20 +311,20 @@ EMBED_INLINE void cli_dot_env(const ExecutablesCompareCtx *args)
 typedef struct
 {
     CliCommand *command;
-    VerbaLinea *shown;
-} CliEnvMade;
+    VerbaLinea *displayed;
+} CliEnvCreated;
 
 static void cli_env_each(const CliEachNameValueCfg *args)
 {
     const char *name = args->name;
     const char *value = args->value;
-    CliEnvMade *const made = (CliEnvMade *)args->context;
+    CliEnvCreated *const made = (CliEnvCreated *)args->context;
     EMBED_CALL(cli_runner_command_name.command_set, CliRunnerCommandNameCfg, .command = made->command, .name = name,
                .value = value);
-    mmgr_line_put(made->shown, (made->shown->at != 0ull) ? " " : "");
-    mmgr_line_put(made->shown, name);
+    mmgr_line_put(made->displayed, (made->displayed->at != 0ull) ? " " : "");
+    mmgr_line_put(made->displayed, name);
     // the value not shown, an ellipsis in its place
-    mmgr_line_put(made->shown, "=\xe2\x80\xa6");
+    mmgr_line_put(made->displayed, "=\xe2\x80\xa6");
 }
 
 void cli_executables_run_command(const CliExecutablesValuesCfg *args)
@@ -351,30 +351,31 @@ void cli_executables_run_command(const CliExecutablesValuesCfg *args)
     EMBED_CALL(cli_runner_command_folder.command_folder, CliRunnerCommandFolderCfg, .command = command, .folder = full);
     if (folder[0] != '\0')
     {
-        mmgr_line_put(args->shown_verba_linea_pointer, "cd ");
-        mmgr_line_put(args->shown_verba_linea_pointer, folder);
-        mmgr_line_put(args->shown_verba_linea_pointer, " &&");
+        mmgr_line_put(args->displayed_verba_linea_pointer, "cd ");
+        mmgr_line_put(args->displayed_verba_linea_pointer, folder);
+        mmgr_line_put(args->displayed_verba_linea_pointer, " &&");
     }
     char env[CLI_PATH_MAX_LEN];
     if (EMBED_CALL(cli_executables_name_out_folder_internal.join, CliExecutablesNameOutFolderCtx, .folder = args->root,
                    .name = ".env", .out = env) &&
-        EMBED_CALL(cli_executables_room_internal.text_read, CliExecutablesRoomCtx, .path = env, .bytes = s_env,
-                   .room = sizeof(s_env)))
+        EMBED_CALL(cli_executables_capacity_internal.text_read, CliExecutablesCapacityCtx, .path = env, .bytes = s_env,
+                   .capacity = sizeof(s_env)))
     {
-        CliEnvMade made = {command, args->shown_verba_linea_pointer};
+        CliEnvCreated made = {command, args->displayed_verba_linea_pointer};
         EMBED_CALL(cli_dot_env, ExecutablesCompareCtx, .text = s_env, .each = cli_env_each, .context = &made);
     }
     if (args->system)
     {
         const unsigned int count = EMBED_CALL(cli_toolchains_count.system_path, CliToolchainsCountCfg,
-                                              .folders = s_folders, .room = CLI_PATH_FOLDERS);
+                                              .folders = s_folders, .capacity = CLI_PATH_FOLDERS);
         EMBED_CALL(cli_path_count_size_internal.path_join, CliPathCountSizeCtx,
                    .folders_callback = (const char (*)[CLI_PATH_MAX_LEN])s_folders, .count = count, .path_out = s_path,
                    .size = sizeof(s_path));
         EMBED_CALL(cli_runner_command_name.command_set, CliRunnerCommandNameCfg, .command = command, .name = "PATH",
                    .value = s_path);
-        mmgr_line_put(args->shown_verba_linea_pointer, (args->shown_verba_linea_pointer->at != 0ull) ? " " : "");
-        mmgr_line_put(args->shown_verba_linea_pointer, "PATH=<the system's PATH>");
+        mmgr_line_put(args->displayed_verba_linea_pointer,
+                      (args->displayed_verba_linea_pointer->at != 0ull) ? " " : "");
+        mmgr_line_put(args->displayed_verba_linea_pointer, "PATH=<the system's PATH>");
     }
     else
     {
@@ -416,9 +417,10 @@ void cli_executables_run_command(const CliExecutablesValuesCfg *args)
                        .path = dotnet, .err_msg = &unfound) &&
             EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = dotnet, .out = dotnet_folder))
         {
-            mmgr_line_put(args->shown_verba_linea_pointer, (args->shown_verba_linea_pointer->at != 0ull) ? " " : "");
-            mmgr_line_put(args->shown_verba_linea_pointer, "DOTNET_ROOT=");
-            mmgr_line_put(args->shown_verba_linea_pointer, dotnet_folder);
+            mmgr_line_put(args->displayed_verba_linea_pointer,
+                          (args->displayed_verba_linea_pointer->at != 0ull) ? " " : "");
+            mmgr_line_put(args->displayed_verba_linea_pointer, "DOTNET_ROOT=");
+            mmgr_line_put(args->displayed_verba_linea_pointer, dotnet_folder);
             EMBED_CALL(cli_runner_command_name.command_set, CliRunnerCommandNameCfg, .command = command,
                        .name = "DOTNET_ROOT", .value = dotnet_folder);
         }
@@ -434,6 +436,6 @@ void cli_executables_run_command(const CliExecutablesValuesCfg *args)
         EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = args->root, .path = args->file,
                    .relative_out = relative);
     }
-    mmgr_line_put(args->shown_verba_linea_pointer, (args->shown_verba_linea_pointer->at != 0ull) ? " " : "");
-    mmgr_line_put(args->shown_verba_linea_pointer, under ? relative : args->file);
+    mmgr_line_put(args->displayed_verba_linea_pointer, (args->displayed_verba_linea_pointer->at != 0ull) ? " " : "");
+    mmgr_line_put(args->displayed_verba_linea_pointer, under ? relative : args->file);
 }

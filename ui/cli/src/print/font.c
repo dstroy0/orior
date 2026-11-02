@@ -366,13 +366,13 @@ EMBED_INLINE unsigned int cli_font_folders(const FontCtx *args)
     char named[CLI_PATH_MAX_LEN];
 #if defined(_WIN32)
     if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "WINDIR", .value_out = named,
-                   .room = sizeof(named)))
+                   .capacity = sizeof(named)))
     {
         EMBED_CALL(cli_folder, FontCtx, .folders = args->folders, .count_pointer = &count, .base = named,
                    .under = "/Fonts");
     }
     if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "LOCALAPPDATA",
-                   .value_out = named, .room = sizeof(named)))
+                   .value_out = named, .capacity = sizeof(named)))
     {
         EMBED_CALL(cli_folder, FontCtx, .folders = args->folders, .count_pointer = &count, .base = named,
                    .under = "/Microsoft/Windows/Fonts");
@@ -383,7 +383,7 @@ EMBED_INLINE unsigned int cli_font_folders(const FontCtx *args)
     EMBED_CALL(cli_folder, FontCtx, .folders = args->folders, .count_pointer = &count, .base = "/Library/Fonts",
                .under = "");
     if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "HOME", .value_out = named,
-                   .room = sizeof(named)))
+                   .capacity = sizeof(named)))
     {
         EMBED_CALL(cli_folder, FontCtx, .folders = args->folders, .count_pointer = &count, .base = named,
                    .under = "/Library/Fonts");
@@ -394,7 +394,7 @@ EMBED_INLINE unsigned int cli_font_folders(const FontCtx *args)
     EMBED_CALL(cli_folder, FontCtx, .folders = args->folders, .count_pointer = &count, .base = "/usr/local/share/fonts",
                .under = "");
     if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "HOME", .value_out = named,
-                   .room = sizeof(named)))
+                   .capacity = sizeof(named)))
     {
         EMBED_CALL(cli_folder, FontCtx, .folders = args->folders, .count_pointer = &count, .base = named,
                    .under = "/.local/share/fonts");

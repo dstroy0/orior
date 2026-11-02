@@ -35,7 +35,7 @@ EMBED_INLINE unsigned long long cli_quoted_length(const PluginsTextCtx *args)
     {
         return line.at;
     }
-    // a text too long for the room is longer than any line it would fit
+    // a text too long for the capacity is longer than any line it would fit
     return CLI_WIDE + 1ull;
 }
 
@@ -262,8 +262,8 @@ EMBED_INLINE int plugins_write(const PluginsTextCtx *args)
         mmgr_line_put(args->err_msg, ": it could not be made");
         return 0;
     }
-    char *const text_cell = g_cli_cells->temporary_buf_alloc(CLI_PLUGIN_TEXT_ROOM, &g_cli_plugins_cells);
-    VerbaLinea text = mmgr_line_over(text_cell, CLI_PLUGIN_TEXT_ROOM);
+    char *const text_cell = g_cli_cells->temporary_buf_alloc(CLI_PLUGIN_TEXT_CAPACITY, &g_cli_plugins_cells);
+    VerbaLinea text = mmgr_line_over(text_cell, CLI_PLUGIN_TEXT_CAPACITY);
     EMBED_CALL(cli_plugins_json_out.text_get, CliPluginsJsonOutCfg, .json = json, .plugin = plugin, .out = &text);
     int written = mmgr_line_ok(&text) && EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx,
                                                     .path = file, .bytes = text.out, .size = text.at);
@@ -283,8 +283,8 @@ EMBED_INLINE int plugins_write(const PluginsTextCtx *args)
     // 1 where both are written, 0 where plugin.json is not, 2 where the sample is not
     if (written)
     {
-        char *const sample_text_cell = g_cli_cells->temporary_buf_alloc(CLI_PLUGIN_TEXT_ROOM, &g_cli_plugins_cells);
-        VerbaLinea sample_text = mmgr_line_over(sample_text_cell, CLI_PLUGIN_TEXT_ROOM);
+        char *const sample_text_cell = g_cli_cells->temporary_buf_alloc(CLI_PLUGIN_TEXT_CAPACITY, &g_cli_plugins_cells);
+        VerbaLinea sample_text = mmgr_line_over(sample_text_cell, CLI_PLUGIN_TEXT_CAPACITY);
         EMBED_CALL(cli_plugins_json_out.sample_get, CliPluginsJsonOutCfg, .json = json, .plugin = plugin,
                    .out = &sample_text);
         const int sampled = (mmgr_line_finish(&sample_name) != 0ull) && mmgr_line_ok(&sample_text) &&

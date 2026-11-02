@@ -18,12 +18,12 @@ static char s_source[CLI_PATH_MAX_LEN];
 static char s_built[CLI_PATH_MAX_LEN];
 static unsigned long long s_in_use_after_first;
 static unsigned long long s_in_use_after_second;
-static int s_cmake_ran;
+static int s_cmake_run_result;
 static CliInputs s_inputs;
 static CliDatabase s_own;
 static char s_own_dir[CLI_PATH_MAX_LEN];
 static int s_files_in_temporary_tier;
-static int s_own_ran;
+static int s_own_run_result;
 
 // a path with each `\` a `/` into `out`, CLI_PATH_MAX_LEN bytes
 static void forward_slashed(const char *path, char *out)
@@ -85,11 +85,11 @@ static void cmake_refreshed(void)
                                    "[{\"fragment\": \"/W3\"}], \"includes\": [{\"path\": \"C:/x/include\"}], \"defines\": [{\"define\": "
                                    "\"WIN\"}], \"sourceIndexes\": [1]}, {\"language\": \"CUDA\", \"compileCommandFragments\": [], "
                                    "\"sourceIndexes\": [2]}]}";
-    if (s_cmake_ran)
+    if (s_cmake_run_result)
     {
         return;
     }
-    s_cmake_ran = 1;
+    s_cmake_run_result = 1;
     char build[CLI_PATH_MAX_LEN];
     char reply[CLI_PATH_MAX_LEN];
     cli_unity_folder("compile_db_cmake", s_cmake_dir);
@@ -119,11 +119,11 @@ static void cmake_refreshed(void)
 // a tree whose .clangd names its own database read and gathered, once for the process
 static void own_gathered(void)
 {
-    if (s_own_ran)
+    if (s_own_run_result)
     {
         return;
     }
-    s_own_ran = 1;
+    s_own_run_result = 1;
     char out[CLI_PATH_MAX_LEN];
     cli_unity_folder("compile_db_own", s_own_dir);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_own_dir, .relative = "out", .joined = out);
@@ -165,7 +165,7 @@ void test_a_look_stores_only_the_files_it_read_and_a_second_look_stores_no_more(
     TEST_ASSERT_EQUAL_UINT64(s_in_use_after_first, s_in_use_after_second);
 }
 
-void test_a_cmake_reply_gives_each_source_the_debug_configurations_command(void)
+void test_a_cmake_reply_releases_each_source_the_debug_configurations_command(void)
 {
     static const char *const s_c[7] = {"/usr/bin/gcc", "-g", "-std=gnu11", "-I/x/include", "-isystem/x/sys", "-DNEEDED=1", "-c"};
     static const char *const s_cxx[5] = {"C:/VS/bin/cl.exe", "/W3", "/IC:/x/include", "/DWIN", "/c"};
@@ -176,21 +176,21 @@ void test_a_cmake_reply_gives_each_source_the_debug_configurations_command(void)
     mmgr_line_ch(&line, ',');
     entry_written(&line, s_built, s_source, "more.cpp", s_cxx, 5u);
     mmgr_line_ch(&line, ']');
-    CliJson wanted;
-    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &wanted, .node_json_node_pointer = s_node, .nodes_most = sizeof(s_node) / sizeof(s_node[0]), .text_out = s_tree_text, .text_most = sizeof(s_tree_text));
+    CliJson required;
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &required, .node_json_node_pointer = s_node, .nodes_max = sizeof(s_node) / sizeof(s_node[0]), .text_out = s_tree_text, .text_max = sizeof(s_tree_text));
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    const unsigned int wanted_root = EMBED_CALL(cli_json_tree_text_size_tokens.json_read, CliJsonTreeTextSizeTokensCfg, .json = &wanted, .text = s_text, .size = line.at, .tokens = s_token, .tokens_most = sizeof(s_token) / sizeof(s_token[0]), .err_msg = &err_msg);
+    const unsigned int requested_root = EMBED_CALL(cli_json_tree_text_size_tokens.json_read, CliJsonTreeTextSizeTokensCfg, .json = &required, .text = s_text, .size = line.at, .tokens = s_token, .tokens_max = sizeof(s_token) / sizeof(s_token[0]), .err_msg = &err_msg);
     char path[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_cmake_dir, .relative = CLI_COMPILE_WRITTEN, .joined = path);
     const unsigned long long size = qry_member_file_read(path, (unsigned char *)s_written, sizeof(s_written));
     TEST_ASSERT_NOT_EQUAL(QRY_MEMBER_UNREAD, size);
     unsigned int written = CLI_JSON_NONE;
     const CliJson *const json = cli_unity_parsed(s_written, size, &written);
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_one.json_same, CliJsonTreeOneCfg, .json_read = json, .one = written, .other_json = &wanted, .other = wanted_root));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_one.json_same, CliJsonTreeOneCfg, .json_read = json, .one = written, .other_json = &required, .other = requested_root));
 }
 
-void test_clangd_is_given_the_written_folder(void)
+void test_clangd_is_input_the_written_folder(void)
 {
     char folder[CLI_PATH_MAX_LEN];
     cmake_refreshed();
@@ -254,7 +254,7 @@ void test_nothing_is_written_over_a_trees_own_database(void)
     TEST_ASSERT_FALSE(EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = path));
 }
 
-void test_a_command_lines_quoted_words_stay_whole(void)
+void test_a_command_lines_quoted_words_stay_complete(void)
 {
     static const char s_line[] = "\"C:/Program Files/LLVM/bin/clang.exe\" -I \"a b\" -c x.c";
     VerbaLinea words = {s_text, sizeof(s_text), 0ull};

@@ -391,7 +391,7 @@ void cli_font_rasterize(const CliFontContoursCfg *args)
         args->mask->top = top;
         return;
     }
-    if (((width * height) + 4ull) > args->room)
+    if (((width * height) + 4ull) > args->capacity)
     {
         return;
     }

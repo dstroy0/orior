@@ -11,8 +11,6 @@
 typedef struct GuiWordmarkFrameCfg GuiWordmarkFrameCfg;
 typedef struct GuiWordmarkReadCfg GuiWordmarkReadCfg;
 typedef struct GuiWordmarkGlyphsCfg GuiWordmarkGlyphsCfg;
-typedef struct GuiWordmarkTextCfg GuiWordmarkTextCfg;
-typedef struct GuiWordmarkCfg GuiWordmarkCfg;
 typedef struct GuiWordmarkStillCfg GuiWordmarkStillCfg;
 #include "../frame.h"
 #include "../glyphs.h"
@@ -32,17 +30,6 @@ typedef struct GuiWordmarkStillCfg GuiWordmarkStillCfg;
 #define GUI_WORDMARK_FADE_IN_MS 500ull
 #define GUI_WORDMARK_FRAME_MS 16ull
 // the repository a press on the name opens, and the entry orior's folder saves the session last started in under
-#define GUI_WORDMARK_REPOSITORY "https://github.com/dstroy0/orior"
-#define GUI_WORDMARK_SESSION_KEY "orior.wordmark.session"
-
-// A session as the system names it, down to two words: when the computer started and its log in's hash, and whether it
-// was read at all
-typedef struct
-{
-    unsigned long long booted;
-    unsigned long long logon;
-    int known;
-} GuiWordmarkSession;
 
 // Where the large name stands in a frame: the pixels of its em; the box round orior and the eye; TABVLA's box; and how
 // far TABVLA rises, in pixels, to stand at the eye's middle, negative for up
@@ -52,7 +39,7 @@ typedef struct
     GuiRect name;
     GuiRect under;
     int rise;
-} GuiWordmarkPlace;
+} GuiWordmarkPosition;
 
 // A span of a stage of the flight: the row and the column it starts at, its pixels, and where its coverage starts
 typedef struct
@@ -76,9 +63,9 @@ typedef struct
 {
     int still;
     int home;
-    int stands;
+    int exists;
     unsigned long long visible_start_ms;
-    int under_whole;
+    int fade_in_finished;
     int tree_read;
     unsigned long long exit_start_ms;
     int pours;
@@ -90,20 +77,19 @@ typedef struct
     int under_x;
     int under_y;
     int rise;
-    unsigned int made_em;
-    float word_wide;
+    unsigned int created_em;
+    float word_width;
     unsigned int laid_width;
     GuiRect laid_inside;
     GuiMask name;
     unsigned char *row;
     unsigned int *row_sum;
-    unsigned short (*ink)[2];
+    unsigned short (*text_color)[2];
     unsigned int *flight_first;
     GuiWordmarkSpan *flight_span;
     unsigned char *flight_cover;
     short under_down[GUI_WORDMARK_SLIDE_MS / GUI_WORDMARK_FRAME_MS + 1ull];
     GuiRaster under;
-    GuiWordmarkSession saved;
 } GuiWordmark;
 
 // the wordmark made with no eye in the bar and nothing standing; and every cell of its given back
@@ -112,19 +98,13 @@ void gui_wordmark_free(const GuiWordmarkStillCfg *args);
 // less motion asked for or no longer: asked for, TABVLA stands whole with the name, the pane leaves with no flight, and
 // a flight under way ends with the eye home and nothing of the name saved
 void gui_wordmark_still(const GuiWordmarkStillCfg *args);
-// `size` bytes of a session as the CLI writes it, `{"booted":n,"logon":s}`, read into `session`, its log in as a hash
-// and no tree made of it: 1, or 0 with it not known where the text is NULL or not of that shape; and whether this start
-// is the first in the system's session, as session.js reads it: 1 where either session is not known, where their log
-// ins differ, or where the computer's starts stand a minute or more apart
-int gui_wordmark_session_read(const GuiWordmarkTextCfg *args);
-int gui_wordmark_first_in(const GuiWordmarkCfg *args);
 // the pane shown, the name standing on it from `now`; the eye home at once, every start after the first; and the tree
 // read, the pane leaving once it has stood its least
 void gui_wordmark_stand(const GuiWordmarkFrameCfg *args);
 void gui_wordmark_land(const GuiWordmarkStillCfg *args);
 void gui_wordmark_tree_read(const GuiWordmarkStillCfg *args);
 // the name's place in `frame`, on the frame's inside, as style.css sets it
-void gui_wordmark_place(const GuiWordmarkGlyphsCfg *args);
+void gui_wordmark_position(const GuiWordmarkGlyphsCfg *args);
 // TABVLA's way down from its box, in pixels, and its opacity, 0 to 255,, as its transition and its animation
 // run; whether a frame is owed for what moved by `now`, the pane leaving and the funnel ending as the clock passes
 // them, the frame being what the funnel's tip is taken from; and the wordmark's next deadline, 0 for none
@@ -135,8 +115,8 @@ unsigned long long gui_wordmark_next_deadline_ms(const GuiWordmarkReadCfg *args)
 // the square the eye stands on in the bar, its size given the claim's numbers, empty where it has shrunk out; and the
 // eye drawn on it once it is home
 void gui_wordmark_draw(const GuiWordmarkFrameCfg *args);
-GuiRect gui_wordmark_eye_square(const GuiWordmarkFrameCfg *args);
-void gui_wordmark_eye_draw(const GuiWordmarkFrameCfg *args);
+GuiRect gui_wordmark_logo_square(const GuiWordmarkFrameCfg *args);
+void gui_wordmark_logo_draw(const GuiWordmarkFrameCfg *args);
 // whether a press at x, y lands on the name: the eye once it is home, the large name where it was last drawn while it
 // stands
 int gui_wordmark_holds(const GuiWordmarkFrameCfg *args);
@@ -164,20 +144,7 @@ struct GuiWordmarkGlyphsCfg
 {
     GuiGlyphs *glyphs;
     const GuiFrame *frame;
-    GuiWordmarkPlace *place;
-};
-
-struct GuiWordmarkTextCfg
-{
-    const char *text;
-    unsigned long long size;
-    GuiWordmarkSession *session;
-};
-
-struct GuiWordmarkCfg
-{
-    const GuiWordmarkSession *saved;
-    const GuiWordmarkSession *current_session;
+    GuiWordmarkPosition *place;
 };
 
 struct GuiWordmarkStillCfg
@@ -205,38 +172,20 @@ EMBED_TABLE_STORAGE CliWordmarkStillNs cli_wordmark_still EMBED_UNUSED = {
 
 typedef struct
 {
-    int (*session_read)(const GuiWordmarkTextCfg *args);
-} GuiWordmarkTextNs;
-EMBED_TABLE_LAYOUT(GuiWordmarkTextNs, session_read);
-EMBED_TABLE_STORAGE GuiWordmarkTextNs gui_wordmark_text EMBED_UNUSED = {
-    .session_read = gui_wordmark_session_read,
-};
-
-typedef struct
-{
-    int (*first_in)(const GuiWordmarkCfg *args);
-} GuiWordmarkNs;
-EMBED_TABLE_LAYOUT(GuiWordmarkNs, first_in);
-EMBED_TABLE_STORAGE GuiWordmarkNs gui_wordmark EMBED_UNUSED = {
-    .first_in = gui_wordmark_first_in,
-};
-
-typedef struct
-{
     void (*stand)(const GuiWordmarkFrameCfg *args);
     int (*tick)(const GuiWordmarkFrameCfg *args);
     void (*draw)(const GuiWordmarkFrameCfg *args);
-    GuiRect (*eye_square)(const GuiWordmarkFrameCfg *args);
-    void (*eye_draw)(const GuiWordmarkFrameCfg *args);
+    GuiRect (*logo_square)(const GuiWordmarkFrameCfg *args);
+    void (*logo_draw)(const GuiWordmarkFrameCfg *args);
     int (*holds)(const GuiWordmarkFrameCfg *args);
 } GuiWordmarkFrameNs;
-EMBED_TABLE_LAYOUT(GuiWordmarkFrameNs, stand, tick, draw, eye_square, eye_draw, holds);
+EMBED_TABLE_LAYOUT(GuiWordmarkFrameNs, stand, tick, draw, logo_square, logo_draw, holds);
 EMBED_TABLE_STORAGE GuiWordmarkFrameNs gui_wordmark_frame EMBED_UNUSED = {
     .stand = gui_wordmark_stand,
     .tick = gui_wordmark_tick,
     .draw = gui_wordmark_draw,
-    .eye_square = gui_wordmark_eye_square,
-    .eye_draw = gui_wordmark_eye_draw,
+    .logo_square = gui_wordmark_logo_square,
+    .logo_draw = gui_wordmark_logo_draw,
     .holds = gui_wordmark_holds,
 };
 
@@ -246,7 +195,7 @@ typedef struct
 } GuiWordmarkGlyphsNs;
 EMBED_TABLE_LAYOUT(GuiWordmarkGlyphsNs, place);
 EMBED_TABLE_STORAGE GuiWordmarkGlyphsNs gui_wordmark_glyphs EMBED_UNUSED = {
-    .place = gui_wordmark_place,
+    .place = gui_wordmark_position,
 };
 
 typedef struct

@@ -11,7 +11,7 @@ typedef struct CliJsonTreeErrMsgCfg CliJsonTreeErrMsgCfg;
 typedef struct CliJsonTreeTextSizeTokensCfg CliJsonTreeTextSizeTokensCfg;
 typedef struct CliJsonTreeNodeNodeCfg CliJsonTreeNodeNodeCfg;
 typedef struct CliJsonTreeOutCfg CliJsonTreeOutCfg;
-typedef struct CliJsonTreeNodesMostCfg CliJsonTreeNodesMostCfg;
+typedef struct CliJsonTreeNodesMaxCfg CliJsonTreeNodesMaxCfg;
 typedef struct CliJsonTreeNodeOutCfg CliJsonTreeNodeOutCfg;
 typedef struct CliJsonTreeNodeNodesCfg CliJsonTreeNodeNodesCfg;
 typedef struct CliJsonTreeOneCfg CliJsonTreeOneCfg;
@@ -62,44 +62,44 @@ typedef struct
 {
     CliJsonNode *node;
     unsigned int nodes;
-    unsigned int nodes_most;
+    unsigned int nodes_max;
     char *text;
     unsigned long long used;
-    unsigned long long text_most;
+    unsigned long long text_max;
     int full;
     const char *what;
 } CliJson;
 
-// a tree made empty over `node`, sized for `nodes_most`, and `text`, sized for `text_most`
+// a tree made empty over `node`, sized for `nodes_max`, and `text`, sized for `text_max`
 void cli_json_begin(const CliJsonTreeNodeNodeCfg *args);
-// the JSON `size` bytes of `text` contain read into the tree, `tokens` sized for `tokens_most` of them: its root, or
+// the JSON `size` bytes of `text` contain read into the tree, `tokens` sized for `tokens_max` of them: its root, or
 // CLI_JSON_NONE with why given
 unsigned int cli_json_read(const CliJsonTreeTextSizeTokensCfg *args);
 // the tokens cfg_json makes of `size` bytes of `text`, counted without making them: exact where the text is JSON, and
-// where it is not, a count the read then refuses (json_taken.c)
+// where it is not, a count the read then refuses (json_allocated.c)
 unsigned int cli_json_tokens_count(const CliJsonTreeTextCfg *args);
-// a tree made empty in a cell of its own sized for `nodes_most` nodes and `text_most` bytes of texts: 1, or 0 with the
+// a tree made empty in a cell of its own sized for `nodes_max` nodes and `text_max` bytes of texts: 1, or 0 with the
 // cell refused and reported and the tree containing nothing. Every take below counts the tree's cell to `owner`, and
 // the tree is given back for the owner its cell counts to
-int cli_json_reserve(const CliJsonTreeNodesMostCfg *args);
-// the same tree with its cell from the temporary tier, for a tree the call that makes it gives back; room on the tree
-// for `nodes` nodes and `text` bytes more: 1, or 0 with the tree full; and a tree emptied, its room retained
-int cli_json_reserved_temporary(const CliJsonTreeNodesMostCfg *args);
-int cli_json_room(const CliJsonTreeNodesCfg *args);
+int cli_json_reserve(const CliJsonTreeNodesMaxCfg *args);
+// the same tree with its cell from the temporary tier, for a tree the call that makes it gives back; capacity on the
+// tree for `nodes` nodes and `text` bytes more: 1, or 0 with the tree full; and a tree emptied, its capacity retained
+int cli_json_reserved_temporary(const CliJsonTreeNodesMaxCfg *args);
+int cli_json_capacity(const CliJsonTreeNodesCfg *args);
 void cli_json_clear(const CliJsonTreeCfg *args);
 // `size` bytes of `text` read into a tree in a cell of its own, sized to the tokens they contain and to their bytes,
 // with `nodes_more` nodes and `text_more` bytes over for what is made after: its root, or CLI_JSON_NONE with why given;
 // and the tree's cell given back, the tree left containing nothing, where it contains one or none
-unsigned int cli_json_take(const CliJsonTreeTextSizeErrMsgCfg *args);
+unsigned int cli_json_alloc(const CliJsonTreeTextSizeErrMsgCfg *args);
 void cli_json_free(const CliJsonTreeCfg *args);
 // the same read with the tree's cell from the temporary tier, for a tree the call that reads it gives back
-unsigned int cli_json_take_temporary(const CliJsonTreeTextSizeErrMsgCfg *args);
-// the nodes a node and all under it take, and the bytes of their texts and keys, added to `nodes` and `text`, the room
-// a copy of it takes in another tree
+unsigned int cli_json_alloc_temporary(const CliJsonTreeTextSizeErrMsgCfg *args);
+// the nodes a node and all under it take, and the bytes of their texts and keys, added to `nodes` and `text`, the
+// capacity a copy of it takes in another tree
 void cli_json_extent(const CliJsonTreeNodeNodesCfg *args);
-// the file at `path` read mapped into a tree as cli_json_take reads one, the file let go as the read ends: its root,
+// the file at `path` read mapped into a tree as cli_json_alloc reads one, the file let go as the read ends: its root,
 // or CLI_JSON_NONE with why given, the tree containing nothing where the file could not be read
-unsigned int cli_json_file_take(const CliJsonTreeErrMsgCfg *args);
+unsigned int cli_json_file_alloc(const CliJsonTreeErrMsgCfg *args);
 // a node made of `kind` with no children; a string made of `length` bytes of `text`; a number made as `text` writes it
 unsigned int cli_json_init(const CliJsonTreeKindCfg *args);
 unsigned int cli_json_string_init(const CliJsonTreeTextLengthKindCfg *args);
@@ -128,11 +128,11 @@ int cli_json_same(const CliJsonTreeOneCfg *args);
 // the node written as JSON into `out`: on one line, or as serde_json's pretty writer lays it out with `indent` spaces
 // to a level where `indent` is not 0; every object's keys in order where `sorted` is 1 (json_tree_write.c)
 void cli_json_write(const CliJsonTreeNodeOutCfg *args);
-// the most bytes any node of the tree writes to on one line, its 0 after them counted: a line of this room holds what
-// cli_json_write writes of it with no indent, and what is written from its strings as they are
-unsigned long long cli_json_write_room(const CliJsonTreeNodeOutCfg *args);
+// the most bytes any node of the tree writes to on one line, its 0 after them counted: a line of this capacity holds
+// what cli_json_write writes of it with no indent, and what is written from its strings as they are
+unsigned long long cli_json_write_capacity(const CliJsonTreeNodeOutCfg *args);
 // the same with `indent` spaces to a level, for a tree no deeper than CLI_JSON_PRETTY_DEPTH
-unsigned long long cli_json_pretty_room(const CliJsonTreeNodeOutCfg *args);
+unsigned long long cli_json_pretty_capacity(const CliJsonTreeNodeOutCfg *args);
 // `length` bytes of `text` written as a JSON string, quotes about them, as serde_json escapes it
 void cli_json_quote(const CliJsonTreeTextLengthCfg *args);
 // `length` bytes written as a JSON string as cli_json_quote writes them, each byte that starts no whole UTF-8 letter
@@ -168,7 +168,7 @@ int cli_json_compact(const CliJsonTreeTextCfg *args);
 // whole value stands there (json_compact.c)
 unsigned long long cli_json_value_end(const CliJsonTreeTextSizeCfg *args);
 // whether `size` bytes are UTF-8 whole, as Rust's str reads them (json_compact.c)
-int cli_utf8_whole(const CliJsonTreeSizeCfg *args);
+int cli_utf8_valid(const CliJsonTreeSizeCfg *args);
 
 struct CliJsonTreeTextSizeErrMsgCfg
 {
@@ -197,7 +197,7 @@ struct CliJsonTreeTextSizeTokensCfg
     const char *text;
     unsigned long long size;
     CfgJsonToken *tokens;
-    unsigned int tokens_most;
+    unsigned int tokens_max;
     VerbaLinea *err_msg;
 };
 
@@ -205,9 +205,9 @@ struct CliJsonTreeNodeNodeCfg
 {
     CliJson *json;
     CliJsonNode *node_json_node_pointer;
-    unsigned int nodes_most;
+    unsigned int nodes_max;
     char *text_out;
-    unsigned long long text_most;
+    unsigned long long text_max;
 };
 
 struct CliJsonTreeOutCfg
@@ -219,11 +219,11 @@ struct CliJsonTreeOutCfg
     unsigned long long piece_size;
 };
 
-struct CliJsonTreeNodesMostCfg
+struct CliJsonTreeNodesMaxCfg
 {
     CliJson *json;
-    unsigned int nodes_most;
-    unsigned long long text_most;
+    unsigned int nodes_max;
+    unsigned long long text_max;
     const char *what;
     CellOwner *owner;
 };
@@ -408,22 +408,22 @@ EMBED_TABLE_STORAGE CliJsonTreeTextNs cli_json_tree_text EMBED_UNUSED = {
 
 typedef struct
 {
-    int (*json_reserve)(const CliJsonTreeNodesMostCfg *args);
-    int (*json_reserved_temporary)(const CliJsonTreeNodesMostCfg *args);
-} CliJsonTreeNodesMostNs;
-EMBED_TABLE_LAYOUT(CliJsonTreeNodesMostNs, json_reserve, json_reserved_temporary);
-EMBED_TABLE_STORAGE CliJsonTreeNodesMostNs cli_json_tree_nodes_most EMBED_UNUSED = {
+    int (*json_reserve)(const CliJsonTreeNodesMaxCfg *args);
+    int (*json_reserved_temporary)(const CliJsonTreeNodesMaxCfg *args);
+} CliJsonTreeNodesMaxNs;
+EMBED_TABLE_LAYOUT(CliJsonTreeNodesMaxNs, json_reserve, json_reserved_temporary);
+EMBED_TABLE_STORAGE CliJsonTreeNodesMaxNs cli_json_tree_nodes_max EMBED_UNUSED = {
     .json_reserve = cli_json_reserve,
     .json_reserved_temporary = cli_json_reserved_temporary,
 };
 
 typedef struct
 {
-    int (*json_room)(const CliJsonTreeNodesCfg *args);
+    int (*json_capacity)(const CliJsonTreeNodesCfg *args);
 } CliJsonTreeNodesNs;
-EMBED_TABLE_LAYOUT(CliJsonTreeNodesNs, json_room);
+EMBED_TABLE_LAYOUT(CliJsonTreeNodesNs, json_capacity);
 EMBED_TABLE_STORAGE CliJsonTreeNodesNs cli_json_tree_nodes EMBED_UNUSED = {
-    .json_room = cli_json_room,
+    .json_capacity = cli_json_capacity,
 };
 
 typedef struct
@@ -441,13 +441,13 @@ EMBED_TABLE_STORAGE CliJsonTreeNs cli_json_tree EMBED_UNUSED = {
 
 typedef struct
 {
-    unsigned int (*json_take)(const CliJsonTreeTextSizeErrMsgCfg *args);
-    unsigned int (*json_take_temporary)(const CliJsonTreeTextSizeErrMsgCfg *args);
+    unsigned int (*json_alloc)(const CliJsonTreeTextSizeErrMsgCfg *args);
+    unsigned int (*json_alloc_temporary)(const CliJsonTreeTextSizeErrMsgCfg *args);
 } CliJsonTreeTextSizeErrMsgNs;
-EMBED_TABLE_LAYOUT(CliJsonTreeTextSizeErrMsgNs, json_take, json_take_temporary);
+EMBED_TABLE_LAYOUT(CliJsonTreeTextSizeErrMsgNs, json_alloc, json_alloc_temporary);
 EMBED_TABLE_STORAGE CliJsonTreeTextSizeErrMsgNs cli_json_tree_text_size_err_msg EMBED_UNUSED = {
-    .json_take = cli_json_take,
-    .json_take_temporary = cli_json_take_temporary,
+    .json_alloc = cli_json_alloc,
+    .json_alloc_temporary = cli_json_alloc_temporary,
 };
 
 typedef struct
@@ -461,11 +461,11 @@ EMBED_TABLE_STORAGE CliJsonTreeNodeNodesNs cli_json_tree_node_nodes EMBED_UNUSED
 
 typedef struct
 {
-    unsigned int (*json_file_take)(const CliJsonTreeErrMsgCfg *args);
+    unsigned int (*json_file_alloc)(const CliJsonTreeErrMsgCfg *args);
 } CliJsonTreeErrMsgNs;
-EMBED_TABLE_LAYOUT(CliJsonTreeErrMsgNs, json_file_take);
+EMBED_TABLE_LAYOUT(CliJsonTreeErrMsgNs, json_file_alloc);
 EMBED_TABLE_STORAGE CliJsonTreeErrMsgNs cli_json_tree_err_msg EMBED_UNUSED = {
-    .json_file_take = cli_json_file_take,
+    .json_file_alloc = cli_json_file_alloc,
 };
 
 typedef struct
@@ -567,14 +567,14 @@ EMBED_TABLE_STORAGE CliJsonTreeOneNs cli_json_tree_one EMBED_UNUSED = {
 typedef struct
 {
     void (*json_write)(const CliJsonTreeNodeOutCfg *args);
-    unsigned long long (*json_write_room)(const CliJsonTreeNodeOutCfg *args);
-    unsigned long long (*json_pretty_room)(const CliJsonTreeNodeOutCfg *args);
+    unsigned long long (*json_write_capacity)(const CliJsonTreeNodeOutCfg *args);
+    unsigned long long (*json_pretty_capacity)(const CliJsonTreeNodeOutCfg *args);
 } CliJsonTreeNodeOutNs;
-EMBED_TABLE_LAYOUT(CliJsonTreeNodeOutNs, json_write, json_write_room, json_pretty_room);
+EMBED_TABLE_LAYOUT(CliJsonTreeNodeOutNs, json_write, json_write_capacity, json_pretty_capacity);
 EMBED_TABLE_STORAGE CliJsonTreeNodeOutNs cli_json_tree_node_out EMBED_UNUSED = {
     .json_write = cli_json_write,
-    .json_write_room = cli_json_write_room,
-    .json_pretty_room = cli_json_pretty_room,
+    .json_write_capacity = cli_json_write_capacity,
+    .json_pretty_capacity = cli_json_pretty_capacity,
 };
 
 typedef struct
@@ -639,11 +639,11 @@ EMBED_TABLE_STORAGE CliJsonTreeTextSizeNs cli_json_tree_text_size EMBED_UNUSED =
 
 typedef struct
 {
-    int (*utf8_whole)(const CliJsonTreeSizeCfg *args);
+    int (*utf8_valid)(const CliJsonTreeSizeCfg *args);
 } CliJsonTreeSizeNs;
-EMBED_TABLE_LAYOUT(CliJsonTreeSizeNs, utf8_whole);
+EMBED_TABLE_LAYOUT(CliJsonTreeSizeNs, utf8_valid);
 EMBED_TABLE_STORAGE CliJsonTreeSizeNs cli_json_tree_size EMBED_UNUSED = {
-    .utf8_whole = cli_utf8_whole,
+    .utf8_valid = cli_utf8_valid,
 };
 
 #endif

@@ -16,17 +16,17 @@ int cli_file_begin(const CliPathFileCtx *args)
     static unsigned long long s_count;
     s_count += 1ull;
     const unsigned long long count = s_count;
-    char beside[CLI_WRITING_MAX_LEN];
-    VerbaLinea named = {beside, sizeof(beside), 0u, NULL, NULL, 0u};
+    char adjacent[CLI_WRITING_MAX_LEN];
+    VerbaLinea named = {adjacent, sizeof(adjacent), 0u, NULL, NULL, 0u};
     mmgr_line_ch(&named, '.');
     mmgr_line_decimal(&named, cli_process_own(), 1u);
     mmgr_line_ch(&named, '.');
     mmgr_line_decimal(&named, count, 1u);
     mmgr_line_put(&named, ".writing");
-    return (mmgr_line_finish(&named) != 0u) && ksg_writing_begun(args->file, args->path, beside);
+    return (mmgr_line_finish(&named) != 0u) && ksg_writing_begun(args->file, args->path, adjacent);
 }
 
-int cli_file_put(void *context, const char *bytes, size_t size)
+int cli_file_write_chunk(void *context, const char *bytes, size_t size)
 {
     return ksg_writing_put(context, bytes, size);
 }
@@ -38,7 +38,7 @@ int cli_file_end(const CliFileCtx *args)
 
 VerbaLinea cli_file_line(const CliFileStageCtx *args)
 {
-    const VerbaLinea line = {args->stage, CLI_STAGE_BYTES + 1u, 0u, cli_file_put, args->file, 0u};
+    const VerbaLinea line = {args->stage, CLI_STAGE_BYTES + 1u, 0u, cli_file_write_chunk, args->file, 0u};
     return line;
 }
 

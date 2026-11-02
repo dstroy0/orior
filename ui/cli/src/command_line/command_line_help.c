@@ -14,7 +14,7 @@ typedef struct
 {
     unsigned long long pad;
     VerbaLinea *out;
-} CliHelpMade;
+} CliHelpCreated;
 // the widest a usage in the help's left column is; a wider one stands on lines of its own, its label under it in the
 // column
 #define CLI_HELP_COLUMN 44ull
@@ -25,7 +25,7 @@ typedef struct
 // the longest row of the help, its usage or what it describes
 #define CLI_HELP_ROW 4096u
 
-static CliItem s_items[CLI_ITEMS_MOST];
+static CliItem s_items[CLI_ITEMS_MAX];
 
 // A row's lines as wrapped makes them: the row's usage, written to the left of its first, where it does not stand
 // alone; and the help made
@@ -103,7 +103,7 @@ static void help_alone(const CliEachLineSizeCfg *args)
 }
 
 // a line of what a row describes, the row's usage to its left on its first where it does not stand alone
-static void help_beside(const CliEachLineSizeCfg *args)
+static void help_adjacent(const CliEachLineSizeCfg *args)
 {
     unsigned long long size = args->size;
     CliHelpLines *const lines = args->context;
@@ -124,7 +124,7 @@ static void help_beside(const CliEachLineSizeCfg *args)
 
 typedef struct
 {
-    CliHelpMade *made;
+    CliHelpCreated *made;
     const char *usage;
     const char *desc;
     VerbaLinea *out;
@@ -152,7 +152,7 @@ EMBED_INLINE void help_row(const CommandLineHelpCtx *args)
     }
     CliHelpLines lines = {alone ? NULL : args->usage, args->made->pad, args->made->out, 0u};
     EMBED_CALL(cli_command_line_text_each_internal.help_wrap, CliCommandLineTextEachCtx, .text = args->desc,
-               .width = CLI_HELP_WIDTH - args->made->pad - 4ull, .indent = 0ull, .each = help_beside,
+               .width = CLI_HELP_WIDTH - args->made->pad - 4ull, .indent = 0ull, .each = help_adjacent,
                .context = &lines);
 }
 
@@ -167,8 +167,8 @@ static void help_rows(const CommandLineHelpCtx *args)
     {
         char word[CLI_LABEL_MAX_LEN];
         EMBED_CALL(cli_commands_menu_word.menu_word, CliCommandsMenuWordCfg, .menu = menu, .word_out = word);
-        const unsigned int items = EMBED_CALL(cli_commands_menu_room.menu_items, CliCommandsMenuRoomCfg, .menu = menu,
-                                              .items = s_items, .room = CLI_ITEMS_MOST);
+        const unsigned int items = EMBED_CALL(cli_commands_menu_capacity.menu_items, CliCommandsMenuCapacityCfg,
+                                              .menu = menu, .items = s_items, .capacity = CLI_ITEMS_MAX);
         for (unsigned int at = 0u; at < items; at += 1u)
         {
             VerbaLinea usage = {s_usage, sizeof(s_usage), 0ull};
@@ -188,7 +188,7 @@ static void help_rows(const CommandLineHelpCtx *args)
             EMBED_CALL(help_row, CommandLineHelpCtx, .made = args->made, .usage = s_usage, .desc = s_desc_buf);
         }
         const unsigned int groups = EMBED_CALL(cli_commands_menu_groups.menu_groups, CliCommandsMenuGroupsCfg,
-                                               .menu = menu, .groups = s_groups, .room = CLI_HELP_GROUPS);
+                                               .menu = menu, .groups = s_groups, .capacity = CLI_HELP_GROUPS);
         if (groups > 0u)
         {
             char split[CLI_LABEL_MAX_LEN];
@@ -230,7 +230,7 @@ static void help_rows(const CommandLineHelpCtx *args)
 void cli_help(const CliCommandLineOutErrMsgShellCtx *args)
 {
     VerbaLinea *out = args->out;
-    CliHelpMade made = {0ull, NULL};
+    CliHelpCreated made = {0ull, NULL};
     EMBED_CALL(help_rows, CommandLineHelpCtx, .made = &made);
     made.pad = (made.pad > 0ull) ? made.pad : CLI_HELP_COLUMN;
     made.out = out;
@@ -249,8 +249,8 @@ void cli_keys(void)
 {
     for (unsigned int menu = 0u; menu < cli_menus(); menu += 1u)
     {
-        const unsigned int items = EMBED_CALL(cli_commands_menu_room.menu_items, CliCommandsMenuRoomCfg, .menu = menu,
-                                              .items = s_items, .room = CLI_ITEMS_MOST);
+        const unsigned int items = EMBED_CALL(cli_commands_menu_capacity.menu_items, CliCommandsMenuCapacityCfg,
+                                              .menu = menu, .items = s_items, .capacity = CLI_ITEMS_MAX);
         unsigned long long pad = 0ull;
         unsigned int count = 0u;
         for (unsigned int at = 0u; at < items; at += 1u)
@@ -304,8 +304,8 @@ void cli_next_words(const CliCommandLineNamedCtx *args)
     {
         return;
     }
-    const unsigned int items = EMBED_CALL(cli_commands_menu_room.menu_items, CliCommandsMenuRoomCfg, .menu = menu,
-                                          .items = s_items, .room = CLI_ITEMS_MOST);
+    const unsigned int items = EMBED_CALL(cli_commands_menu_capacity.menu_items, CliCommandsMenuCapacityCfg,
+                                          .menu = menu, .items = s_items, .capacity = CLI_ITEMS_MAX);
     for (unsigned int at = 0u; at < items; at += 1u)
     {
         EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx, .text = s_items[at].command);
@@ -315,7 +315,7 @@ void cli_next_words(const CliCommandLineNamedCtx *args)
     char why[1024];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     if ((EMBED_CALL(cli_commands_menu_groups.menu_groups, CliCommandsMenuGroupsCfg, .menu = menu, .groups = group,
-                    .room = 1u) == 0u) ||
+                    .capacity = 1u) == 0u) ||
         !EMBED_CALL(cli_command_line_named.tree, CliCommandLineNamedCfg, .named = named, .root = s_root,
                     .err_msg = &err_msg))
     {
@@ -323,10 +323,10 @@ void cli_next_words(const CliCommandLineNamedCtx *args)
     }
     const CliCatalog *const catalog =
         EMBED_CALL(cli_command_line_word_internal.catalog, CliCommandLineWordCtx, .root = s_root);
-    static unsigned int s_listed[CLI_LINE_JOBS];
+    static unsigned int s_list_result[CLI_LINE_JOBS];
     const unsigned int count =
         EMBED_CALL(cli_command_line_catalog_menu_internal.menu_jobs, CliCommandLineCatalogMenuCtx, .catalog = catalog,
-                   .menu = menu, .listed = s_listed);
+                   .menu = menu, .list_entries = s_list_result);
     char split[CLI_LABEL_MAX_LEN];
     EMBED_CALL(cli_commands_menu_split.menu_split, CliCommandsMenuSplitCfg, .menu = menu, .split = split);
     char subject[CLI_NAME_MAX_LEN];
@@ -337,11 +337,11 @@ void cli_next_words(const CliCommandLineNamedCtx *args)
         {
             EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx,
                        .text = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = catalog,
-                                          .text_u32 = catalog->job[s_listed[at]].id));
+                                          .text_u32 = catalog->job[s_list_result[at]].id));
             continue;
         }
         EMBED_CALL(cli_command_line_catalog_job_internal.job_subject, CliCommandLineCatalogJobCtx, .catalog = catalog,
-                   .job = s_listed[at], .subject = subject);
+                   .job = s_list_result[at], .subject = subject);
         if ((at == 0u) || (!cellul.eq(&(CatenaFinitaCfg){.src = subject, .other = last, .cap = CLI_CELLS_POOL})))
         {
             EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx, .text = subject);

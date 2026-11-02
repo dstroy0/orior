@@ -24,15 +24,15 @@ static int same_text(const char *one, const char *other)
     return (length == text_length(other)) && (memor.cmp(&(MemoriaCfg){.src = one, .other = other, .bytes = length}) == 0);
 }
 
-// whether a pixel of `rect` differs from `ground`
-static int painted(const GuiRaster *raster, GuiRect rect, GuiColor ground)
+// whether a pixel of `rect` differs from `background_fill`
+static int painted(const GuiRaster *raster, GuiRect rect, GuiColor background_fill)
 {
     for (int row = rect.y; row < rect.y + rect.height; row += 1)
     {
         for (int column = rect.x; column < rect.x + rect.width; column += 1)
         {
             // the place lies on the raster in every check here
-            if (raster->pixels[((unsigned int)row * raster->width) + (unsigned int)column] != ground)
+            if (raster->pixels[((unsigned int)row * raster->width) + (unsigned int)column] != background_fill)
             {
                 return 1;
             }
@@ -61,8 +61,8 @@ static unsigned int brightest(const GuiRaster *raster, GuiRect rect)
 int main(void)
 {
     (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
-    char why_text[1024];
-    VerbaLinea why = {why_text, sizeof(why_text), 0ull};
+    char error_text[1024];
+    VerbaLinea why = {error_text, sizeof(error_text), 0ull};
     static GuiGlyphs glyphs;
     cli_check(EMBED_CALL(cli_glyphs.init, GuiGlyphsCfg, .glyphs = &glyphs, .err_msg = &why), "the glyphs are read");
     static GuiPaletteOwn own;
@@ -70,7 +70,7 @@ int main(void)
     const GuiPalette *const palette = &own.colors;
 
     // the zoom's steps and the opacities' ends
-    cli_check(EMBED_CALL(gui_preferences_step.preference_zoom_percent, GuiPreferencesStepCfg, .step = GUI_PREFERENCE_ZOOM_WHOLE) == 100u, "the whole zoom is a step");
+    cli_check(EMBED_CALL(gui_preferences_step.preference_zoom_percent, GuiPreferencesStepCfg, .step = GUI_PREFERENCE_ZOOM_DEFAULT_STEP) == 100u, "the whole zoom is a step");
     unsigned int step = 0u;
     cli_check(EMBED_CALL(gui_preferences.preference_zoom_step, GuiPreferencesCfg, .percent = 125u, .step_pointer = &step) && (EMBED_CALL(gui_preferences_step.preference_zoom_percent, GuiPreferencesStepCfg, .step = step) == 125u), "a percent that is a step names its step");
     cli_check(!EMBED_CALL(gui_preferences.preference_zoom_step, GuiPreferencesCfg, .percent = 130u, .step_pointer = &step), "a percent that is no step names none");
@@ -83,33 +83,33 @@ int main(void)
     cli_check(EMBED_CALL(gui_preferences_percent.preference_opacity_move, GuiPreferencesPercentCfg, .percent = 0u, .by = -1, .round = 0) == 0u, "and stops at none");
 
     // each row a sentence, the page's own label and its value
-    const GuiPreferenceValues values = {GUI_PREFERENCE_ZOOM_WHOLE, 30u, 80u, 0};
-    char said[GUI_PREFERENCES_TEXT];
+    const GuiPreferenceValues values = {GUI_PREFERENCE_ZOOM_DEFAULT_STEP, 30u, 80u, 0};
+    char output[GUI_PREFERENCES_TEXT];
     char value[GUI_PREFERENCES_TEXT];
-    EMBED_CALL(gui_preferences_values.preference_sentence, GuiPreferencesValuesCfg, .values = &values, .row = GUI_PREFERENCE_ZOOM, .said = said, .value = value, .size = sizeof(said));
-    cli_check(same_text(said, "Zoom is ") && same_text(value, "100%"), "the zoom reads as a sentence");
-    EMBED_CALL(gui_preferences_values.preference_sentence, GuiPreferencesValuesCfg, .values = &values, .row = GUI_PREFERENCE_BAR, .said = said, .value = value, .size = sizeof(said));
-    cli_check(same_text(said, "Bar opacity is ") && same_text(value, "30%"), "the bar's opacity reads as a sentence");
-    EMBED_CALL(gui_preferences_values.preference_sentence, GuiPreferencesValuesCfg, .values = &values, .row = GUI_PREFERENCE_EDITOR, .said = said, .value = value, .size = sizeof(said));
-    cli_check(same_text(said, "Editor opacity is ") && same_text(value, "80%"), "the editor's opacity reads as a sentence");
-    EMBED_CALL(gui_preferences_values.preference_sentence, GuiPreferencesValuesCfg, .values = &values, .row = GUI_PREFERENCE_REDUCE, .said = said, .value = value, .size = sizeof(said));
-    cli_check(same_text(said, "Reduce Motion is ") && same_text(value, "off"), "less motion reads as a sentence");
+    EMBED_CALL(gui_preferences_values.preference_sentence, GuiPreferencesValuesCfg, .values = &values, .row = GUI_PREFERENCE_ZOOM, .output = output, .value = value, .size = sizeof(output));
+    cli_check(same_text(output, "Zoom is ") && same_text(value, "100%"), "the zoom reads as a sentence");
+    EMBED_CALL(gui_preferences_values.preference_sentence, GuiPreferencesValuesCfg, .values = &values, .row = GUI_PREFERENCE_BAR, .output = output, .value = value, .size = sizeof(output));
+    cli_check(same_text(output, "Bar opacity is ") && same_text(value, "30%"), "the bar's opacity reads as a sentence");
+    EMBED_CALL(gui_preferences_values.preference_sentence, GuiPreferencesValuesCfg, .values = &values, .row = GUI_PREFERENCE_EDITOR, .output = output, .value = value, .size = sizeof(output));
+    cli_check(same_text(output, "Editor opacity is ") && same_text(value, "80%"), "the editor's opacity reads as a sentence");
+    EMBED_CALL(gui_preferences_values.preference_sentence, GuiPreferencesValuesCfg, .values = &values, .row = GUI_PREFERENCE_REDUCE, .output = output, .value = value, .size = sizeof(output));
+    cli_check(same_text(output, "Reduce Motion is ") && same_text(value, "off"), "less motion reads as a sentence");
 
     // the keys over Settings
     static GuiPreferences preferences;
     EMBED_CALL(gui_preferences_size.init, GuiPreferencesSizeCfg, .preferences = &preferences);
-    cli_check(!preferences.shown && (preferences.section == GUI_PREFERENCES_SETTINGS), "it starts closed at its first section");
-    preferences.shown = 1;
+    cli_check(!preferences.displayed && (preferences.section == GUI_PREFERENCES_SETTINGS), "it starts closed at its first section");
+    preferences.displayed = 1;
     // its own window: what it covers is the client whole, at the size that shows every color in two columns, and at a scale
-    unsigned int wanted_width = 0u;
-    unsigned int wanted_height = 0u;
-    EMBED_CALL(gui_preferences_scale.want, GuiPreferencesScaleCfg, .palette = palette, .scale = 100, .width_pointer = &wanted_width, .height_pointer = &wanted_height);
-    cli_check((wanted_width == 856u) && (wanted_height == 1008u), "the size it asks for shows every color in two columns");
-    EMBED_CALL(gui_preferences_width.resize, GuiPreferencesWidthCfg, .preferences = &preferences, .width = wanted_width, .height = wanted_height, .scale = 100);
+    unsigned int requested_width = 0u;
+    unsigned int requested_height = 0u;
+    EMBED_CALL(gui_preferences_scale.want, GuiPreferencesScaleCfg, .palette = palette, .scale = 100, .width_pointer = &requested_width, .height_pointer = &requested_height);
+    cli_check((requested_width == 856u) && (requested_height == 1008u), "the size it asks for shows every color in two columns");
+    EMBED_CALL(gui_preferences_width.resize, GuiPreferencesWidthCfg, .preferences = &preferences, .width = requested_width, .height = requested_height, .scale = 100);
     cli_check(EMBED_CALL(gui_preferences_palette_values.cells_across, GuiPreferencesPaletteValuesCfg, .preferences_read = &preferences) == 2u, "at that size the grid has two columns");
     cli_check(!EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = EMBED_CALL(gui_preferences_palette_values.cell_rect, GuiPreferencesPaletteValuesCfg, .preferences_read = &preferences, .at = EMBED_CALL(gui_palette_length.name_count, GuiPaletteLengthCfg, .palette = palette) - 1u)), "and the last color in view");
-    EMBED_CALL(gui_preferences_scale.want, GuiPreferencesScaleCfg, .palette = palette, .scale = 200, .width_pointer = &wanted_width, .height_pointer = &wanted_height);
-    cli_check((wanted_width == 1712u) && (wanted_height == 2016u), "the size follows the scale");
+    EMBED_CALL(gui_preferences_scale.want, GuiPreferencesScaleCfg, .palette = palette, .scale = 200, .width_pointer = &requested_width, .height_pointer = &requested_height);
+    cli_check((requested_width == 1712u) && (requested_height == 2016u), "the size follows the scale");
     EMBED_CALL(gui_preferences_width.resize, GuiPreferencesWidthCfg, .preferences = &preferences, .width = 1200u, .height = 800u, .scale = 100);
     const GuiRect whole = EMBED_CALL(gui_preferences_palette_values.rect, GuiPreferencesPaletteValuesCfg, .preferences_read = &preferences);
     cli_check((whole.x == 0) && (whole.y == 0) && (whole.width == 1200) && (whole.height == 800), "it covers its window's client");
@@ -131,8 +131,8 @@ int main(void)
     EMBED_CALL(gui_preferences_palette_name.key, GuiPreferencesPaletteNameCfg, .preferences = &preferences, .palette = palette, .name = "Q", .change = &change);
     cli_check(change.kind == GUI_PREFERENCE_NOTHING, "a key that is none of its own changes nothing");
     EMBED_CALL(gui_preferences_palette_name.key, GuiPreferencesPaletteNameCfg, .preferences = &preferences, .palette = palette, .name = "Escape", .change = &change);
-    cli_check((change.kind == GUI_PREFERENCE_CLOSED) && !preferences.shown, "Escape closes it");
-    preferences.shown = 1;
+    cli_check((change.kind == GUI_PREFERENCE_CLOSED) && !preferences.displayed, "Escape closes it");
+    preferences.displayed = 1;
 
     // a press moves a row on and round, and shows a section
     const GuiRect row = EMBED_CALL(gui_preferences_row.row_rect, GuiPreferencesRowCfg, .preferences_read = &preferences, .row = GUI_PREFERENCE_EDITOR);
@@ -149,15 +149,15 @@ int main(void)
     cli_check((close_mark.x + close_mark.width == 1200) && (close_mark.y == 0) && !EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = close_mark), "the close mark stands at the head's right end");
     cli_check(EMBED_CALL(gui_preferences_palette_change.move, GuiPreferencesPaletteChangeCfg, .preferences = &preferences, .palette = palette, .x = close_mark.x + 4, .y = close_mark.y + 4) && preferences.close_pointed, "the pointer on the close mark marks it");
     cli_check(EMBED_CALL(gui_preferences_palette_change.move, GuiPreferencesPaletteChangeCfg, .preferences = &preferences, .palette = palette, .x = 1, .y = 700) && !preferences.close_pointed, "and moving off it lets it go");
-    cli_check(EMBED_CALL(gui_preferences_palette_change.press, GuiPreferencesPaletteChangeCfg, .preferences = &preferences, .palette = palette, .x = close_mark.x + 4, .y = close_mark.y + 4, .change = &change) && (change.kind == GUI_PREFERENCE_CLOSED) && !preferences.shown, "a press on the close mark closes it");
-    preferences.shown = 1;
+    cli_check(EMBED_CALL(gui_preferences_palette_change.press, GuiPreferencesPaletteChangeCfg, .preferences = &preferences, .palette = palette, .x = close_mark.x + 4, .y = close_mark.y + 4, .change = &change) && (change.kind == GUI_PREFERENCE_CLOSED) && !preferences.displayed, "a press on the close mark closes it");
+    preferences.displayed = 1;
 
     // one section drawn at a time, how bright each thing stands telling them apart
     GuiRaster raster;
     cli_check(EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &raster, .width = 1200u, .height = 800u), "a raster to draw on");
-    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = (GuiRect){0, 0, 1200, 800}, .color = palette->ground);
-    const GuiPreferenceValues shown_values = {GUI_PREFERENCE_ZOOM_WHOLE, 30u, 80u, 1};
-    EMBED_CALL(gui_preferences_palette_values.draw, GuiPreferencesPaletteValuesCfg, .preferences_read = &preferences, .raster = &raster, .glyphs = &glyphs, .palette = palette, .values = &shown_values);
+    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = (GuiRect){0, 0, 1200, 800}, .color = palette->background_fill);
+    const GuiPreferenceValues displayed_values = {GUI_PREFERENCE_ZOOM_DEFAULT_STEP, 30u, 80u, 1};
+    EMBED_CALL(gui_preferences_palette_values.draw, GuiPreferencesPaletteValuesCfg, .preferences_read = &preferences, .raster = &raster, .glyphs = &glyphs, .palette = palette, .values = &displayed_values);
     cli_check(!painted(&raster, (GuiRect){2, 760, 40, 30}, palette->surface), "its window's ground is the widget's");
     const unsigned int section_on = brightest(&raster, EMBED_CALL(gui_preferences_palette_values.section_rect, GuiPreferencesPaletteValuesCfg, .preferences_read = &preferences, .at = GUI_PREFERENCES_SETTINGS));
     const unsigned int section_off = brightest(&raster, EMBED_CALL(gui_preferences_palette_values.section_rect, GuiPreferencesPaletteValuesCfg, .preferences_read = &preferences, .at = GUI_PREFERENCES_COLORS));
@@ -185,21 +185,21 @@ int main(void)
     EMBED_CALL(gui_preferences_palette_name.key, GuiPreferencesPaletteNameCfg, .preferences = &preferences, .palette = palette, .name = "Up", .change = &change);
     EMBED_CALL(gui_preferences_palette_name.key, GuiPreferencesPaletteNameCfg, .preferences = &preferences, .palette = palette, .name = "Left", .change = &change);
     cli_check(preferences.marked == 0u, "Up and Left go back");
-    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = (GuiRect){0, 0, 1200, 800}, .color = palette->ground);
-    EMBED_CALL(gui_preferences_palette_values.draw, GuiPreferencesPaletteValuesCfg, .preferences_read = &preferences, .raster = &raster, .glyphs = &glyphs, .palette = palette, .values = &shown_values);
+    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = (GuiRect){0, 0, 1200, 800}, .color = palette->background_fill);
+    EMBED_CALL(gui_preferences_palette_values.draw, GuiPreferencesPaletteValuesCfg, .preferences_read = &preferences, .raster = &raster, .glyphs = &glyphs, .palette = palette, .values = &displayed_values);
     const GuiRect first_cell = EMBED_CALL(gui_preferences_palette_values.cell_rect, GuiPreferencesPaletteValuesCfg, .preferences_read = &preferences, .at = 0u);
     cli_check(!EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = first_cell), "the first color has its cell");
     // the swatch of the window's ground shows on the widget's; the widget's own would not
     const GuiRect second_cell = EMBED_CALL(gui_preferences_palette_values.cell_rect, GuiPreferencesPaletteValuesCfg, .preferences_read = &preferences, .at = 1u);
     const GuiColor swatch = raster.pixels[((unsigned int)(first_cell.y + (first_cell.height / 2)) * raster.width) + (unsigned int)(first_cell.x + 7)];
-    cli_check(swatch == palette->ground, "a color's swatch stands in its color");
+    cli_check(swatch == palette->background_fill, "a color's swatch stands in its color");
 
     // the contrast marks: over the grid a row says which colors are under the least, and each such color's cell ends in its ratio
     const GuiRect colors_row = EMBED_CALL(gui_preferences_palette_values.section_rect, GuiPreferencesPaletteValuesCfg, .preferences_read = &preferences, .at = GUI_PREFERENCES_SETTINGS);
     cli_check(first_cell.y == colors_row.y + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_CELL, .scale = 100), "the grid stands a row under the section's head");
     const GuiRect contrasts = {first_cell.x, colors_row.y, (first_cell.width * 2), EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_CELL, .scale = 100)};
     cli_check(painted(&raster, contrasts, palette->surface), "the row over the grid says the colors under the least");
-    const int mark_left = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_SWATCH + 8 + GUI_PREFERENCES_NAME_WIDE + 5 + GUI_PREFERENCES_VALUE_WIDE, .scale = 100);
+    const int mark_left = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_PREFERENCES_SWATCH + 8 + GUI_PREFERENCES_NAME_WIDTH + 5 + GUI_PREFERENCES_VALUE_WIDTH, .scale = 100);
     unsigned int low_at = 0u;
     unsigned int low_tenths = 0u;
     char low_under[GUI_PREFERENCES_TEXT];
@@ -217,8 +217,8 @@ int main(void)
     {
         bright.token[token].color = bright.colors.text;
     }
-    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = (GuiRect){0, 0, 1200, 800}, .color = palette->ground);
-    EMBED_CALL(gui_preferences_palette_values.draw, GuiPreferencesPaletteValuesCfg, .preferences_read = &preferences, .raster = &raster, .glyphs = &glyphs, .palette = &bright.colors, .values = &shown_values);
+    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = (GuiRect){0, 0, 1200, 800}, .color = palette->background_fill);
+    EMBED_CALL(gui_preferences_palette_values.draw, GuiPreferencesPaletteValuesCfg, .preferences_read = &preferences, .raster = &raster, .glyphs = &glyphs, .palette = &bright.colors, .values = &displayed_values);
     cli_check(!painted(&raster, contrasts, bright.colors.surface), "with none under the least the row says nothing");
 
     // typing a value
@@ -233,7 +233,7 @@ int main(void)
     (void)EMBED_CALL(gui_preferences_size.type, GuiPreferencesSizeCfg, .preferences = &preferences, .text = "a4c5e6", .size = 6ull);
     cli_check(preferences.entered_length == 7u + 2u, "typing goes on after it");
     EMBED_CALL(gui_preferences_palette_name.key, GuiPreferencesPaletteNameCfg, .preferences = &preferences, .palette = palette, .name = "Escape", .change = &change);
-    cli_check(!preferences.entering && preferences.shown && (change.kind == GUI_PREFERENCE_NOTHING), "Escape leaves the typing, Preferences staying");
+    cli_check(!preferences.entering && preferences.displayed && (change.kind == GUI_PREFERENCE_NOTHING), "Escape leaves the typing, Preferences staying");
     EMBED_CALL(gui_preferences_palette_name.key, GuiPreferencesPaletteNameCfg, .preferences = &preferences, .palette = palette, .name = "Enter", .change = &change);
     (void)EMBED_CALL(gui_preferences_size.type, GuiPreferencesSizeCfg, .preferences = &preferences, .text = "#a1b2c3", .size = 7ull);
     EMBED_CALL(gui_preferences_palette_name.key, GuiPreferencesPaletteNameCfg, .preferences = &preferences, .palette = palette, .name = "Enter", .change = &change);

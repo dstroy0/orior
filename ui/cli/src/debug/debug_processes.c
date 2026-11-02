@@ -12,16 +12,16 @@ typedef struct
     unsigned long long name;
     unsigned long long command;
 } CliDebugProcess;
-// One listing: the processes in a cell of `room`, their names and lines in a text cell of `text_room`, this process's
-// number, and the room the processes are sorted through
+// One listing: the processes in a cell of `capacity`, their names and lines in a text cell of `text_capacity`, this
+// process's number, and the capacity the processes are sorted through
 typedef struct
 {
     CliDebugProcess *process;
     unsigned int count;
-    unsigned int room;
+    unsigned int capacity;
     char *text;
     unsigned long long used;
-    unsigned long long text_room;
+    unsigned long long text_capacity;
     unsigned int own;
     CliDebugProcess *sorted;
 } CliDebugListing;
@@ -29,7 +29,7 @@ typedef struct
 #define CLI_DEBUG_PROCESSES 16384u
 #define CLI_DEBUG_PROCESS_TEXT (1ull << 23u)
 
-// the processes a listing's room is taken with, and the bytes its text's is
+// the processes a listing's capacity is taken with, and the bytes its text's is
 
 typedef struct
 {
@@ -44,7 +44,7 @@ typedef struct
 EMBED_INLINE unsigned long long processes_text_store(const DebugProcessesCtx *args)
 {
     const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL}) + 1ull;
-    if (args->listing->used + size > args->listing->text_room)
+    if (args->listing->used + size > args->listing->text_capacity)
     {
         return 0ull;
     }
@@ -83,7 +83,7 @@ EMBED_INLINE int processes_before(const DebugProcessesCtx *args)
     }
 }
 
-// the processes from `from` to `to` sorted, by halves merged through the sorting room
+// the processes from `from` to `to` sorted, by halves merged through the sorting capacity
 static void processes_sort(const DebugProcessesCtx *args)
 {
     if (args->to - args->from < 2u)
@@ -98,13 +98,13 @@ static void processes_sort(const DebugProcessesCtx *args)
     unsigned int right = middle;
     for (unsigned int at = args->from; at < args->to; at += 1u)
     {
-        const int takes_left =
+        const int allocs_left =
             (left < middle) &&
             ((right >= args->to) || !EMBED_CALL(processes_before, DebugProcessesCtx, .text = args->listing->text,
                                                 .one = &process[right], .other = &process[left]));
-        args->listing->sorted[at] = takes_left ? process[left] : process[right];
-        left += takes_left ? 1u : 0u;
-        right += takes_left ? 0u : 1u;
+        args->listing->sorted[at] = allocs_left ? process[left] : process[right];
+        left += allocs_left ? 1u : 0u;
+        right += allocs_left ? 0u : 1u;
     }
     memor.cpy(&(MemoriaCfg){.dst = &process[args->from],
                             .src = &args->listing->sorted[args->from],

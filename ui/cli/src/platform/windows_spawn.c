@@ -26,14 +26,14 @@ typedef struct
     const CliSetting *settings;
     unsigned int count;
     wchar_t *block;
-    unsigned long long room;
+    unsigned long long capacity;
     const char *const *words;
     const char *folder;
     VerbaLinea *err_msg;
     unsigned int priority;
     CliSpawned *spawned;
     int detached;
-    int fed;
+    int stdin_written;
 #endif
 } WindowsSpawnCtx;
 // `word` added to `line` quoted as the C runtime splits it back: in quotes where it is empty or contains a space, a tab
@@ -57,7 +57,7 @@ EMBED_INLINE void cli_word_quote(const WindowsSpawnCtx *args)
         const unsigned long long stop = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
                                                    .text = args->word, .at = at, .size = whole, .set = "\\\"");
         mmgr_line_put_n(args->line, args->word + at, (size_t)(stop - at));
-        const unsigned long long run_end = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg,
+        const unsigned long long run_end = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg,
                                                       .text = args->word, .at = stop, .size = whole, .set = "\\");
         mmgr_line_put_n(args->line, args->word + stop, (size_t)(run_end - stop));
         // a slash's count is below the path's bytes, which an unsigned int stores
@@ -127,7 +127,7 @@ EMBED_INLINE int cli_environment(const WindowsSpawnCtx *args)
             named = EMBED_CALL(cli_by_name, WindowsSpawnCtx, .entry = entry, .name = s_names[at]);
         }
         const unsigned long long length = wcslen(entry) + 1ull;
-        fits = (used + length + 1ull) < args->room;
+        fits = (used + length + 1ull) < args->capacity;
         if (!named && fits)
         {
             memor.cpy(&(MemoriaCfg){.dst = args->block + used, .src = entry, .bytes = length * sizeof(wchar_t)});
@@ -147,9 +147,10 @@ EMBED_INLINE int cli_environment(const WindowsSpawnCtx *args)
         mmgr_line_ch(&line, '=');
         mmgr_line_put(&line, args->settings[at].value);
         fits = mmgr_line_finish(&line) != 0ull;
-        // the room left is below what an int counts
+        // the capacity left is below what an int counts
         const int written =
-            fits ? MultiByteToWideChar(CP_UTF8, 0, entry, -1, args->block + used, (int)(args->room - used - 1ull)) : 0;
+            fits ? MultiByteToWideChar(CP_UTF8, 0, entry, -1, args->block + used, (int)(args->capacity - used - 1ull))
+                 : 0;
         fits = written > 0;
         used += fits ? (unsigned long long)written : 0ull;
     }
@@ -157,7 +158,7 @@ EMBED_INLINE int cli_environment(const WindowsSpawnCtx *args)
     return fits;
 }
 
-// a process started, its standard input a pipe this process feeds where `fed`, else NUL
+// a process started, its standard input a pipe this process feeds where `stdin_written`, else NUL
 // The command line, its folder and its environment block a process is started with, made under the lock
 static char s_line[CLI_LINE_BYTES];
 static wchar_t s_wide[CLI_LINE_BYTES];
@@ -179,7 +180,7 @@ EMBED_INLINE int cli_spawn_prepare(const WindowsSpawnCtx *args)
         ((args->folder != NULL) &&
          (MultiByteToWideChar(CP_UTF8, 0, args->folder, -1, s_folder, CLI_PATH_MAX_LEN) == 0)) ||
         !EMBED_CALL(cli_environment, WindowsSpawnCtx, .settings = args->settings, .count = args->count,
-                    .block = s_block, .room = CLI_ENVIRONMENT_UNITS))
+                    .block = s_block, .capacity = CLI_ENVIRONMENT_UNITS))
     {
         mmgr_line_put(args->err_msg, "the command is longer than Windows starts");
         return 0;
@@ -246,11 +247,12 @@ static int cli_spawn_with(const WindowsSpawnCtx *args)
     HANDLE err_write = NULL;
     HANDLE in_write = NULL;
     HANDLE input = NULL;
-    const int input_made =
-        args->fed ? CreatePipe(&input, &in_write, &inherited, 0u)
-                  : ((input = CreateFileA("NUL", GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, &inherited,
-                                          OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL)) != INVALID_HANDLE_VALUE);
-    const int piped = input_made && CreatePipe(&out_read, &out_write, &inherited, 0u) &&
+    const int input_created =
+        args->stdin_written
+            ? CreatePipe(&input, &in_write, &inherited, 0u)
+            : ((input = CreateFileA("NUL", GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, &inherited, OPEN_EXISTING,
+                                    FILE_ATTRIBUTE_NORMAL, NULL)) != INVALID_HANDLE_VALUE);
+    const int piped = input_created && CreatePipe(&out_read, &out_write, &inherited, 0u) &&
                       CreatePipe(&err_read, &err_write, &inherited, 0u);
     if (piped)
     {
@@ -334,28 +336,28 @@ int cli_spawn(const CliWordsErrMsgCtx *args)
 {
     return EMBED_CALL(cli_spawn_with, WindowsSpawnCtx, .priority = CLI_PRIORITY_WORK, .spawned = args->spawned,
                       .words = args->words, .folder = args->folder, .settings = args->settings, .count = args->count,
-                      .detached = args->detached, .fed = 0, .err_msg = args->err_msg);
+                      .detached = args->detached, .stdin_written = 0, .err_msg = args->err_msg);
 }
 
 int cli_spawn_as(const CliWordsErrMsgCtx *args)
 {
     return EMBED_CALL(cli_spawn_with, WindowsSpawnCtx, .priority = args->priority, .spawned = args->spawned,
                       .words = args->words, .folder = args->folder, .settings = args->settings, .count = args->count,
-                      .detached = args->detached, .fed = 0, .err_msg = args->err_msg);
+                      .detached = args->detached, .stdin_written = 0, .err_msg = args->err_msg);
 }
 
 int cli_spawn_feed(const CliWordsErrMsgCtx *args)
 {
     return EMBED_CALL(cli_spawn_with, WindowsSpawnCtx, .priority = CLI_PRIORITY_WORK, .spawned = args->spawned,
                       .words = args->words, .folder = args->folder, .settings = args->settings, .count = args->count,
-                      .detached = args->detached, .fed = 1, .err_msg = args->err_msg);
+                      .detached = args->detached, .stdin_written = 1, .err_msg = args->err_msg);
 }
 
-int cli_spawn_fed_as(const CliWordsErrMsgCtx *args)
+int cli_spawn_piped_as(const CliWordsErrMsgCtx *args)
 {
     return EMBED_CALL(cli_spawn_with, WindowsSpawnCtx, .priority = args->priority, .spawned = args->spawned,
                       .words = args->words, .folder = args->folder, .settings = args->settings, .count = args->count,
-                      .detached = args->detached, .fed = 1, .err_msg = args->err_msg);
+                      .detached = args->detached, .stdin_written = 1, .err_msg = args->err_msg);
 }
 
 // the bytes a pseudo-console's attribute list is made in, more than the system asks for one attribute
@@ -370,7 +372,7 @@ EMBED_INLINE SHORT cli_terminal_extent(const WindowsSpawnCtx *args)
 
 int cli_spawn_terminal(const CliWordsErrMsgSpawnedCtx *args)
 {
-    // the attribute list's room, aligned for the pointers the system writes into it
+    // the attribute list's capacity, aligned for the pointers the system writes into it
     static unsigned long long s_attributes[CLI_TERMINAL_ATTRIBUTES / sizeof(unsigned long long)];
     memor.set(&(MemoriaCfg){.dst = args->spawned, .val = 0, .bytes = sizeof(*args->spawned)});
     if (!EMBED_CALL(cli_spawn_prepare, WindowsSpawnCtx, .words = args->words, .folder = args->folder,
@@ -390,10 +392,10 @@ int cli_spawn_terminal(const CliWordsErrMsgSpawnedCtx *args)
     SIZE_T attributes_size = 0u;
     (void)InitializeProcThreadAttributeList(NULL, 1u, 0u, &attributes_size);
     const LPPROC_THREAD_ATTRIBUTE_LIST attributes = (LPPROC_THREAD_ATTRIBUTE_LIST)(void *)s_attributes;
-    const int listed = made && (attributes_size <= sizeof(s_attributes)) &&
-                       InitializeProcThreadAttributeList(attributes, 1u, 0u, &attributes_size);
-    made = listed && UpdateProcThreadAttribute(attributes, 0u, PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE, console,
-                                               sizeof(console), NULL, NULL);
+    const int list_entries = made && (attributes_size <= sizeof(s_attributes)) &&
+                             InitializeProcThreadAttributeList(attributes, 1u, 0u, &attributes_size);
+    made = list_entries && UpdateProcThreadAttribute(attributes, 0u, PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE, console,
+                                                     sizeof(console), NULL, NULL);
     STARTUPINFOEXW startup;
     memor.set(&(MemoriaCfg){.dst = &startup, .val = 0, .bytes = sizeof(startup)});
     startup.StartupInfo.cb = sizeof(startup);
@@ -410,7 +412,7 @@ int cli_spawn_terminal(const CliWordsErrMsgSpawnedCtx *args)
            CreateProcessW(NULL, s_wide, NULL, NULL, FALSE, EXTENDED_STARTUPINFO_PRESENT | CREATE_UNICODE_ENVIRONMENT,
                           s_block, (args->folder != NULL) ? s_folder : NULL, &startup.StartupInfo, &process);
     const DWORD error = GetLastError();
-    if (listed)
+    if (list_entries)
     {
         DeleteProcThreadAttributeList(attributes);
     }
@@ -501,11 +503,11 @@ void cli_spawn_input_close(const CliSpawnedCtx *args)
     }
 }
 
-unsigned long long cli_spawn_read(const CliRoomPipeHandleCtx *args)
+unsigned long long cli_spawn_read(const CliCapacityPipeHandleCtx *args)
 {
     DWORD read = 0u;
     // a piece is at most a gibibyte, which a DWORD counts
-    const DWORD chunk = (DWORD)((args->room < (1ull << 30u)) ? args->room : (1ull << 30u));
+    const DWORD chunk = (DWORD)((args->capacity < (1ull << 30u)) ? args->capacity : (1ull << 30u));
     if ((args->pipe_handle == 0ull) || !ReadFile((HANDLE)(uintptr_t)args->pipe_handle, args->piece, chunk, &read, NULL))
     {
         return 0ull;
@@ -589,12 +591,12 @@ void cli_spawn_tree_end(const CliIdCtx *args)
     }
 }
 
-unsigned int cli_path_folders(const CliRoomFoldersCtx *args)
+unsigned int cli_path_folders(const CliCapacityFoldersCtx *args)
 {
-    unsigned int room = args->room_u32;
+    unsigned int capacity = args->capacity_u32;
     static char s_path[QUERY_ENVIRONMENT_MAX_LEN];
     if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "PATH", .value_out = s_path,
-                    .room = sizeof(s_path)))
+                    .capacity = sizeof(s_path)))
     {
         return 0u;
     }
@@ -604,7 +606,7 @@ unsigned int cli_path_folders(const CliRoomFoldersCtx *args)
     {
         if ((at[0] == ';') || (at[0] == '\0'))
         {
-            if ((at > from) && (count < room))
+            if ((at > from) && (count < capacity))
             {
                 VerbaLinea line = {args->folders[count], CLI_PATH_MAX_LEN, 0ull};
                 mmgr_line_put_n(&line, from, (unsigned long long)(at - from));

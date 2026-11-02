@@ -40,9 +40,9 @@ typedef void (*BenchEach)(const BenchEachCfg *args);
 
 void bench_row(const char *name, BenchMeasure measure)
 {
-    const double seconds = (double)measure.least / 1000000.0;
+    const double seconds = (double)measure.min / 1000000.0;
     const double rate = (seconds > 0.0) ? ((double)measure.bytes / (1024.0 * 1024.0)) / seconds : 0.0;
-    printf("%s\t%llu\t%llu\t%.1f\n", name, measure.bytes, measure.least, rate);
+    printf("%s\t%llu\t%llu\t%.1f\n", name, measure.bytes, measure.min, rate);
     fflush(stdout);
 }
 
@@ -62,9 +62,9 @@ static BenchMeasure bench_pass(BenchEach each, void *context)
                 bytes += s_corpus[at].size;
             }
         }
-        const unsigned long long took = cli_clock_microseconds() - began;
+        const unsigned long long consumed = cli_clock_microseconds() - began;
         measure.bytes = bytes;
-        measure.least = (took < measure.least) ? took : measure.least;
+        measure.min = (consumed < measure.min) ? consumed : measure.min;
     }
     return measure;
 }
@@ -77,7 +77,7 @@ static void each_read(const BenchEachCfg *args)
     (void)bytes;
     (void)size;
     unsigned long long read = 0ull;
-    const unsigned char *const again = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = path, .size_pointer = &read, .owner = &g_checks_cells);
+    const unsigned char *const again = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path, .size_pointer = &read, .owner = &g_checks_cells);
     EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = again, .owner = &g_checks_cells);
 }
 
@@ -89,7 +89,7 @@ static void each_utf8(const BenchEachCfg *args)
     (void)bytes;
     (void)size;
     unsigned long long read = 0ull;
-    const unsigned char *const again = EMBED_CALL(cli_path_internal.file_take_utf8, CliPathCtx, .path = path, .size_pointer = &read, .owner = &g_checks_cells);
+    const unsigned char *const again = EMBED_CALL(cli_path_internal.file_alloc_utf8, CliPathCtx, .path = path, .size_pointer = &read, .owner = &g_checks_cells);
     EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = again, .owner = &g_checks_cells);
 }
 
@@ -104,7 +104,7 @@ static void each_letters(const BenchEachCfg *args)
 {
     unsigned long long size = args->size;
     unsigned int *const letters = args->context;
-    (void)EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = (const char *)args->bytes, .size = size, .letters = letters, .room_u64 = size);
+    (void)EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = (const char *)args->bytes, .size = size, .letters = letters, .capacity_u64 = size);
 }
 
 // the file read as UTF-8 a byte that starts no letter at a time read as U+FFFD, into the line `context` from its start
@@ -121,7 +121,7 @@ static void each_find(const BenchEachCfg *args)
     void *context = args->context;
     unsigned long long at = 0ull;
     *(unsigned long long *)context +=
-        (unsigned long long)EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = (const char *)args->bytes, .length_value = size, .wanted = BENCH_NEEDLE, .size = sizeof(BENCH_NEEDLE) - 1u, .at_pointer = &at);
+        (unsigned long long)EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = (const char *)args->bytes, .length_value = size, .required = BENCH_NEEDLE, .size = sizeof(BENCH_NEEDLE) - 1u, .at_pointer = &at);
 }
 
 static void sift_found(const CliEachAtCfg *args)
@@ -139,7 +139,7 @@ static void each_sift(const BenchEachCfg *args)
 // the corpus joined into one text of `whole` bytes and sifted for the needle twice over, `s_repeat` times each, the
 // least time of each recorded: once with each window counted for its plan, and once planned from the text's census,
 // counted once as a text stored in lines stores it. The rows "sift whole" and "sift stored"
-static void bench_sift_whole(unsigned long long whole)
+static void bench_sift_file(unsigned long long whole)
 {
     unsigned char *const text = g_cli_cells->persistent_buf_alloc(whole + 1ull, &g_checks_cells);
     if (text == NULL)
@@ -155,9 +155,9 @@ static void bench_sift_whole(unsigned long long whole)
             used += s_corpus[at].size;
         }
     }
-    CliCensus census;
-    memor.set(&(MemoriaCfg){.dst = &census, .val = 0, .bytes = sizeof(census)});
-    EMBED_CALL(cli_sift_length_census.census_count, CliSiftLengthCensusCfg, .census = &census, .bytes = text, .length = used);
+    CliHistogram histogram;
+    memor.set(&(MemoriaCfg){.dst = &histogram, .val = 0, .bytes = sizeof(histogram)});
+    EMBED_CALL(cli_sift_length_histogram.histogram_count, CliSiftLengthHistogramCfg, .histogram = &histogram, .bytes = text, .length = used);
     BenchMeasure counted = {used, ~0ull};
     BenchMeasure stored = {used, ~0ull};
     for (unsigned int round = 0u; round < s_repeat; round += 1u)
@@ -165,12 +165,12 @@ static void bench_sift_whole(unsigned long long whole)
         unsigned long long sum = 0ull;
         unsigned long long began = cli_clock_microseconds();
         (void)EMBED_CALL(cli_sift_length.find_all, CliSiftLengthCfg, .text = text, .length = used, .needle = (const unsigned char *)BENCH_NEEDLE, .needle_length = sizeof(BENCH_NEEDLE) - 1u, .fold = 0, .found = sift_found, .context = &sum);
-        unsigned long long took = cli_clock_microseconds() - began;
-        counted.least = (took < counted.least) ? took : counted.least;
+        unsigned long long consumed = cli_clock_microseconds() - began;
+        counted.min = (consumed < counted.min) ? consumed : counted.min;
         began = cli_clock_microseconds();
-        (void)EMBED_CALL(cli_sift_length_fold.find_all_with, CliSiftLengthFoldCfg, .census_read = &census, .text = text, .length = used, .needle = (const unsigned char *)BENCH_NEEDLE, .needle_length = sizeof(BENCH_NEEDLE) - 1u, .fold = 0, .found = sift_found, .context = &sum);
-        took = cli_clock_microseconds() - began;
-        stored.least = (took < stored.least) ? took : stored.least;
+        (void)EMBED_CALL(cli_sift_length_fold.find_all_with, CliSiftLengthFoldCfg, .histogram_read = &histogram, .text = text, .length = used, .needle = (const unsigned char *)BENCH_NEEDLE, .needle_length = sizeof(BENCH_NEEDLE) - 1u, .fold = 0, .found = sift_found, .context = &sum);
+        consumed = cli_clock_microseconds() - began;
+        stored.min = (consumed < stored.min) ? consumed : stored.min;
     }
     g_cli_cells->persistent_buf_release(text, &g_checks_cells);
     bench_row("sift whole", counted);
@@ -206,7 +206,7 @@ static void each_parse(const BenchEachCfg *args)
         return;
     }
     CliParsed parsed;
-    EMBED_CALL(cli_inspect_parsed.parsed_begin, CliInspectParsedCfg, .parsed = &parsed, .runs = s_runs, .runs_most = BENCH_RUNS, .line_first = s_line_first, .line_runs = s_line_runs, .lines_most = BENCH_LINES, .fold_first = s_fold_first, .fold_last = s_fold_last, .folds_most = BENCH_FOLDS, .ranges = s_ranges, .ranges_most = BENCH_RANGES);
+    EMBED_CALL(cli_inspect_parsed.parsed_begin, CliInspectParsedCfg, .parsed = &parsed, .runs = s_runs, .runs_max = BENCH_RUNS, .line_first = s_line_first, .line_runs = s_line_runs, .lines_max = BENCH_LINES, .fold_first = s_fold_first, .fold_last = s_fold_last, .folds_max = BENCH_FOLDS, .ranges = s_ranges, .ranges_max = BENCH_RANGES);
     *(unsigned long long *)context +=
         (unsigned long long)EMBED_CALL(cli_inspect_language_text.parse, CliInspectLanguageTextCfg, .language = language, .text = (const char *)args->bytes, .size = size, .parsed = &parsed);
 }
@@ -283,7 +283,7 @@ BenchMeasure bench_colored(const char *key, const BenchFile *files, unsigned int
 static int bench_corpus(const char *list)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const text = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = list, .size_pointer = &size, .owner = &g_checks_cells);
+    const unsigned char *const text = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = list, .size_pointer = &size, .owner = &g_checks_cells);
     if (text == NULL)
     {
         fprintf(stderr, "the corpus list %s was not read\n", list);
@@ -304,7 +304,7 @@ static int bench_corpus(const char *list)
         {
             memor.cpy(&(MemoriaCfg){.dst = s_paths[s_count], .src = text + start, .bytes = end - start});
             s_paths[s_count][end - start] = '\0';
-            s_corpus[s_count].bytes = EMBED_CALL(cli_path_internal.file_take_utf8, CliPathCtx, .path = s_paths[s_count], .size_pointer = &s_corpus[s_count].size, .owner = &g_checks_cells);
+            s_corpus[s_count].bytes = EMBED_CALL(cli_path_internal.file_alloc_utf8, CliPathCtx, .path = s_paths[s_count], .size_pointer = &s_corpus[s_count].size, .owner = &g_checks_cells);
             s_count += 1u;
         }
         start = at + 1ull;
@@ -319,7 +319,7 @@ static int bench_grammar_cached(void)
     char path[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = "ui/plugins/c/plugin.json", .joined = path);
     unsigned long long size = 0ull;
-    const unsigned char *const text = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = path, .size_pointer = &size, .owner = &g_checks_cells);
+    const unsigned char *const text = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path, .size_pointer = &size, .owner = &g_checks_cells);
     if (text == NULL)
     {
         return 0;
@@ -327,7 +327,7 @@ static int bench_grammar_cached(void)
     CliJson json;
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg, .json = &json, .text = (const char *)text, .size = size, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = &g_checks_cells);
+    const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json, .text = (const char *)text, .size = size, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = &g_checks_cells);
     const int cached = (root != CLI_JSON_NONE) &&
                        EMBED_CALL(cli_highlight_key_json.store, CliHighlightKeyJsonCfg, .key = "bench-c", .json = &json, .def = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json, .object = root, .name = "grammar"), .err_msg = &err_msg);
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
@@ -348,13 +348,13 @@ static BenchMeasure bench_json_tokens(unsigned long long *sum)
     for (unsigned int round = 0u; round < s_repeat; round += 1u)
     {
         unsigned long long bytes = 0ull;
-        unsigned long long took = 0ull;
+        unsigned long long consumed = 0ull;
         for (unsigned int at = 0u; at < 2u; at += 1u)
         {
             char path[CLI_PATH_MAX_LEN];
             EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = s_json_files[at], .joined = path);
             unsigned long long size = 0ull;
-            const unsigned char *const text = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = path, .size_pointer = &size, .owner = &g_checks_cells);
+            const unsigned char *const text = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path, .size_pointer = &size, .owner = &g_checks_cells);
             if (text == NULL)
             {
                 continue;
@@ -364,12 +364,12 @@ static BenchMeasure bench_json_tokens(unsigned long long *sum)
             {
                 *sum += EMBED_CALL(cli_json_tree_text.json_tokens_count, CliJsonTreeTextCfg, .text = (const char *)text, .size = size);
             }
-            took += cli_clock_microseconds() - began;
+            consumed += cli_clock_microseconds() - began;
             bytes += 200ull * size;
             EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = text, .owner = &g_checks_cells);
         }
         measure.bytes = bytes;
-        measure.least = (took < measure.least) ? took : measure.least;
+        measure.min = (consumed < measure.min) ? consumed : measure.min;
     }
     return measure;
 }
@@ -381,21 +381,21 @@ static BenchMeasure bench_json(BenchMeasure *write)
     for (unsigned int round = 0u; round < s_repeat; round += 1u)
     {
         unsigned long long bytes = 0ull;
-        unsigned long long took = 0ull;
-        unsigned long long took_write = 0ull;
+        unsigned long long consumed = 0ull;
+        unsigned long long consumed_write = 0ull;
         for (unsigned int at = 0u; at < 2u; at += 1u)
         {
             char path[CLI_PATH_MAX_LEN];
             EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_root, .relative = s_json_files[at], .joined = path);
             unsigned long long size = 0ull;
-            const unsigned char *const text = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = path, .size_pointer = &size, .owner = &g_checks_cells);
+            const unsigned char *const text = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path, .size_pointer = &size, .owner = &g_checks_cells);
             if (text == NULL)
             {
                 continue;
             }
-            const unsigned long long out_room = size + 1024ull;
-            char *const out_cell = g_cli_cells->temporary_buf_alloc(out_room, &g_checks_cells);
-            VerbaLinea out = mmgr_line_over(out_cell, out_room);
+            const unsigned long long out_capacity = size + 1024ull;
+            char *const out_cell = g_cli_cells->temporary_buf_alloc(out_capacity, &g_checks_cells);
+            VerbaLinea out = mmgr_line_over(out_cell, out_capacity);
             char why[CLI_ERR_MSG_MAX_LEN];
             VerbaLinea err_msg = {why, sizeof(why), 0ull};
             for (unsigned int times = 0u; times < 20u; times += 1u)
@@ -403,12 +403,12 @@ static BenchMeasure bench_json(BenchMeasure *write)
                 CliJson json;
                 const unsigned long long began = cli_clock_microseconds();
                 const unsigned int root =
-                    EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg, .json = &json, .text = (const char *)text, .size = size, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = &g_checks_cells);
+                    EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json, .text = (const char *)text, .size = size, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = &g_checks_cells);
                 const unsigned long long read = cli_clock_microseconds();
                 out.at = 0ull;
                 EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = &json, .node = root, .out = &out, .indent = 0u, .sorted = 0);
-                took_write += cli_clock_microseconds() - read;
-                took += read - began;
+                consumed_write += cli_clock_microseconds() - read;
+                consumed += read - began;
                 EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
                 bytes += size;
             }
@@ -416,9 +416,9 @@ static BenchMeasure bench_json(BenchMeasure *write)
             EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = text, .owner = &g_checks_cells);
         }
         measure.bytes = bytes;
-        measure.least = (took < measure.least) ? took : measure.least;
+        measure.min = (consumed < measure.min) ? consumed : measure.min;
         write->bytes = bytes;
-        write->least = (took_write < write->least) ? took_write : write->least;
+        write->min = (consumed_write < write->min) ? consumed_write : write->min;
     }
     return measure;
 }
@@ -434,9 +434,9 @@ static BenchMeasure bench_sorted(void)
         memor.cpy(&(MemoriaCfg){.dst = copy, .src = s_paths, .bytes = (unsigned long long)s_count * CLI_PATH_MAX_LEN});
         const unsigned long long began = cli_clock_microseconds();
         EMBED_CALL(cli_text_paths.paths_sort, CliTextPathsCfg, .paths = copy, .count = s_count);
-        const unsigned long long took = cli_clock_microseconds() - began;
+        const unsigned long long consumed = cli_clock_microseconds() - began;
         measure.bytes = (unsigned long long)s_count * CLI_PATH_MAX_LEN;
-        measure.least = (took < measure.least) ? took : measure.least;
+        measure.min = (consumed < measure.min) ? consumed : measure.min;
     }
     g_cli_cells->persistent_buf_release(copy, &g_checks_cells);
     return measure;
@@ -456,9 +456,9 @@ static BenchMeasure bench_cells(void)
             void *const cell = g_cli_cells->persistent_buf_alloc(4096ull, &g_checks_cells);
             g_cli_cells->persistent_buf_release(cell, &g_checks_cells);
         }
-        const unsigned long long took = cli_clock_microseconds() - began;
+        const unsigned long long consumed = cli_clock_microseconds() - began;
         measure.bytes = (unsigned long long)BENCH_CELL_TURNS * 4096ull;
-        measure.least = (took < measure.least) ? took : measure.least;
+        measure.min = (consumed < measure.min) ? consumed : measure.min;
     }
     return measure;
 }
@@ -505,7 +505,7 @@ int main(int argc, char **argv)
     bench_row("find", bench_pass(each_find, &sum));
     sum = 0ull;
     bench_row("sift", bench_pass(each_sift, &sum));
-    bench_sift_whole(whole);
+    bench_sift_file(whole);
     bench_row("facts", bench_pass(each_facts, NULL));
     cli_inspect_tree_clear();
     s_runs = g_cli_cells->persistent_buf_alloc((unsigned long long)BENCH_RUNS * sizeof(CliInspectRun), &g_checks_cells);

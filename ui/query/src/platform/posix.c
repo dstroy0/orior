@@ -94,7 +94,7 @@ unsigned long long query_process_read(const QueryProcessPieceCtx *args)
         return 0ull;
     }
     // the descriptor is stored one past itself, so that 0 stands for none
-    const ssize_t got = read((int)(args->process->output - 1ull), args->piece, (size_t)args->room_u64);
+    const ssize_t got = read((int)(args->process->output - 1ull), args->piece, (size_t)args->capacity_u64);
     return (got > 0) ? (unsigned long long)got : 0ull;
 }
 
@@ -133,7 +133,7 @@ int query_environment_read(const QueryNameValueCtx *args)
         {
             const char *const value_src = *entry + length + 1;
             const size_t value_length = cellul.len(&(CatenaFinitaCfg){.src = value_src, .cap = CLI_CELLS_POOL});
-            if ((value_length == 0u) || (value_length >= args->room))
+            if ((value_length == 0u) || (value_length >= args->capacity))
             {
                 return 0;
             }
@@ -148,7 +148,7 @@ int query_environment_write(const QueryNameOutCtx *args)
 {
     char s_value[QUERY_ENVIRONMENT_MAX_LEN];
     const int read = EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = args->name,
-                                .value_out = s_value, .room = sizeof(s_value));
+                                .value_out = s_value, .capacity = sizeof(s_value));
     if (read)
     {
         mmgr_line_put(args->out, s_value);
@@ -343,7 +343,7 @@ void query_pause(const QueryMillisecondsCtx *args)
     nanosleep(&pause, NULL);
 }
 
-int query_path_full(const QueryRoomPathCtx *args)
+int query_path_full(const QueryCapacityPathCtx *args)
 {
     char resolved[PATH_MAX];
     if (realpath(args->path, resolved) != NULL)
@@ -367,7 +367,7 @@ int query_path_full(const QueryRoomPathCtx *args)
     {
         return 0;
     }
-    VerbaLinea line = {args->full, args->room, 0ull};
+    VerbaLinea line = {args->full, args->capacity, 0ull};
     mmgr_line_put(&line, here);
     mmgr_line_ch(&line, '/');
     mmgr_line_put(&line, args->path);
@@ -379,7 +379,7 @@ int query_terminal_is(void)
     return isatty(0);
 }
 
-unsigned long long query_terminal_line_read(const QueryRoomLineCtx *args)
+unsigned long long query_terminal_line_read(const QueryCapacityLineCtx *args)
 {
     size_t length = 0u;
     unsigned long long whole = 0ull;
@@ -403,7 +403,7 @@ unsigned long long query_terminal_line_read(const QueryRoomLineCtx *args)
         if (letter != '\r')
         {
             whole += 1ull;
-            if ((length + 1u) < args->room)
+            if ((length + 1u) < args->capacity)
             {
                 args->line[length] = letter;
                 length += 1u;

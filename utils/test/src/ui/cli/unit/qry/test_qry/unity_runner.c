@@ -9,25 +9,9 @@
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
 extern void tearDown(void);
-extern void test_a_finished_run_is_not_live(void);
-extern void test_a_runs_records_read_in_order(void);
-extern void test_a_record_reads_its_contents(void);
-extern void test_a_record_reads_its_time(void);
-extern void test_a_runs_panic_is_the_panic_record(void);
-extern void test_the_next_read_starts_past_the_last_record(void);
-extern void test_a_read_continues_from_where_the_last_stopped(void);
-extern void test_a_names_records_join_in_the_order_written(void);
 extern void test_a_runs_names_come_in_the_order_of_their_first_records(void);
 extern void test_a_names_records_are_joined(void);
 extern void test_another_names_records_are_joined(void);
-extern void test_a_trees_run_is_listed_with_its_folder(void);
-extern void test_a_trees_run_is_listed_with_its_folders_lessons(void);
-extern void test_the_walk_stores_its_folders_in_a_cell(void);
-extern void test_a_trees_first_listing_walks_it(void);
-extern void test_a_folder_new_since_the_first_listing_is_not_walked(void);
-extern void test_a_run_the_watch_saw_written_is_listed(void);
-extern void test_a_tree_is_walked_again_after_the_watch_lost_changes(void);
-extern void test_a_lesson_line_is_read_and_any_other_skipped(void);
 
 
 /*=======Mock Management=====*/
@@ -89,25 +73,9 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\qry\\test_qry\\test_qry.c");
-  run_test(test_a_finished_run_is_not_live, "test_a_finished_run_is_not_live", 146);
-  run_test(test_a_runs_records_read_in_order, "test_a_runs_records_read_in_order", 152);
-  run_test(test_a_record_reads_its_contents, "test_a_record_reads_its_contents", 160);
-  run_test(test_a_record_reads_its_time, "test_a_record_reads_its_time", 166);
-  run_test(test_a_runs_panic_is_the_panic_record, "test_a_runs_panic_is_the_panic_record", 172);
-  run_test(test_the_next_read_starts_past_the_last_record, "test_the_next_read_starts_past_the_last_record", 178);
-  run_test(test_a_read_continues_from_where_the_last_stopped, "test_a_read_continues_from_where_the_last_stopped", 184);
-  run_test(test_a_names_records_join_in_the_order_written, "test_a_names_records_join_in_the_order_written", 193);
-  run_test(test_a_runs_names_come_in_the_order_of_their_first_records, "test_a_runs_names_come_in_the_order_of_their_first_records", 203);
-  run_test(test_a_names_records_are_joined, "test_a_names_records_are_joined", 212);
-  run_test(test_another_names_records_are_joined, "test_another_names_records_are_joined", 220);
-  run_test(test_a_trees_run_is_listed_with_its_folder, "test_a_trees_run_is_listed_with_its_folder", 228);
-  run_test(test_a_trees_run_is_listed_with_its_folders_lessons, "test_a_trees_run_is_listed_with_its_folders_lessons", 234);
-  run_test(test_the_walk_stores_its_folders_in_a_cell, "test_the_walk_stores_its_folders_in_a_cell", 240);
-  run_test(test_a_trees_first_listing_walks_it, "test_a_trees_first_listing_walks_it", 247);
-  run_test(test_a_folder_new_since_the_first_listing_is_not_walked, "test_a_folder_new_since_the_first_listing_is_not_walked", 255);
-  run_test(test_a_run_the_watch_saw_written_is_listed, "test_a_run_the_watch_saw_written_is_listed", 265);
-  run_test(test_a_tree_is_walked_again_after_the_watch_lost_changes, "test_a_tree_is_walked_again_after_the_watch_lost_changes", 276);
-  run_test(test_a_lesson_line_is_read_and_any_other_skipped, "test_a_lesson_line_is_read_and_any_other_skipped", 287);
+  run_test(test_a_runs_names_come_in_the_order_of_their_first_records, "test_a_runs_names_come_in_the_order_of_their_first_records", 69);
+  run_test(test_a_names_records_are_joined, "test_a_names_records_are_joined", 78);
+  run_test(test_another_names_records_are_joined, "test_another_names_records_are_joined", 86);
 
   return UNITY_END();
 }

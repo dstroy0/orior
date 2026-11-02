@@ -87,7 +87,7 @@ void cli_print_pwg_begin(const CliPrintLayoutListingOutCfg *args)
 }
 
 // a number put in a head at `at` as its four bytes, the high first
-EMBED_INLINE void cli_put(const RasterWriteCtx *args)
+EMBED_INLINE void cli_append(const RasterWriteCtx *args)
 {
     for (unsigned int byte = 0u; byte < 4u; byte += 1u)
     {
@@ -107,24 +107,25 @@ void cli_print_pwg_page(const CliPrintLayoutCfg *args)
     EMBED_CALL(cli_print_layout_width.size, CliPrintLayoutWidthCfg, .layout = &upright, .width = &width_points,
                .height = &height_points);
     memor.cpy(&(MemoriaCfg){.dst = head, .src = "PwgRaster", .bytes = 9u});
-    EMBED_CALL(cli_put, RasterWriteCtx, .head = head, .at = 276u, .value = args->dpi);
-    EMBED_CALL(cli_put, RasterWriteCtx, .head = head, .at = 280u, .value = args->dpi);
-    EMBED_CALL(cli_put, RasterWriteCtx, .head = head, .at = 340u,
+    EMBED_CALL(cli_append, RasterWriteCtx, .head = head, .at = 276u, .value = args->dpi);
+    EMBED_CALL(cli_append, RasterWriteCtx, .head = head, .at = 280u, .value = args->dpi);
+    EMBED_CALL(cli_append, RasterWriteCtx, .head = head, .at = 340u,
                .value = (args->layout->copies > 1u) ? args->layout->copies : 1u);
     // a paper's size in points, rounded, is whole and small
-    EMBED_CALL(cli_put, RasterWriteCtx, .head = head, .at = 352u, .value = (unsigned long long)roundf(width_points));
-    EMBED_CALL(cli_put, RasterWriteCtx, .head = head, .at = 356u, .value = (unsigned long long)roundf(height_points));
-    EMBED_CALL(cli_put, RasterWriteCtx, .head = head, .at = 372u, .value = args->page->width);
-    EMBED_CALL(cli_put, RasterWriteCtx, .head = head, .at = 376u, .value = args->page->height);
-    EMBED_CALL(cli_put, RasterWriteCtx, .head = head, .at = 384u, .value = 8u);
-    EMBED_CALL(cli_put, RasterWriteCtx, .head = head, .at = 388u, .value = 8u * args->page->channels);
-    EMBED_CALL(cli_put, RasterWriteCtx, .head = head, .at = 392u, .value = args->page->width * args->page->channels);
-    EMBED_CALL(cli_put, RasterWriteCtx, .head = head, .at = 400u, .value = (args->page->channels == 1u) ? 18u : 19u);
-    EMBED_CALL(cli_put, RasterWriteCtx, .head = head, .at = 420u, .value = args->page->channels);
-    EMBED_CALL(cli_put, RasterWriteCtx, .head = head, .at = 452u, .value = args->count);
-    EMBED_CALL(cli_put, RasterWriteCtx, .head = head, .at = 456u, .value = 1u);
-    EMBED_CALL(cli_put, RasterWriteCtx, .head = head, .at = 460u, .value = 1u);
-    EMBED_CALL(cli_put, RasterWriteCtx, .head = head, .at = 480u, .value = 0x00ffffffu);
+    EMBED_CALL(cli_append, RasterWriteCtx, .head = head, .at = 352u, .value = (unsigned long long)roundf(width_points));
+    EMBED_CALL(cli_append, RasterWriteCtx, .head = head, .at = 356u,
+               .value = (unsigned long long)roundf(height_points));
+    EMBED_CALL(cli_append, RasterWriteCtx, .head = head, .at = 372u, .value = args->page->width);
+    EMBED_CALL(cli_append, RasterWriteCtx, .head = head, .at = 376u, .value = args->page->height);
+    EMBED_CALL(cli_append, RasterWriteCtx, .head = head, .at = 384u, .value = 8u);
+    EMBED_CALL(cli_append, RasterWriteCtx, .head = head, .at = 388u, .value = 8u * args->page->channels);
+    EMBED_CALL(cli_append, RasterWriteCtx, .head = head, .at = 392u, .value = args->page->width * args->page->channels);
+    EMBED_CALL(cli_append, RasterWriteCtx, .head = head, .at = 400u, .value = (args->page->channels == 1u) ? 18u : 19u);
+    EMBED_CALL(cli_append, RasterWriteCtx, .head = head, .at = 420u, .value = args->page->channels);
+    EMBED_CALL(cli_append, RasterWriteCtx, .head = head, .at = 452u, .value = args->count);
+    EMBED_CALL(cli_append, RasterWriteCtx, .head = head, .at = 456u, .value = 1u);
+    EMBED_CALL(cli_append, RasterWriteCtx, .head = head, .at = 460u, .value = 1u);
+    EMBED_CALL(cli_append, RasterWriteCtx, .head = head, .at = 480u, .value = 0x00ffffffu);
     memor.cpy(&(MemoriaCfg){.dst = head + 1668u, .src = "perceptual", .bytes = 10u});
     const char *const media = cli_print_layout.media(args);
     memor.cpy(&(MemoriaCfg){.dst = head + 1732u,
@@ -138,7 +139,7 @@ void cli_print_urf_begin(const CliPrintLayoutCfg *args)
 {
     unsigned char head[4];
     mmgr_line_put_n(args->out, "UNIRAST", 8u);
-    EMBED_CALL(cli_put, RasterWriteCtx, .head = head, .at = 0u, .value = args->count);
+    EMBED_CALL(cli_append, RasterWriteCtx, .head = head, .at = 0u, .value = args->count);
     mmgr_line_put_n(args->out, (const char *)head, 4u);
 }
 
@@ -151,9 +152,9 @@ void cli_print_urf_page(const CliPrintLayoutCfg *args)
     head[1] = (args->page->channels == 1u) ? 0u : 1u;
     head[2] = 1u;
     head[3] = 4u;
-    EMBED_CALL(cli_put, RasterWriteCtx, .head = head, .at = 12u, .value = args->page->width);
-    EMBED_CALL(cli_put, RasterWriteCtx, .head = head, .at = 16u, .value = args->page->height);
-    EMBED_CALL(cli_put, RasterWriteCtx, .head = head, .at = 20u, .value = args->dpi);
+    EMBED_CALL(cli_append, RasterWriteCtx, .head = head, .at = 12u, .value = args->page->width);
+    EMBED_CALL(cli_append, RasterWriteCtx, .head = head, .at = 16u, .value = args->page->height);
+    EMBED_CALL(cli_append, RasterWriteCtx, .head = head, .at = 20u, .value = args->dpi);
     mmgr_line_put_n(args->out, (const char *)head, sizeof(head));
     cli_print_layout.compress(args);
 }

@@ -19,7 +19,7 @@ typedef struct
     unsigned int *edge_import;
     unsigned int *edge_target;
     unsigned int edges_used;
-    unsigned int *came;
+    unsigned int *received;
     unsigned int *seen;
     unsigned int *waiting;
     unsigned int *way;
@@ -86,7 +86,7 @@ EMBED_INLINE unsigned int cycles_path_back(const InspectTreeCyclesCtx *args)
     unsigned int tail = 1u;
     s_walk.waiting[0] = args->from;
     s_walk.seen[args->from] = s_walk.round;
-    s_walk.came[args->from] = CLI_TREE_NONE;
+    s_walk.received[args->from] = CLI_TREE_NONE;
     while (head < tail)
     {
         const unsigned int one = s_walk.waiting[head];
@@ -94,7 +94,7 @@ EMBED_INLINE unsigned int cycles_path_back(const InspectTreeCyclesCtx *args)
         if (one == args->to)
         {
             unsigned int count = 0u;
-            for (unsigned int at = one; at != CLI_TREE_NONE; at = s_walk.came[at])
+            for (unsigned int at = one; at != CLI_TREE_NONE; at = s_walk.received[at])
             {
                 s_walk.way[count] = at;
                 count += 1u;
@@ -113,7 +113,7 @@ EMBED_INLINE unsigned int cycles_path_back(const InspectTreeCyclesCtx *args)
             if (s_walk.seen[next] != s_walk.round)
             {
                 s_walk.seen[next] = s_walk.round;
-                s_walk.came[next] = one;
+                s_walk.received[next] = one;
                 s_walk.waiting[tail] = next;
                 tail += 1u;
             }
@@ -215,8 +215,8 @@ void cli_tree_cycles(const CliInspectTreeCtx *args)
         &(MemoriaCfg){.dst = cell, .val = 0, .bytes = (size_t)(((6ull * files) + imports) * sizeof(unsigned int))});
     s_walk.edge_first = cell;
     s_walk.edges = s_walk.edge_first + files;
-    s_walk.came = s_walk.edges + files;
-    s_walk.seen = s_walk.came + files;
+    s_walk.received = s_walk.edges + files;
+    s_walk.seen = s_walk.received + files;
     s_walk.waiting = s_walk.seen + files;
     s_walk.way = s_walk.waiting + files;
     s_walk.visited = s_walk.way + files;

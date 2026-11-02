@@ -115,7 +115,7 @@ int cli_jupyter_request(const CliJupyterErrMsgCfg *args)
 
 int cli_jupyter_execute(const CliJupyterErrMsgKernelLengthCfg *args)
 {
-    VerbaLinea content = {args->kernel->content, sizeof(args->kernel->content), 0ull};
+    VerbaLinea content = {args->kernel->content, CLI_KERNEL_CONTENT, 0ull};
     mmgr_line_put(&content, "{\"code\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &content, .text = args->code,
                .length = args->length);

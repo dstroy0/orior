@@ -12,12 +12,13 @@
 #include <shobjidl.h>
 
 #if (defined(_WIN32))
-// A pick on its thread: what is picked, the path chosen and its room, and whether one was chosen and the thread is done
+// A pick on its thread: what is picked, the path chosen and its capacity, and whether one was chosen and the thread is
+// done
 typedef struct
 {
     unsigned int kind;
     char *path;
-    size_t room;
+    size_t capacity;
     int chosen;
     int done;
     CliThread thread;
@@ -51,13 +52,13 @@ EMBED_INLINE void picker_show(const WindowsPickerCtx *args)
     IShellItem *item = NULL;
     if (SUCCEEDED(IFileDialog_Show(dialog, NULL)) && SUCCEEDED(IFileDialog_GetResult(dialog, &item)))
     {
-        wchar_t *wide = NULL;
-        if (SUCCEEDED(IShellItem_GetDisplayName(item, SIGDN_FILESYSPATH, &wide)))
+        wchar_t *pixel_width = NULL;
+        if (SUCCEEDED(IShellItem_GetDisplayName(item, SIGDN_FILESYSPATH, &pixel_width)))
         {
-            // a room is far below what an int counts
-            args->pick->chosen =
-                WideCharToMultiByte(CP_UTF8, 0u, wide, -1, args->pick->path, (int)args->pick->room, NULL, NULL) > 0;
-            CoTaskMemFree(wide);
+            // a capacity is far below what an int counts
+            args->pick->chosen = WideCharToMultiByte(CP_UTF8, 0u, pixel_width, -1, args->pick->path,
+                                                     (int)args->pick->capacity, NULL, NULL) > 0;
+            CoTaskMemFree(pixel_width);
         }
         IShellItem_Release(item);
     }
@@ -78,9 +79,9 @@ static void picker_run(void *context)
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_done);
 }
 
-int cli_file_pick(const CliPathRoomCtx *args)
+int cli_file_pick(const CliPathCapacityCtx *args)
 {
-    CliPick pick = {args->kind, args->path_out, args->room_size, 0, 0, {picker_run, NULL, CLI_PRIORITY_WORK}};
+    CliPick pick = {args->kind, args->path_out, args->capacity_bytes, 0, 0, {picker_run, NULL, CLI_PRIORITY_WORK}};
     pick.thread.context = &pick;
     args->path_out[0] = '\0';
     if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &pick.thread))

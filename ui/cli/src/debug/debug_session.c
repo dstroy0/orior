@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // debug_session.c: the sessions in their places: a session taken for a request and let go, a place freed once its
-// session is no longer listed, its adapter has ended and no request uses it, the requests sent to an adapter in rooms
-// of their own, the sessions listed, a file's breakpoints set in each session that debugs it, and sessions ended
+// session is no longer listed, its adapter has ended and no request uses it, the requests sent to an adapter in work
+// states of their own, the sessions listed, a file's breakpoints set in each session that debugs it, and sessions ended
 #include "debug_internal.h"
 
-CliDebugRoom g_cli_debug = {.wake = CLI_WAKE_INIT};
+CliDebugWorkState g_cli_debug = {.wake = CLI_WAKE_INIT};
 
 static CliDebugAnswer s_answers[CLI_DEBUG_ANSWERS];
 static CliWake s_answers_wake = CLI_WAKE_INIT;
@@ -18,18 +18,19 @@ typedef struct
 // the sessions' lock
 EMBED_INLINE void session_freed_where_finish(const DebugSessionCtx *args)
 {
-    if (args->session->taken && !args->session->listed && args->session->adapter_ended && (args->session->users == 0u))
+    if (args->session->reserved && !args->session->list_entries && args->session->adapter_ended &&
+        (args->session->users == 0u))
     {
-        EMBED_CALL(cli_debug_internal.place_free, CliDebugCtx, .place = args->session);
+        EMBED_CALL(cli_debug_internal.position_free, CliDebugCtx, .place = args->session);
     }
 }
 
-CliDebugSession *cli_debug_take(const CliDebugErrMsgIdCtx *args)
+CliDebugSession *cli_debug_alloc(const CliDebugErrMsgIdCtx *args)
 {
     for (unsigned int at = 0u; at < CLI_DEBUG_SESSIONS; at += 1u)
     {
         CliDebugSession *const session = &g_cli_debug.sessions[at];
-        if (session->taken && session->listed && (session->info.id == args->id))
+        if (session->reserved && session->list_entries && (session->info.id == args->id))
         {
             session->users += 1u;
             EMBED_CALL(cli_dap.ref, CliDapCfg, .dap = session->dap);
@@ -47,33 +48,34 @@ void cli_debug_let_go(const CliDebugSessionErrMsgCtx *args)
     EMBED_CALL(session_freed_where_finish, DebugSessionCtx, .session = args->session);
 }
 
-CliDebugSession *cli_debug_place(void)
+CliDebugSession *cli_debug_position(void)
 {
     for (unsigned int at = 0u; at < CLI_DEBUG_SESSIONS; at += 1u)
     {
         CliDebugSession *const session = &g_cli_debug.sessions[at];
-        if (!session->taken)
+        if (!session->reserved)
         {
-            session->taken = 1;
-            session->listed = 0;
+            session->reserved = 1;
+            session->list_entries = 0;
             session->adapter_ended = 0;
             session->users = 1u;
             session->dap = NULL;
-            const unsigned long long placed_bytes = (unsigned long long)CLI_DEBUG_PLACED * sizeof(*session->placed);
+            const unsigned long long positioned_bytes =
+                (unsigned long long)CLI_DEBUG_POSITIONED * sizeof(*session->positioned);
             char *const lists = g_cli_cells->persistent_buf_alloc(
-                placed_bytes + ((unsigned long long)CLI_DEBUG_DATA * sizeof(*session->data)), &g_cli_debug_cells);
-            session->placed = NULL;
-            session->placed_count = 0u;
-            session->placed_room = 0u;
+                positioned_bytes + ((unsigned long long)CLI_DEBUG_DATA * sizeof(*session->data)), &g_cli_debug_cells);
+            session->positioned = NULL;
+            session->positioned_count = 0u;
+            session->positioned_capacity = 0u;
             session->data = NULL;
             session->data_count = 0u;
-            session->data_room = 0u;
+            session->data_capacity = 0u;
             if (lists != NULL)
             {
-                session->placed = (void *)lists;
-                session->placed_room = CLI_DEBUG_PLACED;
-                session->data = (void *)(lists + placed_bytes);
-                session->data_room = CLI_DEBUG_DATA;
+                session->positioned = (void *)lists;
+                session->positioned_capacity = CLI_DEBUG_POSITIONED;
+                session->data = (void *)(lists + positioned_bytes);
+                session->data_capacity = CLI_DEBUG_DATA;
             }
             session->watching = 0;
             session->scripted = 0;
@@ -92,7 +94,8 @@ CliDebugSession *cli_debug_native_get(const CliDebugErrMsgIdCtx *args)
     for (unsigned int at = 0u; at < CLI_DEBUG_SESSIONS; at += 1u)
     {
         CliDebugSession *const session = &g_cli_debug.sessions[at];
-        if (session->taken && session->listed && session->info.has_parent && (session->info.parent == args->id) &&
+        if (session->reserved && session->list_entries && session->info.has_parent &&
+            (session->info.parent == args->id) &&
             (!cellul.eq(&(CatenaFinitaCfg){.src = session->info.language, .other = "python", .cap = CLI_CELLS_POOL})) &&
             session->info.has_process)
         {
@@ -104,25 +107,25 @@ CliDebugSession *cli_debug_native_get(const CliDebugErrMsgIdCtx *args)
     return NULL;
 }
 
-CliDebugAnswer *cli_debug_answer_take(void)
+CliDebugAnswer *cli_debug_answer_alloc(void)
 {
     CliDebugAnswer *answer = NULL;
     while (answer == NULL)
     {
         for (unsigned int at = 0u; (at < CLI_DEBUG_ANSWERS) && (answer == NULL); at += 1u)
         {
-            answer = s_answers[at].taken ? NULL : &s_answers[at];
+            answer = s_answers[at].reserved ? NULL : &s_answers[at];
         }
         if (answer == NULL)
         {
             EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_answers_wake);
         }
     }
-    answer->taken = 1;
+    answer->reserved = 1;
     char *const args_text = g_cli_cells->temporary_buf_alloc(CLI_DEBUG_ARGS, &g_cli_debug_cells);
     answer->args = mmgr_line_over(args_text, CLI_DEBUG_ARGS);
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &answer->json,
-               .node_json_node_pointer = NULL, .nodes_most = 0u, .text_out = NULL, .text_most = 0ull);
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
     answer->root = CLI_JSON_NONE;
     return answer;
 }
@@ -131,7 +134,7 @@ void cli_debug_answer_free(const CliDebugSessionCommandCtx *args)
 {
     g_cli_cells->persistent_buf_release(args->answer->args.out, &g_cli_debug_cells);
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &args->answer->json);
-    args->answer->taken = 0;
+    args->answer->reserved = 0;
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_answers_wake);
 }
 
@@ -146,7 +149,7 @@ int cli_debug_request(const CliDebugSessionCommandCtx *args)
         mmgr_line_put(err_msg, "the request's arguments could not be stored: they do not fit");
         return 0;
     }
-    // the arguments as written, an empty object where none are; and the room emptied for a request after this one
+    // the arguments as written, an empty object where none are; and the work state emptied for a request after this one
     const unsigned long long written = answer->args.at;
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &answer->json);
     CliLspAnswer reply;
@@ -159,7 +162,7 @@ int cli_debug_request(const CliDebugSessionCommandCtx *args)
     {
         return 0;
     }
-    answer->root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_take_temporary, CliJsonTreeTextSizeErrMsgCfg,
+    answer->root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc_temporary, CliJsonTreeTextSizeErrMsgCfg,
                               .json = &answer->json, .text = reply.text, .size = reply.size, .nodes_more = 0u,
                               .text_more = 0ull, .err_msg = err_msg, .owner = &g_cli_debug_cells);
     g_cli_cells->persistent_buf_release(reply.message, &g_cli_debug_cells);
@@ -240,7 +243,7 @@ void cli_debug_sessions(const CliDebugOutErrMsgIdStepCfg *args)
         for (unsigned int at = 0u; at < CLI_DEBUG_SESSIONS; at += 1u)
         {
             const CliDebugSession *const one = &g_cli_debug.sessions[at];
-            if (one->taken && one->listed && (one->info.id > last) &&
+            if (one->reserved && one->list_entries && (one->info.id > last) &&
                 ((next == NULL) || (one->info.id < next->info.id)))
             {
                 next = one;
@@ -263,14 +266,14 @@ int cli_debug_running(void)
     int running = 0;
     for (unsigned int at = 0u; at < CLI_DEBUG_SESSIONS; at += 1u)
     {
-        running = running || (g_cli_debug.sessions[at].taken && g_cli_debug.sessions[at].listed);
+        running = running || (g_cli_debug.sessions[at].reserved && g_cli_debug.sessions[at].list_entries);
     }
     return running;
 }
 
 int cli_debug_set(const CliDebugSessionCtx *args)
 {
-    CliDebugAnswer *const answer = cli_debug_answer_take();
+    CliDebugAnswer *const answer = cli_debug_answer_alloc();
     mmgr_line_put(&answer->args, "{\"source\":{\"path\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &answer->args,
                .text_bytes = (const unsigned char *)args->file,
@@ -287,15 +290,15 @@ int cli_debug_set(const CliDebugSessionCtx *args)
         return 0;
     }
     const CliJson *const reply = &answer->json;
-    const unsigned int placed = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = reply,
-                                           .object = answer->root, .name = "breakpoints");
+    const unsigned int positioned = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                               .json_read = reply, .object = answer->root, .name = "breakpoints");
     for (unsigned int at = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
-                                          .json_read = reply, .array = placed, .index = at) != CLI_JSON_NONE;
+                                          .json_read = reply, .array = positioned, .index = at) != CLI_JSON_NONE;
          at += 1u)
     {
         long long number = 0ll;
         const unsigned int one = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
-                                            .json_read = reply, .array = placed, .index = at);
+                                            .json_read = reply, .array = positioned, .index = at);
         if (!EMBED_CALL(cli_debug_json_node_internal.debug_sign, CliDebugJsonNodeCtx, .json = reply,
                         .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = reply,
                                            .object = one, .name = "id"),
@@ -303,23 +306,23 @@ int cli_debug_set(const CliDebugSessionCtx *args)
         {
             continue;
         }
-        if (args->session->placed_count < args->session->placed_room)
+        if (args->session->positioned_count < args->session->positioned_capacity)
         {
-            args->session->placed[args->session->placed_count] = number;
-            args->session->placed_count += 1u;
+            args->session->positioned[args->session->positioned_count] = number;
+            args->session->positioned_count += 1u;
         }
     }
     // each answer paired with the breakpoint requested in its turn, as many as both have
     mmgr_line_ch(args->out, '[');
     for (unsigned int at = 0u;
-         (EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = reply, .array = placed,
-                     .index = at) != CLI_JSON_NONE) &&
+         (EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = reply,
+                     .array = positioned, .index = at) != CLI_JSON_NONE) &&
          (EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = args->json,
                      .array = args->breakpoints, .index = at) != CLI_JSON_NONE);
          at += 1u)
     {
         const unsigned int one = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
-                                            .json_read = reply, .array = placed, .index = at);
+                                            .json_read = reply, .array = positioned, .index = at);
         unsigned long long line = 0ull;
         if (EMBED_CALL(cli_debug_json_node_value_u_64s_internal.debug_unsigned, CliDebugJsonNodeValueU64sCtx,
                        .json = reply,
@@ -360,37 +363,37 @@ void cli_debug_breakpoints(const CliDebugRootJsonCfg *args)
     char why[CLI_ERR_MSG_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->root, .relative = args->path, .joined = full);
     const unsigned long long start = args->out->at;
-    int placed = 0;
+    int positioned = 0;
     for (unsigned int at = 0u; at < CLI_DEBUG_SESSIONS; at += 1u)
     {
         CliDebugSession *const session = &g_cli_debug.sessions[at];
-        const int takes = session->taken && session->listed &&
-                          EMBED_CALL(cli_debug_file_internal.takes, CliDebugFileCtx, .language = session->info.language,
-                                     .file = args->path);
+        const int allocs = session->reserved && session->list_entries &&
+                           EMBED_CALL(cli_debug_file_internal.allocs, CliDebugFileCtx,
+                                      .language = session->info.language, .file = args->path);
         const unsigned long long id = session->info.id;
         VerbaLinea err_msg = {why, sizeof(why), 0ull};
-        CliDebugSession *const taken =
-            takes ? EMBED_CALL(cli_debug_err_msg_id_internal.take, CliDebugErrMsgIdCtx, .id = id, .err_msg = &err_msg)
-                  : NULL;
-        if (taken == NULL)
+        CliDebugSession *const reserved =
+            allocs ? EMBED_CALL(cli_debug_err_msg_id_internal.take, CliDebugErrMsgIdCtx, .id = id, .err_msg = &err_msg)
+                   : NULL;
+        if (reserved == NULL)
         {
             continue;
         }
         // the first session's lines are what is reported; the others are set and their lines passed over
         const unsigned long long before = args->out->at;
-        if (EMBED_CALL(cli_debug_session_internal.set, CliDebugSessionCtx, .session = taken, .file = full,
+        if (EMBED_CALL(cli_debug_session_internal.set, CliDebugSessionCtx, .session = reserved, .file = full,
                        .json = args->json, .breakpoints = args->breakpoints, .out = args->out, .err_msg = &err_msg) &&
-            !placed)
+            !positioned)
         {
-            placed = 1;
+            positioned = 1;
         }
         else
         {
             args->out->at = before;
         }
-        EMBED_CALL(cli_debug_session_err_msg_internal.let_go, CliDebugSessionErrMsgCtx, .session = taken);
+        EMBED_CALL(cli_debug_session_err_msg_internal.let_go, CliDebugSessionErrMsgCtx, .session = reserved);
     }
-    if (!placed)
+    if (!positioned)
     {
         args->out->at = start;
         mmgr_line_put(args->out, "null");
@@ -402,7 +405,7 @@ void cli_debug_process(const CliDebugCfg *args)
     for (unsigned int at = 0u; at < CLI_DEBUG_SESSIONS; at += 1u)
     {
         CliDebugSession *const session = &g_cli_debug.sessions[at];
-        if (session->taken && session->listed && (session->info.id == args->id))
+        if (session->reserved && session->list_entries && (session->info.id == args->id))
         {
             session->info.has_process = 1;
             session->info.process = args->pid;
@@ -424,9 +427,9 @@ void cli_debug_end(const CliDebugCfg *args)
     for (unsigned int at = 0u; at < CLI_DEBUG_SESSIONS; at += 1u)
     {
         CliDebugSession *const session = &g_cli_debug.sessions[at];
-        if (session->taken && session->listed && (session->info.id == args->id))
+        if (session->reserved && session->list_entries && (session->info.id == args->id))
         {
-            session->listed = 0;
+            session->list_entries = 0;
             ended = session;
         }
     }
@@ -434,8 +437,8 @@ void cli_debug_end(const CliDebugCfg *args)
     {
         return;
     }
-    ended->giver = (CliThread){session_free, ended};
-    if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &ended->giver))
+    ended->provider = (CliThread){session_free, ended};
+    if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &ended->provider))
     {
         session_free(ended);
     }
@@ -445,30 +448,30 @@ void cli_debug_stop(const CliDebugCfg *args)
 {
     CliDebugSession *ended[CLI_DEBUG_SESSIONS];
     unsigned int count = 0u;
-    unsigned long long gone[CLI_DEBUG_SESSIONS + 1u];
+    unsigned long long deleted[CLI_DEBUG_SESSIONS + 1u];
     unsigned int going = 1u;
-    gone[0] = args->id;
+    deleted[0] = args->id;
     // the session, then each it started, and each they started in turn
     while (going > 0u)
     {
         going -= 1u;
-        const unsigned long long one = gone[going];
+        const unsigned long long one = deleted[going];
         for (unsigned int at = 0u; at < CLI_DEBUG_SESSIONS; at += 1u)
         {
             CliDebugSession *const session = &g_cli_debug.sessions[at];
-            const int taken =
-                session->taken && session->listed &&
+            const int reserved =
+                session->reserved && session->list_entries &&
                 ((session->info.id == one) || (session->info.has_parent && (session->info.parent == one)));
-            if (!taken)
+            if (!reserved)
             {
                 continue;
             }
-            session->listed = 0;
+            session->list_entries = 0;
             ended[count] = session;
             count += 1u;
             if ((session->info.id != one) && (going < CLI_DEBUG_SESSIONS))
             {
-                gone[going] = session->info.id;
+                deleted[going] = session->info.id;
                 going += 1u;
             }
         }
@@ -487,9 +490,9 @@ void cli_debug_stop_all(void)
     for (unsigned int at = 0u; at < CLI_DEBUG_SESSIONS; at += 1u)
     {
         CliDebugSession *const session = &g_cli_debug.sessions[at];
-        if (session->taken && session->listed)
+        if (session->reserved && session->list_entries)
         {
-            session->listed = 0;
+            session->list_entries = 0;
             ended[count] = session;
             count += 1u;
         }

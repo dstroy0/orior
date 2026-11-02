@@ -34,10 +34,10 @@ typedef struct
     unsigned int start;
     CliSliceName *name;
     unsigned int names;
-    unsigned int name_room;
+    unsigned int name_capacity;
     CliSlicePart *part;
     unsigned int parts;
-    unsigned int part_room;
+    unsigned int part_capacity;
     unsigned char *written;
 } CliSlice;
 // the most lines an opener's head runs across to the bracket that opens its region, the most openers read, and the
@@ -119,7 +119,7 @@ EMBED_INLINE int cli_slice_bracket(const SymbolsSliceCtx *args)
 }
 
 // the name `text`, `length` bytes, put among those the slice follows where it is new
-EMBED_INLINE void cli_slice_name_put(const SymbolsSliceCtx *args)
+EMBED_INLINE void cli_slice_name_append(const SymbolsSliceCtx *args)
 {
     for (unsigned int at = 0u; at < args->slice->names; at += 1u)
     {
@@ -130,7 +130,7 @@ EMBED_INLINE void cli_slice_name_put(const SymbolsSliceCtx *args)
             return;
         }
     }
-    if (args->slice->names >= args->slice->name_room)
+    if (args->slice->names >= args->slice->name_capacity)
     {
         args->slice->effect->refused = 1;
         return;
@@ -155,16 +155,16 @@ EMBED_INLINE void cli_slice_names_get(const SymbolsSliceCtx *args)
             unsigned long long length = 0ull;
             const char *const text = EMBED_CALL(cli_symbols_read_leaf_internal.leaf_text, CliSymbolsReadLeafCtx,
                                                 .read_read = read, .leaf = leaf, .length_pointer = &length);
-            EMBED_CALL(cli_slice_name_put, SymbolsSliceCtx, .slice = args->slice, .text = text, .length = length);
+            EMBED_CALL(cli_slice_name_append, SymbolsSliceCtx, .slice = args->slice, .text = text, .length = length);
         }
     }
 }
 
 // the leaves from `first` to before `end` of the branch at `branch` put among the lines' own parts, in the order of
 // their leaves
-EMBED_INLINE void cli_slice_part_put(const SymbolsSliceCtx *args)
+EMBED_INLINE void cli_slice_part_append(const SymbolsSliceCtx *args)
 {
-    if (args->slice->parts >= args->slice->part_room)
+    if (args->slice->parts >= args->slice->part_capacity)
     {
         args->slice->effect->refused = 1;
         return;
@@ -419,7 +419,7 @@ EMBED_INLINE void cli_slice_locals(const SymbolsSliceCtx *args)
             int defined = 0;
             const unsigned int end = EMBED_CALL(cli_slice_statement, SymbolsSliceCtx, .read = read, .first = leaf,
                                                 .function = 0, .defined = &defined);
-            EMBED_CALL(cli_slice_part_put, SymbolsSliceCtx, .slice = args->slice, .branch = args->slice->start,
+            EMBED_CALL(cli_slice_part_append, SymbolsSliceCtx, .slice = args->slice, .branch = args->slice->start,
                        .first = leaf, .end = end);
             EMBED_CALL(cli_slice_names_get, SymbolsSliceCtx, .slice = args->slice, .branch = args->slice->start,
                        .first = leaf, .end = end);
@@ -556,43 +556,6 @@ typedef struct
     int any;
 } CliSliceJson;
 
-// one line of the slice written as `{"path", "line", "text"}`, after the lines before it
-static void cli_slice_json_line(const CliSliceLineCfg *args)
-{
-    const char *text = args->text;
-    unsigned long long length = args->length;
-    CliSliceJson *const json = (CliSliceJson *)args->context;
-    mmgr_line_put(json->out, json->any ? ",{\"path\":" : "{\"path\":");
-    json->any = 1;
-    if (args->path == NULL)
-    {
-        mmgr_line_put(json->out, "null,\"line\":null");
-    }
-    else
-    {
-        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = json->out, .text = args->path,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}));
-        mmgr_line_put(json->out, ",\"line\":");
-        mmgr_line_decimal(json->out, args->line, 1u);
-    }
-    mmgr_line_put(json->out, ",\"text\":");
-    EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = json->out,
-               .text_bytes = (const unsigned char *)text, .length = length);
-    mmgr_line_ch(json->out, '}');
-}
-
-int cli_symbols_slice(const CliSymbolsPathTextCfg *args)
-{
-    CliSliceJson json = {args->out, 0};
-    mmgr_line_put(args->out, "{\"lines\":[");
-    const int cut = EMBED_CALL(cli_symbols_path.slice_each, CliSymbolsPathCfg, .path = args->path, .text = args->text,
-                               .size = args->size, .first = args->first, .last = args->last, .opener = args->opener,
-                               .openers = args->openers, .each_slice_line = cli_slice_json_line, .context = &json,
-                               .err_msg = args->err_msg);
-    mmgr_line_put(args->out, "]}");
-    return cut;
-}
-
 // the first leaf of the line `line` of `read`, or where the line begins with brackets that close regions the first past
 // them and the blanks about them: the head of the region a line that closes one region and opens another opens
 EMBED_INLINE unsigned int cli_slice_head_first(const SymbolsSliceCtx *args)
@@ -619,16 +582,16 @@ EMBED_INLINE unsigned int cli_slice_head_first(const SymbolsSliceCtx *args)
 static int cli_slice_cut(const SymbolsSliceCtx *args)
 {
     CliEffect *effect = args->effect;
-    const unsigned long long name_bytes = CLI_EFFECT_LIST_MOST * sizeof(CliSliceName);
+    const unsigned long long name_bytes = CLI_EFFECT_LIST_MAX * sizeof(CliSliceName);
     char *const lists =
-        g_cli_cells->temporary_buf_alloc(name_bytes + (CLI_EFFECT_LIST_MOST * sizeof(CliSlicePart)), &g_cli_code_cells);
+        g_cli_cells->temporary_buf_alloc(name_bytes + (CLI_EFFECT_LIST_MAX * sizeof(CliSlicePart)), &g_cli_code_cells);
     CliSlice slice = {effect, CLI_JSON_NONE, NULL, 0u, 0u, NULL, 0u, 0u, NULL};
     if (lists != NULL)
     {
         slice.name = (CliSliceName *)(void *)lists;
-        slice.name_room = CLI_EFFECT_LIST_MOST;
+        slice.name_capacity = CLI_EFFECT_LIST_MAX;
         slice.part = (CliSlicePart *)(void *)(lists + name_bytes);
-        slice.part_room = CLI_EFFECT_LIST_MOST;
+        slice.part_capacity = CLI_EFFECT_LIST_MAX;
     }
     else
     {
@@ -665,7 +628,7 @@ static int cli_slice_cut(const SymbolsSliceCtx *args)
         {
             head_first[at] = EMBED_CALL(cli_slice_head_first, SymbolsSliceCtx, .read = read, .line = args->opener[at]);
             head_end[at] = EMBED_CALL(cli_slice_head, SymbolsSliceCtx, .read = read, .line = args->opener[at]);
-            EMBED_CALL(cli_slice_part_put, SymbolsSliceCtx, .slice = &slice, .branch = slice.start,
+            EMBED_CALL(cli_slice_part_append, SymbolsSliceCtx, .slice = &slice, .branch = slice.start,
                        .first = head_first[at], .end = head_end[at]);
             EMBED_CALL(cli_slice_names_get, SymbolsSliceCtx, .slice = &slice, .branch = slice.start,
                        .first = head_first[at], .end = head_end[at]);
@@ -676,7 +639,7 @@ static int cli_slice_cut(const SymbolsSliceCtx *args)
         const unsigned int view = EMBED_CALL(cli_slice_line_first, SymbolsSliceCtx, .read = read, .line = view_first);
         const unsigned int view_end =
             EMBED_CALL(cli_slice_line_first, SymbolsSliceCtx, .read = read, .line = view_last + 1u);
-        EMBED_CALL(cli_slice_part_put, SymbolsSliceCtx, .slice = &slice, .branch = slice.start, .first = view,
+        EMBED_CALL(cli_slice_part_append, SymbolsSliceCtx, .slice = &slice, .branch = slice.start, .first = view,
                    .end = view_end);
         EMBED_CALL(cli_slice_names_get, SymbolsSliceCtx, .slice = &slice, .branch = slice.start, .first = view,
                    .end = view_end);
@@ -710,7 +673,7 @@ int cli_symbols_slice_each(const CliSymbolsPathCfg *args)
     }
     effect->start_text = args->text;
     effect->start_size = args->size;
-    EMBED_CALL(cli_symbols_path_effect_internal.effect_take, CliSymbolsPathEffectCtx, .effect = effect,
+    EMBED_CALL(cli_symbols_path_effect_internal.effect_alloc, CliSymbolsPathEffectCtx, .effect = effect,
                .path = args->path, .line_u32 = args->first);
     const int cut = !effect->refused &&
                     EMBED_CALL(cli_slice_cut, SymbolsSliceCtx, .effect = effect, .path = args->path,
@@ -792,21 +755,21 @@ static int cli_slices_reach(const CliEffectReachedCfg *args)
         if (EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = read, .leaf = at,
                        .roles = CLI_LEAF_REGION | CLI_LEAF_OPEN))
         {
-            const int read_room = slices->openers < CLI_SLICE_OPENERS;
-            if (read_room)
+            const int read_capacity = slices->openers < CLI_SLICE_OPENERS;
+            if (read_capacity)
             {
                 slices->opener[slices->openers] =
                     EMBED_CALL(cli_slice_head_line, SymbolsSliceCtx, .read = read, .leaf = at);
                 slices->openers += 1u;
             }
-            slices->beyond += read_room ? 0u : 1u;
+            slices->beyond += read_capacity ? 0u : 1u;
         }
         else if (EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = read, .leaf = at,
                             .roles = CLI_LEAF_REGION | CLI_LEAF_CLOSE))
         {
-            const int past = slices->beyond > 0u;
-            slices->beyond -= past ? 1u : 0u;
-            slices->openers -= (!past && (slices->openers > 0u)) ? 1u : 0u;
+            const int end = slices->beyond > 0u;
+            slices->beyond -= end ? 1u : 0u;
+            slices->openers -= (!end && (slices->openers > 0u)) ? 1u : 0u;
         }
     }
     return 1;
@@ -834,8 +797,8 @@ int cli_symbols_slices_each(const CliSymbolsPathTextSizeContextErrMsgCfg *args)
                         0u};
     effect->reached = cli_slices_reach;
     effect->reached_context = &slices;
-    EMBED_CALL(cli_symbols_path_effect_internal.effect_take, CliSymbolsPathEffectCtx, .effect = effect,
-               .path = args->path, .line_u32 = CLI_EFFECT_GIVEN);
+    EMBED_CALL(cli_symbols_path_effect_internal.effect_alloc, CliSymbolsPathEffectCtx, .effect = effect,
+               .path = args->path, .line_u32 = CLI_EFFECT_INPUT);
     const int refused = effect->refused;
     EMBED_CALL(cli_symbols_text_length_internal.effect_input_back, CliSymbolsTextLengthCtx, .effect = effect);
     if (refused)

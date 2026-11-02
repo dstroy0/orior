@@ -11,12 +11,12 @@
 #include "retention_internal.h"
 
 // The folders found containing runs: where they are stored, sorted, NULL for a walk that counts them, their count and
-// room
+// capacity
 typedef struct
 {
     char (*found)[QUERY_PATH_MAX_LEN];
     unsigned int founds;
-    unsigned int room;
+    unsigned int capacity;
 } QueryFoldersFound;
 int query_account_read(const QueryRetentionBlobCtx *args)
 {
@@ -57,7 +57,7 @@ typedef struct
     QueryFoldersFound *all;
     const char *folder;
     const QueryWriter *own;
-    const char *shown;
+    const char *displayed;
 } RetentionCtx;
 // `line` printed through the context and handed to the run as the stores' console
 EMBED_INLINE void query_retention_print(const RetentionCtx *args)
@@ -179,7 +179,7 @@ EMBED_INLINE void query_folder_level(const RetentionCtx *args)
         args->all->founds += 1u;
         return;
     }
-    if (args->all->founds >= args->all->room)
+    if (args->all->founds >= args->all->capacity)
     {
         return;
     }
@@ -199,7 +199,7 @@ EMBED_INLINE void query_folder_level(const RetentionCtx *args)
 
 unsigned int query_folders_with_runs(const QueryRetentionRootFoundCtx *args)
 {
-    QueryFoldersFound all = {args->found, 0u, args->room};
+    QueryFoldersFound all = {args->found, 0u, args->capacity};
     EMBED_CALL(query_folder_level, RetentionCtx, .all = &all, .folder = args->root);
     return all.founds;
 }
@@ -210,8 +210,8 @@ void query_writer_get(const QueryRetentionOwnCtx *args)
     *writer = *args->own;
     writer->member = 0;
     // a run's shared memory is named by the full path its run was started under, so the run is named the same way
-    if (!EMBED_CALL(query_room_path_internal.path_full, QueryRoomPathCtx, .path = args->qry, .full = writer->qry,
-                    .room = sizeof(writer->qry)))
+    if (!EMBED_CALL(query_capacity_path_internal.path_full, QueryCapacityPathCtx, .path = args->qry,
+                    .full = writer->qry, .capacity = sizeof(writer->qry)))
     {
         memor.cpy(&(MemoriaCfg){.dst = writer->qry,
                                 .src = args->qry,
@@ -226,9 +226,10 @@ EMBED_INLINE void query_writers_read(const RetentionCtx *args)
     const QueryWriter *own = args->own;
     const char *folder = args->folder;
     // the runs listed, and the names and rates of those read, each in a cell of the runs' count
-    QueryRuns listed;
-    (void)EMBED_CALL(query_folder_runs_internal.runs_take, QueryFolderRunsCtx, .folder = folder, .runs = &listed);
-    const unsigned int runs = listed.count;
+    QueryRuns list_entries;
+    (void)EMBED_CALL(query_folder_runs_internal.runs_alloc, QueryFolderRunsCtx, .folder = folder,
+                     .runs = &list_entries);
+    const unsigned int runs = list_entries.count;
     char (*const names)[QUERY_PATH_MAX_LEN] =
         (runs > 0u) ? g_cli_cells->persistent_buf_alloc((unsigned long long)runs * QUERY_PATH_MAX_LEN, &g_query_cells)
                     : NULL;
@@ -238,7 +239,7 @@ EMBED_INLINE void query_writers_read(const RetentionCtx *args)
     unsigned int rates = 0u;
     for (unsigned int at = 0u; (rates_of != NULL) && (at < runs); at += 1u)
     {
-        const char *const path = listed.path[at];
+        const char *const path = list_entries.path[at];
         const size_t length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
         if ((length < 4u) ||
             (!cellul.eq(&(CatenaFinitaCfg){.src = path + length - 4u, .other = ".qry", .cap = CLI_CELLS_POOL})))
@@ -281,7 +282,7 @@ EMBED_INLINE void query_writers_read(const RetentionCtx *args)
         mmgr_line_decimal(&line, account.corrupt, 0u);
         mmgr_line_put(&line, " corrupt, ");
         mmgr_line_decimal(&line, account.unplaced, 0u);
-        mmgr_line_put(&line, " without room, ");
+        mmgr_line_put(&line, " without capacity, ");
         mmgr_line_decimal(&line, account.panics, 0u);
         mmgr_line_put(&line, " panics");
         mmgr_line_finish(&line);
@@ -294,10 +295,10 @@ EMBED_INLINE void query_writers_read(const RetentionCtx *args)
         rates += 1u;
     }
     EMBED_CALL(query_retention_context_folder_internal.median_print, QueryRetentionContextFolderCtx,
-               .context = args->context, .folder = args->shown, .names = names, .rates = rates_of, .count = rates);
+               .context = args->context, .folder = args->displayed, .names = names, .rates = rates_of, .count = rates);
     g_cli_cells->persistent_buf_release(rates_of, &g_query_cells);
     g_cli_cells->persistent_buf_release(names, &g_query_cells);
-    EMBED_CALL(query_folder_runs_internal.runs_free, QueryFolderRunsCtx, .runs = &listed);
+    EMBED_CALL(query_folder_runs_internal.runs_free, QueryFolderRunsCtx, .runs = &list_entries);
 }
 
 // One folder of runs retained: left as it is where its newest run's writer runs; else its writers' accounts read, its
@@ -306,19 +307,21 @@ void query_retention_folder(const QueryRetentionContextOwnCtx *args)
 {
     const char *folder = args->folder;
     unsigned int most = args->most;
-    char shown[QUERY_PATH_MAX_LEN];
-    EMBED_CALL(query_room_path_name_internal.by_name, QueryRoomPathNameCtx, .top = args->context->root, .path = folder,
-               .name_out = shown, .room = sizeof(shown));
+    char displayed[QUERY_PATH_MAX_LEN];
+    EMBED_CALL(query_capacity_path_name_internal.by_name, QueryCapacityPathNameCtx, .top = args->context->root,
+               .path = folder, .name_out = displayed, .capacity = sizeof(displayed));
     // the newest run of the folder, the first a walk visits newest first
-    QueryRuns listed;
-    (void)EMBED_CALL(query_folder_runs_internal.runs_take, QueryFolderRunsCtx, .folder = folder, .runs = &listed);
+    QueryRuns list_entries;
+    (void)EMBED_CALL(query_folder_runs_internal.runs_alloc, QueryFolderRunsCtx, .folder = folder,
+                     .runs = &list_entries);
     char newest_path[QUERY_PATH_MAX_LEN];
-    memor.cpy(&(MemoriaCfg){.dst = newest_path,
-                            .src = (listed.count != 0u) ? listed.path[0] : "",
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = (listed.count != 0u) ? listed.path[0] : "",
-                                                                   .cap = CLI_CELLS_POOL}) +
-                                     1u});
-    EMBED_CALL(query_folder_runs_internal.runs_free, QueryFolderRunsCtx, .runs = &listed);
+    memor.cpy(&(MemoriaCfg){
+        .dst = newest_path,
+        .src = (list_entries.count != 0u) ? list_entries.path[0] : "",
+        .bytes = cellul.len(&(CatenaFinitaCfg){.src = (list_entries.count != 0u) ? list_entries.path[0] : "",
+                                               .cap = CLI_CELLS_POOL}) +
+                 1u});
+    EMBED_CALL(query_folder_runs_internal.runs_free, QueryFolderRunsCtx, .runs = &list_entries);
     char text[QUERY_PATH_MAX_LEN + 128u];
     VerbaLinea line = {text, sizeof(text), 0ull};
     if (newest_path[0] != '\0')
@@ -332,7 +335,7 @@ void query_retention_folder(const QueryRetentionContextOwnCtx *args)
             EMBED_CALL(query_writer_internal.writer_runs, QueryWriterCtx, .writer = &newest))
         {
             mmgr_line_put(&line, "  ");
-            mmgr_line_put(&line, shown);
+            mmgr_line_put(&line, displayed);
             mmgr_line_put(&line, ": left as it is, its newest run's writer runs");
             mmgr_line_finish(&line);
             EMBED_CALL(query_retention_print, RetentionCtx, .context = args->context, .line = &line);
@@ -340,18 +343,18 @@ void query_retention_folder(const QueryRetentionContextOwnCtx *args)
         }
     }
     EMBED_CALL(query_writers_read, RetentionCtx, .context = args->context, .own = args->own, .folder = folder,
-               .shown = shown);
+               .displayed = displayed);
     if (args->crystal != NULL)
     {
         EMBED_CALL(query_retention_context_own_internal.crystals, QueryRetentionContextOwnCtx, .context = args->context,
                    .own = args->own, .folder = folder, .crystal = args->crystal);
     }
-    const unsigned int before = EMBED_CALL(query_folder_most_internal.runs_count, QueryFolderMostCtx, .folder = folder);
-    EMBED_CALL(query_folder_most_internal.runs_prune, QueryFolderMostCtx, .folder = folder, .most = most);
-    const unsigned int runs = EMBED_CALL(query_folder_most_internal.runs_count, QueryFolderMostCtx, .folder = folder);
+    const unsigned int before = EMBED_CALL(query_folder_max_internal.runs_count, QueryFolderMaxCtx, .folder = folder);
+    EMBED_CALL(query_folder_max_internal.runs_prune, QueryFolderMaxCtx, .folder = folder, .most = most);
+    const unsigned int runs = EMBED_CALL(query_folder_max_internal.runs_count, QueryFolderMaxCtx, .folder = folder);
     line.at = 0ull;
     mmgr_line_put(&line, "  ");
-    mmgr_line_put(&line, shown);
+    mmgr_line_put(&line, displayed);
     mmgr_line_put(&line, ": ");
     mmgr_line_decimal(&line, runs, 0u);
     mmgr_line_put(&line, " of ");
@@ -399,19 +402,19 @@ int query_retention_run(const QueryLoopCfg *args)
         return -1;
     }
     char why[QUERY_LINE_MAX_LEN];
-    VerbaLinea why_line = {why, sizeof(why), 0ull};
+    VerbaLinea error_line = {why, sizeof(why), 0ull};
     const int free_part = EMBED_CALL(query_retention_context_err_msg_internal.part_free, QueryRetentionContextErrMsgCtx,
-                                     .context = context, .err_msg = &why_line);
+                                     .context = context, .err_msg = &error_line);
     static char s_crystal[QUERY_PATH_MAX_LEN];
     const int built = free_part && EMBED_CALL(query_retention_context_internal.crystal_build, QueryRetentionContextCtx,
                                               .context = context, .binary = s_crystal);
     EMBED_CALL(query_retention_context_free_part_internal.crystals_reject, QueryRetentionContextFreePartCtx,
-               .context = context, .free_part = free_part, .why = (mmgr_line_finish(&why_line) != 0ull) ? why : "",
+               .context = context, .free_part = free_part, .why = (mmgr_line_finish(&error_line) != 0ull) ? why : "",
                .built = built);
     // the folders containing runs counted, then found into a cell of their count
     const unsigned int counted =
         EMBED_CALL(query_retention_root_found_internal.folders_with_runs, QueryRetentionRootFoundCtx,
-                   .root = context->root, .found = NULL, .room = 0u);
+                   .root = context->root, .found = NULL, .capacity = 0u);
     char (*const folders_found)[QUERY_PATH_MAX_LEN] =
         (counted > 0u)
             ? g_cli_cells->persistent_buf_alloc((unsigned long long)counted * QUERY_PATH_MAX_LEN, &g_query_cells)
@@ -419,7 +422,7 @@ int query_retention_run(const QueryLoopCfg *args)
     const unsigned int folders =
         (folders_found != NULL)
             ? EMBED_CALL(query_retention_root_found_internal.folders_with_runs, QueryRetentionRootFoundCtx,
-                         .root = context->root, .found = folders_found, .room = counted)
+                         .root = context->root, .found = folders_found, .capacity = counted)
             : 0u;
     for (unsigned int at = 0u; at < folders; at += 1u)
     {

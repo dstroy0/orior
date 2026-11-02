@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // files.h: the editor's reads and writes, every one inside the tree (files_seen.c, files_cells.c, files_list.c,
 // files_fuzzy.c, files_ranked.c, files_search.c, files_hits.c, files_find.c, files_read.c, files_write.c,
-// files_paste.c, files_bring.c).
+// files_paste.c, files_fetch.c).
 //
 // A folder's list contains every entry in it but git's own folder, and marks the ones the tree's ignore files leave
 // out: what a build writes, what a cache stores and what a tool stores for itself. A search finds only what git tracks
@@ -38,13 +38,13 @@ typedef struct CliFilesGitCfg CliFilesGitCfg;
 #include "embed_dispatch_layout.h"
 
 // the most paths the tree's list contains, and the most bytes of them
-#define CLI_FILES_MOST 50000u
+#define CLI_FILES_MAX 50000u
 
 #define CLI_FILES_TEXT (1u << 23u)
 
-// A list of paths: each path where it starts in the text, ended by a 0, `count` of them in room for `most`; and the
-// bytes the text uses, in room for `text_most`. Its starts and text are cells of the cellblock, counted to the files,
-// taken at the sizes known as it is made
+// A list of paths: each path where it starts in the text, ended by a 0, `count` of them in capacity for `most`; and the
+// bytes the text uses, in capacity for `text_max`. Its starts and text are cells of the cellblock, counted to the
+// files, taken at the sizes known as it is made
 typedef struct
 {
     unsigned int *start;
@@ -52,15 +52,15 @@ typedef struct
     unsigned int most;
     char *text;
     unsigned long long used;
-    unsigned long long text_most;
+    unsigned long long text_max;
 } CliFiles;
 
-// every file of the tree at `root`, at most CLI_FILES_MOST of them, sorted, laid flat in the temporary tier for the
+// every file of the tree at `root`, at most CLI_FILES_MAX of them, sorted, laid flat in the temporary tier for the
 // length of one call, until cli_files_let gives it back; or NULL where the cellblock cannot meet it (files_seen.c)
 const CliFiles *cli_files_view(const CliFilesRootPathsCfg *args);
 void cli_files_let(const CliFilesCfg *args);
 // the files of the folder at `root`, less `.git` and `target`, walked from its top: each file's path from the top
-// handed to `each`, at most CLI_FILES_MOST of them (files_seen.c)
+// handed to `each`, at most CLI_FILES_MAX of them (files_seen.c)
 void cli_files_walk(const CliFilesRootEachContextCfg *args);
 // each path the tree lists off its trunk handed to `each`, git's where git reads the tree, its word into `*git`: 1
 // where the listing is whole; and a folder's alone, by the same means. Whether a path runs through a folder a walk does
@@ -85,11 +85,39 @@ int cli_files_contains(const CliFilesPathKindCfg *args);
 void cli_files_warm(const CliFilesRootPathsCfg *args);
 int cli_files_track(const CliFilesRootPathCfg *args);
 
-// a folder's entries, less what the explorer's patterns hide, written as the window reads them, `[{"name", "path",
-// "dir", "ignored", "archive", "raw"}]`, folders first, then by name, case aside; where a pattern includes only what it
-// names, a folder shows while it contains a file included or a pattern includes it. 1, or 0 with why given
-// (files_list.c)
-int cli_files_list(const CliFilesRootOutDirCfg *args);
+// One entry of a folder: its name, its path from the tree's top, whether it is a folder, and whether git ignores it
+typedef struct
+{
+    const char *name;
+    const char *path;
+    int dir;
+    int ignored;
+} CliFileEntry;
+// A folder's entries in one cell
+typedef struct
+{
+    unsigned int count;
+    CliFileEntry *entry;
+} CliFileEntries;
+// the entries of the folder `dir` of `root`, the top folder where empty, less what the explorer's patterns hide, in a
+// cell of `owner`: folders first, then by name, case aside; where a pattern includes only some names, a folder shows
+// while it contains a file included or a pattern includes it. The cell, or NULL with why given (files_list.c)
+typedef struct
+{
+    const char *root;
+    const char *dir;
+    CellOwner *owner;
+    VerbaLinea *err_msg;
+} CliFilesEntriesCfg;
+CliFileEntries *cli_files_entries_alloc(const CliFilesEntriesCfg *args);
+typedef struct
+{
+    CliFileEntries *(*entries_alloc)(const CliFilesEntriesCfg *args);
+} CliFilesListingNs;
+EMBED_TABLE_LAYOUT(CliFilesListingNs, entries_alloc);
+EMBED_TABLE_STORAGE CliFilesListingNs cli_files_listing EMBED_UNUSED = {
+    .entries_alloc = cli_files_entries_alloc,
+};
 
 // the most letters a text a match reads contains
 #define CLI_FUZZY_LETTERS 4096u
@@ -99,7 +127,7 @@ int cli_files_list(const CliFilesRootOutDirCfg *args);
 // order anywhere in the text, case aside, in no more pieces than half its letters or three. A letter scores more at the
 // start of a word or past `from`, where the text's name starts; the letters of `query` a match looks for, in lower
 // case, its spaces left out; a text's letters as a match reads them, as they are and in lower case; and the match of
-// letters already read, `wanted` in a text's `shown` and `lower`, `count` letters each, `latest` sized for
+// letters already read, `required` in a text's `displayed` and `lower`, `count` letters each, `latest` sized for
 // CLI_FUZZY_LETTERS for the match's own use (files_fuzzy.c)
 int cli_files_fuzzy(const CliFilesQueryCfg *args);
 unsigned int cli_files_want(const CliFilesQueryLettersCfg *args);
@@ -114,10 +142,6 @@ int cli_files_fuzzy_matches(const CliFilesCountCfg *args);
 // (files_ranked.c)
 void cli_files_read_behind(const CliFilesRootPathsCfg *args);
 int cli_files_unread(const CliFilesRootPathsCfg *args);
-void cli_files_rank(const CliFilesRootOutCfg *args);
-// the same of the `count` paths of `files`, as though they were the tree's files read
-void cli_files_ranked_in(const CliFilesCountOutCfg *args);
-
 // How a search reads its query: case as given or not, whole words only or not, and a regular expression or the text
 typedef struct
 {
@@ -131,14 +155,23 @@ typedef struct
 // 0 with why given; and every listed file whose path contains each word of the query, case aside, at most 500 of them,
 // less the files the explorer's patterns hide, written as a JSON array of paths (files_search.c, files_find.c)
 int cli_files_search(const CliFilesRootOutErrMsgCfg *args);
-void cli_files_find(const CliFilesRootOutErrMsgCfg *args);
 
-// a file read for the editor, written as `{"path", "size", "text", "bytes", "windowed"}`: its text where it is text,
-// its first bytes where it is not, and a larger text windowed, for the page to store as pages; and the whole lines
-// from about `start` to about `end`, written as `{"start", "end", "size", "line", "lines", "text"}`. Each 1, or 0
-// with why given (files_read.c)
-int cli_files_read(const CliFilesRootOutErrMsgFileCfg *args);
-int cli_files_slice(const CliFilesRootOutErrMsgFileCfg *args);
+// what opening a file left: nothing, with why given; its text stored whole; its text paged; or a file that is not text,
+// nothing stored
+#define CLI_FILES_OPEN_REFUSED 0u
+#define CLI_FILES_OPEN_WHOLE 1u
+#define CLI_FILES_OPEN_PAGED 2u
+#define CLI_FILES_OPEN_NOT_TEXT 3u
+// the file at `file` of `root` opened under `key`: a text the window takes whole stored in the document store, a larger
+// one opened in the pages, a file within an archive read out of it first; what that left (files_read.c)
+typedef struct
+{
+    const char *root;
+    const char *file;
+    const char *key;
+    VerbaLinea *err_msg;
+} CliFilesOpenCfg;
+unsigned int cli_files_open(const CliFilesOpenCfg *args);
 // an empty file made at `file`, and a folder at `dir`, with each folder above that is not there yet, one there already
 // left as it is; and `length` bytes of `text` written beside the file and moved over it, a failed write leaving it as
 // it was, a file within an archive saved back into it. Each 1, or 0 with why given (files_write.c)
@@ -146,10 +179,10 @@ int cli_files_create_file(const CliFilesRootErrMsgTextCfg *args);
 int cli_files_create_folder(const CliFilesRootOutDirCfg *args);
 int cli_files_write(const CliFilesRootErrMsgTextCfg *args);
 // the tree's way of writing a file, which every writer of one takes: the text is written beside the file at `path`,
-// as `.name.saving` in its folder, the path into `beside`, sized for CLI_PATH_MAX_LEN, and moved over the file once
+// as `.name.saving` in its folder, the path into `adjacent`, sized for CLI_PATH_MAX_LEN, and moved over the file once
 // whole, the file left as it was where the move fails and the text beside removed; `file` names the file in what is
 // given. Each 1, or 0 with why given (files_write.c)
-int cli_files_saving_beside(const CliFilesPathErrMsgCfg *args);
+int cli_files_saving_adjacent(const CliFilesPathErrMsgCfg *args);
 int cli_files_save(const CliFilesPathCfg *args);
 
 // what is reported as a file is brought: the tree's path of it, the bytes copied and its size
@@ -164,12 +197,9 @@ typedef int (*CliCall)(const CliCallCfg *args);
 // paste copies it, each file reported as it is copied; the tree's path for `name` in `into`, numbered where it contains
 // it already; `size` bytes of `data` written at `at` of the file at the tree's `path` as it is brought a part at a
 // time, the last moving it over the file; and each of `from`, on this machine, copied into `into` of a tree on another
-// machine through `call`. Each 1, or 0 with why given (files_paste.c, files_bring.c)
-int cli_files_paste(const CliFilesRootCountCfg *args);
-int cli_files_bring(const CliFilesRootCfg *args);
+// machine through `call`. Each 1, or 0 with why given (files_paste.c, files_fetch.c)
 int cli_files_free_in(const CliFilesRootErrMsgCfg *args);
 int cli_files_write_part(const CliFilesRootPathCfg *args);
-int cli_files_bring_over(const CliFilesContextCfg *args);
 
 struct CliFilesContextCfg
 {
@@ -189,9 +219,9 @@ struct CliFilesCountCfg
     unsigned int count;
     double *score;
     unsigned int *hits;
-    const unsigned int *wanted;
-    unsigned int wanted_count;
-    const unsigned int *shown_read;
+    const unsigned int *required;
+    unsigned int requested_count;
+    const unsigned int *displayed_read;
     const unsigned int *lower_read;
     unsigned int *latest;
     unsigned int *hit_count;
@@ -322,8 +352,8 @@ struct CliFilesRootPathsCfg
 struct CliFilesTextCfg
 {
     const char *text;
-    unsigned int room;
-    unsigned int *shown;
+    unsigned int capacity;
+    unsigned int *displayed;
     unsigned int *lower;
 };
 
@@ -348,7 +378,7 @@ struct CliFilesPathCfg
     const char *path;
     VerbaLinea *err_msg;
     const char *file;
-    const char *beside_read;
+    const char *adjacent_read;
 };
 
 struct CliFilesPathErrMsgCfg
@@ -356,14 +386,14 @@ struct CliFilesPathErrMsgCfg
     const char *path;
     VerbaLinea *err_msg;
     const char *file;
-    char *beside;
+    char *adjacent;
 };
 
 struct CliFilesQueryLettersCfg
 {
     const char *query;
     unsigned int *letters;
-    unsigned int room;
+    unsigned int capacity;
 };
 
 struct CliFilesCfg
@@ -446,13 +476,11 @@ EMBED_TABLE_STORAGE CliFilesGitNs cli_files_git EMBED_UNUSED = {
 typedef struct
 {
     void (*cells_usage_write)(const CliFilesRootOutDirCfg *args);
-    int (*list)(const CliFilesRootOutDirCfg *args);
     int (*create_folder)(const CliFilesRootOutDirCfg *args);
 } CliFilesRootOutDirNs;
-EMBED_TABLE_LAYOUT(CliFilesRootOutDirNs, cells_usage_write, list, create_folder);
+EMBED_TABLE_LAYOUT(CliFilesRootOutDirNs, cells_usage_write, create_folder);
 EMBED_TABLE_STORAGE CliFilesRootOutDirNs cli_files_root_out_dir EMBED_UNUSED = {
     .cells_usage_write = cli_files_cells_usage_write,
-    .list = cli_files_list,
     .create_folder = cli_files_create_folder,
 };
 
@@ -514,31 +542,11 @@ EMBED_TABLE_STORAGE CliFilesCountNs cli_files_count EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*rank)(const CliFilesRootOutCfg *args);
-} CliFilesRootOutNs;
-EMBED_TABLE_LAYOUT(CliFilesRootOutNs, rank);
-EMBED_TABLE_STORAGE CliFilesRootOutNs cli_files_root_out EMBED_UNUSED = {
-    .rank = cli_files_rank,
-};
-
-typedef struct
-{
-    void (*ranked_in)(const CliFilesCountOutCfg *args);
-} CliFilesCountOutNs;
-EMBED_TABLE_LAYOUT(CliFilesCountOutNs, ranked_in);
-EMBED_TABLE_STORAGE CliFilesCountOutNs cli_files_count_out EMBED_UNUSED = {
-    .ranked_in = cli_files_ranked_in,
-};
-
-typedef struct
-{
     int (*search)(const CliFilesRootOutErrMsgCfg *args);
-    void (*find)(const CliFilesRootOutErrMsgCfg *args);
 } CliFilesRootOutErrMsgNs;
-EMBED_TABLE_LAYOUT(CliFilesRootOutErrMsgNs, search, find);
+EMBED_TABLE_LAYOUT(CliFilesRootOutErrMsgNs, search);
 EMBED_TABLE_STORAGE CliFilesRootOutErrMsgNs cli_files_root_out_err_msg EMBED_UNUSED = {
     .search = cli_files_search,
-    .find = cli_files_find,
 };
 
 typedef struct
@@ -547,10 +555,17 @@ typedef struct
     int (*slice)(const CliFilesRootOutErrMsgFileCfg *args);
 } CliFilesRootOutErrMsgFileNs;
 EMBED_TABLE_LAYOUT(CliFilesRootOutErrMsgFileNs, read, slice);
-EMBED_TABLE_STORAGE CliFilesRootOutErrMsgFileNs cli_files_root_out_err_msg_file EMBED_UNUSED = {
-    .read = cli_files_read,
-    .slice = cli_files_slice,
+
+typedef struct
+{
+    unsigned int (*open)(const CliFilesOpenCfg *args);
+} CliFilesOpenNs;
+EMBED_TABLE_LAYOUT(CliFilesOpenNs, open);
+EMBED_TABLE_STORAGE CliFilesOpenNs cli_files_opening EMBED_UNUSED = {
+    .open = cli_files_open,
 };
+
+EMBED_TABLE_STORAGE CliFilesRootOutErrMsgFileNs cli_files_root_out_err_msg_file EMBED_UNUSED = {};
 
 typedef struct
 {
@@ -565,11 +580,11 @@ EMBED_TABLE_STORAGE CliFilesRootErrMsgTextNs cli_files_root_err_msg_text EMBED_U
 
 typedef struct
 {
-    int (*saving_beside)(const CliFilesPathErrMsgCfg *args);
+    int (*saving_adjacent)(const CliFilesPathErrMsgCfg *args);
 } CliFilesPathErrMsgNs;
-EMBED_TABLE_LAYOUT(CliFilesPathErrMsgNs, saving_beside);
+EMBED_TABLE_LAYOUT(CliFilesPathErrMsgNs, saving_adjacent);
 EMBED_TABLE_STORAGE CliFilesPathErrMsgNs cli_files_path_err_msg EMBED_UNUSED = {
-    .saving_beside = cli_files_saving_beside,
+    .saving_adjacent = cli_files_saving_adjacent,
 };
 
 typedef struct
@@ -583,38 +598,11 @@ EMBED_TABLE_STORAGE CliFilesPathNs cli_files_path EMBED_UNUSED = {
 
 typedef struct
 {
-    int (*paste)(const CliFilesRootCountCfg *args);
-} CliFilesRootCountNs;
-EMBED_TABLE_LAYOUT(CliFilesRootCountNs, paste);
-EMBED_TABLE_STORAGE CliFilesRootCountNs cli_files_root_count EMBED_UNUSED = {
-    .paste = cli_files_paste,
-};
-
-typedef struct
-{
-    int (*bring)(const CliFilesRootCfg *args);
-} CliFilesRootNs;
-EMBED_TABLE_LAYOUT(CliFilesRootNs, bring);
-EMBED_TABLE_STORAGE CliFilesRootNs cli_files_root EMBED_UNUSED = {
-    .bring = cli_files_bring,
-};
-
-typedef struct
-{
     int (*free_in)(const CliFilesRootErrMsgCfg *args);
 } CliFilesRootErrMsgNs;
 EMBED_TABLE_LAYOUT(CliFilesRootErrMsgNs, free_in);
 EMBED_TABLE_STORAGE CliFilesRootErrMsgNs cli_files_root_err_msg EMBED_UNUSED = {
     .free_in = cli_files_free_in,
-};
-
-typedef struct
-{
-    int (*bring_over)(const CliFilesContextCfg *args);
-} CliFilesContextNs;
-EMBED_TABLE_LAYOUT(CliFilesContextNs, bring_over);
-EMBED_TABLE_STORAGE CliFilesContextNs cli_files_context EMBED_UNUSED = {
-    .bring_over = cli_files_bring_over,
 };
 
 #endif

@@ -11,13 +11,13 @@
 // gives stand in platform/windows.c and platform/posix.c
 #include "container.h"
 
-CliProcess *cli_processes_take(const CliContainerCfg *args)
+CliProcess *cli_processes_alloc(const CliContainerCfg *args)
 {
     unsigned int *count = args->count_pointer;
     CliProcess *const processes =
-        g_cli_cells->temporary_buf_alloc((unsigned long long)CLI_PROCESSES_MOST * sizeof(CliProcess), args->owner);
-    *count = (processes != NULL) ? EMBED_CALL(cli_room_processes_internal.processes_list, CliRoomProcessesCtx,
-                                              .processes = processes, .room_u32 = CLI_PROCESSES_MOST)
+        g_cli_cells->temporary_buf_alloc((unsigned long long)CLI_PROCESSES_MAX * sizeof(CliProcess), args->owner);
+    *count = (processes != NULL) ? EMBED_CALL(cli_capacity_processes_internal.processes_list, CliCapacityProcessesCtx,
+                                              .processes = processes, .capacity_u32 = CLI_PROCESSES_MAX)
                                  : 0u;
     return processes;
 }
@@ -66,7 +66,7 @@ unsigned int cli_descendants(const CliContainerRootCfg *args)
             {
                 known = args->found[at] == args->parents[each].id;
             }
-            if (!known && (founds < args->room))
+            if (!known && (founds < args->capacity))
             {
                 args->found[founds] = args->parents[each].id;
                 founds += 1u;
@@ -85,7 +85,7 @@ void cli_restarts_init(const CliContainerRestartsCfg *args)
 {
     unsigned int most = args->most;
     unsigned long long within = args->within;
-    args->restarts->most = (most < CLI_RESTARTS_MOST) ? most : CLI_RESTARTS_MOST;
+    args->restarts->most = (most < CLI_RESTARTS_MAX) ? most : CLI_RESTARTS_MAX;
     args->restarts->within = within;
     args->restarts->deaths = 0u;
 }
@@ -103,7 +103,7 @@ int cli_restarts_dy(const CliContainerRestartsAtCfg *args)
                       .src = &args->restarts->death[first],
                       .bytes = (size_t)(args->restarts->deaths - first) * sizeof(args->restarts->death[0])});
     args->restarts->deaths -= first;
-    if (args->restarts->deaths >= CLI_RESTARTS_MOST)
+    if (args->restarts->deaths >= CLI_RESTARTS_MAX)
     {
         memor.move_down(
             &(MemoriaCfg){.dst = &args->restarts->death[0],

@@ -31,7 +31,7 @@ static const char s_themes[] = "themes";
 
 static const char s_backup[] = "backup.";
 
-unsigned int cli_state_place(const CliStateCtx *args)
+unsigned int cli_state_position(const CliStateCtx *args)
 {
     if (cellul.eq(&(CatenaFinitaCfg){.src = args->key, .other = s_themes, .cap = CLI_CELLS_POOL}))
     {
@@ -56,7 +56,7 @@ unsigned int cli_state_place(const CliStateCtx *args)
     return CLI_STATE_FILE;
 }
 
-int cli_state_is_carry(const CliStateCfg *args)
+int cli_state_is_machine_transfer(const CliStateCfg *args)
 {
     const unsigned int place = EMBED_CALL(cli_state_internal.place, CliStateCtx, .key = args->key);
     return (place == CLI_STATE_SETTINGS) || (place == CLI_STATE_THEMES);
@@ -83,9 +83,9 @@ unsigned int cli_state_map_read(const CliStateJsonCtx *args)
     // the file mapped and made plain in a cell no larger than it; a file larger than CLI_STATE_BYTES, or one with no
     // cell left to read it in, reads as one that is not there
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = args->json,
-               .node_json_node_pointer = NULL, .nodes_most = 0u, .text_out = NULL, .text_most = 0ull);
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = args->path,
+    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->path,
                                                   .size_pointer = &size, .owner = &g_cli_state_cells);
     char *const plain_text = ((bytes != NULL) && (size <= CLI_STATE_BYTES))
                                  ? g_cli_cells->temporary_buf_alloc(size + 1ull, &g_cli_state_cells)
@@ -100,7 +100,7 @@ unsigned int cli_state_map_read(const CliStateJsonCtx *args)
         char why[CLI_NAME_MAX_LEN];
         VerbaLinea err_msg = {why, sizeof(why), 0ull};
         root = mmgr_line_ok(&plain)
-                   ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_take_temporary, CliJsonTreeTextSizeErrMsgCfg,
+                   ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc_temporary, CliJsonTreeTextSizeErrMsgCfg,
                                 .json = args->json, .text = plain_text, .size = plain.at,
                                 .nodes_more = args->nodes_more + 1u, .text_more = args->text_more, .err_msg = &err_msg,
                                 .owner = &g_cli_state_cells)
@@ -113,10 +113,10 @@ unsigned int cli_state_map_read(const CliStateJsonCtx *args)
     {
         return root;
     }
-    // an empty object in a tree of its own, with the room over requested
+    // an empty object in a tree of its own, with the capacity over requested
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = args->json);
-    return EMBED_CALL(cli_json_tree_nodes_most.json_reserve, CliJsonTreeNodesMostCfg, .json = args->json,
-                      .nodes_most = args->nodes_more + 1u, .text_most = args->text_more,
+    return EMBED_CALL(cli_json_tree_nodes_max.json_reserve, CliJsonTreeNodesMaxCfg, .json = args->json,
+                      .nodes_max = args->nodes_more + 1u, .text_max = args->text_more,
                       .what = "an empty stored file's tree", .owner = &g_cli_state_cells)
                ? EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = args->json,
                             .kind = CFG_JSON_OBJECT)
@@ -127,7 +127,7 @@ unsigned int cli_state_map_read(const CliStateJsonCtx *args)
 typedef struct
 {
     CliJsonFiles *files;
-    unsigned int room;
+    unsigned int capacity;
 } CliJsonFilesWalk;
 
 typedef struct
@@ -157,10 +157,10 @@ static void cli_json_file_count(const CliEachNameIsFolderCfg *args)
     const char *name = args->name;
     int is_folder = args->is_folder;
     CliJsonFilesWalk *const walk = (CliJsonFilesWalk *)args->context;
-    walk->room += (EMBED_CALL(cli_json_file_include, StateCtx, .name = name, .is_folder = is_folder) &&
-                   (walk->room < CLI_STATE_FILES))
-                      ? 1u
-                      : 0u;
+    walk->capacity += (EMBED_CALL(cli_json_file_include, StateCtx, .name = name, .is_folder = is_folder) &&
+                       (walk->capacity < CLI_STATE_FILES))
+                          ? 1u
+                          : 0u;
 }
 
 // a JSON file's name put among a folder's, in order
@@ -171,7 +171,7 @@ static void cli_json_file_each(const CliEachNameIsFolderCfg *args)
     CliJsonFilesWalk *const walk = (CliJsonFilesWalk *)args->context;
     CliJsonFiles *const files = walk->files;
     if (!EMBED_CALL(cli_json_file_include, StateCtx, .name = name, .is_folder = is_folder) ||
-        (files->count >= walk->room))
+        (files->count >= walk->capacity))
     {
         return;
     }
@@ -198,10 +198,10 @@ void cli_state_json_files(const CliStateFolderCtx *args)
     EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = args->folder,
                .each = cli_json_file_count, .context_bytess = &walk);
     args->files->name =
-        (walk.room != 0u)
-            ? g_cli_cells->temporary_buf_alloc((unsigned long long)walk.room * CLI_NAME_MAX_LEN, &g_cli_state_cells)
+        (walk.capacity != 0u)
+            ? g_cli_cells->temporary_buf_alloc((unsigned long long)walk.capacity * CLI_NAME_MAX_LEN, &g_cli_state_cells)
             : NULL;
-    walk.room = (args->files->name != NULL) ? walk.room : 0u;
+    walk.capacity = (args->files->name != NULL) ? walk.capacity : 0u;
     EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = args->folder,
                .each = cli_json_file_each, .context_bytess = &walk);
 }
@@ -224,7 +224,7 @@ EMBED_INLINE void cli_in(const StateCtx *args)
 }
 
 // an entry put in the entries' object as its text, in the place of one it had
-EMBED_INLINE void cli_entry_put(const StateCtx *args)
+EMBED_INLINE void cli_entry_append(const StateCtx *args)
 {
     unsigned int object = args->object;
     const char *text = args->text;
@@ -287,8 +287,8 @@ int cli_state_read(const CliStateOutCfg *args)
     }
     bytes = (bytes < (CLI_STATE_BYTES * 4ull)) ? bytes : (CLI_STATE_BYTES * 4ull);
     CliJson entries;
-    if (!EMBED_CALL(cli_json_tree_nodes_most.json_reserve, CliJsonTreeNodesMostCfg, .json = &entries,
-                    .nodes_most = (unsigned int)bytes + 16u, .text_most = (2ull * bytes) + 64ull,
+    if (!EMBED_CALL(cli_json_tree_nodes_max.json_reserve, CliJsonTreeNodesMaxCfg, .json = &entries,
+                    .nodes_max = (unsigned int)bytes + 16u, .text_max = (2ull * bytes) + 64ull,
                     .what = "the changes stored read", .owner = &g_cli_state_cells))
     {
         EMBED_CALL(cli_state_folder_internal.json_files_free, CliStateFolderCtx, .files = &backup_files);
@@ -304,9 +304,9 @@ int cli_state_read(const CliStateOutCfg *args)
         const unsigned int read = EMBED_CALL(cli_state_json_internal.map_read, CliStateJsonCtx, .json = &map,
                                              .path = path, .nodes_more = 0u, .text_more = 0ull);
         // the one cell each member of the file is written back in, of the most the file's tree writes to
-        const unsigned long long room =
-            EMBED_CALL(cli_json_tree_node_out.json_write_room, CliJsonTreeNodeOutCfg, .json_read = &map);
-        char *const value_text = g_cli_cells->temporary_buf_alloc(room, &g_cli_state_cells);
+        const unsigned long long capacity =
+            EMBED_CALL(cli_json_tree_node_out.json_write_capacity, CliJsonTreeNodeOutCfg, .json_read = &map);
+        char *const value_text = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_state_cells);
         for (unsigned int member = (read != CLI_JSON_NONE) ? map.node[read].first : CLI_JSON_NONE;
              member != CLI_JSON_NONE; member = map.node[member].next)
         {
@@ -315,10 +315,10 @@ int cli_state_read(const CliStateOutCfg *args)
             {
                 continue;
             }
-            VerbaLinea value = mmgr_line_over(value_text, room);
+            VerbaLinea value = mmgr_line_over(value_text, capacity);
             EMBED_CALL(cli_state_json.read_back, CliStateJsonCfg, .json = &map, .value = member, .out = &value);
             const int whole = mmgr_line_ok(&value);
-            EMBED_CALL(cli_entry_put, StateCtx, .entries = &entries, .object = object, .key = key,
+            EMBED_CALL(cli_entry_append, StateCtx, .entries = &entries, .object = object, .key = key,
                        .text = whole ? value.out : "", .length = whole ? value.at : 0ull);
         }
         g_cli_cells->persistent_buf_release(value_text, &g_cli_state_cells);
@@ -326,11 +326,11 @@ int cli_state_read(const CliStateOutCfg *args)
     }
     // the themes, each file's object, as one JSON array in a cell of the most they write to: a tree written on one line
     // is at most the bytes of the file it reads, each with the array's mark before it
-    const unsigned long long themes_room =
+    const unsigned long long themes_capacity =
         (EMBED_CALL(cli_state_files_size, StateCtx, .folder = themes_folder, .files = &themes_files) * 2ull) +
         (themes_files.count * 2ull) + 16ull;
-    char *const themes_text = g_cli_cells->temporary_buf_alloc(themes_room, &g_cli_state_cells);
-    VerbaLinea themes = mmgr_line_over(themes_text, themes_room);
+    char *const themes_text = g_cli_cells->temporary_buf_alloc(themes_capacity, &g_cli_state_cells);
+    VerbaLinea themes = mmgr_line_over(themes_text, themes_capacity);
     unsigned int themed = 0u;
     for (unsigned int at = 0u; at < themes_files.count; at += 1u)
     {
@@ -339,10 +339,10 @@ int cli_state_read(const CliStateOutCfg *args)
         char why[CLI_NAME_MAX_LEN];
         VerbaLinea err_msg = {why, sizeof(why), 0ull};
         EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &map,
-                   .node_json_node_pointer = NULL, .nodes_most = 0u, .text_out = NULL, .text_most = 0ull);
+                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
         const unsigned int theme =
             (EMBED_CALL(cli_state_size, StateCtx, .path = path) <= CLI_STATE_BYTES)
-                ? EMBED_CALL(cli_json_tree_err_msg.json_file_take, CliJsonTreeErrMsgCfg, .json = &map, .path = path,
+                ? EMBED_CALL(cli_json_tree_err_msg.json_file_alloc, CliJsonTreeErrMsgCfg, .json = &map, .path = path,
                              .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = &g_cli_state_cells)
                 : CLI_JSON_NONE;
         if (theme != CLI_JSON_NONE)
@@ -358,7 +358,7 @@ int cli_state_read(const CliStateOutCfg *args)
     if (themed != 0u)
     {
         const int whole = mmgr_line_ok(&themes);
-        EMBED_CALL(cli_entry_put, StateCtx, .entries = &entries, .object = object, .key = s_themes,
+        EMBED_CALL(cli_entry_append, StateCtx, .entries = &entries, .object = object, .key = s_themes,
                    .text = whole ? themes.out : "", .length = whole ? themes.at : 0ull);
     }
     g_cli_cells->persistent_buf_release(themes_text, &g_cli_state_cells);
@@ -382,7 +382,7 @@ int cli_state_read(const CliStateOutCfg *args)
                        .length_pointer = &length);
         if ((key != NULL) && (text != NULL))
         {
-            EMBED_CALL(cli_entry_put, StateCtx, .entries = &entries, .object = object, .key = key, .text = text,
+            EMBED_CALL(cli_entry_append, StateCtx, .entries = &entries, .object = object, .key = key, .text = text,
                        .length = length);
         }
         EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &map);
@@ -394,4 +394,110 @@ int cli_state_read(const CliStateOutCfg *args)
                .out = args->out, .indent = 0u, .sorted = 1);
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &entries);
     return 1;
+}
+
+// the most bytes every entry of orior's folder takes as they are read
+#define CLI_STATE_ENTRIES_TEXT (6ull << 20u)
+
+CliStateEntries *cli_state_entries_alloc(const CliStateEntriesCfg *args)
+{
+    char *const text_cell = g_cli_cells->temporary_buf_alloc(CLI_STATE_ENTRIES_TEXT, &g_cli_state_cells);
+    VerbaLinea read = mmgr_line_over(text_cell, CLI_STATE_ENTRIES_TEXT);
+    if ((read.out == NULL) || !EMBED_CALL(cli_state_out.read, CliStateOutCfg, .folder = args->folder, .out = &read) ||
+        !mmgr_line_ok(&read))
+    {
+        g_cli_cells->persistent_buf_release(text_cell, &g_cli_state_cells);
+        return NULL;
+    }
+    char why[256];
+    VerbaLinea ignored = {why, sizeof(why), 0ull};
+    CliJson json;
+    const unsigned int root =
+        EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc_temporary, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
+                   .text = read.out, .size = read.at, .nodes_more = 0u, .text_more = 0ull, .err_msg = &ignored,
+                   .owner = &g_cli_state_cells);
+    g_cli_cells->persistent_buf_release(text_cell, &g_cli_state_cells);
+    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json, .node = root,
+                    .kind = CFG_JSON_OBJECT))
+    {
+        EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+        return NULL;
+    }
+    // the entries and their texts counted, then laid in one cell
+    unsigned int count = 0u;
+    unsigned long long bytes = 0ull;
+    for (unsigned int member = json.node[root].first; member != CLI_JSON_NONE; member = json.node[member].next)
+    {
+        unsigned long long length = 0ull;
+        (void)EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
+                         .node = member, .length_pointer = &length);
+        bytes += length + 1ull +
+                 cellul.len(&(CatenaFinitaCfg){.src = json.text + json.node[member].key, .cap = CLI_CELLS_POOL}) + 1ull;
+        count += 1u;
+    }
+    CliStateEntries *const entries =
+        g_cli_cells->persistent_buf_alloc(sizeof(*entries) + (count * sizeof(CliStateEntry)) + bytes, args->owner);
+    if (entries != NULL)
+    {
+        entries->count = 0u;
+        entries->entry = (CliStateEntry *)(void *)(entries + 1);
+        char *place = (char *)(void *)(entries->entry + count);
+        for (unsigned int member = json.node[root].first; member != CLI_JSON_NONE; member = json.node[member].next)
+        {
+            const char *const key = json.text + json.node[member].key;
+            const unsigned long long key_size =
+                cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) + 1ull;
+            unsigned long long length = 0ull;
+            const char *const value = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                                 .json_read = &json, .node = member, .length_pointer = &length);
+            CliStateEntry *const entry = &entries->entry[entries->count];
+            memor.cpy(&(MemoriaCfg){.dst = place, .src = key, .bytes = key_size});
+            entry->key = place;
+            place += key_size;
+            if (value != NULL)
+            {
+                memor.cpy(&(MemoriaCfg){.dst = place, .src = value, .bytes = length});
+            }
+            place[(value != NULL) ? length : 0ull] = '\0';
+            entry->value = place;
+            place += ((value != NULL) ? length : 0ull) + 1ull;
+            entries->count += 1u;
+        }
+    }
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+    return entries;
+}
+
+const char *cli_state_entry_value(const CliStateEntries *entries, const char *key)
+{
+    for (unsigned int at = 0u; (entries != NULL) && (at < entries->count); at += 1u)
+    {
+        if (cellul.eq(&(CatenaFinitaCfg){.src = entries->entry[at].key, .other = key, .cap = CLI_CELLS_POOL}))
+        {
+            return entries->entry[at].value;
+        }
+    }
+    return NULL;
+}
+
+int cli_state_value_save(const CliStateValueCfg *args)
+{
+    const unsigned long long key_size = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_CELLS_POOL});
+    const unsigned long long value_size = cellul.len(&(CatenaFinitaCfg){.src = args->value, .cap = CLI_CELLS_POOL});
+    // each byte escaped to six at the most, and the marks about them
+    const unsigned long long capacity = ((key_size + value_size) * 6ull) + 16ull;
+    char *const changes_cell = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_state_cells);
+    VerbaLinea changes = mmgr_line_over(changes_cell, capacity);
+    mmgr_line_ch(&changes, '{');
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &changes, .text = args->key,
+               .length = key_size);
+    mmgr_line_ch(&changes, ':');
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &changes, .text = args->value,
+               .length = value_size);
+    mmgr_line_ch(&changes, '}');
+    const int saved =
+        mmgr_line_ok(&changes) && EMBED_CALL(cli_state_folder.save, CliStateFolderCfg, .folder = args->folder,
+                                             .changes = changes.out, .length = changes.at, .err_msg = args->err_msg);
+    g_cli_cells->persistent_buf_release(changes_cell, &g_cli_state_cells);
+    return saved;
 }

@@ -12,14 +12,15 @@
 #include "../text/text.h"
 #include "cells.h"
 
-// the list as it is built in, with a zero after it, read where it lies; and its tokens, a cell of their count allocated
-// for as long as the program runs
+// the list as it is built in, with a zero after it, read where it lies; its tokens, a cell of their count for as long
+// as the program runs; and each string token's text, read once, in one cell for as long as the program runs
 static const char *s_text;
 static unsigned long long s_size;
 static CfgJsonToken *s_tokens;
 static unsigned int s_count;
+static const char **s_string;
 // the token of each menu, in the order the list contains them
-static unsigned int s_menu[CLI_MENUS_MOST];
+static unsigned int s_menu[CLI_MENUS_MAX];
 static unsigned int s_menus;
 
 int cli_commands_read(const CliCommandsCfg *args)
@@ -52,6 +53,29 @@ int cli_commands_read(const CliCommandsCfg *args)
         return 0;
     }
     s_count = parse.tokens;
+    s_string = g_cli_cells->persistent_buf_alloc(((unsigned long long)s_count * sizeof(*s_string)) + s_size + s_count,
+                                                 &g_cli_command_line_cells);
+    if (s_string == NULL)
+    {
+        mmgr_line_put(args->err_msg, "commands.json: the cells cannot meet its texts");
+        s_count = 0u;
+        return 0;
+    }
+    char *string_text = (char *)(void *)(s_string + s_count);
+    unsigned long long string_left = s_size + s_count;
+    for (unsigned int at = 0u; at < s_count; at += 1u)
+    {
+        s_string[at] = "";
+        if (s_tokens[at].kind == CFG_JSON_STRING)
+        {
+            (void)cfg_json_string(s_text, &s_tokens[at], string_text, (size_t)string_left);
+            const unsigned long long used =
+                cellul.len(&(CatenaFinitaCfg){.src = string_text, .cap = string_left}) + 1ull;
+            s_string[at] = string_text;
+            string_text += used;
+            string_left -= used;
+        }
+    }
     const unsigned int menus = cfg_json_member(s_text, s_tokens, 0u, "menus");
     if ((menus == 0u) || (s_tokens[menus].kind != CFG_JSON_ARRAY))
     {
@@ -60,7 +84,7 @@ int cli_commands_read(const CliCommandsCfg *args)
         return 0;
     }
     unsigned int at = menus + 1u;
-    for (unsigned int each = 0u; (each < s_tokens[menus].count) && (s_menus < CLI_MENUS_MOST); each += 1u)
+    for (unsigned int each = 0u; (each < s_tokens[menus].count) && (s_menus < CLI_MENUS_MAX); each += 1u)
     {
         s_menu[s_menus] = at;
         s_menus += 1u;
@@ -79,30 +103,30 @@ typedef struct
     unsigned int object;
     const char *name;
     char *out;
-    size_t room;
+    size_t capacity;
     unsigned int at;
     CliItem *item;
     unsigned int list;
     const char *word;
     CliItem *items;
     unsigned int count;
-    unsigned int room_u32;
+    unsigned int capacity_u32;
 } CommandsCtx;
-// the string member `name` of the object at token `object` into `out`, sized for `room`; empty where it has none
+// the string member `name` of the object at token `object` into `out`, sized for `capacity`; empty where it has none
 EMBED_INLINE void cli_member_text(const CommandsCtx *args)
 {
     const unsigned int value = cfg_json_member(s_text, s_tokens, args->object, args->name);
     args->out[0] = '\0';
     if ((value != 0u) && (s_tokens[value].kind == CFG_JSON_STRING))
     {
-        cfg_json_string(s_text, &s_tokens[value], args->out, args->room);
+        cfg_json_string(s_text, &s_tokens[value], args->out, args->capacity);
     }
 }
 
 void cli_menu_title(const CliCommandsMenuTitleCfg *args)
 {
     EMBED_CALL(cli_member_text, CommandsCtx, .object = s_menu[args->menu], .name = "title", .out = args->title,
-               .room = CLI_LABEL_MAX_LEN);
+               .capacity = CLI_LABEL_MAX_LEN);
 }
 
 void cli_menu_word(const CliCommandsMenuWordCfg *args)
@@ -116,7 +140,7 @@ void cli_menu_word(const CliCommandsMenuWordCfg *args)
 void cli_menu_split(const CliCommandsMenuSplitCfg *args)
 {
     EMBED_CALL(cli_member_text, CommandsCtx, .object = s_menu[args->menu], .name = "split", .out = args->split,
-               .room = CLI_LABEL_MAX_LEN);
+               .capacity = CLI_LABEL_MAX_LEN);
 }
 
 unsigned int cli_menu_groups(const CliCommandsMenuGroupsCfg *args)
@@ -128,7 +152,7 @@ unsigned int cli_menu_groups(const CliCommandsMenuGroupsCfg *args)
     }
     unsigned int count = 0u;
     unsigned int at = list + 1u;
-    for (unsigned int each = 0u; (each < s_tokens[list].count) && (count < args->room); each += 1u)
+    for (unsigned int each = 0u; (each < s_tokens[list].count) && (count < args->capacity); each += 1u)
     {
         if (s_tokens[at].kind == CFG_JSON_STRING)
         {
@@ -140,19 +164,30 @@ unsigned int cli_menu_groups(const CliCommandsMenuGroupsCfg *args)
     return count;
 }
 
+// the string member `name` of the object at token `object`, standing as long as the program runs; empty where it has
+// none
+EMBED_INLINE const char *cli_member_string(const CommandsCtx *args)
+{
+    const unsigned int value = cfg_json_member(s_text, s_tokens, args->object, args->name);
+    return ((value != 0u) && (s_tokens[value].kind == CFG_JSON_STRING)) ? s_string[value] : "";
+}
+
 // the item of the object at token `at` read into `item`
 EMBED_INLINE void cli_item_read(const CommandsCtx *args)
 {
-    EMBED_CALL(cli_member_text, CommandsCtx, .object = args->at, .name = "label", .out = args->item->label,
-               .room = sizeof(args->item->label));
-    EMBED_CALL(cli_member_text, CommandsCtx, .object = args->at, .name = "command", .out = args->item->command,
-               .room = sizeof(args->item->command));
-    EMBED_CALL(cli_member_text, CommandsCtx, .object = args->at, .name = "keys", .out = args->item->keys,
-               .room = sizeof(args->item->keys));
-    EMBED_CALL(cli_member_text, CommandsCtx, .object = args->at, .name = "args", .out = args->item->args,
-               .room = sizeof(args->item->args));
+    args->item->label = EMBED_CALL(cli_member_string, CommandsCtx, .object = args->at, .name = "label");
+    args->item->command = EMBED_CALL(cli_member_string, CommandsCtx, .object = args->at, .name = "command");
+    args->item->keys = EMBED_CALL(cli_member_string, CommandsCtx, .object = args->at, .name = "keys");
+    args->item->args = EMBED_CALL(cli_member_string, CommandsCtx, .object = args->at, .name = "args");
+    args->item->needs = EMBED_CALL(cli_member_string, CommandsCtx, .object = args->at, .name = "needs");
     const unsigned int console = cfg_json_member(s_text, s_tokens, args->at, "console");
     args->item->console = (console != 0u) && (s_tokens[console].kind == CFG_JSON_TRUE);
+    const unsigned int hidden = cfg_json_member(s_text, s_tokens, args->at, "hidden");
+    args->item->hidden = (hidden != 0u) && (s_tokens[hidden].kind == CFG_JSON_TRUE);
+    args->item->fill = cfg_json_member(s_text, s_tokens, args->at, "fill") != 0u;
+    const unsigned int nested = cfg_json_member(s_text, s_tokens, args->at, "items");
+    args->item->list = ((nested != 0u) && (s_tokens[nested].kind == CFG_JSON_ARRAY)) ? nested : 0u;
+    args->item->line = 0;
 }
 
 // the item among the entries of the array at token `list`, those of its groups among them, whose command is `word`,
@@ -168,9 +203,7 @@ static int cli_flat_find(const CommandsCtx *args)
             const unsigned int nested = cfg_json_member(s_text, s_tokens, at, "items");
             if (command != 0u)
             {
-                char named[sizeof(args->item->command)];
-                EMBED_CALL(cli_member_text, CommandsCtx, .object = at, .name = "command", .out = named,
-                           .room = sizeof(named));
+                const char *const named = EMBED_CALL(cli_member_string, CommandsCtx, .object = at, .name = "command");
                 if (cellul.eq(&(CatenaFinitaCfg){.src = named, .other = args->word, .cap = CLI_CELLS_POOL}))
                 {
                     EMBED_CALL(cli_item_read, CommandsCtx, .at = at, .item = args->item);
@@ -200,7 +233,7 @@ static unsigned int cli_flat(const CommandsCtx *args)
         {
             const unsigned int command = cfg_json_member(s_text, s_tokens, at, "command");
             const unsigned int nested = cfg_json_member(s_text, s_tokens, at, "items");
-            if ((command != 0u) && (count < args->room_u32))
+            if ((command != 0u) && (count < args->capacity_u32))
             {
                 EMBED_CALL(cli_item_read, CommandsCtx, .at = at, .item = &args->items[count]);
                 count += 1u;
@@ -208,7 +241,7 @@ static unsigned int cli_flat(const CommandsCtx *args)
             else if ((command == 0u) && (nested != 0u) && (s_tokens[nested].kind == CFG_JSON_ARRAY))
             {
                 count = EMBED_CALL(cli_flat, CommandsCtx, .list = nested, .items = args->items, .count = count,
-                                   .room_u32 = args->room_u32);
+                                   .capacity_u32 = args->capacity_u32);
             }
         }
         at = s_tokens[at].next;
@@ -216,12 +249,55 @@ static unsigned int cli_flat(const CommandsCtx *args)
     return count;
 }
 
-unsigned int cli_menu_items(const CliCommandsMenuRoomCfg *args)
+unsigned int cli_menu_rows(unsigned int list, CliItem *items, unsigned int capacity)
+{
+    unsigned int count = 0u;
+    unsigned int at = list + 1u;
+    for (unsigned int each = 0u; (list != 0u) && (each < s_tokens[list].count) && (count < capacity); each += 1u)
+    {
+        CliItem *const item = &items[count];
+        if (s_tokens[at].kind == CFG_JSON_OBJECT)
+        {
+            EMBED_CALL(cli_item_read, CommandsCtx, .at = at, .item = item);
+            count += 1u;
+        }
+        else if (s_tokens[at].kind == CFG_JSON_STRING)
+        {
+            memor.set(&(MemoriaCfg){.dst = item, .val = 0, .bytes = sizeof(*item)});
+            item->label = "";
+            item->command = "";
+            item->keys = "";
+            item->args = "";
+            item->needs = "";
+            item->line = 1;
+            count += 1u;
+        }
+        at = s_tokens[at].next;
+    }
+    return count;
+}
+
+unsigned int cli_menu_list(unsigned int menu)
+{
+    const unsigned int list = cfg_json_member(s_text, s_tokens, s_menu[menu], "items");
+    return ((list != 0u) && (s_tokens[list].kind == CFG_JSON_ARRAY)) ? list : 0u;
+}
+
+int cli_menu_shown(unsigned int menu)
+{
+    const unsigned int list = cli_menu_list(menu);
+    const unsigned int popup = cfg_json_member(s_text, s_tokens, s_menu[menu], "popup");
+    return (list != 0u) && (s_tokens[list].count != 0u) &&
+           (cfg_json_member(s_text, s_tokens, s_menu[menu], "strip") == 0u) &&
+           !((popup != 0u) && (s_tokens[popup].kind == CFG_JSON_TRUE));
+}
+
+unsigned int cli_menu_items(const CliCommandsMenuCapacityCfg *args)
 {
     const unsigned int list = cfg_json_member(s_text, s_tokens, s_menu[args->menu], "items");
     return ((list != 0u) && (s_tokens[list].kind == CFG_JSON_ARRAY))
                ? EMBED_CALL(cli_flat, CommandsCtx, .list = list, .items = args->items, .count = 0u,
-                            .room_u32 = args->room)
+                            .capacity_u32 = args->capacity)
                : 0u;
 }
 

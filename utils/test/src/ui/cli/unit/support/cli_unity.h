@@ -12,14 +12,14 @@
 
 // the size of a NUL-terminated string, no longer than the pool
 #define CLI_UNITY_LENGTH(text_) cellul.len(&(CatenaFinitaCfg){.src = (text_), .cap = CLI_CELLS_POOL})
-// `size_` bytes at `text_` are exactly the string `wanted_`
-#define CLI_TEST_ASSERT_TEXT(wanted_, text_, size_)                                                                          \
+// `size_` bytes at `text_` are exactly the string `requested_`
+#define CLI_TEST_ASSERT_TEXT(requested_, text_, size_)                                                                          \
     do                                                                                                                       \
     {                                                                                                                        \
-        TEST_ASSERT_EQUAL_UINT64(CLI_UNITY_LENGTH(wanted_), (size_));                                                        \
+        TEST_ASSERT_EQUAL_UINT64(CLI_UNITY_LENGTH(requested_), (size_));                                                        \
         if ((size_) > 0ull)                                                                                                  \
         {                                                                                                                    \
-            TEST_ASSERT_EQUAL_MEMORY((wanted_), (text_), (size_));                                                           \
+            TEST_ASSERT_EQUAL_MEMORY((requested_), (text_), (size_));                                                           \
         }                                                                                                                    \
     } while (0)
 // the string `text_` contains the string `part_`

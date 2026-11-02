@@ -41,7 +41,7 @@ typedef struct
     unsigned int count;
 } CliCallsFound;
 // the bytes the regions, the calls and the usages are each written in
-#define CLI_CALLS_ROOM (4ull << 20u)
+#define CLI_CALLS_CAPACITY (4ull << 20u)
 
 // One call found: the file and line of its definition in effect, or of the function it stands in, a place among the
 // paths, its name's span and where the call stands
@@ -51,7 +51,7 @@ typedef struct
     unsigned int line;
     unsigned int from;
     unsigned int to;
-    CliSymbolPlace site;
+    CliSymbolPosition site;
 } CliCallFound;
 
 typedef struct
@@ -67,7 +67,7 @@ typedef struct
     unsigned int line;
     int body;
     CliCallsFunction one;
-    const CliSymbolPlace *sites;
+    const CliSymbolPosition *sites;
     unsigned int count;
     CliCallReached each;
     void *context;
@@ -75,7 +75,7 @@ typedef struct
     CliCallsFound *calls;
     unsigned int from;
     unsigned int to;
-    CliSymbolPlace site;
+    CliSymbolPosition site;
     unsigned int col;
     const CliCallsFound *usages;
     unsigned int first;
@@ -174,18 +174,18 @@ static int calls_file_read(const SymbolsCallsCtx *args)
     *file = (CliCallsFile){
         NULL, 0ull, 0, NULL, {NULL, NULL, 0u, 0u, 0u, NULL, 0, NULL, NULL}, 0, {NULL, 0ull, 0ull, NULL, NULL, 0ull},
         0u};
-    char *const given = (args->open_text != NULL)
-                            ? EMBED_CALL(args->open_text, CliOpenTextCfg, .context = args->open_text_context,
-                                         .path = path, .size = &file->size)
-                            : NULL;
-    file->mapped = given == NULL;
-    file->text = given;
-    if (given == NULL)
+    char *const supplied = (args->open_text != NULL)
+                               ? EMBED_CALL(args->open_text, CliOpenTextCfg, .context = args->open_text_context,
+                                            .path = path, .size = &file->size)
+                               : NULL;
+    file->mapped = supplied == NULL;
+    file->text = supplied;
+    if (supplied == NULL)
     {
         char full[CLI_PATH_MAX_LEN];
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = g_cli_tree_root, .relative = path, .joined = full);
         // a text read mapped is read and never written
-        file->text = (char *)EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = full,
+        file->text = (char *)EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = full,
                                         .size_pointer = &file->size, .owner = &g_cli_code_cells);
     }
     if (file->text == NULL)
@@ -200,8 +200,8 @@ static int calls_file_read(const SymbolsCallsCtx *args)
     {
         return 0;
     }
-    char *const functions_cell = g_cli_cells->temporary_buf_alloc(CLI_CALLS_ROOM, &g_cli_code_cells);
-    file->functions = mmgr_line_over(functions_cell, CLI_CALLS_ROOM);
+    char *const functions_cell = g_cli_cells->temporary_buf_alloc(CLI_CALLS_CAPACITY, &g_cli_code_cells);
+    file->functions = mmgr_line_over(functions_cell, CLI_CALLS_CAPACITY);
     if (functions_cell == NULL)
     {
         return -1;
@@ -302,7 +302,7 @@ EMBED_INLINE CliCallFound calls_found_at(const SymbolsCallsCtx *args)
 }
 
 // a call put after those found: the file and span its group is keyed by, and where it stands
-EMBED_INLINE void calls_found_put(const SymbolsCallsCtx *args)
+EMBED_INLINE void calls_found_append(const SymbolsCallsCtx *args)
 {
     const CliCallFound one = {args->calls->paths.at, args->line, args->from, args->to, args->site};
     mmgr_line_put(&args->calls->paths, args->path);
@@ -312,24 +312,24 @@ EMBED_INLINE void calls_found_put(const SymbolsCallsCtx *args)
 }
 
 // a usage of the function's name put among those found as its path, its line and its span
-static void calls_usage_put(const CliUsageCfg *args)
+static void calls_usage_append(const CliUsageCfg *args)
 {
     const char *path = args->path;
     unsigned int line = args->line;
     unsigned int from = args->from;
     unsigned int to = args->to;
-    EMBED_CALL(calls_found_put, SymbolsCallsCtx, .calls = (CliCallsFound *)args->context, .path = path, .line = line,
-               .from = from, .to = to, .site = (CliSymbolPlace){line, from});
+    EMBED_CALL(calls_found_append, SymbolsCallsCtx, .calls = (CliCallsFound *)args->context, .path = path, .line = line,
+               .from = from, .to = to, .site = (CliSymbolPosition){line, from});
 }
 
 // the calls found begun, 1, or 0 where the cells cannot meet them; and given back
 EMBED_INLINE int calls_found_begin(const SymbolsCallsCtx *args)
 {
     CliCallsFound *calls = args->calls;
-    char *const found_cell = g_cli_cells->temporary_buf_alloc(CLI_CALLS_ROOM, &g_cli_code_cells);
-    char *const paths_cell = g_cli_cells->temporary_buf_alloc(CLI_CALLS_ROOM, &g_cli_code_cells);
-    *calls =
-        (CliCallsFound){mmgr_line_over(found_cell, CLI_CALLS_ROOM), mmgr_line_over(paths_cell, CLI_CALLS_ROOM), 0u};
+    char *const found_cell = g_cli_cells->temporary_buf_alloc(CLI_CALLS_CAPACITY, &g_cli_code_cells);
+    char *const paths_cell = g_cli_cells->temporary_buf_alloc(CLI_CALLS_CAPACITY, &g_cli_code_cells);
+    *calls = (CliCallsFound){mmgr_line_over(found_cell, CLI_CALLS_CAPACITY),
+                             mmgr_line_over(paths_cell, CLI_CALLS_CAPACITY), 0u};
     return (found_cell != NULL) && (paths_cell != NULL);
 }
 
@@ -363,13 +363,13 @@ EMBED_INLINE int calls_callers_get(const SymbolsCallsCtx *args)
     CliCallsFile file;
     const int read = EMBED_CALL(calls_file_read, SymbolsCallsCtx, .file_out = &file, .path = path,
                                 .open_text = args->open_text, .open_text_context = args->open_text_context);
-    CliSymbolPlace sites[CLI_SYMBOLS_PARAMS];
+    CliSymbolPosition sites[CLI_SYMBOLS_PARAMS];
     unsigned int count = 0u;
     unsigned int current = CLI_JSON_NONE;
     for (unsigned int at = args->first; (read == 1) && (at <= args->end); at += 1u)
     {
         unsigned int function = CLI_JSON_NONE;
-        CliSymbolPlace site = {0u, 0u};
+        CliSymbolPosition site = {0u, 0u};
         if (at < args->end)
         {
             site = EMBED_CALL(calls_found_at, SymbolsCallsCtx, .calls_read = args->usages, .at = at).site;
@@ -423,7 +423,7 @@ int cli_symbols_callers(const CliSymbolsPathContextLineCfg *args)
         const unsigned int name_col = EMBED_CALL(calls_col, SymbolsCallsCtx, .read = &file.read, .leaf = one.name);
         found = (EMBED_CALL(cli_symbols_path_context.usages, CliSymbolsPathContextCfg, .path = args->path,
                             .line = name_line, .col = name_col, .across = 1, .open_text = args->open_text,
-                            .open_text_context = args->open_text_context, .each_usage = calls_usage_put,
+                            .open_text_context = args->open_text_context, .each_usage = calls_usage_append,
                             .context = &usages, .err_msg = args->err_msg) < 0)
                     ? -1
                     : 1;
@@ -463,18 +463,18 @@ int cli_symbols_callers(const CliSymbolsPathContextLineCfg *args)
 typedef struct
 {
     CliCallsFound *calls;
-    CliSymbolPlace site;
+    CliSymbolPosition site;
 } CliCallsDefined;
 
 // a call's definition in effect put among the calls found, keyed by its file and line
-static void calls_defined_put(const CliUsageCfg *args)
+static void calls_defined_append(const CliUsageCfg *args)
 {
     const char *path = args->path;
     unsigned int line = args->line;
     unsigned int from = args->from;
     unsigned int to = args->to;
     const CliCallsDefined *const defined = (const CliCallsDefined *)args->context;
-    EMBED_CALL(calls_found_put, SymbolsCallsCtx, .calls = defined->calls, .path = path, .line = line, .from = from,
+    EMBED_CALL(calls_found_append, SymbolsCallsCtx, .calls = defined->calls, .path = path, .line = line, .from = from,
                .to = to, .site = defined->site);
 }
 
@@ -487,7 +487,7 @@ EMBED_INLINE void calls_callees_dispatch(const SymbolsCallsCtx *args)
         const CliCallFound one = EMBED_CALL(calls_found_at, SymbolsCallsCtx, .calls_read = args->calls_read, .at = at);
         const char *const path = args->calls_read->paths.out + one.path;
         int earlier = 0;
-        CliSymbolPlace sites[CLI_SYMBOLS_PARAMS];
+        CliSymbolPosition sites[CLI_SYMBOLS_PARAMS];
         unsigned int count = 0u;
         for (unsigned int other = 0u; other < args->calls_read->count; other += 1u)
         {
@@ -548,7 +548,7 @@ int cli_symbols_callees(const CliSymbolsPathContextLineCfg *args)
                 {file.read.leaf[leaf].line, EMBED_CALL(calls_col, SymbolsCallsCtx, .read = &file.read, .leaf = leaf)}};
             found = (EMBED_CALL(cli_symbols_path_context.definition, CliSymbolsPathContextCfg, .path = args->path,
                                 .line = defined.site.line, .col = defined.site.col, .open_text = args->open_text,
-                                .open_text_context = args->open_text_context, .each_usage = calls_defined_put,
+                                .open_text_context = args->open_text_context, .each_usage = calls_defined_append,
                                 .context = &defined, .err_msg = args->err_msg) < 0)
                         ? -1
                         : 1;

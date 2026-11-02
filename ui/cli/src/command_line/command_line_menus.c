@@ -14,7 +14,7 @@ unsigned int cli_menu_jobs(const CliCommandLineCatalogMenuCtx *args)
 {
     static char s_groups[CLI_MENU_GROUPS][CLI_LABEL_MAX_LEN];
     const unsigned int groups = EMBED_CALL(cli_commands_menu_groups.menu_groups, CliCommandsMenuGroupsCfg,
-                                           .menu = args->menu, .groups = s_groups, .room = CLI_MENU_GROUPS);
+                                           .menu = args->menu, .groups = s_groups, .capacity = CLI_MENU_GROUPS);
     unsigned int count = 0u;
     for (unsigned int at = 0u; (at < args->catalog->jobs) && (count < CLI_LINE_JOBS); at += 1u)
     {
@@ -23,7 +23,7 @@ unsigned int cli_menu_jobs(const CliCommandLineCatalogMenuCtx *args)
             if (cellul.eq(&(CatenaFinitaCfg){
                     .src = args->catalog->job[at].group, .other = s_groups[group], .cap = CLI_CELLS_POOL}))
             {
-                args->listed[count] = at;
+                args->list_entries[count] = at;
                 count += 1u;
                 break;
             }
@@ -35,10 +35,10 @@ unsigned int cli_menu_jobs(const CliCommandLineCatalogMenuCtx *args)
 typedef struct
 {
     const CliCatalog *catalog;
-    const unsigned int *listed;
+    const unsigned int *list_entries;
     unsigned int count;
 } CommandLineMenusCtx;
-// the jobs `listed`, `count` of them, written by their subjects, a subject the one before has not written again
+// the jobs `list_entries`, `count` of them, written by their subjects, a subject the one before has not written again
 EMBED_INLINE void menus_subjects(const CommandLineMenusCtx *args)
 {
     const CliCatalog *catalog = args->catalog;
@@ -47,7 +47,7 @@ EMBED_INLINE void menus_subjects(const CommandLineMenusCtx *args)
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         EMBED_CALL(cli_command_line_catalog_job_internal.job_subject, CliCommandLineCatalogJobCtx, .catalog = catalog,
-                   .job = args->listed[at], .subject = subject);
+                   .job = args->list_entries[at], .subject = subject);
         if ((at == 0u) || (!cellul.eq(&(CatenaFinitaCfg){.src = subject, .other = last, .cap = CLI_CELLS_POOL})))
         {
             EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx, .text = subject);
@@ -58,11 +58,11 @@ EMBED_INLINE void menus_subjects(const CommandLineMenusCtx *args)
 
 int cli_menu_lines(const CliCommandLineWordCtx *args)
 {
-    static CliItem s_items[CLI_ITEMS_MOST];
+    static CliItem s_items[CLI_ITEMS_MAX];
     char word[CLI_LABEL_MAX_LEN];
     EMBED_CALL(cli_commands_menu_word.menu_word, CliCommandsMenuWordCfg, .menu = args->menu, .word_out = word);
-    const unsigned int items = EMBED_CALL(cli_commands_menu_room.menu_items, CliCommandsMenuRoomCfg, .menu = args->menu,
-                                          .items = s_items, .room = CLI_ITEMS_MOST);
+    const unsigned int items = EMBED_CALL(cli_commands_menu_capacity.menu_items, CliCommandsMenuCapacityCfg,
+                                          .menu = args->menu, .items = s_items, .capacity = CLI_ITEMS_MAX);
     for (unsigned int at = 0u; at < items; at += 1u)
     {
         char line[CLI_LABEL_MAX_LEN * 4u];
@@ -81,7 +81,7 @@ int cli_menu_lines(const CliCommandLineWordCtx *args)
     char split[CLI_LABEL_MAX_LEN];
     char group[1][CLI_LABEL_MAX_LEN];
     if (EMBED_CALL(cli_commands_menu_groups.menu_groups, CliCommandsMenuGroupsCfg, .menu = args->menu, .groups = group,
-                   .room = 1u) == 0u)
+                   .capacity = 1u) == 0u)
     {
         return 0;
     }
@@ -92,21 +92,22 @@ int cli_menu_lines(const CliCommandLineWordCtx *args)
         return CLI_NO_CODE;
     }
     const CliCatalog *const catalog = cli_command_line_word_internal.catalog(args);
-    static unsigned int s_listed[CLI_LINE_JOBS];
+    static unsigned int s_list_result[CLI_LINE_JOBS];
     const unsigned int count =
         EMBED_CALL(cli_command_line_catalog_menu_internal.menu_jobs, CliCommandLineCatalogMenuCtx, .catalog = catalog,
-                   .menu = args->menu, .listed = s_listed);
+                   .menu = args->menu, .list_entries = s_list_result);
     EMBED_CALL(cli_commands_menu_split.menu_split, CliCommandsMenuSplitCfg, .menu = args->menu, .split = split);
     if (split[0] != '\0')
     {
-        EMBED_CALL(menus_subjects, CommandLineMenusCtx, .catalog = catalog, .listed = s_listed, .count = count);
+        EMBED_CALL(menus_subjects, CommandLineMenusCtx, .catalog = catalog, .list_entries = s_list_result,
+                   .count = count);
         return 0;
     }
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx,
                    .text = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = catalog,
-                                      .text_u32 = catalog->job[s_listed[at]].id));
+                                      .text_u32 = catalog->job[s_list_result[at]].id));
     }
     return 0;
 }
@@ -126,9 +127,9 @@ int cli_menu_job(const CliCommandLineWordsCountMenuCtx *args)
     }
     const CliCatalog *const catalog =
         EMBED_CALL(cli_command_line_word_internal.catalog, CliCommandLineWordCtx, .root = s_root);
-    static unsigned int s_listed[CLI_LINE_JOBS];
+    static unsigned int s_list_result[CLI_LINE_JOBS];
     unsigned int jobs = EMBED_CALL(cli_command_line_catalog_menu_internal.menu_jobs, CliCommandLineCatalogMenuCtx,
-                                   .catalog = catalog, .menu = args->menu, .listed = s_listed);
+                                   .catalog = catalog, .menu = args->menu, .list_entries = s_list_result);
     unsigned int next = 0u;
     char split[CLI_LABEL_MAX_LEN];
     EMBED_CALL(cli_commands_menu_split.menu_split, CliCommandsMenuSplitCfg, .menu = args->menu, .split = split);
@@ -141,19 +142,19 @@ int cli_menu_job(const CliCommandLineWordsCountMenuCtx *args)
         }
         const char *const name = args->words[0];
         next = 1u;
-        unsigned int listed_count = 0u;
+        unsigned int listing_count = 0u;
         char subject[CLI_NAME_MAX_LEN];
         for (unsigned int at = 0u; at < jobs; at += 1u)
         {
             EMBED_CALL(cli_command_line_catalog_job_internal.job_subject, CliCommandLineCatalogJobCtx,
-                       .catalog = catalog, .job = s_listed[at], .subject = subject);
+                       .catalog = catalog, .job = s_list_result[at], .subject = subject);
             if (cellul.eq(&(CatenaFinitaCfg){.src = subject, .other = name, .cap = CLI_CELLS_POOL}))
             {
-                s_listed[listed_count] = s_listed[at];
-                listed_count += 1u;
+                s_list_result[listing_count] = s_list_result[at];
+                listing_count += 1u;
             }
         }
-        jobs = listed_count;
+        jobs = listing_count;
         if (jobs == 0u)
         {
             char title[CLI_LABEL_MAX_LEN];
@@ -177,7 +178,7 @@ int cli_menu_job(const CliCommandLineWordsCountMenuCtx *args)
             {
                 EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx,
                            .text = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = catalog,
-                                              .text_u32 = catalog->job[s_listed[at]].id));
+                                              .text_u32 = catalog->job[s_list_result[at]].id));
             }
             return 0;
         }
@@ -189,7 +190,7 @@ int cli_menu_job(const CliCommandLineWordsCountMenuCtx *args)
     }
     err_msg.at = 0ull;
     const unsigned int job = EMBED_CALL(cli_command_line_catalog_among_internal.job_by_name,
-                                        CliCommandLineCatalogAmongCtx, .catalog = catalog, .among = s_listed,
+                                        CliCommandLineCatalogAmongCtx, .catalog = catalog, .among = s_list_result,
                                         .among_count = jobs, .name = args->words[next], .err_msg = &err_msg);
     if (job == CLI_CATALOG_NONE)
     {

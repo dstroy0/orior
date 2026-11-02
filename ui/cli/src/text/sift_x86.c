@@ -44,8 +44,8 @@ EMBED_INLINE __m128i cli_fold16(const SiftX86Ctx *args)
     {
         return args->block;
     }
-    const __m128i past = _mm_sub_epi8(args->block, _mm_set1_epi8('A'));
-    const __m128i upper = _mm_cmpeq_epi8(_mm_subs_epu8(past, _mm_set1_epi8(25)), _mm_setzero_si128());
+    const __m128i end = _mm_sub_epi8(args->block, _mm_set1_epi8('A'));
+    const __m128i upper = _mm_cmpeq_epi8(_mm_subs_epu8(end, _mm_set1_epi8(25)), _mm_setzero_si128());
     return _mm_or_si128(args->block, _mm_and_si128(upper, _mm_set1_epi8(0x20)));
 }
 
@@ -55,8 +55,8 @@ CLI_AVX2_TARGET static __m256i cli_fold32(const SiftX86Ctx *args)
     {
         return args->block_m256i;
     }
-    const __m256i past = _mm256_sub_epi8(args->block_m256i, _mm256_set1_epi8('A'));
-    const __m256i upper = _mm256_cmpeq_epi8(_mm256_subs_epu8(past, _mm256_set1_epi8(25)), _mm256_setzero_si256());
+    const __m256i end = _mm256_sub_epi8(args->block_m256i, _mm256_set1_epi8('A'));
+    const __m256i upper = _mm256_cmpeq_epi8(_mm256_subs_epu8(end, _mm256_set1_epi8(25)), _mm256_setzero_si256());
     return _mm256_or_si256(args->block_m256i, _mm256_and_si256(upper, _mm256_set1_epi8(0x20)));
 }
 

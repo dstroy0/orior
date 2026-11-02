@@ -49,25 +49,25 @@ int cli_fuzzy_starts_word(const CliFilesTextU32sCtx *args)
             EMBED_CALL(cli_upper, FilesFuzzyCtx, .letter = args->text_u32s[args->at], .bytes = args->bytes_i32));
 }
 
-int cli_fuzzy_letters(const CliFilesBytesWantedCtx *args)
+int cli_fuzzy_letters(const CliFilesBytesRequestedCtx *args)
 {
     double *score = args->score;
     unsigned int *hit_count = args->hit_count;
     *score = 0.0;
     *hit_count = 0u;
-    if (args->wanted_count == 0u)
+    if (args->requested_count == 0u)
     {
         return 1;
     }
-    if (args->wanted_count > CLI_FUZZY_LETTERS)
+    if (args->requested_count > CLI_FUZZY_LETTERS)
     {
         return 0;
     }
     // the latest place each letter can stand with the letters after it still fitting
     unsigned int at = args->count_u32;
-    for (unsigned int index = args->wanted_count; index > 0u; index -= 1u)
+    for (unsigned int index = args->requested_count; index > 0u; index -= 1u)
     {
-        while ((at > 0u) && (args->lower[at - 1u] != args->wanted[index - 1u]))
+        while ((at > 0u) && (args->lower[at - 1u] != args->required[index - 1u]))
         {
             at -= 1u;
         }
@@ -80,9 +80,9 @@ int cli_fuzzy_letters(const CliFilesBytesWantedCtx *args)
     }
     int has_last = 0;
     unsigned int last = 0u;
-    for (unsigned int index = 0u; index < args->wanted_count; index += 1u)
+    for (unsigned int index = 0u; index < args->requested_count; index += 1u)
     {
-        const unsigned int letter = args->wanted[index];
+        const unsigned int letter = args->required[index];
         const unsigned int after = has_last ? (last + 1u) : 0u;
         // the letter right after the one before it, else the first that starts a word, else the first
         int has_found = has_last && (after < args->count_u32) && (args->lower[after] == letter);
@@ -96,7 +96,7 @@ int cli_fuzzy_letters(const CliFilesBytesWantedCtx *args)
                 first = has_first ? first : place;
                 has_first = 1;
                 if (EMBED_CALL(cli_files_text_u_32s_internal.fuzzy_starts_word, CliFilesTextU32sCtx,
-                               .text_u32s = args->shown, .at = place, .bytes_i32 = args->bytes_i32))
+                               .text_u32s = args->displayed, .at = place, .bytes_i32 = args->bytes_i32))
                 {
                     found = place;
                     has_found = 1;
@@ -111,28 +111,29 @@ int cli_fuzzy_letters(const CliFilesBytesWantedCtx *args)
         *score += 1.0;
         *score += (has_last && (found == (last + 1u))) ? 5.0 : 0.0;
         *score += EMBED_CALL(cli_files_text_u_32s_internal.fuzzy_starts_word, CliFilesTextU32sCtx,
-                             .text_u32s = args->shown, .at = found, .bytes_i32 = args->bytes_i32)
+                             .text_u32s = args->displayed, .at = found, .bytes_i32 = args->bytes_i32)
                       ? 8.0
                       : 0.0;
         *score += (found >= args->from_u32) ? 3.0 : 0.0;
-        *score += (args->shown[found] == letter) ? 1.0 : 0.0;
+        *score += (args->displayed[found] == letter) ? 1.0 : 0.0;
         args->hits[index] = found;
         last = found;
         has_last = 1;
     }
     // a query torn into more pieces than half its letters reads as no match
     unsigned int runs = 0u;
-    for (unsigned int index = 0u; index < args->wanted_count; index += 1u)
+    for (unsigned int index = 0u; index < args->requested_count; index += 1u)
     {
         runs += ((index == 0u) || (args->hits[index] != (args->hits[index - 1u] + 1u))) ? 1u : 0u;
     }
-    const unsigned int half = (args->wanted_count + 1u) / 2u;
+    const unsigned int half = (args->requested_count + 1u) / 2u;
     if (runs > ((half > 3u) ? half : 3u))
     {
         return 0;
     }
-    *score -= ((double)(args->hits[args->wanted_count - 1u] - args->hits[0]) * 0.1) + ((double)args->count_u32 * 0.02);
-    *hit_count = args->wanted_count;
+    *score -=
+        ((double)(args->hits[args->requested_count - 1u] - args->hits[0]) * 0.1) + ((double)args->count_u32 * 0.02);
+    *hit_count = args->requested_count;
     return 1;
 }
 
@@ -142,56 +143,59 @@ unsigned int cli_files_want(const CliFilesQueryLettersCfg *args)
     const unsigned long long count =
         EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = args->query,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = args->query, .cap = CLI_CELLS_POOL}), .letters = s_read,
-                   .room_u64 = CLI_FUZZY_LETTERS);
-    unsigned int wanted_count = 0u;
-    for (unsigned long long at = 0ull; (at < count) && (wanted_count < args->room); at += 1ull)
+                   .capacity_u64 = CLI_FUZZY_LETTERS);
+    unsigned int requested_count = 0u;
+    for (unsigned long long at = 0ull; (at < count) && (requested_count < args->capacity); at += 1ull)
     {
         if (!EMBED_CALL(cli_files_letter_internal.fuzzy_white, CliFilesLetterCtx, .letter = s_read[at]))
         {
-            args->letters[wanted_count] = EMBED_CALL(cli_regexp_letter.lower, CliRegexpLetterCfg, .letter = s_read[at]);
-            wanted_count += 1u;
+            args->letters[requested_count] =
+                EMBED_CALL(cli_regexp_letter.lower, CliRegexpLetterCfg, .letter = s_read[at]);
+            requested_count += 1u;
         }
     }
-    return wanted_count;
+    return requested_count;
 }
 
 unsigned int cli_files_letters(const CliFilesTextCfg *args)
 {
-    // a letter count is below `room`, which an unsigned int stores
+    // a letter count is below `capacity`, which an unsigned int stores
     const unsigned int count =
         (unsigned int)EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = args->text,
                                  .size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL}),
-                                 .letters = args->shown, .room_u64 = args->room);
+                                 .letters = args->displayed, .capacity_u64 = args->capacity);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        args->lower[at] = EMBED_CALL(cli_regexp_letter.lower, CliRegexpLetterCfg, .letter = args->shown[at]);
+        args->lower[at] = EMBED_CALL(cli_regexp_letter.lower, CliRegexpLetterCfg, .letter = args->displayed[at]);
     }
     return count;
 }
 
 int cli_files_fuzzy_matches(const CliFilesCountCfg *args)
 {
-    return EMBED_CALL(cli_files_bytes_wanted_internal.fuzzy_letters, CliFilesBytesWantedCtx, .wanted = args->wanted,
-                      .wanted_count = args->wanted_count, .shown = args->shown_read, .lower = args->lower_read,
-                      .count_u32 = args->count, .from_u32 = 0u, .bytes_i32 = 0, .latest = args->latest,
-                      .score = args->score, .hits = args->hits, .hit_count = args->hit_count);
+    return EMBED_CALL(cli_files_bytes_requested_internal.fuzzy_letters, CliFilesBytesRequestedCtx,
+                      .required = args->required, .requested_count = args->requested_count,
+                      .displayed = args->displayed_read, .lower = args->lower_read, .count_u32 = args->count,
+                      .from_u32 = 0u, .bytes_i32 = 0, .latest = args->latest, .score = args->score, .hits = args->hits,
+                      .hit_count = args->hit_count);
 }
 
 int cli_files_fuzzy(const CliFilesQueryCfg *args)
 {
-    static unsigned int s_wanted[CLI_FUZZY_LETTERS];
+    static unsigned int s_requested[CLI_FUZZY_LETTERS];
     static unsigned int s_shown[CLI_FUZZY_LETTERS];
     static unsigned int s_lower[CLI_FUZZY_LETTERS];
     static unsigned int s_latest[CLI_FUZZY_LETTERS];
-    const unsigned int wanted = EMBED_CALL(cli_files_query_letters.want, CliFilesQueryLettersCfg, .query = args->query,
-                                           .letters = s_wanted, .room = CLI_FUZZY_LETTERS);
+    const unsigned int required =
+        EMBED_CALL(cli_files_query_letters.want, CliFilesQueryLettersCfg, .query = args->query, .letters = s_requested,
+                   .capacity = CLI_FUZZY_LETTERS);
     const unsigned int letters = EMBED_CALL(cli_files_text.letters, CliFilesTextCfg, .text = args->text,
-                                            .shown = s_shown, .lower = s_lower, .room = CLI_FUZZY_LETTERS);
+                                            .displayed = s_shown, .lower = s_lower, .capacity = CLI_FUZZY_LETTERS);
     // a place in letters is below CLI_FUZZY_LETTERS, which an unsigned int stores
     const unsigned int start = (args->from_u64 < CLI_FUZZY_LETTERS) ? (unsigned int)args->from_u64 : CLI_FUZZY_LETTERS;
-    const int matched = EMBED_CALL(cli_files_bytes_wanted_internal.fuzzy_letters, CliFilesBytesWantedCtx,
-                                   .wanted = s_wanted, .wanted_count = wanted, .shown = s_shown, .lower = s_lower,
-                                   .count_u32 = letters, .from_u32 = start, .bytes_i32 = 0, .latest = s_latest,
-                                   .score = args->score, .hits = args->hits, .hit_count = args->count_pointer);
+    const int matched = EMBED_CALL(
+        cli_files_bytes_requested_internal.fuzzy_letters, CliFilesBytesRequestedCtx, .required = s_requested,
+        .requested_count = required, .displayed = s_shown, .lower = s_lower, .count_u32 = letters, .from_u32 = start,
+        .bytes_i32 = 0, .latest = s_latest, .score = args->score, .hits = args->hits, .hit_count = args->count_pointer);
     return matched;
 }

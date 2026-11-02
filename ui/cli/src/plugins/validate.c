@@ -7,7 +7,7 @@
 
 #include "../text/text.h"
 
-CliValidateRoom *g_cli_validate;
+CliValidateWorkState *g_cli_validate;
 
 int cli_validate_lock(void)
 {
@@ -17,9 +17,9 @@ int cli_validate_lock(void)
         return 0;
     }
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &g_cli_validate->json,
-               .node_json_node_pointer = NULL, .nodes_most = 0u, .text_out = NULL, .text_most = 0ull);
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &g_cli_validate->manifest,
-               .node_json_node_pointer = NULL, .nodes_most = 0u, .text_out = NULL, .text_most = 0ull);
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
     g_cli_validate->output = NULL;
     g_cli_validate->output_size = 0ull;
     return 1;
@@ -303,11 +303,11 @@ EMBED_INLINE int validate_checks_run(const ValidateCtx *args)
         }
         EMBED_CALL(cli_validate_size_internal.messages_get, CliValidateSizeCtx, .output = g_cli_validate->output,
                    .size = g_cli_validate->output_size, .messages = &g_cli_validate->last);
-        if (!g_cli_validate->ran)
+        if (!g_cli_validate->run_result)
         {
             memor.cpy(&(MemoriaCfg){
                 .dst = &g_cli_validate->first, .src = &g_cli_validate->last, .bytes = sizeof(g_cli_validate->first)});
-            g_cli_validate->ran = 1;
+            g_cli_validate->run_result = 1;
         }
         unsigned int hits = 0u;
         for (unsigned int at = 0u; at < g_cli_validate->last.count; at += 1u)
@@ -333,7 +333,7 @@ EMBED_INLINE int validate_checks_run(const ValidateCtx *args)
     return 1;
 }
 
-// the validation with the file's text read, under the room's lock: 1, or 0 with why given
+// the validation with the file's text read, under the work state's lock: 1, or 0 with why given
 EMBED_INLINE int validate_text(const ValidateCtx *args)
 {
     const char *path = args->path;
@@ -370,7 +370,7 @@ EMBED_INLINE int validate_text(const ValidateCtx *args)
         return 0;
     }
     unsigned int count = 0u;
-    char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&count, &g_cli_plugins_cells);
+    char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_allocated(&count, &g_cli_plugins_cells);
     EMBED_CALL(cli_toolchains_json.find, CliToolchainsJsonCfg, .json = json, .tool = chain,
                .path_callback = (const char (*)[CLI_PATH_MAX_LEN])folders, .count = count,
                .found = &g_cli_validate->found);
@@ -443,11 +443,11 @@ EMBED_INLINE int validate_text(const ValidateCtx *args)
     {
         memor.cpy(&(MemoriaCfg){.dst = copy, .src = copy_name, .bytes = sizeof(copy)});
     }
-    const int ran = EMBED_CALL(validate_checks_run, ValidateCtx, .text = text, .size = size,
-                               .program = g_cli_validate->found.program, .copy = copy,
-                               .project_read = has_project ? project : NULL, .err_msg = args->err_msg);
+    const int run_result = EMBED_CALL(validate_checks_run, ValidateCtx, .text = text, .size = size,
+                                      .program = g_cli_validate->found.program, .copy = copy,
+                                      .project_read = has_project ? project : NULL, .err_msg = args->err_msg);
     (void)EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = copy);
-    if (!ran)
+    if (!run_result)
     {
         return 0;
     }
@@ -472,7 +472,7 @@ int cli_on_validate(const CliValidatePathCfg *args)
     g_cli_validate->finding_used = 0ull;
     g_cli_validate->first.count = 0u;
     g_cli_validate->last.count = 0u;
-    g_cli_validate->ran = 0;
+    g_cli_validate->run_result = 0;
     g_cli_validate->late = 0;
     int validated = 0;
     if (!EMBED_CALL(cli_validate_id_internal.tool_read, CliValidateIdCtx, .id = args->id_read))
@@ -483,10 +483,10 @@ int cli_on_validate(const CliValidatePathCfg *args)
     else
     {
         unsigned long long size = 0ull;
-        const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = args->path,
+        const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->path,
                                                       .size_pointer = &size, .owner = &g_cli_plugins_cells);
         if ((bytes == NULL) ||
-            !EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg, .bytes = (const char *)bytes, .size = size))
+            !EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = (const char *)bytes, .size = size))
         {
             mmgr_line_put(args->err_msg, args->path);
             mmgr_line_put(args->err_msg, ": it could not be read");

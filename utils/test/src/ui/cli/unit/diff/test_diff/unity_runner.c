@@ -7,15 +7,7 @@
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
 extern void tearDown(void);
-extern void test_a_changed_line_is_marked_changed(void);
-extern void test_an_added_line_is_marked_added(void);
-extern void test_a_removed_line_is_marked_below_the_last_line(void);
-extern void test_each_change_has_its_hunk(void);
-extern void test_the_same_text_has_no_marks(void);
-extern void test_texts_too_far_apart_have_no_marks_at_all(void);
 extern void test_a_run_ends_at_a_line_that_hashes_alike_and_differs(void);
-extern void test_a_long_text_marks_each_line_changed_far_apart(void);
-extern void test_a_long_text_of_changed_lines_adds_and_removes_none(void);
 
 
 /*=======Mock Management=====*/
@@ -77,15 +69,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\diff\\test_diff\\test_diff.c");
-  run_test(test_a_changed_line_is_marked_changed, "test_a_changed_line_is_marked_changed", 89);
-  run_test(test_an_added_line_is_marked_added, "test_an_added_line_is_marked_added", 94);
-  run_test(test_a_removed_line_is_marked_below_the_last_line, "test_a_removed_line_is_marked_below_the_last_line", 99);
-  run_test(test_each_change_has_its_hunk, "test_each_change_has_its_hunk", 104);
-  run_test(test_the_same_text_has_no_marks, "test_the_same_text_has_no_marks", 111);
-  run_test(test_texts_too_far_apart_have_no_marks_at_all, "test_texts_too_far_apart_have_no_marks_at_all", 120);
-  run_test(test_a_run_ends_at_a_line_that_hashes_alike_and_differs, "test_a_run_ends_at_a_line_that_hashes_alike_and_differs", 136);
-  run_test(test_a_long_text_marks_each_line_changed_far_apart, "test_a_long_text_marks_each_line_changed_far_apart", 150);
-  run_test(test_a_long_text_of_changed_lines_adds_and_removes_none, "test_a_long_text_of_changed_lines_adds_and_removes_none", 166);
+  run_test(test_a_run_ends_at_a_line_that_hashes_alike_and_differs, "test_a_run_ends_at_a_line_that_hashes_alike_and_differs", 36);
 
   return UNITY_END();
 }

@@ -161,7 +161,7 @@ EMBED_INLINE void classes_bases(const InspectPyClassesCtx *args)
                     : base.at;
             if (!keyword && (cut > 0u) && mmgr_line_ok(&base))
             {
-                (void)EMBED_CALL(cli_inspect_size_from_internal.name_put, CliInspectSizeFromCtx, .facts = facts,
+                (void)EMBED_CALL(cli_inspect_size_from_internal.name_append, CliInspectSizeFromCtx, .facts = facts,
                                  .name = current, .size = cut, .alias = NULL, .alias_size = 0ull, .from = tok->from,
                                  .to = tok->from);
             }
@@ -324,9 +324,9 @@ EMBED_INLINE void classes_method_line(const InspectPyClassesCtx *args)
             const CliInspectTok *const named = &toks[offset + 4u];
             unsigned int start = named->start;
             unsigned int end = named->end;
-            start = (unsigned int)EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = src,
+            start = (unsigned int)EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = src,
                                              .at = start, .size = end, .set = "'\"");
-            end = (unsigned int)(start + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg,
+            end = (unsigned int)(start + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg,
                                                     .text = src + start, .at = end - start, .set = "'\""));
             EMBED_CALL(classes_has, InspectPyClassesCtx, .at = src + start, .size = end - start);
         }
@@ -385,8 +385,8 @@ void cli_py_classes(const CliInspectPySrcSizeCfg *args)
         const unsigned int has_first = facts->names;
         for (unsigned int index = 0u; index < s_has_count; index += 1u)
         {
-            const CliInspectPlace none = {0u, 0u};
-            (void)EMBED_CALL(cli_inspect_size_from_internal.name_put, CliInspectSizeFromCtx, .facts = facts,
+            const CliInspectPosition none = {0u, 0u};
+            (void)EMBED_CALL(cli_inspect_size_from_internal.name_append, CliInspectSizeFromCtx, .facts = facts,
                              .name = s_has[index], .size = s_has_size[index], .alias = NULL, .alias_size = 0ull,
                              .from = none, .to = none);
         }
@@ -394,11 +394,11 @@ void cli_py_classes(const CliInspectPySrcSizeCfg *args)
         for (unsigned int index = 0u; index < s_read_count; index += 1u)
         {
             const CliInspectTok *const read = s_reads[index];
-            (void)EMBED_CALL(cli_inspect_size_from_internal.name_put, CliInspectSizeFromCtx, .facts = facts,
+            (void)EMBED_CALL(cli_inspect_size_from_internal.name_append, CliInspectSizeFromCtx, .facts = facts,
                              .name = args->src + read->start, .size = read->end - read->start, .alias = NULL,
                              .alias_size = 0ull, .from = read->from, .to = read->to);
         }
-        if (facts->classes == facts->classes_most)
+        if (facts->classes == facts->classes_max)
         {
             facts->full = 1;
             return;

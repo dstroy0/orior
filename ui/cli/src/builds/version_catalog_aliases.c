@@ -53,7 +53,7 @@ EMBED_INLINE const CliVersionsField *aliases_text_get(const VersionCatalogAliase
 }
 
 // a field's string written
-EMBED_INLINE void aliases_put(const VersionCatalogAliasesCtx *args)
+EMBED_INLINE void aliases_append(const VersionCatalogAliasesCtx *args)
 {
     mmgr_line_put_n(
         args->out,
@@ -65,7 +65,7 @@ void cli_versions_describe(const CliVersionCatalogFieldOutCtx *args)
 {
     if ((args->field->shape == CLI_VERSIONS_TEXT) || (args->field->shape == CLI_VERSIONS_BARE))
     {
-        EMBED_CALL(aliases_put, VersionCatalogAliasesCtx, .out = args->out, .field = args->field);
+        EMBED_CALL(aliases_append, VersionCatalogAliasesCtx, .out = args->out, .field = args->field);
         return;
     }
     if (args->field->shape == CLI_VERSIONS_LIST)
@@ -91,17 +91,17 @@ void cli_versions_describe(const CliVersionCatalogFieldOutCtx *args)
         EMBED_CALL(aliases_text_get, VersionCatalogAliasesCtx, .table = args->field, .key = "id");
     if (module != NULL)
     {
-        EMBED_CALL(aliases_put, VersionCatalogAliasesCtx, .out = args->out, .field = module);
+        EMBED_CALL(aliases_append, VersionCatalogAliasesCtx, .out = args->out, .field = module);
     }
     else if ((group != NULL) && (name != NULL))
     {
-        EMBED_CALL(aliases_put, VersionCatalogAliasesCtx, .out = args->out, .field = group);
+        EMBED_CALL(aliases_append, VersionCatalogAliasesCtx, .out = args->out, .field = group);
         mmgr_line_ch(args->out, ':');
-        EMBED_CALL(aliases_put, VersionCatalogAliasesCtx, .out = args->out, .field = name);
+        EMBED_CALL(aliases_append, VersionCatalogAliasesCtx, .out = args->out, .field = name);
     }
     else if (id != NULL)
     {
-        EMBED_CALL(aliases_put, VersionCatalogAliasesCtx, .out = args->out, .field = id);
+        EMBED_CALL(aliases_append, VersionCatalogAliasesCtx, .out = args->out, .field = id);
     }
     const CliVersionsField *const version =
         EMBED_CALL(aliases_text_get, VersionCatalogAliasesCtx, .table = args->field, .key = "version");
@@ -110,12 +110,12 @@ void cli_versions_describe(const CliVersionCatalogFieldOutCtx *args)
     if (version != NULL)
     {
         mmgr_line_ch(args->out, ':');
-        EMBED_CALL(aliases_put, VersionCatalogAliasesCtx, .out = args->out, .field = version);
+        EMBED_CALL(aliases_append, VersionCatalogAliasesCtx, .out = args->out, .field = version);
     }
     else if (reference != NULL)
     {
         mmgr_line_put(args->out, ", version ");
-        EMBED_CALL(aliases_put, VersionCatalogAliasesCtx, .out = args->out, .field = reference);
+        EMBED_CALL(aliases_append, VersionCatalogAliasesCtx, .out = args->out, .field = reference);
     }
 }
 
@@ -132,7 +132,7 @@ void cli_versions_accessor(const CliVersionCatalogSizeOutAliasCtx *args)
 EMBED_INLINE unsigned int aliases_text_store(const VersionCatalogAliasesCtx *args)
 {
     const char *bytes = args->bytes;
-    if (args->size + 1u > args->aliases->room - args->aliases->used)
+    if (args->size + 1u > args->aliases->capacity - args->aliases->used)
     {
         return CLI_VERSIONS_ALIASES_TEXT;
     }
@@ -163,7 +163,7 @@ EMBED_INLINE unsigned int aliases_kind(const VersionCatalogAliasesCtx *args)
 // the aliases' cells taken: as many aliases as the four sections' entries; and texts of the catalog's texts, which
 // store each key and all that its description names, with each alias's two terminators and the few bytes its
 // description puts between what it names, and two a string of a list
-EMBED_INLINE int aliases_take(const VersionCatalogAliasesCtx *args)
+EMBED_INLINE int aliases_alloc(const VersionCatalogAliasesCtx *args)
 {
     CliVersionsAliases *aliases = args->aliases;
     unsigned long long count = 0ull;
@@ -173,12 +173,12 @@ EMBED_INLINE int aliases_take(const VersionCatalogAliasesCtx *args)
         count += (EMBED_CALL(aliases_kind, VersionCatalogAliasesCtx, .section = section) < 4u) ? section->count : 0u;
     }
     count = (count < CLI_VERSIONS_ALIASES) ? count : CLI_VERSIONS_ALIASES;
-    const unsigned long long room = g_cli_versions.used + (16ull * count) + (2ull * g_cli_versions.items);
-    // the room is under CLI_VERSIONS_ALIASES_TEXT, so it fits an unsigned int
-    aliases->room = (unsigned int)((room < CLI_VERSIONS_ALIASES_TEXT) ? room : CLI_VERSIONS_ALIASES_TEXT);
+    const unsigned long long capacity = g_cli_versions.used + (16ull * count) + (2ull * g_cli_versions.items);
+    // the capacity is under CLI_VERSIONS_ALIASES_TEXT, so it fits an unsigned int
+    aliases->capacity = (unsigned int)((capacity < CLI_VERSIONS_ALIASES_TEXT) ? capacity : CLI_VERSIONS_ALIASES_TEXT);
     aliases->alias =
         g_cli_cells->persistent_buf_alloc((count + 1ull) * sizeof(CliVersionsAlias), &g_cli_versions_cells);
-    aliases->text = g_cli_cells->persistent_buf_alloc(aliases->room + 1ull, &g_cli_versions_cells);
+    aliases->text = g_cli_cells->persistent_buf_alloc(aliases->capacity + 1ull, &g_cli_versions_cells);
     if ((aliases->alias == NULL) || (aliases->text == NULL))
     {
         EMBED_CALL(cli_version_catalog_text_size_aliases_internal.versions_aliases_free,
@@ -196,7 +196,7 @@ void cli_versions_aliases_free(const CliVersionCatalogTextSizeAliasesCtx *args)
     args->aliases->text = NULL;
     args->aliases->count = 0u;
     args->aliases->used = 0u;
-    args->aliases->room = 0u;
+    args->aliases->capacity = 0u;
 }
 
 int cli_versions_aliases(const CliVersionCatalogTextSizeAliasesCtx *args)
@@ -206,10 +206,10 @@ int cli_versions_aliases(const CliVersionCatalogTextSizeAliasesCtx *args)
     args->aliases->text = NULL;
     args->aliases->count = 0u;
     args->aliases->used = 0u;
-    args->aliases->room = 0u;
+    args->aliases->capacity = 0u;
     if (!EMBED_CALL(cli_version_catalog_text_internal.versions_parse, CliVersionCatalogTextCtx, .text = text,
                     .size = args->size) ||
-        !EMBED_CALL(aliases_take, VersionCatalogAliasesCtx, .aliases = args->aliases))
+        !EMBED_CALL(aliases_alloc, VersionCatalogAliasesCtx, .aliases = args->aliases))
     {
         cli_versions_release();
         return 0;
@@ -228,8 +228,8 @@ int cli_versions_aliases(const CliVersionCatalogTextSizeAliasesCtx *args)
                                                .at = field->key_at),
                            .size = field->key_size);
             // the description written where the texts end, and stored with its terminator where it fit
-            VerbaLinea about = {args->aliases->text + args->aliases->used, args->aliases->room - args->aliases->used,
-                                0ull};
+            VerbaLinea about = {args->aliases->text + args->aliases->used,
+                                args->aliases->capacity - args->aliases->used, 0ull};
             EMBED_CALL(cli_version_catalog_field_out_internal.versions_describe, CliVersionCatalogFieldOutCtx,
                        .field = field, .out = &about);
             if ((args->aliases->count < CLI_VERSIONS_ALIASES) && (alias != CLI_VERSIONS_ALIASES_TEXT) &&

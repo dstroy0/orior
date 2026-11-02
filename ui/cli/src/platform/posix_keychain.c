@@ -8,7 +8,7 @@
 typedef struct
 {
 #if (!defined(_WIN32))
-    const CliRan *ran;
+    const CliRunResult *run_result;
     VerbaLinea *err_msg;
     const char *service;
     char *name;
@@ -21,20 +21,21 @@ typedef struct
 EMBED_INLINE void keychain_errors(const PosixKeychainCtx *args)
 {
     unsigned long long start = 0ull;
-    unsigned long long end = args->ran->err_size;
-    while ((start < end) && (cellul.chr(&(CatenaFinitaCfg){
-                                 .src = " \t\n\r\f\v", .cap = CLI_CELLS_POOL, .byte = args->ran->err[start]}) != NULL))
+    unsigned long long end = args->run_result->err_size;
+    while ((start < end) &&
+           (cellul.chr(&(CatenaFinitaCfg){
+                .src = " \t\n\r\f\v", .cap = CLI_CELLS_POOL, .byte = args->run_result->err[start]}) != NULL))
     {
         start += 1ull;
     }
     while ((end > start) &&
            (cellul.chr(&(CatenaFinitaCfg){
-                .src = " \t\n\r\f\v", .cap = CLI_CELLS_POOL, .byte = args->ran->err[end - 1u]}) != NULL))
+                .src = " \t\n\r\f\v", .cap = CLI_CELLS_POOL, .byte = args->run_result->err[end - 1u]}) != NULL))
     {
         end -= 1ull;
     }
     EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = args->err_msg,
-               .text_bytes = (const unsigned char *)args->ran->err + start, .length = end - start);
+               .text_bytes = (const unsigned char *)args->run_result->err + start, .length = end - start);
 }
 
 // the keychain's name for `service`, "orior " and it, into `name`, sized for CLI_NAME_MAX_LEN
@@ -52,12 +53,12 @@ int cli_keychain_store(const CliErrMsgServiceCtx *args)
     VerbaLinea err_buf = {why, sizeof(why), 0ull};
     char named[CLI_NAME_MAX_LEN];
     EMBED_CALL(keychain_service, PosixKeychainCtx, .service = args->service, .name = named);
-    CliRan *const ran = cli_ran_take();
+    CliRunResult *const run_result = cli_run_result_alloc();
 #if defined(__APPLE__)
     const char *const words[10] = {"security", "add-generic-password", "-U", "-s",         named,
                                    "-a",       args->account,          "-w", args->secret, NULL};
     const int started = EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = words, .folder = NULL,
-                                   .settings = NULL, .count = 0u, .ran = ran, .err_msg = &err_buf);
+                                   .settings = NULL, .count = 0u, .run_result = run_result, .err_msg = &err_buf);
     const char *const program = "security";
 #else
     char label[CLI_PATH_MAX_LEN];
@@ -68,26 +69,26 @@ int cli_keychain_store(const CliErrMsgServiceCtx *args)
     mmgr_line_finish(&label_line);
     const char *const words[9] = {"secret-tool", "store",   "--label",     label, "service",
                                   named,         "account", args->account, NULL};
-    const int started = EMBED_CALL(cli_words_internal.ran_feed, CliWordsCtx, .words = words, .folder = NULL,
+    const int started = EMBED_CALL(cli_words_internal.run_result_feed, CliWordsCtx, .words = words, .folder = NULL,
                                    .settings = NULL, .count = 0u, .input = args->secret,
                                    .length = cellul.len(&(CatenaFinitaCfg){.src = args->secret, .cap = CLI_CELLS_POOL}),
-                                   .ran = ran, .err_msg = &err_buf);
+                                   .run_result = run_result, .err_msg = &err_buf);
     const char *const program = "secret-tool, which stores secrets in the Secret Service";
 #endif
     if (!started)
     {
-        EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+        EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
         mmgr_line_put(args->err_msg, program);
         mmgr_line_put(args->err_msg, ": ");
         mmgr_line_put_n(args->err_msg, err_buf.out, err_buf.at);
         return 0;
     }
-    const int stored = (ran->code == 0ll);
+    const int stored = (run_result->code == 0ll);
     if (!stored)
     {
-        EMBED_CALL(keychain_errors, PosixKeychainCtx, .ran = ran, .err_msg = args->err_msg);
+        EMBED_CALL(keychain_errors, PosixKeychainCtx, .run_result = run_result, .err_msg = args->err_msg);
     }
-    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+    EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
     return stored;
 }
 
@@ -104,21 +105,21 @@ int cli_keychain_read(const CliServiceCtx *args)
 #else
     const char *const words[7] = {"secret-tool", "lookup", "service", named, "account", args->account, NULL};
 #endif
-    CliRan *const ran = cli_ran_take();
+    CliRunResult *const run_result = cli_run_result_alloc();
     const int found = EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = words, .folder = NULL, .settings = NULL,
-                                 .count = 0u, .ran = ran, .err_msg = &err_buf) &&
-                      (ran->code == 0ll);
+                                 .count = 0u, .run_result = run_result, .err_msg = &err_buf) &&
+                      (run_result->code == 0ll);
     if (found)
     {
-        unsigned long long end = ran->out_size;
-        end = EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = ran->out, .at = end,
+        unsigned long long end = run_result->out_size;
+        end = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = run_result->out, .at = end,
                          .set = "\n");
-        VerbaLinea line = {out, args->room, 0ull};
+        VerbaLinea line = {out, args->capacity, 0ull};
         EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &line,
-                   .text_bytes = (const unsigned char *)ran->out, .length = end);
+                   .text_bytes = (const unsigned char *)run_result->out, .length = end);
         mmgr_line_finish(&line);
     }
-    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+    EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
     return found;
 }
 
@@ -131,10 +132,11 @@ int cli_keychain_forget(const CliErrMsgServiceCtx *args)
 #else
     const char *const words[7] = {"secret-tool", "clear", "service", named, "account", args->account, NULL};
 #endif
-    CliRan *const ran = cli_ran_take();
-    const int ran_well = EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = words, .folder = NULL,
-                                    .settings = NULL, .count = 0u, .ran = ran, .err_msg = args->err_msg);
-    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
-    return ran_well;
+    CliRunResult *const run_result = cli_run_result_alloc();
+    const int run_result_well =
+        EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = words, .folder = NULL, .settings = NULL, .count = 0u,
+                   .run_result = run_result, .err_msg = args->err_msg);
+    EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
+    return run_result_well;
 }
 #endif

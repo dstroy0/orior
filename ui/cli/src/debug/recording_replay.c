@@ -9,7 +9,8 @@
 void cli_replay_key(const CliRecordingPathCtx *args)
 {
     VerbaLinea out = {args->key, CLI_PATH_MAX_LEN, 0ull};
-    (void)EMBED_CALL(cli_text_from.put_swap, CliTextFromCfg, .out = &out, .text = args->path, .from = '\\', .to = '/');
+    (void)EMBED_CALL(cli_text_from.append_swap, CliTextFromCfg, .out = &out, .text = args->path, .from = '\\',
+                     .to = '/');
 #if defined(_WIN32)
     EMBED_CALL(cli_text_size_from.lower, CliTextSizeFromCfg, .text_out = args->key, .size = out.at);
 #endif
@@ -47,7 +48,7 @@ const char *cli_replay_file_get(const CliRecordingSerialStepCtx *args)
 {
     const CliRecording *const recording = &g_cli_replay->recording;
     const CliRecordedFrame *const frame =
-        (args->serial < recording->frame_most) ? &recording->frames[args->serial] : NULL;
+        (args->serial < recording->frame_max) ? &recording->frames[args->serial] : NULL;
     return ((frame != NULL) && frame->seen && (frame->file < recording->file_count))
                ? EMBED_CALL(cli_recording_at_frames_internal.name, CliRecordingAtFramesCtx,
                             .at = recording->files[frame->file])
@@ -59,7 +60,7 @@ unsigned int cli_replay_thread_get(const CliRecordingSerialStepCtx *args)
 {
     const CliRecording *const recording = &g_cli_replay->recording;
     const unsigned int serial = recording->steps[args->step].frame;
-    return ((serial < recording->frame_most) && recording->frames[serial].seen) ? recording->frames[serial].thread : 0u;
+    return ((serial < recording->frame_max) && recording->frames[serial].seen) ? recording->frames[serial].thread : 0u;
 }
 
 // the thread the replay stands on
@@ -73,7 +74,7 @@ unsigned int cli_replay_thread(void)
 unsigned int cli_recording_last_get(const CliRecordingAtCtx *args)
 {
     const CliRecording *const recording = &g_cli_replay->recording;
-    if ((args->serial >= recording->frame_most) || (recording->frames[args->serial].count == 0u))
+    if ((args->serial >= recording->frame_max) || (recording->frames[args->serial].count == 0u))
     {
         return CLI_RECORDING_NO_STEP;
     }
@@ -285,7 +286,7 @@ void cli_replay_frame_write(const CliRecordingSerialStepCtx *args)
 static unsigned int s_stack[512][2];
 
 // whether node `id` of `json` is a whole number at least 0 and below 2^63, and it into `value`
-int cli_replay_whole(const CliRecordingJsonCtx *args)
+int cli_replay_integer(const CliRecordingJsonCtx *args)
 {
     unsigned long long *value = args->value;
     const char *const text = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
@@ -307,9 +308,9 @@ int cli_replay_whole(const CliRecordingJsonCtx *args)
 unsigned int cli_replay_frame_get(const CliRecordingJsonCtx *args)
 {
     const unsigned int count = EMBED_CALL(cli_recording_at_frames_internal.stack, CliRecordingAtFramesCtx,
-                                          .at = g_cli_replay->at, .frames = s_stack, .room = 512u);
+                                          .at = g_cli_replay->at, .frames = s_stack, .capacity = 512u);
     unsigned long long value = 0ull;
-    const int whole = EMBED_CALL(cli_recording_json_internal.replay_whole, CliRecordingJsonCtx, .json = args->json,
+    const int whole = EMBED_CALL(cli_recording_json_internal.replay_integer, CliRecordingJsonCtx, .json = args->json,
                                  .id = args->id, .value = &value);
     for (unsigned int at = 0u; whole && (at < count); at += 1u)
     {

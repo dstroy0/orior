@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // builds.c: a build file's kind by its name, and its check, its completion, the names SCons gives it and the line that
 // updates every snapshot dependency of its build, each handed to the reader of its kind. One check runs at a time, its
-// findings stored in their own room
+// findings stored in their own capacity
 #include "../text/text.h"
 #include "gradle_internal.h"
 #include "maven_internal.h"
@@ -14,10 +14,10 @@ static CliBuildFindings s_found;
 unsigned int cli_build_kind_get(const CliBuildsPathCfg *args)
 {
     const char *name = args->path;
-    const unsigned long long name_past =
+    const unsigned long long name_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
                    .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
-    name = (name_past != 0ull) ? (args->path + name_past) : name;
+    name = (name_end != 0ull) ? (args->path + name_end) : name;
     char lower[CLI_NAME_MAX_LEN];
     const size_t length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
     if (length >= sizeof(lower))
@@ -56,7 +56,7 @@ void cli_build_check(const CliBuildsPathCfg *args)
 {
     EMBED_CALL(cli_builds_lines.build_findings_begin, CliBuildsLinesCfg, .found = &s_found);
     CliBuildLines lines;
-    unsigned int *const starts = EMBED_CALL(cli_builds_text_size.build_lines_take, CliBuildsTextSizeCfg,
+    unsigned int *const starts = EMBED_CALL(cli_builds_text_size.build_lines_alloc, CliBuildsTextSizeCfg,
                                             .text = args->text, .size = args->size, .lines_out = &lines);
     const unsigned int kind = cli_builds_path.build_kind_get(args);
     if (kind == CLI_BUILD_GRADLE)
@@ -136,14 +136,14 @@ EMBED_INLINE void builds_copy(const BuildsCtx *args)
 
 int cli_build_snapshots_line(const CliBuildsPathRootCfg *args)
 {
-    static const char *const s_beside[3] = {"pom.xml", "build.gradle", "build.gradle.kts"};
+    static const char *const s_adjacent[3] = {"pom.xml", "build.gradle", "build.gradle.kts"};
     static const char *const s_top[5] = {"pom.xml", "build.gradle", "build.gradle.kts", "settings.gradle",
                                          "settings.gradle.kts"};
-    char places[9][CLI_PATH_MAX_LEN];
+    char positions[9][CLI_PATH_MAX_LEN];
     unsigned int count = 0u;
     if (args->path != NULL)
     {
-        EMBED_CALL(builds_copy, BuildsCtx, .from = args->path, .out = places[count]);
+        EMBED_CALL(builds_copy, BuildsCtx, .from = args->path, .out = positions[count]);
         count += 1u;
         char above[CLI_PATH_MAX_LEN];
         for (unsigned int at = 0u;
@@ -151,42 +151,42 @@ int cli_build_snapshots_line(const CliBuildsPathRootCfg *args)
              (at < 3u);
              at += 1u)
         {
-            EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = above, .relative = s_beside[at],
-                       .joined = places[count]);
+            EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = above, .relative = s_adjacent[at],
+                       .joined = positions[count]);
             count += 1u;
         }
     }
     for (unsigned int at = 0u; at < 5u; at += 1u)
     {
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->root, .relative = s_top[at],
-                   .joined = places[count]);
+                   .joined = positions[count]);
         count += 1u;
     }
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        const unsigned int kind = EMBED_CALL(cli_builds_path.build_kind_get, CliBuildsPathCfg, .path = places[at]);
-        if (!EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = places[at]))
+        const unsigned int kind = EMBED_CALL(cli_builds_path.build_kind_get, CliBuildsPathCfg, .path = positions[at]);
+        if (!EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = positions[at]))
         {
             continue;
         }
         char build[CLI_PATH_MAX_LEN];
         char program[CLI_PATH_MAX_LEN];
-        VerbaLinea command = {args->line_room, CLI_PATH_MAX_LEN, 0ull};
+        VerbaLinea command = {args->line_capacity, CLI_PATH_MAX_LEN, 0ull};
         if (kind == CLI_BUILD_MAVEN)
         {
-            if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = places[at],
+            if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = positions[at],
                             .out = build))
             {
                 EMBED_CALL(builds_copy, BuildsCtx, .from = args->root, .out = build);
             }
             EMBED_CALL(cli_maven_out_internal.program, CliMavenOutCtx, .root = args->root, .folder = build,
-                       .out_room = program);
+                       .out_capacity = program);
             mmgr_line_put(&command, program);
             mmgr_line_put(&command, " -U dependency:resolve");
         }
         else if ((kind == CLI_BUILD_GRADLE) || (kind == CLI_BUILD_CATALOG))
         {
-            EMBED_CALL(cli_gradle_root_internal.build_root, CliGradleRootCtx, .root = args->root, .path = places[at],
+            EMBED_CALL(cli_gradle_root_internal.build_root, CliGradleRootCtx, .root = args->root, .path = positions[at],
                        .out = build);
             EMBED_CALL(cli_builds_internal.gradle_program, CliBuildsCtx, .folder = build, .out = program);
             mmgr_line_put(&command, program);
@@ -198,7 +198,7 @@ int cli_build_snapshots_line(const CliBuildsPathRootCfg *args)
         }
         (void)mmgr_line_finish(&command);
         EMBED_CALL(cli_builds_root.build_inside, CliBuildsRootCfg, .root = args->root, .folder = build,
-                   .out_room = args->folder_out);
+                   .out_capacity = args->folder_out);
         return 1;
     }
     mmgr_line_put(args->err_msg, "No Maven or Gradle build here: a pom.xml, a build.gradle or a build.gradle.kts");

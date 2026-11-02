@@ -1,27 +1,27 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // symbols_table.c: the branches the tree stores, in a table at its most, each found by its path through a table of
-// buckets twice its room, each knowing its closest parent
+// buckets twice its capacity, each knowing its closest parent
 #include "../command_line/cells.h"
 #include "../text/text.h"
 #include "symbols_tree.h"
 
-// the files the table's room is taken with, its paths' table twice as many buckets
+// the files the table's capacity is taken with, its paths' table twice as many buckets
 
 // an empty bucket of the table of paths, and one whose file was let go
 #define CLI_BUCKET_EMPTY 0u
 
-#define CLI_BUCKET_GONE 0xffffffffu
+#define CLI_BUCKET_REMOVED 0xffffffffu
 
 // every file a table can name, and the one taken while the cell it replaces still stands
-_Static_assert(CLI_BRANCHES_MOST < CLI_CELLS_MOVABLE, "the movable cells cannot name every symbol file");
+_Static_assert(CLI_BRANCHES_MAX < CLI_CELLS_MOVABLE, "the movable cells cannot name every symbol file");
 
 CliTreeBranch *g_cli_branches;
 unsigned int g_cli_branch_count;
-static unsigned int s_cell_most;
-static unsigned int s_file_room;
+static unsigned int s_cell_max;
+static unsigned int s_file_capacity;
 static unsigned int *s_buckets;
-static unsigned int s_bucket_room;
+static unsigned int s_bucket_capacity;
 // the first place left, counted from 1, 0 for none, each naming the next through its parent; and the files standing
 // and their paths' bytes
 static unsigned int s_free;
@@ -46,9 +46,9 @@ EMBED_INLINE unsigned long long cli_hash(const SymbolsTableCtx *args)
     return value;
 }
 
-char *cli_branch_copy_take(void)
+char *cli_branch_copy_alloc(void)
 {
-    return g_cli_cells->temporary_buf_alloc(s_cell_most, &g_cli_code_cells);
+    return g_cli_cells->temporary_buf_alloc(s_cell_max, &g_cli_code_cells);
 }
 
 void cli_branch_copy(const CliSymbolsTreeBranchCfg *args)
@@ -85,22 +85,22 @@ void cli_branch_path_read(const CliSymbolsTreeBranchPathCfg *args)
 
 void cli_branch_cell_count(const CliSymbolsTreeCfg *args)
 {
-    s_cell_most = (args->bytes > s_cell_most) ? args->bytes : s_cell_most;
+    s_cell_max = (args->bytes > s_cell_max) ? args->bytes : s_cell_max;
 }
 
 unsigned int cli_branch_get(const CliSymbolsTreePathCfg *args)
 {
-    if (s_bucket_room == 0u)
+    if (s_bucket_capacity == 0u)
     {
-        return CLI_BRANCHES_MOST;
+        return CLI_BRANCHES_MAX;
     }
-    unsigned long long bucket = EMBED_CALL(cli_hash, SymbolsTableCtx, .path = args->path) % s_bucket_room;
+    unsigned long long bucket = EMBED_CALL(cli_hash, SymbolsTableCtx, .path = args->path) % s_bucket_capacity;
     // the path with its terminator, so that a stored path it only starts differs from it there
     const size_t bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1u;
-    for (unsigned int tried = 0u; (tried < s_bucket_room) && (s_buckets[bucket] != CLI_BUCKET_EMPTY); tried += 1u)
+    for (unsigned int tried = 0u; (tried < s_bucket_capacity) && (s_buckets[bucket] != CLI_BUCKET_EMPTY); tried += 1u)
     {
         const unsigned int place = s_buckets[bucket];
-        if ((place != CLI_BUCKET_GONE) &&
+        if ((place != CLI_BUCKET_REMOVED) &&
             (g_cli_cells->movable_buf_compare(&(CarcerMovableCfg){.cell = g_cli_branches[place - 1u].cell,
                                                                   .offset = g_cli_branches[place - 1u].path,
                                                                   .src = args->path,
@@ -108,18 +108,18 @@ unsigned int cli_branch_get(const CliSymbolsTreePathCfg *args)
         {
             return place - 1u;
         }
-        bucket = (bucket + 1u) % s_bucket_room;
+        bucket = (bucket + 1u) % s_bucket_capacity;
     }
-    return CLI_BRANCHES_MOST;
+    return CLI_BRANCHES_MAX;
 }
 
 // a branch's place put in the paths' table
-EMBED_INLINE void cli_bucket_put(const SymbolsTableCtx *args)
+EMBED_INLINE void cli_bucket_append(const SymbolsTableCtx *args)
 {
-    unsigned long long bucket = cli_hash(args) % s_bucket_room;
-    while ((s_buckets[bucket] != CLI_BUCKET_EMPTY) && (s_buckets[bucket] != CLI_BUCKET_GONE))
+    unsigned long long bucket = cli_hash(args) % s_bucket_capacity;
+    while ((s_buckets[bucket] != CLI_BUCKET_EMPTY) && (s_buckets[bucket] != CLI_BUCKET_REMOVED))
     {
-        bucket = (bucket + 1u) % s_bucket_room;
+        bucket = (bucket + 1u) % s_bucket_capacity;
     }
     s_buckets[bucket] = args->file + 1u;
 }
@@ -127,18 +127,18 @@ EMBED_INLINE void cli_bucket_put(const SymbolsTableCtx *args)
 // the table of branches and the paths' table taken at their most, each once: 1, or 0 where a cell is refused
 static int cli_table_init(void)
 {
-    if (s_file_room != 0u)
+    if (s_file_capacity != 0u)
     {
         return 1;
     }
     CliTreeBranch *const files = g_cli_cells->persistent_buf_alloc(
-        (unsigned long long)CLI_BRANCHES_MOST * sizeof(CliTreeBranch), &g_cli_code_cells);
+        (unsigned long long)CLI_BRANCHES_MAX * sizeof(CliTreeBranch), &g_cli_code_cells);
     if (files == NULL)
     {
         return 0;
     }
     unsigned int *const buckets =
-        g_cli_cells->persistent_buf_alloc(2ull * CLI_BRANCHES_MOST * sizeof(unsigned int), &g_cli_code_cells);
+        g_cli_cells->persistent_buf_alloc(2ull * CLI_BRANCHES_MAX * sizeof(unsigned int), &g_cli_code_cells);
     if (buckets == NULL)
     {
         g_cli_cells->persistent_buf_release(files, &g_cli_code_cells);
@@ -146,26 +146,26 @@ static int cli_table_init(void)
     }
     cli_cells_movable_ready();
     g_cli_branches = files;
-    s_file_room = CLI_BRANCHES_MOST;
+    s_file_capacity = CLI_BRANCHES_MAX;
     s_buckets = buckets;
-    s_bucket_room = 2u * CLI_BRANCHES_MOST;
-    memor.set(&(MemoriaCfg){.dst = s_buckets, .val = 0, .bytes = (size_t)s_bucket_room * sizeof(unsigned int)});
+    s_bucket_capacity = 2u * CLI_BRANCHES_MAX;
+    memor.set(&(MemoriaCfg){.dst = s_buckets, .val = 0, .bytes = (size_t)s_bucket_capacity * sizeof(unsigned int)});
     return 1;
 }
 
-// the branch of `path`, `bytes` with its end, joined under `parent`: its place, or CLI_BRANCHES_MOST where the table or
+// the branch of `path`, `bytes` with its end, joined under `parent`: its place, or CLI_BRANCHES_MAX where the table or
 // the cells cannot meet it
 EMBED_INLINE unsigned int cli_branch_init(const SymbolsTableCtx *args)
 {
     unsigned long long bytes = args->bytes;
-    if (!cli_table_init() || ((s_free == 0u) && (g_cli_branch_count >= s_file_room)))
+    if (!cli_table_init() || ((s_free == 0u) && (g_cli_branch_count >= s_file_capacity)))
     {
-        return CLI_BRANCHES_MOST;
+        return CLI_BRANCHES_MAX;
     }
     const CarcerMovableSlot *const cell = g_cli_cells->movable_buf_alloc(bytes, &g_cli_code_cells);
     if (cell == NULL)
     {
-        return CLI_BRANCHES_MOST;
+        return CLI_BRANCHES_MAX;
     }
     (void)g_cli_cells->movable_buf_write(&(CarcerMovableCfg){.cell = cell, .src = args->path, .bytes = bytes});
     const unsigned int place = (s_free != 0u) ? (s_free - 1u) : g_cli_branch_count;
@@ -175,25 +175,25 @@ EMBED_INLINE unsigned int cli_branch_init(const SymbolsTableCtx *args)
     g_cli_branches[place] =
         (CliTreeBranch){cell, (unsigned int)bytes, 0u, 1, args->folder, 0, 0ull, 0u, 1, args->parent, 0u};
     EMBED_CALL(cli_symbols_tree.branch_cell_count, CliSymbolsTreeCfg, .bytes = (unsigned int)bytes);
-    EMBED_CALL(cli_bucket_put, SymbolsTableCtx, .path = args->path, .file = place);
-    g_cli_branches[(args->parent < CLI_BRANCHES_MOST) ? args->parent : place].below +=
-        (args->parent < CLI_BRANCHES_MOST) ? 1u : 0u;
+    EMBED_CALL(cli_bucket_append, SymbolsTableCtx, .path = args->path, .file = place);
+    g_cli_branches[(args->parent < CLI_BRANCHES_MAX) ? args->parent : place].below +=
+        (args->parent < CLI_BRANCHES_MAX) ? 1u : 0u;
     s_files += (!args->folder && (args->parent != CLI_BRANCH_MOUNTED)) ? 1u : 0u;
     s_file_bytes += (!args->folder && (args->parent != CLI_BRANCH_MOUNTED)) ? bytes : 0ull;
     return place;
 }
 
-unsigned int cli_branch_stands(const CliSymbolsTreePathCfg *args)
+unsigned int cli_branch_exists(const CliSymbolsTreePathCfg *args)
 {
     const unsigned int found = cli_symbols_tree_path.branch_get(args);
-    if (found != CLI_BRANCHES_MOST)
+    if (found != CLI_BRANCHES_MAX)
     {
         return found;
     }
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL});
     if (length >= CLI_PATH_MAX_LEN)
     {
-        return CLI_BRANCHES_MOST;
+        return CLI_BRANCHES_MAX;
     }
     unsigned int parent = (args->path[0] == '@') ? CLI_BRANCH_MOUNTED : CLI_BRANCH_TOP;
     char above[CLI_PATH_MAX_LEN];
@@ -207,18 +207,18 @@ unsigned int cli_branch_stands(const CliSymbolsTreePathCfg *args)
         above[slash] = '\0';
         const unsigned int folder_at =
             EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = above);
-        parent = (folder_at != CLI_BRANCHES_MOST) ? folder_at
-                                                  : EMBED_CALL(cli_branch_init, SymbolsTableCtx, .path = above,
-                                                               .bytes = slash + 1ull, .parent = parent, .folder = 1);
+        parent = (folder_at != CLI_BRANCHES_MAX) ? folder_at
+                                                 : EMBED_CALL(cli_branch_init, SymbolsTableCtx, .path = above,
+                                                              .bytes = slash + 1ull, .parent = parent, .folder = 1);
         above[slash] = '/';
-        if (parent == CLI_BRANCHES_MOST)
+        if (parent == CLI_BRANCHES_MAX)
         {
-            return CLI_BRANCHES_MOST;
+            return CLI_BRANCHES_MAX;
         }
     }
     const unsigned int place = EMBED_CALL(cli_branch_init, SymbolsTableCtx, .path = args->path, .bytes = length + 1ull,
                                           .parent = parent, .folder = args->folder);
-    if ((place == CLI_BRANCHES_MOST) && (parent < CLI_BRANCHES_MOST) && (g_cli_branches[parent].below == 0u))
+    if ((place == CLI_BRANCHES_MAX) && (parent < CLI_BRANCHES_MAX) && (g_cli_branches[parent].below == 0u))
     {
         EMBED_CALL(cli_symbols_tree_file.branch_leave, CliSymbolsTreeFileCfg, .file = parent);
     }
@@ -227,21 +227,22 @@ unsigned int cli_branch_stands(const CliSymbolsTreePathCfg *args)
 
 void cli_branch_leave(const CliSymbolsTreeFileCfg *args)
 {
-    for (unsigned int at = args->file; at < CLI_BRANCHES_MOST;)
+    for (unsigned int at = args->file; at < CLI_BRANCHES_MAX;)
     {
         CliTreeBranch *const branch = &g_cli_branches[at];
         char path[CLI_PATH_MAX_LEN];
         EMBED_CALL(cli_symbols_tree_branch_path.branch_path_read, CliSymbolsTreeBranchPathCfg, .branch = branch,
                    .path_out = path);
-        unsigned long long bucket = EMBED_CALL(cli_hash, SymbolsTableCtx, .path = path) % s_bucket_room;
-        for (unsigned int tried = 0u; (tried < s_bucket_room) && (s_buckets[bucket] != CLI_BUCKET_EMPTY); tried += 1u)
+        unsigned long long bucket = EMBED_CALL(cli_hash, SymbolsTableCtx, .path = path) % s_bucket_capacity;
+        for (unsigned int tried = 0u; (tried < s_bucket_capacity) && (s_buckets[bucket] != CLI_BUCKET_EMPTY);
+             tried += 1u)
         {
             if (s_buckets[bucket] == (at + 1u))
             {
-                s_buckets[bucket] = CLI_BUCKET_GONE;
+                s_buckets[bucket] = CLI_BUCKET_REMOVED;
                 break;
             }
-            bucket = (bucket + 1u) % s_bucket_room;
+            bucket = (bucket + 1u) % s_bucket_capacity;
         }
         (void)g_cli_cells->movable_buf_release(branch->cell, &g_cli_code_cells);
         const unsigned int parent = branch->parent;
@@ -254,8 +255,8 @@ void cli_branch_leave(const CliSymbolsTreeFileCfg *args)
         branch->used = 0;
         branch->parent = s_free;
         s_free = at + 1u;
-        g_cli_branches[(parent < CLI_BRANCHES_MOST) ? parent : at].below -= (parent < CLI_BRANCHES_MOST) ? 1u : 0u;
-        at = ((parent < CLI_BRANCHES_MOST) && (g_cli_branches[parent].below == 0u)) ? parent : CLI_BRANCHES_MOST;
+        g_cli_branches[(parent < CLI_BRANCHES_MAX) ? parent : at].below -= (parent < CLI_BRANCHES_MAX) ? 1u : 0u;
+        at = ((parent < CLI_BRANCHES_MAX) && (g_cli_branches[parent].below == 0u)) ? parent : CLI_BRANCHES_MAX;
     }
 }
 
@@ -280,8 +281,8 @@ void cli_tree_clear(void)
     g_cli_cells->persistent_buf_release(s_buckets, &g_cli_code_cells);
     g_cli_branches = NULL;
     s_buckets = NULL;
-    s_file_room = 0u;
-    s_bucket_room = 0u;
+    s_file_capacity = 0u;
+    s_bucket_capacity = 0u;
     s_free = 0u;
     s_files = 0u;
     s_file_bytes = 0ull;

@@ -19,7 +19,7 @@ extern void test_a_check_stores_what_each_search_found_in_oriors_folder(void);
 extern void test_the_next_search_reads_what_was_stored(void);
 extern void test_a_changed_path_searches_again(void);
 extern void test_the_manifest_reads_and_each_id_is_one_tool_with_a_program_and_an_https_page(void);
-extern void test_a_toolchain_is_added_its_id_made_from_its_name(void);
+extern void test_a_toolchain_is_added_its_id_created_from_its_name(void);
 extern void test_a_toolchain_is_not_added_twice(void);
 extern void test_an_id_orior_cli_has_is_refused(void);
 extern void test_an_empty_group_is_added_and_the_readers_groups_are_stored(void);
@@ -36,7 +36,7 @@ extern void test_a_folder_already_on_the_path_is_not_added_twice(void);
 extern void test_an_empty_path_contains_the_folder_added(void);
 extern void test_windows_a_path_folder_matches_regardless_of_case_and_trailing_separator(void);
 extern void test_a_tool_in_a_chosen_folder_is_found_there_first(void);
-extern void test_the_path_a_step_runs_with_begins_with_the_folders_put_ahead_each_once(void);
+extern void test_the_path_a_step_runs_with_begins_with_the_folders_append_ahead_each_once(void);
 
 
 /*=======Mock Management=====*/
@@ -109,7 +109,7 @@ int main(void)
   run_test(test_the_next_search_reads_what_was_stored, "test_the_next_search_reads_what_was_stored", 259);
   run_test(test_a_changed_path_searches_again, "test_a_changed_path_searches_again", 271);
   run_test(test_the_manifest_reads_and_each_id_is_one_tool_with_a_program_and_an_https_page, "test_the_manifest_reads_and_each_id_is_one_tool_with_a_program_and_an_https_page", 280);
-  run_test(test_a_toolchain_is_added_its_id_made_from_its_name, "test_a_toolchain_is_added_its_id_made_from_its_name", 321);
+  run_test(test_a_toolchain_is_added_its_id_created_from_its_name, "test_a_toolchain_is_added_its_id_created_from_its_name", 321);
   run_test(test_a_toolchain_is_not_added_twice, "test_a_toolchain_is_not_added_twice", 328);
   run_test(test_an_id_orior_cli_has_is_refused, "test_an_id_orior_cli_has_is_refused", 335);
   run_test(test_an_empty_group_is_added_and_the_readers_groups_are_stored, "test_an_empty_group_is_added_and_the_readers_groups_are_stored", 341);
@@ -126,7 +126,7 @@ int main(void)
   run_test(test_an_empty_path_contains_the_folder_added, "test_an_empty_path_contains_the_folder_added", 411);
   run_test(test_windows_a_path_folder_matches_regardless_of_case_and_trailing_separator, "test_windows_a_path_folder_matches_regardless_of_case_and_trailing_separator", 418);
   run_test(test_a_tool_in_a_chosen_folder_is_found_there_first, "test_a_tool_in_a_chosen_folder_is_found_there_first", 428);
-  run_test(test_the_path_a_step_runs_with_begins_with_the_folders_put_ahead_each_once, "test_the_path_a_step_runs_with_begins_with_the_folders_put_ahead_each_once", 457);
+  run_test(test_the_path_a_step_runs_with_begins_with_the_folders_append_ahead_each_once, "test_the_path_a_step_runs_with_begins_with_the_folders_append_ahead_each_once", 457);
 
   return UNITY_END();
 }

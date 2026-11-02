@@ -11,7 +11,7 @@ typedef struct CliBase64Cfg CliBase64Cfg;
 #include "embed_dispatch_layout.h"
 
 // `size` bytes of `bytes` written as base64; and the bytes base64 `text`, `length` bytes, gives, ASCII's whitespace in
-// it passed over, into `out`, sized for `room`, their count into `size`: 1, or 0 where it is not base64 or they do
+// it passed over, into `out`, sized for `capacity`, their count into `size`: 1, or 0 where it is not base64 or they do
 // not fit
 void cli_base64(const CliBase64Cfg *args);
 int cli_unbase64(const CliBase64TextCfg *args);
@@ -21,7 +21,7 @@ struct CliBase64TextCfg
     const char *text;
     unsigned long long length;
     unsigned char *out_bytes;
-    unsigned long long room;
+    unsigned long long capacity;
     unsigned long long *size_pointer;
 };
 

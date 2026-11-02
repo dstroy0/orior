@@ -4,10 +4,10 @@
 // written in UTF-8
 #include "cli_internal.h"
 
-void cli_words_put(const CliWordsWordsCtx *args)
+void cli_words_append(const CliWordsWordsCtx *args)
 {
     const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->word, .cap = CLI_CELLS_POOL}) + 1ull;
-    if ((args->words_words_pointer->count >= CLI_WORDS_MOST) ||
+    if ((args->words_words_pointer->count >= CLI_WORDS_MAX) ||
         ((args->words_words_pointer->used + size) > CLI_WORDS_TEXT))
     {
         args->words_words_pointer->full = 1;
@@ -23,7 +23,7 @@ void cli_words_put(const CliWordsWordsCtx *args)
     args->words_words_pointer->used += (unsigned int)size;
 }
 
-void cli_utf8_put(const CliLineLetterCtx *args)
+void cli_utf8_append(const CliLineLetterCtx *args)
 {
     if (args->letter < 0x80u)
     {

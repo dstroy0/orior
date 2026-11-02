@@ -9,7 +9,7 @@
 int cli_reply_read(const CliReplyPathCfg *args)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = args->path,
+    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->path,
                                                   .size_pointer = &size, .owner = &g_cli_text_cells);
     args->reply_out->text = (const char *)bytes;
     args->reply_out->size = size;
@@ -33,7 +33,7 @@ typedef struct
 EMBED_INLINE unsigned long long reply_dark(const ReplyCtx *args)
 {
     unsigned long long at = args->at;
-    at = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = args->reply->text, .at = at,
+    at = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = args->reply->text, .at = at,
                     .size = args->reply->size, .set = " \t\n\r");
     return at;
 }
@@ -54,7 +54,7 @@ EMBED_INLINE unsigned long long reply_string_end(const ReplyCtx *args)
         }
         const unsigned long long place = (unsigned long long)(quote - args->reply->text);
         unsigned long long backslashes = 0ull;
-        backslashes = (place - (at + 1ull)) - EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg,
+        backslashes = (place - (at + 1ull)) - EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg,
                                                          .text = args->reply->text + at + 1ull,
                                                          .at = place - (at + 1ull), .set = "\\");
         if ((backslashes % 2ull) == 0ull)
@@ -219,7 +219,7 @@ int cli_reply_string(const CliReplyAtOutCfg *args)
     return cfg_json_string(args->reply->text, &token, args->out, (size_t)args->capacity);
 }
 
-unsigned long long cli_reply_whole(const CliReplyAtCfg *args)
+unsigned long long cli_reply_integer(const CliReplyAtCfg *args)
 {
     if ((args->at == CLI_REPLY_NONE) || (args->at >= args->reply->size) || (args->reply->text[args->at] < '0') ||
         (args->reply->text[args->at] > '9'))

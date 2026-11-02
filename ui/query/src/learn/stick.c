@@ -15,7 +15,7 @@
 #define QUERY_STICK "build/measuring_stick"
 
 // the most codes of one folder the vendor reads at once
-#define QUERY_CODES_MOST 4096u
+#define QUERY_CODES_MAX 4096u
 
 typedef struct
 {
@@ -78,9 +78,9 @@ int query_stick_change(const QueryLoopsCuCfg *args)
 // the program of `role` into `path`, sized for QUERY_PATH_MAX_LEN
 EMBED_INLINE int query_program(const StickCtx *args)
 {
-    return EMBED_CALL(args->context_read->programs->program, QueryEachRolePathRoomErrMsgCfg,
+    return EMBED_CALL(args->context_read->programs->program, QueryEachRolePathCapacityErrMsgCfg,
                       .context = args->context_read->programs->context, .role = args->role, .path = args->path,
-                      .room = QUERY_PATH_MAX_LEN, .err_msg = args->err_msg);
+                      .capacity = QUERY_PATH_MAX_LEN, .err_msg = args->err_msg);
 }
 
 // the latest blob of `name` handed to the run's writer as the file at `path`
@@ -239,7 +239,7 @@ static void query_code_walk(const CliEachNameIsFolderCfg *args)
     const size_t length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
     if (args->is_folder || (length <= 4u) ||
         (!cellul.eq(&(CatenaFinitaCfg){.src = name + length - 4u, .other = ".bin", .cap = CLI_CELLS_POOL})) ||
-        (walk->codes->count >= walk->codes->room))
+        (walk->codes->count >= walk->codes->capacity))
     {
         return;
     }
@@ -279,12 +279,12 @@ EMBED_INLINE int query_codes_dispatch(const StickCtx *args)
         mmgr_line_put(&list, args->codes->path[at]);
         mmgr_line_ch(&list, '\n');
     }
-    const int handed =
+    const int transferred =
         mmgr_line_ok(&list) && EMBED_CALL(query_name_bytes_internal.writer_append, QueryNameBytesCtx,
                                           .writer = &args->run->writer, .name = "cubin_listing_codes.txt",
                                           .bytes = text, .size = list.at, .priority = QRY_ORDINARY, .err_msg = err_msg);
     g_cli_cells->persistent_buf_release(text, &g_query_cells);
-    return handed;
+    return transferred;
 }
 
 // the vendor's listing of each code of `codes` read and filed: 1, or 0 with why given
@@ -346,7 +346,7 @@ EMBED_INLINE int query_codes_list(const StickCtx *args)
 int query_listings_read(const QueryLoopsContextFolderCfg *args)
 {
     QueryPaths codes = {NULL, 0u, 0u};
-    (void)EMBED_CALL(query_paths_internal.paths_take, QueryPathsCtx, .paths = &codes, .count = QUERY_CODES_MOST);
+    (void)EMBED_CALL(query_paths_internal.paths_alloc, QueryPathsCtx, .paths = &codes, .count = QUERY_CODES_MAX);
     QueryCodesWalk walk = {args->folder, &codes};
     EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = args->folder,
                .each = query_code_walk, .context_bytess = &walk);

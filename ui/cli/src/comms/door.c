@@ -1,95 +1,107 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// door.c: the frames that go through the door, each the length of its JSON in four bytes, least first, then the JSON;
-// and the regions a frame hands over: what its transfer describes of one, and one taken from what a transfer describes
-#include "../servers/lsp.h"
+// door.c: the frames that go through the door, each its bytes' count in four bytes, least first, then its bytes; and
+// the regions a frame hands over: what its transfer describes of one, and one taken from what a transfer describes
 #include "door_internal.h"
 
-int cli_door_frame_read(const CliDoorErrMsgEndCtx *args)
+// A transfer as it stands in a frame: the region's length, and on Windows the handle made for it
+typedef struct
+{
+    unsigned long long length;
+    unsigned long long handle;
+} CliIpcTransfer;
+
+int cli_ipc_frame_read(const CliIpcErrMsgEndCtx *args)
 {
     unsigned long long *size = args->size_pointer;
     unsigned char head[4];
-    if (!EMBED_CALL(cli_door_end_bytes_internal.read, CliDoorEndBytesCtx, .end = args->end, .bytes = head,
+    if (!EMBED_CALL(cli_ipc_end_bytes_internal.read, CliIpcEndBytesCtx, .end = args->end, .bytes = head,
                     .size = sizeof(head)))
     {
         mmgr_line_put(args->err_msg, "the door's end closed");
-        return CLI_DOOR_FRAME_BROKEN;
+        return CLI_IPC_FRAME_BROKEN;
     }
     const unsigned long long length = (unsigned long long)head[0] | ((unsigned long long)head[1] << 8u) |
                                       ((unsigned long long)head[2] << 16u) | ((unsigned long long)head[3] << 24u);
     *size = length;
-    if (length > CLI_DOOR_MOST)
+    if (length > CLI_IPC_MAX)
     {
         mmgr_line_put(args->err_msg, "a frame of ");
         mmgr_line_decimal(args->err_msg, length, 1u);
         mmgr_line_put(args->err_msg, " bytes is past the most a frame takes");
-        return CLI_DOOR_FRAME_BROKEN;
+        return CLI_IPC_FRAME_BROKEN;
     }
-    if (length <= args->room)
+    if (length <= args->capacity)
     {
-        return EMBED_CALL(cli_door_end_bytes_internal.read, CliDoorEndBytesCtx, .end = args->end, .bytes = args->frame,
+        return EMBED_CALL(cli_ipc_end_bytes_internal.read, CliIpcEndBytesCtx, .end = args->end, .bytes = args->frame,
                           .size = length)
-                   ? CLI_DOOR_FRAME_READ
-                   : CLI_DOOR_FRAME_BROKEN;
+                   ? CLI_IPC_FRAME_READ
+                   : CLI_IPC_FRAME_BROKEN;
     }
-    // a frame past the room it is read into is read past, a piece at a time
+    // a frame past the capacity it is read into is read past, a piece at a time
     for (unsigned long long passed = 0ull; passed < length;)
     {
-        const unsigned long long piece = ((length - passed) < args->room) ? (length - passed) : args->room;
-        if (!EMBED_CALL(cli_door_end_bytes_internal.read, CliDoorEndBytesCtx, .end = args->end, .bytes = args->frame,
+        const unsigned long long piece = ((length - passed) < args->capacity) ? (length - passed) : args->capacity;
+        if (!EMBED_CALL(cli_ipc_end_bytes_internal.read, CliIpcEndBytesCtx, .end = args->end, .bytes = args->frame,
                         .size = piece))
         {
-            return CLI_DOOR_FRAME_BROKEN;
+            return CLI_IPC_FRAME_BROKEN;
         }
         passed += piece;
     }
     mmgr_line_put(args->err_msg, "a frame of ");
     mmgr_line_decimal(args->err_msg, length, 1u);
-    mmgr_line_put(args->err_msg, " bytes is past the room the door reads it in");
-    return CLI_DOOR_FRAME_PASSED;
+    mmgr_line_put(args->err_msg, " bytes is past the capacity of the buffer the door reads it in");
+    return CLI_IPC_FRAME_PASSED;
 }
 
-int cli_door_frame_write(const CliDoorEndCtx *args)
+int cli_ipc_frame_write(const CliIpcEndCtx *args)
 {
     const unsigned char head[4] = {(unsigned char)(args->size & 0xffu), (unsigned char)((args->size >> 8u) & 0xffu),
                                    (unsigned char)((args->size >> 16u) & 0xffu),
                                    (unsigned char)((args->size >> 24u) & 0xffu)};
     // the region goes with the frame's first byte, its length's
-    return EMBED_CALL(cli_door_end_size_internal.write, CliDoorEndSizeCtx, .end = args->end, .bytes_read = head,
+    return EMBED_CALL(cli_ipc_end_size_internal.write, CliIpcEndSizeCtx, .end = args->end, .bytes_read = head,
                       .size = sizeof(head), .region = args->region) &&
-           EMBED_CALL(cli_door_end_size_internal.write, CliDoorEndSizeCtx, .end = args->end, .bytes_read = args->json,
+           EMBED_CALL(cli_ipc_end_size_internal.write, CliIpcEndSizeCtx, .end = args->end, .bytes_read = args->bytes,
                       .size = args->size, .region = NULL);
 }
 
-int cli_door_dispatch(const CliDoorErrMsgRegionCtx *args)
+unsigned long long cli_ipc_field_end(const char *frame, unsigned long long size, unsigned long long at)
 {
-    mmgr_line_put(args->out, "{\"length\":");
-    mmgr_line_decimal(args->out, args->region->length, 1u);
+    if (at >= size)
+    {
+        return 0ull;
+    }
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = frame + at, .cap = size - at});
+    return ((at + length) < size) ? (at + length + 1ull) : 0ull;
+}
+
+int cli_ipc_dispatch(const CliIpcErrMsgRegionCtx *args)
+{
+    CliIpcTransfer transfer = {args->region->length, 0ull};
 #if defined(_WIN32)
-    unsigned long long handle = args->region->section;
+    transfer.handle = args->region->section;
     if (args->has_to && !EMBED_CALL(cli_region_free, CliTransferCfg, .region_read = args->region, .process = args->to,
-                                    .theirs = &handle, .err_msg = args->err_msg))
+                                    .theirs = &transfer.handle, .err_msg = args->err_msg))
     {
         return 0;
     }
-    mmgr_line_put(args->out, ",\"handle\":");
-    mmgr_line_decimal(args->out, handle, 1u);
-#else
 #endif
-    mmgr_line_ch(args->out, '}');
+    mmgr_line_put_n(args->out, (const char *)&transfer, sizeof(transfer));
     return 1;
 }
 
-int cli_door_handed_over(const CliDoorErrMsgCtx *args)
+int cli_ipc_transferred_over(const CliIpcErrMsgCtx *args)
 {
 #if defined(_WIN32)
     return args->has_from
-               ? EMBED_CALL(cli_region_take, CliTransferRegionCfg, .region = args->region_out, .process = args->from,
+               ? EMBED_CALL(cli_region_alloc, CliTransferRegionCfg, .region = args->region_out, .process = args->from,
                             .handle = args->handle, .length = args->length, .err_msg = args->err_msg)
                : EMBED_CALL(cli_transfer_region.region_receive, CliTransferRegionCfg, .region = args->region_out,
                             .handle = args->handle, .length = args->length, .err_msg = args->err_msg);
 #else
-    const int fd = cli_door_err_msg_internal.descriptor(args);
+    const int fd = cli_ipc_err_msg_internal.descriptor(args);
     if (fd < 0)
     {
         mmgr_line_put(args->err_msg, "a transfer came with no region");
@@ -100,59 +112,16 @@ int cli_door_handed_over(const CliDoorErrMsgCtx *args)
 #endif
 }
 
-typedef struct
+int cli_ipc_transfer(const CliIpcErrMsgSizeCtx *args)
 {
-    const char *transfer;
-    unsigned long long size;
-    const char *name;
-    unsigned long long *value;
-} DoorCtx;
-// a whole number of the transfer object, `name`, into `value`: 1, or 0 where it is none
-EMBED_INLINE int door_number(const DoorCtx *args)
-{
-    unsigned long long size = args->size;
-    const char *name = args->name;
-    unsigned long long *value = args->value;
-    unsigned long long start = 0ull;
-    unsigned long long length = 0ull;
-    if (!EMBED_CALL(cli_lsp_body.member, CliLspBodyCfg, .body = args->transfer, .size_value = size, .name = name,
-                    .start = &start, .length_pointer = &length) ||
-        (length == 0ull) || (length > 20ull))
-    {
-        return 0;
-    }
-    unsigned long long whole = 0ull;
-    for (unsigned long long at = start; at < start + length; at += 1ull)
-    {
-        const unsigned long long digit = (unsigned long long)(args->transfer[at] - '0');
-        if ((args->transfer[at] < '0') || (args->transfer[at] > '9') ||
-            (whole > (18446744073709551615ull - digit) / 10ull))
-        {
-            return 0;
-        }
-        whole = (whole * 10ull) + digit;
-    }
-    *value = whole;
-    return 1;
-}
-
-int cli_door_transfer(const CliDoorErrMsgSizeCtx *args)
-{
-    unsigned long long *handle = args->handle_pointer;
-    *handle = 0ull;
-    if (!EMBED_CALL(door_number, DoorCtx, .transfer = args->transfer, .size = args->size, .name = "length",
-                    .value = args->length_pointer))
+    if (args->size != sizeof(CliIpcTransfer))
     {
         mmgr_line_put(args->err_msg, "a transfer names its length");
         return 0;
     }
-#if defined(_WIN32)
-    if (!EMBED_CALL(door_number, DoorCtx, .transfer = args->transfer, .size = args->size, .name = "handle",
-                    .value = handle))
-    {
-        mmgr_line_put(args->err_msg, "a transfer names its handle");
-        return 0;
-    }
-#endif
+    CliIpcTransfer transfer;
+    memor.cpy(&(MemoriaCfg){.dst = &transfer, .src = args->transfer, .bytes = sizeof(transfer)});
+    *args->length_pointer = transfer.length;
+    *args->handle_pointer = transfer.handle;
     return 1;
 }

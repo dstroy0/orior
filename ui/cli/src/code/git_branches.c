@@ -17,11 +17,11 @@ void cli_git_branches(const CliGitRootFoundBranchesCfg *args)
         "refs/heads", "refs/remotes"};
     args->found_branches_pointer->count = 0u;
     EMBED_CALL(cli_git_text.text_begin, CliGitTextCfg, .text = &args->found_branches_pointer->text);
-    CliGitGave *const gave = cli_git_take();
-    const int queried = EMBED_CALL(cli_git_gave_internal.query, CliGitGaveCtx, .root = args->root, .request = s_args,
-                                   .count = 5u, .gave = gave);
-    const char *const end = gave->out + gave->out_size;
-    const char *line = queried ? gave->out : end;
+    CliGitResult *const result = cli_git_alloc();
+    const int queried = EMBED_CALL(cli_git_result_internal.query, CliGitResultCtx, .root = args->root,
+                                   .request = s_args, .count = 5u, .result = result);
+    const char *const end = result->out + result->out_size;
+    const char *line = queried ? result->out : end;
     while ((line < end) && (args->found_branches_pointer->count < CLI_GIT_BRANCHES))
     {
         const char *stop = line;
@@ -49,21 +49,21 @@ void cli_git_branches(const CliGitRootFoundBranchesCfg *args)
         }
         CliBranch *const one = &args->found_branches_pointer->item[args->found_branches_pointer->count];
         args->found_branches_pointer->count += 1u;
-        one->name = EMBED_CALL(cli_git_text.text_put, CliGitTextCfg, .text = &args->found_branches_pointer->text,
+        one->name = EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &args->found_branches_pointer->text,
                                .from = fields[1], .length = lengths[1]);
         one->remote = remote;
         one->current = (lengths[2] == 1ull) && (fields[2][0] == '*');
-        one->upstream = EMBED_CALL(cli_git_text.text_put, CliGitTextCfg, .text = &args->found_branches_pointer->text,
+        one->upstream = EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &args->found_branches_pointer->text,
                                    .from = fields[3], .length = lengths[3]);
         one->when = 0ll;
         EMBED_CALL(cli_git_length_text_internal.seconds, CliGitLengthTextCtx, .text = fields[4], .length = lengths[4],
                    .value = &one->when);
-        one->subject = (fields[5] != NULL) ? EMBED_CALL(cli_git_text.text_put, CliGitTextCfg,
+        one->subject = (fields[5] != NULL) ? EMBED_CALL(cli_git_text.text_append, CliGitTextCfg,
                                                         .text = &args->found_branches_pointer->text, .from = fields[5],
                                                         .length = lengths[5])
                                            : 0u;
     }
-    EMBED_CALL(cli_git_gave_internal.free, CliGitGaveCtx, .gave = gave);
+    EMBED_CALL(cli_git_result_internal.free, CliGitResultCtx, .result = result);
 }
 
 typedef struct
@@ -112,11 +112,11 @@ int cli_git_branch_act(const CliGitRootOutCfg *args)
         mmgr_line_put(&line, "refs/remotes/");
         mmgr_line_put(&line, args->name_read);
         mmgr_line_finish(&line);
-        const char *const shown[4] = {"show-ref", "--verify", "--quiet", remote_ref};
+        const char *const displayed[4] = {"show-ref", "--verify", "--quiet", remote_ref};
         char err_buf[CLI_PATH_MAX_LEN];
         VerbaLinea ignored = {err_buf, sizeof(err_buf), 0ull};
-        const int remote = EMBED_CALL(cli_run_quiet, GitBranchesCtx, .root = args->root, .request = shown, .count = 4u,
-                                      .err_msg = &ignored);
+        const int remote = EMBED_CALL(cli_run_quiet, GitBranchesCtx, .root = args->root, .request = displayed,
+                                      .count = 4u, .err_msg = &ignored);
         const char *const track[3] = {"switch", "--track", args->name_read};
         const char *const plain[2] = {"switch", args->name_read};
         return remote ? EMBED_CALL(cli_git_root_out_count_err_msg.run, CliGitRootOutCountErrMsgCfg, .root = args->root,
@@ -157,11 +157,11 @@ void cli_git_stashes(const CliGitRootFoundStashesCfg *args)
     static const char *const s_args[3] = {"stash", "list", "--format=%gd%x1f%ct%x1f%gs"};
     args->found_stashes_pointer->count = 0u;
     EMBED_CALL(cli_git_text.text_begin, CliGitTextCfg, .text = &args->found_stashes_pointer->text);
-    CliGitGave *const gave = cli_git_take();
-    const int queried = EMBED_CALL(cli_git_gave_internal.query, CliGitGaveCtx, .root = args->root, .request = s_args,
-                                   .count = 3u, .gave = gave);
-    const char *const end = gave->out + gave->out_size;
-    const char *line = queried ? gave->out : end;
+    CliGitResult *const result = cli_git_alloc();
+    const int queried = EMBED_CALL(cli_git_result_internal.query, CliGitResultCtx, .root = args->root,
+                                   .request = s_args, .count = 3u, .result = result);
+    const char *const end = result->out + result->out_size;
+    const char *line = queried ? result->out : end;
     while ((line < end) && (args->found_stashes_pointer->count < CLI_GIT_STASHES))
     {
         const char *stop = line;
@@ -185,17 +185,17 @@ void cli_git_stashes(const CliGitRootFoundStashesCfg *args)
         }
         CliStash *const one = &args->found_stashes_pointer->item[args->found_stashes_pointer->count];
         args->found_stashes_pointer->count += 1u;
-        one->name = EMBED_CALL(cli_git_text.text_put, CliGitTextCfg, .text = &args->found_stashes_pointer->text,
+        one->name = EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &args->found_stashes_pointer->text,
                                .from = name, .length = name_length);
         one->when = 0ll;
         EMBED_CALL(cli_git_length_text_internal.seconds, CliGitLengthTextCtx, .text = when, .length = when_length,
                    .value = &one->when);
-        one->subject = (subject != NULL) ? EMBED_CALL(cli_git_text.text_put, CliGitTextCfg,
+        one->subject = (subject != NULL) ? EMBED_CALL(cli_git_text.text_append, CliGitTextCfg,
                                                       .text = &args->found_stashes_pointer->text, .from = subject,
                                                       .length = (unsigned long long)(stop - subject))
                                          : 0u;
     }
-    EMBED_CALL(cli_git_gave_internal.free, CliGitGaveCtx, .gave = gave);
+    EMBED_CALL(cli_git_result_internal.free, CliGitResultCtx, .result = result);
 }
 
 int cli_git_stash_act(const CliGitRootOutMessageCfg *args)
@@ -310,16 +310,16 @@ int cli_git_ahead_behind(const CliGitRootAheadCfg *args)
     unsigned int *ahead = args->ahead;
     unsigned int *behind = args->behind;
     static const char *const s_args[4] = {"rev-list", "--left-right", "--count", "HEAD...@{u}"};
-    CliGitGave *const gave = cli_git_take();
-    int found = EMBED_CALL(cli_git_gave_internal.query, CliGitGaveCtx, .root = args->root, .request = s_args,
-                           .count = 4u, .gave = gave);
+    CliGitResult *const result = cli_git_alloc();
+    int found = EMBED_CALL(cli_git_result_internal.query, CliGitResultCtx, .root = args->root, .request = s_args,
+                           .count = 4u, .result = result);
     unsigned int counts[2] = {0u, 0u};
     unsigned int read = 0u;
-    const char *at = gave->out;
-    const char *const end = gave->out + gave->out_size;
+    const char *at = result->out;
+    const char *const end = result->out + result->out_size;
     while (found && (read < 2u) && (at < end))
     {
-        at += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ull,
+        at += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ull,
                          .size = (unsigned long long)(end - at), .set = CLI_TEXT_WHITE);
         const char *const word = at;
         at += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ull,
@@ -335,7 +335,7 @@ int cli_git_ahead_behind(const CliGitRootAheadCfg *args)
             read += 1u;
         }
     }
-    EMBED_CALL(cli_git_gave_internal.free, CliGitGaveCtx, .gave = gave);
+    EMBED_CALL(cli_git_result_internal.free, CliGitResultCtx, .result = result);
     found = found && (read == 2u);
     *ahead = counts[0];
     *behind = counts[1];

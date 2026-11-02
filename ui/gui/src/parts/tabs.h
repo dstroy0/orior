@@ -9,15 +9,15 @@ typedef struct GuiTabsGlyphsFrameCountCfg GuiTabsGlyphsFrameCountCfg;
 typedef struct GuiTabsGlyphsFrameCfg GuiTabsGlyphsFrameCfg;
 typedef struct GuiTabsGlyphsCfg GuiTabsGlyphsCfg;
 typedef struct GuiTabsCfg GuiTabsCfg;
+#include "../../../cli/src/controller/controller_parts.h"
 #include "../frame.h"
 #include "../glyphs.h"
 #include "../palette.h"
 #include "embed_dispatch_layout.h"
 
-// the most tabs the array holds; and the sizes in the page's pixels: a tab's text size, its padding at its left and its
-// right, the gap between its name and its close mark, its corner radius, the line along the shown tab's top and left,
-// and the close mark's padding each side
-#define GUI_TABS_MOST 32u
+// the sizes in the page's pixels: a tab's text size, its padding at its left and its right, the gap between its name
+// and its close mark, its corner radius, the line along the shown tab's top and left, and the close mark's padding each
+// side
 #define GUI_TAB_SIZE 12u
 #define GUI_TAB_PAD_LEFT 14
 #define GUI_TAB_PAD_RIGHT 6
@@ -25,25 +25,6 @@ typedef struct GuiTabsCfg GuiTabsCfg;
 #define GUI_TAB_RADIUS 6
 #define GUI_TAB_LINE 2
 #define GUI_TAB_CLOSE_PAD 5
-
-// A tab: the file's path from the tree's top, the key its branch is stored under, whether the editor's view is open
-// on it, whether its lines end in a carriage return and a newline, the ticket of its open in flight, 0 for none, the
-// names its grammar gives its tokens, `names_size` bytes of the array's JSON in a cell, NULL where none came, the
-// ticket of the ask that hands its view to the language server, 0 for none, whether that was asked, and whether the
-// server took the view
-typedef struct
-{
-    char path[CLI_PATH_MAX_LEN];
-    char key[CLI_PATH_MAX_LEN];
-    int viewed;
-    int crlf;
-    unsigned long long asked_open;
-    char *names;
-    unsigned long long names_size;
-    unsigned long long asked_serve;
-    int serve_asked;
-    int served;
-} GuiTab;
 
 // the name a tab shows, the last part of its path, into `name`, its length
 const char *gui_tab_name(const GuiTabsCfg *args);
@@ -57,7 +38,7 @@ int gui_tabs_hit(const GuiTabsGlyphsFrameCountCfg *args);
 void gui_tabs_draw(const GuiTabsGlyphsFrameCfg *args);
 struct GuiTabsGlyphsFrameCountCfg
 {
-    const GuiTab *tab;
+    const CliTabRow *tab;
     GuiGlyphs *glyphs;
     const GuiFrame *frame;
     unsigned int count;
@@ -69,7 +50,7 @@ struct GuiTabsGlyphsFrameCountCfg
 
 struct GuiTabsGlyphsFrameCfg
 {
-    const GuiTab *tab;
+    const CliTabRow *tab;
     GuiGlyphs *glyphs;
     const GuiFrame *frame;
     unsigned int count;
@@ -80,7 +61,7 @@ struct GuiTabsGlyphsFrameCfg
 
 struct GuiTabsGlyphsCfg
 {
-    const GuiTab *tab;
+    const CliTabRow *tab;
     GuiGlyphs *glyphs;
     const GuiFrame *frame;
     unsigned int count;
@@ -89,7 +70,7 @@ struct GuiTabsGlyphsCfg
 
 struct GuiTabsCfg
 {
-    const GuiTab *tab;
+    const CliTabRow *tab;
     unsigned long long *length;
 };
 

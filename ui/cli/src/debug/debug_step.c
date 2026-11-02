@@ -10,7 +10,7 @@ static const char s_spaces[] = " \t\n\r\f\v";
 
 int cli_debug_lldb_command(const CliDebugSessionErrMsgCtx *args)
 {
-    CliDebugAnswer *const answer = cli_debug_answer_take();
+    CliDebugAnswer *const answer = cli_debug_answer_alloc();
     char expression[CLI_PATH_MAX_LEN * 2u];
     VerbaLinea command = {expression, sizeof(expression), 0ull};
     mmgr_line_ch(&command, '`');
@@ -88,7 +88,7 @@ int cli_debug_lldb_script(const CliDebugSessionErrMsgCtx *args)
     char command[CLI_PATH_MAX_LEN + 64u];
     VerbaLinea line = {command, sizeof(command), 0ull};
     mmgr_line_put(&line, "command script import \"");
-    (void)EMBED_CALL(cli_text_from.put_swap, CliTextFromCfg, .out = &line, .text = script, .from = '\\', .to = '/');
+    (void)EMBED_CALL(cli_text_from.append_swap, CliTextFromCfg, .out = &line, .text = script, .from = '\\', .to = '/');
     mmgr_line_ch(&line, '"');
     mmgr_line_finish(&line);
     char out_buf[CLI_ERR_MSG_MAX_LEN];
@@ -116,7 +116,7 @@ EMBED_INLINE int step_out_to_python(const DebugStepCtx *args)
 {
     CliDebugSession *session = args->session;
     VerbaLinea *err_msg = args->err_msg;
-    CliDebugAnswer *const answer = cli_debug_answer_take();
+    CliDebugAnswer *const answer = cli_debug_answer_alloc();
     mmgr_line_put(&answer->args, "{\"threadId\":");
     mmgr_line_decimal_signed(&answer->args, args->thread);
     mmgr_line_put(&answer->args, ",\"startFrame\":0,\"levels\":200}");
@@ -276,7 +276,7 @@ int cli_debug_step_across(const CliDebugRootOutErrMsgCfg *args)
     VerbaLinea line = {command, sizeof(command), 0ull};
     char slashed[CLI_PATH_MAX_LEN];
     VerbaLinea slashed_line = {slashed, sizeof(slashed), 0ull};
-    (void)EMBED_CALL(cli_text_from.put_swap, CliTextFromCfg, .out = &slashed_line, .text = args->root, .from = '\\',
+    (void)EMBED_CALL(cli_text_from.append_swap, CliTextFromCfg, .out = &slashed_line, .text = args->root, .from = '\\',
                      .to = '/');
     mmgr_line_put(&line, "script print(orior_lldb.across(lldb.debugger.GetSelectedTarget(), ");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &line,
@@ -307,15 +307,15 @@ int cli_debug_step_across(const CliDebugRootOutErrMsgCfg *args)
     {
         end -= 1ull;
     }
-    unsigned long long placed = 0ull;
+    unsigned long long positioned = 0ull;
     int number = (end > start) && (end - start <= 19ull);
     for (unsigned long long at = start; number && (at < end); at += 1ull)
     {
         number = (count.out[at] >= '0') && (count.out[at] <= '9');
-        placed = (placed * 10ull) + (unsigned long long)(count.out[at] - '0');
+        positioned = (positioned * 10ull) + (unsigned long long)(count.out[at] - '0');
     }
-    placed = number ? placed : 0ull;
-    if (placed > 0ull)
+    positioned = number ? positioned : 0ull;
+    if (positioned > 0ull)
     {
         python->has_across = 1;
         python->across = native->info.id;

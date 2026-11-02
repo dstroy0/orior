@@ -36,15 +36,14 @@ typedef struct CliViewFullCfg CliViewFullCfg;
 #define CLI_VIEW_SCROLL 3u
 #define CLI_VIEW_SIZE 4u
 #define CLI_VIEW_COMPLETE 5u
-#define CLI_VIEW_PLACE 6u
+#define CLI_VIEW_POSITION 6u
 #define CLI_VIEW_POINTER_DOWN 0u
 #define CLI_VIEW_POINTER_MOVED 1u
 #define CLI_VIEW_POINTER_UP 2u
 #define CLI_VIEW_TAB 4u
 #define CLI_VIEW_JOINED 1200ull
-// the lines either side of the cursor the file's own words are taken from for a completion, and the most taken
+// the lines either side of the cursor the file's own words are taken from for a completion
 #define CLI_VIEW_WORD_LINES 3000ull
-#define CLI_VIEW_WORDS 4000u
 
 // One input: its kind; a key's name; `length` bytes of text typed; the pointer's event, its row from the view's top and
 // its column in cells, how many presses in a row it is and whether Shift is down; a scroll's top line; a size's rows
@@ -66,6 +65,89 @@ typedef struct
     int gutter;
 } CliViewInput;
 
+// A row of a frame: its line's number in the file, and where its UTF-8 starts among the frame's bytes and its length,
+// cut at the view's columns
+typedef struct
+{
+    unsigned long long number;
+    unsigned long long text;
+    unsigned long long length;
+} CliViewFrameRow;
+
+// A fold that opens on a row: that line, the last it hides, whether it shows the line it closes on and whether the view
+// holds it closed, and that line's text, its blanks left off, where it starts among the frame's closers and its length
+typedef struct
+{
+    unsigned long long first;
+    unsigned long long last;
+    int displayed;
+    int closed;
+    unsigned long long closer;
+    unsigned long long closer_length;
+} CliViewFrameFold;
+
+// Find as a frame shows it: whether its bar is open and the keys are its own; its query, `query_length` bytes, and
+// where its cursor stands in it, in units; whether it seeks a pattern, with case and whole words; how many matches
+// there are and the current one, -1 for none
+typedef struct
+{
+    int open;
+    int focus;
+    unsigned long long query_length;
+    unsigned long long at;
+    int regex;
+    int match_case;
+    int word;
+    unsigned long long count;
+    long long current;
+    char *query;
+} CliViewFind;
+
+// A view's frame: every count and pointer the window draws from, in cells of the views' owner, immutable once read. The
+// rows are the lines shown from `from`, the lines a closed fold hides left out, each row's runs at `runs->line[row]`;
+// the closers stand among `bytes` from `closers`; each match is a line, a from and a to column; `indent_tabs` is 1 for
+// tabs, 0 for spaces and -1 where nothing set it
+typedef struct
+{
+    unsigned long long seq;
+    unsigned long long top;
+    unsigned long long lines;
+    unsigned long long from;
+    unsigned long long closers;
+    unsigned long long matches;
+    unsigned int count;
+    unsigned int folds;
+    CliPosition cursor;
+    CliPosition anchor;
+    int has_pair;
+    CliPosition pair[2];
+    CliViewFind find;
+    int indent_tabs;
+    unsigned int indent_size;
+    CliViewFrameRow *row;
+    CliViewFrameFold *fold;
+    unsigned long long (*match)[3];
+    char *bytes;
+    CliDocumentRuns *runs;
+} CliViewFrame;
+
+// the frame of the view under `key` in cells taken for it, sized to its rows and columns: the frame, or NULL where no
+// view is open under the key or the cells cannot meet it; and a frame's cells released
+CliViewFrame *cli_view_frame_alloc(const char *key);
+void cli_view_frame_release(CliViewFrame *frame);
+
+// the lines from `first` to `last` of the view under `key` laid as bars in a cell of the views' owner, as
+// cli_document_map_alloc lays them, a text that indents by tabs a tab's step of cells a unit of the gap that opens a
+// line: the cell, or NULL where no view is open under the key or the cells cannot meet it; and that cell released
+CliDocumentMap *cli_view_map_alloc(const char *key, unsigned long long first, unsigned long long last);
+void cli_view_map_release(CliDocumentMap *map);
+
+// the names the walk has found within CLI_VIEW_WORD_LINES of the cursor of the view under `key` in a cell of the views'
+// owner, as cli_document_words_alloc reads them: the cell, or NULL where no view is open under the key or the cells
+// cannot meet it; and that cell released
+CliDocumentWords *cli_view_words_alloc(const char *key);
+void cli_view_words_release(CliDocumentWords *words);
+
 // a view opened on the text stored under `key`, its indentation the `.editorconfig` files above the file at `path`
 // give it, in place of a view open on the key: 1, or 0 where no text is stored under the key or the views table is
 // full; and the view closed, its steps freed
@@ -74,20 +156,8 @@ void cli_view_close(const CliViewCfg *args);
 // `input` taken by the view under `key`: 1, or 0 with why given where no view is open under the key or an edit could
 // not be made
 int cli_view_input(const CliViewInputCfg *args);
-// the frame of the view under `key` written into `out` as `{"key", "seq", "top", "lines", "from", "rows", "numbers",
-// "folds", "cursor", "anchor", "pair", "find", "matches", "colors"}`: the rows the lines shown from `from`, the lines
-// a closed fold hides left out, each a string, with the line of each in `numbers`; the folds that open on the rows'
-// lines, each `[first, last, shown, closed, closer]` as the text folds them, `closed` 1 where the view holds it closed
-// and `closer` the text of the line it closes on where it shows that line; the cursor and the anchor each `{"line",
-// "col"}` with the col in UTF-16 units; the pair the bracket pair at the cursor as two such places, the bracket that
-// ends at the cursor, else the one that starts at it, first, or null where no bracket of a pair stands there; find
-// where its bar is open, `{"open", "focus", "query", "at", "regex", "case", "word", "count", "current"}`, `focus` 1
-// where the keys are its own, `at` its cursor in the query's units, `count` the matches in the whole text and
-// `current` the one the last step selected, or null, else null; the matches among the rows, each `[line, from, to]`;
-// and the colors the rows' runs as the walk saves them; before find, the indentation, `{"tabs", "size"}`, tabs 1, 0
-// for spaces or null where nothing set it, and the step; every frame counted in `seq`: 1, or 0 where no view is open
-// under the key
-int cli_view_frame_write(const CliViewOutCfg *args);
+// the line at the top of the view under `key`, 0 where no view is open under it
+unsigned long long cli_view_top(const char *key);
 // the cursor and the anchor of the view under `key`, each where it is given: 1, or 0 where no view is open under it
 int cli_view_cursor(const CliViewCursorCfg *args);
 // the file's path of the view under `key` into `path`, sized for CLI_PATH_MAX_LEN: 1, or 0 where no view is open
@@ -100,27 +170,22 @@ int cli_view_path(const CliViewPathKindCfg *args);
 int cli_view_served_set(const CliViewFullCfg *args);
 int cli_view_serve(const CliViewFullKindCfg *args);
 int cli_view_serving(const CliViewFullCfg *args);
-int cli_view_changed_take(const CliViewCfg *args);
+int cli_view_changed_alloc(const CliViewCfg *args);
 // the place of the cell `column` of the row `row` from the top of the view under `key`: its line into `line`, the
 // lines a closed fold hides stepped over, and its column in units into `col`, the line's end where the cell is past
 // it: 1, or 0 where no view is open under the key
-int cli_view_place_at(const CliViewRowCfg *args);
+int cli_view_position_at(const CliViewRowCfg *args);
 // the word at `line`, `col` of the view under `key`, in units, the word the place touches, inside it or at either end:
-// its first unit into `from`, the unit after it into `to` and its UTF-8 into `word`, sized for `room`: 1, or 0 where
-// no word stands there or no view is open under the key; and the word before the cursor, the prefix a completion
+// its first unit into `from`, the unit after it into `to` and its UTF-8 into `word`, sized for `capacity`: 1, or 0
+// where no word stands there or no view is open under the key; and the word before the cursor, the prefix a completion
 // answers, its first unit into `from`, its text into `prefix`: 1 with an empty prefix where no word stands before the
 // cursor, or 0 where no view is open under the key
 int cli_view_word_at(const CliViewLineCfg *args);
 int cli_view_prefix(const CliViewFromCfg *args);
-// the words of the view under `key`'s text within CLI_VIEW_WORD_LINES of the cursor, each of two letters or more once,
-// the word the cursor stands in left out, at most CLI_VIEW_WORDS of them, written into `out` as a JSON array of
-// completion items `{"label", "kind": "word", "insert"}`: 1, or 0 where no view is open under the key
-int cli_view_words_write(const CliViewOutCfg *args);
 // the minimap's lines from `first` to `last` of the view under `key` written into `out` as `{"from", "bars"}`: for
 // each line the bars its words make, each `[start, width, name]` in cells, a tab as many cells as the indentation's
 // step leaves to its stop, every run of letters that are not blanks one bar in the name of the run it stands in, as
 // the text's runs give them; a line the text does not hold is empty: 1, or 0 where no view is open under the key
-int cli_view_map_write(const CliViewOutCfg *args);
 struct CliViewLineCfg
 {
     const char *key;
@@ -129,7 +194,7 @@ struct CliViewLineCfg
     unsigned long long *from;
     unsigned long long *to;
     char *word;
-    unsigned long long room;
+    unsigned long long capacity;
 };
 
 struct CliViewRowCfg
@@ -153,15 +218,15 @@ struct CliViewFromCfg
 {
     const char *key;
     unsigned long long *from;
-    unsigned long long room;
+    unsigned long long capacity;
     char *prefix;
 };
 
 struct CliViewCursorCfg
 {
     const char *key;
-    CliPlace *cursor;
-    CliPlace *anchor;
+    CliPosition *cursor;
+    CliPosition *anchor;
 };
 
 struct CliViewInputCfg
@@ -199,13 +264,13 @@ typedef struct
 {
     int (*open)(const CliViewCfg *args);
     void (*close)(const CliViewCfg *args);
-    int (*changed_take)(const CliViewCfg *args);
+    int (*changed_alloc)(const CliViewCfg *args);
 } CliViewNs;
-EMBED_TABLE_LAYOUT(CliViewNs, open, close, changed_take);
+EMBED_TABLE_LAYOUT(CliViewNs, open, close, changed_alloc);
 EMBED_TABLE_STORAGE CliViewNs cli_view_table EMBED_UNUSED = {
     .open = cli_view_open,
     .close = cli_view_close,
-    .changed_take = cli_view_changed_take,
+    .changed_alloc = cli_view_changed_alloc,
 };
 
 typedef struct
@@ -215,19 +280,6 @@ typedef struct
 EMBED_TABLE_LAYOUT(CliViewInputNs, input);
 EMBED_TABLE_STORAGE CliViewInputNs cli_view_input_table EMBED_UNUSED = {
     .input = cli_view_input,
-};
-
-typedef struct
-{
-    int (*frame_write)(const CliViewOutCfg *args);
-    int (*words_write)(const CliViewOutCfg *args);
-    int (*map_write)(const CliViewOutCfg *args);
-} CliViewOutNs;
-EMBED_TABLE_LAYOUT(CliViewOutNs, frame_write, words_write, map_write);
-EMBED_TABLE_STORAGE CliViewOutNs cli_view_out EMBED_UNUSED = {
-    .frame_write = cli_view_frame_write,
-    .words_write = cli_view_words_write,
-    .map_write = cli_view_map_write,
 };
 
 typedef struct
@@ -270,11 +322,11 @@ EMBED_TABLE_STORAGE CliViewFullKindNs cli_view_full_kind EMBED_UNUSED = {
 
 typedef struct
 {
-    int (*place_at)(const CliViewRowCfg *args);
+    int (*position_at)(const CliViewRowCfg *args);
 } CliViewRowNs;
-EMBED_TABLE_LAYOUT(CliViewRowNs, place_at);
+EMBED_TABLE_LAYOUT(CliViewRowNs, position_at);
 EMBED_TABLE_STORAGE CliViewRowNs cli_view_row EMBED_UNUSED = {
-    .place_at = cli_view_place_at,
+    .position_at = cli_view_position_at,
 };
 
 typedef struct

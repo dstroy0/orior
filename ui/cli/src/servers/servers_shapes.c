@@ -8,31 +8,31 @@
 #include "../text/text.h"
 #include "servers_internal.h"
 
-void cli_servers_reading_lock(const CliServersReadingAnswerCtx *args)
+void cli_servers_read_state_lock(const CliServersReadStateAnswerCtx *args)
 {
-    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &args->reading->json,
-               .node_json_node_pointer = NULL, .nodes_most = 0u, .text_out = NULL, .text_most = 0ull);
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &args->read_state->json,
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
 }
 
-void cli_servers_reading_release(const CliServersReadingAnswerCtx *args)
+void cli_servers_read_state_release(const CliServersReadStateAnswerCtx *args)
 {
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &args->reading->json);
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &args->read_state->json);
 }
 
-unsigned int cli_servers_read(const CliServersReadingCtx *args)
+unsigned int cli_servers_read(const CliServersReadStateCtx *args)
 {
-    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &args->reading->json);
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &args->read_state->json);
     char quiet[256];
     VerbaLinea err_msg = {quiet, sizeof(quiet), 0ull};
-    return EMBED_CALL(cli_json_tree_text_size_err_msg.json_take_temporary, CliJsonTreeTextSizeErrMsgCfg,
-                      .json = &args->reading->json, .text = args->text, .size = args->size, .nodes_more = 0u,
+    return EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc_temporary, CliJsonTreeTextSizeErrMsgCfg,
+                      .json = &args->read_state->json, .text = args->text, .size = args->size, .nodes_more = 0u,
                       .text_more = 0ull, .err_msg = &err_msg, .owner = &g_cli_servers_cells);
 }
 
-unsigned int cli_servers_answer_read(const CliServersReadingAnswerCtx *args)
+unsigned int cli_servers_answer_read(const CliServersReadStateAnswerCtx *args)
 {
     const unsigned int root =
-        EMBED_CALL(cli_servers_reading_internal.read, CliServersReadingCtx, .reading = args->reading,
+        EMBED_CALL(cli_servers_read_state_internal.read, CliServersReadStateCtx, .read_state = args->read_state,
                    .text = args->answer->text, .size = args->answer->size);
     g_cli_cells->persistent_buf_release(args->answer->message, &g_cli_servers_cells);
     args->answer->message = NULL;
@@ -53,11 +53,11 @@ int cli_servers_request(const CliServersErrMsgCtx *args)
         return 0;
     }
     // a server given the tree's slices is waited on until it answers
-    EMBED_CALL(cli_servers_internal.ask_begin, CliServersCtx, .server_read = args->server);
+    EMBED_CALL(cli_servers_internal.request_begin, CliServersCtx, .server_read = args->server);
     const int requested =
         EMBED_CALL(cli_lsp_err_msg_length.request, CliLspErrMsgLengthCfg, .lsp = args->server, .method = method,
                    .params = params->out, .length = params->at, .wait = wait, .answer = answer, .err_msg = err_msg);
-    EMBED_CALL(cli_servers_internal.ask_end, CliServersCtx, .server_read = args->server);
+    EMBED_CALL(cli_servers_internal.request_end, CliServersCtx, .server_read = args->server);
     return requested;
 }
 
@@ -76,7 +76,7 @@ int cli_servers_request_at(const CliServersPathCtx *args)
                       .err_msg = args->err_msg);
 }
 
-unsigned long long cli_servers_whole(const CliServersJsonNodeOtherwiseCtx *args)
+unsigned long long cli_servers_json_integer(const CliServersJsonNodeOtherwiseCtx *args)
 {
     if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json,
                     .node = args->node, .kind = CFG_JSON_NUMBER) ||
@@ -97,16 +97,16 @@ unsigned long long cli_servers_whole(const CliServersJsonNodeOtherwiseCtx *args)
     return value;
 }
 
-CliTextPlace cli_servers_place(const CliServersJsonNodeOtherwiseCtx *args)
+CliTextPosition cli_servers_position(const CliServersJsonNodeOtherwiseCtx *args)
 {
     // a place past 2^32 units is cut to its low word, as the protocol's unsigned integer is read
-    const CliTextPlace place = {
-        (unsigned int)EMBED_CALL(cli_servers_json_node_otherwise_internal.whole, CliServersJsonNodeOtherwiseCtx,
+    const CliTextPosition place = {
+        (unsigned int)EMBED_CALL(cli_servers_json_node_otherwise_internal.integer, CliServersJsonNodeOtherwiseCtx,
                                  .json = args->json,
                                  .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                     .json_read = args->json, .object = args->node, .name = "line"),
                                  .otherwise = 0ull),
-        (unsigned int)EMBED_CALL(cli_servers_json_node_otherwise_internal.whole, CliServersJsonNodeOtherwiseCtx,
+        (unsigned int)EMBED_CALL(cli_servers_json_node_otherwise_internal.integer, CliServersJsonNodeOtherwiseCtx,
                                  .json = args->json,
                                  .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                     .json_read = args->json, .object = args->node, .name = "character"),
@@ -117,11 +117,11 @@ CliTextPlace cli_servers_place(const CliServersJsonNodeOtherwiseCtx *args)
 void cli_servers_path_write(const CliServersPathErrMsgCtx *args)
 {
     char written[CLI_PATH_MAX_LEN];
-    VerbaLinea shown = {written, sizeof(written), 0ull};
+    VerbaLinea displayed = {written, sizeof(written), 0ull};
     EMBED_CALL(cli_servers_path_err_msg_internal.tree_path, CliServersPathErrMsgCtx, .tree = args->tree,
-               .path = args->path, .out = &shown);
+               .path = args->path, .out = &displayed);
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->out,
-               .text_bytes = (const unsigned char *)written, .length = mmgr_line_ok(&shown) ? shown.at : 0ull);
+               .text_bytes = (const unsigned char *)written, .length = mmgr_line_ok(&displayed) ? displayed.at : 0ull);
 }
 
 void cli_servers_markdown_get(const CliServersJsonOutCtx *args)
@@ -263,16 +263,16 @@ void cli_servers_item_get(const CliServersJsonOneCtx *args)
     unsigned long long inner_to = 0ull;
     EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = label + from, .size = to - from,
                .from_u64s = &inner_from, .to_u64s = &inner_to);
-    const char *const shown = label + from + inner_from;
-    const unsigned long long shown_size = inner_to - inner_from;
+    const char *const displayed = label + from + inner_from;
+    const unsigned long long displayed_size = inner_to - inner_from;
     unsigned long long name_size = 0ull;
     const char *name = EMBED_CALL(shapes_member, ServersShapesCtx, .json = args->json, .one = args->one,
                                   .name = "filterText", .size = &name_size);
     if (name == NULL)
     {
-        name = shown;
-        name_size = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = shown, .at = name_size,
-                               .size = shown_size, .set = "( ");
+        name = displayed;
+        name_size = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = displayed,
+                               .at = name_size, .size = displayed_size, .set = "( ");
     }
     unsigned long long insert_size = 0ull;
     const char *insert = EMBED_CALL(
@@ -300,7 +300,7 @@ void cli_servers_item_get(const CliServersJsonOneCtx *args)
         mmgr_line_put_n(&detail, detail_src, detail_src_size);
         mmgr_line_ch(&detail, ' ');
     }
-    mmgr_line_put_n(&detail, shown, shown_size);
+    mmgr_line_put_n(&detail, displayed, displayed_size);
     const unsigned long long detail_size = mmgr_line_ok(&detail) ? detail.at : 0ull;
     unsigned long long detail_from = 0ull;
     unsigned long long detail_to = 0ull;
@@ -308,56 +308,29 @@ void cli_servers_item_get(const CliServersJsonOneCtx *args)
                .from_u64s = &detail_from, .to_u64s = &detail_to);
     const char *const kind =
         EMBED_CALL(shapes_kind_get, ServersShapesCtx,
-                   .kind = EMBED_CALL(cli_servers_json_node_otherwise_internal.whole, CliServersJsonNodeOtherwiseCtx,
+                   .kind = EMBED_CALL(cli_servers_json_node_otherwise_internal.integer, CliServersJsonNodeOtherwiseCtx,
                                       .json = args->json,
                                       .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                          .json_read = args->json, .object = args->one, .name = "kind"),
                                       .otherwise = 1ull));
-    (void)EMBED_CALL(cli_edits_items.completion_put, CliEditsItemsCfg, .items = args->items, .label = name,
+    (void)EMBED_CALL(cli_edits_items.completion_append, CliEditsItemsCfg, .items = args->items, .label = name,
                      .label_size = name_size, .kind = kind, .detail = s_detail + detail_from,
                      .detail_size = detail_to - detail_from, .insert = insert, .insert_size = insert_size,
                      .snippet = 0);
-}
-
-// a string member of `one` written as a JSON string, empty where it has none
-EMBED_INLINE void shapes_string_write(const ServersShapesCtx *args)
-{
-    VerbaLinea *out = args->out;
-    unsigned long long size = 0ull;
-    const char *const text = EMBED_CALL(shapes_member, ServersShapesCtx, .json = args->json, .one = args->one,
-                                        .name = args->name, .size = &size);
-    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out,
-               .text = (text != NULL) ? text : "", .length = size);
 }
 
 void cli_servers_diagnostic_get(const CliServersJsonCtx *args)
 {
     const unsigned int range = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                           .json_read = args->json, .object = args->one, .name = "range");
-    mmgr_line_put(args->out, "{\"from\":");
-    EMBED_CALL(cli_edits_place.text_place_write, CliEditsPlaceCfg,
-               .place = EMBED_CALL(cli_servers_json_node_otherwise_internal.place, CliServersJsonNodeOtherwiseCtx,
-                                   .json = args->json,
-                                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                                      .json_read = args->json, .object = range, .name = "start")),
-               .out = args->out);
-    mmgr_line_put(args->out, ",\"to\":");
-    EMBED_CALL(cli_edits_place.text_place_write, CliEditsPlaceCfg,
-               .place = EMBED_CALL(cli_servers_json_node_otherwise_internal.place, CliServersJsonNodeOtherwiseCtx,
-                                   .json = args->json,
-                                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                                      .json_read = args->json, .object = range, .name = "end")),
-               .out = args->out);
-    mmgr_line_put(args->out, ",\"severity\":");
-    // the severity is cut to its low byte, as the protocol's 1 to 4 always fits
-    mmgr_line_decimal(args->out,
-                      EMBED_CALL(cli_servers_json_node_otherwise_internal.whole, CliServersJsonNodeOtherwiseCtx,
-                                 .json = args->json,
-                                 .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                                    .json_read = args->json, .object = args->one, .name = "severity"),
-                                 .otherwise = 1ull) &
-                          0xffull,
-                      1u);
+    const CliTextPosition from =
+        EMBED_CALL(cli_servers_json_node_otherwise_internal.place, CliServersJsonNodeOtherwiseCtx, .json = args->json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
+                                      .object = range, .name = "start"));
+    const CliTextPosition to =
+        EMBED_CALL(cli_servers_json_node_otherwise_internal.place, CliServersJsonNodeOtherwiseCtx, .json = args->json,
+                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
+                                      .object = range, .name = "end"));
     const unsigned int message = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                             .json_read = args->json, .object = args->one, .name = "message");
     unsigned long long size = 0ull;
@@ -366,78 +339,14 @@ void cli_servers_diagnostic_get(const CliServersJsonCtx *args)
     text = (text != NULL) ? text
                           : EMBED_CALL(shapes_member, ServersShapesCtx, .json = args->json, .one = message,
                                        .name = "value", .size = &size);
-    mmgr_line_put(args->out, ",\"message\":");
-    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
-               .text = (text != NULL) ? text : "", .length = size);
-    unsigned long long kind_size = 0ull;
-    const char *const kind = EMBED_CALL(shapes_member, ServersShapesCtx, .json = args->json, .one = message,
-                                        .name = "kind", .size = &kind_size);
-    const int markdown = (kind != NULL) && (kind_size == 8ull) &&
-                         (memor.cmp(&(MemoriaCfg){.src = kind, .other = "markdown", .bytes = 8u}) == 0);
-    mmgr_line_put(args->out, markdown ? ",\"markdown\":true,\"source\":" : ",\"markdown\":false,\"source\":");
-    EMBED_CALL(shapes_string_write, ServersShapesCtx, .json = args->json, .one = args->one, .name = "source",
-               .out = args->out);
-    mmgr_line_put(args->out, ",\"code\":");
-    const unsigned int code = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                         .json_read = args->json, .object = args->one, .name = "code");
-    if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json, .node = code,
-                   .kind = CFG_JSON_NUMBER))
-    {
-        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
-                   .text = args->json->text + args->json->node[code].text, .length = args->json->node[code].length);
-    }
-    else
-    {
-        EMBED_CALL(shapes_string_write, ServersShapesCtx, .json = args->json, .one = args->one, .name = "code",
-                   .out = args->out);
-    }
-    unsigned long long href_size = 0ull;
-    const char *const href =
-        EMBED_CALL(shapes_member, ServersShapesCtx, .json = args->json,
-                   .one = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
-                                     .object = args->one, .name = "codeDescription"),
-                   .name = "href", .size = &href_size);
-    const int secure = (href != NULL) && EMBED_CALL(cli_text_size_prefix.starts, CliTextSizePrefixCfg, .text = href,
-                                                    .size = href_size, .prefix = "https://");
-    mmgr_line_put(args->out, ",\"href\":");
-    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
-               .text = secure ? href : "", .length = secure ? href_size : 0ull);
-    mmgr_line_ch(args->out, '}');
-}
-
-int cli_servers_found_get(const CliServersJsonTreeCtx *args)
-{
-    unsigned long long length = 0ull;
-    const char *uri = EMBED_CALL(shapes_member, ServersShapesCtx, .json = args->json, .one = args->location,
-                                 .name = "uri", .size = &length);
-    uri = (uri != NULL) ? uri
-                        : EMBED_CALL(shapes_member, ServersShapesCtx, .json = args->json, .one = args->location,
-                                     .name = "targetUri", .size = &length);
-    char path[CLI_PATH_MAX_LEN];
-    if ((uri == NULL) ||
-        !EMBED_CALL(cli_lsp_length_uri.path_get, CliLspLengthUriCfg, .uri = uri, .length = length, .path_out = path))
-    {
-        return 0;
-    }
-    const unsigned int range = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                          .json_read = args->json, .object = args->location, .name = "range");
-    const unsigned int span =
-        EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json, .node = range,
-                   .kind = CFG_JSON_OBJECT)
-            ? range
-            : EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
-                         .object = args->location, .name = "targetSelectionRange");
-    const CliTextPlace at =
-        EMBED_CALL(cli_servers_json_node_otherwise_internal.place, CliServersJsonNodeOtherwiseCtx, .json = args->json,
-                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
-                                      .object = span, .name = "start"));
-    mmgr_line_put(args->out, "{\"path\":");
-    EMBED_CALL(cli_servers_path_err_msg_internal.path_write, CliServersPathErrMsgCtx, .tree = args->tree, .path = path,
-               .out = args->out);
-    mmgr_line_put(args->out, ",\"line\":");
-    mmgr_line_decimal(args->out, at.line, 1u);
-    mmgr_line_put(args->out, ",\"col\":");
-    mmgr_line_decimal(args->out, at.col, 1u);
-    mmgr_line_ch(args->out, '}');
-    return 1;
+    // the severity is cut to its low byte, as the protocol's 1 to 4 always fits
+    const unsigned int severity =
+        (unsigned int)(EMBED_CALL(cli_servers_json_node_otherwise_internal.integer, CliServersJsonNodeOtherwiseCtx,
+                                  .json = args->json,
+                                  .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                     .json_read = args->json, .object = args->one, .name = "severity"),
+                                  .otherwise = 1ull) &
+                       0xffull);
+    *args->diagnostic =
+        (CliServerDiagnostic){from.line, from.col, to.line, to.col, severity, (text != NULL) ? text : "", size};
 }

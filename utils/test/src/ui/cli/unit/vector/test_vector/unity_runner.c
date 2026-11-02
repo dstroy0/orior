@@ -15,8 +15,8 @@ extern void test_a_search_without_case_folds_ascii(void);
 extern void test_a_search_with_case_does_not_fold(void);
 extern void test_every_path_compares_runs_as_the_plain_loop_does(void);
 extern void test_every_path_counts_a_common_start_as_the_plain_loop_does(void);
-extern void test_the_plain_path_is_listed_first(void);
-extern void test_the_machines_vector_path_is_listed(void);
+extern void test_the_plain_path_is_listing_first(void);
+extern void test_the_machines_vector_path_is_listing(void);
 extern void test_the_machine_runs_its_widest_path(void);
 
 
@@ -87,8 +87,8 @@ int main(void)
   run_test(test_a_search_with_case_does_not_fold, "test_a_search_with_case_does_not_fold", 123);
   run_test(test_every_path_compares_runs_as_the_plain_loop_does, "test_every_path_compares_runs_as_the_plain_loop_does", 131);
   run_test(test_every_path_counts_a_common_start_as_the_plain_loop_does, "test_every_path_counts_a_common_start_as_the_plain_loop_does", 152);
-  run_test(test_the_plain_path_is_listed_first, "test_the_plain_path_is_listed_first", 179);
-  run_test(test_the_machines_vector_path_is_listed, "test_the_machines_vector_path_is_listed", 185);
+  run_test(test_the_plain_path_is_listing_first, "test_the_plain_path_is_listing_first", 179);
+  run_test(test_the_machines_vector_path_is_listing, "test_the_machines_vector_path_is_listing", 185);
   run_test(test_the_machine_runs_its_widest_path, "test_the_machine_runs_its_widest_path", 202);
 
   return UNITY_END();

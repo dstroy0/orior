@@ -9,7 +9,7 @@
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
 extern void tearDown(void);
-extern void test_a_run_is_spread_by_whole_files_the_largest_first(void);
+extern void test_a_run_is_spread_by_complete_files_the_largest_first(void);
 extern void test_a_run_has_no_more_shares_than_files(void);
 extern void test_a_run_has_one_share_where_one_is_requested(void);
 extern void test_pytests_verbose_line_is_read(void);
@@ -27,7 +27,7 @@ extern void test_two_files_use_two_processes(void);
 extern void test_a_runs_end_has_its_counts(void);
 extern void test_a_real_failure_has_its_message_and_line(void);
 extern void test_a_real_skipped_test_is_reported_skipped(void);
-extern void test_coverage_reports_a_files_lines_ran_and_missed(void);
+extern void test_coverage_reports_a_files_lines_run_result_and_missed(void);
 
 
 /*=======Mock Management=====*/
@@ -89,7 +89,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\test_runs\\test_test_runs\\test_test_runs.c");
-  run_test(test_a_run_is_spread_by_whole_files_the_largest_first, "test_a_run_is_spread_by_whole_files_the_largest_first", 195);
+  run_test(test_a_run_is_spread_by_complete_files_the_largest_first, "test_a_run_is_spread_by_complete_files_the_largest_first", 195);
   run_test(test_a_run_has_no_more_shares_than_files, "test_a_run_has_no_more_shares_than_files", 215);
   run_test(test_a_run_has_one_share_where_one_is_requested, "test_a_run_has_one_share_where_one_is_requested", 226);
   run_test(test_pytests_verbose_line_is_read, "test_pytests_verbose_line_is_read", 237);
@@ -107,7 +107,7 @@ int main(void)
   run_test(test_a_runs_end_has_its_counts, "test_a_runs_end_has_its_counts", 340);
   run_test(test_a_real_failure_has_its_message_and_line, "test_a_real_failure_has_its_message_and_line", 350);
   run_test(test_a_real_skipped_test_is_reported_skipped, "test_a_real_skipped_test_is_reported_skipped", 372);
-  run_test(test_coverage_reports_a_files_lines_ran_and_missed, "test_coverage_reports_a_files_lines_ran_and_missed", 380);
+  run_test(test_coverage_reports_a_files_lines_run_result_and_missed, "test_coverage_reports_a_files_lines_run_result_and_missed", 380);
 
   return UNITY_END();
 }

@@ -14,12 +14,12 @@ void cli_files_cells_usage_write(const CliFilesRootOutDirCfg *args)
     EMBED_CALL(cli_cells_table.owner_usage_write, CliCellsCfg, .owner = &g_cli_files_views_cells, .out = args->out);
 }
 
-void *cli_files_cell_take(const CliFilesBytesCtx *args)
+void *cli_files_cell_alloc(const CliFilesBytesCtx *args)
 {
     return g_cli_cells->persistent_buf_alloc(args->bytes, &g_cli_files_views_cells);
 }
 
-void *cli_files_work_take(const CliFilesBytesCtx *args)
+void *cli_files_work_alloc(const CliFilesBytesCtx *args)
 {
     return g_cli_cells->temporary_buf_alloc(args->bytes, &g_cli_files_views_cells);
 }
@@ -34,10 +34,10 @@ const char *cli_files_at(const CliFilesCfg *args)
     return args->files->text + args->files->start[args->index];
 }
 
-int cli_files_put(const CliFilesPathLengthCtx *args)
+int cli_files_append(const CliFilesPathLengthCtx *args)
 {
     if ((args->files->count >= args->files->most) ||
-        ((args->files->used + args->length + 1ull) > args->files->text_most))
+        ((args->files->used + args->length + 1ull) > args->files->text_max))
     {
         return 0;
     }
@@ -74,14 +74,14 @@ int cli_files_contains(const CliFilesPathKindCfg *args)
 typedef struct
 {
     CliFiles *files;
-    unsigned int *spare;
+    unsigned int *reserve;
 } FilesCellsCtx;
 // the places of `files` sorted by their paths' bytes, runs of one, two, four and on merged in turn between the places
-// and `spare`, sized for as many
+// and `reserve`, sized for as many
 EMBED_INLINE void files_merge(const FilesCellsCtx *args)
 {
     unsigned int *from = args->files->start;
-    unsigned int *to = args->spare;
+    unsigned int *to = args->reserve;
     for (unsigned int width = 1u; width < args->files->count; width *= 2u)
     {
         for (unsigned int left = 0u; left < args->files->count; left += 2u * width)
@@ -120,14 +120,14 @@ int cli_files_sort(const CliFilesBytesCtx *args)
     {
         return 1;
     }
-    unsigned int *const spare = EMBED_CALL(cli_files_bytes_internal.work_take, CliFilesBytesCtx,
-                                           .bytes = (unsigned long long)args->files->count * sizeof(unsigned int));
-    if (spare == NULL)
+    unsigned int *const reserve = EMBED_CALL(cli_files_bytes_internal.work_alloc, CliFilesBytesCtx,
+                                             .bytes = (unsigned long long)args->files->count * sizeof(unsigned int));
+    if (reserve == NULL)
     {
         return 0;
     }
-    EMBED_CALL(files_merge, FilesCellsCtx, .files = args->files, .spare = spare);
-    EMBED_CALL(cli_files_internal.cell_free, CliFilesCtx, .cell = spare);
+    EMBED_CALL(files_merge, FilesCellsCtx, .files = args->files, .reserve = reserve);
+    EMBED_CALL(cli_files_internal.cell_free, CliFilesCtx, .cell = reserve);
     // each path listed once
     unsigned int sorted_count = 0u;
     for (unsigned int at = 0u; at < args->files->count; at += 1u)
@@ -162,11 +162,11 @@ int cli_files_init(const CliFilesBytesCtx *args)
         return 1;
     }
     // each bounded by its limit, which an unsigned int counts
-    files->most = (unsigned int)((args->count < CLI_FILES_MOST) ? args->count : CLI_FILES_MOST);
-    files->text_most = (args->bytes < CLI_FILES_TEXT) ? args->bytes : CLI_FILES_TEXT;
-    files->start = EMBED_CALL(cli_files_bytes_internal.cell_take, CliFilesBytesCtx,
+    files->most = (unsigned int)((args->count < CLI_FILES_MAX) ? args->count : CLI_FILES_MAX);
+    files->text_max = (args->bytes < CLI_FILES_TEXT) ? args->bytes : CLI_FILES_TEXT;
+    files->start = EMBED_CALL(cli_files_bytes_internal.cell_alloc, CliFilesBytesCtx,
                               .bytes = (unsigned long long)files->most * sizeof(unsigned int));
-    files->text = EMBED_CALL(cli_files_bytes_internal.cell_take, CliFilesBytesCtx, .bytes = files->text_most);
+    files->text = EMBED_CALL(cli_files_bytes_internal.cell_alloc, CliFilesBytesCtx, .bytes = files->text_max);
     if ((files->start == NULL) || (files->text == NULL))
     {
         EMBED_CALL(cli_files_bytes_internal.clear, CliFilesBytesCtx, .files = files);
@@ -184,11 +184,11 @@ int cli_files_work_init(const CliFilesBytesCtx *args)
         return 1;
     }
     // each bounded by its limit, which an unsigned int counts
-    files->most = (unsigned int)((args->count < CLI_FILES_MOST) ? args->count : CLI_FILES_MOST);
-    files->text_most = (args->bytes < CLI_FILES_TEXT) ? args->bytes : CLI_FILES_TEXT;
-    files->start = EMBED_CALL(cli_files_bytes_internal.work_take, CliFilesBytesCtx,
+    files->most = (unsigned int)((args->count < CLI_FILES_MAX) ? args->count : CLI_FILES_MAX);
+    files->text_max = (args->bytes < CLI_FILES_TEXT) ? args->bytes : CLI_FILES_TEXT;
+    files->start = EMBED_CALL(cli_files_bytes_internal.work_alloc, CliFilesBytesCtx,
                               .bytes = (unsigned long long)files->most * sizeof(unsigned int));
-    files->text = EMBED_CALL(cli_files_bytes_internal.work_take, CliFilesBytesCtx, .bytes = files->text_most);
+    files->text = EMBED_CALL(cli_files_bytes_internal.work_alloc, CliFilesBytesCtx, .bytes = files->text_max);
     if ((files->start == NULL) || (files->text == NULL))
     {
         EMBED_CALL(cli_files_bytes_internal.clear, CliFilesBytesCtx, .files = files);
@@ -208,7 +208,7 @@ int cli_files_pick(const CliFilesPickedCtx *args)
     EMBED_CALL(cli_symbols_count.tree_files_count, CliSymbolsCountCfg, .count_pointer = &count, .bytes = &bytes);
     // the most the tree holds, one straight take: a filter admits no more than every file
     CliFiles *const files =
-        EMBED_CALL(cli_files_bytes_internal.work_take, CliFilesBytesCtx,
+        EMBED_CALL(cli_files_bytes_internal.work_alloc, CliFilesBytesCtx,
                    .bytes = sizeof(*files) + ((unsigned long long)count * sizeof(unsigned int)) + bytes);
     if (files == NULL)
     {

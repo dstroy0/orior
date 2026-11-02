@@ -31,22 +31,22 @@ typedef struct
     const char *root;
     CliDefineNode *folder;
     unsigned int folders;
-    unsigned int folder_room;
+    unsigned int folder_capacity;
     unsigned int *id;
     unsigned int ids;
-    unsigned int id_room;
+    unsigned int id_capacity;
     const char *directory;
     unsigned int awaiting;
     unsigned int awaited_kind;
     int refused;
-} CliFlagsReading;
+} CliFlagsReadState;
 // the most files, distinct defines, folders, defines of the files and folders together, defines given, and include
 // folders and files read; and the bytes the texts, and the nodes and bytes the database's tree, are taken with
 #define CLI_FLAGS_FILES 65536u
 #define CLI_FLAGS_DISTINCT 65536u
 #define CLI_FLAGS_FOLDERS 65536u
 #define CLI_FLAGS_IDS (1u << 22u)
-#define CLI_FLAGS_GIVEN (1u << 20u)
+#define CLI_FLAGS_INPUT (1u << 20u)
 #define CLI_FLAGS_INCLUDES (1u << 20u)
 #define CLI_FLAGS_TEXT_MORE (64ull << 10u)
 // the bytes of a compilation database a flag takes at the least, and the entries over those a list takes
@@ -66,7 +66,7 @@ typedef struct
     unsigned long long name_length;
     const char *value;
     unsigned long long value_length;
-    CliFlagsReading *reading;
+    CliFlagsReadState *read_state;
     unsigned int first;
     unsigned int id;
     const char *define;
@@ -76,7 +76,7 @@ typedef struct
     unsigned int entry;
     const char *root;
     char *path_out;
-    const CliFlagsReading *reading_read;
+    const CliFlagsReadState *read_state_read;
     const CliDefineNode *node;
     const char *path;
     const CliDefineNode *file;
@@ -87,7 +87,7 @@ typedef struct
     const char *one;
     const char *other;
 } CompileDbFlagsCtx;
-EMBED_INLINE unsigned int flags_most(const CompileDbFlagsCtx *args)
+EMBED_INLINE unsigned int flags_max(const CompileDbFlagsCtx *args)
 {
     // below `most`, which an unsigned int stores
     return (s_flags_entries < args->most) ? (unsigned int)s_flags_entries : args->most;
@@ -110,7 +110,7 @@ typedef struct
 {
     unsigned int node;
     unsigned int define;
-} CliDefineNodeGiven;
+} CliDefineNodeInput;
 
 // An include folder or file of a file: its whole path, a place among the texts, and its kind, a CLI_INCLUDE_ one
 typedef struct
@@ -129,16 +129,16 @@ typedef struct
     VerbaLinea text;
     CliDefineWord *word;
     unsigned int words;
-    unsigned int word_room;
-    CliDefineNodeGiven *given;
+    unsigned int word_capacity;
+    CliDefineNodeInput *supplied;
     unsigned int givens;
-    unsigned int given_room;
+    unsigned int input_capacity;
     CliDefineNode *file;
     unsigned int files;
-    unsigned int file_room;
+    unsigned int file_capacity;
     CliIncludeWord *include;
     unsigned int includes;
-    unsigned int include_room;
+    unsigned int include_capacity;
 } CliFlagsSaved;
 
 static CliFlagsSaved s_saved;
@@ -151,7 +151,7 @@ EMBED_INLINE const char *cli_flags_text(const CompileDbFlagsCtx *args)
 
 // `length` bytes of `text` put after the saved texts with a zero after them: their place, or CLI_JSON_NONE where the
 // line is full
-EMBED_INLINE unsigned int cli_flags_text_put(const CompileDbFlagsCtx *args)
+EMBED_INLINE unsigned int cli_flags_text_append(const CompileDbFlagsCtx *args)
 {
     // the texts read from one database are far under 4 GiB
     const unsigned int at = (unsigned int)s_saved.text.at;
@@ -179,10 +179,10 @@ EMBED_INLINE unsigned int cli_flags_word(const CompileDbFlagsCtx *args)
         }
     }
     const unsigned int named =
-        (s_saved.words < s_saved.word_room)
-            ? EMBED_CALL(cli_flags_text_put, CompileDbFlagsCtx, .text = args->name, .length = args->name_length)
+        (s_saved.words < s_saved.word_capacity)
+            ? EMBED_CALL(cli_flags_text_append, CompileDbFlagsCtx, .text = args->name, .length = args->name_length)
             : CLI_JSON_NONE;
-    const unsigned int valued = (named != CLI_JSON_NONE) ? EMBED_CALL(cli_flags_text_put, CompileDbFlagsCtx,
+    const unsigned int valued = (named != CLI_JSON_NONE) ? EMBED_CALL(cli_flags_text_append, CompileDbFlagsCtx,
                                                                       .text = args->value, .length = args->value_length)
                                                          : CLI_JSON_NONE;
     if (valued == CLI_JSON_NONE)
@@ -196,27 +196,27 @@ EMBED_INLINE unsigned int cli_flags_word(const CompileDbFlagsCtx *args)
 
 // the define `id` put after the ids of the run that begins at `first`, standing in for a define of the same name the
 // run holds
-EMBED_INLINE void cli_flags_id_put(const CompileDbFlagsCtx *args)
+EMBED_INLINE void cli_flags_id_append(const CompileDbFlagsCtx *args)
 {
     const char *const name = EMBED_CALL(cli_flags_text, CompileDbFlagsCtx, .at = s_saved.word[args->id].name);
-    for (unsigned int at = args->first; at < args->reading->ids; at += 1u)
+    for (unsigned int at = args->first; at < args->read_state->ids; at += 1u)
     {
         if (cellul.eq(&(CatenaFinitaCfg){
-                .src = EMBED_CALL(cli_flags_text, CompileDbFlagsCtx, .at = s_saved.word[args->reading->id[at]].name),
+                .src = EMBED_CALL(cli_flags_text, CompileDbFlagsCtx, .at = s_saved.word[args->read_state->id[at]].name),
                 .other = name,
                 .cap = CLI_CELLS_POOL}))
         {
-            args->reading->id[at] = args->id;
+            args->read_state->id[at] = args->id;
             return;
         }
     }
-    if (args->reading->ids >= args->reading->id_room)
+    if (args->read_state->ids >= args->read_state->id_capacity)
     {
-        args->reading->refused = 1;
+        args->read_state->refused = 1;
         return;
     }
-    args->reading->id[args->reading->ids] = args->id;
-    args->reading->ids += 1u;
+    args->read_state->id[args->read_state->ids] = args->id;
+    args->read_state->ids += 1u;
 }
 
 // a define, `NAME`, `NAME=VALUE` or `NAME(PARAMS)=BODY`, `length` bytes, put among the entry's ids, its value `1`
@@ -235,7 +235,7 @@ EMBED_INLINE void cli_flags_define(const CompileDbFlagsCtx *args)
             : CLI_JSON_NONE;
     if (id != CLI_JSON_NONE)
     {
-        EMBED_CALL(cli_flags_id_put, CompileDbFlagsCtx, .reading = args->reading,
+        EMBED_CALL(cli_flags_id_append, CompileDbFlagsCtx, .read_state = args->read_state,
                    .first = s_saved.file[s_saved.files].first, .id = id);
     }
 }
@@ -248,30 +248,31 @@ EMBED_INLINE void cli_flags_include(const CompileDbFlagsCtx *args)
     {
         return;
     }
-    char given[CLI_PATH_MAX_LEN];
-    memor.cpy(&(MemoriaCfg){.dst = given, .src = args->named, .bytes = (size_t)args->length});
-    given[args->length] = '\0';
+    char supplied[CLI_PATH_MAX_LEN];
+    memor.cpy(&(MemoriaCfg){.dst = supplied, .src = args->named, .bytes = (size_t)args->length});
+    supplied[args->length] = '\0';
     char whole[CLI_PATH_MAX_LEN];
-    const int is_whole = (given[0] == '/') || (given[0] == '\\') || ((args->length > 1ull) && (given[1] == ':'));
-    if (is_whole || (args->reading->directory == NULL))
+    const int is_absolute =
+        (supplied[0] == '/') || (supplied[0] == '\\') || ((args->length > 1ull) && (supplied[1] == ':'));
+    if (is_absolute || (args->read_state->directory == NULL))
     {
-        memor.cpy(&(MemoriaCfg){.dst = whole, .src = given, .bytes = (size_t)args->length + 1u});
+        memor.cpy(&(MemoriaCfg){.dst = whole, .src = supplied, .bytes = (size_t)args->length + 1u});
     }
     else
     {
-        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->reading->directory, .relative = given,
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->read_state->directory, .relative = supplied,
                    .joined = whole);
     }
     EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = whole,
                .size = cellul.len(&(CatenaFinitaCfg){.src = whole, .cap = CLI_CELLS_POOL}), .from = '\\', .to = '/');
     const unsigned int put =
-        (s_saved.includes < s_saved.include_room)
-            ? EMBED_CALL(cli_flags_text_put, CompileDbFlagsCtx, .text = whole,
+        (s_saved.includes < s_saved.include_capacity)
+            ? EMBED_CALL(cli_flags_text_append, CompileDbFlagsCtx, .text = whole,
                          .length = cellul.len(&(CatenaFinitaCfg){.src = whole, .cap = CLI_CELLS_POOL}))
             : CLI_JSON_NONE;
     if (put == CLI_JSON_NONE)
     {
-        args->reading->refused = 1;
+        args->read_state->refused = 1;
         return;
     }
     s_saved.include[s_saved.includes] = (CliIncludeWord){put, args->kind};
@@ -305,19 +306,20 @@ static const CliFlagWord s_flags[] = {
 static void cli_flags_word_read(const CliEachWordSizeCfg *args)
 {
     unsigned long long size = args->size;
-    CliFlagsReading *const reading = (CliFlagsReading *)args->context;
-    if (reading->awaiting != CLI_FLAGS_AWAITS_NONE)
+    CliFlagsReadState *const read_state = (CliFlagsReadState *)args->context;
+    if (read_state->awaiting != CLI_FLAGS_AWAITS_NONE)
     {
-        const unsigned int awaited = reading->awaiting;
-        reading->awaiting = CLI_FLAGS_AWAITS_NONE;
+        const unsigned int awaited = read_state->awaiting;
+        read_state->awaiting = CLI_FLAGS_AWAITS_NONE;
         if (awaited == CLI_FLAGS_AWAITS_DEFINE)
         {
-            EMBED_CALL(cli_flags_define, CompileDbFlagsCtx, .reading = reading, .define = args->word, .length = size);
+            EMBED_CALL(cli_flags_define, CompileDbFlagsCtx, .read_state = read_state, .define = args->word,
+                       .length = size);
         }
         else
         {
-            EMBED_CALL(cli_flags_include, CompileDbFlagsCtx, .reading = reading, .named = args->word, .length = size,
-                       .kind = reading->awaited_kind);
+            EMBED_CALL(cli_flags_include, CompileDbFlagsCtx, .read_state = read_state, .named = args->word,
+                       .length = size, .kind = read_state->awaited_kind);
         }
         return;
     }
@@ -331,18 +333,18 @@ static void cli_flags_word_read(const CliEachWordSizeCfg *args)
         }
         if (size == flag->length)
         {
-            reading->awaiting = (flag->kind == CLI_JSON_NONE) ? CLI_FLAGS_AWAITS_DEFINE : CLI_FLAGS_AWAITS_INCLUDE;
-            reading->awaited_kind = flag->kind;
+            read_state->awaiting = (flag->kind == CLI_JSON_NONE) ? CLI_FLAGS_AWAITS_DEFINE : CLI_FLAGS_AWAITS_INCLUDE;
+            read_state->awaited_kind = flag->kind;
         }
         else if (flag->kind == CLI_JSON_NONE)
         {
-            EMBED_CALL(cli_flags_define, CompileDbFlagsCtx, .reading = reading, .define = args->word + flag->length,
-                       .length = size - flag->length);
+            EMBED_CALL(cli_flags_define, CompileDbFlagsCtx, .read_state = read_state,
+                       .define = args->word + flag->length, .length = size - flag->length);
         }
         else
         {
-            EMBED_CALL(cli_flags_include, CompileDbFlagsCtx, .reading = reading, .named = args->word + flag->length,
-                       .length = size - flag->length, .kind = flag->kind);
+            EMBED_CALL(cli_flags_include, CompileDbFlagsCtx, .read_state = read_state,
+                       .named = args->word + flag->length, .length = size - flag->length, .kind = flag->kind);
         }
         return;
     }
@@ -408,7 +410,7 @@ EMBED_INLINE int cli_flags_holds(const CompileDbFlagsCtx *args)
 {
     for (unsigned int at = args->node->first; at < (args->node->first + args->node->count); at += 1u)
     {
-        if (args->reading_read->id[at] == args->id)
+        if (args->read_state_read->id[at] == args->id)
         {
             return 1;
         }
@@ -420,22 +422,23 @@ EMBED_INLINE int cli_flags_holds(const CompileDbFlagsCtx *args)
 // has saved, and where it is new, a copy of `file`'s; its place, or CLI_JSON_NONE where the cells cannot meet it
 EMBED_INLINE unsigned int cli_flags_folder_intersect(const CompileDbFlagsCtx *args)
 {
-    for (unsigned int at = 0u; at < args->reading->folders; at += 1u)
+    for (unsigned int at = 0u; at < args->read_state->folders; at += 1u)
     {
-        const char *const saved = EMBED_CALL(cli_flags_text, CompileDbFlagsCtx, .at = args->reading->folder[at].path);
+        const char *const saved =
+            EMBED_CALL(cli_flags_text, CompileDbFlagsCtx, .at = args->read_state->folder[at].path);
         if ((cellul.len(&(CatenaFinitaCfg){.src = saved, .cap = CLI_CELLS_POOL}) == args->length) &&
             EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = saved, .other_pointer = args->path,
                        .size = args->length))
         {
-            CliDefineNode *const folder = &args->reading->folder[at];
+            CliDefineNode *const folder = &args->read_state->folder[at];
             unsigned int saved = 0u;
             for (unsigned int each = 0u; each < folder->count; each += 1u)
             {
-                const unsigned int id = args->reading->id[folder->first + each];
-                if (EMBED_CALL(cli_flags_holds, CompileDbFlagsCtx, .reading_read = args->reading, .node = args->file,
-                               .id = id))
+                const unsigned int id = args->read_state->id[folder->first + each];
+                if (EMBED_CALL(cli_flags_holds, CompileDbFlagsCtx, .read_state_read = args->read_state,
+                               .node = args->file, .id = id))
                 {
-                    args->reading->id[folder->first + saved] = id;
+                    args->read_state->id[folder->first + saved] = id;
                     saved += 1u;
                 }
             }
@@ -444,22 +447,23 @@ EMBED_INLINE unsigned int cli_flags_folder_intersect(const CompileDbFlagsCtx *ar
         }
     }
     const unsigned int named =
-        (args->reading->folders < args->reading->folder_room)
-            ? EMBED_CALL(cli_flags_text_put, CompileDbFlagsCtx, .text = args->path, .length = args->length)
+        (args->read_state->folders < args->read_state->folder_capacity)
+            ? EMBED_CALL(cli_flags_text_append, CompileDbFlagsCtx, .text = args->path, .length = args->length)
             : CLI_JSON_NONE;
     if (named == CLI_JSON_NONE)
     {
         return CLI_JSON_NONE;
     }
-    const unsigned int first = args->reading->ids;
+    const unsigned int first = args->read_state->ids;
     for (unsigned int each = 0u; each < args->file->count; each += 1u)
     {
-        EMBED_CALL(cli_flags_id_put, CompileDbFlagsCtx, .reading = args->reading, .first = first,
-                   .id = args->reading->id[args->file->first + each]);
+        EMBED_CALL(cli_flags_id_append, CompileDbFlagsCtx, .read_state = args->read_state, .first = first,
+                   .id = args->read_state->id[args->file->first + each]);
     }
-    args->reading->folder[args->reading->folders] = (CliDefineNode){named, first, args->reading->ids - first, 0u, 0u};
-    args->reading->folders += 1u;
-    return args->reading->folders - 1u;
+    args->read_state->folder[args->read_state->folders] =
+        (CliDefineNode){named, first, args->read_state->ids - first, 0u, 0u};
+    args->read_state->folders += 1u;
+    return args->read_state->folders - 1u;
 }
 
 // the folder that holds the file or folder `path`, its place among those read, CLI_JSON_NONE for the top's own
@@ -474,10 +478,10 @@ EMBED_INLINE unsigned int cli_flags_parent(const CompileDbFlagsCtx *args)
     cut = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path, .at = cut,
                      .set = "/");
     const unsigned long long parent = (cut > 0ull) ? (cut - 1ull) : 0ull;
-    for (unsigned int at = 0u; at < args->reading_read->folders; at += 1u)
+    for (unsigned int at = 0u; at < args->read_state_read->folders; at += 1u)
     {
         const char *const saved =
-            EMBED_CALL(cli_flags_text, CompileDbFlagsCtx, .at = args->reading_read->folder[at].path);
+            EMBED_CALL(cli_flags_text, CompileDbFlagsCtx, .at = args->read_state_read->folder[at].path);
         if ((cellul.len(&(CatenaFinitaCfg){.src = saved, .cap = CLI_CELLS_POOL}) == parent) &&
             EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = saved, .other_pointer = args->path,
                        .size = parent))
@@ -489,25 +493,26 @@ EMBED_INLINE unsigned int cli_flags_parent(const CompileDbFlagsCtx *args)
 }
 
 // the defines of `node` its folder does not give it, given to it
-EMBED_INLINE void cli_flags_input_put(const CompileDbFlagsCtx *args)
+EMBED_INLINE void cli_flags_input_append(const CompileDbFlagsCtx *args)
 {
     const unsigned int parent =
-        EMBED_CALL(cli_flags_parent, CompileDbFlagsCtx, .reading_read = args->reading,
+        EMBED_CALL(cli_flags_parent, CompileDbFlagsCtx, .read_state_read = args->read_state,
                    .path = EMBED_CALL(cli_flags_text, CompileDbFlagsCtx, .at = args->node->path));
     for (unsigned int each = 0u; each < args->node->count; each += 1u)
     {
-        const unsigned int id = args->reading->id[args->node->first + each];
-        if ((parent != CLI_JSON_NONE) && EMBED_CALL(cli_flags_holds, CompileDbFlagsCtx, .reading_read = args->reading,
-                                                    .node = &args->reading->folder[parent], .id = id))
+        const unsigned int id = args->read_state->id[args->node->first + each];
+        if ((parent != CLI_JSON_NONE) &&
+            EMBED_CALL(cli_flags_holds, CompileDbFlagsCtx, .read_state_read = args->read_state,
+                       .node = &args->read_state->folder[parent], .id = id))
         {
             continue;
         }
-        if (s_saved.givens >= s_saved.given_room)
+        if (s_saved.givens >= s_saved.input_capacity)
         {
-            args->reading->refused = 1;
+            args->read_state->refused = 1;
             return;
         }
-        s_saved.given[s_saved.givens] = (CliDefineNodeGiven){args->node->path, id};
+        s_saved.supplied[s_saved.givens] = (CliDefineNodeInput){args->node->path, id};
         s_saved.givens += 1u;
     }
 }
@@ -518,7 +523,7 @@ EMBED_INLINE void cli_flags_entries(const CompileDbFlagsCtx *args)
 {
     const CliJson *json = args->json;
     for (unsigned int item = 0u;
-         !args->reading->refused &&
+         !args->read_state->refused &&
          (EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = json,
                      .array = args->entries, .index = item) != CLI_JSON_NONE);
          item += 1u)
@@ -527,7 +532,7 @@ EMBED_INLINE void cli_flags_entries(const CompileDbFlagsCtx *args)
                                               .json_read = json, .array = args->entries, .index = item);
         char path[CLI_PATH_MAX_LEN];
         if (!EMBED_CALL(cli_flags_file_get, CompileDbFlagsCtx, .json = json, .entry = entry,
-                        .root = args->reading->root, .path_out = path))
+                        .root = args->read_state->root, .path_out = path))
         {
             continue;
         }
@@ -541,16 +546,16 @@ EMBED_INLINE void cli_flags_entries(const CompileDbFlagsCtx *args)
                                    .cap = CLI_CELLS_POOL});
         }
         const unsigned int named =
-            (!seen && (s_saved.files < s_saved.file_room))
-                ? EMBED_CALL(cli_flags_text_put, CompileDbFlagsCtx, .text = path, .length = length)
+            (!seen && (s_saved.files < s_saved.file_capacity))
+                ? EMBED_CALL(cli_flags_text_append, CompileDbFlagsCtx, .text = path, .length = length)
                 : CLI_JSON_NONE;
         if (named == CLI_JSON_NONE)
         {
             continue;
         }
-        s_saved.file[s_saved.files] = (CliDefineNode){named, args->reading->ids, 0u, s_saved.includes, 0u};
-        args->reading->awaiting = CLI_FLAGS_AWAITS_NONE;
-        args->reading->directory =
+        s_saved.file[s_saved.files] = (CliDefineNode){named, args->read_state->ids, 0u, s_saved.includes, 0u};
+        args->read_state->awaiting = CLI_FLAGS_AWAITS_NONE;
+        args->read_state->directory =
             EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
                        .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                           .object = entry, .name = "directory"),
@@ -573,7 +578,7 @@ EMBED_INLINE void cli_flags_entries(const CompileDbFlagsCtx *args)
                                .length_pointer = &size);
                 if (text != NULL)
                 {
-                    EMBED_CALL(cli_flags_word_read, CliEachWordSizeCfg, .context = args->reading, .word = text,
+                    EMBED_CALL(cli_flags_word_read, CliEachWordSizeCfg, .context = args->read_state, .word = text,
                                .size = size);
                 }
             }
@@ -589,10 +594,10 @@ EMBED_INLINE void cli_flags_entries(const CompileDbFlagsCtx *args)
             if (command != NULL)
             {
                 EMBED_CALL(cli_compile_db_text_internal.compile_words_each, CliCompileDbTextCtx, .text = command,
-                           .length = size, .each = cli_flags_word_read, .context = args->reading);
+                           .length = size, .each = cli_flags_word_read, .context = args->read_state);
             }
         }
-        s_saved.file[s_saved.files].count = args->reading->ids - s_saved.file[s_saved.files].first;
+        s_saved.file[s_saved.files].count = args->read_state->ids - s_saved.file[s_saved.files].first;
         s_saved.file[s_saved.files].includes = s_saved.includes - s_saved.file[s_saved.files].include_first;
         s_saved.files += 1u;
     }
@@ -602,7 +607,7 @@ EMBED_INLINE void cli_flags_entries(const CompileDbFlagsCtx *args)
 // each holds, and then the defines given: each folder's its folder does not give it, and each file's the same
 EMBED_INLINE void cli_flags_lift(const CompileDbFlagsCtx *args)
 {
-    for (unsigned int at = 0u; !args->reading->refused && (at < s_saved.files); at += 1u)
+    for (unsigned int at = 0u; !args->read_state->refused && (at < s_saved.files); at += 1u)
     {
         const CliDefineNode file = s_saved.file[at];
         // the file's path copied out of the saved texts, which move as the folders' paths are put after them
@@ -617,21 +622,22 @@ EMBED_INLINE void cli_flags_lift(const CompileDbFlagsCtx *args)
             cut = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = path, .at = cut,
                              .set = "/");
             const unsigned long long length = (cut > 0ull) ? (cut - 1ull) : 0ull;
-            args->reading->refused |=
-                EMBED_CALL(cli_flags_folder_intersect, CompileDbFlagsCtx, .reading = args->reading, .path = path,
+            args->read_state->refused |=
+                EMBED_CALL(cli_flags_folder_intersect, CompileDbFlagsCtx, .read_state = args->read_state, .path = path,
                            .length = length, .file = &file) == CLI_JSON_NONE;
-            done = (cut == 0ull) || args->reading->refused;
+            done = (cut == 0ull) || args->read_state->refused;
             cut = length;
         }
     }
-    for (unsigned int at = 0u; !args->reading->refused && (at < args->reading->folders); at += 1u)
+    for (unsigned int at = 0u; !args->read_state->refused && (at < args->read_state->folders); at += 1u)
     {
-        EMBED_CALL(cli_flags_input_put, CompileDbFlagsCtx, .reading = args->reading,
-                   .node = &args->reading->folder[at]);
+        EMBED_CALL(cli_flags_input_append, CompileDbFlagsCtx, .read_state = args->read_state,
+                   .node = &args->read_state->folder[at]);
     }
-    for (unsigned int at = 0u; !args->reading->refused && (at < s_saved.files); at += 1u)
+    for (unsigned int at = 0u; !args->read_state->refused && (at < s_saved.files); at += 1u)
     {
-        EMBED_CALL(cli_flags_input_put, CompileDbFlagsCtx, .reading = args->reading, .node = &s_saved.file[at]);
+        EMBED_CALL(cli_flags_input_append, CompileDbFlagsCtx, .read_state = args->read_state,
+                   .node = &s_saved.file[at]);
     }
 }
 
@@ -642,16 +648,16 @@ static void cli_flags_let_go(void)
     s_saved.text = (VerbaLinea){NULL, 0ull, 0ull, NULL, NULL, 0ull};
     s_saved.word = NULL;
     s_saved.words = 0u;
-    s_saved.word_room = 0u;
-    s_saved.given = NULL;
+    s_saved.word_capacity = 0u;
+    s_saved.supplied = NULL;
     s_saved.givens = 0u;
-    s_saved.given_room = 0u;
+    s_saved.input_capacity = 0u;
     s_saved.file = NULL;
     s_saved.files = 0u;
-    s_saved.file_room = 0u;
+    s_saved.file_capacity = 0u;
     s_saved.include = NULL;
     s_saved.includes = 0u;
-    s_saved.include_room = 0u;
+    s_saved.include_capacity = 0u;
 }
 
 // the database of the tree at `root` read into the saved flags where it or the tree is not the one read last, under
@@ -698,54 +704,54 @@ static void cli_flags_read(const CompileDbFlagsCtx *args)
     }
     // the flags' texts stand among the database's own bytes
     s_flags_entries = (database_size / CLI_FLAGS_ENTRY_BYTES) + CLI_FLAGS_ENTRIES_MORE;
-    const unsigned long long text_room = database_size + CLI_FLAGS_TEXT_MORE;
-    const unsigned int word_room = EMBED_CALL(flags_most, CompileDbFlagsCtx, .most = CLI_FLAGS_DISTINCT);
-    const unsigned int given_room = EMBED_CALL(flags_most, CompileDbFlagsCtx, .most = CLI_FLAGS_GIVEN);
-    const unsigned int file_room = EMBED_CALL(flags_most, CompileDbFlagsCtx, .most = CLI_FLAGS_FILES);
-    const unsigned int include_room = EMBED_CALL(flags_most, CompileDbFlagsCtx, .most = CLI_FLAGS_INCLUDES);
-    const unsigned long long word_bytes = (unsigned long long)word_room * sizeof(CliDefineWord);
-    const unsigned long long given_bytes = (unsigned long long)given_room * sizeof(CliDefineNodeGiven);
-    const unsigned long long file_bytes = (unsigned long long)file_room * sizeof(CliDefineNode);
-    const unsigned long long include_bytes = (unsigned long long)include_room * sizeof(CliIncludeWord);
+    const unsigned long long text_capacity = database_size + CLI_FLAGS_TEXT_MORE;
+    const unsigned int word_capacity = EMBED_CALL(flags_max, CompileDbFlagsCtx, .most = CLI_FLAGS_DISTINCT);
+    const unsigned int input_capacity = EMBED_CALL(flags_max, CompileDbFlagsCtx, .most = CLI_FLAGS_INPUT);
+    const unsigned int file_capacity = EMBED_CALL(flags_max, CompileDbFlagsCtx, .most = CLI_FLAGS_FILES);
+    const unsigned int include_capacity = EMBED_CALL(flags_max, CompileDbFlagsCtx, .most = CLI_FLAGS_INCLUDES);
+    const unsigned long long word_bytes = (unsigned long long)word_capacity * sizeof(CliDefineWord);
+    const unsigned long long input_bytes = (unsigned long long)input_capacity * sizeof(CliDefineNodeInput);
+    const unsigned long long file_bytes = (unsigned long long)file_capacity * sizeof(CliDefineNode);
+    const unsigned long long include_bytes = (unsigned long long)include_capacity * sizeof(CliIncludeWord);
     char *const saved = g_cli_cells->persistent_buf_alloc(
-        word_bytes + given_bytes + file_bytes + include_bytes + text_room, &g_cli_compile_cells);
+        word_bytes + input_bytes + file_bytes + include_bytes + text_capacity, &g_cli_compile_cells);
     if (saved == NULL)
     {
         return;
     }
     s_saved.word = (CliDefineWord *)(void *)saved;
-    s_saved.word_room = word_room;
-    s_saved.given = (CliDefineNodeGiven *)(void *)(saved + word_bytes);
-    s_saved.given_room = given_room;
-    s_saved.file = (CliDefineNode *)(void *)(saved + word_bytes + given_bytes);
-    s_saved.file_room = file_room;
-    s_saved.include = (CliIncludeWord *)(void *)(saved + word_bytes + given_bytes + file_bytes);
-    s_saved.include_room = include_room;
-    s_saved.text = (VerbaLinea){saved + word_bytes + given_bytes + file_bytes + include_bytes, text_room, 0ull};
+    s_saved.word_capacity = word_capacity;
+    s_saved.supplied = (CliDefineNodeInput *)(void *)(saved + word_bytes);
+    s_saved.input_capacity = input_capacity;
+    s_saved.file = (CliDefineNode *)(void *)(saved + word_bytes + input_bytes);
+    s_saved.file_capacity = file_capacity;
+    s_saved.include = (CliIncludeWord *)(void *)(saved + word_bytes + input_bytes + file_bytes);
+    s_saved.include_capacity = include_capacity;
+    s_saved.text = (VerbaLinea){saved + word_bytes + input_bytes + file_bytes + include_bytes, text_capacity, 0ull};
     CliJson json;
     char unread_text[CLI_NAME_MAX_LEN];
     VerbaLinea unread = {unread_text, sizeof(unread_text), 0ull};
     const unsigned int entries =
-        EMBED_CALL(cli_json_tree_err_msg.json_file_take, CliJsonTreeErrMsgCfg, .json = &json, .path = stamped.path,
+        EMBED_CALL(cli_json_tree_err_msg.json_file_alloc, CliJsonTreeErrMsgCfg, .json = &json, .path = stamped.path,
                    .nodes_more = 0u, .text_more = 0ull, .err_msg = &unread, .owner = &g_cli_compile_cells);
-    const unsigned int folder_room = EMBED_CALL(flags_most, CompileDbFlagsCtx, .most = CLI_FLAGS_FOLDERS);
-    const unsigned int id_room = EMBED_CALL(flags_most, CompileDbFlagsCtx, .most = CLI_FLAGS_IDS);
-    const unsigned long long folder_bytes = (unsigned long long)folder_room * sizeof(CliDefineNode);
+    const unsigned int folder_capacity = EMBED_CALL(flags_max, CompileDbFlagsCtx, .most = CLI_FLAGS_FOLDERS);
+    const unsigned int id_capacity = EMBED_CALL(flags_max, CompileDbFlagsCtx, .most = CLI_FLAGS_IDS);
+    const unsigned long long folder_bytes = (unsigned long long)folder_capacity * sizeof(CliDefineNode);
     char *const work = g_cli_cells->temporary_buf_alloc(
-        folder_bytes + ((unsigned long long)id_room * sizeof(unsigned int)), &g_cli_compile_cells);
-    CliFlagsReading reading = {root, NULL, 0u, 0u, NULL, 0u, 0u, NULL, CLI_FLAGS_AWAITS_NONE, 0u, 0};
+        folder_bytes + ((unsigned long long)id_capacity * sizeof(unsigned int)), &g_cli_compile_cells);
+    CliFlagsReadState read_state = {root, NULL, 0u, 0u, NULL, 0u, 0u, NULL, CLI_FLAGS_AWAITS_NONE, 0u, 0};
     if (work != NULL)
     {
-        reading.folder = (CliDefineNode *)(void *)work;
-        reading.folder_room = folder_room;
-        reading.id = (unsigned int *)(void *)(work + folder_bytes);
-        reading.id_room = id_room;
+        read_state.folder = (CliDefineNode *)(void *)work;
+        read_state.folder_capacity = folder_capacity;
+        read_state.id = (unsigned int *)(void *)(work + folder_bytes);
+        read_state.id_capacity = id_capacity;
     }
     if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json, .node = entries,
                    .kind = CFG_JSON_ARRAY))
     {
-        EMBED_CALL(cli_flags_entries, CompileDbFlagsCtx, .reading = &reading, .json = &json, .entries = entries);
-        EMBED_CALL(cli_flags_lift, CompileDbFlagsCtx, .reading = &reading);
+        EMBED_CALL(cli_flags_entries, CompileDbFlagsCtx, .read_state = &read_state, .json = &json, .entries = entries);
+        EMBED_CALL(cli_flags_lift, CompileDbFlagsCtx, .read_state = &read_state);
     }
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
     g_cli_cells->persistent_buf_release(work, &g_cli_compile_cells);
@@ -758,7 +764,7 @@ EMBED_INLINE void cli_flags_define_dispatch(const CompileDbFlagsCtx *args)
 {
     char named[CLI_NAME_MAX_LEN];
     char params[CLI_NAME_MAX_LEN];
-    CliDefineGiven define = {named, 0, {NULL}, 0u, 0, args->value, args->node_text};
+    CliDefineInput define = {named, 0, {NULL}, 0u, 0, args->value, args->node_text};
     unsigned long long at = 0ull;
     at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->name, .at = 0ull,
                     .size = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}), .set = "(");
@@ -770,7 +776,7 @@ EMBED_INLINE void cli_flags_define_dispatch(const CompileDbFlagsCtx *args)
     const char *from = define.called ? (args->name + at + 1u) : "";
     while ((*from != '\0') && (*from != ')') && (define.params < CLI_DEFINE_PARAMS))
     {
-        from += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
+        from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
                            .size = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL}), .set = " \t");
         const char *to = from;
         to += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = to, .at = 0ull,
@@ -788,7 +794,7 @@ EMBED_INLINE void cli_flags_define_dispatch(const CompileDbFlagsCtx *args)
             put += length + 1u;
         }
         define.rest |= rest;
-        to += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = to, .at = 0ull,
+        to += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = to, .at = 0ull,
                          .size = cellul.len(&(CatenaFinitaCfg){.src = to, .cap = CLI_CELLS_POOL}), .set = " \t");
         from = (*to == ',') ? (to + 1) : to;
     }
@@ -805,12 +811,12 @@ void cli_compile_db_defines_get(const CliCompileDbRootCfg *args)
     {
         for (unsigned int at = 0u; at < s_saved.givens; at += 1u)
         {
-            const char *const node = EMBED_CALL(cli_flags_text, CompileDbFlagsCtx, .at = s_saved.given[at].node);
+            const char *const node = EMBED_CALL(cli_flags_text, CompileDbFlagsCtx, .at = s_saved.supplied[at].node);
             if ((cellul.len(&(CatenaFinitaCfg){.src = node, .cap = CLI_CELLS_POOL}) == cut) &&
                 EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = node, .other_pointer = args->path,
                            .size = cut))
             {
-                const CliDefineWord *const word = &s_saved.word[s_saved.given[at].define];
+                const CliDefineWord *const word = &s_saved.word[s_saved.supplied[at].define];
                 EMBED_CALL(cli_flags_define_dispatch, CompileDbFlagsCtx,
                            .name = EMBED_CALL(cli_flags_text, CompileDbFlagsCtx, .at = word->name),
                            .value = EMBED_CALL(cli_flags_text, CompileDbFlagsCtx, .at = word->value), .node_text = node,

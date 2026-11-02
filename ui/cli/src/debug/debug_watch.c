@@ -148,9 +148,9 @@ EMBED_INLINE int watch_set(const DebugWatchCtx *args)
 {
     CliDebugSession *session = args->session;
     VerbaLinea *err_msg = args->err_msg;
-    CliDebugAnswer *const answer = cli_debug_answer_take();
-    const int room = (session->data_count < session->data_room);
-    if (room)
+    CliDebugAnswer *const answer = cli_debug_answer_alloc();
+    const int capacity = (session->data_count < session->data_capacity);
+    if (capacity)
     {
         memor.cpy(
             &(MemoriaCfg){.dst = session->data[session->data_count],
@@ -168,7 +168,7 @@ EMBED_INLINE int watch_set(const DebugWatchCtx *args)
         mmgr_line_put(&answer->args, ",\"accessType\":\"write\"}");
     }
     mmgr_line_put(&answer->args, "]}");
-    if (!room)
+    if (!capacity)
     {
         EMBED_CALL(cli_debug_session_command_internal.answer_free, CliDebugSessionCommandCtx, .answer = answer);
         mmgr_line_put(err_msg, "the session watches as many bytes as it can already");
@@ -189,7 +189,7 @@ int cli_debug_watch_data(const CliDebugOutCfg *args)
     {
         return 0;
     }
-    CliDebugAnswer *const answer = cli_debug_answer_take();
+    CliDebugAnswer *const answer = cli_debug_answer_alloc();
     mmgr_line_put(&answer->args, "{\"name\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &answer->args,
                .text_bytes = (const unsigned char *)args->name,
@@ -226,7 +226,7 @@ int cli_debug_watch_data(const CliDebugOutCfg *args)
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = info,
                                       .object = answer->root, .name = "description"),
                    .length_pointer = NULL);
-    EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_room = data, .text = named, .otherwise = "");
+    EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_capacity = data, .text = named, .otherwise = "");
     (void)cellul.copy(&(CatenaFinitaCfg){
         .dst = description, .src = (described != NULL) ? described : args->name, .cap = sizeof(description)});
     EMBED_CALL(cli_debug_session_command_internal.answer_free, CliDebugSessionCommandCtx, .answer = answer);

@@ -163,7 +163,7 @@ static double lattice_at_least_one(double value)
     return value > 1.0 ? value : 1.0;
 }
 
-// the spacing of the points, which lays eight times the points of the docs site's lattice in the same room
+// the spacing of the points, which lays eight times the points of the docs site's lattice in the same capacity
 static double lattice_step(void)
 {
     return 22.0 / __builtin_sqrt(3.0) / __builtin_sqrt(8.0);
@@ -198,16 +198,16 @@ LATTICE_EXPORT(lattice_lay) uint32_t lattice_lay(uint32_t slot, double width, do
     LatticeSlot *const lattice = &s_lattice_slots[slot];
     if (count > lattice->capacity)
     {
-        const uint32_t room = count + count / 4u;
-        int8_t *const offsets = lattice_taken(lattice->offsets, (uintptr_t)room * 2u);
+        const uint32_t capacity = count + count / 4u;
+        int8_t *const offsets = lattice_taken(lattice->offsets, (uintptr_t)capacity * 2u);
         if (offsets == 0)
         {
             return 0u;
         }
         lattice->offsets = offsets;
-        lattice->capacity = room;
-        lattice->dots_room = 0u;
-        lattice->placed_room = 0u;
+        lattice->capacity = capacity;
+        lattice->dots_capacity = 0u;
+        lattice->placed_capacity = 0u;
     }
     lattice->columns = columns;
     lattice->rows = rows;
@@ -371,7 +371,7 @@ void lattice_place(uint32_t slot, double width, double height, double seconds, u
     {
         lattice->counts[level] = 0u;
     }
-    if (lattice->placed_room < lattice->capacity)
+    if (lattice->placed_capacity < lattice->capacity)
     {
         double *const placed = lattice_taken(lattice->placed, (uintptr_t)lattice->capacity * 2u * sizeof(double));
         if (placed == 0)
@@ -379,7 +379,7 @@ void lattice_place(uint32_t slot, double width, double height, double seconds, u
             return;
         }
         lattice->placed = placed;
-        lattice->placed_room = lattice->capacity;
+        lattice->placed_capacity = lattice->capacity;
     }
     const LatticePlane plane = lattice_plane(lattice_stage(seconds));
     for (uint32_t row = 0u; row < lattice->rows; row += 1u)
@@ -423,7 +423,7 @@ void lattice_place(uint32_t slot, double width, double height, double seconds, u
 uint32_t lattice_dots_moved(LatticeSlot *lattice, double width, double height, double seconds,
                             const LatticeShades *shades)
 {
-    if (lattice->dots_room < lattice->capacity)
+    if (lattice->dots_capacity < lattice->capacity)
     {
         LatticeDot *const dots = lattice_taken(lattice->dots, (uintptr_t)lattice->capacity * sizeof(LatticeDot));
         if (dots == 0)
@@ -431,7 +431,7 @@ uint32_t lattice_dots_moved(LatticeSlot *lattice, double width, double height, d
             return 0u;
         }
         lattice->dots = dots;
-        lattice->dots_room = lattice->capacity;
+        lattice->dots_capacity = lattice->capacity;
     }
     const LatticePlane plane = lattice_plane(lattice_stage(seconds));
     // the plane's slopes a pixel across and down, read once in the floats each point is moved in, and a byte of offset

@@ -21,7 +21,7 @@ static void events_ignored(const CliEachEventJsonSizeCfg *args)
 }
 
 // a whole number member of a node, 0 where it has none
-static unsigned long long whole_member(const CliJson *json, unsigned int node, const char *name)
+static unsigned long long integer_member(const CliJson *json, unsigned int node, const char *name)
 {
     const unsigned int number = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = node, .name = name);
     unsigned long long value = 0ull;
@@ -46,7 +46,7 @@ static unsigned long long check_bytes_in_use(void)
         const char *const name = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = one, .name = "name"), .length_pointer = NULL);
         if ((name != NULL) && (cellul.starts(&(CatenaFinitaCfg){.src = name, .other = "the tree's check", .cap = CLI_CELLS_POOL})))
         {
-            in_use += whole_member(json, one, "in_use");
+            in_use += integer_member(json, one, "in_use");
         }
     }
     return in_use;
@@ -65,7 +65,7 @@ void setUp(void)
         (void)mmgr_line_finish(&name);
         s_files[at] = s_names[at];
     }
-    CliServersSink sink = {events_ignored, NULL, ""};
+    CliServersSink sink = {.emit = events_ignored};
     (void)EMBED_CALL(cli_servers_root_sink_count.check_tree, CliServersRootSinkCountCfg, .root = s_root, .files = s_files, .count = CHECK_FILES, .sink = &sink);
 }
 
@@ -74,21 +74,21 @@ void tearDown(void)
     cli_servers_check_let_go();
 }
 
-void test_every_file_is_listed_in_order(void)
+void test_every_file_is_listing_in_order(void)
 {
     unsigned long long listed_size = 0ull;
-    char *const listed = EMBED_CALL(cli_servers_root_size_internal.check_tree_files, CliServersRootSizeCtx, .root = s_root, .size_pointer = &listed_size);
-    TEST_ASSERT_NOT_NULL(listed);
+    char *const list_entries = EMBED_CALL(cli_servers_root_size_internal.check_tree_files, CliServersRootSizeCtx, .root = s_root, .size_pointer = &listed_size);
+    TEST_ASSERT_NOT_NULL(list_entries);
     unsigned int count = 0u;
     for (unsigned long long at = 0ull; at < listed_size; count += 1u)
     {
-        const char *const file = listed + at;
+        const char *const file = list_entries + at;
         TEST_ASSERT_LESS_THAN_UINT(CHECK_FILES, count);
         TEST_ASSERT_EQUAL_STRING(s_names[count], file);
         at += CLI_UNITY_LENGTH(file) + 1ull;
     }
     TEST_ASSERT_EQUAL_UINT(CHECK_FILES, count);
-    g_cli_cells->persistent_buf_release(listed, &g_cli_servers_cells);
+    g_cli_cells->persistent_buf_release(list_entries, &g_cli_servers_cells);
 }
 
 void test_another_tree_lists_no_files(void)

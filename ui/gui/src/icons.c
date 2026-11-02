@@ -56,7 +56,7 @@ typedef struct
 
 // the eye of the wordmark, the page's line art: each stroke the center line of one line of the drawing, and the
 // iris its one filled shape, in the drawing's own units within its box
-static const char s_eye_strokes[] =
+static const char s_logo_strokes[] =
     "M164.8 30.5L164.2 32.8L164.5 65M136.5 42.2L140.5 68M191.5 42.8L188.5 63L188 67L188.2 68.2"
     "M113.2 55.2L113.8 58.2L119.8 74.8M215.5 55.8L208.5 75M231.5 71.2L225.7 82.2L224.5 83.5"
     "M96.8 71.5L103.1 82.8L103.2 84.2M83.8 87.2L89 93.8M244.8 87.2L239.2 93.8M256.2 101.2L252.8 105.2"
@@ -100,10 +100,10 @@ static const char s_eye_strokes[] =
     "M135.2 231.8L139 231.9L142 232.6L151.5 234L162.5 234.6L164.2 235.2M135.2 231.8L130.5 263.2"
     "M194.5 232L192.8 231.8L180.8 233.8L166.8 234.8L164.5 235.2M194.5 232L199 263"
     "M164.5 235.5L164.2 276.5L164.8 278.8";
-static const char s_eye_iris[] = "M163 209.4L158.8 208.9L155.5 207.9L151.2 205.4L145.4 199.5L142.6 194.8L145.2 "
-                                 "192.1L159 193.6L176.2 193.6L180.2 193.1"
-                                 "L183.1 196L180.9 199.8L175.2 205.4L173 206.9L167.5 208.9L163 209.4Z";
-static const float s_eye_box[4] = {36.8f, 28.5f, 255.2f, 252.2f};
+static const char s_logo_iris[] = "M163 209.4L158.8 208.9L155.5 207.9L151.2 205.4L145.4 199.5L142.6 194.8L145.2 "
+                                  "192.1L159 193.6L176.2 193.6L180.2 193.1"
+                                  "L183.1 196L180.9 199.8L175.2 205.4L173 206.9L167.5 208.9L163 209.4Z";
+static const float s_logo_box[4] = {36.8f, 28.5f, 255.2f, 252.2f};
 // the eye's line in its units, as the page strokes it
 #define ICONS_EYE_STROKE 2.2f
 
@@ -206,7 +206,7 @@ static const GuiIconShape s_shapes[] = {
      NULL,
      0u,
      0},
-    {"eye", {s_eye_strokes, NULL, NULL}, NULL, 0u, 0, s_eye_box, s_eye_iris},
+    {"eye", {s_logo_strokes, NULL, NULL}, NULL, 0u, 0, s_logo_box, s_logo_iris},
 };
 #define ICONS_COUNT (sizeof(s_shapes) / sizeof(s_shapes[0]))
 
@@ -350,13 +350,13 @@ void gui_icons_polygon_fill(const GuiIconsCoverCfg *args)
     {
         return;
     }
-    float least_y = args->corner[1];
-    float most_y = args->corner[1];
+    float min_y = args->corner[1];
+    float max_y = args->corner[1];
     for (unsigned int at = 1u; at < args->corners; at += 1u)
     {
         const float y = args->corner[(at * 2u) + 1u];
-        least_y = (y < least_y) ? y : least_y;
-        most_y = (y > most_y) ? y : most_y;
+        min_y = (y < min_y) ? y : min_y;
+        max_y = (y > max_y) ? y : max_y;
     }
     unsigned char *const counts = g_cli_cells->temporary_buf_alloc(args->width, &g_gui_icons_cells);
     if (counts == NULL)
@@ -365,15 +365,15 @@ void gui_icons_polygon_fill(const GuiIconsCoverCfg *args)
     }
     memor.set(&(MemoriaCfg){.dst = counts, .val = 0, .bytes = args->width});
     // the cover's sides are far inside what an int represents, and a sample's column past them is clipped
-    const int tall = (int)args->height;
-    const int samples_wide = (int)args->width * (int)ICONS_SAMPLES;
-    const int top = (int)floorf(least_y);
-    const int bottom = (int)ceilf(most_y);
+    const int pixel_height = (int)args->height;
+    const int samples_width = (int)args->width * (int)ICONS_SAMPLES;
+    const int top = (int)floorf(min_y);
+    const int bottom = (int)ceilf(max_y);
     const float step = 1.0f / (float)ICONS_SAMPLES;
     const unsigned int saved = (args->corners < ICONS_CORNERS) ? args->corners : ICONS_CORNERS;
-    for (int y = (top < 0) ? 0 : top; (y <= bottom) && (y < tall); y += 1)
+    for (int y = (top < 0) ? 0 : top; (y <= bottom) && (y < pixel_height); y += 1)
     {
-        int seen_from = samples_wide;
+        int seen_from = samples_width;
         int seen_to = 0;
         for (unsigned int row = 0u; row < ICONS_SAMPLES; row += 1u)
         {
@@ -420,9 +420,9 @@ void gui_icons_polygon_fill(const GuiIconsCoverCfg *args)
                 {
                     // a sample stands at the middle of its fraction of a pixel: the first at or past each end
                     const int first = (int)ceilf((run_from * (float)ICONS_SAMPLES) - 0.5f);
-                    const int past = (int)ceilf((cross_x[at] * (float)ICONS_SAMPLES) - 0.5f);
+                    const int end = (int)ceilf((cross_x[at] * (float)ICONS_SAMPLES) - 0.5f);
                     int sample = (first < 0) ? 0 : first;
-                    const int stop = (past > samples_wide) ? samples_wide : past;
+                    const int stop = (end > samples_width) ? samples_width : end;
                     seen_from = ((sample < stop) && (sample < seen_from)) ? sample : seen_from;
                     seen_to = ((sample < stop) && (stop > seen_to)) ? stop : seen_to;
                     while (sample < stop)
@@ -518,29 +518,31 @@ EMBED_INLINE void pen_arc(const IconsCtx *args)
     const float half_y = (y1 - y) / 2.0f;
     const float x1_turned = (cos_turn * half_x) + (sin_turn * half_y);
     const float y1_turned = (-sin_turn * half_x) + (cos_turn * half_y);
-    float wide = fabsf(args->rx);
-    float tall = fabsf(args->ry);
-    const float lambda = ((x1_turned * x1_turned) / (wide * wide)) + ((y1_turned * y1_turned) / (tall * tall));
+    float pixel_width = fabsf(args->rx);
+    float pixel_height = fabsf(args->ry);
+    const float lambda = ((x1_turned * x1_turned) / (pixel_width * pixel_width)) +
+                         ((y1_turned * y1_turned) / (pixel_height * pixel_height));
     if (lambda > 1.0f)
     {
-        wide *= sqrtf(lambda);
-        tall *= sqrtf(lambda);
+        pixel_width *= sqrtf(lambda);
+        pixel_height *= sqrtf(lambda);
     }
-    const float wide_sq = wide * wide;
-    const float tall_sq = tall * tall;
-    const float numerator = (wide_sq * tall_sq) - (wide_sq * y1_turned * y1_turned) - (tall_sq * x1_turned * x1_turned);
-    const float denominator = (wide_sq * y1_turned * y1_turned) + (tall_sq * x1_turned * x1_turned);
+    const float width_sq = pixel_width * pixel_width;
+    const float height_sq = pixel_height * pixel_height;
+    const float numerator =
+        (width_sq * height_sq) - (width_sq * y1_turned * y1_turned) - (height_sq * x1_turned * x1_turned);
+    const float denominator = (width_sq * y1_turned * y1_turned) + (height_sq * x1_turned * x1_turned);
     const float ratio = (denominator > 0.0f) ? numerator / denominator : 0.0f;
     const float root = sqrtf((ratio < 0.0f) ? 0.0f : ratio);
     const float coefficient = (args->large != args->sweep) ? root : -root;
-    const float centre_x_turned = coefficient * wide * y1_turned / tall;
-    const float centre_y_turned = -coefficient * tall * x1_turned / wide;
+    const float centre_x_turned = coefficient * pixel_width * y1_turned / pixel_height;
+    const float centre_y_turned = -coefficient * pixel_height * x1_turned / pixel_width;
     const float centre_x = (cos_turn * centre_x_turned) - (sin_turn * centre_y_turned) + ((x1 + x) / 2.0f);
     const float centre_y = (sin_turn * centre_x_turned) + (cos_turn * centre_y_turned) + ((y1 + y) / 2.0f);
-    const float from_x = (x1_turned - centre_x_turned) / wide;
-    const float from_y = (y1_turned - centre_y_turned) / tall;
-    const float to_x = (-x1_turned - centre_x_turned) / wide;
-    const float to_y = (-y1_turned - centre_y_turned) / tall;
+    const float from_x = (x1_turned - centre_x_turned) / pixel_width;
+    const float from_y = (y1_turned - centre_y_turned) / pixel_height;
+    const float to_x = (-x1_turned - centre_x_turned) / pixel_width;
+    const float to_y = (-y1_turned - centre_y_turned) / pixel_height;
     const float start = EMBED_CALL(pen_angle, IconsCtx, .ux = 1.0f, .uy = 0.0f, .vx = from_x, .vy = from_y);
     float sweep_angle = EMBED_CALL(pen_angle, IconsCtx, .ux = from_x, .uy = from_y, .vx = to_x, .vy = to_y);
     if (!args->sweep && (sweep_angle > 0.0f))
@@ -551,15 +553,15 @@ EMBED_INLINE void pen_arc(const IconsCtx *args)
     {
         sweep_angle += 2.0f * 3.14159265f;
     }
-    const float longer = (wide > tall) ? wide : tall;
+    const float longer = (pixel_width > pixel_height) ? pixel_width : pixel_height;
     // the steps around an arc of an icon are far fewer than an unsigned int counts
     unsigned int steps = (unsigned int)ceilf(fabsf(sweep_angle) * longer * args->pen->scale / ICONS_STEP);
     steps = (steps < 4u) ? 4u : steps;
     for (unsigned int step = 1u; step <= steps; step += 1u)
     {
         const float angle = start + (sweep_angle * (float)step / (float)steps);
-        const float ellipse_x = wide * cosf(angle);
-        const float ellipse_y = tall * sinf(angle);
+        const float ellipse_x = pixel_width * cosf(angle);
+        const float ellipse_y = pixel_height * sinf(angle);
         EMBED_CALL(pen_draw, IconsCtx, .pen = args->pen,
                    .x = (cos_turn * ellipse_x) - (sin_turn * ellipse_y) + centre_x,
                    .y = (sin_turn * ellipse_x) + (cos_turn * ellipse_y) + centre_y);
@@ -575,7 +577,7 @@ EMBED_INLINE int icons_number(const IconsCtx *args)
     const char **at = args->at;
     float *value = args->value;
     const char *text = *at;
-    text += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = text, .at = 0ull,
+    text += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = text, .at = 0ull,
                        .size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), .set = " ,");
     const int negative = *text == '-';
     if ((*text == '-') || (*text == '+'))
@@ -719,7 +721,7 @@ EMBED_INLINE void pen_path(const IconsCtx *args)
     char command = '\0';
     for (;;)
     {
-        at += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ull,
+        at += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ull,
                          .size = cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL}), .set = " ,");
         if (*at == '\0')
         {
@@ -837,14 +839,14 @@ EMBED_INLINE int icons_draw(const IconsCtx *args)
     // a shape on no box of its own stands on the icon's square
     static const float s_square[4] = {0.0f, 0.0f, GUI_ICON_UNITS, GUI_ICON_UNITS};
     const float *const box = (args->shape->box != NULL) ? args->shape->box : s_square;
-    const float box_wide = box[2];
-    const float box_tall = box[3];
-    const float longer = (box_wide > box_tall) ? box_wide : box_tall;
+    const float box_width = box[2];
+    const float box_height = box[3];
+    const float longer = (box_width > box_height) ? box_width : box_height;
     pen.scale = (float)args->size / longer;
     pen.left = box[0];
     pen.top = box[1];
-    pen.pad_x = (longer - box_wide) * pen.scale / 2.0f;
-    pen.pad_y = (longer - box_tall) * pen.scale / 2.0f;
+    pen.pad_x = (longer - box_width) * pen.scale / 2.0f;
+    pen.pad_y = (longer - box_height) * pen.scale / 2.0f;
     pen.radius = args->stroke / 2.0f;
     if (args->shape->cog)
     {

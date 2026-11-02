@@ -15,7 +15,7 @@ typedef struct
     const char *server_first;
     const char *name;
     char *out;
-    unsigned long long room;
+    unsigned long long capacity;
     CliPg *pg;
     const char *text;
     unsigned long long size;
@@ -42,7 +42,7 @@ EMBED_INLINE int sign_field(const PgSignCtx *args)
         if ((size >= length) && EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = part,
                                            .other_pointer = args->name, .size = length))
         {
-            VerbaLinea line = {args->out, args->room, 0ull};
+            VerbaLinea line = {args->out, args->capacity, 0ull};
             mmgr_line_put_n(&line, part + length, size - length);
             mmgr_line_finish(&line);
             return mmgr_line_ok(&line);
@@ -61,7 +61,7 @@ int cli_pg_scram_final(const CliPgFailureCtx *args)
     unsigned char salt[CLI_PG_SIGN_TEXT];
     unsigned long long salt_size = 0ull;
     if (!EMBED_CALL(sign_field, PgSignCtx, .server_first = args->server_first, .name = "r=", .out = server_nonce,
-                    .room = sizeof(server_nonce)))
+                    .capacity = sizeof(server_nonce)))
     {
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure, .message = "the server gave no nonce");
         return 0;
@@ -74,21 +74,21 @@ int cli_pg_scram_final(const CliPgFailureCtx *args)
         return 0;
     }
     if (!EMBED_CALL(sign_field, PgSignCtx, .server_first = args->server_first, .name = "s=", .out = salt_text,
-                    .room = sizeof(salt_text)) ||
+                    .capacity = sizeof(salt_text)) ||
         !EMBED_CALL(cli_base64_text.unbase64, CliBase64TextCfg, .text = salt_text,
                     .length = cellul.len(&(CatenaFinitaCfg){.src = salt_text, .cap = CLI_CELLS_POOL}),
-                    .out_bytes = salt, .room = sizeof(salt), .size_pointer = &salt_size))
+                    .out_bytes = salt, .capacity = sizeof(salt), .size_pointer = &salt_size))
     {
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure, .message = "the server gave no salt");
         return 0;
     }
     unsigned long long rounds = 0ull;
     int counted = EMBED_CALL(sign_field, PgSignCtx, .server_first = args->server_first,
-                             .name = "i=", .out = rounds_text, .room = sizeof(rounds_text)) &&
+                             .name = "i=", .out = rounds_text, .capacity = sizeof(rounds_text)) &&
                   (rounds_text[0] != '\0') &&
                   (cellul.len(&(CatenaFinitaCfg){.src = rounds_text, .cap = CLI_CELLS_POOL}) <= 10u);
     counted = counted &&
-              (EMBED_CALL(cli_text_at_size_classes.past_class, CliTextAtSizeClassesCfg, .text = rounds_text, .at = 0ull,
+              (EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = rounds_text, .at = 0ull,
                           .size = cellul.len(&(CatenaFinitaCfg){.src = rounds_text, .cap = CLI_CELLS_POOL}),
                           .classes = CLI_TEXT_DIGITS,
                           .set = "") == cellul.len(&(CatenaFinitaCfg){.src = rounds_text, .cap = CLI_CELLS_POOL}));

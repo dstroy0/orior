@@ -28,7 +28,7 @@ typedef struct
     unsigned int leaf;
     const char *text;
     unsigned long long size;
-    CliSymbolPlace place;
+    CliSymbolPosition place;
     const CliSpans *spans_read;
     unsigned long long byte;
     CliSpans *spans;
@@ -68,11 +68,11 @@ EMBED_INLINE unsigned long long spans_byte_get(const SymbolsSpansCtx *args)
 
 // the place of the byte `byte` of the text, the text's first byte or one on the line of the leaf `leaf` or past it by
 // the line ends between
-EMBED_INLINE CliSymbolPlace spans_place(const SymbolsSpansCtx *args)
+EMBED_INLINE CliSymbolPosition spans_position(const SymbolsSpansCtx *args)
 {
     if (args->byte == 0ull)
     {
-        return (CliSymbolPlace){0u, 0u};
+        return (CliSymbolPosition){0u, 0u};
     }
     const char *const text = args->spans_read->read->text;
     unsigned int line = args->spans_read->read->leaf[args->leaf].line;
@@ -88,8 +88,8 @@ EMBED_INLINE CliSymbolPlace spans_place(const SymbolsSpansCtx *args)
         }
     }
     // a line's units are below 2^32
-    return (CliSymbolPlace){line, (unsigned int)EMBED_CALL(cli_text_size_byte.units, CliTextSizeByteCfg,
-                                                           .text = text + start, .size = args->byte - start)};
+    return (CliSymbolPosition){line, (unsigned int)EMBED_CALL(cli_text_size_byte.units, CliTextSizeByteCfg,
+                                                              .text = text + start, .size = args->byte - start)};
 }
 
 // the bytes `from` to `to` handed as a span, the leaves `first` and `last` on their lines, where they hold the last
@@ -105,8 +105,9 @@ EMBED_INLINE void spans_dispatch(const SymbolsSpansCtx *args)
     }
     EMBED_CALL(
         args->spans->each, CliSpannedCfg, .context = args->spans->context,
-        .from = EMBED_CALL(spans_place, SymbolsSpansCtx, .spans_read = args->spans, .leaf = args->first, .byte = from),
-        .to = EMBED_CALL(spans_place, SymbolsSpansCtx, .spans_read = args->spans, .leaf = args->last, .byte = to));
+        .from =
+            EMBED_CALL(spans_position, SymbolsSpansCtx, .spans_read = args->spans, .leaf = args->first, .byte = from),
+        .to = EMBED_CALL(spans_position, SymbolsSpansCtx, .spans_read = args->spans, .leaf = args->last, .byte = to));
     args->spans->from = from;
     args->spans->to = to;
 }
@@ -349,7 +350,7 @@ EMBED_INLINE unsigned int spans_leaf_at(const SymbolsSpansCtx *args)
                                                                                                             : at;
 }
 
-int cli_symbols_spans(const CliSymbolsPathTextSizeContextErrMsgFromSymbolPlaceCfg *args)
+int cli_symbols_spans(const CliSymbolsPathTextSizeContextErrMsgFromSymbolPositionCfg *args)
 {
     CliSymbolsLanguages *const languages = cli_symbols_languages_for_call();
     CliLeafRead read = {args->text, NULL, 0u, 0u, 0u, NULL, 0, NULL, NULL, 0};
@@ -361,9 +362,9 @@ int cli_symbols_spans(const CliSymbolsPathTextSizeContextErrMsgFromSymbolPlaceCf
         CliSpans spans = {&read,
                           args->size,
                           EMBED_CALL(spans_byte_get, SymbolsSpansCtx, .text = args->text, .size = args->size,
-                                     .place = args->from_symbol_place),
+                                     .place = args->from_symbol_position),
                           EMBED_CALL(spans_byte_get, SymbolsSpansCtx, .text = args->text, .size = args->size,
-                                     .place = args->to_symbol_place),
+                                     .place = args->to_symbol_position),
                           args->each_spanned,
                           args->context};
         const unsigned int word = EMBED_CALL(spans_leaf_at, SymbolsSpansCtx, .read = &read, .byte = spans.from);
@@ -466,21 +467,21 @@ int cli_symbols_pair(const CliSymbolsPathTextSizeStateCfg *args)
     const unsigned int bracket =
         leaved ? EMBED_CALL(spans_bracket_at, SymbolsSpansCtx, .read = &read,
                             .byte = EMBED_CALL(spans_byte_get, SymbolsSpansCtx, .text = args->text, .size = args->size,
-                                               .place = args->at_symbol_place))
+                                               .place = args->at_symbol_position))
                : read.count;
     const int opens = (bracket < read.count) && EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx,
                                                            .read_read = &read, .leaf = bracket, .roles = CLI_LEAF_OPEN);
-    const unsigned int mate = (bracket >= read.count) ? read.count
+    const unsigned int peer = (bracket >= read.count) ? read.count
                               : opens ? EMBED_CALL(spans_closing, SymbolsSpansCtx, .read = &read, .open = bracket)
                                       : EMBED_CALL(spans_opening, SymbolsSpansCtx, .read = &read, .leaf = bracket);
-    const int paired = EMBED_CALL(spans_bracket, SymbolsSpansCtx, .read = &read, .leaf = mate);
+    const int paired = EMBED_CALL(spans_bracket, SymbolsSpansCtx, .read = &read, .leaf = peer);
     if (paired)
     {
         const CliSpans spans = {&read, args->size, 0ull, 0ull, NULL, NULL};
-        args->pair[0] = EMBED_CALL(spans_place, SymbolsSpansCtx, .spans_read = &spans, .leaf = bracket,
+        args->pair[0] = EMBED_CALL(spans_position, SymbolsSpansCtx, .spans_read = &spans, .leaf = bracket,
                                    .byte = read.leaf[bracket].from);
-        args->pair[1] =
-            EMBED_CALL(spans_place, SymbolsSpansCtx, .spans_read = &spans, .leaf = mate, .byte = read.leaf[mate].from);
+        args->pair[1] = EMBED_CALL(spans_position, SymbolsSpansCtx, .spans_read = &spans, .leaf = peer,
+                                   .byte = read.leaf[peer].from);
     }
     EMBED_CALL(cli_symbols_text_internal.leaves_free, CliSymbolsTextCtx, .read = &read);
     EMBED_CALL(cli_symbols.languages_free, CliSymbolsCfg, .read = languages);

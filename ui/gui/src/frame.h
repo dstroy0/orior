@@ -10,7 +10,7 @@
 typedef struct GuiFrameScaleCfg GuiFrameScaleCfg;
 typedef struct GuiFrameCfg GuiFrameCfg;
 typedef struct GuiFrameHolesCfg GuiFrameHolesCfg;
-typedef struct GuiFrameShownCfg GuiFrameShownCfg;
+typedef struct GuiFrameDisplayedCfg GuiFrameDisplayedCfg;
 typedef struct GuiFramePixelsCfg GuiFramePixelsCfg;
 #include "embed_dispatch_layout.h"
 #include "raster.h"
@@ -19,35 +19,36 @@ typedef struct GuiFramePixelsCfg GuiFramePixelsCfg;
 // --strip-width; the frame's gap at the right, --frame-right; the side pane's width, --side; the tabs row's height,
 // --tabs-tall; the minimap's width, .ed-mini; the work's padding, top, right, bottom and left; the work's corner
 // radius; a window control's width, the gap between the controls and how far their row ends from the bar's right end
-#define GUI_BAR_TALL 41
-#define GUI_STATUS_TALL 27
-#define GUI_STRIP_WIDE 44
+#define GUI_BAR_HEIGHT 41
+#define GUI_STATUS_HEIGHT 27
+#define GUI_STRIP_WIDTH 44
 #define GUI_FRAME_GAP 12
-#define GUI_SIDE_WIDE 304
-#define GUI_TABS_TALL 31
-#define GUI_MAP_WIDE 84
+#define GUI_SIDE_WIDTH 304
+#define GUI_TABS_HEIGHT 31
+#define GUI_MAP_WIDTH 84
 #define GUI_WORK_PAD_TOP 2
 #define GUI_WORK_PAD_RIGHT 2
 #define GUI_WORK_PAD_BOTTOM 1
 #define GUI_WORK_PAD_LEFT 1
 #define GUI_WORK_RADIUS 7
-#define GUI_CONTROL_WIDE 34
+#define GUI_CONTROL_WIDTH 34
 #define GUI_CONTROL_GAP 2
 #define GUI_CONTROLS_END 5
 #define GUI_CONTROLS 3
 
 // the controls' tab's lip in the page's pixels, how far its glass reaches left of the controls; and how many gaps in
 // from the work's edge a part's hole snaps to the edge
-#define GUI_CONTROLS_LIP 8
+#define GUI_CONTROLS_BEVEL 8
 #define GUI_HOLE_SNAP 2
 
 // a number of 1 in the frame's arithmetic: every share the parts move on is a whole word, 16 bits of it a fraction
-#define GUI_WHOLE 65536
+#define GUI_FIXED_ONE 65536
 
-// The claim's numbers, each 0 to GUI_WHOLE as the page's claim runs them: the claim, GUI_WHOLE while the work has taken
-// the edges' parts' room; each edge's reveal, 1 while its part is back; the controls' way down from the bar's place
-// while the bar is away; each edge's room, 1 once the work has given the part its room; each slat's grown share along
-// its edge; the controls' opacity; and the point along each edge its slat is pulled from, in pixels, -1 for the middle
+// The claim's numbers, each 0 to GUI_FIXED_ONE as the page's claim runs them: the claim, GUI_FIXED_ONE while the work
+// has taken the edges' parts' inset; each edge's reveal, 1 while its part is back; the controls' way down from the
+// bar's place while the bar is away; each edge's inset, 1 once the work has given the part its inset; each slat's grown
+// share along its edge; the controls' opacity; and the point along each edge its slat is pulled from, in pixels, -1 for
+// the middle
 typedef struct
 {
     int claim;
@@ -56,9 +57,9 @@ typedef struct
     int reveal_left;
     int reveal_right;
     int reveal_down;
-    int room_top;
-    int room_left;
-    int room_bottom;
+    int inset_top;
+    int inset_left;
+    int inset_bottom;
     int grown_top;
     int grown_left;
     int grown_bottom;
@@ -66,7 +67,7 @@ typedef struct
     int pulled_top;
     int pulled_left;
     int pulled_bottom;
-} GuiClaimNumbers;
+} GuiAutohideNumbers;
 
 // The four edges of a pane in the frame's words, each a count of pixels with sixteen bits of fraction: where the
 // pane's tint runs, an edge that falls between two pixel rows or columns laid at its share of the one it falls in
@@ -90,8 +91,8 @@ typedef struct
     unsigned int width;
     unsigned int height;
     int scale;
-    int side_shown;
-    GuiClaimNumbers claim;
+    int side_displayed;
+    GuiAutohideNumbers claim;
     GuiRect bar;
     GuiRect controls;
     GuiRect status;
@@ -103,9 +104,9 @@ typedef struct
     GuiRect tabs;
     GuiRect editor;
     GuiRect map;
-    GuiRect bar_slat;
-    GuiRect strip_slat;
-    GuiRect status_slat;
+    GuiRect bar_band;
+    GuiRect strip_band;
+    GuiRect status_band;
     GuiRect controls_pane;
     GuiEdges bar_edges;
     GuiEdges strip_edges;
@@ -121,14 +122,14 @@ typedef struct
 int gui_scale(const GuiFramePixelsCfg *args);
 // the parts laid out for a window `width` by `height` at `scale`, with no side shown and no claim
 void gui_frame_layout(const GuiFrameScaleCfg *args);
-// the work's inside laid again with a side shown at its left where `shown` is 1, the tabs row and the editor past it,
-// or with no side where it is 0
-void gui_frame_side(const GuiFrameShownCfg *args);
+// the work's inside laid again with a side shown at its left where `displayed` is 1, the tabs row and the editor past
+// it, or with no side where it is 0
+void gui_frame_side(const GuiFrameDisplayedCfg *args);
 // the parts laid again for the claim's `numbers`: the work grown to the window less the gap on every side as the
 // claim runs, the bar, the strip and the status bar slid off and back as their reveals run, each a pane standing in
-// from the window's edges by the gap, the work giving each its room as its room runs, the tabs row and the map away
+// from the window's edges by the gap, the work giving each its inset as its inset runs, the tabs row and the map away
 // inside the work until their edges' reveals, and the controls moved down from the bar's place as their way down runs
-void gui_frame_claim(const GuiFrameCfg *args);
+void gui_frame_autohide(const GuiFrameCfg *args);
 // the holes the parts shown make in the work while the claim holds, each a slat's rectangle grown by the claim's
 // share of the gap, cut to the work and snapped to the work's edges it comes within two gaps of, into `holes`, sized
 // for four: their count
@@ -144,7 +145,7 @@ struct GuiFrameScaleCfg
 struct GuiFrameCfg
 {
     GuiFrame *frame;
-    const GuiClaimNumbers *numbers;
+    const GuiAutohideNumbers *numbers;
 };
 
 struct GuiFrameHolesCfg
@@ -153,10 +154,10 @@ struct GuiFrameHolesCfg
     GuiRect *holes;
 };
 
-struct GuiFrameShownCfg
+struct GuiFrameDisplayedCfg
 {
     GuiFrame *frame;
-    int shown;
+    int displayed;
 };
 
 struct GuiFramePixelsCfg
@@ -185,10 +186,10 @@ EMBED_TABLE_STORAGE GuiFrameScaleNs gui_frame_scale EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*side)(const GuiFrameShownCfg *args);
-} GuiFrameShownNs;
-EMBED_TABLE_LAYOUT(GuiFrameShownNs, side);
-EMBED_TABLE_STORAGE GuiFrameShownNs gui_frame_shown EMBED_UNUSED = {
+    void (*side)(const GuiFrameDisplayedCfg *args);
+} GuiFrameDisplayedNs;
+EMBED_TABLE_LAYOUT(GuiFrameDisplayedNs, side);
+EMBED_TABLE_STORAGE GuiFrameDisplayedNs gui_frame_displayed EMBED_UNUSED = {
     .side = gui_frame_side,
 };
 
@@ -198,7 +199,7 @@ typedef struct
 } GuiFrameNs;
 EMBED_TABLE_LAYOUT(GuiFrameNs, claim);
 EMBED_TABLE_STORAGE GuiFrameNs gui_frame EMBED_UNUSED = {
-    .claim = gui_frame_claim,
+    .claim = gui_frame_autohide,
 };
 
 typedef struct

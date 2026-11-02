@@ -70,7 +70,7 @@ EMBED_INLINE void own_check(const ServersOwnCtx *args)
 }
 
 // a name a build tool gives a file put on its own line
-static void own_name_put(const CliEachNameSizeCfg *args)
+static void own_name_append(const CliEachNameSizeCfg *args)
 {
     VerbaLinea *const names = args->context;
     mmgr_line_put_n(names, args->name, args->size);
@@ -117,15 +117,15 @@ void cli_servers_check_own(const CliServersPathSizeRootSinkCtx *args)
     char key[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = args->path, .key_out = key);
     // each name a part of the file's text, and a break after it
-    const unsigned long long room = (size * 2ull) + 1ull;
-    char *const given = g_cli_cells->temporary_buf_alloc(room, &g_cli_servers_cells);
-    VerbaLinea names = mmgr_line_over(given, room);
+    const unsigned long long capacity = (size * 2ull) + 1ull;
+    char *const supplied = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_servers_cells);
+    VerbaLinea names = mmgr_line_over(supplied, capacity);
     EMBED_CALL(cli_builds_path_text.build_input_names, CliBuildsPathTextCfg, .path = args->path, .text = args->text,
-               .size = size, .each = own_name_put, .context = &names);
-    const int whole = mmgr_line_ok(&names);
-    (void)EMBED_CALL(cli_keyed_key_beside.put, CliKeyedKeyBesideCfg, .keyed_out = &g_cli_servers_given, .key = key,
-                     .beside_value = "", .text = whole ? names.out : "", .size_value = whole ? names.at : 0ull);
-    g_cli_cells->persistent_buf_release(given, &g_cli_servers_cells);
+               .size = size, .each = own_name_append, .context = &names);
+    const int integer = mmgr_line_ok(&names);
+    (void)EMBED_CALL(cli_keyed_key_adjacent.put, CliKeyedKeyAdjacentCfg, .keyed_out = &g_cli_servers_input, .key = key,
+                     .adjacent_value = "", .text = integer ? names.out : "", .size_value = integer ? names.at : 0ull);
+    g_cli_cells->persistent_buf_release(supplied, &g_cli_servers_cells);
     char *const job = g_cli_cells->persistent_buf_alloc(sizeof(CliServersOwnJob) + size, &g_cli_servers_cells);
     if (job == NULL)
     {
@@ -153,11 +153,11 @@ void cli_servers_check_own(const CliServersPathSizeRootSinkCtx *args)
 EMBED_INLINE int own_had(const ServersOwnCtx *args)
 {
     const char *key = args->key;
-    const char *beside = NULL;
+    const char *adjacent = NULL;
     unsigned long long size = 0ull;
     const char *const stored =
-        EMBED_CALL(cli_keyed_key_beside.get, CliKeyedKeyBesideCfg, .keyed = &g_cli_servers_checked, .key = key,
-                   .beside = &beside, .size = &size);
+        EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &g_cli_servers_checked, .key = key,
+                   .adjacent = &adjacent, .size = &size);
     unsigned long long at = 0ull;
     unsigned long long length = 0ull;
     if ((stored == NULL) || !EMBED_CALL(cli_lsp_body.member, CliLspBodyCfg, .body = stored, .size_value = size,
@@ -185,10 +185,10 @@ EMBED_INLINE void own_tree_file(const ServersOwnCtx *args)
     const char *path = args->path;
     int *written = args->written;
     unsigned long long size = 0ull;
-    const unsigned char *const mapped = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = path,
+    const unsigned char *const mapped = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                    .size_pointer = &size, .owner = &g_cli_servers_cells);
     if ((mapped == NULL) ||
-        !EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg, .bytes = (const char *)mapped, .size = size))
+        !EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = (const char *)mapped, .size = size))
     {
         EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = mapped,
                    .owner = &g_cli_servers_cells);
@@ -198,13 +198,13 @@ EMBED_INLINE void own_tree_file(const ServersOwnCtx *args)
     EMBED_CALL(own_check, ServersOwnCtx, .root = args->root, .path = path, .text = (const char *)mapped, .size = size,
                .out = args->items);
     EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = mapped, .owner = &g_cli_servers_cells);
-    const int whole = mmgr_line_ok(args->items);
-    const int empty = whole && (args->items->at == 2ull) &&
+    const int integer = mmgr_line_ok(args->items);
+    const int empty = integer && (args->items->at == 2ull) &&
                       (memor.cmp(&(MemoriaCfg){.src = args->items->out, .other = "[]", .bytes = 2u}) == 0);
     char key[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = path, .key_out = key);
     const int had = EMBED_CALL(own_had, ServersOwnCtx, .key = key);
-    if (whole && (!empty || had))
+    if (integer && (!empty || had))
     {
         mmgr_line_put(args->found, *written ? ",[" : "[");
         EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = args->found,

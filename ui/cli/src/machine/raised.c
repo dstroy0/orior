@@ -15,8 +15,8 @@ int cli_raised_is_reject(const CliRaisedCfg *args)
                                            "os error 5)",      "os error 13)",      "os error 1)"};
     char lower[CLI_ERR_MSG_MAX_LEN];
     size_t length = 0u;
-    length = (size_t)EMBED_CALL(cli_text_out_room.lowered_into, CliTextOutRoomCfg, .out_room = lower,
-                                .room = sizeof(lower), .text = args->err_text);
+    length = (size_t)EMBED_CALL(cli_text_out_capacity.lowered_into, CliTextOutCapacityCfg, .out_capacity = lower,
+                                .capacity = sizeof(lower), .text = args->err_text);
     lower[length] = '\0';
     for (unsigned int at = 0u; at < 6u; at += 1u)
     {
@@ -48,9 +48,9 @@ int cli_raised_write(const CliRaisedErrMsgCfg *args)
     char staged[CLI_PATH_MAX_LEN];
     char base[CLI_PATH_MAX_LEN];
     if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "TEMP", .value_out = base,
-                    .room = sizeof(base)) &&
+                    .capacity = sizeof(base)) &&
         !EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "TMPDIR", .value_out = base,
-                    .room = sizeof(base)))
+                    .capacity = sizeof(base)))
     {
         memor.cpy(&(MemoriaCfg){.dst = base,
                                 .src = "/tmp",

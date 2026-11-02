@@ -18,7 +18,7 @@ typedef struct
 // a reader's end notified, the kernel's waiters woken
 EMBED_INLINE void jupyter_reader_end(const JupyterReadersCtx *args)
 {
-    args->kernel->reading -= 1u;
+    args->kernel->read_state -= 1u;
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &args->kernel->wake);
 }
 
@@ -53,23 +53,23 @@ EMBED_INLINE void jupyter_recv(const JupyterReadersCtx *args)
                .size = args->size);
 }
 
-// a socket's messages read until it closes, each received; half the reader's room stores the frames read and half the
-// message written
+// a socket's messages read until it closes, each received; half the reader's capacity stores the frames read and half
+// the message written
 static void jupyter_socket_read(void *context)
 {
     CliKernelReader *const reader = (CliKernelReader *)context;
-    const unsigned long long half = reader->room_size / 2ull;
+    const unsigned long long half = reader->capacity_bytes / 2ull;
     CliZmtpFrame frames[CLI_KERNEL_FRAMES];
     for (;;)
     {
-        const unsigned int count =
-            EMBED_CALL(cli_zmtp_socket.receive, CliZmtpSocketCfg, .socket = reader->socket, .room = reader->room,
-                       .room_size = half, .frames_out = frames, .most = CLI_KERNEL_FRAMES);
+        const unsigned int count = EMBED_CALL(cli_zmtp_socket.receive, CliZmtpSocketCfg, .socket = reader->socket,
+                                              .capacity = reader->capacity, .capacity_bytes = half,
+                                              .frames_out = frames, .most = CLI_KERNEL_FRAMES);
         if (count == 0u)
         {
             break;
         }
-        VerbaLinea out = {(char *)reader->room + half, half, 0ull};
+        VerbaLinea out = {(char *)reader->capacity + half, half, 0ull};
         char parent[CLI_KERNEL_ID];
         parent[0] = '\0';
         if (EMBED_CALL(cli_jupyter_out_internal.kernel_message_write, CliJupyterOutCtx, .reader = reader,
@@ -85,7 +85,8 @@ static void jupyter_socket_read(void *context)
 // a line the kernel's process wrote of itself received as a message of the log channel, read as cli_lossy reads it
 EMBED_INLINE void jupyter_line_recv(const JupyterReadersCtx *args)
 {
-    VerbaLinea out = {(char *)args->reader->room + CLI_KERNEL_LINE, args->reader->room_size - CLI_KERNEL_LINE, 0ull};
+    VerbaLinea out = {(char *)args->reader->capacity + CLI_KERNEL_LINE, args->reader->capacity_bytes - CLI_KERNEL_LINE,
+                      0ull};
     mmgr_line_put(&out, "{\"channel\":\"log\",\"msg_type\":\"log\",\"msg_id\":\"\",\"parent\":\"\",\"content\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &out,
                .text_bytes = args->line, .length = args->size);
@@ -102,13 +103,14 @@ EMBED_INLINE void jupyter_line_recv(const JupyterReadersCtx *args)
 static void jupyter_log_read(void *context)
 {
     CliKernelReader *const reader = (CliKernelReader *)context;
-    unsigned char *const line = reader->room;
+    unsigned char *const line = reader->capacity;
     unsigned long long line_start = 0ull;
     char piece[4096];
     for (;;)
     {
-        const unsigned long long count = EMBED_CALL(cli_room_pipe_handle_internal.spawn_read, CliRoomPipeHandleCtx,
-                                                    .pipe_handle = reader->pipe, .piece = piece, .room = sizeof(piece));
+        const unsigned long long count =
+            EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx,
+                       .pipe_handle = reader->pipe, .piece = piece, .capacity = sizeof(piece));
         if (count == 0ull)
         {
             break;
@@ -145,7 +147,7 @@ void cli_kernel_reader_start(const CliJupyterAtCtx *args)
     CliKernelReader *const reader = &kernel->readers[args->at];
     reader->kernel = kernel;
     reader->thread = (CliThread){(args->at < 3u) ? jupyter_socket_read : jupyter_log_read, reader};
-    kernel->reading += 1u;
+    kernel->read_state += 1u;
     if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &reader->thread))
     {
         EMBED_CALL(jupyter_reader_end, JupyterReadersCtx, .kernel = kernel);

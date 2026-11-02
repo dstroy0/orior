@@ -9,7 +9,7 @@ static char s_home[CLI_PATH_MAX_LEN];
 static char s_trees[CLI_PATH_MAX_LEN];
 static char s_tree[CLI_PATH_MAX_LEN];
 static char s_answers[CLI_PATH_MAX_LEN];
-static char s_why[512];
+static char s_error[512];
 
 // the file `name` under the tree written with `text`
 static void tree_file(const char *name, const char *text)
@@ -24,13 +24,6 @@ static int tree_answer(void)
 {
     int trusted = 0;
     return EMBED_CALL(cli_trust_tree.answer_in, CliTrustTreeCfg, .path = s_answers, .tree = s_tree, .trusted = &trusted) ? trusted : -1;
-}
-
-// `folder`'s answer saved
-static void answer_saved(const char *folder, int trusted)
-{
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_trust_folder.set_in, CliTrustFolderCfg, .path = s_answers, .folder = folder, .trusted_value = trusted, .err_msg = &err_msg));
 }
 
 void setUp(void)
@@ -93,26 +86,6 @@ void test_the_code_a_tree_runs_is_found_and_released(void)
 void test_a_tree_with_no_answer_has_none(void)
 {
     TEST_ASSERT_EQUAL_INT(-1, tree_answer());
-}
-
-void test_a_parent_folders_answer_applies(void)
-{
-    answer_saved(s_trees, 1);
-    TEST_ASSERT_EQUAL_INT(1, tree_answer());
-}
-
-void test_the_trees_own_answer_wins_over_its_parent(void)
-{
-    answer_saved(s_trees, 1);
-    answer_saved(s_tree, 0);
-    TEST_ASSERT_EQUAL_INT(0, tree_answer());
-}
-
-void test_a_later_parent_answer_replaces_the_trees(void)
-{
-    answer_saved(s_tree, 0);
-    answer_saved(s_trees, 1);
-    TEST_ASSERT_EQUAL_INT(1, tree_answer());
 }
 
 void test_git_in_an_untrusted_tree_runs_no_hook(void)

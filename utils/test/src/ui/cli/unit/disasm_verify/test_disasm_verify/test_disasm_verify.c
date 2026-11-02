@@ -63,29 +63,29 @@ static const char s_ghidra[] = "== cells_release\n"
 static CliDisasmInstruction s_one_units[CLI_DISASM_INSTRUCTIONS];
 static CliDisasmInstruction s_other_units[CLI_DISASM_INSTRUCTIONS];
 static char s_names[CLI_DISASM_FUNCTIONS][CLI_NAME_MAX_LEN];
-static CliDisasmReading s_objdump_reading;
-static CliDisasmReading s_ghidra_reading;
+static CliDisasmReadState s_objdump_read_state;
+static CliDisasmReadState s_ghidra_read_state;
 static unsigned int s_at;
 static unsigned int s_other_at;
 
 // the function `name` read from both tools' texts
 static void both_read(const char *name)
 {
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_disasm_verify_size.disasm_objdump_read, CliDisasmVerifySizeCfg, .text = s_objdump, .size = sizeof(s_objdump) - 1u, .symbol = name, .reading = &s_objdump_reading));
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_disasm_verify_size.disasm_ghidra_read, CliDisasmVerifySizeCfg, .text = s_ghidra, .size = sizeof(s_ghidra) - 1u, .symbol = name, .reading = &s_ghidra_reading));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_disasm_verify_size.disasm_objdump_read, CliDisasmVerifySizeCfg, .text = s_objdump, .size = sizeof(s_objdump) - 1u, .symbol = name, .read_state = &s_objdump_read_state));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_disasm_verify_size.disasm_ghidra_read, CliDisasmVerifySizeCfg, .text = s_ghidra, .size = sizeof(s_ghidra) - 1u, .symbol = name, .read_state = &s_ghidra_read_state));
 }
 
 // whether the two readings are the same, where they differ in s_at and s_other_at
-static int readings_same(void)
+static int read_states_same(void)
 {
-    return EMBED_CALL(cli_disasm_verify_one.disasm_same, CliDisasmVerifyOneCfg, .one = &s_objdump_reading, .other = &s_ghidra_reading, .at = &s_at, .other_at = &s_other_at);
+    return EMBED_CALL(cli_disasm_verify_one.disasm_same, CliDisasmVerifyOneCfg, .one = &s_objdump_read_state, .other = &s_ghidra_read_state, .at = &s_at, .other_at = &s_other_at);
 }
 
 void setUp(void)
 {
     cli_unity_begun();
-    s_objdump_reading = (CliDisasmReading){s_one_units, 0u, 0};
-    s_ghidra_reading = (CliDisasmReading){s_other_units, 0u, 0};
+    s_objdump_read_state = (CliDisasmReadState){s_one_units, 0u, 0};
+    s_ghidra_read_state = (CliDisasmReadState){s_other_units, 0u, 0};
     s_at = 0u;
     s_other_at = 0u;
 }
@@ -96,7 +96,7 @@ void tearDown(void)
 
 void test_the_ir_defines_two_functions_and_skips_its_declaration(void)
 {
-    TEST_ASSERT_EQUAL_UINT(2u, EMBED_CALL(cli_disasm_verify_ir_size.disasm_functions_define, CliDisasmVerifyIrSizeCfg, .ir = s_ir, .size = sizeof(s_ir) - 1u, .names = s_names, .room = CLI_DISASM_FUNCTIONS));
+    TEST_ASSERT_EQUAL_UINT(2u, EMBED_CALL(cli_disasm_verify_ir_size.disasm_functions_define, CliDisasmVerifyIrSizeCfg, .ir = s_ir, .size = sizeof(s_ir) - 1u, .names = s_names, .capacity = CLI_DISASM_FUNCTIONS));
     TEST_ASSERT_EQUAL_STRING("cells_taken", s_names[0]);
     TEST_ASSERT_EQUAL_STRING("cells_release", s_names[1]);
 }
@@ -124,109 +124,109 @@ void test_a_function_the_program_lacks_has_no_symbol(void)
 void test_objdump_reads_six_instructions_and_two_of_fill(void)
 {
     both_read("cells_release");
-    TEST_ASSERT_EQUAL_UINT(8u, s_objdump_reading.count);
+    TEST_ASSERT_EQUAL_UINT(8u, s_objdump_read_state.count);
 }
 
 void test_an_instruction_stores_its_bytes(void)
 {
     both_read("cells_release");
-    TEST_ASSERT_EQUAL_UINT(3u, s_objdump_reading.instruction[1].length);
-    TEST_ASSERT_EQUAL_HEX8(0x48u, s_objdump_reading.instruction[1].byte[0]);
-    TEST_ASSERT_EQUAL_HEX8(0xe5u, s_objdump_reading.instruction[1].byte[2]);
+    TEST_ASSERT_EQUAL_UINT(3u, s_objdump_read_state.instruction[1].length);
+    TEST_ASSERT_EQUAL_HEX8(0x48u, s_objdump_read_state.instruction[1].byte[0]);
+    TEST_ASSERT_EQUAL_HEX8(0xe5u, s_objdump_read_state.instruction[1].byte[2]);
 }
 
 void test_the_first_instruction_is_at_the_functions_address(void)
 {
     both_read("cells_release");
-    TEST_ASSERT_EQUAL_HEX64(0x401200ull, s_objdump_reading.instruction[0].address);
+    TEST_ASSERT_EQUAL_HEX64(0x401200ull, s_objdump_read_state.instruction[0].address);
 }
 
 void test_a_lock_prefix_is_skipped_for_its_instruction(void)
 {
     both_read("cells_release");
-    TEST_ASSERT_EQUAL_STRING("cmpxchg", s_objdump_reading.instruction[3].mnemonic);
+    TEST_ASSERT_EQUAL_STRING("cmpxchg", s_objdump_read_state.instruction[3].mnemonic);
 }
 
 void test_ghidra_reads_six_instructions_and_one_raw_run(void)
 {
     both_read("cells_release");
-    TEST_ASSERT_EQUAL_UINT(7u, s_ghidra_reading.count);
+    TEST_ASSERT_EQUAL_UINT(7u, s_ghidra_read_state.count);
 }
 
 void test_a_raw_run_has_no_mnemonic_and_its_bytes(void)
 {
     both_read("cells_release");
-    TEST_ASSERT_EQUAL_CHAR('\0', s_ghidra_reading.instruction[6].mnemonic[0]);
-    TEST_ASSERT_EQUAL_UINT(2u, s_ghidra_reading.instruction[6].length);
-    TEST_ASSERT_EQUAL_HEX8(0xccu, s_ghidra_reading.instruction[6].byte[0]);
-    TEST_ASSERT_EQUAL_HEX8(0xccu, s_ghidra_reading.instruction[6].byte[1]);
+    TEST_ASSERT_EQUAL_CHAR('\0', s_ghidra_read_state.instruction[6].mnemonic[0]);
+    TEST_ASSERT_EQUAL_UINT(2u, s_ghidra_read_state.instruction[6].length);
+    TEST_ASSERT_EQUAL_HEX8(0xccu, s_ghidra_read_state.instruction[6].byte[0]);
+    TEST_ASSERT_EQUAL_HEX8(0xccu, s_ghidra_read_state.instruction[6].byte[1]);
 }
 
 void test_a_ghidra_row_stores_the_length_it_states(void)
 {
     both_read("cells_release");
-    TEST_ASSERT_EQUAL_UINT(3u, s_ghidra_reading.instruction[1].length);
+    TEST_ASSERT_EQUAL_UINT(3u, s_ghidra_read_state.instruction[1].length);
 }
 
-void test_the_two_readings_of_a_function_are_the_same(void)
+void test_the_two_read_states_of_a_function_are_the_same(void)
 {
     both_read("cells_release");
-    TEST_ASSERT_TRUE(readings_same());
+    TEST_ASSERT_TRUE(read_states_same());
 }
 
-void test_a_return_past_the_shorter_readings_end_differs_there(void)
+void test_a_return_end_the_shorter_read_states_end_differs_there(void)
 {
     both_read("cells_release");
-    s_ghidra_reading.count = 5u;
-    TEST_ASSERT_FALSE(readings_same());
+    s_ghidra_read_state.count = 5u;
+    TEST_ASSERT_FALSE(read_states_same());
     TEST_ASSERT_EQUAL_UINT(5u, s_at);
 }
 
 void test_a_promoted_local_is_read_by_its_symbol(void)
 {
     both_read("cells_taken.llvm.1234567");
-    TEST_ASSERT_EQUAL_UINT(1u, s_objdump_reading.count);
+    TEST_ASSERT_EQUAL_UINT(1u, s_objdump_read_state.count);
 }
 
 void test_a_different_mnemonic_differs_at_its_index(void)
 {
     both_read("cells_taken.llvm.1234567");
-    memor.cpy(&(MemoriaCfg){.dst = s_ghidra_reading.instruction[0].mnemonic, .src = "RET", .bytes = 4u});
-    TEST_ASSERT_FALSE(readings_same());
+    memor.cpy(&(MemoriaCfg){.dst = s_ghidra_read_state.instruction[0].mnemonic, .src = "RET", .bytes = 4u});
+    TEST_ASSERT_FALSE(read_states_same());
     TEST_ASSERT_EQUAL_UINT(0u, s_at);
 }
 
-void test_a_reading_that_ends_first_differs_at_its_end(void)
+void test_a_read_state_that_ends_first_differs_at_its_end(void)
 {
     both_read("cells_taken.llvm.1234567");
-    s_ghidra_reading.count = 0u;
-    TEST_ASSERT_FALSE(readings_same());
+    s_ghidra_read_state.count = 0u;
+    TEST_ASSERT_FALSE(read_states_same());
     TEST_ASSERT_EQUAL_UINT(0u, s_at);
 }
 
 void test_fill_after_a_jump_reads_five_instructions_from_objdump(void)
 {
     both_read("cells_report");
-    TEST_ASSERT_EQUAL_UINT(5u, s_objdump_reading.count);
+    TEST_ASSERT_EQUAL_UINT(5u, s_objdump_read_state.count);
 }
 
 void test_fill_after_a_jump_reads_five_units_from_ghidra(void)
 {
     both_read("cells_report");
-    TEST_ASSERT_EQUAL_UINT(5u, s_ghidra_reading.count);
+    TEST_ASSERT_EQUAL_UINT(5u, s_ghidra_read_state.count);
 }
 
-void test_the_readings_are_the_same_across_a_cut_in_the_fill(void)
+void test_the_read_states_are_the_same_across_a_cut_in_the_fill(void)
 {
     both_read("cells_report");
-    TEST_ASSERT_TRUE(readings_same());
+    TEST_ASSERT_TRUE(read_states_same());
 }
 
 void test_a_differing_raw_byte_is_reported_at_both_readers_units(void)
 {
     both_read("cells_report");
-    s_ghidra_reading.instruction[2].byte[3] = 0x90u;
-    TEST_ASSERT_FALSE(readings_same());
+    s_ghidra_read_state.instruction[2].byte[3] = 0x90u;
+    TEST_ASSERT_FALSE(read_states_same());
     TEST_ASSERT_EQUAL_UINT(2u, s_at);
     TEST_ASSERT_EQUAL_UINT(2u, s_other_at);
 }
@@ -234,28 +234,28 @@ void test_a_differing_raw_byte_is_reported_at_both_readers_units(void)
 void test_an_instruction_of_another_length_differs(void)
 {
     both_read("cells_report");
-    s_ghidra_reading.instruction[3].length = 4u;
-    TEST_ASSERT_FALSE(readings_same());
+    s_ghidra_read_state.instruction[3].length = 4u;
+    TEST_ASSERT_FALSE(read_states_same());
     TEST_ASSERT_EQUAL_UINT(3u, s_at);
 }
 
-void test_instructions_ghidra_lacks_past_its_raw_runs_differ(void)
+void test_instructions_ghidra_lacks_end_its_raw_runs_differ(void)
 {
     both_read("cells_report");
-    s_ghidra_reading.count = 3u;
-    TEST_ASSERT_FALSE(readings_same());
+    s_ghidra_read_state.count = 3u;
+    TEST_ASSERT_FALSE(read_states_same());
     TEST_ASSERT_EQUAL_UINT(3u, s_at);
 }
 
-void test_a_raw_run_past_objdumps_reading_is_skipped(void)
+void test_a_raw_run_end_objdumps_read_state_is_skipped(void)
 {
     both_read("cells_report");
-    s_ghidra_reading.instruction[5].address = 0x401316ull;
-    s_ghidra_reading.instruction[5].length = 1u;
-    s_ghidra_reading.instruction[5].byte[0] = 0xccu;
-    s_ghidra_reading.instruction[5].mnemonic[0] = '\0';
-    s_ghidra_reading.count = 6u;
-    TEST_ASSERT_TRUE(readings_same());
+    s_ghidra_read_state.instruction[5].address = 0x401316ull;
+    s_ghidra_read_state.instruction[5].length = 1u;
+    s_ghidra_read_state.instruction[5].byte[0] = 0xccu;
+    s_ghidra_read_state.instruction[5].mnemonic[0] = '\0';
+    s_ghidra_read_state.count = 6u;
+    TEST_ASSERT_TRUE(read_states_same());
 }
 
 void test_the_loop_over_a_module_finds_every_function_the_same(void)

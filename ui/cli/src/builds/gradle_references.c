@@ -28,7 +28,7 @@ typedef struct
     const CliBuildLines *lines;
     CliBuildFindings *found;
     const char *name;
-    const char *shown;
+    const char *displayed;
     const CliVersionsAliases *aliases;
     const unsigned long long *from_read;
     const unsigned long long *to_read;
@@ -126,8 +126,8 @@ EMBED_INLINE void references_section_get(const GradleReferencesCtx *args)
     }
 }
 
-// a chain of words of the catalog `name`, at `shown` in the tree, checked against the aliases of the section its first
-// word names
+// a chain of words of the catalog `name`, at `displayed` in the tree, checked against the aliases of the section its
+// first word names
 EMBED_INLINE void references_one(const GradleReferencesCtx *args)
 {
     const CliBuildLines *lines = args->lines;
@@ -147,8 +147,9 @@ EMBED_INLINE void references_one(const GradleReferencesCtx *args)
     }
     const char *const path = text + from[path_from];
     const unsigned long long path_size = to[args->count - 1u] - from[path_from];
-    CliBuildNear near;
-    EMBED_CALL(cli_builds_size.build_near_begin, CliBuildsSizeCfg, .near = &near, .name = path, .size = path_size);
+    CliBuildAdjacent adjacent;
+    EMBED_CALL(cli_builds_size.build_adjacent_begin, CliBuildsSizeCfg, .adjacent = &adjacent, .name = path,
+               .size = path_size);
     static char s_known[1u << 12u];
     for (unsigned int at = 0u; at < args->aliases->count; at += 1u)
     {
@@ -174,19 +175,19 @@ EMBED_INLINE void references_one(const GradleReferencesCtx *args)
     mmgr_line_put(&msg, "` names no ");
     mmgr_line_put(&msg, kind);
     mmgr_line_put(&msg, " of `");
-    mmgr_line_put(&msg, args->shown);
+    mmgr_line_put(&msg, args->displayed);
     mmgr_line_ch(&msg, '`');
     const unsigned int finding = EMBED_CALL(
         cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = found, .message = &msg, .lines = lines,
         .from = from[path_from], .to = to[args->count - 1u], .severity = CLI_BUILD_ERROR, .code = "gradle-catalog");
     // each accessor is as long as its alias, so a cell of the aliases' texts contains those the nearest are chosen from
-    const unsigned long long room = args->aliases->used + 1ull;
-    char *const accessors = g_cli_cells->temporary_buf_alloc(room, &g_cli_gradle_cells);
+    const unsigned long long capacity = args->aliases->used + 1ull;
+    char *const accessors = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_gradle_cells);
     unsigned long long used = 0ull;
     for (unsigned int at = 0u; (accessors != NULL) && (at < args->aliases->count); at += 1u)
     {
         const CliVersionsAlias *const alias = &args->aliases->alias[at];
-        VerbaLinea known = {accessors + used, room - used, 0ull};
+        VerbaLinea known = {accessors + used, capacity - used, 0ull};
         if (alias->section != section)
         {
             continue;
@@ -195,12 +196,12 @@ EMBED_INLINE void references_one(const GradleReferencesCtx *args)
                    .alias = args->aliases->text + alias->alias_at, .size = alias->alias_size, .out = &known);
         if (mmgr_line_ok(&known))
         {
-            EMBED_CALL(cli_builds_size_near.build_near_offer, CliBuildsSizeNearCfg, .near = &near,
+            EMBED_CALL(cli_builds_size_adjacent.build_adjacent_offer, CliBuildsSizeAdjacentCfg, .adjacent = &adjacent,
                        .one = accessors + used, .size = known.at);
             used += known.at;
         }
     }
-    for (unsigned int at = 0u; at < near.count; at += 1u)
+    for (unsigned int at = 0u; at < adjacent.count; at += 1u)
     {
         VerbaLinea title = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = found);
         mmgr_line_put(&title, "Change to ");
@@ -211,10 +212,10 @@ EMBED_INLINE void references_one(const GradleReferencesCtx *args)
             mmgr_line_put_n(&title, text + from[0], to[0] - from[0]);
             mmgr_line_ch(&title, '.');
         }
-        mmgr_line_put_n(&title, near.near[at], near.near_size[at]);
+        mmgr_line_put_n(&title, adjacent.adjacent[at], adjacent.adjacent_size[at]);
         EMBED_CALL(cli_builds_text.build_edit_fix, CliBuildsTextCfg, .found = found, .finding = finding,
                    .title = &title, .lines = lines, .from = from[path_from], .to = to[args->count - 1u],
-                   .text = near.near[at], .size = near.near_size[at]);
+                   .text = adjacent.adjacent[at], .size = adjacent.adjacent_size[at]);
     }
     g_cli_cells->persistent_buf_release(accessors, &g_cli_gradle_cells);
 }
@@ -246,8 +247,8 @@ void cli_gradle_references(const CliVersionCatalogLinesCtx *args)
         if (count > 0u)
         {
             EMBED_CALL(references_one, GradleReferencesCtx, .lines = args->lines, .found = args->found,
-                       .name = args->name, .shown = args->shown, .aliases = args->aliases_read, .from_read = from,
-                       .to_read = to, .count = count);
+                       .name = args->name, .displayed = args->displayed, .aliases = args->aliases_read,
+                       .from_read = from, .to_read = to, .count = count);
         }
         at += name_size;
     }

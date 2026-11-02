@@ -31,7 +31,7 @@ static int s_python_known;
 static int s_python_found;
 
 // what the live cells sequence recorded
-static int s_cells_ran;
+static int s_cells_run_result;
 static int s_cells_started;
 static int s_print_received;
 static int s_value_received;
@@ -41,10 +41,10 @@ static int s_interrupt_stopped;
 static int s_kernel_stopped;
 
 // what the debug sequence recorded
-static int s_debug_ran;
+static int s_debug_run_result;
 static int s_debug_started;
 static int s_debugpy_absent;
-static char s_debug_why[512];
+static char s_debug_error[512];
 static unsigned int s_debug_port;
 static int s_other_code_named_by_file;
 static char s_debug_named[1u << 12u];
@@ -88,8 +88,8 @@ static void message_recorded(const CliKernelRecvCfg *args)
 }
 
 // the first message received whose parent is `id` and whose type is `kind` or `other`, and, where `member` is not NULL, whose content's `member`, or
-// its `inner` where that is not NULL, is `wanted`: its node in the shared tree, CLI_JSON_NONE where none is
-static unsigned int message_found(const char *id, const char *kind, const char *other, const char *member, const char *inner, const char *wanted)
+// its `inner` where that is not NULL, is `required`: its node in the shared tree, CLI_JSON_NONE where none is
+static unsigned int message_found(const char *id, const char *kind, const char *other, const char *member, const char *inner, const char *required)
 {
     const unsigned long long size = s_messages_at;
     memor.cpy(&(MemoriaCfg){.dst = s_seen, .src = s_messages, .bytes = size});
@@ -111,7 +111,7 @@ static unsigned int message_found(const char *id, const char *kind, const char *
         }
         const unsigned int content = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = one, .name = "content");
         const unsigned int holder = (inner != NULL) ? EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = content, .name = member) : content;
-        if ((member == NULL) || cellul.eq(&(CatenaFinitaCfg){.src = cli_unity_member_text(holder, (inner != NULL) ? inner : member), .other = wanted, .cap = CLI_CELLS_POOL}))
+        if ((member == NULL) || cellul.eq(&(CatenaFinitaCfg){.src = cli_unity_member_text(holder, (inner != NULL) ? inner : member), .other = required, .cap = CLI_CELLS_POOL}))
         {
             return one;
         }
@@ -166,13 +166,13 @@ static void code_run(CliKernel *kernel, const char *code, char *id)
 }
 
 // the live cells sequence run once for the process: print, value, error, interrupt and stop
-static void cells_ran(void)
+static void cells_run_result(void)
 {
-    if (s_cells_ran)
+    if (s_cells_run_result)
     {
         return;
     }
-    s_cells_ran = 1;
+    s_cells_run_result = 1;
     char folder[CLI_PATH_MAX_LEN];
     char why[512];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
@@ -232,16 +232,16 @@ static const char *run_result(const char *id)
 
 // the debug sequence run once for the process: the next run of a file's code is named by the file with debugpy listening, the runs after it and a
 // run of other code are named as the kernel names them
-static void debug_ran(void)
+static void debug_run_result(void)
 {
-    if (s_debug_ran)
+    if (s_debug_run_result)
     {
         return;
     }
-    s_debug_ran = 1;
+    s_debug_run_result = 1;
     char folder[CLI_PATH_MAX_LEN];
     char file[CLI_PATH_MAX_LEN];
-    VerbaLinea err_msg = {s_debug_why, sizeof(s_debug_why), 0ull};
+    VerbaLinea err_msg = {s_debug_error, sizeof(s_debug_error), 0ull};
     cli_unity_folder("jupyter_debug_cell", folder);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = "cell.py", .joined = file);
     (void)EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = file, .bytes = s_file_code, .size = sizeof(s_file_code) - 1u);
@@ -282,7 +282,7 @@ static void debug_ready(void)
     {
         TEST_IGNORE_MESSAGE("no Python kernel on this machine");
     }
-    debug_ran();
+    debug_run_result();
     TEST_ASSERT_TRUE(s_debug_started);
     if (s_debugpy_absent)
     {
@@ -340,7 +340,7 @@ void test_a_cells_print_is_received(void)
     {
         TEST_IGNORE_MESSAGE("no Python kernel on this machine");
     }
-    cells_ran();
+    cells_run_result();
     TEST_ASSERT_TRUE(s_cells_started);
     TEST_ASSERT_TRUE(s_print_received);
 }
@@ -351,7 +351,7 @@ void test_a_cells_value_is_received(void)
     {
         TEST_IGNORE_MESSAGE("no Python kernel on this machine");
     }
-    cells_ran();
+    cells_run_result();
     TEST_ASSERT_TRUE(s_value_received);
 }
 
@@ -361,7 +361,7 @@ void test_a_cells_error_is_received(void)
     {
         TEST_IGNORE_MESSAGE("no Python kernel on this machine");
     }
-    cells_ran();
+    cells_run_result();
     TEST_ASSERT_TRUE(s_error_received);
 }
 
@@ -371,7 +371,7 @@ void test_a_loop_interrupted_stops(void)
     {
         TEST_IGNORE_MESSAGE("no Python kernel on this machine");
     }
-    cells_ran();
+    cells_run_result();
     TEST_ASSERT_TRUE(s_interrupted);
     TEST_ASSERT_TRUE(s_interrupt_stopped);
 }
@@ -382,7 +382,7 @@ void test_the_kernel_stops_when_requested(void)
     {
         TEST_IGNORE_MESSAGE("no Python kernel on this machine");
     }
-    cells_ran();
+    cells_run_result();
     TEST_ASSERT_TRUE(s_kernel_stopped);
 }
 
@@ -392,12 +392,12 @@ void test_a_kernel_with_no_debugpy_reports_it(void)
     {
         TEST_IGNORE_MESSAGE("no Python kernel on this machine");
     }
-    debug_ran();
+    debug_run_result();
     if (!s_debugpy_absent)
     {
         TEST_IGNORE_MESSAGE("the Python kernel has debugpy");
     }
-    CLI_TEST_ASSERT_CONTAINS("has no debugpy", s_debug_why);
+    CLI_TEST_ASSERT_CONTAINS("has no debugpy", s_debug_error);
 }
 
 void test_debugpy_listens_at_a_port(void)
@@ -428,6 +428,6 @@ void test_only_the_next_run_is_named_by_the_file(void)
 void test_debugpy_listens_at_the_same_port_again(void)
 {
     debug_ready();
-    TEST_ASSERT_TRUE_MESSAGE(s_debug_prepared_again, s_debug_why);
+    TEST_ASSERT_TRUE_MESSAGE(s_debug_prepared_again, s_debug_error);
     TEST_ASSERT_EQUAL_UINT(s_debug_port, s_debug_port_again);
 }

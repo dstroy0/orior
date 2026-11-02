@@ -85,27 +85,28 @@ void cli_executables_advice(const CliExecutablesRootCfg *args)
                                       EMBED_CALL(cli_has, ExecutablesAdviceCtx, .lines = lines, .mark = "NU1101")))
     {
         const char *const arguments[5] = {"nuget", "list", "source", "--format", "short"};
-        CliRan *const ran = cli_ran_take();
+        CliRunResult *const run_result = cli_run_result_alloc();
         char why[CLI_PATH_MAX_LEN];
         VerbaLinea failed = {why, sizeof(why), 0ull};
-        const int listed =
+        const int list_entries =
             EMBED_CALL(cli_executables_name_internal.output, CliExecutablesNameCtx, .tool = "dotnet", .name = "dotnet",
-                       .request = arguments, .count = 5u, .folder = NULL, .ran = ran, .err_msg = &failed);
-        const char *from = ran->out;
-        unsigned long long length = ran->out_size;
+                       .request = arguments, .count = 5u, .folder = NULL, .run_result = run_result, .err_msg = &failed);
+        const char *from = run_result->out;
+        unsigned long long length = run_result->out_size;
         EMBED_CALL(cli_executables_text_length_internal.scan_trim, CliExecutablesTextLengthCtx, .text_pointer = &from,
                    .length_pointer = &length);
-        if (listed && ((length == 0ull) || (cellul.find(&(CatenaFinitaCfg){.src = ran->out,
-                                                                           .cap = CLI_CELLS_POOL,
-                                                                           .other = "No sources found",
-                                                                           .other_cap = CLI_CELLS_POOL}) != NULL)))
+        if (list_entries &&
+            ((length == 0ull) || (cellul.find(&(CatenaFinitaCfg){.src = run_result->out,
+                                                                 .cap = CLI_CELLS_POOL,
+                                                                 .other = "No sources found",
+                                                                 .other_cap = CLI_CELLS_POOL}) != NULL)))
         {
             EMBED_CALL(cli_print, ExecutablesAdviceCtx, .sink = args->sink,
                        .text =
                            "NuGet has no package source to fetch the build's packages from; `dotnet nuget add source "
                            "https://api.nuget.org/v3/index.json -n nuget.org` adds nuget.org");
         }
-        EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+        EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
     }
     if (kind == CLI_KIND_CARGO)
     {
@@ -204,12 +205,12 @@ char *cli_pyinstaller_warn(const CliExecutablesSpecCtx *args)
                1)
             : args->spec;
     const char *dot = NULL;
-    const unsigned long long dot_past =
+    const unsigned long long dot_end =
         (base[0] != '\0')
             ? EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = base + 1,
                          .at = cellul.len(&(CatenaFinitaCfg){.src = base + 1, .cap = CLI_CELLS_POOL}), .set = ".")
             : 0ull;
-    dot = (dot_past != 0ull) ? (base + dot_past) : NULL;
+    dot = (dot_end != 0ull) ? (base + dot_end) : NULL;
     char stem[CLI_NAME_MAX_LEN];
     VerbaLinea stemmed = {stem, sizeof(stem), 0ull};
     mmgr_line_put_n(&stemmed, base,
@@ -225,7 +226,7 @@ char *cli_pyinstaller_warn(const CliExecutablesSpecCtx *args)
     mmgr_line_put(&line, stem);
     mmgr_line_put(&line, ".txt");
     return (mmgr_line_finish(&line) != 0ull)
-               ? EMBED_CALL(cli_executables_walk_internal.text_take, CliExecutablesWalkCtx, .path = path)
+               ? EMBED_CALL(cli_executables_walk_internal.text_alloc, CliExecutablesWalkCtx, .path = path)
                : NULL;
 }
 
@@ -259,12 +260,12 @@ void cli_pyinstaller_missing(const CliExecutablesTextEachCtx *args)
                            .text_pointer = &module, .length_pointer = &module_length);
                 {
                     const unsigned long long lead =
-                        EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = module,
+                        EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = module,
                                    .at = 0ull, .size = module_length, .set = "'");
                     module += lead;
                     module_length -= lead;
                 }
-                module_length = EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = module,
+                module_length = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = module,
                                            .at = module_length, .set = "'");
                 const char *const importers = by + sizeof(s_by) - 1u;
                 EMBED_CALL(args->each_callback, CliEachModuleImportersCfg, .context = args->context, .module = module,
@@ -321,7 +322,7 @@ static void cli_fullest_each(const CliEachNameIsFolderCfg *args)
     {
         return;
     }
-    char *const text = EMBED_CALL(cli_executables_walk_internal.text_take, CliExecutablesWalkCtx, .path = path);
+    char *const text = EMBED_CALL(cli_executables_walk_internal.text_alloc, CliExecutablesWalkCtx, .path = path);
     if (text == NULL)
     {
         return;
@@ -365,7 +366,7 @@ static void cli_fullest_each(const CliEachNameIsFolderCfg *args)
     g_cli_cells->persistent_buf_release(text, &g_cli_executables_cells);
 }
 
-void cli_executables_ran_advice(const CliExecutablesRootCfg *args)
+void cli_executables_run_result_advice(const CliExecutablesRootCfg *args)
 {
     const CliLines *lines = args->lines;
     static CliFullest s_fullest;
@@ -424,20 +425,20 @@ void cli_executables_ran_advice(const CliExecutablesRootCfg *args)
         EMBED_CALL(cli_executables_text_length_internal.scan_trim, CliExecutablesTextLengthCtx, .text_pointer = &module,
                    .length_pointer = &length);
         {
-            const unsigned long long lead = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg,
+            const unsigned long long lead = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg,
                                                        .text = module, .at = 0ull, .size = length, .set = "'");
             module += lead;
             length -= lead;
         }
-        length = EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = module, .at = length,
+        length = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = module, .at = length,
                             .set = "'");
         {
-            const unsigned long long lead = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg,
+            const unsigned long long lead = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg,
                                                        .text = module, .at = 0ull, .size = length, .set = "\"");
             module += lead;
             length -= lead;
         }
-        length = EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = module, .at = length,
+        length = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = module, .at = length,
                             .set = "\"");
         if (length == 0ull)
         {

@@ -36,16 +36,16 @@ int main(void)
               "a square's middle is clear and its sides are covered");
 
     // the eye on its own box: its strokes drawn, its iris filled whole at its middle, and the square's corners clear
-    const GuiMask *const eye = EMBED_CALL(cli_icons.icon, GuiIconsCfg, .icons = &icons, .name = "eye", .size = 64u, .stroke = 1.0f);
-    cli_check((eye != NULL) && (eye->width == 64u), "the eye is drawn on its square");
-    cli_check(at(eye, 31u, 43u) > 200u, "the iris is filled at its middle");
-    cli_check((at(eye, 0u, 0u) == 0u) && (at(eye, 63u, 63u) == 0u), "the square's corners outside the eye are clear");
+    const GuiMask *const logo = EMBED_CALL(cli_icons.icon, GuiIconsCfg, .icons = &icons, .name = "eye", .size = 64u, .stroke = 1.0f);
+    cli_check((logo != NULL) && (logo->width == 64u), "the eye is drawn on its square");
+    cli_check(at(logo, 31u, 43u) > 200u, "the iris is filled at its middle");
+    cli_check((at(logo, 0u, 0u) == 0u) && (at(logo, 63u, 63u) == 0u), "the square's corners outside the eye are clear");
     unsigned int covered = 0u;
     for (unsigned int y = 0u; y < 64u; y += 1u)
     {
         for (unsigned int x = 0u; x < 64u; x += 1u)
         {
-            covered += (at(eye, x, y) != 0u) ? 1u : 0u;
+            covered += (at(logo, x, y) != 0u) ? 1u : 0u;
         }
     }
     cli_check((covered > 300u) && (covered < 3000u), "the eye's strokes cover a part of the square and no more");
@@ -83,8 +83,8 @@ int main(void)
     EMBED_CALL(gui_icons_cover.polygon_fill, GuiIconsCoverCfg, .cover = folded, .width = 6u, .height = 4u, .corner = twice, .corners = 8u);
     cli_check(folded[(1u * 6u) + 1u] == 1.0f, "an outline that goes round twice is inside, not out");
     float offset[6u * 4u] = {0.0f};
-    const float past[8] = {4.0f, 2.0f, 9.0f, 2.0f, 9.0f, 9.0f, 4.0f, 9.0f};
-    EMBED_CALL(gui_icons_cover.polygon_fill, GuiIconsCoverCfg, .cover = offset, .width = 6u, .height = 4u, .corner = past, .corners = 4u);
+    const float end[8] = {4.0f, 2.0f, 9.0f, 2.0f, 9.0f, 9.0f, 4.0f, 9.0f};
+    EMBED_CALL(gui_icons_cover.polygon_fill, GuiIconsCoverCfg, .cover = offset, .width = 6u, .height = 4u, .corner = end, .corners = 4u);
     cli_check((offset[(3u * 6u) + 5u] == 1.0f) && (offset[(3u * 6u) + 3u] == 0.0f), "a shape past the cover fills what lies on it");
     return cli_on_check();
 }

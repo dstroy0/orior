@@ -10,10 +10,10 @@
 typedef struct
 {
     CliDeployPool *pool;
-    unsigned long long room;
+    unsigned long long capacity;
     const CliJson *json;
     unsigned int node;
-    const char *wanted;
+    const char *required;
     VerbaLinea *err_msg;
     const char *field;
     unsigned int entry;
@@ -23,28 +23,28 @@ typedef struct
     unsigned int letter;
 } DeployReadCtx;
 
-// a page of `room` bytes taken for `pool`, NULL with the pool marked refused where it could not be
+// a page of `capacity` bytes taken for `pool`, NULL with the pool marked refused where it could not be
 EMBED_INLINE CliDeployPage *read_page(const DeployReadCtx *args)
 {
     CliDeployPage *const page =
-        g_cli_cells->persistent_buf_alloc(sizeof(CliDeployPage) + args->room, &g_cli_deploy_cells);
+        g_cli_cells->persistent_buf_alloc(sizeof(CliDeployPage) + args->capacity, &g_cli_deploy_cells);
     if (page == NULL)
     {
         args->pool->refused = 1;
         return NULL;
     }
-    page->size = args->room;
+    page->size = args->capacity;
     page->used = 0ull;
     return page;
 }
 
-void *cli_deploy_on_place(const CliDeployPoolCtx *args)
+void *cli_deploy_on_position(const CliDeployPoolCtx *args)
 {
     CliDeployPage *const newest = args->pool->page;
     if (args->size > CLI_DEPLOY_PAGE)
     {
         // a page of its own goes behind the newest, which retains the bytes it has left
-        CliDeployPage *const own = EMBED_CALL(read_page, DeployReadCtx, .pool = args->pool, .room = args->size);
+        CliDeployPage *const own = EMBED_CALL(read_page, DeployReadCtx, .pool = args->pool, .capacity = args->size);
         if (own == NULL)
         {
             return NULL;
@@ -70,7 +70,7 @@ void *cli_deploy_on_place(const CliDeployPoolCtx *args)
             return newest->bytes + at;
         }
     }
-    CliDeployPage *const page = EMBED_CALL(read_page, DeployReadCtx, .pool = args->pool, .room = CLI_DEPLOY_PAGE);
+    CliDeployPage *const page = EMBED_CALL(read_page, DeployReadCtx, .pool = args->pool, .capacity = CLI_DEPLOY_PAGE);
     if (page == NULL)
     {
         return NULL;
@@ -128,7 +128,7 @@ EMBED_INLINE int read_invalid(const DeployReadCtx *args)
     mmgr_line_put(args->err_msg, "deploy.json: invalid type: ");
     mmgr_line_put(args->err_msg, read_kind(args));
     mmgr_line_put(args->err_msg, ", expected ");
-    mmgr_line_put(args->err_msg, args->wanted);
+    mmgr_line_put(args->err_msg, args->required);
     return 0;
 }
 
@@ -160,7 +160,7 @@ static int read_texts(const DeployReadCtx *args)
     if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = list,
                     .kind = CFG_JSON_ARRAY))
     {
-        return EMBED_CALL(read_invalid, DeployReadCtx, .json = json, .node = list, .wanted = "a sequence",
+        return EMBED_CALL(read_invalid, DeployReadCtx, .json = json, .node = list, .required = "a sequence",
                           .err_msg = args->err_msg);
     }
     unsigned int items = 0u;
@@ -173,7 +173,7 @@ static int read_texts(const DeployReadCtx *args)
         if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = item,
                         .kind = CFG_JSON_STRING))
         {
-            return EMBED_CALL(read_invalid, DeployReadCtx, .json = json, .node = item, .wanted = "a string",
+            return EMBED_CALL(read_invalid, DeployReadCtx, .json = json, .node = item, .required = "a string",
                               .err_msg = args->err_msg);
         }
     }
@@ -209,8 +209,8 @@ EMBED_INLINE int read_deployment(const DeployReadCtx *args)
     if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = args->entry,
                     .kind = CFG_JSON_OBJECT))
     {
-        return EMBED_CALL(read_invalid, DeployReadCtx, .json = json, .node = args->entry, .wanted = "struct Deployment",
-                          .err_msg = args->err_msg);
+        return EMBED_CALL(read_invalid, DeployReadCtx, .json = json, .node = args->entry,
+                          .required = "struct Deployment", .err_msg = args->err_msg);
     }
     const unsigned int name = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                          .object = args->entry, .name = "name");
@@ -218,8 +218,8 @@ EMBED_INLINE int read_deployment(const DeployReadCtx *args)
                                          .object = args->entry, .name = "from");
     const unsigned int retain_node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                 .json_read = json, .object = args->entry, .name = "retain");
-    const unsigned int in_place = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
-                                             .object = args->entry, .name = "inPlace");
+    const unsigned int in_position = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                .json_read = json, .object = args->entry, .name = "inPlace");
     if (name == CLI_JSON_NONE)
     {
         return EMBED_CALL(read_missing, DeployReadCtx, .field = "name", .err_msg = args->err_msg);
@@ -239,7 +239,7 @@ EMBED_INLINE int read_deployment(const DeployReadCtx *args)
                                              .node = name, .kind = CFG_JSON_STRING)
                                       ? from
                                       : name,
-                          .wanted = "a string", .err_msg = args->err_msg);
+                          .required = "a string", .err_msg = args->err_msg);
     }
     args->deployment->name = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                         .json_read = json, .node = name, .length_pointer = NULL);
@@ -269,24 +269,24 @@ EMBED_INLINE int read_deployment(const DeployReadCtx *args)
         }
         if (!whole)
         {
-            return EMBED_CALL(read_invalid, DeployReadCtx, .json = json, .node = retain_node, .wanted = "usize",
+            return EMBED_CALL(read_invalid, DeployReadCtx, .json = json, .node = retain_node, .required = "usize",
                               .err_msg = args->err_msg);
         }
         args->deployment->retain = value;
     }
-    args->deployment->in_place = 0;
-    if (in_place != CLI_JSON_NONE)
+    args->deployment->in_position = 0;
+    if (in_position != CLI_JSON_NONE)
     {
-        if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = in_place,
+        if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = in_position,
                         .kind = CFG_JSON_TRUE) &&
-            !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = in_place,
+            !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = in_position,
                         .kind = CFG_JSON_FALSE))
         {
-            return EMBED_CALL(read_invalid, DeployReadCtx, .json = json, .node = in_place, .wanted = "a boolean",
+            return EMBED_CALL(read_invalid, DeployReadCtx, .json = json, .node = in_position, .required = "a boolean",
                               .err_msg = args->err_msg);
         }
-        args->deployment->in_place = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                                .json_read = json, .node = in_place, .kind = CFG_JSON_TRUE);
+        args->deployment->in_position = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
+                                                   .json_read = json, .node = in_position, .kind = CFG_JSON_TRUE);
     }
     return EMBED_CALL(read_texts, DeployReadCtx, .json = json, .entry = args->entry, .field = "exclude",
                       .pool = args->pool, .texts = &args->deployment->exclude, .count = &args->deployment->excludes,
@@ -311,10 +311,10 @@ int cli_deploy_read(const CliDeployRootCtx *args)
     *deployments = NULL;
     *count = 0u;
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = path,
+    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                   .size_pointer = &size, .owner = &g_cli_deploy_cells);
     if ((bytes == NULL) ||
-        !EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg, .bytes = (const char *)bytes, .size = size))
+        !EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = (const char *)bytes, .size = size))
     {
         EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_deploy_cells);
         return 1;
@@ -322,7 +322,7 @@ int cli_deploy_read(const CliDeployRootCtx *args)
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea read_err_msg = {why, sizeof(why), 0ull};
     const unsigned int top =
-        EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg, .json = &args->tree->json,
+        EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &args->tree->json,
                    .text = (const char *)bytes, .size = size, .nodes_more = 0u, .text_more = 0ull,
                    .err_msg = &read_err_msg, .owner = &g_cli_deploy_cells);
     EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_deploy_cells);
@@ -336,7 +336,7 @@ int cli_deploy_read(const CliDeployRootCtx *args)
     if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = top,
                     .kind = CFG_JSON_OBJECT))
     {
-        return EMBED_CALL(read_invalid, DeployReadCtx, .json = json, .node = top, .wanted = "struct Named",
+        return EMBED_CALL(read_invalid, DeployReadCtx, .json = json, .node = top, .required = "struct Named",
                           .err_msg = args->err_msg);
     }
     const unsigned int list = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
@@ -348,7 +348,7 @@ int cli_deploy_read(const CliDeployRootCtx *args)
     if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = list,
                     .kind = CFG_JSON_ARRAY))
     {
-        return EMBED_CALL(read_invalid, DeployReadCtx, .json = json, .node = list, .wanted = "a sequence",
+        return EMBED_CALL(read_invalid, DeployReadCtx, .json = json, .node = list, .required = "a sequence",
                           .err_msg = args->err_msg);
     }
     unsigned int items = 0u;
@@ -393,7 +393,7 @@ EMBED_INLINE int read_white(const DeployReadCtx *args)
            (args->letter == 0x3000u);
 }
 
-int cli_deploy_place(const CliDeployTextCtx *args)
+int cli_deploy_position(const CliDeployTextCtx *args)
 {
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL});
     unsigned long long start = 0ull;
@@ -401,11 +401,11 @@ int cli_deploy_place(const CliDeployTextCtx *args)
     unsigned int letter = 0u;
     for (unsigned long long at = 0ull; at < length;)
     {
-        const unsigned long long taken =
+        const unsigned long long reserved =
             EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
                        .text_bytes = (const unsigned char *)args->text, .length = length, .at = at, .letter = &letter);
-        start = ((start == at) && EMBED_CALL(read_white, DeployReadCtx, .letter = letter)) ? (at + taken) : start;
-        at += taken;
+        start = ((start == at) && EMBED_CALL(read_white, DeployReadCtx, .letter = letter)) ? (at + reserved) : start;
+        at += reserved;
         end = EMBED_CALL(read_white, DeployReadCtx, .letter = letter) ? end : at;
     }
     end = (end < start) ? start : end;
@@ -419,12 +419,12 @@ int cli_deploy_place(const CliDeployTextCtx *args)
                       ((size == 2u) || (trimmed[2] == '/') || (trimmed[2] == '\\'));
     if (!drive && (trimmed[0] != '/') && (trimmed[0] != '.') && (trimmed[0] != '\\'))
     {
-        args->place_out->here = 0;
+        args->position_out->here = 0;
         return EMBED_CALL(cli_link_text.address_parse, CliLinkTextCfg, .text = trimmed,
-                          .address_out = &args->place_out->address, .err_msg = args->err_msg);
+                          .address_out = &args->position_out->address, .err_msg = args->err_msg);
     }
-    args->place_out->here = 1;
-    VerbaLinea path = {args->place_out->path, sizeof(args->place_out->path), 0ull};
+    args->position_out->here = 1;
+    VerbaLinea path = {args->position_out->path, sizeof(args->position_out->path), 0ull};
 #if defined(_WIN32)
     // a path with a drive stands on its own, as Rust's join takes one, as does a share's
     const int whole =
@@ -456,7 +456,7 @@ int cli_deploy_place(const CliDeployTextCtx *args)
     return 1;
 }
 
-void cli_deploy_place_name(const CliDeploySizeCtx *args)
+void cli_deploy_position_name(const CliDeploySizeCtx *args)
 {
     if (args->place->here)
     {
@@ -468,7 +468,7 @@ void cli_deploy_place_name(const CliDeploySizeCtx *args)
     }
 }
 
-const char *cli_deploy_place_folder(const CliDeploySizeCtx *args)
+const char *cli_deploy_position_folder(const CliDeploySizeCtx *args)
 {
     return args->place->here ? args->place->path : args->place->address.folder;
 }
@@ -481,20 +481,20 @@ int cli_deploy_remote_run(const CliDeploySizeCtx *args)
         return 0;
     }
     char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea why_line = {why, sizeof(why) - 1u, 0ull};
+    VerbaLinea error_line = {why, sizeof(why) - 1u, 0ull};
     if (EMBED_CALL(cli_link_size.remote_run, CliLinkSizeCfg, .address = &args->place->address, .line = args->line_text,
-                   .input = args->input, .size = args->size, .out = args->out, .err_msg = &why_line))
+                   .input = args->input, .size = args->size, .out = args->out, .err_msg = &error_line))
     {
         return 1;
     }
-    why[why_line.at] = '\0';
-    mmgr_line_put_n(args->err_msg, why, why_line.at);
+    why[error_line.at] = '\0';
+    mmgr_line_put_n(args->err_msg, why, error_line.at);
     static const char s_denied[] = "Permission denied";
     static const char s_password[] = "password";
     if (cellul.has(
-            &(CatenaFinitaCfg){.src = why, .cap = why_line.at, .other = s_denied, .other_cap = sizeof(s_denied)}) ||
+            &(CatenaFinitaCfg){.src = why, .cap = error_line.at, .other = s_denied, .other_cap = sizeof(s_denied)}) ||
         cellul.has(
-            &(CatenaFinitaCfg){.src = why, .cap = why_line.at, .other = s_password, .other_cap = sizeof(s_password)}))
+            &(CatenaFinitaCfg){.src = why, .cap = error_line.at, .other = s_password, .other_cap = sizeof(s_password)}))
     {
         mmgr_line_put(args->err_msg, "; ");
         EMBED_CALL(cli_link_out.machine, CliLinkOutCfg, .address = &args->place->address, .out = args->err_msg);

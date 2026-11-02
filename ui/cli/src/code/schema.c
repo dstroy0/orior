@@ -23,15 +23,15 @@ int cli_schema_lock(void)
         g_cli_schema_read->node = NULL;
         g_cli_schema_read->member = NULL;
         g_cli_schema_read->pool = NULL;
-        g_cli_schema_read->nodes_most = 0u;
-        g_cli_schema_read->members_most = 0u;
-        g_cli_schema_read->pool_most = 0u;
+        g_cli_schema_read->nodes_max = 0u;
+        g_cli_schema_read->members_max = 0u;
+        g_cli_schema_read->pool_max = 0u;
     }
-    const int grown =
-        (g_cli_schema_store != NULL) &&
-        EMBED_CALL(cli_json_tree_nodes_most.json_reserved_temporary, CliJsonTreeNodesMostCfg,
-                   .json = &g_cli_schema_store->json, .nodes_most = CLI_SCHEMA_STORE_NODES_ROOM,
-                   .text_most = CLI_SCHEMA_STORE_TEXT_ROOM, .what = "the schemas reached", .owner = &g_cli_code_cells);
+    const int grown = (g_cli_schema_store != NULL) &&
+                      EMBED_CALL(cli_json_tree_nodes_max.json_reserved_temporary, CliJsonTreeNodesMaxCfg,
+                                 .json = &g_cli_schema_store->json, .nodes_max = CLI_SCHEMA_STORE_NODES_CAPACITY,
+                                 .text_max = CLI_SCHEMA_STORE_TEXT_CAPACITY, .what = "the schemas reached",
+                                 .owner = &g_cli_code_cells);
     if ((g_cli_schema_read == NULL) || !grown)
     {
         cli_schema_release();
@@ -46,9 +46,9 @@ void cli_schema_read_free(const CliSchemaReadTextCtx *args)
     args->read_out->node = NULL;
     args->read_out->member = NULL;
     args->read_out->pool = NULL;
-    args->read_out->nodes_most = 0u;
-    args->read_out->members_most = 0u;
-    args->read_out->pool_most = 0u;
+    args->read_out->nodes_max = 0u;
+    args->read_out->members_max = 0u;
+    args->read_out->pool_max = 0u;
 }
 
 void cli_schema_release(void)
@@ -124,7 +124,7 @@ EMBED_INLINE void schema_missing(const SchemaCtx *args)
                    .lines = lines, .from = from, .to = to, .severity = CLI_BUILD_NOTE, .code = "schema-missing");
     char place[CLI_PATH_MAX_LEN];
     if ((!cellul.starts(&(CatenaFinitaCfg){.src = args->key, .other = "http", .cap = CLI_CELLS_POOL})) ||
-        !EMBED_CALL(cli_schema_url_internal.cache_path, CliSchemaUrlCtx, .url = args->key, .out_room = place))
+        !EMBED_CALL(cli_schema_url_internal.cache_path, CliSchemaUrlCtx, .url = args->key, .out_capacity = place))
     {
         return;
     }
@@ -141,7 +141,7 @@ EMBED_INLINE void schema_missing(const SchemaCtx *args)
     mmgr_line_put(&command, args->key);
     mmgr_line_ch(&command, '\'');
     char folder[CLI_PATH_MAX_LEN];
-    EMBED_CALL(cli_builds_root.build_inside, CliBuildsRootCfg, .root = root, .folder = root, .out_room = folder);
+    EMBED_CALL(cli_builds_root.build_inside, CliBuildsRootCfg, .root = root, .folder = root, .out_capacity = folder);
     EMBED_CALL(cli_builds_found.build_run_fix, CliBuildsFoundCfg, .found = &s_found, .finding = finding,
                .title = &title, .folder = folder,
                .folder_size = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}), .line_text = line,
@@ -165,7 +165,7 @@ void cli_schema_check(const CliSchemaCfg *args)
     }
     EMBED_CALL(cli_builds_lines.build_findings_begin, CliBuildsLinesCfg, .found = &s_found);
     CliBuildLines lines;
-    unsigned int *const starts = EMBED_CALL(cli_builds_text_size.build_lines_take, CliBuildsTextSizeCfg, .text = text,
+    unsigned int *const starts = EMBED_CALL(cli_builds_text_size.build_lines_alloc, CliBuildsTextSizeCfg, .text = text,
                                             .size = size, .lines_out = &lines);
     CliSchemaRead *const read = g_cli_schema_read;
     EMBED_CALL(cli_schema_read_text_internal.read, CliSchemaReadTextCtx, .text = text, .size = size, .read_out = read);

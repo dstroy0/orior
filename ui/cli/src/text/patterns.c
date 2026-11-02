@@ -6,9 +6,10 @@
 #include "regexp.h"
 #include "text.h"
 
-// the patterns of each part, 1 in `s_made` where they were set, and the lock that is acquired while one is read or set
+// the patterns of each part, 1 in `s_created` where they were set, and the lock that is acquired while one is read or
+// set
 static CliPatterns s_set[CLI_PARTS];
-static int s_made[CLI_PARTS];
+static int s_created[CLI_PARTS];
 
 typedef struct
 {
@@ -158,7 +159,7 @@ EMBED_INLINE void cli_pattern_read(const PatternsCtx *args)
     }
     from += (((to - from) >= 2) && (from[0] == '.') && (from[1] == '/')) ? 2 : 0;
     const int folders = (to > from) && (to[-1] == '/');
-    to = from + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = from,
+    to = from + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = from,
                            .at = (unsigned long long)(to - from), .set = "/");
     if (from == to)
     {
@@ -167,16 +168,16 @@ EMBED_INLINE void cli_pattern_read(const PatternsCtx *args)
     int slashed = 0;
     slashed = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
                          .size = (unsigned long long)(to - from), .set = "/") < (unsigned long long)(to - from);
-    from += slashed ? EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
+    from += slashed ? EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
                                  .size = (unsigned long long)(to - from), .set = "/")
                     : 0ull;
     unsigned int *const count = args->include ? &args->patterns_out->includes : &args->patterns_out->hides;
     CliPattern *const list = args->include ? args->patterns_out->include : args->patterns_out->hide;
     const unsigned int first = args->patterns_out->used;
-    const unsigned long long room = CLI_PATTERN_LETTERS - first;
+    const unsigned long long capacity = CLI_PATTERN_LETTERS - first;
     unsigned long long length = 0ull;
     static const unsigned int s_anywhere[3] = {'*', '*', '/'};
-    if (!slashed && (room >= 3ull))
+    if (!slashed && (capacity >= 3ull))
     {
         memor.cpy(
             &(MemoriaCfg){.dst = args->patterns_out->letters + first, .src = s_anywhere, .bytes = sizeof(s_anywhere)});
@@ -184,8 +185,8 @@ EMBED_INLINE void cli_pattern_read(const PatternsCtx *args)
     }
     length +=
         EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = from, .size = (unsigned long long)(to - from),
-                   .letters = args->patterns_out->letters + first + length, .room_u64 = room - length);
-    if ((*count >= CLI_PATTERNS_MOST) || (room < 3ull))
+                   .letters = args->patterns_out->letters + first + length, .capacity_u64 = capacity - length);
+    if ((*count >= CLI_PATTERNS_MAX) || (capacity < 3ull))
     {
         return;
     }
@@ -289,7 +290,7 @@ EMBED_INLINE unsigned long long cli_path_letters(const PatternsCtx *args)
     const unsigned long long length =
         EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = args->path_text,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = args->path_text, .cap = CLI_CELLS_POOL}),
-                   .letters = letters, .room_u64 = CLI_PATH_MAX_LEN);
+                   .letters = letters, .capacity_u64 = CLI_PATH_MAX_LEN);
     for (unsigned long long at = 0ull; at < length; at += 1ull)
     {
         letters[at] = EMBED_CALL(cli_fold, PatternsCtx, .letter = letters[at]);
@@ -361,7 +362,7 @@ EMBED_INLINE void cli_pattern_specs(const PatternsCtx *args)
         mmgr_line_ch(&line, ')');
         for (unsigned int at = 0u; at < args->pattern->length; at += 1u)
         {
-            EMBED_CALL(cli_line_letter_internal.utf8_put, CliLineLetterCtx, .line = &line,
+            EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &line,
                        .letter = args->patterns->letters[args->pattern->first + at]);
         }
         if (inside)
@@ -370,7 +371,7 @@ EMBED_INLINE void cli_pattern_specs(const PatternsCtx *args)
         }
         words->full = words->full || !mmgr_line_ok(&line);
         mmgr_line_finish(&line);
-        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = words, .word = spec);
+        EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words, .word = spec);
     }
 }
 
@@ -396,7 +397,7 @@ void cli_patterns_pathspecs(const CliPatternsCfg *args)
 {
     if (args->patterns->includes == 0u)
     {
-        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = args->words,
+        EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
                    .word = ".");
     }
     cli_patterns.include_specs(args);
@@ -427,19 +428,20 @@ int cli_patterns_set(const CliPatternsLinesCountCfg *args)
     EMBED_CALL(cli_patterns_lines.read, CliPatternsLinesCfg, .lines = args->lines, .count = args->count,
                .patterns_out = &s_read);
     CliPatterns *const set_at = &s_set[args->part];
-    const int same = s_made[args->part] && (set_at->hides == s_read.hides) && (set_at->includes == s_read.includes) &&
+    const int same = s_created[args->part] && (set_at->hides == s_read.hides) &&
+                     (set_at->includes == s_read.includes) &&
                      EMBED_CALL(cli_same_list, PatternsCtx, .one = set_at, .list = set_at->hide, .other = &s_read,
                                 .other_list = s_read.hide, .count = s_read.hides) &&
                      EMBED_CALL(cli_same_list, PatternsCtx, .one = set_at, .list = set_at->include, .other = &s_read,
                                 .other_list = s_read.include, .count = s_read.includes);
     memor.cpy(&(MemoriaCfg){.dst = set_at, .src = &s_read, .bytes = sizeof(s_read)});
-    s_made[args->part] = 1;
+    s_created[args->part] = 1;
     return !same;
 }
 
 void cli_patterns_get(const CliPatternsPartCfg *args)
 {
-    if (s_made[args->part])
+    if (s_created[args->part])
     {
         memor.cpy(
             &(MemoriaCfg){.dst = args->patterns_out, .src = &s_set[args->part], .bytes = sizeof(*args->patterns_out)});

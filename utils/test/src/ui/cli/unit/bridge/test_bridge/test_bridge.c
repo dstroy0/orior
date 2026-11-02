@@ -60,7 +60,7 @@ static unsigned int tree_bridge(void)
 void setUp(void)
 {
     cli_unity_begun();
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_nodes_most.json_reserve, CliJsonTreeNodesMostCfg, .json = &s_json, .nodes_most = 1024u, .text_most = 1ull << 16u, .what = "a bridge test's tree", .owner = &g_checks_cells));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_json_tree_nodes_max.json_reserve, CliJsonTreeNodesMaxCfg, .json = &s_json, .nodes_max = 1024u, .text_max = 1ull << 16u, .what = "a bridge test's tree", .owner = &g_checks_cells));
 }
 
 void tearDown(void)

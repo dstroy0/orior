@@ -13,12 +13,12 @@ static CliBranches s_branches;
 static CliGraph s_graph;
 static char s_out[1u << 16u];
 static char s_root[CLI_PATH_MAX_LEN];
-static char s_why[1024];
+static char s_error[1024];
 static char s_strokes[256];
 static char s_answer[1024];
 
 // git run at the root with the words sent, NULL past the last: 1, its output trimmed into s_out, or 0
-static int git_ran(const char *one, const char *two, const char *three, const char *four)
+static int git_run_result(const char *one, const char *two, const char *three, const char *four)
 {
     const char *const words[4] = {one, two, three, four};
     unsigned int count = 0u;
@@ -26,20 +26,20 @@ static int git_ran(const char *one, const char *two, const char *three, const ch
     {
         count += 1u;
     }
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    const int ran = EMBED_CALL(cli_git_root_out_count_err_msg.run, CliGitRootOutCountErrMsgCfg, .root = s_root, .request = words, .count = count, .out = &out, .err_msg = &err_msg);
+    const int run_result = EMBED_CALL(cli_git_root_out_count_err_msg.run, CliGitRootOutCountErrMsgCfg, .root = s_root, .request = words, .count = count, .out = &out, .err_msg = &err_msg);
     (void)mmgr_line_finish(&out);
-    return ran;
+    return run_result;
 }
 
 // a repository made at the folder `name`, its user t
-static void repository_made(const char *name)
+static void repository_created(const char *name)
 {
     cli_unity_folder(name, s_root);
-    TEST_ASSERT_TRUE(git_ran("init", "-q", "-b", "main"));
-    TEST_ASSERT_TRUE(git_ran("config", "user.name", "t", NULL));
-    TEST_ASSERT_TRUE(git_ran("config", "user.email", "t@t", NULL));
+    TEST_ASSERT_TRUE(git_run_result("init", "-q", "-b", "main"));
+    TEST_ASSERT_TRUE(git_run_result("config", "user.name", "t", NULL));
+    TEST_ASSERT_TRUE(git_run_result("config", "user.email", "t@t", NULL));
 }
 
 // the file `name` of the tree read into s_out
@@ -57,7 +57,7 @@ static const char *file_read(const char *name)
 static void assert_clone_folder(const char *url)
 {
     char folder[CLI_PATH_MAX_LEN];
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     TEST_ASSERT_TRUE_MESSAGE(EMBED_CALL(cli_git_err_msg_folder.clone_folder, CliGitErrMsgFolderCfg, .url = url, .parent = "work", .folder = folder, .err_msg = &err_msg), url);
     TEST_ASSERT_EQUAL_STRING_MESSAGE("work/orior", folder, url);
 }
@@ -66,29 +66,29 @@ static void assert_clone_folder(const char *url)
 static void assert_no_clone_folder(const char *url)
 {
     char folder[CLI_PATH_MAX_LEN];
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     TEST_ASSERT_FALSE_MESSAGE(EMBED_CALL(cli_git_err_msg_folder.clone_folder, CliGitErrMsgFolderCfg, .url = url, .parent = "work", .folder = folder, .err_msg = &err_msg), url);
 }
 
 // a commit of a file and its next edit, with another file staged apart
 static void part_ready(void)
 {
-    repository_made("git_parts");
+    repository_created("git_parts");
     cli_unity_file(s_root, "a.txt", "one\ntwo\nthree\nfour\n");
-    (void)git_ran("add", ".", NULL, NULL);
-    (void)git_ran("commit", "-q", "-m", "first");
+    (void)git_run_result("add", ".", NULL, NULL);
+    (void)git_run_result("commit", "-q", "-m", "first");
     cli_unity_file(s_root, "a.txt", "one\nTWO\nthree\nFOUR\n");
     cli_unity_file(s_root, "other.txt", "staged apart\n");
-    (void)git_ran("add", "other.txt", NULL, NULL);
+    (void)git_run_result("add", "other.txt", NULL, NULL);
 }
 
-// the part of a.txt committed: whether it was, the reason in s_why
+// the part of a.txt committed: whether it was, the reason in s_error
 static int part_committed(const char *message)
 {
     const CliGitPart part = {"a.txt", s_part_text, sizeof(s_part_text) - 1u};
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     VerbaLinea line = {s_answer, sizeof(s_answer), 0ull};
-    const int committed = EMBED_CALL(cli_git_root.commit_parts, CliGitRootCfg, .root = s_root, .message = message, .whole = NULL, .whole_count = 0u, .parts = &part, .part_count = 1u, .out = &line, .err_msg = &err_msg);
+    const int committed = EMBED_CALL(cli_git_root.commit_parts, CliGitRootCfg, .root = s_root, .message = message, .whole = NULL, .full_files_count = 0u, .parts = &part, .part_count = 1u, .out = &line, .err_msg = &err_msg);
     (void)mmgr_line_finish(&err_msg);
     return committed;
 }
@@ -96,21 +96,21 @@ static int part_committed(const char *message)
 // the branch act `act` on `name`: 1, or 0
 static int branch_acted(const char *act, const char *name, const char *to)
 {
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
     VerbaLinea line = {s_answer, sizeof(s_answer), 0ull};
     return EMBED_CALL(cli_git_root_out.branch_act, CliGitRootOutCfg, .root = s_root, .act = act, .name_read = name, .to = to, .out = &line, .err_msg = &err_msg);
 }
 
 // a repository on the branch topic, one commit past main
-static void topic_made(void)
+static void topic_created(void)
 {
-    repository_made("git_branches");
+    repository_created("git_branches");
     cli_unity_file(s_root, "a.txt", "one");
-    (void)git_ran("add", ".", NULL, NULL);
-    (void)git_ran("commit", "-q", "-m", "first");
+    (void)git_run_result("add", ".", NULL, NULL);
+    (void)git_run_result("commit", "-q", "-m", "first");
     TEST_ASSERT_TRUE(branch_acted("create", "topic", ""));
     cli_unity_file(s_root, "a.txt", "two");
-    (void)git_ran("commit", "-q", "-am", "second");
+    (void)git_run_result("commit", "-q", "-am", "second");
 }
 
 // a commit of the graph added with its parents
@@ -118,11 +118,11 @@ static void commit_added(const char *id, const char *first, const char *second)
 {
     CliDrawn *const drawn = &s_graph.item[s_graph.count];
     memor.set(&(MemoriaCfg){.dst = drawn, .val = 0, .bytes = sizeof(*drawn)});
-    drawn->id = EMBED_CALL(cli_git_text.text_put, CliGitTextCfg, .text = &s_graph.text, .from = id, .length = CLI_UNITY_LENGTH(id));
+    drawn->id = EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &s_graph.text, .from = id, .length = CLI_UNITY_LENGTH(id));
     const char *const parents[2] = {first, second};
     for (unsigned int at = 0u; (at < 2u) && (parents[at] != NULL); at += 1u)
     {
-        drawn->parent[at] = EMBED_CALL(cli_git_text.text_put, CliGitTextCfg, .text = &s_graph.text, .from = parents[at], .length = CLI_UNITY_LENGTH(parents[at]));
+        drawn->parent[at] = EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &s_graph.text, .from = parents[at], .length = CLI_UNITY_LENGTH(parents[at]));
         drawn->parents = at + 1u;
     }
     s_graph.count += 1u;
@@ -211,10 +211,10 @@ void test_a_commit_with_no_message_is_refused(void)
 {
     part_ready();
     TEST_ASSERT_FALSE(part_committed("  \n"));
-    TEST_ASSERT_EQUAL_STRING("a commit needs a message", s_why);
+    TEST_ASSERT_EQUAL_STRING("a commit needs a message", s_error);
 }
 
-void test_a_commit_releases_its_memory_made_or_refused(void)
+void test_a_commit_releases_its_memory_created_or_refused(void)
 {
     part_ready();
     const unsigned long long before = embed_atomic_usize_load(&g_cli_git_cells.in_use);
@@ -228,7 +228,7 @@ void test_the_commit_contains_the_part(void)
 {
     part_ready();
     TEST_ASSERT_TRUE(part_committed("part of a"));
-    TEST_ASSERT_TRUE(git_ran("show", "HEAD:a.txt", NULL, NULL));
+    TEST_ASSERT_TRUE(git_run_result("show", "HEAD:a.txt", NULL, NULL));
     TEST_ASSERT_EQUAL_STRING("one\nTWO\nthree\nfour", s_out);
 }
 
@@ -243,7 +243,7 @@ void test_the_commit_contains_that_file_alone(void)
 {
     part_ready();
     TEST_ASSERT_TRUE(part_committed("part of a"));
-    TEST_ASSERT_TRUE(git_ran("show", "--name-only", "--format=", "HEAD"));
+    TEST_ASSERT_TRUE(git_run_result("show", "--name-only", "--format=", "HEAD"));
     TEST_ASSERT_EQUAL_STRING("a.txt", s_out);
 }
 
@@ -251,14 +251,14 @@ void test_what_was_staged_apart_stays_staged(void)
 {
     part_ready();
     TEST_ASSERT_TRUE(part_committed("part of a"));
-    TEST_ASSERT_TRUE(git_ran("status", "--porcelain", NULL, NULL));
+    TEST_ASSERT_TRUE(git_run_result("status", "--porcelain", NULL, NULL));
     // git's output comes trimmed, the first line's leading space with it
     TEST_ASSERT_EQUAL_STRING("M a.txt\nA  other.txt", s_out);
 }
 
 void test_the_tree_is_on_a_new_branch_with_its_last_commits_subject(void)
 {
-    topic_made();
+    topic_created();
     EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_branches.text);
     EMBED_CALL(cli_git_root_found_branches.branches, CliGitRootFoundBranchesCfg, .root = s_root, .found_branches_pointer = &s_branches);
     int current = 0;
@@ -277,21 +277,21 @@ void test_the_tree_is_on_a_new_branch_with_its_last_commits_subject(void)
 
 void test_a_branch_is_renamed_and_another_switched_to(void)
 {
-    topic_made();
+    topic_created();
     TEST_ASSERT_TRUE(branch_acted("rename", "topic", "feature"));
     TEST_ASSERT_TRUE(branch_acted("switch", "main", ""));
 }
 
 void test_a_branch_not_merged_is_not_deleted(void)
 {
-    topic_made();
+    topic_created();
     TEST_ASSERT_TRUE(branch_acted("switch", "main", ""));
     TEST_ASSERT_FALSE(branch_acted("delete", "topic", ""));
 }
 
 void test_a_branch_is_merged(void)
 {
-    topic_made();
+    topic_created();
     TEST_ASSERT_TRUE(branch_acted("switch", "main", ""));
     TEST_ASSERT_TRUE(branch_acted("merge", "topic", ""));
     TEST_ASSERT_EQUAL_STRING("two", file_read("a.txt"));
@@ -299,7 +299,7 @@ void test_a_branch_is_merged(void)
 
 void test_a_merged_branch_is_deleted_and_main_alone_is_left(void)
 {
-    topic_made();
+    topic_created();
     TEST_ASSERT_TRUE(branch_acted("switch", "main", ""));
     TEST_ASSERT_TRUE(branch_acted("merge", "topic", ""));
     TEST_ASSERT_TRUE(branch_acted("delete", "topic", ""));
@@ -312,7 +312,7 @@ void test_a_merged_branch_is_deleted_and_main_alone_is_left(void)
 
 void test_a_name_git_refuses_is_refused(void)
 {
-    topic_made();
+    topic_created();
     TEST_ASSERT_FALSE(branch_acted("create", "-x", ""));
     TEST_ASSERT_FALSE(branch_acted("create", "bad..name", ""));
 }
@@ -333,7 +333,7 @@ void test_the_merge_opens_the_column(void)
     TEST_ASSERT_EQUAL_STRING("0 0 1 0|0 1 1 1", strokes_of(0u));
 }
 
-void test_each_column_continues_past_anothers_commit(void)
+void test_each_column_continues_end_anothers_commit(void)
 {
     graph_laid_out();
     TEST_ASSERT_EQUAL_STRING("0 0 0 0|1 1 0 1|0 0 1 0|1 1 1 1", strokes_of(1u));
@@ -373,7 +373,7 @@ void test_a_file_in_a_repository_belongs_to_it(void)
     TEST_ASSERT_EQUAL_STRING("lib", EMBED_CALL(cli_git_count_internal.owner, CliGitCountCtx, .repos = s_repos, .count = 3u, .path = "lib/a.txt", .length = 9ull));
 }
 
-void test_the_deepest_repository_owns_a_path(void)
+void test_the_deepest_repository_owner_a_path(void)
 {
     TEST_ASSERT_EQUAL_STRING("lib/inner", EMBED_CALL(cli_git_count_internal.owner, CliGitCountCtx, .repos = s_repos, .count = 3u, .path = "lib/inner/b/c.txt", .length = 17ull));
 }

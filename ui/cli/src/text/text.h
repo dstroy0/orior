@@ -23,7 +23,7 @@ typedef struct CliTextSizeByteCfg CliTextSizeByteCfg;
 typedef struct CliTextSizeSuffixCfg CliTextSizeSuffixCfg;
 typedef struct CliTextByteCfg CliTextByteCfg;
 typedef struct CliTextLengthCfg CliTextLengthCfg;
-typedef struct CliTextOutRoomCfg CliTextOutRoomCfg;
+typedef struct CliTextOutCapacityCfg CliTextOutCapacityCfg;
 typedef struct CliTextSizeOneCfg CliTextSizeOneCfg;
 typedef struct CliTextSizePrefixCfg CliTextSizePrefixCfg;
 typedef struct CliTextPathsCfg CliTextPathsCfg;
@@ -59,10 +59,10 @@ int cli_text_alphanumeric(const CliTextCfg *args);
 // `byte`; and whether every one is below 0x80. Each a word at a time
 void cli_text_swap(const CliTextSizeFromCfg *args);
 void cli_text_lower(const CliTextSizeFromCfg *args);
-// the small letters of `size` bytes made capitals; and `text` copied into `out`, sized for `room`, in lower case: its
-// length, the copy ended with a NUL
+// the small letters of `size` bytes made capitals; and `text` copied into `out`, sized for `capacity`, in lower case:
+// its length, the copy ended with a NUL
 void cli_text_raise(const CliTextSizeFromCfg *args);
-unsigned long long cli_text_lowered_into(const CliTextOutRoomCfg *args);
+unsigned long long cli_text_lowered_into(const CliTextOutCapacityCfg *args);
 // the text `text`, `otherwise` where it is NULL, copied into `out` with its terminator
 void cli_text_copied_or(const CliTextOutCfg *args);
 // `size` bytes with each byte neither of `classes` nor of `set` made `other`
@@ -71,18 +71,18 @@ unsigned long long cli_text_count(const CliTextSizeByteCfg *args);
 int cli_text_ascii(const CliTextSizeByteCfg *args);
 // the text written to `out`: with each byte `from` as `to`, answering the text's bytes; with `mark` before each byte of
 // `set`; with `with` in the place of each byte of `set`; and with `value` in the place of each `name`
-unsigned long long cli_text_put_swap(const CliTextFromCfg *args);
-void cli_text_put_mark(const CliTextSizeSetCfg *args);
-void cli_text_put_replace(const CliTextSetCfg *args);
-void cli_text_put_fill(const CliTextOutNameCfg *args);
+unsigned long long cli_text_append_swap(const CliTextFromCfg *args);
+void cli_text_append_mark(const CliTextSizeSetCfg *args);
+void cli_text_append_replace(const CliTextSetCfg *args);
+void cli_text_append_fill(const CliTextOutNameCfg *args);
 // the text written to `out`: `size` bytes of it with `mark` before each byte of `set`; with each byte of `set` twice;
 // in lower case; with each byte neither of `classes` nor of `set` as `other`; and `size` bytes of it with each %xx made
 // the byte it writes
-void cli_text_put_marked_n(const CliTextSizeSetCfg *args);
-void cli_text_put_double(const CliTextSetCfg *args);
-void cli_text_put_lower(const CliTextOutNameCfg *args);
-void cli_text_put_save(const CliTextClassesCfg *args);
-void cli_text_put_unescaped(const CliTextSizeSetCfg *args);
+void cli_text_append_marked_n(const CliTextSizeSetCfg *args);
+void cli_text_append_double(const CliTextSetCfg *args);
+void cli_text_append_lower(const CliTextOutNameCfg *args);
+void cli_text_append_save(const CliTextClassesCfg *args);
+void cli_text_append_unescaped(const CliTextSizeSetCfg *args);
 
 // the ASCII whitespace, a set of bytes for the walks below
 #define CLI_TEXT_WHITE " \t\n\v\f\r"
@@ -90,7 +90,7 @@ void cli_text_put_unescaped(const CliTextSizeSetCfg *args);
 // small letters
 #define CLI_TEXT_LETTERS 1u
 #define CLI_TEXT_DIGITS 2u
-#define CLI_TEXT_PAST_ASCII 4u
+#define CLI_TEXT_END_ASCII 4u
 #define CLI_TEXT_UPPER 8u
 #define CLI_TEXT_LOWER 16u
 
@@ -99,21 +99,23 @@ void cli_text_put_unescaped(const CliTextSizeSetCfg *args);
 // not: 0 where none is. A set is at most 16 bytes. Each walks the widest lane the build has, then a word at a time, and
 // reads no byte past the bounds it is given
 unsigned long long cli_text_to_any(const CliTextAtSizeClassesCfg *args);
-unsigned long long cli_text_past_any(const CliTextAtSizeClassesCfg *args);
+unsigned long long cli_text_end_any(const CliTextAtSizeClassesCfg *args);
 unsigned long long cli_text_back_any(const CliTextAtSizeClassesCfg *args);
-unsigned long long cli_text_back_past(const CliTextAtSizeClassesCfg *args);
-// the first place from `at` below `size` whose byte is neither of `classes` nor of the set `set`, `size` where none is;
-// the place past the last such byte before `at`, 0 where none is; the first place from `at` that holds `first` and then
+unsigned long long cli_text_back_end(const CliTextAtSizeClassesCfg *args);
+// the first place from `at` below `size` whose byte is of `classes` or of the set `set`, `size` where none is; the
+// first place from `at` below `size` whose byte is neither of `classes` nor of the set `set`, `size` where none is; the
+// place past the last such byte before `at`, 0 where none is; the first place from `at` that holds `first` and then
 // `second`, `size` where none does; and the number the decimal digits from `at` below `size` write, all ones where they
 // are more than 19, the place past them into `end` where it is not NULL. Each a word at a time
-unsigned long long cli_text_past_class(const CliTextAtSizeClassesCfg *args);
-unsigned long long cli_text_back_past_class(const CliTextAtSizeClassesCfg *args);
+unsigned long long cli_text_to_class(const CliTextAtSizeClassesCfg *args);
+unsigned long long cli_text_end_class(const CliTextAtSizeClassesCfg *args);
+unsigned long long cli_text_back_end_class(const CliTextAtSizeClassesCfg *args);
 unsigned long long cli_text_to_pair(const CliTextAtSizeFirstCfg *args);
 unsigned long long cli_text_number(const CliTextAtSizeCfg *args);
 
 // the bytes of `size` bytes of `text` its whitespace at the start takes; and the length of the text with its
 // whitespace at the end taken off
-unsigned long long cli_text_lead(const CliTextSizeFromU64sCfg *args);
+unsigned long long cli_text_prefix(const CliTextSizeFromU64sCfg *args);
 unsigned long long cli_text_trimmed_end(const CliTextSizeByteCfg *args);
 // the bounds of `size` bytes of `text` with the whitespace at both ends taken off
 void cli_text_trim(const CliTextSizeFromU64sCfg *args);
@@ -127,13 +129,13 @@ unsigned long long cli_text_letters(const CliTextSizeByteCfg *args);
 unsigned long long cli_text_units(const CliTextSizeByteCfg *args);
 // whether `size` bytes are UTF-8 whole, every byte starting or inside a letter: a word of ASCII bytes passes in one
 // test, a word containing a high bit is read letter by letter (text.c)
-int cli_text_utf8_whole(const CliTextSizeKindCfg *args);
+int cli_text_utf8_valid(const CliTextSizeKindCfg *args);
 
 // whether `size` bytes of `text` start with `prefix`, and end with `suffix`
 int cli_text_starts(const CliTextSizePrefixCfg *args);
 int cli_text_ends(const CliTextSizeSuffixCfg *args);
 
-// the first place of `size` bytes of `wanted` in `length` bytes of `text`: 1 with it into `at`, or 0 where it is not
+// the first place of `size` bytes of `required` in `length` bytes of `text`: 1 with it into `at`, or 0 where it is not
 // there; and the last
 int cli_text_find(const CliTextSizeAtCfg *args);
 int cli_text_find_last(const CliTextSizeAtCfg *args);
@@ -167,7 +169,7 @@ struct CliTextSizeAtCfg
     unsigned long long size;
     unsigned long long *at_pointer;
     unsigned long long length_value;
-    const char *wanted;
+    const char *required;
 };
 
 struct CliTextSizeCfg
@@ -283,7 +285,7 @@ struct CliTextSizeFromCfg
 struct CliTextOutCfg
 {
     const char *text;
-    char *out_room;
+    char *out_capacity;
     const char *otherwise;
 };
 
@@ -315,11 +317,11 @@ struct CliTextLengthCfg
     unsigned long long end_value;
 };
 
-struct CliTextOutRoomCfg
+struct CliTextOutCapacityCfg
 {
     const char *text;
-    char *out_room;
-    unsigned long long room;
+    char *out_capacity;
+    unsigned long long capacity;
 };
 
 struct CliTextSizeOneCfg
@@ -401,10 +403,10 @@ EMBED_TABLE_STORAGE CliTextSizeFromNs cli_text_size_from EMBED_UNUSED = {
 
 typedef struct
 {
-    unsigned long long (*lowered_into)(const CliTextOutRoomCfg *args);
-} CliTextOutRoomNs;
-EMBED_TABLE_LAYOUT(CliTextOutRoomNs, lowered_into);
-EMBED_TABLE_STORAGE CliTextOutRoomNs cli_text_out_room EMBED_UNUSED = {
+    unsigned long long (*lowered_into)(const CliTextOutCapacityCfg *args);
+} CliTextOutCapacityNs;
+EMBED_TABLE_LAYOUT(CliTextOutCapacityNs, lowered_into);
+EMBED_TABLE_STORAGE CliTextOutCapacityNs cli_text_out_capacity EMBED_UNUSED = {
     .lowered_into = cli_text_lowered_into,
 };
 
@@ -445,78 +447,80 @@ EMBED_TABLE_STORAGE CliTextSizeByteNs cli_text_size_byte EMBED_UNUSED = {
 
 typedef struct
 {
-    unsigned long long (*put_swap)(const CliTextFromCfg *args);
+    unsigned long long (*append_swap)(const CliTextFromCfg *args);
 } CliTextFromNs;
-EMBED_TABLE_LAYOUT(CliTextFromNs, put_swap);
+EMBED_TABLE_LAYOUT(CliTextFromNs, append_swap);
 EMBED_TABLE_STORAGE CliTextFromNs cli_text_from EMBED_UNUSED = {
-    .put_swap = cli_text_put_swap,
+    .append_swap = cli_text_append_swap,
 };
 
 typedef struct
 {
-    void (*put_mark)(const CliTextSizeSetCfg *args);
-    void (*put_marked_n)(const CliTextSizeSetCfg *args);
-    void (*put_unescaped)(const CliTextSizeSetCfg *args);
+    void (*append_mark)(const CliTextSizeSetCfg *args);
+    void (*append_marked_n)(const CliTextSizeSetCfg *args);
+    void (*append_unescaped)(const CliTextSizeSetCfg *args);
 } CliTextSizeSetNs;
-EMBED_TABLE_LAYOUT(CliTextSizeSetNs, put_mark, put_marked_n, put_unescaped);
+EMBED_TABLE_LAYOUT(CliTextSizeSetNs, append_mark, append_marked_n, append_unescaped);
 EMBED_TABLE_STORAGE CliTextSizeSetNs cli_text_size_set EMBED_UNUSED = {
-    .put_mark = cli_text_put_mark,
-    .put_marked_n = cli_text_put_marked_n,
-    .put_unescaped = cli_text_put_unescaped,
+    .append_mark = cli_text_append_mark,
+    .append_marked_n = cli_text_append_marked_n,
+    .append_unescaped = cli_text_append_unescaped,
 };
 
 typedef struct
 {
-    void (*put_replace)(const CliTextSetCfg *args);
-    void (*put_double)(const CliTextSetCfg *args);
+    void (*append_replace)(const CliTextSetCfg *args);
+    void (*append_double)(const CliTextSetCfg *args);
     unsigned long long (*upto)(const CliTextSetCfg *args);
     unsigned long long (*over)(const CliTextSetCfg *args);
 } CliTextSetNs;
-EMBED_TABLE_LAYOUT(CliTextSetNs, put_replace, put_double, upto, over);
+EMBED_TABLE_LAYOUT(CliTextSetNs, append_replace, append_double, upto, over);
 EMBED_TABLE_STORAGE CliTextSetNs cli_text_set_table EMBED_UNUSED = {
-    .put_replace = cli_text_put_replace,
-    .put_double = cli_text_put_double,
+    .append_replace = cli_text_append_replace,
+    .append_double = cli_text_append_double,
     .upto = cli_text_upto,
     .over = cli_text_over,
 };
 
 typedef struct
 {
-    void (*put_fill)(const CliTextOutNameCfg *args);
-    void (*put_lower)(const CliTextOutNameCfg *args);
+    void (*append_fill)(const CliTextOutNameCfg *args);
+    void (*append_lower)(const CliTextOutNameCfg *args);
 } CliTextOutNameNs;
-EMBED_TABLE_LAYOUT(CliTextOutNameNs, put_fill, put_lower);
+EMBED_TABLE_LAYOUT(CliTextOutNameNs, append_fill, append_lower);
 EMBED_TABLE_STORAGE CliTextOutNameNs cli_text_out_name EMBED_UNUSED = {
-    .put_fill = cli_text_put_fill,
-    .put_lower = cli_text_put_lower,
+    .append_fill = cli_text_append_fill,
+    .append_lower = cli_text_append_lower,
 };
 
 typedef struct
 {
-    void (*put_save)(const CliTextClassesCfg *args);
+    void (*append_save)(const CliTextClassesCfg *args);
 } CliTextClassesNs;
-EMBED_TABLE_LAYOUT(CliTextClassesNs, put_save);
+EMBED_TABLE_LAYOUT(CliTextClassesNs, append_save);
 EMBED_TABLE_STORAGE CliTextClassesNs cli_text_classes EMBED_UNUSED = {
-    .put_save = cli_text_put_save,
+    .append_save = cli_text_append_save,
 };
 
 typedef struct
 {
     unsigned long long (*to_any)(const CliTextAtSizeClassesCfg *args);
-    unsigned long long (*past_any)(const CliTextAtSizeClassesCfg *args);
+    unsigned long long (*end_any)(const CliTextAtSizeClassesCfg *args);
     unsigned long long (*back_any)(const CliTextAtSizeClassesCfg *args);
-    unsigned long long (*back_past)(const CliTextAtSizeClassesCfg *args);
-    unsigned long long (*past_class)(const CliTextAtSizeClassesCfg *args);
-    unsigned long long (*back_past_class)(const CliTextAtSizeClassesCfg *args);
+    unsigned long long (*back_end)(const CliTextAtSizeClassesCfg *args);
+    unsigned long long (*to_class)(const CliTextAtSizeClassesCfg *args);
+    unsigned long long (*end_class)(const CliTextAtSizeClassesCfg *args);
+    unsigned long long (*back_end_class)(const CliTextAtSizeClassesCfg *args);
 } CliTextAtSizeClassesNs;
-EMBED_TABLE_LAYOUT(CliTextAtSizeClassesNs, to_any, past_any, back_any, back_past, past_class, back_past_class);
+EMBED_TABLE_LAYOUT(CliTextAtSizeClassesNs, to_any, end_any, back_any, back_end, to_class, end_class, back_end_class);
 EMBED_TABLE_STORAGE CliTextAtSizeClassesNs cli_text_at_size_classes EMBED_UNUSED = {
     .to_any = cli_text_to_any,
-    .past_any = cli_text_past_any,
+    .end_any = cli_text_end_any,
     .back_any = cli_text_back_any,
-    .back_past = cli_text_back_past,
-    .past_class = cli_text_past_class,
-    .back_past_class = cli_text_back_past_class,
+    .back_end = cli_text_back_end,
+    .to_class = cli_text_to_class,
+    .end_class = cli_text_end_class,
+    .back_end_class = cli_text_back_end_class,
 };
 
 typedef struct
@@ -546,7 +550,7 @@ typedef struct
 } CliTextSizeFromU64sNs;
 EMBED_TABLE_LAYOUT(CliTextSizeFromU64sNs, lead, trim);
 EMBED_TABLE_STORAGE CliTextSizeFromU64sNs cli_text_size_from_u_64s EMBED_UNUSED = {
-    .lead = cli_text_lead,
+    .lead = cli_text_prefix,
     .trim = cli_text_trim,
 };
 
@@ -561,11 +565,11 @@ EMBED_TABLE_STORAGE CliTextSizeLengthNs cli_text_size_length EMBED_UNUSED = {
 
 typedef struct
 {
-    int (*utf8_whole)(const CliTextSizeKindCfg *args);
+    int (*utf8_valid)(const CliTextSizeKindCfg *args);
 } CliTextSizeKindNs;
-EMBED_TABLE_LAYOUT(CliTextSizeKindNs, utf8_whole);
+EMBED_TABLE_LAYOUT(CliTextSizeKindNs, utf8_valid);
 EMBED_TABLE_STORAGE CliTextSizeKindNs cli_text_size_kind EMBED_UNUSED = {
-    .utf8_whole = cli_text_utf8_whole,
+    .utf8_valid = cli_text_utf8_valid,
 };
 
 typedef struct

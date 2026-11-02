@@ -29,7 +29,7 @@ extern void test_a_dotnet_exe_projects_program_has_its_name(void);
 extern void test_a_dotnet_exe_projects_program_has_the_assemblys_name(void);
 extern void test_an_assembly_name_of_properties_is_ignored(void);
 extern void test_a_dotnet_library_has_no_program(void);
-extern void test_a_dotnet_program_is_beside_the_assembly_built(void);
+extern void test_a_dotnet_program_is_adjacent_the_assembly_built(void);
 extern void test_a_dotnet_program_is_in_the_folder_published_to_the_last_line_first(void);
 extern void test_a_tree_has_a_job_for_each_program_its_shared_names_titled_by_folder(void);
 extern void test_the_compilers_are_queried_from_cmake_before_it_configures_and_builds(void);
@@ -119,7 +119,7 @@ int main(void)
   run_test(test_a_dotnet_exe_projects_program_has_the_assemblys_name, "test_a_dotnet_exe_projects_program_has_the_assemblys_name", 321);
   run_test(test_an_assembly_name_of_properties_is_ignored, "test_an_assembly_name_of_properties_is_ignored", 328);
   run_test(test_a_dotnet_library_has_no_program, "test_a_dotnet_library_has_no_program", 335);
-  run_test(test_a_dotnet_program_is_beside_the_assembly_built, "test_a_dotnet_program_is_beside_the_assembly_built", 341);
+  run_test(test_a_dotnet_program_is_adjacent_the_assembly_built, "test_a_dotnet_program_is_adjacent_the_assembly_built", 341);
   run_test(test_a_dotnet_program_is_in_the_folder_published_to_the_last_line_first, "test_a_dotnet_program_is_in_the_folder_published_to_the_last_line_first", 352);
   run_test(test_a_tree_has_a_job_for_each_program_its_shared_names_titled_by_folder, "test_a_tree_has_a_job_for_each_program_its_shared_names_titled_by_folder", 363);
   run_test(test_the_compilers_are_queried_from_cmake_before_it_configures_and_builds, "test_the_compilers_are_queried_from_cmake_before_it_configures_and_builds", 380);

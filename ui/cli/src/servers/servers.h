@@ -43,7 +43,7 @@ typedef struct CliServersPathOutErrMsgFromCfg CliServersPathOutErrMsgFromCfg;
 typedef struct CliServersPathOutErrMsgFromToCfg CliServersPathOutErrMsgFromToCfg;
 typedef struct CliServersErrMsgIdCfg CliServersErrMsgIdCfg;
 typedef struct CliServersRootSinkCountCfg CliServersRootSinkCountCfg;
-typedef struct CliServersRoomCfg CliServersRoomCfg;
+typedef struct CliServersCapacityCfg CliServersCapacityCfg;
 typedef struct CliServersOutCfg CliServersOutCfg;
 typedef struct CliServersCfg CliServersCfg;
 typedef struct CliServersPathSizeKindCfg CliServersPathSizeKindCfg;
@@ -52,11 +52,44 @@ typedef struct CliServersPathSizeKindCfg CliServersPathSizeKindCfg;
 #include "../text/edits.h"
 #include "embed_dispatch_layout.h"
 
+// One diagnostic of a file: its span's first place and the place after it, each a line and a column in units, its
+// severity, 1 an error, 2 a warning, 3 and 4 notes, and its message, `message_length` bytes, the reader's while the
+// call lasts
+typedef struct
+{
+    unsigned long long from_line;
+    unsigned long long from_col;
+    unsigned long long to_line;
+    unsigned long long to_col;
+    unsigned int severity;
+    const char *message;
+    unsigned long long message_length;
+} CliServerDiagnostic;
+
+// A file's diagnostics handed to whoever the sink names, in place of those it stood with, on the thread that found them
+typedef struct
+{
+    void *context;
+    const char *path;
+    const CliServerDiagnostic *item;
+    unsigned int count;
+} CliServerDiagnosticsCfg;
+
+// How far the tree's check has gone, the total 0 where it is over
+typedef struct
+{
+    void *context;
+    unsigned long long done;
+    unsigned long long total;
+} CliServerCheckCfg;
+
 // Where what the servers send unprompted goes: a function that receives each event, `lsp-diagnostics`, `lsp-edits`,
 // `lsp-hints`, `lsp-parse` or `tree-check`, with its JSON, its context, and the tree its paths are written in
 typedef struct
 {
     void (*emit)(const CliEachEventJsonSizeCfg *args);
+    void (*diagnostics)(const CliServerDiagnosticsCfg *args);
+    void (*check_moved)(const CliServerCheckCfg *args);
     void *context;
     char tree[CLI_PATH_MAX_LEN];
 } CliServersSink;
@@ -79,16 +112,14 @@ int cli_servers_view(const CliServersPathOutErrMsgCfg *args);
 // open: 1, or 0 with why given; and the plugin's server stopped, where it runs. A request sent to it, its answer waited
 // for up to `wait` milliseconds into `result`; a notification sent to it; and a request it sent, of the id `request`
 // the window was given, answered with `length` bytes of JSON `result`. Each 1, or 0 with why given (servers_plugins.c)
-int cli_servers_plugin_start(const CliServersRootSinkCfg *args);
 void cli_servers_plugin_stop(const CliServersRootSinkCfg *args);
 int cli_servers_plugin_request(const CliServersErrMsgCfg *args);
 int cli_servers_plugin_notify(const CliServersErrMsgCfg *args);
-int cli_servers_plugin_answer(const CliServersErrMsgIdCfg *args);
 // the text of a file as the editor has it, where the editor has it open, into `out`: 1, or 0 where it has none; and
 // the same copied into a cell of its size with a 0 after, its size into `size`: the cell, or NULL where the editor
 // has none or the cell could not be taken
 int cli_servers_text_get(const CliServersPathOutErrMsgFromToCfg *args);
-char *cli_servers_text_take(const CliServersPathSizeKindCfg *args);
+char *cli_servers_text_alloc(const CliServersPathSizeKindCfg *args);
 
 // what the server of `path` answers at `line`, `col`: a hover as Markdown, `null` for none; the definitions, each
 // `{"path", "line", "col"}`; the completions, orior's own reading's of a build file or JSON first, each an item; every
@@ -97,35 +128,43 @@ char *cli_servers_text_take(const CliServersPathSizeKindCfg *args);
 // signature of the call the cursor is in, `{"label", "params", "active", "doc", "count"}` or `null`. Each 1, or 0 with
 // why given (servers_request.c, servers_shapes.c)
 int cli_servers_hover(const CliServersPathOutCfg *args);
-int cli_servers_definition(const CliServersPathOutCfg *args);
-int cli_servers_complete(const CliServersPathOutCfg *args);
-int cli_servers_references(const CliServersPathOutCfg *args);
-int cli_servers_renamable(const CliServersPathOutCfg *args);
-int cli_servers_rename(const CliServersPathOutCfg *args);
-int cli_servers_signature(const CliServersPathOutCfg *args);
-
-// the quick fixes and refactorings for the span `from`, `to` of `path`, orior's own and the checkers' fixes of what
-// touches it first, then its server's and each plugin server's that has open it, each `{"title", "kind", "preferred",
-// "disabled", "raw"}` (servers_actions.c); and an action carried out from its `raw`, `size` bytes of JSON, its edits
-// written as each file's `{"path", "edits"}` (servers_act.c). Each 1, or 0 with why given
-int cli_servers_actions(const CliServersPathOutErrMsgFromCfg *args);
-int cli_servers_act(const CliServersPathSizeCfg *args);
+// One item a completion answers: what it shows, its kind, what it states of itself and what it inserts, each ended by a
+// 0, and whether what it inserts is a snippet
+typedef struct
+{
+    const char *label;
+    const char *kind;
+    const char *detail;
+    const char *insert;
+    int snippet;
+} CliServerItem;
+// The items of one completion in one cell
+typedef struct
+{
+    unsigned int count;
+    CliServerItem *item;
+} CliServerItems;
+// the completion items at `line`, `col` of the file at `path`, those of the tree where the file is a slice's, of a
+// build's or a schema's where it is one, and its server's, in a cell of `owner`: the cell, or NULL where none is to be
+// asked or the cells cannot meet it, with why given. And the signature at the place, the server's, in a cell of
+// `owner`: the cell, or NULL where it gives none
+typedef struct
+{
+    const char *path;
+    unsigned int line;
+    unsigned int col;
+    CellOwner *owner;
+    VerbaLinea *err_msg;
+} CliServersAskCfg;
+CliServerItems *cli_servers_items_alloc(const CliServersAskCfg *args);
+CliSignaturePanel *cli_servers_signature_alloc(const CliServersAskCfg *args);
 
 // the lines `from` to `to` of the parse of `path`, orior's own or its server's semantic tokens, and its folds,
 // `{"whole", "from", "lines", "folds"}` or `null`; the spans that contain `from` to `to` and are more than it, the
 // least first, the parse's where it reads the file whole, else the tree's read off the branch under `key`, NULL for
 // none, or the text the servers were told; the hints its server writes on the lines `from` to `to`; and the parses
 // that came from servers forgotten, for each to be requested again. Each 1, or 0 with why given (servers_parse.c)
-int cli_servers_colors(const CliServersPathOutErrMsgFromToCfg *args);
-int cli_servers_spans(const CliServersPathOutErrMsgFromCfg *args);
-int cli_servers_hints(const CliServersPathOutErrMsgFromToCfg *args);
 void cli_servers_forget_tokens(void);
-
-// the function at `line`, `col` of `path` as the top of its call hierarchy, `null` where there is none; and the
-// functions that call the function `item`, `size` bytes of JSON, where `incoming`, or that it calls, each `{"name",
-// "detail", "path", "from", "to", "site", "at", "item"}`. Each 1, or 0 with why given (servers_calls.c)
-int cli_servers_call_root(const CliServersPathOutCfg *args);
-int cli_servers_calls(const CliServersPathCfg *args);
 
 // A server running: its toolchain's id, its program's name, and its process
 typedef struct
@@ -133,18 +172,17 @@ typedef struct
     char tool[CLI_NAME_MAX_LEN];
     char program[CLI_NAME_MAX_LEN];
     unsigned int pid;
-} CliServerListed;
+} CliServerListing;
 
-// every server running into `servers`, sized for `room`: their count; the toolchains whose servers serve any of
-// `languages`, `count` of them, into `tools`, sized for `room`: their count; the servers of `tools`, `count` of them,
-// stopped without waiting, the files they had open written as an array; every server stopped and waited on, as the app
-// closes; every server let go as another tree opens; and each server notified its settings changed (servers_running.c)
+// every server running into `servers`, sized for `capacity`: their count; the toolchains whose servers serve any of
+// `languages`, `count` of them, into `tools`, sized for `capacity`: their count; the servers of `tools`, `count` of
+// them, stopped without waiting, the files they had open written as an array; every server stopped and waited on, as
+// the app closes; every server let go as another tree opens; and each server notified its settings changed
+// (servers_running.c)
 unsigned int cli_servers_list(const CliServersCfg *args);
-unsigned int cli_servers_tools_for(const CliServersRoomCfg *args);
-void cli_servers_stop(const CliServersOutCfg *args);
+unsigned int cli_servers_tools_for(const CliServersCapacityCfg *args);
 void cli_servers_stop_all(void);
 void cli_servers_let_go(void);
-void cli_servers_settings_change(void);
 
 // the tree's check started over `files`, `count` of them, each by its path in the tree at `root`: how many files wait;
 // the check stopped where it stands, the files waiting let go and the check reported done, on for the files that change
@@ -156,11 +194,6 @@ void cli_servers_stop_check(void);
 int cli_servers_checking(void);
 void cli_servers_on_change(const CliServersRootSinkCountCfg *args);
 
-// the checkers the reader named, `count` names, by name or id, each file the editor has open checked again with them
-// and the tree where its check is on; the names no checker answers to written as an array: 1, or 0 with why given where
-// no room for it is left (servers_named.c)
-int cli_servers_set_checkers(const CliServersRootSinkOutCfg *args);
-
 struct CliServersRootCfg
 {
     const char *root;
@@ -169,7 +202,7 @@ struct CliServersRootCfg
     const char *text;
     unsigned long long size;
     const CliServersSink *sink;
-    VerbaLinea *out;
+    int *served;
     VerbaLinea *err_msg;
 };
 
@@ -254,8 +287,8 @@ struct CliServersPathOutErrMsgFromCfg
     const char *path;
     VerbaLinea *out;
     VerbaLinea *err_msg;
-    CliTextPlace from;
-    CliTextPlace to;
+    CliTextPosition from;
+    CliTextPosition to;
     const char *key;
 };
 
@@ -285,9 +318,9 @@ struct CliServersRootSinkCountCfg
     const char *const *files;
 };
 
-struct CliServersRoomCfg
+struct CliServersCapacityCfg
 {
-    unsigned int room;
+    unsigned int capacity;
     const char *const *languages;
     unsigned int count;
     char (*tools)[CLI_NAME_MAX_LEN];
@@ -302,8 +335,8 @@ struct CliServersOutCfg
 
 struct CliServersCfg
 {
-    CliServerListed *servers;
-    unsigned int room;
+    CliServerListing *servers;
+    unsigned int capacity;
 };
 
 struct CliServersPathSizeKindCfg
@@ -327,15 +360,11 @@ typedef struct
 {
     int (*close)(const CliServersPathOutErrMsgFromToCfg *args);
     int (*text_get)(const CliServersPathOutErrMsgFromToCfg *args);
-    int (*colors)(const CliServersPathOutErrMsgFromToCfg *args);
-    int (*hints)(const CliServersPathOutErrMsgFromToCfg *args);
 } CliServersPathOutErrMsgFromToNs;
-EMBED_TABLE_LAYOUT(CliServersPathOutErrMsgFromToNs, close, text_get, colors, hints);
+EMBED_TABLE_LAYOUT(CliServersPathOutErrMsgFromToNs, close, text_get);
 EMBED_TABLE_STORAGE CliServersPathOutErrMsgFromToNs cli_servers_path_out_err_msg_from_to EMBED_UNUSED = {
     .close = cli_servers_close,
     .text_get = cli_servers_text_get,
-    .colors = cli_servers_colors,
-    .hints = cli_servers_hints,
 };
 
 typedef struct
@@ -349,12 +378,10 @@ EMBED_TABLE_STORAGE CliServersPathOutErrMsgNs cli_servers_path_out_err_msg EMBED
 
 typedef struct
 {
-    int (*plugin_start)(const CliServersRootSinkCfg *args);
     void (*plugin_stop)(const CliServersRootSinkCfg *args);
 } CliServersRootSinkNs;
-EMBED_TABLE_LAYOUT(CliServersRootSinkNs, plugin_start, plugin_stop);
+EMBED_TABLE_LAYOUT(CliServersRootSinkNs, plugin_stop);
 EMBED_TABLE_STORAGE CliServersRootSinkNs cli_servers_root_sink EMBED_UNUSED = {
-    .plugin_start = cli_servers_plugin_start,
     .plugin_stop = cli_servers_plugin_stop,
 };
 
@@ -371,73 +398,20 @@ EMBED_TABLE_STORAGE CliServersErrMsgNs cli_servers_err_msg EMBED_UNUSED = {
 
 typedef struct
 {
-    int (*plugin_answer)(const CliServersErrMsgIdCfg *args);
-} CliServersErrMsgIdNs;
-EMBED_TABLE_LAYOUT(CliServersErrMsgIdNs, plugin_answer);
-EMBED_TABLE_STORAGE CliServersErrMsgIdNs cli_servers_err_msg_id EMBED_UNUSED = {
-    .plugin_answer = cli_servers_plugin_answer,
-};
-
-typedef struct
-{
-    char *(*text_take)(const CliServersPathSizeKindCfg *args);
+    char *(*text_alloc)(const CliServersPathSizeKindCfg *args);
 } CliServersPathSizeKindNs;
-EMBED_TABLE_LAYOUT(CliServersPathSizeKindNs, text_take);
+EMBED_TABLE_LAYOUT(CliServersPathSizeKindNs, text_alloc);
 EMBED_TABLE_STORAGE CliServersPathSizeKindNs cli_servers_path_size_kind EMBED_UNUSED = {
-    .text_take = cli_servers_text_take,
+    .text_alloc = cli_servers_text_alloc,
 };
 
 typedef struct
 {
     int (*hover)(const CliServersPathOutCfg *args);
-    int (*definition)(const CliServersPathOutCfg *args);
-    int (*complete)(const CliServersPathOutCfg *args);
-    int (*references)(const CliServersPathOutCfg *args);
-    int (*renamable)(const CliServersPathOutCfg *args);
-    int (*rename)(const CliServersPathOutCfg *args);
-    int (*signature)(const CliServersPathOutCfg *args);
-    int (*call_root)(const CliServersPathOutCfg *args);
 } CliServersPathOutNs;
-EMBED_TABLE_LAYOUT(CliServersPathOutNs, hover, definition, complete, references, renamable, rename, signature,
-                   call_root);
+EMBED_TABLE_LAYOUT(CliServersPathOutNs, hover);
 EMBED_TABLE_STORAGE CliServersPathOutNs cli_servers_path_out EMBED_UNUSED = {
     .hover = cli_servers_hover,
-    .definition = cli_servers_definition,
-    .complete = cli_servers_complete,
-    .references = cli_servers_references,
-    .renamable = cli_servers_renamable,
-    .rename = cli_servers_rename,
-    .signature = cli_servers_signature,
-    .call_root = cli_servers_call_root,
-};
-
-typedef struct
-{
-    int (*actions)(const CliServersPathOutErrMsgFromCfg *args);
-    int (*spans)(const CliServersPathOutErrMsgFromCfg *args);
-} CliServersPathOutErrMsgFromNs;
-EMBED_TABLE_LAYOUT(CliServersPathOutErrMsgFromNs, actions, spans);
-EMBED_TABLE_STORAGE CliServersPathOutErrMsgFromNs cli_servers_path_out_err_msg_from EMBED_UNUSED = {
-    .actions = cli_servers_actions,
-    .spans = cli_servers_spans,
-};
-
-typedef struct
-{
-    int (*act)(const CliServersPathSizeCfg *args);
-} CliServersPathSizeNs;
-EMBED_TABLE_LAYOUT(CliServersPathSizeNs, act);
-EMBED_TABLE_STORAGE CliServersPathSizeNs cli_servers_path_size EMBED_UNUSED = {
-    .act = cli_servers_act,
-};
-
-typedef struct
-{
-    int (*calls)(const CliServersPathCfg *args);
-} CliServersPathNs;
-EMBED_TABLE_LAYOUT(CliServersPathNs, calls);
-EMBED_TABLE_STORAGE CliServersPathNs cli_servers_path EMBED_UNUSED = {
-    .calls = cli_servers_calls,
 };
 
 typedef struct
@@ -451,20 +425,11 @@ EMBED_TABLE_STORAGE CliServersNs cli_servers_table EMBED_UNUSED = {
 
 typedef struct
 {
-    unsigned int (*tools_for)(const CliServersRoomCfg *args);
-} CliServersRoomNs;
-EMBED_TABLE_LAYOUT(CliServersRoomNs, tools_for);
-EMBED_TABLE_STORAGE CliServersRoomNs cli_servers_room EMBED_UNUSED = {
+    unsigned int (*tools_for)(const CliServersCapacityCfg *args);
+} CliServersCapacityNs;
+EMBED_TABLE_LAYOUT(CliServersCapacityNs, tools_for);
+EMBED_TABLE_STORAGE CliServersCapacityNs cli_servers_capacity EMBED_UNUSED = {
     .tools_for = cli_servers_tools_for,
-};
-
-typedef struct
-{
-    void (*stop)(const CliServersOutCfg *args);
-} CliServersOutNs;
-EMBED_TABLE_LAYOUT(CliServersOutNs, stop);
-EMBED_TABLE_STORAGE CliServersOutNs cli_servers_out EMBED_UNUSED = {
-    .stop = cli_servers_stop,
 };
 
 typedef struct
@@ -480,11 +445,13 @@ EMBED_TABLE_STORAGE CliServersRootSinkCountNs cli_servers_root_sink_count EMBED_
 
 typedef struct
 {
-    int (*set_checkers)(const CliServersRootSinkOutCfg *args);
-} CliServersRootSinkOutNs;
-EMBED_TABLE_LAYOUT(CliServersRootSinkOutNs, set_checkers);
-EMBED_TABLE_STORAGE CliServersRootSinkOutNs cli_servers_root_sink_out EMBED_UNUSED = {
-    .set_checkers = cli_servers_set_checkers,
+    CliServerItems *(*items_alloc)(const CliServersAskCfg *args);
+    CliSignaturePanel *(*signature_alloc)(const CliServersAskCfg *args);
+} CliServersAskNs;
+EMBED_TABLE_LAYOUT(CliServersAskNs, items_alloc, signature_alloc);
+EMBED_TABLE_STORAGE CliServersAskNs cli_servers_ask EMBED_UNUSED = {
+    .items_alloc = cli_servers_items_alloc,
+    .signature_alloc = cli_servers_signature_alloc,
 };
 
 #endif

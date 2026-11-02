@@ -85,10 +85,10 @@ static void seam_text_written(void)
     const unsigned long long length = sizeof(s_wide);
     const unsigned long long needle_length = sizeof(s_seam_needle) - 1u;
     memor.set(&(MemoriaCfg){.dst = s_wide, .val = '.', .bytes = length});
-    const unsigned long long places[4] = {CLI_SIFT_WINDOW - 7u, CLI_SIFT_WINDOW * 2u - 3u, 0u, length - needle_length};
+    const unsigned long long positions[4] = {CLI_SIFT_WINDOW - 7u, CLI_SIFT_WINDOW * 2u - 3u, 0u, length - needle_length};
     for (unsigned int at = 0u; at < 4u; at += 1u)
     {
-        memor.cpy(&(MemoriaCfg){.dst = s_wide + places[at], .src = s_seam_needle, .bytes = needle_length});
+        memor.cpy(&(MemoriaCfg){.dst = s_wide + positions[at], .src = s_seam_needle, .bytes = needle_length});
     }
 }
 
@@ -182,51 +182,51 @@ void test_a_needle_across_two_windows_is_found_once(void)
     }
 }
 
-void test_a_census_counts_each_byte(void)
+void test_a_histogram_counts_each_byte(void)
 {
     static const unsigned char s_bytes[] = "Aa Bb AAA zz\nQ";
-    CliCensus census;
-    memor.set(&(MemoriaCfg){.dst = &census, .val = 0, .bytes = sizeof(census)});
-    EMBED_CALL(cli_sift_length_census.census_count, CliSiftLengthCensusCfg, .census = &census, .bytes = s_bytes, .length = sizeof(s_bytes) - 1u);
-    TEST_ASSERT_EQUAL_UINT64(sizeof(s_bytes) - 1u, census.total);
-    TEST_ASSERT_EQUAL_UINT64(4ull, census.occurrences['A']);
-    TEST_ASSERT_EQUAL_UINT64(1ull, census.occurrences['a']);
+    CliHistogram histogram;
+    memor.set(&(MemoriaCfg){.dst = &histogram, .val = 0, .bytes = sizeof(histogram)});
+    EMBED_CALL(cli_sift_length_histogram.histogram_count, CliSiftLengthHistogramCfg, .histogram = &histogram, .bytes = s_bytes, .length = sizeof(s_bytes) - 1u);
+    TEST_ASSERT_EQUAL_UINT64(sizeof(s_bytes) - 1u, histogram.total);
+    TEST_ASSERT_EQUAL_UINT64(4ull, histogram.occurrences['A']);
+    TEST_ASSERT_EQUAL_UINT64(1ull, histogram.occurrences['a']);
 }
 
-void test_bytes_uncounted_leave_a_census(void)
+void test_bytes_uncounted_leave_a_histogram(void)
 {
     static const unsigned char s_bytes[] = "Aa Bb AAA zz\nQ";
-    CliCensus census;
-    memor.set(&(MemoriaCfg){.dst = &census, .val = 0, .bytes = sizeof(census)});
-    EMBED_CALL(cli_sift_length_census.census_count, CliSiftLengthCensusCfg, .census = &census, .bytes = s_bytes, .length = sizeof(s_bytes) - 1u);
-    EMBED_CALL(cli_sift_length_census.census_uncounted, CliSiftLengthCensusCfg, .census = &census, .bytes = s_bytes + 6, .length = 3ull);
-    TEST_ASSERT_EQUAL_UINT64(sizeof(s_bytes) - 4u, census.total);
-    TEST_ASSERT_EQUAL_UINT64(1ull, census.occurrences['A']);
+    CliHistogram histogram;
+    memor.set(&(MemoriaCfg){.dst = &histogram, .val = 0, .bytes = sizeof(histogram)});
+    EMBED_CALL(cli_sift_length_histogram.histogram_count, CliSiftLengthHistogramCfg, .histogram = &histogram, .bytes = s_bytes, .length = sizeof(s_bytes) - 1u);
+    EMBED_CALL(cli_sift_length_histogram.histogram_uncounted, CliSiftLengthHistogramCfg, .histogram = &histogram, .bytes = s_bytes + 6, .length = 3ull);
+    TEST_ASSERT_EQUAL_UINT64(sizeof(s_bytes) - 4u, histogram.total);
+    TEST_ASSERT_EQUAL_UINT64(1ull, histogram.occurrences['A']);
 }
 
-void test_a_folded_census_adds_each_capitals_count_to_its_small_letter(void)
+void test_a_folded_histogram_adds_each_capitals_count_to_its_small_letter(void)
 {
     static const unsigned char s_bytes[] = "Aa Bb AAA zz\nQ";
-    CliCensus census;
-    CliCensus folded;
-    memor.set(&(MemoriaCfg){.dst = &census, .val = 0, .bytes = sizeof(census)});
-    EMBED_CALL(cli_sift_length_census.census_count, CliSiftLengthCensusCfg, .census = &census, .bytes = s_bytes, .length = sizeof(s_bytes) - 1u);
-    EMBED_CALL(cli_sift_length_census.census_uncounted, CliSiftLengthCensusCfg, .census = &census, .bytes = s_bytes + 6, .length = 3ull);
-    EMBED_CALL(cli_sift.census_fold, CliSiftCfg, .exact = &census, .folded = &folded);
+    CliHistogram histogram;
+    CliHistogram folded;
+    memor.set(&(MemoriaCfg){.dst = &histogram, .val = 0, .bytes = sizeof(histogram)});
+    EMBED_CALL(cli_sift_length_histogram.histogram_count, CliSiftLengthHistogramCfg, .histogram = &histogram, .bytes = s_bytes, .length = sizeof(s_bytes) - 1u);
+    EMBED_CALL(cli_sift_length_histogram.histogram_uncounted, CliSiftLengthHistogramCfg, .histogram = &histogram, .bytes = s_bytes + 6, .length = 3ull);
+    EMBED_CALL(cli_sift.histogram_fold, CliSiftCfg, .exact = &histogram, .folded = &folded);
     TEST_ASSERT_EQUAL_UINT64(2ull, folded.occurrences['a']);
     TEST_ASSERT_EQUAL_UINT64(0ull, folded.occurrences['A']);
     TEST_ASSERT_EQUAL_UINT64(1ull, folded.occurrences['q']);
-    TEST_ASSERT_EQUAL_UINT64(census.total, folded.total);
+    TEST_ASSERT_EQUAL_UINT64(histogram.total, folded.total);
 }
 
-void test_a_search_planned_from_a_stored_census_finds_every_place(void)
+void test_a_search_planned_from_a_stored_histogram_finds_every_position(void)
 {
-    CliCensus whole;
+    CliHistogram whole;
     unsigned long long found = 0ull;
     seam_text_written();
     memor.set(&(MemoriaCfg){.dst = &whole, .val = 0, .bytes = sizeof(whole)});
-    EMBED_CALL(cli_sift_length_census.census_count, CliSiftLengthCensusCfg, .census = &whole, .bytes = s_wide, .length = sizeof(s_wide));
-    TEST_ASSERT_EQUAL_UINT64(4ull, EMBED_CALL(cli_sift_length_fold.find_all_with, CliSiftLengthFoldCfg, .census_read = &whole, .text = s_wide, .length = sizeof(s_wide), .needle = (const unsigned char *)s_seam_needle, .needle_length = sizeof(s_seam_needle) - 1u, .fold = 0, .found = offset_counted, .context = &found));
+    EMBED_CALL(cli_sift_length_histogram.histogram_count, CliSiftLengthHistogramCfg, .histogram = &whole, .bytes = s_wide, .length = sizeof(s_wide));
+    TEST_ASSERT_EQUAL_UINT64(4ull, EMBED_CALL(cli_sift_length_fold.find_all_with, CliSiftLengthFoldCfg, .histogram_read = &whole, .text = s_wide, .length = sizeof(s_wide), .needle = (const unsigned char *)s_seam_needle, .needle_length = sizeof(s_seam_needle) - 1u, .fold = 0, .found = offset_counted, .context = &found));
 }
 
 void test_the_first_anchor_is_on_the_rarest_byte_alone(void)

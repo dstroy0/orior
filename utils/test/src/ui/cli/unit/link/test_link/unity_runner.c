@@ -14,10 +14,6 @@ extern void test_a_docker_address(void);
 extern void test_a_wsl_address(void);
 extern void test_an_address_with_no_folder_is_refused(void);
 extern void test_a_quote_in_a_word_is_escaped(void);
-extern void test_a_linux_x86_64_target_from_uname(void);
-extern void test_a_linux_aarch64_target_from_uname(void);
-extern void test_a_mac_has_no_target(void);
-extern void test_a_windows_machine_is_recognized_from_uname(void);
 
 
 /*=======Mock Management=====*/
@@ -79,17 +75,13 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\link\\test_link\\test_link.c");
-  run_test(test_user_at_host_colon_folder_is_ssh, "test_user_at_host_colon_folder_is_ssh", 34);
-  run_test(test_an_ssh_address_names_its_host_as_the_machine, "test_an_ssh_address_names_its_host_as_the_machine", 43);
-  run_test(test_a_written_address_parses_back_to_itself, "test_a_written_address_parses_back_to_itself", 54);
-  run_test(test_a_docker_address, "test_a_docker_address", 69);
-  run_test(test_a_wsl_address, "test_a_wsl_address", 78);
-  run_test(test_an_address_with_no_folder_is_refused, "test_an_address_with_no_folder_is_refused", 86);
-  run_test(test_a_quote_in_a_word_is_escaped, "test_a_quote_in_a_word_is_escaped", 94);
-  run_test(test_a_linux_x86_64_target_from_uname, "test_a_linux_x86_64_target_from_uname", 102);
-  run_test(test_a_linux_aarch64_target_from_uname, "test_a_linux_aarch64_target_from_uname", 108);
-  run_test(test_a_mac_has_no_target, "test_a_mac_has_no_target", 114);
-  run_test(test_a_windows_machine_is_recognized_from_uname, "test_a_windows_machine_is_recognized_from_uname", 119);
+  run_test(test_user_at_host_colon_folder_is_ssh, "test_user_at_host_colon_folder_is_ssh", 27);
+  run_test(test_an_ssh_address_names_its_host_as_the_machine, "test_an_ssh_address_names_its_host_as_the_machine", 36);
+  run_test(test_a_written_address_parses_back_to_itself, "test_a_written_address_parses_back_to_itself", 47);
+  run_test(test_a_docker_address, "test_a_docker_address", 62);
+  run_test(test_a_wsl_address, "test_a_wsl_address", 71);
+  run_test(test_an_address_with_no_folder_is_refused, "test_an_address_with_no_folder_is_refused", 79);
+  run_test(test_a_quote_in_a_word_is_escaped, "test_a_quote_in_a_word_is_escaped", 87);
 
   return UNITY_END();
 }

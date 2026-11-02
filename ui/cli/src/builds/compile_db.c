@@ -39,7 +39,7 @@ void cli_compile_found_free(const CliCompileDbFoundTopCtx *args)
     *found = (CliFoundFolders){NULL, 0u, 0u};
 }
 
-void cli_compile_found_take(const CliCompileDbFoundTopCtx *args)
+void cli_compile_found_alloc(const CliCompileDbFoundTopCtx *args)
 {
     CliFoundFolders *found = args->found;
     char (*const paths)[CLI_PATH_MAX_LEN] = g_cli_cells->temporary_buf_alloc(
@@ -54,12 +54,12 @@ typedef struct
     unsigned int depth;
 } CliBelowFolder;
 
-// A search below a build: the folders still to look in, in a cell of `room`, and the folder looked in and its depth
+// A search below a build: the folders still to look in, in a cell of `capacity`, and the folder looked in and its depth
 typedef struct
 {
     CliBelowFolder *pending;
     unsigned int count;
-    unsigned int room;
+    unsigned int capacity;
     const char *folder;
     unsigned int folder_depth;
 } CliBelow;
@@ -67,7 +67,7 @@ typedef struct
 static void cli_below_each(const CliEachNameIsFolderCfg *args)
 {
     CliBelow *const below = args->context;
-    if (args->is_folder && (args->name[0] != '.') && (below->count < below->room))
+    if (args->is_folder && (args->name[0] != '.') && (below->count < below->capacity))
     {
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = below->folder, .relative = args->name,
                    .joined = below->pending[below->count].path);
@@ -128,9 +128,9 @@ typedef struct
     CliFoundFolders *found;
 } CliNamedSearch;
 
-EMBED_INLINE void cli_found_put(const CompileDbCtx *args)
+EMBED_INLINE void cli_found_append(const CompileDbCtx *args)
 {
-    if (args->found->count < args->found->room)
+    if (args->found->count < args->found->capacity)
     {
         memor.cpy(
             &(MemoriaCfg){.dst = args->found->path[args->found->count],
@@ -157,7 +157,7 @@ static int cli_tail_each(const CliEachFolderDepthCfg *args)
     }
     if (EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = below))
     {
-        EMBED_CALL(cli_found_put, CompileDbCtx, .found = search->found, .path = below);
+        EMBED_CALL(cli_found_append, CompileDbCtx, .found = search->found, .path = below);
         return 0;
     }
     return 1;
@@ -178,7 +178,7 @@ static int cli_name_each(const CliEachFolderDepthCfg *args)
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->folder, .relative = search->name, .joined = file);
     if (EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = file))
     {
-        EMBED_CALL(cli_found_put, CompileDbCtx, .found = search->found, .path = file);
+        EMBED_CALL(cli_found_append, CompileDbCtx, .found = search->found, .path = file);
     }
     return 1;
 }
@@ -300,25 +300,25 @@ int cli_compile_first_word(const CliCompileDbTextLengthCtx *args)
 unsigned int cli_compile_json_read(const CliCompileDbPathCtx *args)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = args->path,
+    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->path,
                                                   .size_pointer = &size, .owner = &g_cli_compile_cells);
     if (bytes == NULL)
     {
         return CLI_JSON_NONE;
     }
-    const unsigned int tokens_most = EMBED_CALL(cli_json_tree_text.json_tokens_count, CliJsonTreeTextCfg,
-                                                .text = (const char *)bytes, .size = size) +
-                                     1u;
+    const unsigned int tokens_max = EMBED_CALL(cli_json_tree_text.json_tokens_count, CliJsonTreeTextCfg,
+                                               .text = (const char *)bytes, .size = size) +
+                                    1u;
     CfgJsonToken *const tokens =
-        g_cli_cells->temporary_buf_alloc((unsigned long long)tokens_most * sizeof(CfgJsonToken), &g_cli_compile_cells);
+        g_cli_cells->temporary_buf_alloc((unsigned long long)tokens_max * sizeof(CfgJsonToken), &g_cli_compile_cells);
     unsigned int root = CLI_JSON_NONE;
-    if ((tokens != NULL) && EMBED_CALL(cli_json_tree_nodes.json_room, CliJsonTreeNodesCfg, .json = args->json,
-                                       .nodes = tokens_most, .text_u64 = size))
+    if ((tokens != NULL) && EMBED_CALL(cli_json_tree_nodes.json_capacity, CliJsonTreeNodesCfg, .json = args->json,
+                                       .nodes = tokens_max, .text_u64 = size))
     {
         char why[CLI_NAME_MAX_LEN];
         VerbaLinea unread = {why, sizeof(why), 0ull};
         root = EMBED_CALL(cli_json_tree_text_size_tokens.json_read, CliJsonTreeTextSizeTokensCfg, .json = args->json,
-                          .text = (const char *)bytes, .size = size, .tokens = tokens, .tokens_most = tokens_most,
+                          .text = (const char *)bytes, .size = size, .tokens = tokens, .tokens_max = tokens_max,
                           .err_msg = &unread);
     }
     g_cli_cells->persistent_buf_release(tokens, &g_cli_compile_cells);

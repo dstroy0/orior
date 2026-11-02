@@ -6,7 +6,7 @@
 // tables rounding the corners; the cell goes back as the slides rest (stages.c)
 #ifndef GUI_STAGES_H
 #define GUI_STAGES_H
-typedef struct GuiStagesClaimCfg GuiStagesClaimCfg;
+typedef struct GuiStagesAutohideCfg GuiStagesAutohideCfg;
 typedef struct GuiStagesCfg GuiStagesCfg;
 typedef struct GuiStagesReadCfg GuiStagesReadCfg;
 #include "base.h"
@@ -37,23 +37,23 @@ typedef struct
     unsigned int count;
     unsigned long long start_ms;
     unsigned long long end_ms;
-    unsigned int made_for;
+    unsigned int created_for;
 } GuiStages;
 
 // every stage laid from `time_ms` until the claim's slides end, each stage's frame `frame` as the claim's numbers lay
 // it at that stage's moment, in `palette`'s colors, the cell taken exact: 1, or 0 with none where the cell could not be
 // taken. The claim's slats' shares come out as they stand at the last stage, and `base` and `menubar` as they were laid
 // last; taking the first stage puts the menu bar back
-int gui_stages_init(const GuiStagesClaimCfg *args);
+int gui_stages_init(const GuiStagesAutohideCfg *args);
 // the stage standing at `time_ms`, the last from when the slides end, NULL where none is made; and the cell given back
 const GuiStage *gui_stages_at(const GuiStagesReadCfg *args);
-void gui_stages_free(const GuiStagesClaimCfg *args);
+void gui_stages_free(const GuiStagesAutohideCfg *args);
 // the claim's slats' shares put back to where `stage` stands, as a slide is sent again from there
-void gui_stage_claim_take(const GuiStagesCfg *args);
-struct GuiStagesClaimCfg
+void gui_stage_autohide_alloc(const GuiStagesCfg *args);
+struct GuiStagesAutohideCfg
 {
     GuiStages *stages;
-    GuiClaim *claim;
+    GuiAutohide *claim;
     const GuiFrame *frame;
     GuiBase *base;
     const GuiPalette *palette;
@@ -64,7 +64,7 @@ struct GuiStagesClaimCfg
 
 struct GuiStagesCfg
 {
-    GuiClaim *claim;
+    GuiAutohide *claim;
     const GuiStage *stage;
 };
 
@@ -76,11 +76,11 @@ struct GuiStagesReadCfg
 
 typedef struct
 {
-    int (*init)(const GuiStagesClaimCfg *args);
-    void (*free)(const GuiStagesClaimCfg *args);
-} GuiStagesClaimNs;
-EMBED_TABLE_LAYOUT(GuiStagesClaimNs, init, free);
-EMBED_TABLE_STORAGE GuiStagesClaimNs gui_stages_claim EMBED_UNUSED = {
+    int (*init)(const GuiStagesAutohideCfg *args);
+    void (*free)(const GuiStagesAutohideCfg *args);
+} GuiStagesAutohideNs;
+EMBED_TABLE_LAYOUT(GuiStagesAutohideNs, init, free);
+EMBED_TABLE_STORAGE GuiStagesAutohideNs gui_stages_autohide EMBED_UNUSED = {
     .init = gui_stages_init,
     .free = gui_stages_free,
 };
@@ -96,11 +96,11 @@ EMBED_TABLE_STORAGE GuiStagesReadNs gui_stages_read EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*stage_claim_take)(const GuiStagesCfg *args);
+    void (*stage_autohide_alloc)(const GuiStagesCfg *args);
 } GuiStagesNs;
-EMBED_TABLE_LAYOUT(GuiStagesNs, stage_claim_take);
+EMBED_TABLE_LAYOUT(GuiStagesNs, stage_autohide_alloc);
 EMBED_TABLE_STORAGE GuiStagesNs gui_stages_table EMBED_UNUSED = {
-    .stage_claim_take = gui_stage_claim_take,
+    .stage_autohide_alloc = gui_stage_autohide_alloc,
 };
 
 #endif

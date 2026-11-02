@@ -14,9 +14,6 @@ extern void test_a_folder_contains_itself_and_what_is_under_it(void);
 extern void test_a_folder_does_not_contain_a_sibling_sharing_its_prefix(void);
 extern void test_the_code_a_tree_runs_is_found_and_released(void);
 extern void test_a_tree_with_no_answer_has_none(void);
-extern void test_a_parent_folders_answer_applies(void);
-extern void test_the_trees_own_answer_wins_over_its_parent(void);
-extern void test_a_later_parent_answer_replaces_the_trees(void);
 extern void test_git_in_an_untrusted_tree_runs_no_hook(void);
 
 
@@ -79,17 +76,14 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\trust\\test_trust\\test_trust.c");
-  run_test(test_a_program_as_fsmonitor_is_a_hook, "test_a_program_as_fsmonitor_is_a_hook", 52);
-  run_test(test_gits_own_monitor_is_not_a_hook, "test_gits_own_monitor_is_not_a_hook", 57);
-  run_test(test_a_key_of_another_section_is_not_a_hook, "test_a_key_of_another_section_is_not_a_hook", 62);
-  run_test(test_a_folder_contains_itself_and_what_is_under_it, "test_a_folder_contains_itself_and_what_is_under_it", 67);
-  run_test(test_a_folder_does_not_contain_a_sibling_sharing_its_prefix, "test_a_folder_does_not_contain_a_sibling_sharing_its_prefix", 73);
-  run_test(test_the_code_a_tree_runs_is_found_and_released, "test_the_code_a_tree_runs_is_found_and_released", 78);
-  run_test(test_a_tree_with_no_answer_has_none, "test_a_tree_with_no_answer_has_none", 93);
-  run_test(test_a_parent_folders_answer_applies, "test_a_parent_folders_answer_applies", 98);
-  run_test(test_the_trees_own_answer_wins_over_its_parent, "test_the_trees_own_answer_wins_over_its_parent", 104);
-  run_test(test_a_later_parent_answer_replaces_the_trees, "test_a_later_parent_answer_replaces_the_trees", 111);
-  run_test(test_git_in_an_untrusted_tree_runs_no_hook, "test_git_in_an_untrusted_tree_runs_no_hook", 118);
+  run_test(test_a_program_as_fsmonitor_is_a_hook, "test_a_program_as_fsmonitor_is_a_hook", 45);
+  run_test(test_gits_own_monitor_is_not_a_hook, "test_gits_own_monitor_is_not_a_hook", 50);
+  run_test(test_a_key_of_another_section_is_not_a_hook, "test_a_key_of_another_section_is_not_a_hook", 55);
+  run_test(test_a_folder_contains_itself_and_what_is_under_it, "test_a_folder_contains_itself_and_what_is_under_it", 60);
+  run_test(test_a_folder_does_not_contain_a_sibling_sharing_its_prefix, "test_a_folder_does_not_contain_a_sibling_sharing_its_prefix", 66);
+  run_test(test_the_code_a_tree_runs_is_found_and_released, "test_the_code_a_tree_runs_is_found_and_released", 71);
+  run_test(test_a_tree_with_no_answer_has_none, "test_a_tree_with_no_answer_has_none", 86);
+  run_test(test_git_in_an_untrusted_tree_runs_no_hook, "test_git_in_an_untrusted_tree_runs_no_hook", 91);
 
   return UNITY_END();
 }

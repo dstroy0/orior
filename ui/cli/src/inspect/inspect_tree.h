@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// inspect_tree.h: the tree: each Python and JavaScript file's facts, by its path in the tree, stored in a room of its
-// own; what the tree shows across its files, an import that leads back round to the file that makes it and an
+// inspect_tree.h: the tree: each Python and JavaScript file's facts, by its path in the tree, stored in a capacity of
+// its own; what the tree shows across its files, an import that leads back round to the file that makes it and an
 // attribute no class of its family sets; what each Python class's family sets; and the call hierarchy where no
 // language server answers. One tree, under its own lock (inspect_tree.c, inspect_tree_*.c)
 #ifndef INSPECT_TREE_H

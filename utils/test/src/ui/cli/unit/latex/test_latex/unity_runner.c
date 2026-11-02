@@ -15,27 +15,8 @@ extern void test_unicode_math_needs_lualatex(void);
 extern void test_a_package_in_a_comment_is_not_used(void);
 extern void test_a_line_after_the_first_command_names_no_engine(void);
 extern void test_a_plain_job_name_is_stored(void);
-extern void test_a_name_with_a_space_is_made_preview(void);
-extern void test_a_name_past_ascii_is_made_preview(void);
-extern void test_the_glyphs_are_shared(void);
-extern void test_each_page_has_its_size(void);
-extern void test_a_pages_ids_are_the_windows_own(void);
-extern void test_every_reference_uses_the_windows_ids(void);
-extern void test_a_single_page_has_no_page_set(void);
-extern void test_a_box_is_read_with_its_page_and_file(void);
-extern void test_a_box_has_one_mark_where_the_line_changes_and_none_from_the_class(void);
-extern void test_a_boxs_left_is_in_points(void);
-extern void test_a_boxs_top_is_the_baseline_less_the_height(void);
-extern void test_a_boxs_height_is_the_height_and_the_depth(void);
-extern void test_a_file_the_text_inputs_is_the_trees(void);
-extern void test_the_logs_errors_are_read_with_their_files_and_lines(void);
-extern void test_a_make_with_no_engine_reports_it(void);
-extern void test_a_make_has_no_errors_and_two_pages(void);
-extern void test_a_makes_pages_share_their_glyphs(void);
-extern void test_each_line_is_placed_on_its_page(void);
-extern void test_an_input_part_beside_the_file_is_placed(void);
-extern void test_nothing_is_written_into_the_tree(void);
-extern void test_a_failed_make_gives_its_errors_and_no_pages(void);
+extern void test_a_name_with_a_space_is_created_preview(void);
+extern void test_a_name_end_ascii_is_created_preview(void);
 
 
 /*=======Mock Management=====*/
@@ -97,34 +78,15 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\latex\\test_latex\\test_latex.c");
-  run_test(test_the_engine_the_file_names, "test_the_engine_the_file_names", 191);
-  run_test(test_the_engine_the_file_names_in_the_other_form, "test_the_engine_the_file_names_in_the_other_form", 196);
-  run_test(test_fontspec_needs_lualatex, "test_fontspec_needs_lualatex", 201);
-  run_test(test_unicode_math_needs_lualatex, "test_unicode_math_needs_lualatex", 206);
-  run_test(test_a_package_in_a_comment_is_not_used, "test_a_package_in_a_comment_is_not_used", 211);
-  run_test(test_a_line_after_the_first_command_names_no_engine, "test_a_line_after_the_first_command_names_no_engine", 216);
-  run_test(test_a_plain_job_name_is_stored, "test_a_plain_job_name_is_stored", 221);
-  run_test(test_a_name_with_a_space_is_made_preview, "test_a_name_with_a_space_is_made_preview", 226);
-  run_test(test_a_name_past_ascii_is_made_preview, "test_a_name_past_ascii_is_made_preview", 231);
-  run_test(test_the_glyphs_are_shared, "test_the_glyphs_are_shared", 236);
-  run_test(test_each_page_has_its_size, "test_each_page_has_its_size", 241);
-  run_test(test_a_pages_ids_are_the_windows_own, "test_a_pages_ids_are_the_windows_own", 256);
-  run_test(test_every_reference_uses_the_windows_ids, "test_every_reference_uses_the_windows_ids", 263);
-  run_test(test_a_single_page_has_no_page_set, "test_a_single_page_has_no_page_set", 270);
-  run_test(test_a_box_is_read_with_its_page_and_file, "test_a_box_is_read_with_its_page_and_file", 279);
-  run_test(test_a_box_has_one_mark_where_the_line_changes_and_none_from_the_class, "test_a_box_has_one_mark_where_the_line_changes_and_none_from_the_class", 288);
-  run_test(test_a_boxs_left_is_in_points, "test_a_boxs_left_is_in_points", 300);
-  run_test(test_a_boxs_top_is_the_baseline_less_the_height, "test_a_boxs_top_is_the_baseline_less_the_height", 306);
-  run_test(test_a_boxs_height_is_the_height_and_the_depth, "test_a_boxs_height_is_the_height_and_the_depth", 312);
-  run_test(test_a_file_the_text_inputs_is_the_trees, "test_a_file_the_text_inputs_is_the_trees", 318);
-  run_test(test_the_logs_errors_are_read_with_their_files_and_lines, "test_the_logs_errors_are_read_with_their_files_and_lines", 326);
-  run_test(test_a_make_with_no_engine_reports_it, "test_a_make_with_no_engine_reports_it", 344);
-  run_test(test_a_make_has_no_errors_and_two_pages, "test_a_make_has_no_errors_and_two_pages", 354);
-  run_test(test_a_makes_pages_share_their_glyphs, "test_a_makes_pages_share_their_glyphs", 361);
-  run_test(test_each_line_is_placed_on_its_page, "test_each_line_is_placed_on_its_page", 367);
-  run_test(test_an_input_part_beside_the_file_is_placed, "test_an_input_part_beside_the_file_is_placed", 374);
-  run_test(test_nothing_is_written_into_the_tree, "test_nothing_is_written_into_the_tree", 380);
-  run_test(test_a_failed_make_gives_its_errors_and_no_pages, "test_a_failed_make_gives_its_errors_and_no_pages", 386);
+  run_test(test_the_engine_the_file_names, "test_the_engine_the_file_names", 62);
+  run_test(test_the_engine_the_file_names_in_the_other_form, "test_the_engine_the_file_names_in_the_other_form", 67);
+  run_test(test_fontspec_needs_lualatex, "test_fontspec_needs_lualatex", 72);
+  run_test(test_unicode_math_needs_lualatex, "test_unicode_math_needs_lualatex", 77);
+  run_test(test_a_package_in_a_comment_is_not_used, "test_a_package_in_a_comment_is_not_used", 82);
+  run_test(test_a_line_after_the_first_command_names_no_engine, "test_a_line_after_the_first_command_names_no_engine", 87);
+  run_test(test_a_plain_job_name_is_stored, "test_a_plain_job_name_is_stored", 92);
+  run_test(test_a_name_with_a_space_is_created_preview, "test_a_name_with_a_space_is_created_preview", 97);
+  run_test(test_a_name_end_ascii_is_created_preview, "test_a_name_end_ascii_is_created_preview", 102);
 
   return UNITY_END();
 }

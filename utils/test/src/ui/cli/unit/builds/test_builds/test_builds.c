@@ -20,27 +20,27 @@ static const CliCompletions *completed(const char *typed)
     return &s_items;
 }
 
-// the item `at` inserts `wanted`
-static void assert_inserts(const char *wanted, const CliCompletions *items, unsigned int at)
+// the item `at` inserts `required`
+static void assert_inserts(const char *required, const CliCompletions *items, unsigned int at)
 {
     TEST_ASSERT_LESS_THAN_UINT(items->count, at);
-    CLI_TEST_ASSERT_TEXT(wanted, items->text + items->item[at].insert_at, items->item[at].insert_size);
+    CLI_TEST_ASSERT_TEXT(required, items->text + items->item[at].insert_at, items->item[at].insert_size);
 }
 
 // the names near `name` among the first `count` known, joined by `|`, into `out`, 256 bytes
-static const char *near_names(const char *name, unsigned int count, char *out)
+static const char *adjacent_names(const char *name, unsigned int count, char *out)
 {
-    CliBuildNear near;
-    EMBED_CALL(cli_builds_size.build_near_begin, CliBuildsSizeCfg, .near = &near, .name = name, .size = CLI_UNITY_LENGTH(name));
+    CliBuildAdjacent adjacent;
+    EMBED_CALL(cli_builds_size.build_adjacent_begin, CliBuildsSizeCfg, .adjacent = &adjacent, .name = name, .size = CLI_UNITY_LENGTH(name));
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        EMBED_CALL(cli_builds_size_near.build_near_offer, CliBuildsSizeNearCfg, .near = &near, .one = s_known[at], .size = CLI_UNITY_LENGTH(s_known[at]));
+        EMBED_CALL(cli_builds_size_adjacent.build_adjacent_offer, CliBuildsSizeAdjacentCfg, .adjacent = &adjacent, .one = s_known[at], .size = CLI_UNITY_LENGTH(s_known[at]));
     }
     VerbaLinea line = {out, 256u, 0ull};
-    for (unsigned int at = 0u; at < near.count; at += 1u)
+    for (unsigned int at = 0u; at < adjacent.count; at += 1u)
     {
         mmgr_line_put(&line, (at > 0u) ? "|" : "");
-        mmgr_line_put_n(&line, near.near[at], near.near_size[at]);
+        mmgr_line_put_n(&line, adjacent.adjacent[at], adjacent.adjacent_size[at]);
     }
     (void)mmgr_line_finish(&line);
     return out;
@@ -108,20 +108,20 @@ void test_a_position_counts_its_column_in_utf16(void)
     TEST_ASSERT_NOT_NULL(z);
     // `z` lies in the text, past its start
     const unsigned long long at = (unsigned long long)(z - s_text);
-    const CliTextPlace place = EMBED_CALL(cli_builds_lines_at.build_place, CliBuildsLinesAtCfg, .lines = &lines, .at = at);
+    const CliTextPosition place = EMBED_CALL(cli_builds_lines_at.build_position, CliBuildsLinesAtCfg, .lines = &lines, .at = at);
     TEST_ASSERT_EQUAL_UINT(1u, place.line);
     TEST_ASSERT_EQUAL_UINT(4u, place.col);
     TEST_ASSERT_EQUAL_UINT64(at, EMBED_CALL(cli_builds_path.build_byte_at, CliBuildsPathCfg, .text = s_text, .size = sizeof(s_text) - 1u, .line = 1u, .col = 4u));
 }
 
-void test_a_near_name_is_offered(void)
+void test_a_adjacent_name_is_offered(void)
 {
-    char near[256];
-    TEST_ASSERT_EQUAL_STRING("implementation", near_names("implmentation", 3u, near));
+    char adjacent[256];
+    TEST_ASSERT_EQUAL_STRING("implementation", adjacent_names("implmentation", 3u, adjacent));
 }
 
 void test_a_far_name_is_not_offered(void)
 {
-    char near[256];
-    TEST_ASSERT_EQUAL_STRING("", near_names("zzz", 1u, near));
+    char adjacent[256];
+    TEST_ASSERT_EQUAL_STRING("", adjacent_names("zzz", 1u, adjacent));
 }

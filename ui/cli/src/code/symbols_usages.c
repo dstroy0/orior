@@ -46,7 +46,7 @@ typedef struct
     int refused;
 } CliUsages;
 // the bytes the notes, their texts, the definitions' paths, the regions and the tree's paths are each written in
-#define CLI_USAGES_ROOM (16ull << 20u)
+#define CLI_USAGES_CAPACITY (16ull << 20u)
 
 // One top-level region of a branch's leaves: the first leaf of the statement its opening bracket closes over, the
 // bracket, the leaf after the bracket that closes it, whether its head declares a function, and whether it declares
@@ -283,8 +283,8 @@ EMBED_INLINE int usages_walk(const SymbolsUsagesCtx *args)
     effect->start_size = args->size;
     effect->noted = usages_note;
     effect->noted_context = args->usages_out;
-    EMBED_CALL(cli_symbols_path_effect_internal.effect_take, CliSymbolsPathEffectCtx, .effect = effect, .path = path,
-               .line_u32 = CLI_EFFECT_GIVEN);
+    EMBED_CALL(cli_symbols_path_effect_internal.effect_alloc, CliSymbolsPathEffectCtx, .effect = effect, .path = path,
+               .line_u32 = CLI_EFFECT_INPUT);
     const int refused = effect->refused || args->usages_out->refused;
     EMBED_CALL(cli_symbols_text_length_internal.effect_input_back, CliSymbolsTextLengthCtx, .effect = effect);
     if (refused)
@@ -356,19 +356,19 @@ EMBED_INLINE char *usages_text(const SymbolsUsagesCtx *args)
     const char *path = args->path;
     unsigned long long *size = args->size_pointer;
     int *mapped = args->mapped;
-    char *const given = (args->open_text != NULL)
-                            ? EMBED_CALL(args->open_text, CliOpenTextCfg, .context = args->open_text_context,
-                                         .path = path, .size = size)
-                            : NULL;
-    *mapped = given == NULL;
-    if (given != NULL)
+    char *const supplied = (args->open_text != NULL)
+                               ? EMBED_CALL(args->open_text, CliOpenTextCfg, .context = args->open_text_context,
+                                            .path = path, .size = size)
+                               : NULL;
+    *mapped = supplied == NULL;
+    if (supplied != NULL)
     {
-        return given;
+        return supplied;
     }
     char full[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = g_cli_tree_root, .relative = path, .joined = full);
     // a text read mapped is read and never written
-    return (char *)EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = full, .size_pointer = size,
+    return (char *)EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = full, .size_pointer = size,
                               .owner = &g_cli_code_cells);
 }
 
@@ -472,8 +472,8 @@ EMBED_INLINE void usages_tree_paths(const SymbolsUsagesCtx *args)
 // `defined` at `line` handed on: 1, or 0 with why given
 EMBED_INLINE int usages_across(const SymbolsUsagesCtx *args)
 {
-    char *const paths_cell = g_cli_cells->temporary_buf_alloc(CLI_USAGES_ROOM, &g_cli_code_cells);
-    VerbaLinea paths = mmgr_line_over(paths_cell, CLI_USAGES_ROOM);
+    char *const paths_cell = g_cli_cells->temporary_buf_alloc(CLI_USAGES_CAPACITY, &g_cli_code_cells);
+    VerbaLinea paths = mmgr_line_over(paths_cell, CLI_USAGES_CAPACITY);
     if (paths.out == NULL)
     {
         mmgr_line_put(args->err_msg, "the cells cannot meet the usages' walk");
@@ -494,7 +494,7 @@ EMBED_INLINE int usages_across(const SymbolsUsagesCtx *args)
         // a file whose bytes hold the name nowhere holds no leaf of it, and is not walked
         if ((text != NULL) &&
             EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = text, .length_value = size,
-                       .wanted = args->usages_out->name, .size = args->usages_out->length, .at_pointer = &found))
+                       .required = args->usages_out->name, .size = args->usages_out->length, .at_pointer = &found))
         {
             walked = EMBED_CALL(usages_walk, SymbolsUsagesCtx, .usages_out = args->usages_out, .path = one,
                                 .text = text, .size = size, .err_msg = args->err_msg);
@@ -616,17 +616,18 @@ static int usages_request(const SymbolsUsagesCtx *args)
         (text != NULL) ? EMBED_CALL(usages_name_at, SymbolsUsagesCtx, .path = args->path, .text = text, .size = size,
                                     .line = args->line, .col = args->col, .name = name)
                        : 0ull;
-    const unsigned long long room = (length != 0ull) ? CLI_USAGES_ROOM : 0ull;
-    char *const notes_cell = (room != 0ull) ? g_cli_cells->temporary_buf_alloc(room, &g_cli_code_cells) : NULL;
-    char *const texts_cell = (room != 0ull) ? g_cli_cells->temporary_buf_alloc(room, &g_cli_code_cells) : NULL;
-    char *const paths_cell = (room != 0ull) ? g_cli_cells->temporary_buf_alloc(room, &g_cli_code_cells) : NULL;
-    char *const regions_cell = (room != 0ull) ? g_cli_cells->temporary_buf_alloc(room, &g_cli_code_cells) : NULL;
+    const unsigned long long capacity = (length != 0ull) ? CLI_USAGES_CAPACITY : 0ull;
+    char *const notes_cell = (capacity != 0ull) ? g_cli_cells->temporary_buf_alloc(capacity, &g_cli_code_cells) : NULL;
+    char *const texts_cell = (capacity != 0ull) ? g_cli_cells->temporary_buf_alloc(capacity, &g_cli_code_cells) : NULL;
+    char *const paths_cell = (capacity != 0ull) ? g_cli_cells->temporary_buf_alloc(capacity, &g_cli_code_cells) : NULL;
+    char *const regions_cell =
+        (capacity != 0ull) ? g_cli_cells->temporary_buf_alloc(capacity, &g_cli_code_cells) : NULL;
     CliUsages usages = {name,
                         length,
-                        mmgr_line_over(notes_cell, room),
-                        mmgr_line_over(texts_cell, room),
-                        mmgr_line_over(paths_cell, room),
-                        mmgr_line_over(regions_cell, room),
+                        mmgr_line_over(notes_cell, capacity),
+                        mmgr_line_over(texts_cell, capacity),
+                        mmgr_line_over(paths_cell, capacity),
+                        mmgr_line_over(regions_cell, capacity),
                         NULL,
                         0u,
                         0u,

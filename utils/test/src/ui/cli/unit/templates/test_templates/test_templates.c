@@ -8,14 +8,14 @@
 
 static char s_home[CLI_PATH_MAX_LEN];
 static char s_parent[CLI_PATH_MAX_LEN];
-static char s_made[CLI_PATH_MAX_LEN];
-static char s_why[1024];
+static char s_created[CLI_PATH_MAX_LEN];
+static char s_error[1024];
 
 // a project created from `template_name` as `name`: whether it was
 static int created(const char *template_name, const char *name)
 {
-    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
-    return EMBED_CALL(cli_templates_template_name.create, CliTemplatesTemplateNameCfg, .template_name = template_name, .parent = s_parent, .name = name, .made = s_made, .err_msg = &err_msg);
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
+    return EMBED_CALL(cli_templates_template_name.create, CliTemplatesTemplateNameCfg, .template_name = template_name, .parent = s_parent, .name = name, .made = s_created, .err_msg = &err_msg);
 }
 
 void setUp(void)
@@ -40,20 +40,12 @@ void tearDown(void)
 {
 }
 
-void test_templates_list_in_order(void)
-{
-    char list[256];
-    VerbaLinea listed = {list, sizeof(list), 0ull};
-    EMBED_CALL(cli_templates_out.list, CliTemplatesOutCfg, .out = &listed);
-    CLI_TEST_ASSERT_TEXT("[\"app\",\"script\"]", list, listed.at);
-}
-
 void test_a_project_has_its_name_substituted_everywhere(void)
 {
     TEST_ASSERT_TRUE(created("script", "counter"));
     char path[CLI_PATH_MAX_LEN];
     char text[64];
-    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_made, .relative = "counter/main.py", .joined = path);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_created, .relative = "counter/main.py", .joined = path);
     const unsigned long long size = qry_member_file_read(path, (unsigned char *)text, sizeof(text));
     TEST_ASSERT_NOT_EQUAL(QRY_MEMBER_UNREAD, size);
     CLI_TEST_ASSERT_TEXT("\"\"\"counter.\"\"\"\ncounter()\n", text, size);
@@ -64,7 +56,7 @@ void test_a_binary_file_copies_unchanged(void)
     TEST_ASSERT_TRUE(created("script", "counter"));
     char path[CLI_PATH_MAX_LEN];
     char text[64];
-    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_made, .relative = "logo.bin", .joined = path);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_created, .relative = "logo.bin", .joined = path);
     TEST_ASSERT_EQUAL_UINT64(3ull, qry_member_file_read(path, (unsigned char *)text, sizeof(text)));
     TEST_ASSERT_EQUAL_MEMORY("\xff\xfe\x00", text, 3u);
 }

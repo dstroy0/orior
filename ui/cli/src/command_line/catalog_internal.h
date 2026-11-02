@@ -8,10 +8,10 @@ typedef struct CliCatalogPathCtx CliCatalogPathCtx;
 typedef struct CliCatalogFilterCtx CliCatalogFilterCtx;
 typedef struct CliCatalogTextVariableCtx CliCatalogTextVariableCtx;
 typedef struct CliCatalogFolderCtx CliCatalogFolderCtx;
-typedef struct CliCatalogRoomCtx CliCatalogRoomCtx;
+typedef struct CliCatalogCapacityCtx CliCatalogCapacityCtx;
 typedef struct CliCatalogFolderNameCtx CliCatalogFolderNameCtx;
 typedef struct CliCatalogNamesCtx CliCatalogNamesCtx;
-typedef struct CliCatalogMostCtx CliCatalogMostCtx;
+typedef struct CliCatalogMaxCtx CliCatalogMaxCtx;
 typedef struct CliCatalogOutCtx CliCatalogOutCtx;
 typedef struct CliCatalogPathOutCtx CliCatalogPathOutCtx;
 typedef struct CliCatalogCtx CliCatalogCtx;
@@ -24,47 +24,47 @@ typedef struct CliCatalogCtx CliCatalogCtx;
 // the cells the catalog occupies while it is read (catalog_lists.c, as are the lists and the givings back below)
 extern CellOwner g_cli_catalog_cells;
 
-// The entries of a folder in order, or a list of names: each name, `count` of them, in a cell of `room`
+// The entries of a folder in order, or a list of names: each name, `count` of them, in a cell of `capacity`
 typedef struct
 {
     char (*name)[CLI_NAME_MAX_LEN];
     unsigned int count;
-    unsigned int room;
+    unsigned int capacity;
 } CliEntries;
 
-// A list of paths in a cell of `room`
+// A list of paths in a cell of `capacity`
 typedef struct
 {
     char (*path)[CLI_PATH_MAX_LEN];
-    unsigned int room;
+    unsigned int capacity;
 } CliPaths;
 
 // the files of `folder` whose names pass `filter`, or its folders where `filter` is NULL and `folders` is 1, into
 // `entries`, sorted by name, in a cell the size of the folder's count of them, the cell `entries` occupied given back
 // first
 void cli_catalog_entries(const CliCatalogFolderCtx *args);
-// a list's cell taken at the most a list holds as it is first made room in: 1 where `most` fit, or 0 where they do not
-// or the cell is refused
-int cli_catalog_names_room(const CliCatalogNamesCtx *args);
-int cli_catalog_paths_room(const CliCatalogMostCtx *args);
+// a list's cell taken at the most a list holds as it is first made capacity in: 1 where `most` fit, or 0 where they do
+// not or the cell is refused
+int cli_catalog_names_capacity(const CliCatalogNamesCtx *args);
+int cli_catalog_paths_capacity(const CliCatalogMaxCtx *args);
 // a list's cell given back, the list left empty
 void cli_catalog_entries_free(const CliCatalogFolderCtx *args);
-void cli_catalog_paths_free(const CliCatalogMostCtx *args);
+void cli_catalog_paths_free(const CliCatalogMaxCtx *args);
 // what a file declares of itself, as cli_catalog_about reads it, and the first paragraph of a README that is prose and
 // not a heading, each in a cell the size of the lines it is read from: NULL where the file could not be read or the
 // cell is refused; and a text the catalog took given back
-char *cli_catalog_about_take(const CliCatalogPathCtx *args);
-char *cli_catalog_markdown_take(const CliCatalogPathOutCtx *args);
+char *cli_catalog_about_alloc(const CliCatalogPathCtx *args);
+char *cli_catalog_markdown_alloc(const CliCatalogPathOutCtx *args);
 void cli_catalog_text_free(const CliCatalogCtx *args);
 // `name` joined onto `folder` into `path`, sized for CLI_PATH_MAX_LEN
 void cli_catalog_join(const CliCatalogFolderNameCtx *args);
 // the names a `case` in a script accepts on the line after `case "$<variable>" in`, each into `names`, sized for
-// `room`: their count; or, where `names` is NULL, the count of names it gives, the most it would put
+// `capacity`: their count; or, where `names` is NULL, the count of names it gives, the most it would put
 unsigned int cli_catalog_case_names(const CliCatalogTextVariableCtx *args);
 // the parts the track driver runs, read from its usage text: the list after "in the order given:" across however many
-// string literals the source splits it into, each into `parts`, sized for `room`: their count; or, where `parts` is
+// string literals the source splits it into, each into `parts`, sized for `capacity`: their count; or, where `parts` is
 // NULL, the count of parts it gives, the most it would put
-unsigned int cli_catalog_driver_parts(const CliCatalogRoomCtx *args);
+unsigned int cli_catalog_driver_parts(const CliCatalogCapacityCtx *args);
 // a path's name without its extension into `out`, sized for CLI_NAME_MAX_LEN
 void cli_catalog_stem(const CliCatalogPathOutCtx *args);
 // a path's folder and name, by which two scripts of one name differ in the job list, into `out`, which is sized for
@@ -74,11 +74,11 @@ void cli_catalog_short(const CliCatalogOutCtx *args);
 // a job of a script, its id the group and its file, its title `title` or its file; a bash script that takes free
 // words as its job, traced where it is a build; a script's text in a cell of its size and a 0 after, given back by
 // cli_catalog_text_free, NULL where it could not be read or the cell is refused; the files of a folder whose names
-// pass `filter`, each by its path in the tree, into `list` from `at`, its room made for them: the count after; the
+// pass `filter`, each by its path in the tree, into `list` from `at`, its capacity made for them: the count after; the
 // build scripts; and the sims (catalog_read.c)
 void cli_catalog_script_job(const CliCatalogPathCtx *args);
 void cli_catalog_bash_alone(const CliCatalogPathCtx *args);
-char *cli_catalog_script_take(const CliCatalogPathOutCtx *args);
+char *cli_catalog_script_alloc(const CliCatalogPathOutCtx *args);
 unsigned int cli_catalog_paths(const CliCatalogFilterCtx *args);
 void cli_catalog_builds(const CliCatalogPathCtx *args);
 void cli_catalog_sims(const CliCatalogPathCtx *args);
@@ -113,7 +113,7 @@ struct CliCatalogTextVariableCtx
     const char *text_read;
     const char *variable;
     char (*names_callback)[CLI_NAME_MAX_LEN];
-    unsigned int room;
+    unsigned int capacity;
 };
 
 struct CliCatalogFolderCtx
@@ -124,9 +124,9 @@ struct CliCatalogFolderCtx
     CliEntries *entries;
 };
 
-struct CliCatalogRoomCtx
+struct CliCatalogCapacityCtx
 {
-    unsigned int room;
+    unsigned int capacity;
     const char *source;
     char (*parts)[CLI_NAME_MAX_LEN];
 };
@@ -144,7 +144,7 @@ struct CliCatalogNamesCtx
     unsigned int most;
 };
 
-struct CliCatalogMostCtx
+struct CliCatalogMaxCtx
 {
     unsigned int most;
     CliPaths *paths;
@@ -180,35 +180,35 @@ EMBED_TABLE_STORAGE CliCatalogFolderNs cli_catalog_folder_internal EMBED_UNUSED 
 
 typedef struct
 {
-    int (*names_room)(const CliCatalogNamesCtx *args);
+    int (*names_capacity)(const CliCatalogNamesCtx *args);
 } CliCatalogNamesNs;
-EMBED_TABLE_LAYOUT(CliCatalogNamesNs, names_room);
+EMBED_TABLE_LAYOUT(CliCatalogNamesNs, names_capacity);
 EMBED_TABLE_STORAGE CliCatalogNamesNs cli_catalog_names_internal EMBED_UNUSED = {
-    .names_room = cli_catalog_names_room,
+    .names_capacity = cli_catalog_names_capacity,
 };
 
 typedef struct
 {
-    int (*paths_room)(const CliCatalogMostCtx *args);
-    void (*paths_free)(const CliCatalogMostCtx *args);
-} CliCatalogMostNs;
-EMBED_TABLE_LAYOUT(CliCatalogMostNs, paths_room, paths_free);
-EMBED_TABLE_STORAGE CliCatalogMostNs cli_catalog_most_internal EMBED_UNUSED = {
-    .paths_room = cli_catalog_paths_room,
+    int (*paths_capacity)(const CliCatalogMaxCtx *args);
+    void (*paths_free)(const CliCatalogMaxCtx *args);
+} CliCatalogMaxNs;
+EMBED_TABLE_LAYOUT(CliCatalogMaxNs, paths_capacity, paths_free);
+EMBED_TABLE_STORAGE CliCatalogMaxNs cli_catalog_max_internal EMBED_UNUSED = {
+    .paths_capacity = cli_catalog_paths_capacity,
     .paths_free = cli_catalog_paths_free,
 };
 
 typedef struct
 {
-    char *(*about_take)(const CliCatalogPathCtx *args);
+    char *(*about_alloc)(const CliCatalogPathCtx *args);
     void (*script_job)(const CliCatalogPathCtx *args);
     void (*bash_alone)(const CliCatalogPathCtx *args);
     void (*builds)(const CliCatalogPathCtx *args);
     void (*sims)(const CliCatalogPathCtx *args);
 } CliCatalogPathNs;
-EMBED_TABLE_LAYOUT(CliCatalogPathNs, about_take, script_job, bash_alone, builds, sims);
+EMBED_TABLE_LAYOUT(CliCatalogPathNs, about_alloc, script_job, bash_alone, builds, sims);
 EMBED_TABLE_STORAGE CliCatalogPathNs cli_catalog_path_internal EMBED_UNUSED = {
-    .about_take = cli_catalog_about_take,
+    .about_alloc = cli_catalog_about_alloc,
     .script_job = cli_catalog_script_job,
     .bash_alone = cli_catalog_bash_alone,
     .builds = cli_catalog_builds,
@@ -217,15 +217,15 @@ EMBED_TABLE_STORAGE CliCatalogPathNs cli_catalog_path_internal EMBED_UNUSED = {
 
 typedef struct
 {
-    char *(*markdown_take)(const CliCatalogPathOutCtx *args);
+    char *(*markdown_alloc)(const CliCatalogPathOutCtx *args);
     void (*stem)(const CliCatalogPathOutCtx *args);
-    char *(*script_take)(const CliCatalogPathOutCtx *args);
+    char *(*script_alloc)(const CliCatalogPathOutCtx *args);
 } CliCatalogPathOutNs;
-EMBED_TABLE_LAYOUT(CliCatalogPathOutNs, markdown_take, stem, script_take);
+EMBED_TABLE_LAYOUT(CliCatalogPathOutNs, markdown_alloc, stem, script_alloc);
 EMBED_TABLE_STORAGE CliCatalogPathOutNs cli_catalog_path_out_internal EMBED_UNUSED = {
-    .markdown_take = cli_catalog_markdown_take,
+    .markdown_alloc = cli_catalog_markdown_alloc,
     .stem = cli_catalog_stem,
-    .script_take = cli_catalog_script_take,
+    .script_alloc = cli_catalog_script_alloc,
 };
 
 typedef struct
@@ -257,10 +257,10 @@ EMBED_TABLE_STORAGE CliCatalogTextVariableNs cli_catalog_text_variable_internal 
 
 typedef struct
 {
-    unsigned int (*driver_parts)(const CliCatalogRoomCtx *args);
-} CliCatalogRoomNs;
-EMBED_TABLE_LAYOUT(CliCatalogRoomNs, driver_parts);
-EMBED_TABLE_STORAGE CliCatalogRoomNs cli_catalog_room_internal EMBED_UNUSED = {
+    unsigned int (*driver_parts)(const CliCatalogCapacityCtx *args);
+} CliCatalogCapacityNs;
+EMBED_TABLE_LAYOUT(CliCatalogCapacityNs, driver_parts);
+EMBED_TABLE_STORAGE CliCatalogCapacityNs cli_catalog_capacity_internal EMBED_UNUSED = {
     .driver_parts = cli_catalog_driver_parts,
 };
 

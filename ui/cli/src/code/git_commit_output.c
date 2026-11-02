@@ -38,9 +38,9 @@ void cli_git_commit_line(const CliGitLengthOutCtx *args)
 
 void cli_git_failed_after(const CliGitLengthCtx *args)
 {
-    const unsigned long long joined_room = (args->out_read->at - args->from_u64) + args->length + 2ull;
-    char *const joined_cell = g_cli_cells->temporary_buf_alloc(joined_room, &g_cli_code_cells);
-    VerbaLinea joined = mmgr_line_over(joined_cell, joined_room);
+    const unsigned long long joined_capacity = (args->out_read->at - args->from_u64) + args->length + 2ull;
+    char *const joined_cell = g_cli_cells->temporary_buf_alloc(joined_capacity, &g_cli_code_cells);
+    VerbaLinea joined = mmgr_line_over(joined_cell, joined_capacity);
     if (joined.out == NULL)
     {
         mmgr_line_put_n(args->err_msg, args->error, args->length);

@@ -51,8 +51,8 @@ void test_a_fingerprint_ignores_numbers(void)
 {
     char one[17];
     char other[17];
-    EMBED_CALL(cli_report_category_text.fingerprint, CliReportCategoryTextCfg, .category = "ui", .text = "edit.js:12:3 broke", .out_room = one);
-    EMBED_CALL(cli_report_category_text.fingerprint, CliReportCategoryTextCfg, .category = "ui", .text = "edit.js:40:9 broke", .out_room = other);
+    EMBED_CALL(cli_report_category_text.fingerprint, CliReportCategoryTextCfg, .category = "ui", .text = "edit.js:12:3 broke", .out_capacity = one);
+    EMBED_CALL(cli_report_category_text.fingerprint, CliReportCategoryTextCfg, .category = "ui", .text = "edit.js:40:9 broke", .out_capacity = other);
     TEST_ASSERT_EQUAL_STRING(one, other);
 }
 
@@ -60,8 +60,8 @@ void test_a_fingerprint_differs_by_category(void)
 {
     char one[17];
     char other[17];
-    EMBED_CALL(cli_report_category_text.fingerprint, CliReportCategoryTextCfg, .category = "ui", .text = "edit.js broke", .out_room = one);
-    EMBED_CALL(cli_report_category_text.fingerprint, CliReportCategoryTextCfg, .category = "cli", .text = "edit.js broke", .out_room = other);
+    EMBED_CALL(cli_report_category_text.fingerprint, CliReportCategoryTextCfg, .category = "ui", .text = "edit.js broke", .out_capacity = one);
+    EMBED_CALL(cli_report_category_text.fingerprint, CliReportCategoryTextCfg, .category = "cli", .text = "edit.js broke", .out_capacity = other);
     TEST_ASSERT_FALSE(cellul.eq(&(CatenaFinitaCfg){.src = one, .other = other, .cap = CLI_CELLS_POOL}));
 }
 

@@ -13,7 +13,7 @@
 typedef struct CliVectorTextCfg CliVectorTextCfg;
 typedef struct CliVectorTextLengthCfg CliVectorTextLengthCfg;
 typedef struct CliVectorACfg CliVectorACfg;
-typedef struct CliVectorTextSoughtCfg CliVectorTextSoughtCfg;
+typedef struct CliVectorTextNeedleCfg CliVectorTextNeedleCfg;
 typedef struct CliVectorALengthCfg CliVectorALengthCfg;
 typedef struct CliVectorLengthCfg CliVectorLengthCfg;
 typedef struct CliVectorUnitCfg CliVectorUnitCfg;
@@ -46,8 +46,8 @@ unsigned int cli_vector_paths(const CliVectorCfg *args);
 unsigned int cli_vector_best(void);
 // a unit folded as the page's search without case folds it, for units that fold into ASCII
 unsigned short cli_vector_fold(const CliVectorUnitCfg *args);
-// where `unit` first stands in `text`; where `sought` first stands in `text` from `from` on, unit for unit, and
-// without case where `sought` is ASCII; whether two runs of units are the same; how many of the numbers at the starts
+// where `unit` first stands in `text`; where `needle` first stands in `text` from `from` on, unit for unit, and
+// without case where `needle` is ASCII; whether two runs of units are the same; how many of the numbers at the starts
 // of `a` and `b` are the same, one for one. Each on the widest path, or on the path given
 unsigned long long cli_vector_find_unit(const CliVectorUnitCfg *args);
 unsigned long long cli_vector_find(const CliVectorTextCfg *args);
@@ -59,9 +59,9 @@ unsigned long long cli_vector_find_on(const CliVectorTextCfg *args);
 int cli_vector_same_on(const CliVectorACfg *args);
 unsigned long long cli_vector_common_on(const CliVectorLengthCfg *args);
 
-// what vector.c and the paths share: whether `sought` stands in `text` at `at`, each unit folded where `folded` is 1;
+// what vector.c and the paths share: whether `needle` stands in `text` at `at`, each unit folded where `folded` is 1;
 // the plain loop of a find from `start` on; and each path's loops, where the machine has them
-int cli_vector_stands_at(const CliVectorTextSoughtCfg *args);
+int cli_vector_exists_at(const CliVectorTextNeedleCfg *args);
 unsigned long long cli_vector_plain_find(const CliVectorTextLengthCfg *args);
 #if ENGINE_TARGET_X86_64
 int cli_vector_avx2_present(void);
@@ -85,8 +85,8 @@ struct CliVectorTextCfg
 {
     const unsigned short *text;
     unsigned long long length;
-    const unsigned short *sought;
-    unsigned long long sought_length;
+    const unsigned short *needle;
+    unsigned long long needle_length;
     unsigned long long from;
     unsigned int path;
     int folded;
@@ -96,8 +96,8 @@ struct CliVectorTextLengthCfg
 {
     const unsigned short *text;
     unsigned long long length;
-    const unsigned short *sought;
-    unsigned long long sought_length;
+    const unsigned short *needle;
+    unsigned long long needle_length;
     int folded;
     unsigned long long start;
 };
@@ -111,11 +111,11 @@ struct CliVectorACfg
     unsigned int path;
 };
 
-struct CliVectorTextSoughtCfg
+struct CliVectorTextNeedleCfg
 {
     const unsigned short *text;
-    const unsigned short *sought;
-    unsigned long long sought_length;
+    const unsigned short *needle;
+    unsigned long long needle_length;
     int folded;
     unsigned long long at;
 };
@@ -222,11 +222,11 @@ EMBED_TABLE_STORAGE CliVectorLengthNs cli_vector_length EMBED_UNUSED = {
 
 typedef struct
 {
-    int (*stands_at)(const CliVectorTextSoughtCfg *args);
-} CliVectorTextSoughtNs;
-EMBED_TABLE_LAYOUT(CliVectorTextSoughtNs, stands_at);
-EMBED_TABLE_STORAGE CliVectorTextSoughtNs cli_vector_text_sought EMBED_UNUSED = {
-    .stands_at = cli_vector_stands_at,
+    int (*exists_at)(const CliVectorTextNeedleCfg *args);
+} CliVectorTextNeedleNs;
+EMBED_TABLE_LAYOUT(CliVectorTextNeedleNs, exists_at);
+EMBED_TABLE_STORAGE CliVectorTextNeedleNs cli_vector_text_needle EMBED_UNUSED = {
+    .exists_at = cli_vector_exists_at,
 };
 
 typedef struct

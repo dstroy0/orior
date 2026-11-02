@@ -44,7 +44,8 @@ EMBED_INLINE void cli_extension(const NotebookCtx *args)
     {
         return;
     }
-    (void)EMBED_CALL(cli_text_out_room.lowered_into, CliTextOutRoomCfg, .out_room = out, .room = 16u, .text = dot + 1);
+    (void)EMBED_CALL(cli_text_out_capacity.lowered_into, CliTextOutCapacityCfg, .out_capacity = out, .capacity = 16u,
+                     .text = dot + 1);
 }
 
 // The comment a script's cells are marked with in the language of `path`, by its extension
@@ -144,7 +145,7 @@ int cli_notebook_ends(const CliNotebookTextCtx *args)
 // `length` bytes of `text` put after the text being made at the end of the tree's texts
 EMBED_INLINE void cli_piece(const NotebookCtx *args)
 {
-    if ((args->json->used + args->length + 1ull) > args->json->text_most)
+    if ((args->json->used + args->length + 1ull) > args->json->text_max)
     {
         args->json->full = 1;
         return;
@@ -511,7 +512,7 @@ unsigned int cli_notebook_read(const CliNotebookPathCfg *args)
     VerbaLinea reason = {why, sizeof(why), 0ull};
     const unsigned int book = EMBED_CALL(cli_json_tree_text_size_tokens.json_read, CliJsonTreeTextSizeTokensCfg,
                                          .json = args->json, .text = args->text, .size = args->size,
-                                         .tokens = args->tokens, .tokens_most = args->tokens_most, .err_msg = &reason);
+                                         .tokens = args->tokens, .tokens_max = args->tokens_max, .err_msg = &reason);
     mmgr_line_finish(&reason);
     if (book == CLI_JSON_NONE)
     {

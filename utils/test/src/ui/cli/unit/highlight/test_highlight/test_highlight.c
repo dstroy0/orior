@@ -163,14 +163,14 @@ static void leaves_waiting(const CliLeavesEachCfg *args)
     s_aside_ended = (first && (s_aside_ended == 0)) ? -2 : s_aside_ended;
 }
 
-// two lines of the grammar under `key` colored, the aside's work `work` done beside the first, their leaves into `leaves`, `room` bytes: 1 where they
+// two lines of the grammar under `key` colored, the aside's work `work` done beside the first, their leaves into `leaves`, `capacity` bytes: 1 where they
 // colored and the aside ended while the first waited and did its work
-static int colored_beside(const char *key, int (*work)(void), char *leaves, unsigned long long room)
+static int colored_adjacent(const char *key, int (*work)(void), char *leaves, unsigned long long capacity)
 {
     static const char *const s_lines[2] = {"if (x)", "if (x)"};
     char ended[64];
     char why[256];
-    VerbaLinea out = {leaves, room, 0ull};
+    VerbaLinea out = {leaves, capacity, 0ull};
     VerbaLinea ended_line = {ended, sizeof(ended), 0ull};
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     s_aside_work = work;
@@ -180,7 +180,7 @@ static int colored_beside(const char *key, int (*work)(void), char *leaves, unsi
     return returned && (s_aside_ended == 1);
 }
 
-// a line colored and leaves recorded on the same thread as a coloring under way returns them, the one under way going on in its own room
+// a line colored and leaves recorded on the same thread as a coloring under way returns them, the one under way going on in its own capacity
 static void leaves_nested(const CliLeavesEachCfg *args)
 {
     leaves_recorded(args);
@@ -190,14 +190,14 @@ static void leaves_nested(const CliLeavesEachCfg *args)
     }
 }
 
-// the line `text` colored by the grammar of the plugin `id` from root, asserted against `wanted`
-static void assert_plugin_line(const char *id, const char *text, const char *wanted)
+// the line `text` colored by the grammar of the plugin `id` from root, asserted against `required`
+static void assert_plugin_line(const char *id, const char *text, const char *required)
 {
     char key[CLI_NAME_MAX_LEN];
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     TEST_ASSERT_TRUE_MESSAGE(EMBED_CALL(cli_plugins_id_key.grammar_store, CliPluginsIdKeyCfg, .id = id, .key = key, .err_msg = &err_msg), id);
-    TEST_ASSERT_EQUAL_STRING(wanted, line_colored(key, text, "root"));
+    TEST_ASSERT_EQUAL_STRING(required, line_colored(key, text, "root"));
 }
 
 void setUp(void)
@@ -218,7 +218,7 @@ void test_a_string_of_thousands_of_characters_runs_to_its_closing_quote(void)
 {
     char root[CLI_PATH_MAX_LEN];
     char path[CLI_PATH_MAX_LEN];
-    char wanted[32];
+    char required[32];
     if (!EMBED_CALL(cli_tree_internal.tree_find, CliTreeCtx, .tree = root))
     {
         TEST_IGNORE_MESSAGE("no tree is found: JSON's grammar is not read");
@@ -241,14 +241,14 @@ void test_a_string_of_thousands_of_characters_runs_to_its_closing_quote(void)
     const char *const string = cellul.find(&(CatenaFinitaCfg){.src = s_runs, .cap = CLI_CELLS_POOL, .other = "|9 ", .other_cap = CLI_CELLS_POOL});
     TEST_ASSERT_NOT_NULL(string);
     CLI_TEST_ASSERT_CONTAINS("string", string);
-    VerbaLinea next = {wanted, sizeof(wanted), 0ull};
+    VerbaLinea next = {required, sizeof(required), 0ull};
     mmgr_line_ch(&next, '|');
     mmgr_line_decimal(&next, 9u + length + 2u, 1u);
     mmgr_line_ch(&next, ' ');
     (void)mmgr_line_finish(&next);
     const char *const bar = cellul.chr(&(CatenaFinitaCfg){.src = string + 1, .cap = CLI_CELLS_POOL, .byte = '|'});
     TEST_ASSERT_NOT_NULL(bar);
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = bar, .other_pointer = wanted, .size = CLI_UNITY_LENGTH(wanted)));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = bar, .other_pointer = required, .size = CLI_UNITY_LENGTH(required)));
 }
 
 void test_a_line_is_colored_by_its_rules_and_ends_in_root(void)
@@ -264,13 +264,13 @@ void test_each_bracket_is_a_token_of_its_own(void)
                              line_colored("test", "(((())))", "root"));
 }
 
-void test_a_comment_opened_colors_and_its_state_carries(void)
+void test_a_comment_opened_colors_and_its_state_transfers(void)
 {
     TEST_ASSERT_EQUAL_STRING("0 identifier|1 |2 comment|4 comment", line_colored("test", "a /* open", "root"));
     TEST_ASSERT_EQUAL_STRING("root/comment", s_state);
 }
 
-void test_a_comments_state_carries_to_the_next_line_until_it_closes(void)
+void test_a_comments_state_transfers_to_the_next_line_until_it_closes(void)
 {
     TEST_ASSERT_EQUAL_STRING("0 comment|6 comment|8 |9 identifier", line_colored("test", "still */ b", "root/comment"));
     TEST_ASSERT_EQUAL_STRING("root", s_state);
@@ -336,7 +336,7 @@ void test_a_plugins_grammar_is_stored_under_its_key_and_colors(void)
     TEST_ASSERT_TRUE(EMBED_CALL(cli_plugins_id_key.grammar_store, CliPluginsIdKeyCfg, .id = "c", .key = key, .err_msg = &err_msg));
 }
 
-void test_a_plugin_there_is_none_of_is_refused_with_why(void)
+void test_a_plugin_there_is_none_of_is_refused_with_error(void)
 {
     char key[CLI_NAME_MAX_LEN];
     char why[256];
@@ -349,7 +349,7 @@ void test_a_line_is_colored_while_a_coloring_under_way_waits_on_it(void)
 {
     char leaves[512];
     s_aside_leaves[0] = '\0';
-    TEST_ASSERT_TRUE(colored_beside("test", aside_colored, leaves, sizeof(leaves)));
+    TEST_ASSERT_TRUE(colored_adjacent("test", aside_colored, leaves, sizeof(leaves)));
     TEST_ASSERT_EQUAL_STRING(s_one_line, s_aside_leaves);
     TEST_ASSERT_EQUAL_STRING("0 keyword|2 |3 delimiter.bracket|4 identifier|5 "
                              "delimiter.bracket/0 keyword|2 |3 delimiter.bracket|4 "
@@ -357,11 +357,11 @@ void test_a_line_is_colored_while_a_coloring_under_way_waits_on_it(void)
                              leaves);
 }
 
-void test_a_grammar_stored_again_leaves_a_coloring_reading_the_one_it_found_and_the_next_the_new(void)
+void test_a_grammar_stored_again_leaves_a_coloring_read_state_the_one_it_found_and_the_next_the_new(void)
 {
     char leaves[512];
     TEST_ASSERT_TRUE(grammar_stored("swapped", s_grammar, sizeof(s_grammar) - 1u, NULL));
-    TEST_ASSERT_TRUE(colored_beside("swapped", aside_stored, leaves, sizeof(leaves)));
+    TEST_ASSERT_TRUE(colored_adjacent("swapped", aside_stored, leaves, sizeof(leaves)));
     TEST_ASSERT_EQUAL_STRING("0 keyword|2 |3 delimiter.bracket|4 identifier|5 "
                              "delimiter.bracket/0 keyword|2 |3 delimiter.bracket|4 "
                              "identifier|5 delimiter.bracket/",
@@ -481,7 +481,7 @@ void test_a_pattern_not_read_here_is_refused(void)
     TEST_ASSERT_FALSE(grammar_stored("bad", s_bad, sizeof(s_bad) - 1u, NULL));
 }
 
-void test_the_grammars_report_the_most_they_and_their_rooms_used_of_the_cellblock(void)
+void test_the_grammars_report_the_max_they_and_their_capacities_used_of_the_cellblock(void)
 {
     char report[160];
     VerbaLinea report_line = {report, sizeof(report), 0ull};

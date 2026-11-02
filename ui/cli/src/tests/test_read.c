@@ -56,15 +56,15 @@ void cli_test_lines_read(const CliTestRunsWorkerLineCtx *args)
     while (!stopped)
     {
         const unsigned long long count =
-            EMBED_CALL(cli_room_pipe_handle_internal.spawn_read, CliRoomPipeHandleCtx,
-                       .pipe_handle = worker->spawned.out, .piece = piece, .room = sizeof(piece));
+            EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx,
+                       .pipe_handle = worker->spawned.out, .piece = piece, .capacity = sizeof(piece));
         if (count == 0ull)
         {
             break;
         }
         for (unsigned long long at = 0ull; (at < count) && !stopped; at += 1ull)
         {
-            // a line longer than the room is handed on in pieces of the room's length
+            // a line longer than the capacity is handed on in pieces of the capacity's length
             if ((piece[at] == '\n') || (worker->line_size == sizeof(worker->line)))
             {
                 stopped = cli_test_stop();
@@ -96,8 +96,8 @@ static void read_errors(void *context)
     for (;;)
     {
         const unsigned long long count =
-            EMBED_CALL(cli_room_pipe_handle_internal.spawn_read, CliRoomPipeHandleCtx,
-                       .pipe_handle = worker->spawned.err, .piece = piece, .room = sizeof(piece));
+            EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx,
+                       .pipe_handle = worker->spawned.err, .piece = piece, .capacity = sizeof(piece));
         if (count == 0ull)
         {
             break;
@@ -142,10 +142,10 @@ const char *cli_test_file_read(const CliTestRunsPathCtx *args)
 {
     unsigned long long *size = args->size_pointer;
     *size = 0ull;
-    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = args->path,
+    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->path,
                                                   .size_pointer = size, .owner = &g_cli_tests_cells);
     if ((bytes != NULL) &&
-        !EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg, .bytes = (const char *)bytes, .size = *size))
+        !EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = (const char *)bytes, .size = *size))
     {
         EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_tests_cells);
         *size = 0ull;

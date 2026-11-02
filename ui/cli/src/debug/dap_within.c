@@ -56,7 +56,7 @@ typedef struct
     unsigned long long *length;
 } DapWithinCtx;
 // a message of `size` bytes in a cell of its size, its bytes to be put in, or NULL where the cells cannot meet it
-EMBED_INLINE CliDapQueued *within_message_take(const DapWithinCtx *args)
+EMBED_INLINE CliDapQueued *within_message_alloc(const DapWithinCtx *args)
 {
     unsigned long long size = args->size;
     CliDapQueued *const message = g_cli_cells->persistent_buf_alloc(sizeof(CliDapQueued) + size, &g_cli_debug_cells);
@@ -94,7 +94,7 @@ EMBED_INLINE int within_queue(const DapWithinCtx *args)
 EMBED_INLINE int within_push(const DapWithinCtx *args)
 {
     const char *bytes = args->bytes;
-    CliDapQueued *const message = within_message_take(args);
+    CliDapQueued *const message = within_message_alloc(args);
     if (message == NULL)
     {
         return 0;
@@ -191,7 +191,7 @@ EMBED_INLINE int within_length(const DapWithinCtx *args)
 }
 
 // the request coming whole handed to the adapter as a request: 1, or 0 where it is no JSON or no more come
-static int within_request_whole(void)
+static int within_request_complete(void)
 {
     char tiny[1];
     VerbaLinea checked = {tiny, sizeof(tiny), 0ull};
@@ -237,7 +237,7 @@ static int within_frame(const CliSinkBytesSizeCfg *args)
                 return 0;
             }
             s_head_size = 0ull;
-            s_coming = EMBED_CALL(within_message_take, DapWithinCtx, .size = length);
+            s_coming = EMBED_CALL(within_message_alloc, DapWithinCtx, .size = length);
             s_coming_got = 0ull;
             if (s_coming == NULL)
             {
@@ -246,15 +246,15 @@ static int within_frame(const CliSinkBytesSizeCfg *args)
         }
         else
         {
-            const unsigned long long wanted = s_coming->size - s_coming_got;
-            const unsigned long long taken = (left < wanted) ? left : wanted;
+            const unsigned long long required = s_coming->size - s_coming_got;
+            const unsigned long long reserved = (left < required) ? left : required;
             // a piece of a message, which a size_t counts
-            memor.cpy(&(MemoriaCfg){.dst = s_coming->bytes + s_coming_got, .src = at, .bytes = (size_t)taken});
-            s_coming_got += taken;
-            at += taken;
-            left -= taken;
+            memor.cpy(&(MemoriaCfg){.dst = s_coming->bytes + s_coming_got, .src = at, .bytes = (size_t)reserved});
+            s_coming_got += reserved;
+            at += reserved;
+            left -= reserved;
         }
-        if ((s_coming != NULL) && (s_coming_got == s_coming->size) && !within_request_whole())
+        if ((s_coming != NULL) && (s_coming_got == s_coming->size) && !within_request_complete())
         {
             return 0;
         }
@@ -264,7 +264,7 @@ static int within_frame(const CliSinkBytesSizeCfg *args)
 
 // what the client reads of its adapter in orior: each message it sends framed as one from a program, the head before
 // its bytes
-static unsigned long long within_unframed(const CliSourcePieceRoomCfg *args)
+static unsigned long long within_unframed(const CliSourcePieceCapacityCfg *args)
 {
     if ((s_pending == NULL) || (s_pending_at >= s_pending_head_size + s_pending->size))
     {
@@ -286,7 +286,7 @@ static unsigned long long within_unframed(const CliSourcePieceRoomCfg *args)
         in_head ? (s_pending_head + s_pending_at) : (s_pending->bytes + (s_pending_at - s_pending_head_size));
     const unsigned long long left =
         in_head ? (s_pending_head_size - s_pending_at) : (s_pending_head_size + s_pending->size - s_pending_at);
-    const unsigned long long count = (args->room < left) ? args->room : left;
+    const unsigned long long count = (args->capacity < left) ? args->capacity : left;
     // a piece of a message, which a size_t counts
     memor.cpy(&(MemoriaCfg){.dst = args->piece, .src = from, .bytes = (size_t)count});
     s_pending_at += count;
@@ -330,7 +330,7 @@ CliDap *cli_dap_within(const CliDapEmitCfg *args)
     {
         EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_queue_wake);
     }
-    CliDap *const dap = cli_dap_place_take();
+    CliDap *const dap = cli_dap_position_alloc();
     if (dap == NULL)
     {
         mmgr_line_put(args->err_msg, "no more debug adapters are open at once");
@@ -363,7 +363,7 @@ CliDap *cli_dap_within(const CliDapEmitCfg *args)
     if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_serve_thread))
     {
         s_serving = 0;
-        dap->taken = 0;
+        dap->reserved = 0;
         mmgr_line_put(args->err_msg, "the adapter's thread did not start");
         return NULL;
     }

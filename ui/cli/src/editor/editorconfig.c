@@ -46,9 +46,9 @@ EMBED_INLINE void cli_trim(const EditorconfigCtx *args)
 {
     const char **from = args->from_pointer;
     const char **to = args->to_pointer;
-    *from += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = *from, .at = 0ull,
+    *from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = *from, .at = 0ull,
                         .size = (unsigned long long)(*to - *from), .set = CLI_TEXT_WHITE);
-    *to = *from + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = *from,
+    *to = *from + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = *from,
                              .at = (unsigned long long)(*to - *from), .set = CLI_TEXT_WHITE);
 }
 
@@ -193,7 +193,7 @@ EMBED_INLINE int cli_value_number(const EditorconfigCtx *args)
     }
     unsigned long long size = 0ull;
     const unsigned long long digits = cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL});
-    if (EMBED_CALL(cli_text_at_size_classes.past_class, CliTextAtSizeClassesCfg, .text = at, .at = 0ull, .size = digits,
+    if (EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = at, .at = 0ull, .size = digits,
                    .classes = CLI_TEXT_DIGITS, .set = "") != digits)
     {
         return 0;

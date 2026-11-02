@@ -21,7 +21,7 @@ typedef struct
 } MavenCheckCtx;
 
 // a finding over the bytes `from` to `to` that reports `msg`
-EMBED_INLINE unsigned int check_finding_put(const MavenCheckCtx *args)
+EMBED_INLINE unsigned int check_finding_append(const MavenCheckCtx *args)
 {
     unsigned long long from = args->from;
     unsigned long long to = args->to;
@@ -44,8 +44,8 @@ void cli_maven_update(const CliMavenSizeCheckCtx *args)
     mmgr_line_put(&command, " -U dependency:get -Dartifact=");
     mmgr_line_put_n(&command, args->coordinates, args->size);
     EMBED_CALL(cli_builds_found.build_run_fix, CliBuildsFoundCfg, .found = args->check->found, .finding = finding,
-               .title = &title, .folder = args->check->shown,
-               .folder_size = cellul.len(&(CatenaFinitaCfg){.src = args->check->shown, .cap = CLI_CELLS_POOL}),
+               .title = &title, .folder = args->check->displayed,
+               .folder_size = cellul.len(&(CatenaFinitaCfg){.src = args->check->displayed, .cap = CLI_CELLS_POOL}),
                .line_text = line, .line_size = command.at);
 }
 
@@ -89,34 +89,36 @@ EMBED_INLINE void check_elements(const MavenCheckCtx *args)
         mmgr_line_put_n(&msg, xml->text + parent->from, parent->to - parent->from);
         mmgr_line_put(&msg, ">`");
         const unsigned int finding =
-            EMBED_CALL(check_finding_put, MavenCheckCtx, .check = args->check, .msg = &msg, .from = element->from,
+            EMBED_CALL(check_finding_append, MavenCheckCtx, .check = args->check, .msg = &msg, .from = element->from,
                        .to = element->to, .severity = CLI_BUILD_WARNING, .code = "pom-element");
-        CliBuildNear near;
-        EMBED_CALL(cli_builds_size.build_near_begin, CliBuildsSizeCfg, .near = &near, .name = name, .size = size);
+        CliBuildAdjacent adjacent;
+        EMBED_CALL(cli_builds_size.build_adjacent_begin, CliBuildsSizeCfg, .adjacent = &adjacent, .name = name,
+                   .size = size);
         for (unsigned int at = 0u; at < count; at += 1u)
         {
-            EMBED_CALL(cli_builds_size_near.build_near_offer, CliBuildsSizeNearCfg, .near = &near, .one = allowed[at],
+            EMBED_CALL(cli_builds_size_adjacent.build_adjacent_offer, CliBuildsSizeAdjacentCfg, .adjacent = &adjacent,
+                       .one = allowed[at],
                        .size = cellul.len(&(CatenaFinitaCfg){.src = allowed[at], .cap = CLI_CELLS_POOL}));
         }
-        for (unsigned int at = 0u; at < near.count; at += 1u)
+        for (unsigned int at = 0u; at < adjacent.count; at += 1u)
         {
             VerbaLinea title =
                 EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = args->check->found);
             mmgr_line_put(&title, "Change to <");
-            mmgr_line_put_n(&title, near.near[at], near.near_size[at]);
+            mmgr_line_put_n(&title, adjacent.adjacent[at], adjacent.adjacent_size[at]);
             mmgr_line_ch(&title, '>');
             if (element->closed && (element->close_from != element->from))
             {
                 EMBED_CALL(cli_builds_text.build_edit_fix_twice, CliBuildsTextCfg, .found = args->check->found,
                            .finding = finding, .title = &title, .lines = args->check->lines, .from = element->from,
                            .to = element->to, .also_from = element->close_from, .also_to = element->close_to,
-                           .text = near.near[at], .size = near.near_size[at]);
+                           .text = adjacent.adjacent[at], .size = adjacent.adjacent_size[at]);
             }
             else
             {
                 EMBED_CALL(cli_builds_text.build_edit_fix, CliBuildsTextCfg, .found = args->check->found,
                            .finding = finding, .title = &title, .lines = args->check->lines, .from = element->from,
-                           .to = element->to, .text = near.near[at], .size = near.near_size[at]);
+                           .to = element->to, .text = adjacent.adjacent[at], .size = adjacent.adjacent_size[at]);
             }
         }
     }
@@ -145,7 +147,7 @@ EMBED_INLINE void check_properties(const MavenCheckCtx *args)
     {
         unsigned long long off = 0ull;
         if (!EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = text + at, .length_value = xml->size - at,
-                        .wanted = "${", .size = 2u, .at_pointer = &off))
+                        .required = "${", .size = 2u, .at_pointer = &off))
         {
             return;
         }
@@ -175,26 +177,26 @@ EMBED_INLINE void check_properties(const MavenCheckCtx *args)
         mmgr_line_put_n(&msg, text + at, end - at);
         mmgr_line_put(&msg, "` is set, by the POM, its parents or Maven");
         const unsigned int finding =
-            EMBED_CALL(check_finding_put, MavenCheckCtx, .check = args->check, .msg = &msg, .from = at, .to = end,
+            EMBED_CALL(check_finding_append, MavenCheckCtx, .check = args->check, .msg = &msg, .from = at, .to = end,
                        .severity = CLI_BUILD_WARNING, .code = "pom-property");
-        CliBuildNear near;
-        EMBED_CALL(cli_builds_size.build_near_begin, CliBuildsSizeCfg, .near = &near, .name = text + at,
+        CliBuildAdjacent adjacent;
+        EMBED_CALL(cli_builds_size.build_adjacent_begin, CliBuildsSizeCfg, .adjacent = &adjacent, .name = text + at,
                    .size = end - at);
         for (unsigned int one = 0u; one < model->properties; one += 1u)
         {
-            EMBED_CALL(cli_builds_size_near.build_near_offer, CliBuildsSizeNearCfg, .near = &near,
+            EMBED_CALL(cli_builds_size_adjacent.build_adjacent_offer, CliBuildsSizeAdjacentCfg, .adjacent = &adjacent,
                        .one = model->text + model->name_at[one], .size = model->name_size[one]);
         }
-        for (unsigned int one = 0u; one < near.count; one += 1u)
+        for (unsigned int one = 0u; one < adjacent.count; one += 1u)
         {
             VerbaLinea title =
                 EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = args->check->found);
             mmgr_line_put(&title, "Change to ${");
-            mmgr_line_put_n(&title, near.near[one], near.near_size[one]);
+            mmgr_line_put_n(&title, adjacent.adjacent[one], adjacent.adjacent_size[one]);
             mmgr_line_ch(&title, '}');
             EMBED_CALL(cli_builds_text.build_edit_fix, CliBuildsTextCfg, .found = args->check->found,
                        .finding = finding, .title = &title, .lines = args->check->lines, .from = at, .to = end,
-                       .text = near.near[one], .size = near.near_size[one]);
+                       .text = adjacent.adjacent[one], .size = adjacent.adjacent_size[one]);
         }
     }
 }
@@ -238,7 +240,7 @@ EMBED_INLINE void check_parent(const MavenCheckCtx *args)
     mmgr_line_put_n(&msg, s_coordinates, coordinates.at);
     mmgr_line_put(&msg, "` is a snapshot, whose newest build Maven fetches with `-U`");
     const unsigned int finding =
-        EMBED_CALL(check_finding_put, MavenCheckCtx, .check = check, .msg = &msg, .from = at->inner_from,
+        EMBED_CALL(check_finding_append, MavenCheckCtx, .check = check, .msg = &msg, .from = at->inner_from,
                    .to = at->inner_to, .severity = CLI_BUILD_NOTE, .code = "snapshot");
     mmgr_line_put(&coordinates, ":pom");
     EMBED_CALL(cli_maven_size_check_internal.update, CliMavenSizeCheckCtx, .check = check, .finding = finding,
@@ -255,7 +257,7 @@ EMBED_INLINE void check_phase(const MavenCheckCtx *args)
     if (!EMBED_CALL(cli_maven_xml_out_internal.xml_text, CliMavenXmlOutCtx, .xml = xml, .of = args->index,
                     .out = &phase) ||
         !mmgr_line_ok(&phase) ||
-        EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = s_phase, .length_value = phase.at, .wanted = "${",
+        EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = s_phase, .length_value = phase.at, .required = "${",
                    .size = 2u, .at_pointer = &found))
     {
         return;
@@ -274,24 +276,25 @@ EMBED_INLINE void check_phase(const MavenCheckCtx *args)
     mmgr_line_put_n(&msg, s_phase, phase.at);
     mmgr_line_put(&msg, "` is no phase of Maven's lifecycles");
     const unsigned int finding =
-        EMBED_CALL(check_finding_put, MavenCheckCtx, .check = args->check, .msg = &msg, .from = element->inner_from,
+        EMBED_CALL(check_finding_append, MavenCheckCtx, .check = args->check, .msg = &msg, .from = element->inner_from,
                    .to = element->inner_to, .severity = CLI_BUILD_WARNING, .code = "pom-phase");
-    CliBuildNear near;
-    EMBED_CALL(cli_builds_size.build_near_begin, CliBuildsSizeCfg, .near = &near, .name = s_phase, .size = phase.at);
+    CliBuildAdjacent adjacent;
+    EMBED_CALL(cli_builds_size.build_adjacent_begin, CliBuildsSizeCfg, .adjacent = &adjacent, .name = s_phase,
+               .size = phase.at);
     for (unsigned int at = 0u; at < 29u; at += 1u)
     {
-        EMBED_CALL(cli_builds_size_near.build_near_offer, CliBuildsSizeNearCfg, .near = &near,
+        EMBED_CALL(cli_builds_size_adjacent.build_adjacent_offer, CliBuildsSizeAdjacentCfg, .adjacent = &adjacent,
                    .one = g_cli_maven_phases[at],
                    .size = cellul.len(&(CatenaFinitaCfg){.src = g_cli_maven_phases[at], .cap = CLI_CELLS_POOL}));
     }
-    for (unsigned int at = 0u; at < near.count; at += 1u)
+    for (unsigned int at = 0u; at < adjacent.count; at += 1u)
     {
         VerbaLinea title = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = args->check->found);
         mmgr_line_put(&title, "Change to ");
-        mmgr_line_put_n(&title, near.near[at], near.near_size[at]);
+        mmgr_line_put_n(&title, adjacent.adjacent[at], adjacent.adjacent_size[at]);
         EMBED_CALL(cli_builds_text.build_edit_fix, CliBuildsTextCfg, .found = args->check->found, .finding = finding,
                    .title = &title, .lines = args->check->lines, .from = element->inner_from, .to = element->inner_to,
-                   .text = near.near[at], .size = near.near_size[at]);
+                   .text = adjacent.adjacent[at], .size = adjacent.adjacent_size[at]);
     }
 }
 
@@ -314,8 +317,9 @@ void cli_maven_check(const CliMavenTextCtx *args)
         VerbaLinea msg = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = found);
         EMBED_CALL(cli_maven_xml_error_internal.xml_error_write, CliMavenXmlErrorCtx, .xml = &s_xml,
                    .error = &s_xml.error[at], .out = &msg);
-        (void)EMBED_CALL(check_finding_put, MavenCheckCtx, .check = &s_check, .msg = &msg, .from = s_xml.error[at].from,
-                         .to = s_xml.error[at].to, .severity = CLI_BUILD_ERROR, .code = "pom-xml");
+        (void)EMBED_CALL(check_finding_append, MavenCheckCtx, .check = &s_check, .msg = &msg,
+                         .from = s_xml.error[at].from, .to = s_xml.error[at].to, .severity = CLI_BUILD_ERROR,
+                         .code = "pom-xml");
     }
     for (unsigned int at = 0u; at < s_xml.opens; at += 1u)
     {
@@ -324,7 +328,7 @@ void cli_maven_check(const CliMavenTextCtx *args)
         EMBED_CALL(cli_maven_xml_error_internal.xml_error_write, CliMavenXmlErrorCtx, .xml = &s_xml, .error = &left,
                    .out = &msg);
         const CliXmlElement *const element = &s_xml.element[s_xml.open[at]];
-        (void)EMBED_CALL(check_finding_put, MavenCheckCtx, .check = &s_check, .msg = &msg, .from = element->from,
+        (void)EMBED_CALL(check_finding_append, MavenCheckCtx, .check = &s_check, .msg = &msg, .from = element->from,
                          .to = element->to, .severity = CLI_BUILD_ERROR, .code = "pom-xml");
     }
     const unsigned int project =
@@ -348,7 +352,7 @@ void cli_maven_check(const CliMavenTextCtx *args)
     {
         VerbaLinea msg = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = found);
         mmgr_line_put(&msg, "A POM's `<modelVersion>` is `4.0.0`");
-        (void)EMBED_CALL(check_finding_put, MavenCheckCtx, .check = &s_check, .msg = &msg,
+        (void)EMBED_CALL(check_finding_append, MavenCheckCtx, .check = &s_check, .msg = &msg,
                          .from = s_xml.element[version].inner_from, .to = s_xml.element[version].inner_to,
                          .severity = CLI_BUILD_ERROR, .code = "pom-model");
     }
@@ -365,9 +369,9 @@ void cli_maven_check(const CliMavenTextCtx *args)
         (void)mmgr_line_finish(&copy);
     }
     EMBED_CALL(cli_maven_out_internal.program, CliMavenOutCtx, .root = root, .folder = folder,
-               .out_room = s_check.program);
+               .out_capacity = s_check.program);
     EMBED_CALL(cli_builds_root.build_inside, CliBuildsRootCfg, .root = root, .folder = folder,
-               .out_room = s_check.shown);
+               .out_capacity = s_check.displayed);
     for (unsigned int index = 0u; index < s_xml.elements; index += 1u)
     {
         const CliXmlElement *const element = &s_xml.element[index];

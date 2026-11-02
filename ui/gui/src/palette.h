@@ -8,7 +8,7 @@
 typedef struct GuiPaletteAtSizeCfg GuiPaletteAtSizeCfg;
 typedef struct GuiPaletteAtCfg GuiPaletteAtCfg;
 typedef struct GuiPaletteTextCfg GuiPaletteTextCfg;
-typedef struct GuiPaletteForeCfg GuiPaletteForeCfg;
+typedef struct GuiPaletteForegroundCfg GuiPaletteForegroundCfg;
 typedef struct GuiPaletteSizeCfg GuiPaletteSizeCfg;
 typedef struct GuiPaletteOwnCfg GuiPaletteOwnCfg;
 typedef struct GuiPaletteOwnBarPercentCfg GuiPaletteOwnBarPercentCfg;
@@ -45,7 +45,7 @@ typedef struct
 // the eight colors a file's mark takes; and its tokens, `token_count` of them
 typedef struct
 {
-    GuiColor ground;
+    GuiColor background_fill;
     GuiColor surface;
     GuiColor well;
     GuiColor deep;
@@ -57,7 +57,7 @@ typedef struct
     GuiColor link;
     GuiColor hover;
     GuiColor fail;
-    GuiColor ink;
+    GuiColor text_color;
     GuiColor glass;
     GuiColor bar_text;
     GuiColor bar_title;
@@ -65,7 +65,7 @@ typedef struct
     GuiColor bar_bright;
     GuiColor bar_path;
     GuiColor status_text;
-    GuiColor editor_ground;
+    GuiColor editor_background;
     GuiColor editor_text;
     GuiColor number;
     GuiColor current;
@@ -81,10 +81,10 @@ typedef struct
     GuiColor map_match;
     GuiColor map_slider;
     GuiColor map_slider_on;
-    GuiColor tab_ground;
+    GuiColor tab_background;
     GuiColor tab_line;
     GuiColor strip_on;
-    GuiColor side_ground;
+    GuiColor side_background;
     GuiColor error;
     GuiColor warning;
     GuiColor note;
@@ -128,10 +128,10 @@ void gui_palette_value_text(const GuiPaletteSizeColorCfg *args);
 int gui_palette_value_read(const GuiPaletteTextCfg *args);
 // the least contrast a color of text has with the color under it, as WCAG 2's level AA asks of text, in tenths of a
 // ratio
-#define GUI_PALETTE_CONTRAST_LEAST 45u
-// the contrast of `fore` over `back`, in tenths of a ratio from 10 to 210 as WCAG 2 measures it, rounded down; `back`
-// laid over `ground` and `fore` over that where they are translucent
-unsigned int gui_palette_contrast(const GuiPaletteForeCfg *args);
+#define GUI_PALETTE_CONTRAST_MIN 45u
+// the contrast of `foreground_color` over `back`, in tenths of a ratio from 10 to 210 as WCAG 2 measures it, rounded
+// down; `back` laid over `background_fill` and `foreground_color` over that where they are translucent
+unsigned int gui_palette_contrast(const GuiPaletteForegroundCfg *args);
 // whether the named color `at` is text under the least contrast with a color it is drawn on: 1, with its contrast into
 // `tenths` and that color's name into `under`, `size` bytes; 0 for one over the least and for a color that is no text
 int gui_palette_color_low(const GuiPaletteAtSizeCfg *args);
@@ -164,11 +164,11 @@ struct GuiPaletteTextCfg
     GuiColor *color_pointer;
 };
 
-struct GuiPaletteForeCfg
+struct GuiPaletteForegroundCfg
 {
-    GuiColor fore;
+    GuiColor foreground_color;
     GuiColor back;
-    GuiColor ground;
+    GuiColor background_fill;
 };
 
 struct GuiPaletteSizeCfg
@@ -283,10 +283,10 @@ EMBED_TABLE_STORAGE GuiPaletteTextNs gui_palette_text EMBED_UNUSED = {
 
 typedef struct
 {
-    unsigned int (*contrast)(const GuiPaletteForeCfg *args);
-} GuiPaletteForeNs;
-EMBED_TABLE_LAYOUT(GuiPaletteForeNs, contrast);
-EMBED_TABLE_STORAGE GuiPaletteForeNs gui_palette_fore EMBED_UNUSED = {
+    unsigned int (*contrast)(const GuiPaletteForegroundCfg *args);
+} GuiPaletteForegroundNs;
+EMBED_TABLE_LAYOUT(GuiPaletteForegroundNs, contrast);
+EMBED_TABLE_STORAGE GuiPaletteForegroundNs gui_palette_foreground EMBED_UNUSED = {
     .contrast = gui_palette_contrast,
 };
 

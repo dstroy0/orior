@@ -77,7 +77,7 @@ void cli_purpose_uncommented(const CliPurposeLinesCountCfg *args)
             const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->mark, .cap = CLI_CELLS_POOL});
             rest = (CliSpan){rest.at + size, rest.length - size};
         }
-        const unsigned long long marks = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg,
+        const unsigned long long marks = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg,
                                                     .text = rest.at, .at = 0ull, .size = rest.length, .set = "!/*#");
         rest = (CliSpan){rest.at + marks, rest.length - marks};
         rest = EMBED_CALL(cli_purpose_lines_span.purpose_trim, CliPurposeLinesSpanCfg, .span = rest);

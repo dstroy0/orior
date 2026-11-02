@@ -2,8 +2,6 @@
 
 /*=======Automagically Detected Files To Include=====*/
 #include "unity.h"
-#include "ui/cli/src/window/serve_internal.h"
-#include "ui/cli/src/window/window_internal.h"
 
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
@@ -12,8 +10,6 @@ extern void test_the_menus_file_describes_hide(void);
 extern void test_the_menus_list_starts_empty(void);
 extern void test_the_hide_list_starts_empty(void);
 extern void test_the_toolbar_list_starts_empty(void);
-extern void test_a_state_write_changes_one_entry_and_leaves_the_others(void);
-extern void test_a_null_state_value_removes_its_entry_and_leaves_the_others(void);
 
 
 /*=======Mock Management=====*/
@@ -75,12 +71,10 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\home\\test_home\\test_home.c");
-  run_test(test_the_menus_file_describes_hide, "test_the_menus_file_describes_hide", 62);
-  run_test(test_the_menus_list_starts_empty, "test_the_menus_list_starts_empty", 69);
-  run_test(test_the_hide_list_starts_empty, "test_the_hide_list_starts_empty", 74);
-  run_test(test_the_toolbar_list_starts_empty, "test_the_toolbar_list_starts_empty", 79);
-  run_test(test_a_state_write_changes_one_entry_and_leaves_the_others, "test_a_state_write_changes_one_entry_and_leaves_the_others", 84);
-  run_test(test_a_null_state_value_removes_its_entry_and_leaves_the_others, "test_a_null_state_value_removes_its_entry_and_leaves_the_others", 96);
+  run_test(test_the_menus_file_describes_hide, "test_the_menus_file_describes_hide", 43);
+  run_test(test_the_menus_list_starts_empty, "test_the_menus_list_starts_empty", 50);
+  run_test(test_the_hide_list_starts_empty, "test_the_hide_list_starts_empty", 55);
+  run_test(test_the_toolbar_list_starts_empty, "test_the_toolbar_list_starts_empty", 60);
 
   return UNITY_END();
 }

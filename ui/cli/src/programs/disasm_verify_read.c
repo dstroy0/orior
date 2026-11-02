@@ -14,13 +14,13 @@ typedef struct
     unsigned long long at_value;
     char letter;
     char *into;
-    unsigned long long room;
+    unsigned long long capacity;
     unsigned long long length;
     unsigned long long end;
     unsigned long long *at;
     unsigned long long *value;
     const char *word;
-    CliDisasmReading *reading;
+    CliDisasmReadState *read_state;
     unsigned long long address;
     const char *mnemonic;
     CliDisasmInstruction *unit;
@@ -52,10 +52,10 @@ EMBED_INLINE int read_by_name(const DisasmVerifyReadCtx *args)
     return lower || upper || digit || (args->letter == '_') || (args->letter == '.') || (args->letter == '$');
 }
 
-// `length` bytes of `text` copied into `into`, sized for `room`: 1, or 0 where they do not fit
+// `length` bytes of `text` copied into `into`, sized for `capacity`: 1, or 0 where they do not fit
 EMBED_INLINE int read_copy(const DisasmVerifyReadCtx *args)
 {
-    if (args->length >= args->room)
+    if (args->length >= args->capacity)
     {
         return 0;
     }
@@ -67,7 +67,7 @@ EMBED_INLINE int read_copy(const DisasmVerifyReadCtx *args)
 unsigned int cli_disasm_functions_define(const CliDisasmVerifyIrSizeCfg *args)
 {
     unsigned long long size = args->size;
-    unsigned int room = args->room;
+    unsigned int capacity = args->capacity;
     unsigned int count = 0u;
     for (unsigned long long at = 0ull; at < size;)
     {
@@ -90,8 +90,8 @@ unsigned int cli_disasm_functions_define(const CliDisasmVerifyIrSizeCfg *args)
             {
                 name_end += 1ull;
             }
-            if ((name_end > name) && (count < room) &&
-                EMBED_CALL(read_copy, DisasmVerifyReadCtx, .into = args->names[count], .room = CLI_NAME_MAX_LEN,
+            if ((name_end > name) && (count < capacity) &&
+                EMBED_CALL(read_copy, DisasmVerifyReadCtx, .into = args->names[count], .capacity = CLI_NAME_MAX_LEN,
                            .text = args->ir + name, .length = name_end - name))
             {
                 count += 1u;
@@ -119,7 +119,7 @@ int cli_disasm_symbol_get(const CliDisasmVerifySizeTextCfg *args)
                          cellul.starts(&(CatenaFinitaCfg){.src = args->text + word, .other = args->name, .cap = found});
         if (same)
         {
-            return EMBED_CALL(read_copy, DisasmVerifyReadCtx, .into = args->symbol_out, .room = CLI_NAME_MAX_LEN,
+            return EMBED_CALL(read_copy, DisasmVerifyReadCtx, .into = args->symbol_out, .capacity = CLI_NAME_MAX_LEN,
                               .text = args->text + word, .length = found);
         }
         const int suffixed =
@@ -129,8 +129,8 @@ int cli_disasm_symbol_get(const CliDisasmVerifySizeTextCfg *args)
                 &(CatenaFinitaCfg){.src = args->text + word + length, .other = ".llvm.", .cap = found - length});
         if (suffixed)
         {
-            promoted = EMBED_CALL(read_copy, DisasmVerifyReadCtx, .into = args->symbol_out, .room = CLI_NAME_MAX_LEN,
-                                  .text = args->text + word, .length = found);
+            promoted = EMBED_CALL(read_copy, DisasmVerifyReadCtx, .into = args->symbol_out,
+                                  .capacity = CLI_NAME_MAX_LEN, .text = args->text + word, .length = found);
         }
         at = end + 1ull;
     }
@@ -190,7 +190,7 @@ EMBED_INLINE void read_blanks(const DisasmVerifyReadCtx *args)
 {
     const char *text = args->text;
     unsigned long long *at = args->at;
-    *at = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = text, .at = *at,
+    *at = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = text, .at = *at,
                      .size = args->end, .set = " \t");
 }
 
@@ -224,23 +224,23 @@ EMBED_INLINE int read_prefix(const DisasmVerifyReadCtx *args)
 
 // a unit put at the reading's end, its bytes zero and its length 0 for the reader to fill: the unit, or NULL with the
 // reading marked cut where its cell is full
-EMBED_INLINE CliDisasmInstruction *read_put(const DisasmVerifyReadCtx *args)
+EMBED_INLINE CliDisasmInstruction *read_append(const DisasmVerifyReadCtx *args)
 {
     unsigned long long address = args->address;
     unsigned long long length = args->length;
-    if (args->reading->count >= CLI_DISASM_INSTRUCTIONS)
+    if (args->read_state->count >= CLI_DISASM_INSTRUCTIONS)
     {
-        args->reading->cut = 1;
+        args->read_state->cut = 1;
         return NULL;
     }
-    CliDisasmInstruction *const one = &args->reading->instruction[args->reading->count];
+    CliDisasmInstruction *const one = &args->read_state->instruction[args->read_state->count];
     one->address = address;
     one->length = 0u;
     memor.set(&(MemoriaCfg){.dst = one->byte, .val = 0, .bytes = CLI_DISASM_BYTES});
     const unsigned long long copied_len = (length < (CLI_DISASM_MNEMONIC - 1u)) ? length : (CLI_DISASM_MNEMONIC - 1u);
     memor.cpy(&(MemoriaCfg){.dst = one->mnemonic, .src = args->mnemonic, .bytes = copied_len});
     one->mnemonic[copied_len] = '\0';
-    args->reading->count += 1u;
+    args->read_state->count += 1u;
     return one;
 }
 
@@ -268,8 +268,8 @@ EMBED_INLINE int read_pair(const DisasmVerifyReadCtx *args)
 int cli_disasm_objdump_read(const CliDisasmVerifySizeCfg *args)
 {
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->symbol, .cap = CLI_NAME_MAX_LEN});
-    args->reading->count = 0u;
-    args->reading->cut = 0;
+    args->read_state->count = 0u;
+    args->read_state->cut = 0;
     int inside = 0;
     int found = 0;
     for (unsigned long long at = 0ull; at < args->size;)
@@ -331,7 +331,7 @@ int cli_disasm_objdump_read(const CliDisasmVerifySizeCfg *args)
                 if (word_length > 0ull)
                 {
                     CliDisasmInstruction *const unit =
-                        EMBED_CALL(read_put, DisasmVerifyReadCtx, .reading = args->reading, .address = address,
+                        EMBED_CALL(read_append, DisasmVerifyReadCtx, .read_state = args->read_state, .address = address,
                                    .mnemonic = args->text + word, .length = word_length);
                     if (unit == NULL)
                     {
@@ -350,8 +350,8 @@ int cli_disasm_objdump_read(const CliDisasmVerifySizeCfg *args)
 int cli_disasm_ghidra_read(const CliDisasmVerifySizeCfg *args)
 {
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->symbol, .cap = CLI_NAME_MAX_LEN});
-    args->reading->count = 0u;
-    args->reading->cut = 0;
+    args->read_state->count = 0u;
+    args->read_state->cut = 0;
     int inside = 0;
     int found = 0;
     for (unsigned long long at = 0ull; at < args->size;)
@@ -389,8 +389,9 @@ int cli_disasm_ghidra_read(const CliDisasmVerifySizeCfg *args)
                     const int raw = (word_length == 1ull) && (args->text[word] == '?');
                     CliDisasmInstruction *const unit =
                         (word_length > 0ull)
-                            ? EMBED_CALL(read_put, DisasmVerifyReadCtx, .reading = args->reading, .address = address,
-                                         .mnemonic = args->text + word, .length = raw ? 0ull : word_length)
+                            ? EMBED_CALL(read_append, DisasmVerifyReadCtx, .read_state = args->read_state,
+                                         .address = address, .mnemonic = args->text + word,
+                                         .length = raw ? 0ull : word_length)
                             : NULL;
                     if ((word_length > 0ull) && (unit == NULL))
                     {
@@ -468,19 +469,19 @@ EMBED_INLINE unsigned int read_raw_against(const DisasmVerifyReadCtx *args)
     {
         return 0u;
     }
-    const unsigned int left_room =
+    const unsigned int left_capacity =
         (args->left->length > args->left_offset) ? args->left->length - args->left_offset : 0u;
-    const unsigned int right_room =
+    const unsigned int right_capacity =
         (args->right->length > args->raw_offset) ? args->right->length - args->raw_offset : 0u;
-    const unsigned int room = (left_room < right_room) ? left_room : right_room;
-    for (unsigned int each = 0u; each < room; each += 1u)
+    const unsigned int capacity = (left_capacity < right_capacity) ? left_capacity : right_capacity;
+    for (unsigned int each = 0u; each < capacity; each += 1u)
     {
         if (args->left->byte[args->left_offset + each] != args->right->byte[args->raw_offset + each])
         {
             return 0u;
         }
     }
-    return room;
+    return capacity;
 }
 
 // whether two instructions are one: the same address, the same length where both readers gave one, and mnemonics of

@@ -30,7 +30,7 @@ static const char s_shim[] =
 
 typedef struct
 {
-    const CliRan *ran;
+    const CliRunResult *run_result;
     VerbaLinea *err_msg;
     const CliJson *json;
     unsigned int one;
@@ -41,15 +41,16 @@ typedef struct
 EMBED_INLINE void bytecode_fail(const DebugBytecodeCtx *args)
 {
     unsigned long long start = 0ull;
-    unsigned long long end = args->ran->err_size;
-    while ((start < end) && (cellul.chr(&(CatenaFinitaCfg){
-                                 .src = " \t\n\r\f\v", .cap = CLI_CELLS_POOL, .byte = args->ran->err[start]}) != NULL))
+    unsigned long long end = args->run_result->err_size;
+    while ((start < end) &&
+           (cellul.chr(&(CatenaFinitaCfg){
+                .src = " \t\n\r\f\v", .cap = CLI_CELLS_POOL, .byte = args->run_result->err[start]}) != NULL))
     {
         start += 1ull;
     }
     while ((end > start) &&
            (cellul.chr(&(CatenaFinitaCfg){
-                .src = " \t\n\r\f\v", .cap = CLI_CELLS_POOL, .byte = args->ran->err[end - 1ull]}) != NULL))
+                .src = " \t\n\r\f\v", .cap = CLI_CELLS_POOL, .byte = args->run_result->err[end - 1ull]}) != NULL))
     {
         end -= 1ull;
     }
@@ -60,10 +61,10 @@ EMBED_INLINE void bytecode_fail(const DebugBytecodeCtx *args)
     }
     unsigned long long last = end;
     last = (start + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg,
-                               .text = args->ran->err + start, .at = last - start, .set = "\n"));
-    const unsigned long long stop = ((end > last) && (args->ran->err[end - 1ull] == '\r')) ? end - 1ull : end;
+                               .text = args->run_result->err + start, .at = last - start, .set = "\n"));
+    const unsigned long long stop = ((end > last) && (args->run_result->err[end - 1ull] == '\r')) ? end - 1ull : end;
     EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = args->err_msg,
-               .text_bytes = (const unsigned char *)args->ran->err + last, .length = stop - last);
+               .text_bytes = (const unsigned char *)args->run_result->err + last, .length = stop - last);
 }
 
 // an instruction the shim wrote, written as the window reads one
@@ -151,27 +152,29 @@ int cli_debug_bytecode(const CliDebugRootOutCfg *args)
     const char *const words[5] = {python, "-", args->path, number, NULL};
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_buf = {why, sizeof(why), 0ull};
-    CliRan *const ran = cli_ran_take();
-    if (!EMBED_CALL(cli_words_internal.ran_feed, CliWordsCtx, .words = words, .folder = args->root, .settings = NULL,
-                    .count = 0u, .input = s_shim, .length = sizeof(s_shim) - 1u, .ran = ran, .err_msg = &err_buf))
+    CliRunResult *const run_result = cli_run_result_alloc();
+    if (!EMBED_CALL(cli_words_internal.run_result_feed, CliWordsCtx, .words = words, .folder = args->root,
+                    .settings = NULL, .count = 0u, .input = s_shim, .length = sizeof(s_shim) - 1u,
+                    .run_result = run_result, .err_msg = &err_buf))
     {
-        EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+        EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
         mmgr_line_put(args->err_msg, python);
         mmgr_line_put(args->err_msg, ": ");
         mmgr_line_put_n(args->err_msg, err_buf.out, err_buf.at);
         return 0;
     }
-    if (ran->code != 0ll)
+    if (run_result->code != 0ll)
     {
-        EMBED_CALL(bytecode_fail, DebugBytecodeCtx, .ran = ran, .err_msg = args->err_msg);
-        EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+        EMBED_CALL(bytecode_fail, DebugBytecodeCtx, .run_result = run_result, .err_msg = args->err_msg);
+        EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
         return 0;
     }
     CliJson json;
-    const unsigned int value = EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg,
-                                          .json = &json, .text = ran->out, .size = ran->out_size, .nodes_more = 0u,
-                                          .text_more = 0ull, .err_msg = args->err_msg, .owner = &g_cli_debug_cells);
-    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+    const unsigned int value =
+        EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json,
+                   .text = run_result->out, .size = run_result->out_size, .nodes_more = 0u, .text_more = 0ull,
+                   .err_msg = args->err_msg, .owner = &g_cli_debug_cells);
+    EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
     if (value == CLI_JSON_NONE)
     {
         EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);

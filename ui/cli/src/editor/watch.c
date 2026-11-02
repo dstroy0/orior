@@ -1,11 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// watch.c: the changes the system reports, or a reading of the tree finds, gathered in batches and handed to the
-// window, less those the watching's patterns hide
+// watch.c: the changes the system reports, or a reading of the tree finds, gathered in batches and handed to whoever
+// takes them, less those the watching's patterns hide
 #include "../code/symbols.h"
 #include "../command_line/callback_cfg.h"
 #include "../command_line/cells.h"
-#include "../text/json_tree.h"
 #include "../text/patterns.h"
 #include "../text/text.h"
 #include "files_internal.h"
@@ -29,23 +28,23 @@ typedef struct
     unsigned long long bytes;
 } CliChanges;
 // One bundle as it is gathered: its changes, and the folders and files it reports, lists of cells counted to the files
-// made at the bundle's own size and given back as it is written; a cell the batcher owns while it runs
+// made at the bundle's own size and given back once it is taken; a cell the batcher owns while it runs
 typedef struct
 {
     CliChanges changes;
     int lost;
+    int git;
     CliPatterns patterns;
     CliFiles folders;
     CliFiles written;
 } CliBatch;
 // how long a bundle waits for another change before it goes, the longest it gathers changes for, in milliseconds; the
-// most changes waiting and gathered in one bundle; the changes and the bytes of their paths a list of them is taken
-// with; and the bytes a bundle is written in
+// most changes waiting and gathered in one bundle; and the bytes of their paths a list of them is taken with
 #define CLI_WATCH_QUIET 150ull
-#define CLI_WATCH_BATCH_MOST 1000ull
+#define CLI_WATCH_BATCH_MAX 1000ull
 #define CLI_WATCH_QUEUE 4096u
 #define CLI_WATCH_GATHERED 16384u
-#define CLI_WATCH_TEXT_ROOM (256ull << 10u)
+#define CLI_WATCH_TEXT_CAPACITY (256ull << 10u)
 
 // The watch: the changes waiting, and whether more came than they contain; whether it is stopping, whether it reads the
 // tree itself, how many of its threads have ended; the tree, who takes the bundles, and the threads
@@ -58,7 +57,7 @@ typedef struct
     int polling;
     unsigned int ended;
     char root[CLI_PATH_MAX_LEN];
-    CliTake take;
+    CliWatchTake take;
     void *context;
     CliThread batcher;
     CliThread poller;
@@ -76,11 +75,10 @@ typedef struct
     const CliChanges *changes_read;
     unsigned int index;
     CliBatch *batch;
-    VerbaLinea *out;
 } WatchCtx;
 // the change of `kind` at `path` put after the list's: 1, or 0 where it contains `most` or the cellblock could not meet
-// the room for it
-EMBED_INLINE int cli_change_put(const WatchCtx *args)
+// the capacity for it
+EMBED_INLINE int cli_change_append(const WatchCtx *args)
 {
     if (args->changes->count >= args->most)
     {
@@ -89,10 +87,10 @@ EMBED_INLINE int cli_change_put(const WatchCtx *args)
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1ull;
     if (args->changes->text == NULL)
     {
-        args->changes->text = g_cli_cells->persistent_buf_alloc(CLI_WATCH_TEXT_ROOM, &g_cli_watch_cells);
+        args->changes->text = g_cli_cells->persistent_buf_alloc(CLI_WATCH_TEXT_CAPACITY, &g_cli_watch_cells);
         args->changes->change =
             g_cli_cells->persistent_buf_alloc((unsigned long long)args->most * sizeof(CliChange), &g_cli_watch_cells);
-        args->changes->bytes = (args->changes->text != NULL) ? CLI_WATCH_TEXT_ROOM : 0ull;
+        args->changes->bytes = (args->changes->text != NULL) ? CLI_WATCH_TEXT_CAPACITY : 0ull;
         args->changes->change_bytes =
             (args->changes->change != NULL) ? ((unsigned long long)args->most * sizeof(CliChange)) : 0ull;
     }
@@ -142,7 +140,7 @@ void cli_watch_change(const CliEachPathKindCfg *args)
     unsigned int kind = args->kind;
     if (!s_watching.stop)
     {
-        if (!EMBED_CALL(cli_change_put, WatchCtx, .changes = &s_watching.waiting, .path = path, .kind = kind,
+        if (!EMBED_CALL(cli_change_append, WatchCtx, .changes = &s_watching.waiting, .path = path, .kind = kind,
                         .most = CLI_WATCH_QUEUE))
         {
             s_watching.overflowed = 1;
@@ -152,11 +150,11 @@ void cli_watch_change(const CliEachPathKindCfg *args)
 }
 
 // the changes waiting taken into the bundle and their cells given back, the lock acquired
-EMBED_INLINE void cli_waiting_take(const WatchCtx *args)
+EMBED_INLINE void cli_waiting_alloc(const WatchCtx *args)
 {
     for (unsigned int at = 0u; at < s_watching.waiting.count; at += 1u)
     {
-        if (!EMBED_CALL(cli_change_put, WatchCtx, .changes = &args->batch->changes,
+        if (!EMBED_CALL(cli_change_append, WatchCtx, .changes = &args->batch->changes,
                         .path = EMBED_CALL(cli_change_path, WatchCtx, .changes_read = &s_watching.waiting, .index = at),
                         .kind = s_watching.waiting.change[at].kind, .most = CLI_WATCH_GATHERED))
         {
@@ -168,10 +166,9 @@ EMBED_INLINE void cli_waiting_take(const WatchCtx *args)
     s_watching.overflowed = 0;
 }
 
-// the bundle's changes gathered and written, less those the watching's patterns hide: 1 where any are left
+// the bundle's changes gathered, less those the watching's patterns hide: 1 where any are left
 static int cli_gather(const WatchCtx *args)
 {
-    VerbaLinea *out = args->out;
     const char *const root = s_watching.root;
     EMBED_CALL(cli_patterns_part.get, CliPatternsPartCfg, .part = CLI_PART_WATCHING,
                .patterns_out = &args->batch->patterns);
@@ -271,37 +268,15 @@ static int cli_gather(const WatchCtx *args)
     args->batch->lost = args->batch->lost ||
                         !EMBED_CALL(cli_files_bytes_internal.sort, CliFilesBytesCtx, .files = &args->batch->folders) ||
                         !EMBED_CALL(cli_files_bytes_internal.sort, CliFilesBytesCtx, .files = &args->batch->written);
-    mmgr_line_put(out, "{\"folders\":[");
-    for (unsigned int at = 0u; at < args->batch->folders.count; at += 1u)
-    {
-        const char *const folder = EMBED_CALL(cli_files.at, CliFilesCfg, .files = &args->batch->folders, .index = at);
-        mmgr_line_put(out, (at != 0u) ? "," : "");
-        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = folder,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}));
-    }
-    mmgr_line_put(out, "],\"files\":[");
-    for (unsigned int at = 0u; at < args->batch->written.count; at += 1u)
-    {
-        const char *const file = EMBED_CALL(cli_files.at, CliFilesCfg, .files = &args->batch->written, .index = at);
-        mmgr_line_put(out, (at != 0u) ? "," : "");
-        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = file,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}));
-    }
-    mmgr_line_put(out, git ? "],\"git\":true" : "],\"git\":false");
-    mmgr_line_put(out, args->batch->lost ? ",\"lost\":true}" : ",\"lost\":false}");
-    const int any =
-        (args->batch->folders.count != 0u) || (args->batch->written.count != 0u) || git || args->batch->lost;
-    EMBED_CALL(cli_files_bytes_internal.clear, CliFilesBytesCtx, .files = &args->batch->folders);
-    EMBED_CALL(cli_files_bytes_internal.clear, CliFilesBytesCtx, .files = &args->batch->written);
-    EMBED_CALL(cli_changes_clear, WatchCtx, .changes = &args->batch->changes);
-    return any;
+    args->batch->git = git;
+    return (args->batch->folders.count != 0u) || (args->batch->written.count != 0u) || git || args->batch->lost;
 }
 
 // the changes gathered into bundles and each handed over, until the watch stops
 static void cli_batch(void *context)
 {
     (void)context;
-    // the bundle a cell for as long as the batcher runs, past any one call; with no room for it the batcher ends at
+    // the bundle a cell for as long as the batcher runs, past any one call; with no capacity for it the batcher ends at
     // once
     CliBatch *const batch = g_cli_cells->persistent_buf_alloc(sizeof(CliBatch), &g_cli_watch_cells);
     if (batch != NULL)
@@ -319,17 +294,17 @@ static void cli_batch(void *context)
             break;
         }
         batch->lost = 0;
-        EMBED_CALL(cli_waiting_take, WatchCtx, .batch = batch);
-        // more changes taken while they come within CLI_WATCH_QUIET of one another, for at most CLI_WATCH_BATCH_MOST
+        EMBED_CALL(cli_waiting_alloc, WatchCtx, .batch = batch);
+        // more changes taken while they come within CLI_WATCH_QUIET of one another, for at most CLI_WATCH_BATCH_MAX
         const unsigned long long began = cli_clock_milliseconds();
         for (;;)
         {
             const unsigned long long spent = cli_clock_milliseconds() - began;
-            if ((spent >= CLI_WATCH_BATCH_MOST) || s_watching.stop)
+            if ((spent >= CLI_WATCH_BATCH_MAX) || s_watching.stop)
             {
                 break;
             }
-            const unsigned long long left = CLI_WATCH_BATCH_MOST - spent;
+            const unsigned long long left = CLI_WATCH_BATCH_MAX - spent;
             const unsigned long long quiet = (left < CLI_WATCH_QUIET) ? left : CLI_WATCH_QUIET;
             const unsigned long long until = cli_clock_milliseconds() + quiet;
             while ((s_watching.waiting.count == 0u) && !s_watching.overflowed && !s_watching.stop &&
@@ -342,20 +317,18 @@ static void cli_batch(void *context)
             {
                 break;
             }
-            EMBED_CALL(cli_waiting_take, WatchCtx, .batch = batch);
+            EMBED_CALL(cli_waiting_alloc, WatchCtx, .batch = batch);
         }
-        const unsigned long long out_room =
-            (batch->changes.used * 12ull) + ((unsigned long long)batch->changes.count * 32ull) + 256ull;
-        char *const out_cell = g_cli_cells->temporary_buf_alloc(out_room, &g_cli_watch_cells);
-        VerbaLinea out = mmgr_line_over(out_cell, out_room);
-        const int any = EMBED_CALL(cli_gather, WatchCtx, .batch = batch, .out = &out);
+        const int any = EMBED_CALL(cli_gather, WatchCtx, .batch = batch);
         const int stopping = cli_watch_stopping();
-        if (!stopping && any && mmgr_line_ok(&out))
+        if (!stopping && any)
         {
-            EMBED_CALL(s_watching.take, CliEachBatchSizeCfg, .context = s_watching.context, .batch = out.out,
-                       .size = out.at);
+            EMBED_CALL(s_watching.take, CliWatchBatchCfg, .context = s_watching.context, .folders = &batch->folders,
+                       .files = &batch->written, .git = batch->git, .lost = batch->lost);
         }
-        g_cli_cells->persistent_buf_release(out.out, &g_cli_watch_cells);
+        EMBED_CALL(cli_files_bytes_internal.clear, CliFilesBytesCtx, .files = &batch->folders);
+        EMBED_CALL(cli_files_bytes_internal.clear, CliFilesBytesCtx, .files = &batch->written);
+        EMBED_CALL(cli_changes_clear, WatchCtx, .changes = &batch->changes);
         if (stopping)
         {
             break;
@@ -390,7 +363,7 @@ void cli_watch_stop(void)
 
 void cli_watch_start(const CliWatchCfg *args)
 {
-    CliTake take = args->take;
+    CliWatchTake take = args->take;
     void *context = args->context;
     cli_watch_stop();
     memor.cpy(&(MemoriaCfg){.dst = s_watching.root,
@@ -408,7 +381,7 @@ void cli_watch_start(const CliWatchCfg *args)
                     .emit = cli_watch_change, .context = NULL))
     {
         s_watching.poller = (CliThread){cli_watch_poll, s_watching.root};
-        const int polling = EMBED_CALL(cli_watch_internal.first_reading, CliWatchCtx, .root = args->root) &&
+        const int polling = EMBED_CALL(cli_watch_internal.first_read_state, CliWatchCtx, .root = args->root) &&
                             EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_watching.poller);
         s_watching.polling = polling;
     }
@@ -440,10 +413,17 @@ int cli_watch_gathered_get(const CliWatchPathsCtx *args)
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         batch->lost =
-            batch->lost || !EMBED_CALL(cli_change_put, WatchCtx, .changes = &batch->changes, .path = args->paths[at],
+            batch->lost || !EMBED_CALL(cli_change_append, WatchCtx, .changes = &batch->changes, .path = args->paths[at],
                                        .kind = args->kinds[at], .most = CLI_WATCH_GATHERED);
     }
-    const int any = EMBED_CALL(cli_gather, WatchCtx, .batch = batch, .out = args->out);
+    const int any = EMBED_CALL(cli_gather, WatchCtx, .batch = batch);
+    if (any)
+    {
+        EMBED_CALL(args->take, CliWatchBatchCfg, .context = args->context, .folders = &batch->folders,
+                   .files = &batch->written, .git = batch->git, .lost = batch->lost);
+    }
+    EMBED_CALL(cli_files_bytes_internal.clear, CliFilesBytesCtx, .files = &batch->folders);
+    EMBED_CALL(cli_files_bytes_internal.clear, CliFilesBytesCtx, .files = &batch->written);
     EMBED_CALL(cli_changes_free, WatchCtx, .changes = &batch->changes);
     g_cli_cells->persistent_buf_release(batch, &g_cli_watch_cells);
     return any;

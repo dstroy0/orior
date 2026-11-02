@@ -20,7 +20,7 @@ static char s_persistent_key[CLI_COMMS_KEY];
 static char s_address[CLI_PATH_MAX_LEN];
 static char s_home[CLI_PATH_MAX_LEN];
 static char s_tree[CLI_PATH_MAX_LEN];
-static char s_why[512];
+static char s_error[512];
 static VerbaLinea s_err_msg;
 static unsigned int s_listener;
 static CliReachAnswer s_answer;
@@ -77,14 +77,14 @@ static unsigned int stored_windows(void)
 }
 
 // the door opened and the window and the command line registered, once for the process
-static void door_opened(void)
+static void ipc_opened(void)
 {
     static const char *const s_command[1] = {"command"};
     static const char *const s_answers[1] = {"answer/*"};
     static int s_opened;
     if (!s_opened)
     {
-        TEST_ASSERT_TRUE(EMBED_CALL(cli_door_address.open, CliDoorAddressCfg, .address = s_address, .err_msg = &s_err_msg));
+        TEST_ASSERT_TRUE(EMBED_CALL(cli_ipc_address.open, CliIpcAddressCfg, .address = s_address, .err_msg = &s_err_msg));
         TEST_ASSERT_TRUE(EMBED_CALL(cli_comms_name.comms_register, CliCommsNameCfg, .name = "window", .has_process = 0, .process = 0u, .listen = s_command, .listens = 1u, .send_grant = s_answers, .send_grants = 1u, .key_out = s_window, .err_msg = &s_err_msg));
         TEST_ASSERT_TRUE(EMBED_CALL(cli_comms_name.register_persistent, CliCommsNameCfg, .name = "command line", .listen = s_answers, .listens = 1u, .send_grant = s_command, .send_grants = 1u, .key_out = s_persistent_key, .err_msg = &s_err_msg));
         s_opened = 1;
@@ -114,9 +114,9 @@ static void window_closed(void)
 void setUp(void)
 {
     cli_unity_begun();
-    s_err_msg = (VerbaLinea){s_why, sizeof(s_why), 0ull};
+    s_err_msg = (VerbaLinea){s_error, sizeof(s_error), 0ull};
     memor.set(&(MemoriaCfg){.dst = &s_answer, .val = 0, .bytes = sizeof(s_answer)});
-    door_opened();
+    ipc_opened();
     cli_unity_folder("reach", s_home);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_home, .relative = "tree", .joined = s_tree);
     s_listener = 0u;
@@ -158,13 +158,13 @@ void test_a_window_is_stored(void)
     TEST_ASSERT_EQUAL_UINT(1u, stored_windows());
 }
 
-void test_a_window_whose_door_is_closed_does_not_answer(void)
+void test_a_window_whose_ipc_is_closed_does_not_answer(void)
 {
     window_closed();
     TEST_ASSERT_EQUAL_INT(-1, EMBED_CALL(cli_reach_menu.request_in, CliReachMenuCfg, .home = s_home, .root = s_tree, .menu = "file", .command = "save", .request = NULL, .count = 0u, .answer = &s_answer, .err_msg = &s_err_msg));
 }
 
-void test_a_window_whose_door_is_closed_is_forgotten(void)
+void test_a_window_whose_ipc_is_closed_is_forgotten(void)
 {
     window_closed();
     (void)EMBED_CALL(cli_reach_menu.request_in, CliReachMenuCfg, .home = s_home, .root = s_tree, .menu = "file", .command = "save", .request = NULL, .count = 0u, .answer = &s_answer, .err_msg = &s_err_msg);

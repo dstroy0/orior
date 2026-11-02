@@ -17,7 +17,7 @@
 #define REGION_BYTES (CLI_TRANSFER_SMALL * 3u + 7u)
 
 static unsigned char s_bytes[REGION_BYTES];
-static char s_why[512];
+static char s_error[512];
 static VerbaLinea s_err_msg;
 static CliRegion s_region;
 static CliRegion s_opened;
@@ -36,7 +36,7 @@ static void pattern_written(unsigned long long length)
 static int region_opened(unsigned long long length)
 {
 #if defined(_WIN32)
-    return EMBED_CALL(cli_region_take, CliTransferRegionCfg, .region = &s_opened, .process = cli_process_own(), .handle = s_region.section, .length = length, .err_msg = &s_err_msg);
+    return EMBED_CALL(cli_region_alloc, CliTransferRegionCfg, .region = &s_opened, .process = cli_process_own(), .handle = s_region.section, .length = length, .err_msg = &s_err_msg);
 #else
     // the region's descriptor is stored in its section, an int's worth
     return EMBED_CALL(cli_transfer_region.region_receive, CliTransferRegionCfg, .region = &s_opened, .handle = (unsigned long long)dup((int)s_region.section), .length = length, .err_msg = &s_err_msg);
@@ -48,7 +48,7 @@ void setUp(void)
     cli_unity_begun();
     memor.set(&(MemoriaCfg){.dst = &s_region, .val = 0, .bytes = sizeof(s_region)});
     memor.set(&(MemoriaCfg){.dst = &s_opened, .val = 0, .bytes = sizeof(s_opened)});
-    s_err_msg = (VerbaLinea){s_why, sizeof(s_why), 0ull};
+    s_err_msg = (VerbaLinea){s_error, sizeof(s_error), 0ull};
     pattern_written(REGION_BYTES);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_transfer_region_bytes.region_with, CliTransferRegionBytesCfg, .region = &s_region, .bytes = s_bytes, .size = REGION_BYTES, .err_msg = &s_err_msg));
 }
@@ -71,7 +71,7 @@ void test_a_region_opens_as_another_process_opens_it(void)
     TEST_ASSERT_EQUAL_MEMORY(s_bytes, s_opened.view, REGION_BYTES);
 }
 
-void test_a_region_outlives_the_handle_it_was_made_by(void)
+void test_a_region_outlives_the_handle_it_was_created_by(void)
 {
     TEST_ASSERT_TRUE(region_opened(REGION_BYTES));
     EMBED_CALL(cli_transfer_region_bytes.region_close, CliTransferRegionBytesCfg, .region = &s_region);

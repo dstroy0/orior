@@ -16,7 +16,7 @@ extern void test_a_name_read_in_a_closure_an_fstring_or_with_locals_is_not_found
 extern void test_python_code_after_a_return_is_found(void);
 extern void test_python_code_after_a_return_is_removed(void);
 extern void test_a_docstring_out_of_pep_257s_form_is_found(void);
-extern void test_a_docstrings_quotes_are_made_double(void);
+extern void test_a_docstrings_quotes_are_created_double(void);
 extern void test_a_docstrings_period_is_added(void);
 extern void test_a_docstrings_spaces_are_removed(void);
 extern void test_a_docstrings_close_moves_to_a_line_of_its_own(void);
@@ -24,7 +24,7 @@ extern void test_a_javascript_declaration_never_read_and_code_after_a_return_are
 extern void test_a_declaration_of_nothing_is_removed(void);
 extern void test_a_declaration_of_a_call_preserves_the_call(void);
 extern void test_javascript_code_after_a_return_is_removed(void);
-extern void test_a_docstring_in_googles_form_places_its_summary_after_the_quotes(void);
+extern void test_a_docstring_in_googles_form_positions_its_summary_after_the_quotes(void);
 extern void test_a_docstring_in_numpys_form(void);
 extern void test_a_docstring_in_restructured_texts_form(void);
 extern void test_a_plain_docstring_is_a_summary_line_alone(void);
@@ -102,7 +102,7 @@ int main(void)
   run_test(test_python_code_after_a_return_is_found, "test_python_code_after_a_return_is_found", 210);
   run_test(test_python_code_after_a_return_is_removed, "test_python_code_after_a_return_is_removed", 221);
   run_test(test_a_docstring_out_of_pep_257s_form_is_found, "test_a_docstring_out_of_pep_257s_form_is_found", 229);
-  run_test(test_a_docstrings_quotes_are_made_double, "test_a_docstrings_quotes_are_made_double", 242);
+  run_test(test_a_docstrings_quotes_are_created_double, "test_a_docstrings_quotes_are_created_double", 242);
   run_test(test_a_docstrings_period_is_added, "test_a_docstrings_period_is_added", 248);
   run_test(test_a_docstrings_spaces_are_removed, "test_a_docstrings_spaces_are_removed", 254);
   run_test(test_a_docstrings_close_moves_to_a_line_of_its_own, "test_a_docstrings_close_moves_to_a_line_of_its_own", 260);
@@ -110,7 +110,7 @@ int main(void)
   run_test(test_a_declaration_of_nothing_is_removed, "test_a_declaration_of_nothing_is_removed", 272);
   run_test(test_a_declaration_of_a_call_preserves_the_call, "test_a_declaration_of_a_call_preserves_the_call", 278);
   run_test(test_javascript_code_after_a_return_is_removed, "test_javascript_code_after_a_return_is_removed", 284);
-  run_test(test_a_docstring_in_googles_form_places_its_summary_after_the_quotes, "test_a_docstring_in_googles_form_places_its_summary_after_the_quotes", 290);
+  run_test(test_a_docstring_in_googles_form_positions_its_summary_after_the_quotes, "test_a_docstring_in_googles_form_positions_its_summary_after_the_quotes", 290);
   run_test(test_a_docstring_in_numpys_form, "test_a_docstring_in_numpys_form", 302);
   run_test(test_a_docstring_in_restructured_texts_form, "test_a_docstring_in_restructured_texts_form", 312);
   run_test(test_a_plain_docstring_is_a_summary_line_alone, "test_a_plain_docstring_is_a_summary_line_alone", 322);

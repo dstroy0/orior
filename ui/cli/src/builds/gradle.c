@@ -150,7 +150,7 @@ void cli_gradle_classes(const CliGradleTextSizeClassOfCtx *args)
         {
             kind = CLI_GRADLE_COMMENT;
             end = EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = rest, .length_value = left,
-                             .wanted = "\n", .size = 1u, .at_pointer = &found)
+                             .required = "\n", .size = 1u, .at_pointer = &found)
                       ? at + found
                       : args->size;
         }
@@ -159,7 +159,7 @@ void cli_gradle_classes(const CliGradleTextSizeClassOfCtx *args)
         {
             kind = CLI_GRADLE_COMMENT;
             end = EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = rest + 2u, .length_value = left - 2u,
-                             .wanted = "*/", .size = 2u, .at_pointer = &found)
+                             .required = "*/", .size = 2u, .at_pointer = &found)
                       ? at + 2u + found + 2u
                       : args->size;
         }
@@ -361,10 +361,10 @@ void cli_gradle_statements(const CliGradleLinesCtx *args)
     const CliGradleBlock *const block_at = &g_cli_gradle.block[args->block_u32];
     const char *const text = g_cli_gradle.text;
     const unsigned int first =
-        EMBED_CALL(cli_builds_lines_at.build_place, CliBuildsLinesAtCfg, .lines = lines, .at = block_at->open + 1u)
+        EMBED_CALL(cli_builds_lines_at.build_position, CliBuildsLinesAtCfg, .lines = lines, .at = block_at->open + 1u)
             .line;
     const unsigned int last =
-        EMBED_CALL(cli_builds_lines_at.build_place, CliBuildsLinesAtCfg, .lines = lines, .at = args->end).line;
+        EMBED_CALL(cli_builds_lines_at.build_position, CliBuildsLinesAtCfg, .lines = lines, .at = args->end).line;
     for (unsigned int line = first; line <= last; line += 1u)
     {
         unsigned long long start =
@@ -373,7 +373,7 @@ void cli_gradle_statements(const CliGradleLinesCtx *args)
         unsigned long long found = 0ull;
         unsigned long long line_end =
             (start < g_cli_gradle.size) && EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = text + start,
-                                                      .length_value = g_cli_gradle.size - start, .wanted = "\n",
+                                                      .length_value = g_cli_gradle.size - start, .required = "\n",
                                                       .size = 1u, .at_pointer = &found)
                 ? start + found
                 : g_cli_gradle.size;
@@ -404,7 +404,7 @@ void cli_gradle_statements(const CliGradleLinesCtx *args)
         if (word > at)
         {
             EMBED_CALL(args->each, CliGradleStatementCfg, .context = args->context, .word = at, .word_size = word - at,
-                       .rest = word, .rest_end = line_end);
+                       .rest = word, .remainder_end = line_end);
         }
     }
 }
@@ -484,11 +484,11 @@ void cli_gradle_declare(const CliGradleLinesCtx *args)
         if (EMBED_CALL(cli_text_size_prefix.starts, CliTextSizePrefixCfg, .text = line, .size = line_size,
                        .prefix = "val ") &&
             (EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = line + 4u, .length_value = line_size - 4u,
-                        .wanted = "by configurations.creating", .size = 26u, .at_pointer = &found) ||
+                        .required = "by configurations.creating", .size = 26u, .at_pointer = &found) ||
              EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = line + 4u, .length_value = line_size - 4u,
-                        .wanted = "by configurations.registering", .size = 29u, .at_pointer = &found) ||
+                        .required = "by configurations.registering", .size = 29u, .at_pointer = &found) ||
              EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = line + 4u, .length_value = line_size - 4u,
-                        .wanted = "by creating", .size = 11u, .at_pointer = &found)))
+                        .required = "by creating", .size = 11u, .at_pointer = &found)))
         {
             unsigned long long walk = 0ull;
             unsigned long long word = 0ull;

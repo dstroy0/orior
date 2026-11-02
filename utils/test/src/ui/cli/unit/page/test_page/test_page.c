@@ -71,12 +71,12 @@ static CliPrintLayout ranged_layout(void)
 void setUp(void)
 {
     cli_unity_begun();
-    cli_print_take();
+    cli_print_alloc();
 }
 
 void tearDown(void)
 {
-    cli_print_give();
+    cli_print_release();
 }
 
 void test_a_long_lines_second_row_has_no_number(void)
@@ -112,7 +112,7 @@ void test_a_tab_is_four_spaces_wide(void)
     CLI_TEST_ASSERT_TEXT("    after", laid->text + after->text, after->length);
 }
 
-void test_two_hundred_lines_take_at_least_three_pages(void)
+void test_two_hundred_lines_alloc_at_min_three_pages(void)
 {
     const CliPrintLayout layout = a4_layout(0);
     TEST_ASSERT_GREATER_OR_EQUAL_UINT(3u, EMBED_CALL(cli_print_layout_listing_out.lay_out, CliPrintLayoutListingOutCfg, .listing = listing_of(200u, numbered_lines), .layout = &layout)->pages);
@@ -144,7 +144,7 @@ void test_the_page_ranges_read_as_written(void)
     const CliPrintLayout layout = ranged_layout();
     int low[4];
     int high[4];
-    TEST_ASSERT_EQUAL_UINT(2u, EMBED_CALL(cli_print_layout_low.ranges, CliPrintLayoutLowCfg, .layout = &layout, .low = low, .high = high, .room = 4u));
+    TEST_ASSERT_EQUAL_UINT(2u, EMBED_CALL(cli_print_layout_low.ranges, CliPrintLayoutLowCfg, .layout = &layout, .low = low, .high = high, .capacity = 4u));
     TEST_ASSERT_EQUAL_INT(1, low[0]);
     TEST_ASSERT_EQUAL_INT(3, high[0]);
     TEST_ASSERT_EQUAL_INT(5, low[1]);

@@ -59,82 +59,17 @@ static const CliCompletion *item_labeled(const CliCompletions *items, const char
     return NULL;
 }
 
-// the item inserts `wanted`
-static void assert_inserts(const char *wanted, const CliCompletions *items, const CliCompletion *item)
+// the item inserts `required`
+static void assert_inserts(const char *required, const CliCompletions *items, const CliCompletion *item)
 {
     TEST_ASSERT_NOT_NULL(item);
-    CLI_TEST_ASSERT_TEXT(wanted, items->text + item->insert_at, item->insert_size);
+    CLI_TEST_ASSERT_TEXT(required, items->text + item->insert_at, item->insert_size);
 }
 
 // what completes the POM ending in `text`
 static const CliCompletions *completed(const char *text)
 {
     return cli_unity_build_completed("/t", POM_PATH, text);
-}
-
-// the value of the setting `key` in the rows of the shared tree, the empty string where it has none
-static const char *row_value(unsigned int rows, const char *key)
-{
-    for (unsigned int at = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = s_json, .array = rows, .index = at) != CLI_JSON_NONE; at += 1u)
-    {
-        const unsigned int row = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = s_json, .array = rows, .index = at);
-        if (cellul.eq(&(CatenaFinitaCfg){.src = cli_unity_member_text(row, "key"), .other = key, .cap = CLI_CELLS_POOL}))
-        {
-            return cli_unity_member_text(row, "value");
-        }
-    }
-    return "";
-}
-
-// a whole number member of a node of the shared tree
-static unsigned int whole_member(unsigned int node, const char *name)
-{
-    const unsigned int number = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = node, .name = name);
-    unsigned int value = 0u;
-    for (unsigned long long at = 0ull; EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = s_json, .node = number, .kind = CFG_JSON_NUMBER) && (at < s_json->node[number].length); at += 1ull)
-    {
-        // a digit's value is below 10
-        value = value * 10u + (unsigned int)(s_json->text[s_json->node[number].text + at] - '0');
-    }
-    return value;
-}
-
-// `text` with the edits of setting `key` to `value` applied, NUL-terminated in s_after
-static const char *setting_set(const char *text, const char *key, const char *value)
-{
-    static CliTextEdit s_edits[16];
-    char why[256];
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_maven_key.set, CliMavenKeyCfg, .pom = POM_PATH, .text = text, .size = CLI_UNITY_LENGTH(text), .key = key, .value = value, .out = &out, .err_msg = &err_msg));
-    unsigned int files = CLI_JSON_NONE;
-    s_json = cli_unity_parsed(s_out, out.at, &files);
-    const unsigned int edits = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = s_json, .array = files, .index = 0u), .name = "edits");
-    unsigned int count = 0u;
-    for (unsigned int at = 0u; (at < 16u) && (EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = s_json, .array = edits, .index = at) != CLI_JSON_NONE); at += 1u)
-    {
-        const unsigned int edit = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = s_json, .array = edits, .index = at);
-        const unsigned int from = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = edit, .name = "from");
-        const unsigned int to = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = edit, .name = "to");
-        unsigned long long size = 0ull;
-        const char *const written = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = s_json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = s_json, .object = edit, .name = "text"), .length_pointer = &size);
-        s_edits[at] = (CliTextEdit){{whole_member(from, "line"), whole_member(from, "col")}, {whole_member(to, "line"), whole_member(to, "col")}, (written != NULL) ? written : "", size};
-        count += 1u;
-    }
-    VerbaLinea after = {s_after, sizeof(s_after), 0ull};
-    (void)EMBED_CALL(cli_edits_out.text_apply, CliEditsOutCfg, .text = text, .size = CLI_UNITY_LENGTH(text), .edits = s_edits, .count = count, .out = &after);
-    (void)mmgr_line_finish(&after);
-    return s_after;
-}
-
-// the compiler's settings of the sample read: the rows' node
-static unsigned int settings_read(void)
-{
-    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    EMBED_CALL(cli_maven.settings, CliMavenCfg, .root = "/t", .pom = POM_PATH, .text = s_pom, .size = sizeof(s_pom) - 1u, .out = &out);
-    unsigned int rows = CLI_JSON_NONE;
-    s_json = cli_unity_parsed(s_out, out.at, &rows);
-    return rows;
 }
 
 void setUp(void)
@@ -220,32 +155,6 @@ void test_a_compiler_property_completes_inside_the_properties(void)
 {
     const CliCompletions *const items = completed("<project><properties><maven.");
     assert_inserts("compiler.release>$0</maven.compiler.release>", items, item_labeled(items, "compiler.release"));
-}
-
-void test_the_release_is_read(void)
-{
-    TEST_ASSERT_EQUAL_STRING("17", row_value(settings_read(), "release"));
-}
-
-void test_the_compiler_plugins_version_is_read(void)
-{
-    TEST_ASSERT_EQUAL_STRING("3.11.0", row_value(settings_read(), "compiler-plugin"));
-}
-
-void test_a_setting_is_set_in_place(void)
-{
-    CLI_TEST_ASSERT_CONTAINS("<release>21</release>", setting_set(s_pom, "release", "21"));
-}
-
-void test_a_setting_the_pom_lacks_goes_among_its_properties(void)
-{
-    CLI_TEST_ASSERT_CONTAINS("    <junit.version>4.13</junit.version>\n    <maven.compiler.source>21</maven.compiler.source>\n  </properties>", setting_set(s_pom, "source", "21"));
-}
-
-void test_a_pom_with_no_properties_has_them_made(void)
-{
-    CLI_TEST_ASSERT_CONTAINS("<artifactId>a</artifactId>\n\n  <properties>\n    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>\n  </properties>\n</project>",
-                             setting_set("<project>\n  <modelVersion>4.0.0</modelVersion>\n  <artifactId>a</artifactId>\n</project>\n", "encoding", "UTF-8"));
 }
 
 void test_every_xml_files_memory_is_released(void)

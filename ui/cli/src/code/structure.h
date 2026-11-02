@@ -25,13 +25,6 @@ enum
     CLI_RENAMED
 };
 
-// `then`, the older text, compared with `now` by structure, written into `out` as the window reads it:
-// `{"rows": [[left line or null, right line or null]...], "starts": [the row each change starts at], "left": [each
-// line's kind], "right": [...], "left_marks": [[line, from, to, kind]...] for each token that is not the same,
-// "right_marks": [...], "renames": [[was, became, places]...], "moved": lines, "reshaped": lines}`, or `null` where
-// they are too far apart
-void cli_structure_compare(const CliStructureCfg *args);
-
 struct CliStructureCfg
 {
     const char *then;
@@ -39,15 +32,6 @@ struct CliStructureCfg
     const char *now;
     unsigned long long now_size;
     VerbaLinea *out;
-};
-
-typedef struct
-{
-    void (*compare)(const CliStructureCfg *args);
-} CliStructureNs;
-EMBED_TABLE_LAYOUT(CliStructureNs, compare);
-EMBED_TABLE_STORAGE CliStructureNs cli_structure EMBED_UNUSED = {
-    .compare = cli_structure_compare,
 };
 
 #endif

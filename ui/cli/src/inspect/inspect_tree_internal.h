@@ -58,8 +58,8 @@ typedef struct
 {
     void *context;
     unsigned int file;
-    CliInspectPlace from;
-    CliInspectPlace to;
+    CliInspectPosition from;
+    CliInspectPosition to;
     const char *code;
     const VerbaLinea *message;
 } CliTreeFindingCfg;

@@ -65,7 +65,7 @@ EMBED_INLINE int cli_is(const EnvsCtx *args)
            cli_starts(args);
 }
 
-void cli_required_take(const CliEnvsCtx *args)
+void cli_required_alloc(const CliEnvsCtx *args)
 {
     CliRequired *required = args->required;
     const unsigned long long name_bytes = (unsigned long long)CLI_ENVS_NAMES * sizeof(CliRequiredName);
@@ -125,8 +125,8 @@ static void cli_add(const EnvsCtx *args)
             return;
         }
     }
-    if ((args->required->count >= args->required->room) ||
-        ((args->required->used + length) > args->required->text_room))
+    if ((args->required->count >= args->required->capacity) ||
+        ((args->required->used + length) > args->required->text_capacity))
     {
         return;
     }
@@ -144,7 +144,7 @@ EMBED_INLINE const unsigned char *cli_text_map(const EnvsCtx *args)
     unsigned long long *size = args->size_pointer;
     char path[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->folder, .relative = args->name_text, .joined = path);
-    return EMBED_CALL(cli_path_internal.file_take_utf8, CliPathCtx, .path = path, .size_pointer = size,
+    return EMBED_CALL(cli_path_internal.file_alloc_utf8, CliPathCtx, .path = path, .size_pointer = size,
                       .owner = &g_cli_envs_cells);
 }
 
@@ -173,14 +173,14 @@ EMBED_INLINE void cli_setup_read(const EnvsCtx *args)
     CliSpan line;
     unsigned long long at = 0ull;
     int options = 0;
-    int taking = 0;
+    int allocating = 0;
     while (EMBED_CALL(cli_next_line, EnvsCtx, .bytes = args->bytes, .size = args->size, .at = &at, .line = &line))
     {
         const CliSpan trimmed = EMBED_CALL(cli_trim, EnvsCtx, .span = line);
         if (EMBED_CALL(cli_starts, EnvsCtx, .span = trimmed, .text = "["))
         {
             options = EMBED_CALL(cli_is, EnvsCtx, .span = trimmed, .text = "[options]");
-            taking = 0;
+            allocating = 0;
             continue;
         }
         if (!options || EMBED_CALL(cli_starts, EnvsCtx, .span = trimmed, .text = "#") || (trimmed.length == 0ull))
@@ -189,7 +189,7 @@ EMBED_INLINE void cli_setup_read(const EnvsCtx *args)
         }
         if (EMBED_CALL(cli_starts, EnvsCtx, .span = trimmed, .text = "install_requires"))
         {
-            taking = 1;
+            allocating = 1;
             CliSpan rest = {trimmed.at + 16, trimmed.length - 16ull};
             while ((rest.length > 0ull) && EMBED_CALL(cli_files_letter_internal.fuzzy_white, CliFilesLetterCtx,
                                                       .letter = (unsigned char)rest.at[0]))
@@ -211,13 +211,13 @@ EMBED_INLINE void cli_setup_read(const EnvsCtx *args)
                 }
             }
         }
-        else if (taking && (line.length > 0ull) && ((line.at[0] == ' ') || (line.at[0] == '\t')))
+        else if (allocating && (line.length > 0ull) && ((line.at[0] == ' ') || (line.at[0] == '\t')))
         {
             EMBED_CALL(cli_add, EnvsCtx, .required = args->required, .name = trimmed);
         }
         else
         {
-            taking = 0;
+            allocating = 0;
         }
     }
 }
@@ -246,10 +246,10 @@ EMBED_INLINE void cli_pipfile_read(const EnvsCtx *args)
             // the name before the equals sign, trimmed and with its quotes left off
             CliSpan name =
                 EMBED_CALL(cli_trim, EnvsCtx, .span = (CliSpan){trimmed.at, (unsigned long long)(equals - trimmed.at)});
-            const unsigned long long lead = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg,
+            const unsigned long long lead = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg,
                                                        .text = name.at, .at = 0ull, .size = name.length, .set = "\"");
             name = (CliSpan){name.at + lead, name.length - lead};
-            name.length = EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = name.at,
+            name.length = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = name.at,
                                      .at = name.length, .set = "\"");
             EMBED_CALL(cli_add, EnvsCtx, .required = args->required, .name = name);
         }
@@ -301,31 +301,9 @@ void cli_required_in(const CliEnvsCtx *args)
     }
 }
 
-void cli_required_write(const CliEnvsOutCtx *args)
-{
-    mmgr_line_ch(args->out, '[');
-    for (unsigned int at = 0u; at < args->required_read->count; at += 1u)
-    {
-        mmgr_line_put(args->out, (at != 0u) ? "," : "");
-        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
-                   .text = args->required_read->text + args->required_read->name[at].start,
-                   .length = args->required_read->name[at].length);
-    }
-    mmgr_line_ch(args->out, ']');
-}
-
 void cli_required_free(const CliEnvsCtx *args)
 {
     CliRequired *required = args->required;
     g_cli_cells->persistent_buf_release(required->name, &g_cli_envs_cells);
     *required = (CliRequired){NULL, 0u, 0u, NULL, 0u, 0u};
-}
-
-void cli_envs_requires_in(const CliEnvsOutFolderCfg *args)
-{
-    CliRequired required;
-    EMBED_CALL(cli_envs_internal.required_take, CliEnvsCtx, .required = &required);
-    EMBED_CALL(cli_envs_internal.required_in, CliEnvsCtx, .folder = args->folder, .required = &required);
-    EMBED_CALL(cli_envs_out_internal.required_write, CliEnvsOutCtx, .required_read = &required, .out = args->out);
-    EMBED_CALL(cli_envs_internal.required_free, CliEnvsCtx, .required = &required);
 }

@@ -60,7 +60,7 @@ typedef struct
 // checked where it names `-`, `<stdin>` or `stdin` and one was, else the name read from the tree's top where it is
 // relative, its place among the findings (checkers_read.c); and the findings `size` bytes of `text` write a line
 // each, put among the findings (checkers_lines.c)
-void cli_checkers_finding_put(const CliCheckersFileCtx *args);
+void cli_checkers_finding_append(const CliCheckersFileCtx *args);
 unsigned int cli_checkers_file_get(const CliCheckersCtx *args);
 void cli_checkers_lines_read(const CliCheckersTextCtx *args);
 
@@ -122,11 +122,11 @@ EMBED_TABLE_STORAGE CliCheckersPathNs cli_checkers_path_internal EMBED_UNUSED = 
 
 typedef struct
 {
-    void (*finding_put)(const CliCheckersFileCtx *args);
+    void (*finding_append)(const CliCheckersFileCtx *args);
 } CliCheckersFileNs;
-EMBED_TABLE_LAYOUT(CliCheckersFileNs, finding_put);
+EMBED_TABLE_LAYOUT(CliCheckersFileNs, finding_append);
 EMBED_TABLE_STORAGE CliCheckersFileNs cli_checkers_file_internal EMBED_UNUSED = {
-    .finding_put = cli_checkers_finding_put,
+    .finding_append = cli_checkers_finding_append,
 };
 
 typedef struct

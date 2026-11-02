@@ -17,15 +17,15 @@ typedef struct CliRegexpMatchACtx CliRegexpMatchACtx;
 
 // the most passes' ends the one-way repeats standing at once store, the ends a match stores on its own stack before
 // they go to a cell, and a pass that took nothing
-#define CLI_REGEXP_ENDS_MOST (1u << 22u)
+#define CLI_REGEXP_ENDS_MAX (1u << 22u)
 #define CLI_REGEXP_ENDS_STACKED 256u
 
 #define CLI_REGEXP_NO_PASS 0xffffffffffffffffull
 
 // Where a match stands: the text and its length, each group's span, the steps taken, where the match's end was handed,
 // and the address its stack stood at as it began; and the passes' ends of the one-way repeats standing on the stack,
-// each repeat's from where it began, how many stand and the room they have, stored on the match's own stack until they
-// outgrow it and then in a cell at their most, `ends_reserved` 1 while they are in one
+// each repeat's from where it began, how many stand and the capacity they have, stored on the match's own stack until
+// they outgrow it and then in a cell at their most, `ends_reserved` 1 while they are in one
 typedef struct
 {
     const unsigned int *text;
@@ -36,7 +36,7 @@ typedef struct
     uintptr_t base;
     unsigned int *ends;
     unsigned long long ends_top;
-    unsigned long long ends_room;
+    unsigned long long ends_capacity;
     int ends_reserved;
 } CliRegexpRun;
 

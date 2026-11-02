@@ -24,7 +24,7 @@ typedef struct CliSeaCfg CliSeaCfg;
 #define CLI_SEA_HEADERS 4096u
 
 // the modules a script requires that Node does not contain itself, each named in a require(), an import or an import(),
-// other than a `node:` name or one of Node's own, into `found`, sized for `room`: their count
+// other than a `node:` name or one of Node's own, into `found`, sized for `capacity`: their count
 unsigned int cli_sea_outside(const CliSeaCfg *args);
 // the script at `main` built into the single executable `output` with `node`, `module` specifying the script is an ES
 // module, each step printed through `sink` as it goes: the executable's path into `made`, sized for CLI_PATH_MAX_LEN,
@@ -94,7 +94,7 @@ struct CliSeaCfg
 {
     const char *text;
     char (*found)[CLI_NAME_MAX_LEN];
-    unsigned int room;
+    unsigned int capacity;
 };
 
 typedef struct

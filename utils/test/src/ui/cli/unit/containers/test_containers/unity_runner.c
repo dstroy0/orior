@@ -8,12 +8,6 @@
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
 extern void tearDown(void);
-extern void test_each_docker_line_is_a_container(void);
-extern void test_a_container_with_no_project_comes_first_with_none(void);
-extern void test_a_compose_container_gives_its_project_service_and_state(void);
-extern void test_pods_are_sorted_by_namespace(void);
-extern void test_a_pod_gives_its_namespace_name_phase_ready_count_and_node(void);
-extern void test_a_pod_lists_its_containers(void);
 extern void test_an_unknown_action_is_refused(void);
 
 
@@ -76,13 +70,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\containers\\test_containers\\test_containers.c");
-  run_test(test_each_docker_line_is_a_container, "test_each_docker_line_is_a_container", 55);
-  run_test(test_a_container_with_no_project_comes_first_with_none, "test_a_container_with_no_project_comes_first_with_none", 62);
-  run_test(test_a_compose_container_gives_its_project_service_and_state, "test_a_compose_container_gives_its_project_service_and_state", 70);
-  run_test(test_pods_are_sorted_by_namespace, "test_pods_are_sorted_by_namespace", 79);
-  run_test(test_a_pod_gives_its_namespace_name_phase_ready_count_and_node, "test_a_pod_gives_its_namespace_name_phase_ready_count_and_node", 85);
-  run_test(test_a_pod_lists_its_containers, "test_a_pod_lists_its_containers", 96);
-  run_test(test_an_unknown_action_is_refused, "test_an_unknown_action_is_refused", 105);
+  run_test(test_an_unknown_action_is_refused, "test_an_unknown_action_is_refused", 35);
 
   return UNITY_END();
 }

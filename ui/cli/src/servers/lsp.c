@@ -14,12 +14,12 @@ static _Thread_local unsigned long long t_request_id_size;
 static _Thread_local int t_later;
 
 // a piece of what the server writes read
-static unsigned long long lsp_out_read(const CliSourcePieceRoomCfg *args)
+static unsigned long long lsp_out_read(const CliSourcePieceCapacityCfg *args)
 {
     char *piece = args->piece;
-    unsigned long long room = args->room;
-    return EMBED_CALL(cli_room_pipe_handle_internal.spawn_read, CliRoomPipeHandleCtx,
-                      .pipe_handle = ((CliLsp *)args->source)->spawned.out, .piece = piece, .room = room);
+    unsigned long long capacity = args->capacity;
+    return EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx,
+                      .pipe_handle = ((CliLsp *)args->source)->spawned.out, .piece = piece, .capacity = capacity);
 }
 
 typedef struct
@@ -61,7 +61,7 @@ EMBED_INLINE int lsp_id(const LspCtx *args)
 // message went to the request, which gives it back
 EMBED_INLINE int lsp_answer(const LspCtx *args)
 {
-    int handed = 0;
+    int transferred = 0;
     for (unsigned int at = 0u; at < CLI_LSP_WAITERS; at += 1u)
     {
         CliLspWaiter *const waiter = &args->lsp->waiters[at];
@@ -77,7 +77,7 @@ EMBED_INLINE int lsp_answer(const LspCtx *args)
             else
             {
                 *waiter->answer = (CliLspAnswer){args->message, args->result, args->length};
-                handed = 1;
+                transferred = 1;
             }
             waiter->answered = 1;
             waiter->waiting = 0;
@@ -85,7 +85,7 @@ EMBED_INLINE int lsp_answer(const LspCtx *args)
             break;
         }
     }
-    return handed;
+    return transferred;
 }
 
 // what the server sends unprompted received, and a request of its answered with what its receiver writes
@@ -94,8 +94,8 @@ EMBED_INLINE void lsp_server_message(const LspCtx *args)
     const char *body = args->body;
     unsigned long long size = args->size;
     char name[256];
-    if (!EMBED_CALL(cli_lsp_room.string, CliLspRoomCfg, .text = body + args->method, .length = args->method_size,
-                    .out_room = name, .room = sizeof(name)))
+    if (!EMBED_CALL(cli_lsp_capacity.string, CliLspCapacityCfg, .text = body + args->method,
+                    .length = args->method_size, .out_capacity = name, .capacity = sizeof(name)))
     {
         return;
     }
@@ -168,8 +168,8 @@ EMBED_INLINE int lsp_message(const LspCtx *args)
         unsigned long long message_size = 0ull;
         if (!EMBED_CALL(cli_lsp_body.member, CliLspBodyCfg, .body = body + at, .size_value = length, .name = "message",
                         .start = &message, .length_pointer = &message_size) ||
-            !EMBED_CALL(cli_lsp_room.string, CliLspRoomCfg, .text = body + at + message, .length = message_size,
-                        .out_room = error, .room = sizeof(error)))
+            !EMBED_CALL(cli_lsp_capacity.string, CliLspCapacityCfg, .text = body + at + message, .length = message_size,
+                        .out_capacity = error, .capacity = sizeof(error)))
         {
             memor.cpy(&(MemoriaCfg){
                 .dst = error,
@@ -198,7 +198,7 @@ static void lsp_read(void *context)
     unsigned long long size = 0ull;
     char *body = NULL;
     // each message read into a cell of its length, given back here unless it went with an answer
-    while ((body = EMBED_CALL(cli_lsp_reader_size.message_take, CliLspReaderSizeCfg, .reader = &lsp->reader,
+    while ((body = EMBED_CALL(cli_lsp_reader_size.message_alloc, CliLspReaderSizeCfg, .reader = &lsp->reader,
                               .size = &size, .owner = &g_cli_servers_cells)) != NULL)
     {
         if (!EMBED_CALL(lsp_message, LspCtx, .lsp = lsp, .body_out = body, .size = size))
@@ -218,7 +218,7 @@ static void lsp_read(void *context)
             lsp->waiters[at].waiting = 0;
         }
     }
-    lsp->reading -= 1u;
+    lsp->read_state -= 1u;
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &lsp->wake);
 }
 
@@ -279,8 +279,8 @@ static void lsp_complaints_read(void *context)
     for (;;)
     {
         const unsigned long long count =
-            EMBED_CALL(cli_room_pipe_handle_internal.spawn_read, CliRoomPipeHandleCtx, .pipe_handle = lsp->spawned.err,
-                       .piece = piece, .room = sizeof(piece));
+            EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx,
+                       .pipe_handle = lsp->spawned.err, .piece = piece, .capacity = sizeof(piece));
         if (count == 0ull)
         {
             break;
@@ -303,7 +303,7 @@ static void lsp_complaints_read(void *context)
     {
         EMBED_CALL(lsp_complaint_line, LspCtx, .lsp = lsp, .line = line, .size = used);
     }
-    lsp->reading -= 1u;
+    lsp->read_state -= 1u;
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &lsp->wake);
 }
 
@@ -317,7 +317,7 @@ void cli_lsp_readers_start(const CliLspCtx *args)
     void (*const runs[2])(void *context) = {lsp_read, lsp_complaints_read};
     for (unsigned int at = 0u; at < 2u; at += 1u)
     {
-        args->lsp->reading += 1u;
+        args->lsp->read_state += 1u;
         *threads[at] = (CliThread){runs[at], args->lsp};
         if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = threads[at]))
         {
@@ -412,7 +412,7 @@ int cli_lsp_request(const CliLspErrMsgLengthCfg *args)
 
 int cli_lsp_answer_later(const CliLspCfg *args)
 {
-    if ((t_request_id == NULL) || ((t_request_id_size + 1ull) > args->room))
+    if ((t_request_id == NULL) || ((t_request_id_size + 1ull) > args->capacity))
     {
         return 0;
     }
@@ -420,18 +420,6 @@ int cli_lsp_answer_later(const CliLspCfg *args)
     args->id[t_request_id_size] = '\0';
     t_later = 1;
     return 1;
-}
-
-int cli_lsp_answer(const CliLspSizeErrMsgCfg *args)
-{
-    const CliLspPart parts[5] = {
-        CLI_LSP_RAW("{\"jsonrpc\":\"2.0\",\"id\":"),
-        {args->id_read, cellul.len(&(CatenaFinitaCfg){.src = args->id_read, .cap = CLI_CELLS_POOL}), 0},
-        CLI_LSP_RAW(",\"result\":"),
-        {args->result, args->size_value, 0},
-        CLI_LSP_RAW("}")};
-    return EMBED_CALL(cli_lsp_writer_lock.send_parts, CliLspWriterLockCfg, .writer = &args->lsp->input, .parts = parts,
-                      .count = 5u, .err_msg = args->err_msg);
 }
 
 const char *cli_lsp_capabilities(const CliLspSizeKindCfg *args)
@@ -514,12 +502,12 @@ void cli_lsp_unref(const CliLspContextCfg *args)
     EMBED_CALL(cli_lsp_internal.end, CliLspCtx, .lsp = args->lsp);
     EMBED_CALL(cli_spawned_internal.spawn_input_close, CliSpawnedCtx, .spawned = &args->lsp->spawned);
     const unsigned long long until = cli_clock_milliseconds() + 5000ull;
-    while ((args->lsp->reading > 0u) && (cli_clock_milliseconds() < until))
+    while ((args->lsp->read_state > 0u) && (cli_clock_milliseconds() < until))
     {
         (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &args->lsp->wake,
                          .milliseconds_u64 = until - cli_clock_milliseconds());
     }
-    const int read = (args->lsp->reading == 0u);
+    const int read = (args->lsp->read_state == 0u);
     EMBED_CALL(cli_lsp_kind_internal.files_let_go, CliLspKindCtx, .lsp_read = args->lsp);
     if (!read)
     {

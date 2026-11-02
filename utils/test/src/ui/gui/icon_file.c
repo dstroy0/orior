@@ -42,7 +42,7 @@ int main(void)
     char why_text[1024];
     VerbaLinea why = {why_text, sizeof(why_text), 0ull};
     static GuiWindow window;
-    if (!EMBED_CALL(gui_window_woken.begin, GuiWindowWokenCfg, .window = &window, .woken = woken, .context = NULL, .err_msg = &why))
+    if (!EMBED_CALL(gui_window_woken.begin, GuiWindowWokenCfg, .window = &window, .err_msg = &why))
     {
         mmgr_line_finish(&why);
         printf("the window did not begin: %s\n", why_text);

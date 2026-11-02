@@ -21,7 +21,7 @@ int cli_templates_folder(const CliTemplatesCfg *args)
 }
 
 // The names listed as a folder is read: counted with their bytes where `name` is NULL, and else put in the cell a
-// count took, `most` names and `text_most` bytes of them at the most
+// count took, `most` names and `text_max` bytes of them at the most
 typedef struct
 {
     const char **name;
@@ -29,81 +29,15 @@ typedef struct
     unsigned int count;
     unsigned int most;
     unsigned long long used;
-    unsigned long long text_most;
+    unsigned long long text_max;
 } CliTemplateNames;
-
-static void cli_name_each(const CliEachNameIsFolderCfg *args)
-{
-    CliTemplateNames *const names = (CliTemplateNames *)args->context;
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}) + 1ull;
-    if (!args->is_folder ||
-        ((names->name != NULL) && ((names->count >= names->most) || ((names->used + length) > names->text_most))))
-    {
-        return;
-    }
-    if (names->name != NULL)
-    {
-        memor.cpy(&(MemoriaCfg){.dst = names->text + names->used, .src = args->name, .bytes = length});
-        names->name[names->count] = names->text + names->used;
-    }
-    names->count += 1u;
-    names->used += length;
-}
-
-void cli_templates_list(const CliTemplatesOutCfg *args)
-{
-    char folder[CLI_PATH_MAX_LEN];
-    CliTemplateNames names = {NULL, NULL, 0u, 0u, 0ull, 0ull};
-    const int has_folder = EMBED_CALL(cli_templates_table.folder, CliTemplatesCfg, .folder = folder);
-    if (has_folder)
-    {
-        EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = folder, .each = cli_name_each,
-                   .context_bytess = &names);
-    }
-    // the names in a cell of the count and bytes a first reading found, read again into it
-    const unsigned int most = names.count;
-    const unsigned long long text_most = names.used;
-    names = (CliTemplateNames){NULL, NULL, 0u, most, 0ull, text_most};
-    names.name =
-        (has_folder && (most != 0u))
-            ? g_cli_cells->persistent_buf_alloc((most * sizeof(*names.name)) + text_most, &g_cli_templates_cells)
-            : NULL;
-    if (names.name != NULL)
-    {
-        names.text = (char *)(names.name + most);
-        EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = folder, .each = cli_name_each,
-                   .context_bytess = &names);
-    }
-    for (unsigned int at = 1u; at < names.count; at += 1u)
-    {
-        const char *const name = names.name[at];
-        unsigned int place = at;
-        while ((place > 0u) && (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = names.name[place - 1u],
-                                           .other_pointer = name) > 0))
-        {
-            names.name[place] = names.name[place - 1u];
-            place -= 1u;
-        }
-        names.name[place] = name;
-    }
-    mmgr_line_ch(args->out, '[');
-    for (unsigned int at = 0u; at < names.count; at += 1u)
-    {
-        mmgr_line_put(args->out, (at != 0u) ? "," : "");
-        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out,
-                   .text = names.name[at],
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = names.name[at], .cap = CLI_CELLS_POOL}));
-    }
-    mmgr_line_ch(args->out, ']');
-    g_cli_cells->persistent_buf_release(names.name, &g_cli_templates_cells);
-}
 
 typedef struct
 {
     const char *name;
     const char *text;
     char *out;
-    unsigned long long room;
+    unsigned long long capacity;
     const char *from;
     const char *to;
     VerbaLinea *err_msg;
@@ -134,14 +68,14 @@ EMBED_INLINE int cli_plain(const TemplatesCtx *args)
            (!cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = "..", .cap = CLI_CELLS_POOL}));
 }
 
-// `text` with every `{{name}}` in it written as `name`, into `out`, sized for `room`: 1, or 0 where it does not fit
+// `text` with every `{{name}}` in it written as `name`, into `out`, sized for `capacity`: 1, or 0 where it does not fit
 EMBED_INLINE int cli_by_name(const TemplatesCtx *args)
 {
     const char *text = args->text;
     const char *name = args->name;
     char *out = args->out;
-    VerbaLinea line = {out, args->room, 0ull};
-    EMBED_CALL(cli_text_out_name.put_fill, CliTextOutNameCfg, .out = &line, .text = text, .name = "{{name}}",
+    VerbaLinea line = {out, args->capacity, 0ull};
+    EMBED_CALL(cli_text_out_name.append_fill, CliTextOutNameCfg, .out = &line, .text = text, .name = "{{name}}",
                .value = name);
     mmgr_line_finish(&line);
     return mmgr_line_ok(&line);
@@ -171,7 +105,7 @@ EMBED_INLINE int cli_uncopied(const TemplatesCtx *args)
 EMBED_INLINE int cli_file_copy(const TemplatesCtx *args)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = args->from,
+    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->from,
                                                   .size_pointer = &size, .owner = &g_cli_templates_cells);
     if (bytes == NULL)
     {
@@ -239,7 +173,7 @@ static void cli_copy_each(const CliEachNameIsFolderCfg *args)
     char from[CLI_PATH_MAX_LEN];
     char to[CLI_PATH_MAX_LEN];
     if (!EMBED_CALL(cli_by_name, TemplatesCtx, .text = args->name, .name = copy->name, .out = named,
-                    .room = sizeof(named)))
+                    .capacity = sizeof(named)))
     {
         copy->failed = !EMBED_CALL(cli_uncopied, TemplatesCtx, .path = args->name, .err_msg = copy->err_msg);
         return;

@@ -92,26 +92,26 @@ typedef struct
     unsigned int message_size;
 } CliVersionsError;
 
-// A catalog as read, each part a cell of the cellblock and how many it contains and has room for, with 1 in `full`
+// A catalog as read, each part a cell of the cellblock and how many it contains and has capacity for, with 1 in `full`
 // where a part of it did not fit; and the cell a key or a string is read into and a message is made in, `longest` bytes
 // the longest line of the text
 typedef struct
 {
     CliVersionsSection *section;
     unsigned int sections;
-    unsigned int sections_room;
+    unsigned int sections_capacity;
     CliVersionsField *field;
     unsigned int fields;
-    unsigned int fields_room;
+    unsigned int fields_capacity;
     CliVersionsItem *item;
     unsigned int items;
-    unsigned int items_room;
+    unsigned int items_capacity;
     CliVersionsError *error;
     unsigned int errors;
-    unsigned int errors_room;
+    unsigned int errors_capacity;
     char *pool;
     unsigned int used;
-    unsigned int pool_room;
+    unsigned int pool_capacity;
     int full;
     char *line;
     unsigned long long longest;
@@ -125,7 +125,7 @@ extern CellOwner g_cli_versions_cells;
 // `size` bytes of a catalog's text counted, each part of the catalog read taken as a cell of as many as the text can
 // make, up to its most: 1, or 0 where the cellblock could not meet one and none is allocated; the catalog read's cells
 // and the accessors' given back, called under the catalog reader's lock before it is given (version_catalog_cells.c)
-int cli_versions_take(const CliVersionCatalogTextCtx *args);
+int cli_versions_alloc(const CliVersionCatalogTextCtx *args);
 void cli_versions_release(void);
 
 // `size` bytes of a catalog's text read into the catalog read: 1, or 0 where the cellblock could not meet it and
@@ -160,14 +160,14 @@ typedef struct
     unsigned int about_size;
 } CliVersionsAlias;
 
-// A catalog's aliases and the texts they take, each a cell of the cellblock, and the bytes the texts have room for
+// A catalog's aliases and the texts they take, each a cell of the cellblock, and the bytes the texts have capacity for
 typedef struct
 {
     CliVersionsAlias *alias;
     unsigned int count;
     char *text;
     unsigned int used;
-    unsigned int room;
+    unsigned int capacity;
 } CliVersionsAliases;
 
 // the aliases of `size` bytes of a catalog's text into `aliases`, by section: 1, or 0 where the cellblock could not
@@ -175,16 +175,16 @@ typedef struct
 int cli_versions_aliases(const CliVersionCatalogTextSizeAliasesCtx *args);
 void cli_versions_aliases_free(const CliVersionCatalogTextSizeAliasesCtx *args);
 
-// each name the catalog `name`, at `shown` in the tree, leads in the Gradle script read checked against its aliases,
-// each it does not name a finding into `found` over `lines` (gradle_references.c)
+// each name the catalog `name`, at `displayed` in the tree, leads in the Gradle script read checked against its
+// aliases, each it does not name a finding into `found` over `lines` (gradle_references.c)
 void cli_gradle_references(const CliVersionCatalogLinesCtx *args);
 
 // the most accessors of one section stored, and the bytes they take
 #define CLI_VERSIONS_NAMES 16384u
 #define CLI_VERSIONS_NAMES_TEXT (1u << 20u)
 
-// The accessors of a section: each where it starts in the text and its size, one cell of the cellblock with room for
-// `most` of each, the sizes after the starts; and the text, a cell with room for `room` bytes
+// The accessors of a section: each where it starts in the text and its size, one cell of the cellblock with capacity
+// for `most` of each, the sizes after the starts; and the text, a cell with capacity for `capacity` bytes
 typedef struct
 {
     unsigned int *at;
@@ -193,11 +193,11 @@ typedef struct
     unsigned int most;
     char *text;
     unsigned int used;
-    unsigned int room;
+    unsigned int capacity;
 } CliVersionsNames;
 
 // What a check works with: the text's lines, the findings, the build's folder in the tree and the program that runs
-// it; and a cell a dependency's coordinates are written into, `room` bytes, and with them its version, twice that
+// it; and a cell a dependency's coordinates are written into, `capacity` bytes, and with them its version, twice that
 typedef struct
 {
     const CliBuildLines *lines;
@@ -206,7 +206,7 @@ typedef struct
     char program[CLI_PATH_MAX_LEN];
     char *coordinates;
     char *full;
-    unsigned long long room;
+    unsigned long long capacity;
 } CliVersionsCheck;
 
 // the accessors of the catalog's versions and libraries, under the catalog reader's lock (version_catalog_check.c)
@@ -225,7 +225,7 @@ int cli_versions_names_get(const CliVersionCatalogNameCtx *args);
 int cli_versions_contains(const CliVersionCatalogSizeOutCtx *args);
 void cli_versions_snapshot(const CliVersionCatalogTextSizeCtx *args);
 void cli_versions_entry_error(const CliVersionCatalogFieldCtx *args);
-void cli_versions_near(const CliVersionCatalogSizeCtx *args);
+void cli_versions_adjacent(const CliVersionCatalogSizeCtx *args);
 void cli_versions_keys(const CliVersionCatalogCheckCtx *args);
 void cli_versions_check_version(const CliVersionCatalogCheckEntryCtx *args);
 void cli_versions_version(const CliVersionCatalogCheckTableCtx *args);
@@ -266,7 +266,7 @@ struct CliVersionCatalogLinesCtx
     const CliBuildLines *lines;
     CliBuildFindings *found;
     const char *name;
-    const char *shown;
+    const char *displayed;
     const CliVersionsAliases *aliases_read;
 };
 
@@ -365,13 +365,13 @@ struct CliVersionCatalogCtx
 
 typedef struct
 {
-    int (*versions_take)(const CliVersionCatalogTextCtx *args);
+    int (*versions_alloc)(const CliVersionCatalogTextCtx *args);
     int (*versions_parse)(const CliVersionCatalogTextCtx *args);
     void (*versions_check)(const CliVersionCatalogTextCtx *args);
 } CliVersionCatalogTextNs;
-EMBED_TABLE_LAYOUT(CliVersionCatalogTextNs, versions_take, versions_parse, versions_check);
+EMBED_TABLE_LAYOUT(CliVersionCatalogTextNs, versions_alloc, versions_parse, versions_check);
 EMBED_TABLE_STORAGE CliVersionCatalogTextNs cli_version_catalog_text_internal EMBED_UNUSED = {
-    .versions_take = cli_versions_take,
+    .versions_alloc = cli_versions_alloc,
     .versions_parse = cli_versions_parse,
     .versions_check = cli_versions_check,
 };
@@ -470,11 +470,11 @@ EMBED_TABLE_STORAGE CliVersionCatalogFieldNs cli_version_catalog_field_internal 
 
 typedef struct
 {
-    void (*versions_near)(const CliVersionCatalogSizeCtx *args);
+    void (*versions_adjacent)(const CliVersionCatalogSizeCtx *args);
 } CliVersionCatalogSizeNs;
-EMBED_TABLE_LAYOUT(CliVersionCatalogSizeNs, versions_near);
+EMBED_TABLE_LAYOUT(CliVersionCatalogSizeNs, versions_adjacent);
 EMBED_TABLE_STORAGE CliVersionCatalogSizeNs cli_version_catalog_size_internal EMBED_UNUSED = {
-    .versions_near = cli_versions_near,
+    .versions_adjacent = cli_versions_adjacent,
 };
 
 typedef struct

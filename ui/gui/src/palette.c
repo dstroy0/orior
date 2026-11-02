@@ -127,9 +127,9 @@ void gui_palette_opacity_layout(const GuiPaletteOwnBarPercentCfg *args)
 {
     // a percent of 255, rounded, is a byte
     args->own->colors.glass =
-        (args->own->colors.ink & 0x00ffffffu) | ((((args->bar_percent * 255u) + 50u) / 100u) << 24u);
-    args->own->colors.editor_ground =
-        (args->own->colors.editor_ground & 0x00ffffffu) | ((((args->editor_percent * 255u) + 50u) / 100u) << 24u);
+        (args->own->colors.text_color & 0x00ffffffu) | ((((args->bar_percent * 255u) + 50u) / 100u) << 24u);
+    args->own->colors.editor_background =
+        (args->own->colors.editor_background & 0x00ffffffu) | ((((args->editor_percent * 255u) + 50u) / 100u) << 24u);
 }
 
 // A color of the palette by name: its name, where it lies in the palette, and where a second field that is the same
@@ -146,7 +146,7 @@ typedef struct
 #define PALETTE_NAMED(name_, field_) {name_, offsetof(GuiPalette, field_), 0ull}
 #define PALETTE_NAMED_AT(name_, field_, at_) {name_, offsetof(GuiPalette, field_) + ((at_) * sizeof(GuiColor)), 0ull}
 static const PaletteNamed s_named[] = {
-    PALETTE_NAMED("window.background", ground),
+    PALETTE_NAMED("window.background", background_fill),
     PALETTE_NAMED("widget.background", surface),
     PALETTE_NAMED("widget.border", widget_line),
     PALETTE_NAMED("widget.shadow", lifted),
@@ -159,7 +159,7 @@ static const PaletteNamed s_named[] = {
     PALETTE_NAMED("link.foreground", link),
     PALETTE_NAMED("hover.foreground", hover),
     PALETTE_NAMED("failure.foreground", fail),
-    PALETTE_NAMED("glass.tint", ink),
+    PALETTE_NAMED("glass.tint", text_color),
     PALETTE_NAMED("titleBar.foreground", bar_text),
     PALETTE_NAMED("menubar.foreground", bar_title),
     PALETTE_NAMED("toolbar.hoverBackground", bar_title_hover),
@@ -168,8 +168,8 @@ static const PaletteNamed s_named[] = {
     PALETTE_NAMED("breadcrumb.separator", bar_path),
     PALETTE_NAMED("wordmark.foreground", open_text),
     PALETTE_NAMED("wordmark.eye", bar_mark),
-    PALETTE_NAMED("tab.activeBackground", tab_ground),
-    PALETTE_NAMED("editor.background", editor_ground),
+    PALETTE_NAMED("tab.activeBackground", tab_background),
+    PALETTE_NAMED("editor.background", editor_background),
     PALETTE_NAMED("editor.foreground", editor_text),
     PALETTE_NAMED("editor.lineNumber", number),
     PALETTE_NAMED("editor.lineHighlight", current),
@@ -231,7 +231,7 @@ typedef struct
     unsigned long long offset;
     unsigned int value;
     GuiColor color;
-    GuiColor fore;
+    GuiColor foreground_color;
     unsigned long long back;
     unsigned int *tenths;
     char *under;
@@ -266,7 +266,7 @@ void gui_palette_color_set(const GuiPaletteOwnCfg *args)
         *(GuiColor *)(void *)((unsigned char *)&args->own->colors + s_named[args->at].also) = color;
     }
     // the ink's tint is the ink at the bar's opacity
-    if (s_named[args->at].offset == offsetof(GuiPalette, ink))
+    if (s_named[args->at].offset == offsetof(GuiPalette, text_color))
     {
         args->own->colors.glass = (color & 0x00ffffffu) | (args->own->colors.glass & 0xff000000u);
     }
@@ -365,45 +365,48 @@ EMBED_INLINE unsigned int palette_light(const PaletteCtx *args)
     return ((weighed / 10000u) * 20u) + 65535u;
 }
 
-unsigned int gui_palette_contrast(const GuiPaletteForeCfg *args)
+unsigned int gui_palette_contrast(const GuiPaletteForegroundCfg *args)
 {
     const GuiColor under =
-        EMBED_CALL(cli_raster.color_over, GuiRasterCfg, .ground_color = args->ground, .color = args->back);
-    const unsigned int fore_light = EMBED_CALL(
-        palette_light, PaletteCtx,
-        .color = EMBED_CALL(cli_raster.color_over, GuiRasterCfg, .ground_color = under, .color = args->fore));
+        EMBED_CALL(cli_raster.color_over, GuiRasterCfg, .background_color = args->background_fill, .color = args->back);
+    const unsigned int foreground_light =
+        EMBED_CALL(palette_light, PaletteCtx,
+                   .color = EMBED_CALL(cli_raster.color_over, GuiRasterCfg, .background_color = under,
+                                       .color = args->foreground_color));
     const unsigned int under_light = EMBED_CALL(palette_light, PaletteCtx, .color = under);
-    return (fore_light > under_light) ? ((fore_light * 10u) / under_light) : ((under_light * 10u) / fore_light);
+    return (foreground_light > under_light) ? ((foreground_light * 10u) / under_light)
+                                            : ((under_light * 10u) / foreground_light);
 }
 
 // A color of text whose contrast is checked and a color it is drawn on, each where it lies in the palette: a token is
 // drawn on the editor's background
 typedef struct
 {
-    unsigned long long fore;
+    unsigned long long foreground_color;
     unsigned long long back;
 } PaletteContrast;
 
 static const PaletteContrast s_contrasts[] = {
-    {offsetof(GuiPalette, editor_text), offsetof(GuiPalette, editor_ground)},
-    {offsetof(GuiPalette, number), offsetof(GuiPalette, editor_ground)},
-    {offsetof(GuiPalette, text), offsetof(GuiPalette, ground)},
-    {offsetof(GuiPalette, text_2), offsetof(GuiPalette, ground)},
+    {offsetof(GuiPalette, editor_text), offsetof(GuiPalette, editor_background)},
+    {offsetof(GuiPalette, number), offsetof(GuiPalette, editor_background)},
+    {offsetof(GuiPalette, text), offsetof(GuiPalette, background_fill)},
+    {offsetof(GuiPalette, text_2), offsetof(GuiPalette, background_fill)},
     {offsetof(GuiPalette, text), offsetof(GuiPalette, surface)},
-    {offsetof(GuiPalette, link), offsetof(GuiPalette, ground)},
+    {offsetof(GuiPalette, link), offsetof(GuiPalette, background_fill)},
 };
 
-// whether `fore` is under the least over the color lying at `back`: 1, with its contrast and that color's name
+// whether `foreground_color` is under the least over the color lying at `back`: 1, with its contrast and that color's
+// name
 EMBED_INLINE int palette_low(const PaletteCtx *args)
 {
-    GuiColor fore = args->fore;
+    GuiColor foreground_color = args->foreground_color;
     unsigned long long back = args->back;
     unsigned int *tenths = args->tenths;
     const unsigned int contrast =
-        EMBED_CALL(gui_palette_fore.contrast, GuiPaletteForeCfg, .fore = fore,
+        EMBED_CALL(gui_palette_foreground.contrast, GuiPaletteForegroundCfg, .foreground_color = foreground_color,
                    .back = EMBED_CALL(palette_at, PaletteCtx, .palette = args->palette, .offset = back),
-                   .ground = args->palette->ground);
-    if (contrast >= GUI_PALETTE_CONTRAST_LEAST)
+                   .background_fill = args->palette->background_fill);
+    if (contrast >= GUI_PALETTE_CONTRAST_MIN)
     {
         return 0;
     }
@@ -425,16 +428,16 @@ int gui_palette_color_low(const GuiPaletteAtSizeCfg *args)
     if (args->at >= PALETTE_NAMED_COUNT)
     {
         return EMBED_CALL(palette_low, PaletteCtx, .palette = args->palette,
-                          .fore = args->palette->token[args->at - PALETTE_NAMED_COUNT].color,
-                          .back = offsetof(GuiPalette, editor_ground), .tenths = args->tenths, .under = args->under,
+                          .foreground_color = args->palette->token[args->at - PALETTE_NAMED_COUNT].color,
+                          .back = offsetof(GuiPalette, editor_background), .tenths = args->tenths, .under = args->under,
                           .size = args->size);
     }
     for (unsigned int pair = 0u; pair < (unsigned int)(sizeof(s_contrasts) / sizeof(s_contrasts[0])); pair += 1u)
     {
-        if ((s_contrasts[pair].fore == s_named[args->at].offset) &&
+        if ((s_contrasts[pair].foreground_color == s_named[args->at].offset) &&
             EMBED_CALL(palette_low, PaletteCtx, .palette = args->palette,
-                       .fore = EMBED_CALL(palette_at, PaletteCtx, .palette = args->palette,
-                                          .offset = s_named[args->at].offset),
+                       .foreground_color = EMBED_CALL(palette_at, PaletteCtx, .palette = args->palette,
+                                                      .offset = s_named[args->at].offset),
                        .back = s_contrasts[pair].back, .tenths = args->tenths, .under = args->under,
                        .size = args->size))
         {

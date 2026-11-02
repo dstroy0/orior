@@ -29,7 +29,7 @@ typedef struct CliJupyterOutCfg CliJupyterOutCfg;
 
 // the most kernels that run at once, the most words and settings a spec gives, the bytes its texts take, the place
 // of a text a spec does not give, and the longest id a message is sent under
-#define CLI_KERNELS_MOST 4u
+#define CLI_KERNELS_MAX 4u
 #define CLI_KERNEL_WORDS 64u
 #define CLI_KERNEL_SETTINGS 64u
 #define CLI_KERNEL_TEXT (1u << 16u)

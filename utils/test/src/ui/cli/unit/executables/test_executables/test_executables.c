@@ -46,8 +46,8 @@ static void file_written(const char *dir, const char *path, const char *text)
     TEST_ASSERT_TRUE_MESSAGE(EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = file, .bytes = text, .size = CLI_UNITY_LENGTH(text)), path);
 }
 
-// the names s_names contains, joined by `|`, each `name=value` where `values`, asserted against `wanted`
-static void assert_names(int values, const char *wanted)
+// the names s_names contains, joined by `|`, each `name=value` where `values`, asserted against `required`
+static void assert_names(int values, const char *required)
 {
     char out[1024];
     VerbaLinea line = {out, sizeof(out), 0ull};
@@ -61,7 +61,7 @@ static void assert_names(int values, const char *wanted)
             mmgr_line_put(&line, s_names.value[at]);
         }
     }
-    CLI_TEST_ASSERT_TEXT(wanted, out, line.at);
+    CLI_TEST_ASSERT_TEXT(required, out, line.at);
 }
 
 // a tree of a Cargo package with four binaries; its manifest's path in `manifest`
@@ -80,35 +80,35 @@ static void cargo_tree_written(char *manifest)
 // `path` joined under `folder`, in a static text, with the program's file name for this platform
 static const char *program_in(const char *folder, const char *program)
 {
-    static char s_wanted[CLI_PATH_MAX_LEN];
+    static char s_requested[CLI_PATH_MAX_LEN];
     char file[CLI_NAME_MAX_LEN];
-    VerbaLinea line = {s_wanted, sizeof(s_wanted), 0ull};
+    VerbaLinea line = {s_requested, sizeof(s_requested), 0ull};
     EMBED_CALL(cli_executables_name_out_folder_internal.program_file, CliExecutablesNameOutFolderCtx, .name = program, .out = file);
     mmgr_line_put(&line, folder);
     mmgr_line_put(&line, file);
     (void)mmgr_line_finish(&line);
-    return s_wanted;
+    return s_requested;
 }
 
 // the catalog made empty and the tree's programs' jobs added to it
-static void jobs_listed(const char *dir)
+static void jobs_listing(const char *dir)
 {
-    EMBED_CALL(cli_catalog_jobs_most.begin, CliCatalogJobsMostCfg, .catalog = &s_catalog, .jobs = s_jobs, .jobs_most = 256u, .params = s_params, .params_most = 1024u, .steps = s_steps, .steps_most = 256u, .request = s_args, .args_most = 2048u, .lists = s_lists, .lists_most = 4096u, .text_out = s_text, .text_most = sizeof(s_text));
+    EMBED_CALL(cli_catalog_jobs_max.begin, CliCatalogJobsMaxCfg, .catalog = &s_catalog, .jobs = s_jobs, .jobs_max = 256u, .params = s_params, .params_max = 1024u, .steps = s_steps, .steps_max = 256u, .request = s_args, .args_max = 2048u, .lists = s_lists, .lists_max = 4096u, .text_out = s_text, .text_max = sizeof(s_text));
     EMBED_CALL(cli_catalog_root.executables_jobs, CliCatalogRootCfg, .root = dir, .catalog = &s_catalog);
 }
 
 // a line a step shows recorded
-static void line_recorded(const CliEachShownCfg *args)
+static void line_recorded(const CliEachDisplayedCfg *args)
 {
     if (s_count < 8u)
     {
-        memor.cpy(&(MemoriaCfg){.dst = s_shown[s_count], .src = args->shown, .bytes = CLI_UNITY_LENGTH(args->shown) + 1u});
+        memor.cpy(&(MemoriaCfg){.dst = s_shown[s_count], .src = args->displayed, .bytes = CLI_UNITY_LENGTH(args->displayed) + 1u});
         s_count += 1u;
     }
 }
 
 // the lines the job `id` shows with s_values: 1, or 0 where it shows none
-static int job_shown(const char *dir, const char *id)
+static int job_displayed(const char *dir, const char *id)
 {
     char why[1024];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
@@ -118,9 +118,9 @@ static int job_shown(const char *dir, const char *id)
 }
 
 // the lines of `id` shown, the case ignored where its tool is not on this machine
-static void shown_or_ignored(const char *id, unsigned int least)
+static void displayed_or_ignored(const char *id, unsigned int min)
 {
-    if (!job_shown(s_dir, id) || (s_count < least))
+    if (!job_displayed(s_dir, id) || (s_count < min))
     {
         TEST_IGNORE_MESSAGE("the build's tool is not on this machine");
     }
@@ -138,17 +138,17 @@ static void projects_written(void)
     file_written(s_dir, "c/tools/CMakeLists.txt", "project(tools)\nadd_executable(cli cli.c)\n");
     file_written(s_dir, "target/x/Cargo.toml", "[package]\nname = \"built\"\n");
     file_written(s_dir, "target/x/src/main.rs", "fn main() {}\n");
-    jobs_listed(s_dir);
+    jobs_listing(s_dir);
 }
 
 // the values of a build's trace and the one more value sent
 static void trace_values(const char *trace, const char *key, const char *value)
 {
     EMBED_CALL(cli_catalog_key_values.values_begin, CliCatalogKeyValuesCfg, .values_out = &s_values);
-    EMBED_CALL(cli_catalog_key_values.values_put, CliCatalogKeyValuesCfg, .values_out = &s_values, .key = CLI_TRACE, .value = trace);
+    EMBED_CALL(cli_catalog_key_values.values_append, CliCatalogKeyValuesCfg, .values_out = &s_values, .key = CLI_TRACE, .value = trace);
     if (key != NULL)
     {
-        EMBED_CALL(cli_catalog_key_values.values_put, CliCatalogKeyValuesCfg, .values_out = &s_values, .key = key, .value = value);
+        EMBED_CALL(cli_catalog_key_values.values_append, CliCatalogKeyValuesCfg, .values_out = &s_values, .key = key, .value = value);
     }
 }
 
@@ -161,7 +161,7 @@ static void traced_tree_written(void)
     file_written(s_dir, "c/CMakeLists.txt", "project(c)\nadd_executable(cli cli.c)\n");
     file_written(s_dir, "g/go.mod", "module example.com/g\n");
     file_written(s_dir, "g/main.go", "package main\n\nfunc main() {}\n");
-    jobs_listed(s_dir);
+    jobs_listing(s_dir);
 }
 
 void setUp(void)
@@ -242,7 +242,7 @@ void test_a_spec_of_one_file_names_its_program(void)
     char exe[CLI_NAME_MAX_LEN];
     char path[CLI_PATH_MAX_LEN];
     TEST_ASSERT_TRUE(EMBED_CALL(cli_executables_text_exe_internal.spec_init, CliExecutablesTextExeCtx, .text = "a = Analysis(['app.py'])\npyz = PYZ(a.pure)\nexe = EXE(pyz, a.scripts, a.binaries, "
-                                   "name='app', console=True)\n", .exe_room = exe, .path_out = path));
+                                   "name='app', console=True)\n", .exe_capacity = exe, .path_out = path));
     TEST_ASSERT_EQUAL_STRING("app", exe);
     TEST_ASSERT_EQUAL_STRING(program_in("dist/", "app"), path);
 }
@@ -252,7 +252,7 @@ void test_a_spec_that_collects_a_folder_names_its_program_in_the_folder(void)
     char exe[CLI_NAME_MAX_LEN];
     char path[CLI_PATH_MAX_LEN];
     TEST_ASSERT_TRUE(EMBED_CALL(cli_executables_text_exe_internal.spec_init, CliExecutablesTextExeCtx, .text = "a = Analysis(['app.py'])\nexe = EXE(pyz, exclude_binaries=True, name=\"app\")\ncoll = "
-                                   "COLLECT(exe, a.binaries, name=\"bundle\")\n", .exe_room = exe, .path_out = path));
+                                   "COLLECT(exe, a.binaries, name=\"bundle\")\n", .exe_capacity = exe, .path_out = path));
     TEST_ASSERT_EQUAL_STRING("app", exe);
     TEST_ASSERT_EQUAL_STRING(program_in("dist/bundle/", "app"), path);
 }
@@ -261,7 +261,7 @@ void test_another_kind_of_spec_names_no_program(void)
 {
     char exe[CLI_NAME_MAX_LEN];
     char path[CLI_PATH_MAX_LEN];
-    TEST_ASSERT_FALSE(EMBED_CALL(cli_executables_text_exe_internal.spec_init, CliExecutablesTextExeCtx, .text = "Name: rpm-spec\nVersion: 1\n", .exe_room = exe, .path_out = path));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_executables_text_exe_internal.spec_init, CliExecutablesTextExeCtx, .text = "Name: rpm-spec\nVersion: 1\n", .exe_capacity = exe, .path_out = path));
 }
 
 void test_a_package_names_its_one_bin_by_its_name(void)
@@ -338,13 +338,13 @@ void test_a_dotnet_library_has_no_program(void)
     TEST_ASSERT_FALSE(EMBED_CALL(cli_executables_text_out_internal.dotnet_program, CliExecutablesTextOutCtx, .project = s_dotnet_project, .text = "<OutputType>Library</OutputType>", .out = out));
 }
 
-void test_a_dotnet_program_is_beside_the_assembly_built(void)
+void test_a_dotnet_program_is_adjacent_the_assembly_built(void)
 {
     static const char s_built[] = "  Hello -> C:/t/bin/Debug/net10.0/Hello.dll";
     char out[CLI_PATH_MAX_LEN];
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    EMBED_CALL(cli_runner_lines.lines_put, CliRunnerLinesCfg, .lines = &s_lines, .text = s_built, .length = sizeof(s_built) - 1u);
+    EMBED_CALL(cli_runner_lines.lines_append, CliRunnerLinesCfg, .lines = &s_lines, .text = s_built, .length = sizeof(s_built) - 1u);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_executables_name_out_err_msg_internal.dotnet_artifact, CliExecutablesNameOutErrMsgCtx, .name = "Hello", .lines = &s_lines, .out = out, .err_msg = &err_msg));
     TEST_ASSERT_EQUAL_STRING(program_in("C:/t/bin/Debug/net10.0/", "Hello"), out);
 }
@@ -355,7 +355,7 @@ void test_a_dotnet_program_is_in_the_folder_published_to_the_last_line_first(voi
     char out[CLI_PATH_MAX_LEN];
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    EMBED_CALL(cli_runner_lines.lines_put, CliRunnerLinesCfg, .lines = &s_lines, .text = s_published, .length = sizeof(s_published) - 1u);
+    EMBED_CALL(cli_runner_lines.lines_append, CliRunnerLinesCfg, .lines = &s_lines, .text = s_published, .length = sizeof(s_published) - 1u);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_executables_name_out_err_msg_internal.dotnet_artifact, CliExecutablesNameOutErrMsgCtx, .name = "Hello", .lines = &s_lines, .out = out, .err_msg = &err_msg));
     TEST_ASSERT_EQUAL_STRING(program_in("C:/t/bin/Release/net10.0/win-x64/publish/", "Hello"), out);
 }
@@ -381,8 +381,8 @@ void test_the_compilers_are_queried_from_cmake_before_it_configures_and_builds(v
 {
     projects_written();
     EMBED_CALL(cli_catalog_key_values.values_begin, CliCatalogKeyValuesCfg, .values_out = &s_values);
-    EMBED_CALL(cli_catalog_key_values.values_put, CliCatalogKeyValuesCfg, .values_out = &s_values, .key = "config", .value = "Release");
-    shown_or_ignored("executable/c/CMakeLists.txt:cli", 5u);
+    EMBED_CALL(cli_catalog_key_values.values_append, CliCatalogKeyValuesCfg, .values_out = &s_values, .key = "config", .value = "Release");
+    displayed_or_ignored("executable/c/CMakeLists.txt:cli", 5u);
     TEST_ASSERT_EQUAL_STRING("cmake -E touch build/cmake/c/Release/.cmake/api/v1/query/toolchains-v1", s_shown[2]);
     TEST_ASSERT_EQUAL_STRING("cmake -S c -B build/cmake/c/Release -DCMAKE_BUILD_TYPE=Release", s_shown[3]);
     TEST_ASSERT_EQUAL_STRING("cmake --build build/cmake/c/Release --target cli --config Release", s_shown[4]);
@@ -411,10 +411,10 @@ void test_cargo_is_vv_where_verbose_and_not_where_quiet(void)
     char first[1024];
     traced_tree_written();
     trace_values(CLI_TRACE_VERBOSE, "profile", "dev");
-    shown_or_ignored("executable/Cargo.toml:tool", 1u);
+    displayed_or_ignored("executable/Cargo.toml:tool", 1u);
     memor.cpy(&(MemoriaCfg){.dst = first, .src = s_shown[0], .bytes = CLI_UNITY_LENGTH(s_shown[0]) + 1u});
     trace_values(CLI_TRACE_QUIET, "profile", "dev");
-    shown_or_ignored("executable/Cargo.toml:tool", 1u);
+    displayed_or_ignored("executable/Cargo.toml:tool", 1u);
     CLI_TEST_ASSERT_CONTAINS(" -vv", first);
     CLI_TEST_ASSERT_NOT_CONTAINS(" -vv", s_shown[0]);
 }
@@ -423,7 +423,7 @@ void test_cmake_configures_and_builds_verbose(void)
 {
     traced_tree_written();
     trace_values(CLI_TRACE_VERBOSE, "config", "Release");
-    shown_or_ignored("executable/c/CMakeLists.txt:cli", 5u);
+    displayed_or_ignored("executable/c/CMakeLists.txt:cli", 5u);
     TEST_ASSERT_EQUAL_STRING("cmake -S c -B build/cmake/c/Release -DCMAKE_BUILD_TYPE=Release --log-level=VERBOSE", s_shown[3]);
     TEST_ASSERT_EQUAL_STRING("cmake --build build/cmake/c/Release --target cli --config Release --verbose", s_shown[4]);
 }
@@ -432,7 +432,7 @@ void test_cmake_builds_quiet_where_requested(void)
 {
     traced_tree_written();
     trace_values(CLI_TRACE_QUIET, "config", "Release");
-    shown_or_ignored("executable/c/CMakeLists.txt:cli", 5u);
+    displayed_or_ignored("executable/c/CMakeLists.txt:cli", 5u);
     TEST_ASSERT_EQUAL_STRING("cmake --build build/cmake/c/Release --target cli --config Release", s_shown[4]);
 }
 
@@ -440,6 +440,6 @@ void test_go_is_v_x_where_verbose(void)
 {
     traced_tree_written();
     trace_values(CLI_TRACE_VERBOSE, NULL, NULL);
-    shown_or_ignored("executable/g/go.mod:g", 1u);
+    displayed_or_ignored("executable/g/go.mod:g", 1u);
     CLI_TEST_ASSERT_CONTAINS(" -trimpath -v -x -o ", s_shown[0]);
 }

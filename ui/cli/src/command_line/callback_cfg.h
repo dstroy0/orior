@@ -78,12 +78,6 @@ typedef struct
 
 typedef struct
 {
-    const char *body;
-    unsigned long long size;
-} CliDocColoredCfg;
-
-typedef struct
-{
     void *context;
     unsigned long long at;
 } CliEachAtCfg;
@@ -156,10 +150,10 @@ typedef struct
 {
     void *context;
     const char *key;
-    const char *beside;
+    const char *adjacent;
     const char *text;
     unsigned long long size;
-} CliEachKeyBesideTextSizeCfg;
+} CliEachKeyAdjacentTextSizeCfg;
 
 typedef struct
 {
@@ -183,8 +177,8 @@ typedef struct
 {
     void *context;
     char *line;
-    unsigned long long room;
-} CliEachLineRoomCfg;
+    unsigned long long capacity;
+} CliEachLineCapacityCfg;
 
 typedef struct
 {
@@ -293,13 +287,13 @@ typedef struct
 typedef struct
 {
     unsigned int place;
-} CliEachPlaceCfg;
+} CliEachPositionCfg;
 
 typedef struct
 {
     void *context;
-    const char *shown;
-} CliEachShownCfg;
+    const char *displayed;
+} CliEachDisplayedCfg;
 
 typedef struct
 {
@@ -333,7 +327,7 @@ typedef struct
     void *context;
     unsigned long long first;
     unsigned long long last;
-    int shown;
+    int displayed;
 } CliFoldEachCfg;
 
 typedef struct
@@ -350,7 +344,7 @@ typedef struct
     unsigned long long word;
     unsigned long long word_size;
     unsigned long long rest;
-    unsigned long long rest_end;
+    unsigned long long remainder_end;
 } CliGradleStatementCfg;
 
 typedef struct
@@ -369,7 +363,7 @@ typedef struct
     unsigned long long col;
     const unsigned char *text;
     unsigned long long size;
-} CliHitPutCfg;
+} CliHitAppendCfg;
 
 typedef struct
 {
@@ -377,8 +371,8 @@ typedef struct
     unsigned long long id_length;
     long long when;
     const char *made;
-    unsigned long long made_length;
-} CliIdWhenMadeCfg;
+    unsigned long long created_length;
+} CliIdWhenCreatedCfg;
 
 typedef struct
 {
@@ -512,8 +506,8 @@ typedef struct
 {
     void *source;
     char *piece;
-    unsigned long long room;
-} CliSourcePieceRoomCfg;
+    unsigned long long capacity;
+} CliSourcePieceCapacityCfg;
 
 typedef struct
 {
@@ -529,8 +523,8 @@ typedef struct
 typedef struct
 {
     void *context;
-    int shown;
-} GuiEachShownCfg;
+    int displayed;
+} GuiEachDisplayedCfg;
 
 typedef struct
 {

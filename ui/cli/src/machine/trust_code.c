@@ -20,7 +20,7 @@ static const char *const s_eslint[5] = {".eslintrc.js", ".eslintrc.cjs", "eslint
 
 // the most trees whose code found is cached, and the bytes the paths of a tree's code are written in
 #define CLI_TRUST_TREES 8u
-#define CLI_TRUST_PATHS_ROOM (1ull << 20u)
+#define CLI_TRUST_PATHS_CAPACITY (1ull << 20u)
 
 // The code found in a tree looked through, and when
 typedef struct
@@ -112,9 +112,9 @@ EMBED_INLINE void cli_trim(const TrustCodeCtx *args)
 {
     const char **from = args->from;
     const char **to = args->to;
-    *from += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = *from, .at = 0ull,
+    *from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = *from, .at = 0ull,
                         .size = (unsigned long long)(*to - *from), .set = CLI_TEXT_WHITE);
-    *to = *from + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = *from,
+    *to = *from + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = *from,
                              .at = (unsigned long long)(*to - *from), .set = CLI_TEXT_WHITE);
 }
 
@@ -135,9 +135,9 @@ int cli_trust_names_a_hook(const CliTrustCfg *args)
         line = next;
         if ((from < to) && (from[0] == '['))
         {
-            from += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
+            from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ull,
                                .size = (unsigned long long)(to - from), .set = "[");
-            to = from + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = from,
+            to = from + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = from,
                                    .at = (unsigned long long)(to - from), .set = "]");
             EMBED_CALL(cli_trim, TrustCodeCtx, .from = &from, .to = &to);
             in_core = EMBED_CALL(cli_same_word, TrustCodeCtx, .text = from, .length = (unsigned long long)(to - from),
@@ -157,10 +157,10 @@ int cli_trust_names_a_hook(const CliTrustCfg *args)
         const char *value_from = equals + 1;
         const char *value_to = to;
         EMBED_CALL(cli_trim, TrustCodeCtx, .from = &value_from, .to = &value_to);
-        value_from += EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = value_from,
+        value_from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = value_from,
                                  .at = 0ull, .size = (unsigned long long)(value_to - value_from), .set = "\"");
         value_to =
-            value_from + EMBED_CALL(cli_text_at_size_classes.back_past, CliTextAtSizeClassesCfg, .text = value_from,
+            value_from + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = value_from,
                                     .at = (unsigned long long)(value_to - value_from), .set = "\"");
         if (!EMBED_CALL(cli_same_word, TrustCodeCtx, .text = name_from,
                         .length = (unsigned long long)(name_to - name_from), .word = "fsmonitor"))
@@ -192,7 +192,7 @@ EMBED_INLINE char *cli_read_in(const TrustCodeCtx *args)
     mmgr_line_put(&line, args->name);
     unsigned long long size = 0ull;
     const unsigned char *const bytes = (mmgr_line_finish(&line) != 0ull)
-                                           ? EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = path,
+                                           ? EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path,
                                                         .size_pointer = &size, .owner = &g_cli_trust_cells)
                                            : NULL;
     char *const text = (bytes != NULL) ? g_cli_cells->persistent_buf_alloc(size + 1ull, &g_cli_trust_cells) : NULL;
@@ -219,7 +219,7 @@ EMBED_INLINE int cli_proc_macro(const TrustCodeCtx *args)
         const unsigned long long stop =
             EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ull,
                        .size = cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL}), .set = "\n");
-        for (unsigned long long piece = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg,
+        for (unsigned long long piece = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg,
                                                    .text = at, .at = 0ull, .size = stop, .set = " ");
              piece < stop;)
         {
@@ -228,10 +228,10 @@ EMBED_INLINE int cli_proc_macro(const TrustCodeCtx *args)
             const unsigned long long fits = sizeof(name_buf) - 1u - count;
             const unsigned long long take = ((end - piece) < fits) ? (end - piece) : fits;
             memor.cpy(&(MemoriaCfg){.dst = name_buf + count, .src = at + piece, .bytes = (size_t)take});
-            // no more than fit in the name's room, which an unsigned int stores
+            // no more than fit in the name's capacity, which an unsigned int stores
             count += (unsigned int)take;
             longer = longer || (take < (end - piece));
-            piece = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = at, .at = end,
+            piece = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = at, .at = end,
                                .size = stop, .set = " ");
         }
         at += stop;
@@ -265,8 +265,8 @@ EMBED_INLINE int cli_by_name(const TrustCodeCtx *args)
 
 int cli_trust_looked_for(const CliTrustTreeCodeCfg *args)
 {
-    char *const paths_cell = g_cli_cells->temporary_buf_alloc(CLI_TRUST_PATHS_ROOM, &g_cli_trust_cells);
-    VerbaLinea paths = mmgr_line_over(paths_cell, CLI_TRUST_PATHS_ROOM);
+    char *const paths_cell = g_cli_cells->temporary_buf_alloc(CLI_TRUST_PATHS_CAPACITY, &g_cli_trust_cells);
+    VerbaLinea paths = mmgr_line_over(paths_cell, CLI_TRUST_PATHS_CAPACITY);
     const CliFiles *const files = EMBED_CALL(cli_files_root_paths.view, CliFilesRootPathsCfg, .root = args->tree);
     unsigned int found = 0u;
     for (unsigned int index = 0u; (files != NULL) && (index < files->count); index += 1u)
@@ -279,12 +279,12 @@ int cli_trust_looked_for(const CliTrustTreeCodeCfg *args)
         int is_code = 0;
         if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "build.rs", .cap = CLI_CELLS_POOL}))
         {
-            char beside[CLI_PATH_MAX_LEN];
-            VerbaLinea line = {beside, sizeof(beside), 0ull};
+            char adjacent[CLI_PATH_MAX_LEN];
+            VerbaLinea line = {adjacent, sizeof(adjacent), 0ull};
             mmgr_line_put_n(&line, file, (unsigned long long)(name - file));
             mmgr_line_put(&line, "Cargo.toml");
             is_code = (mmgr_line_finish(&line) != 0ull) &&
-                      EMBED_CALL(cli_files_path_kind.contains, CliFilesPathKindCfg, .files = files, .path = beside);
+                      EMBED_CALL(cli_files_path_kind.contains, CliFilesPathKindCfg, .files = files, .path = adjacent);
         }
         else if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "Cargo.toml", .cap = CLI_CELLS_POOL}))
         {
@@ -451,43 +451,4 @@ unsigned int cli_trust_git_words(const CliTrustTreeWordsCfg *args)
     args->words[0] = "-c";
     args->words[1] = "core.fsmonitor=false";
     return 2u;
-}
-
-void cli_trust_state_write(const CliTrustTreeOutCfg *args)
-{
-    cli_trust_forget();
-    int trusted = 0;
-    const int answered = EMBED_CALL(cli_trust_tree.answer, CliTrustTreeCfg, .tree = args->tree, .trusted = &trusted);
-    mmgr_line_put(args->out, "{\"answer\":");
-    mmgr_line_put(args->out, !answered ? "null" : (trusted ? "true" : "false"));
-    mmgr_line_put(args->out, ",\"code\":[");
-    CliTrustCode code = {NULL, 0ull, 0u};
-    (void)EMBED_CALL(cli_trust_tree_code.own_code, CliTrustTreeCodeCfg, .tree = args->tree, .code = &code);
-    const char *path = code.paths;
-    for (unsigned int at = 0u; at < code.count; at += 1u)
-    {
-        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
-        mmgr_line_put(args->out, (at != 0u) ? "," : "");
-        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out, .text = path,
-                   .length = length);
-        path += length + 1u;
-    }
-    EMBED_CALL(cli_trust_tree_code.code_free, CliTrustTreeCodeCfg, .code = &code);
-    mmgr_line_put(args->out, "],\"tree\":");
-    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out, .text = args->tree,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->tree, .cap = CLI_CELLS_POOL}));
-    mmgr_line_put(args->out, ",\"above\":");
-    char above[CLI_PATH_MAX_LEN];
-    char beyond[CLI_PATH_MAX_LEN];
-    if (EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->tree, .out = above) &&
-        EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = above, .out = beyond))
-    {
-        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out, .text = above,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = above, .cap = CLI_CELLS_POOL}));
-    }
-    else
-    {
-        mmgr_line_put(args->out, "null");
-    }
-    mmgr_line_ch(args->out, '}');
 }

@@ -11,7 +11,7 @@ int cli_registry_machine_path(const CliOutCtx *args)
     return 0;
 }
 
-int cli_registry_user_value(const CliOutRoomCtx *args)
+int cli_registry_user_value(const CliOutCapacityCtx *args)
 {
     (void)args;
     return 0;

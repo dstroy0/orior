@@ -12,7 +12,7 @@ typedef struct CliEditsOutCfg CliEditsOutCfg;
 typedef struct CliEditsOutItemsCfg CliEditsOutItemsCfg;
 typedef struct CliEditsLineCfg CliEditsLineCfg;
 typedef struct CliEditsCfg CliEditsCfg;
-typedef struct CliEditsPlaceCfg CliEditsPlaceCfg;
+typedef struct CliEditsPositionCfg CliEditsPositionCfg;
 
 #include "../command_line/cli_internal.h"
 #include "embed_dispatch_layout.h"
@@ -25,19 +25,19 @@ typedef struct
 {
     unsigned int line;
     unsigned int col;
-} CliTextPlace;
+} CliTextPosition;
 
 // One span of a text and what is written over it, `size` bytes
 typedef struct
 {
-    CliTextPlace from;
-    CliTextPlace to;
+    CliTextPosition from;
+    CliTextPosition to;
     const char *text;
     unsigned long long size;
 } CliTextEdit;
 
 // a place written as `{"line", "col"}`, and an edit as `{"from", "to", "text"}`
-void cli_text_place_write(const CliEditsPlaceCfg *args);
+void cli_text_position_write(const CliEditsPositionCfg *args);
 void cli_text_edit_write(const CliEditsCfg *args);
 
 // the byte where the UTF-16 column `col` of `size` bytes of a line falls, the line's end where it is past it
@@ -47,8 +47,31 @@ unsigned long long cli_text_byte_get(const CliEditsLineCfg *args);
 // CLI_TEXT_EDITS of them or the cellblock cannot meet the places they are found at
 int cli_text_apply(const CliEditsOutCfg *args);
 
+// One parameter of a signature's label: its first byte and the byte after it
+typedef struct
+{
+    unsigned int from;
+    unsigned int to;
+} CliSignatureParameter;
+
+// A signature in one cell: the label and how long; its parameters; the parameter the cursor's argument answers, -1 for
+// none; the parameters the arguments differ from, each a place among the parameters; and the documentation as Markdown,
+// empty for none
+typedef struct
+{
+    const char *label;
+    unsigned long long length;
+    unsigned int parameters;
+    CliSignatureParameter *parameter;
+    int active;
+    unsigned int differing;
+    unsigned int *differs;
+    const char *doc;
+    unsigned long long doc_length;
+} CliSignaturePanel;
+
 // the most completion items one request gives, and the bytes their texts take
-#define CLI_COMPLETIONS_MOST 4096u
+#define CLI_COMPLETIONS_MAX 4096u
 #define CLI_COMPLETIONS_TEXT (1u << 20u)
 
 // A completion item: what it shows, its kind, what it states of itself and what it inserts, each a text of its items',
@@ -68,7 +91,7 @@ typedef struct
 // Completion items and the texts they take, with 1 in `full` where one did not fit
 typedef struct
 {
-    CliCompletion item[CLI_COMPLETIONS_MOST];
+    CliCompletion item[CLI_COMPLETIONS_MAX];
     unsigned int count;
     char text[CLI_COMPLETIONS_TEXT];
     unsigned int used;
@@ -79,9 +102,8 @@ typedef struct
 // show, the first of each retained; and an item written as the page reads one, `{"label", "kind", "detail", "insert"}`
 // and `"snippet": true` where it is one (completions.c)
 void cli_completions_begin(const CliEditsItemsCfg *args);
-int cli_completion_put(const CliEditsItemsCfg *args);
+int cli_completion_append(const CliEditsItemsCfg *args);
 void cli_completions_unique(const CliEditsItemsCfg *args);
-void cli_completion_write(const CliEditsOutItemsCfg *args);
 
 struct CliEditsItemsCfg
 {
@@ -125,19 +147,19 @@ struct CliEditsCfg
     const CliTextEdit *edit;
 };
 
-struct CliEditsPlaceCfg
+struct CliEditsPositionCfg
 {
-    CliTextPlace place;
+    CliTextPosition place;
     VerbaLinea *out;
 };
 
 typedef struct
 {
-    void (*text_place_write)(const CliEditsPlaceCfg *args);
-} CliEditsPlaceNs;
-EMBED_TABLE_LAYOUT(CliEditsPlaceNs, text_place_write);
-EMBED_TABLE_STORAGE CliEditsPlaceNs cli_edits_place EMBED_UNUSED = {
-    .text_place_write = cli_text_place_write,
+    void (*text_position_write)(const CliEditsPositionCfg *args);
+} CliEditsPositionNs;
+EMBED_TABLE_LAYOUT(CliEditsPositionNs, text_position_write);
+EMBED_TABLE_STORAGE CliEditsPositionNs cli_edits_position EMBED_UNUSED = {
+    .text_position_write = cli_text_position_write,
 };
 
 typedef struct
@@ -170,23 +192,14 @@ EMBED_TABLE_STORAGE CliEditsOutNs cli_edits_out EMBED_UNUSED = {
 typedef struct
 {
     void (*completions_begin)(const CliEditsItemsCfg *args);
-    int (*completion_put)(const CliEditsItemsCfg *args);
+    int (*completion_append)(const CliEditsItemsCfg *args);
     void (*completions_unique)(const CliEditsItemsCfg *args);
 } CliEditsItemsNs;
-EMBED_TABLE_LAYOUT(CliEditsItemsNs, completions_begin, completion_put, completions_unique);
+EMBED_TABLE_LAYOUT(CliEditsItemsNs, completions_begin, completion_append, completions_unique);
 EMBED_TABLE_STORAGE CliEditsItemsNs cli_edits_items EMBED_UNUSED = {
     .completions_begin = cli_completions_begin,
-    .completion_put = cli_completion_put,
+    .completion_append = cli_completion_append,
     .completions_unique = cli_completions_unique,
-};
-
-typedef struct
-{
-    void (*completion_write)(const CliEditsOutItemsCfg *args);
-} CliEditsOutItemsNs;
-EMBED_TABLE_LAYOUT(CliEditsOutItemsNs, completion_write);
-EMBED_TABLE_STORAGE CliEditsOutItemsNs cli_edits_out_items EMBED_UNUSED = {
-    .completion_write = cli_completion_write,
 };
 
 #endif

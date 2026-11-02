@@ -33,7 +33,7 @@ typedef struct
     unsigned long long size;
     unsigned int most;
     const char *path;
-    char *out_room;
+    char *out_capacity;
     char *stem;
     unsigned int named_value;
     unsigned int words_node;
@@ -167,7 +167,7 @@ int cli_debug_adapter(const CliDebugErrMsgCtx *args)
     EMBED_CALL(find_ahead_first, DebugFindCtx, .json = &manifest_json, .named_out = named, .words = specs,
                .count = count, .ahead = args->ahead);
     unsigned int folders = 0u;
-    s_folders = cli_toolchains_path_taken(&folders, &g_cli_debug_cells);
+    s_folders = cli_toolchains_path_allocated(&folders, &g_cli_debug_cells);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         EMBED_CALL(cli_toolchains_json.find, CliToolchainsJsonCfg, .json = &manifest_json, .tool = named[at],
@@ -288,36 +288,38 @@ int cli_debug_build_program(const CliDebugErrMsgProgramCtx *args)
         tool, "--build", args->made->build, "--target", args->made->target, "--config", args->made->config, NULL, NULL};
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_buf = {why, sizeof(why), 0ull};
-    CliRan *const ran = cli_ran_take();
+    CliRunResult *const run_result = cli_run_result_alloc();
     if (!EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = meson ? meson_words : cmake_words, .folder = NULL,
-                    .settings = settings, .count = 1u, .ran = ran, .err_msg = &err_buf))
+                    .settings = settings, .count = 1u, .run_result = run_result, .err_msg = &err_buf))
     {
-        EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+        EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
         mmgr_line_put(args->err_msg, tool);
         mmgr_line_put(args->err_msg, ": ");
         mmgr_line_put_n(args->err_msg, err_buf.out, err_buf.at);
         return 0;
     }
-    if (ran->code != 0ll)
+    if (run_result->code != 0ll)
     {
         // what the build wrote to its output, then to its errors, as one text, a cell of their size
-        char *const both = g_cli_cells->temporary_buf_alloc(ran->out_size + ran->err_size + 1ull, &g_cli_debug_cells);
+        char *const both =
+            g_cli_cells->temporary_buf_alloc(run_result->out_size + run_result->err_size + 1ull, &g_cli_debug_cells);
         mmgr_line_put(args->err_msg, "The build of ");
         mmgr_line_put(args->err_msg, args->made->target);
         mmgr_line_put(args->err_msg, " failed");
         if (both != NULL)
         {
-            memor.cpy(&(MemoriaCfg){.dst = both, .src = ran->out, .bytes = ran->out_size});
-            memor.cpy(&(MemoriaCfg){.dst = both + ran->out_size, .src = ran->err, .bytes = ran->err_size});
+            memor.cpy(&(MemoriaCfg){.dst = both, .src = run_result->out, .bytes = run_result->out_size});
+            memor.cpy(&(MemoriaCfg){
+                .dst = both + run_result->out_size, .src = run_result->err, .bytes = run_result->err_size});
             mmgr_line_put(args->err_msg, ":\n");
-            EMBED_CALL(find_tail, DebugFindCtx, .text = both, .size = ran->out_size + ran->err_size,
+            EMBED_CALL(find_tail, DebugFindCtx, .text = both, .size = run_result->out_size + run_result->err_size,
                        .most = CLI_DEBUG_TAIL, .out = args->err_msg);
         }
         g_cli_cells->persistent_buf_release(both, &g_cli_debug_cells);
-        EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+        EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
         return 0;
     }
-    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+    EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
     memor.cpy(
         &(MemoriaCfg){.dst = args->program,
                       .src = args->made->program,
@@ -329,18 +331,18 @@ int cli_debug_build_program(const CliDebugErrMsgProgramCtx *args)
 // none; and its name without its extension into `stem`, sized for CLI_PATH_MAX_LEN
 EMBED_INLINE void find_name_parts(const DebugFindCtx *args)
 {
-    char *out = args->out_room;
+    char *out = args->out_capacity;
     const char *name = args->path;
-    const unsigned long long name_past =
+    const unsigned long long name_end =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
                    .at = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}), .set = "/\\");
-    name = (name_past != 0ull) ? (args->path + name_past) : name;
+    name = (name_end != 0ull) ? (args->path + name_end) : name;
     const char *const dot =
         EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = name,
                    .length_value = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .byte = '.');
     const int has = (dot != NULL) && (dot != name);
     VerbaLinea extension = {out, CLI_NAME_MAX_LEN, 0ull};
-    EMBED_CALL(cli_text_out_name.put_lower, CliTextOutNameCfg, .out = &extension, .text = has ? (dot + 1) : "");
+    EMBED_CALL(cli_text_out_name.append_lower, CliTextOutNameCfg, .out = &extension, .text = has ? (dot + 1) : "");
     mmgr_line_finish(&extension);
     VerbaLinea stem_line = {args->stem, CLI_PATH_MAX_LEN, 0ull};
     mmgr_line_put_n(&stem_line, name,
@@ -376,16 +378,17 @@ EMBED_INLINE int find_build_words(const DebugFindCtx *args)
         const char *const text = (word != NULL) ? word : "";
         if (cellul.eq(&(CatenaFinitaCfg){.src = text, .other = "{path}", .cap = CLI_CELLS_POOL}))
         {
-            EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = words,
+            EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
                        .word = path);
         }
         else if (cellul.eq(&(CatenaFinitaCfg){.src = text, .other = "{out}", .cap = CLI_CELLS_POOL}))
         {
-            EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = words, .word = out);
+            EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
+                       .word = out);
         }
         else if (cellul.eq(&(CatenaFinitaCfg){.src = text, .other = "{program}", .cap = CLI_CELLS_POOL}))
         {
-            EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = words,
+            EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
                        .word = args->program);
         }
         else if ((length >= 2ull) && (text[0] == '{') && (text[length - 1ull] == '}'))
@@ -411,12 +414,12 @@ EMBED_INLINE int find_build_words(const DebugFindCtx *args)
                 mmgr_line_put(args->err_msg, folder);
                 return 0;
             }
-            EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = words,
+            EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
                        .word = found);
         }
         else
         {
-            EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = words,
+            EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
                        .word = text);
         }
     }
@@ -430,7 +433,7 @@ int cli_debug_build(const CliDebugErrMsgLanguageCtx *args)
     char extension[CLI_NAME_MAX_LEN];
     char stem[CLI_PATH_MAX_LEN];
     char keys[2][CLI_NAME_MAX_LEN];
-    EMBED_CALL(find_name_parts, DebugFindCtx, .path = path, .out_room = extension, .stem = stem);
+    EMBED_CALL(find_name_parts, DebugFindCtx, .path = path, .out_capacity = extension, .stem = stem);
     VerbaLinea key = {keys[0], sizeof(keys[0]), 0ull};
     mmgr_line_put(&key, args->language);
     mmgr_line_ch(&key, '.');
@@ -477,7 +480,7 @@ int cli_debug_build(const CliDebugErrMsgLanguageCtx *args)
     EMBED_CALL(find_ahead_first, DebugFindCtx, .json = &json, .named_out = named, .words = words_of, .count = count,
                .ahead = args->ahead);
     unsigned int folders = 0u;
-    s_folders = cli_toolchains_path_taken(&folders, &g_cli_debug_cells);
+    s_folders = cli_toolchains_path_allocated(&folders, &g_cli_debug_cells);
     unsigned int chosen = count;
     char compiler[CLI_PATH_MAX_LEN];
     for (unsigned int at = 0u; (at < count) && (chosen == count); at += 1u)
@@ -549,31 +552,31 @@ int cli_debug_build(const CliDebugErrMsgLanguageCtx *args)
     const CliSetting settings[1] = {{"PATH", run_path}};
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_buf = {why, sizeof(why), 0ull};
-    CliRan *const ran = cli_ran_take();
-    const int ran_well =
-        EMBED_CALL(cli_words_internal.ran_within, CliWordsCtx, .words = s_words.word, .folder = args->root,
+    CliRunResult *const run_result = cli_run_result_alloc();
+    const int run_result_well =
+        EMBED_CALL(cli_words_internal.run_result_within, CliWordsCtx, .words = s_words.word, .folder = args->root,
                    .settings = settings, .count = 1u, .input = NULL, .length = 0ull,
-                   .milliseconds_u64 = CLI_DEBUG_BUILDING, .ran = ran, .err_msg = &err_buf);
-    if (!ran_well)
+                   .milliseconds_u64 = CLI_DEBUG_BUILDING, .run_result = run_result, .err_msg = &err_buf);
+    if (!run_result_well)
     {
         mmgr_line_put(args->err_msg, s_words.word[0]);
         mmgr_line_put(args->err_msg, ": ");
         mmgr_line_put_n(args->err_msg, err_buf.out, err_buf.at);
     }
-    if (ran_well && ran->stopped)
+    if (run_result_well && run_result->stopped)
     {
         mmgr_line_put(args->err_msg, "the build took longer than 300 s");
     }
-    else if (ran_well && (ran->code != 0ll))
+    else if (run_result_well && (run_result->code != 0ll))
     {
         unsigned long long length = 0ull;
         mmgr_line_put(args->err_msg, "the build for debugging failed:\n");
         // its errors, then its output, trimmed at both ends
         const unsigned long long start = args->err_msg->at;
         EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = args->err_msg,
-                   .text_bytes = (const unsigned char *)ran->err, .length = ran->err_size);
+                   .text_bytes = (const unsigned char *)run_result->err, .length = run_result->err_size);
         EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = args->err_msg,
-                   .text_bytes = (const unsigned char *)ran->out, .length = ran->out_size);
+                   .text_bytes = (const unsigned char *)run_result->out, .length = run_result->out_size);
         while ((args->err_msg->at > start) &&
                (cellul.chr(&(CatenaFinitaCfg){.src = " \t\r\n\f\v",
                                               .cap = CLI_CELLS_POOL,
@@ -592,8 +595,8 @@ int cli_debug_build(const CliDebugErrMsgLanguageCtx *args)
                                       .bytes = args->err_msg->at - start - length});
         args->err_msg->at -= length;
     }
-    const int done = ran_well && !ran->stopped && (ran->code == 0ll);
-    EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
+    const int done = run_result_well && !run_result->stopped && (run_result->code == 0ll);
+    EMBED_CALL(cli_words_internal.run_result_free, CliWordsCtx, .run_result = run_result);
     if (done)
     {
         memor.cpy(&(MemoriaCfg){.dst = args->program,

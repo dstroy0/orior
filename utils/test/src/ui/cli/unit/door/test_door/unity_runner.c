@@ -27,13 +27,8 @@ extern void test_a_persistent_key_receives_its_answer(void);
 extern void test_a_persistent_key_is_refused_a_channel_it_does_not_name(void);
 extern void test_a_key_not_persistent_is_accepted_from_its_own_process_alone(void);
 extern void test_a_key_of_a_process_is_accepted_from_every_process_under_it(void);
-extern void test_a_body_past_the_most_a_frame_accepts_is_received_whole(void);
-extern void test_a_body_past_the_most_a_frame_accepts_is_received_the_other_way(void);
-extern void test_a_short_body_goes_in_its_frame(void);
-extern void test_each_long_body_is_counted_through_the_transfer_layer(void);
-extern void test_a_frame_past_the_most_a_frame_accepts_is_not_read(void);
-extern void test_a_frame_written_reads_back_as_itself(void);
-extern void test_every_place_is_released_once_its_process_is_gone(void);
+extern void test_a_frame_end_the_max_a_frame_accepts_is_not_read(void);
+extern void test_every_position_is_released_once_its_process_is_removed(void);
 
 
 /*=======Mock Management=====*/
@@ -95,29 +90,24 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\door\\test_door\\test_door.c");
-  run_test(test_a_process_joins_by_its_key, "test_a_process_joins_by_its_key", 385);
-  run_test(test_a_process_listens_on_its_channels, "test_a_process_listens_on_its_channels", 392);
-  run_test(test_a_message_on_its_channel_reaches_it, "test_a_message_on_its_channel_reaches_it", 398);
-  run_test(test_a_message_is_received_with_its_speaker, "test_a_message_is_received_with_its_speaker", 404);
-  run_test(test_a_note_is_received_by_both_its_listeners, "test_a_note_is_received_by_both_its_listeners", 414);
-  run_test(test_a_part_may_not_send_where_its_key_does_not_permit, "test_a_part_may_not_send_where_its_key_does_not_permit", 423);
-  run_test(test_a_part_may_not_listen_where_its_key_does_not_permit, "test_a_part_may_not_listen_where_its_key_does_not_permit", 430);
-  run_test(test_a_key_of_another_process_is_refused, "test_a_key_of_another_process_is_refused", 437);
-  run_test(test_a_key_of_no_part_is_refused, "test_a_key_of_no_part_is_refused", 444);
-  run_test(test_a_key_of_the_containers_own_is_refused, "test_a_key_of_the_containers_own_is_refused", 451);
-  run_test(test_a_persistent_key_is_accepted_from_any_process, "test_a_persistent_key_is_accepted_from_any_process", 458);
-  run_test(test_a_persistent_key_sends_on_its_own_channel, "test_a_persistent_key_sends_on_its_own_channel", 466);
-  run_test(test_a_persistent_key_receives_its_answer, "test_a_persistent_key_receives_its_answer", 474);
-  run_test(test_a_persistent_key_is_refused_a_channel_it_does_not_name, "test_a_persistent_key_is_refused_a_channel_it_does_not_name", 482);
-  run_test(test_a_key_not_persistent_is_accepted_from_its_own_process_alone, "test_a_key_not_persistent_is_accepted_from_its_own_process_alone", 488);
-  run_test(test_a_key_of_a_process_is_accepted_from_every_process_under_it, "test_a_key_of_a_process_is_accepted_from_every_process_under_it", 494);
-  run_test(test_a_body_past_the_most_a_frame_accepts_is_received_whole, "test_a_body_past_the_most_a_frame_accepts_is_received_whole", 516);
-  run_test(test_a_body_past_the_most_a_frame_accepts_is_received_the_other_way, "test_a_body_past_the_most_a_frame_accepts_is_received_the_other_way", 526);
-  run_test(test_a_short_body_goes_in_its_frame, "test_a_short_body_goes_in_its_frame", 535);
-  run_test(test_each_long_body_is_counted_through_the_transfer_layer, "test_each_long_body_is_counted_through_the_transfer_layer", 542);
-  run_test(test_a_frame_past_the_most_a_frame_accepts_is_not_read, "test_a_frame_past_the_most_a_frame_accepts_is_not_read", 549);
-  run_test(test_a_frame_written_reads_back_as_itself, "test_a_frame_written_reads_back_as_itself", 574);
-  run_test(test_every_place_is_released_once_its_process_is_gone, "test_every_place_is_released_once_its_process_is_gone", 592);
+  run_test(test_a_process_joins_by_its_key, "test_a_process_joins_by_its_key", 310);
+  run_test(test_a_process_listens_on_its_channels, "test_a_process_listens_on_its_channels", 317);
+  run_test(test_a_message_on_its_channel_reaches_it, "test_a_message_on_its_channel_reaches_it", 323);
+  run_test(test_a_message_is_received_with_its_speaker, "test_a_message_is_received_with_its_speaker", 329);
+  run_test(test_a_note_is_received_by_both_its_listeners, "test_a_note_is_received_by_both_its_listeners", 339);
+  run_test(test_a_part_may_not_send_where_its_key_does_not_permit, "test_a_part_may_not_send_where_its_key_does_not_permit", 348);
+  run_test(test_a_part_may_not_listen_where_its_key_does_not_permit, "test_a_part_may_not_listen_where_its_key_does_not_permit", 355);
+  run_test(test_a_key_of_another_process_is_refused, "test_a_key_of_another_process_is_refused", 362);
+  run_test(test_a_key_of_no_part_is_refused, "test_a_key_of_no_part_is_refused", 369);
+  run_test(test_a_key_of_the_containers_own_is_refused, "test_a_key_of_the_containers_own_is_refused", 376);
+  run_test(test_a_persistent_key_is_accepted_from_any_process, "test_a_persistent_key_is_accepted_from_any_process", 383);
+  run_test(test_a_persistent_key_sends_on_its_own_channel, "test_a_persistent_key_sends_on_its_own_channel", 391);
+  run_test(test_a_persistent_key_receives_its_answer, "test_a_persistent_key_receives_its_answer", 399);
+  run_test(test_a_persistent_key_is_refused_a_channel_it_does_not_name, "test_a_persistent_key_is_refused_a_channel_it_does_not_name", 407);
+  run_test(test_a_key_not_persistent_is_accepted_from_its_own_process_alone, "test_a_key_not_persistent_is_accepted_from_its_own_process_alone", 413);
+  run_test(test_a_key_of_a_process_is_accepted_from_every_process_under_it, "test_a_key_of_a_process_is_accepted_from_every_process_under_it", 419);
+  run_test(test_a_frame_end_the_max_a_frame_accepts_is_not_read, "test_a_frame_end_the_max_a_frame_accepts_is_not_read", 441);
+  run_test(test_every_position_is_released_once_its_process_is_removed, "test_every_position_is_released_once_its_process_is_removed", 466);
 
   return UNITY_END();
 }

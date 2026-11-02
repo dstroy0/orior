@@ -20,18 +20,18 @@ typedef struct
     int found;
     char file[CLI_PATH_MAX_LEN];
     char why[CLI_PATH_MAX_LEN];
-} CliMade;
+} CliCreated;
 // the runs open, the next run's number, whether runs share this process's console, and the lock and wake over them
-CliRun g_cli_runs[CLI_RUNS_MOST];
+CliRun g_cli_runs[CLI_RUNS_MAX];
 unsigned long long g_cli_next_run;
 static int s_attached;
 CliWake g_cli_runs_wake = CLI_WAKE_INIT;
 
-void cli_runs_take(void)
+void cli_runs_alloc(void)
 {
 }
 
-void cli_runs_give(void)
+void cli_runs_release(void)
 {
 }
 
@@ -51,21 +51,21 @@ typedef struct
     const CliRun *run_read;
     CliRun *run;
     const char *text;
-    CliMade *made;
+    CliCreated *made;
     CliCommand *command;
-    const char *shown;
+    const char *displayed;
     const char *view_out;
     int *has_code;
     long long *code;
     double *step_began;
-    int made_step;
+    int created_step;
     double step_began_value;
     int has_code_value;
     long long code_value;
     int *built;
     const char (*pages_found)[CLI_PATH_MAX_LEN];
     unsigned int pages;
-    const char *made_text;
+    const char *created_text;
 } RunnerRunCtx;
 // whether a reader has stopped the run
 EMBED_INLINE int cli_stopping(const RunnerRunCtx *args)
@@ -162,7 +162,7 @@ static int cli_step(const RunnerRunCtx *args)
                               run->run,
                               NULL,
                               "command",
-                              args->shown,
+                              args->displayed,
                               0,
                               0ll,
                               0,
@@ -229,7 +229,8 @@ static int cli_step(const RunnerRunCtx *args)
         *has_code = 0;
         return 0;
     }
-    EMBED_CALL(cli_runner_run_spawned_internal.run_carry, CliRunnerRunSpawnedCtx, .run = run, .spawned = &spawned);
+    EMBED_CALL(cli_runner_run_spawned_internal.run_machine_transfer, CliRunnerRunSpawnedCtx, .run = run,
+               .spawned = &spawned);
     const long long exit_code = EMBED_CALL(cli_spawned_internal.spawn_wait, CliSpawnedCtx, .spawned = &spawned);
     run->process = 0ull;
     run->group = 0ull;
@@ -243,7 +244,7 @@ static int cli_step(const RunnerRunCtx *args)
 enum
 {
     CLI_READY_NOW,
-    CLI_READY_MADE,
+    CLI_READY_CREATED,
     CLI_READY_SIGN
 };
 
@@ -256,7 +257,7 @@ EMBED_INLINE int cli_after_step(const RunnerRunCtx *args)
     int *built = args->built;
     const char *const id = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = &args->run->catalog,
                                       .text_u32 = args->run->catalog.job[0].id);
-    if (args->made_step)
+    if (args->created_step)
     {
         if (args->run->has_first)
         {
@@ -271,7 +272,7 @@ EMBED_INLINE int cli_after_step(const RunnerRunCtx *args)
             EMBED_CALL(cli_run_print_text, RunnerRunCtx, .run = args->run, .text = line);
         }
         const QuerySink sink = {cli_run_print, args->run};
-        EMBED_CALL(cli_executables_root.ran_advice, CliExecutablesRootCfg, .root = args->run->root, .id = id,
+        EMBED_CALL(cli_executables_root.run_result_advice, CliExecutablesRootCfg, .root = args->run->root, .id = id,
                    .has_code = has_code, .code = code, .lines = args->run->lines, .sink = sink);
     }
     else if (!has_code || (code != 0ll))
@@ -283,7 +284,7 @@ EMBED_INLINE int cli_after_step(const RunnerRunCtx *args)
 
 // the commands that sign the program, and the lock they are made under, one run signing at a time
 static CliCommand s_signing[4];
-static char s_signing_shown[4][CLI_PATH_MAX_LEN * 4u];
+static char s_signing_displayed[4][CLI_PATH_MAX_LEN * 4u];
 
 // The program the build made signed: each signing command run as a step, then what signing it reported. 1 where the run
 // goes on
@@ -299,8 +300,9 @@ EMBED_INLINE int cli_sign(const RunnerRunCtx *args)
     }
     char why[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    const int steps = EMBED_CALL(cli_executables_err_msg.sign_steps, CliExecutablesErrMsgCfg, .file = args->made->file,
-                                 .commands = s_signing, .shown = s_signing_shown, .room = 4u, .err_msg = &err_msg);
+    const int steps =
+        EMBED_CALL(cli_executables_err_msg.sign_steps, CliExecutablesErrMsgCfg, .file = args->made->file,
+                   .commands = s_signing, .displayed = s_signing_displayed, .capacity = 4u, .err_msg = &err_msg);
     if (steps < 0)
     {
         mmgr_line_finish(&err_msg);
@@ -315,14 +317,14 @@ EMBED_INLINE int cli_sign(const RunnerRunCtx *args)
         double began = 0.0;
         if (EMBED_CALL(cli_stopping, RunnerRunCtx, .run_read = args->run) ||
             !EMBED_CALL(cli_step, RunnerRunCtx, .run = args->run, .command = &s_signing[at],
-                        .shown = s_signing_shown[at], .view_out = args->view_out, .has_code = has_code,
+                        .displayed = s_signing_displayed[at], .view_out = args->view_out, .has_code = has_code,
                         .code = args->code, .step_began = &began))
         {
             *has_code = EMBED_CALL(cli_stopping, RunnerRunCtx, .run_read = args->run) ? *has_code : 0;
             goes = 0;
             break;
         }
-        goes = EMBED_CALL(cli_after_step, RunnerRunCtx, .run = args->run, .made_step = 0, .step_began_value = began,
+        goes = EMBED_CALL(cli_after_step, RunnerRunCtx, .run = args->run, .created_step = 0, .step_began_value = began,
                           .has_code_value = *has_code, .code_value = *args->code, .built = built);
     }
     if (goes)
@@ -348,7 +350,7 @@ EMBED_INLINE void cli_run_end(const RunnerRunCtx *args)
                              EMBED_CALL(cli_stopping, RunnerRunCtx, .run_read = run),
                              args->pages_found,
                              args->pages,
-                             args->made_text,
+                             args->created_text,
                              EMBED_CALL(cli_runner_internal.run_since, CliRunnerCtx, .run_read = run)};
     EMBED_CALL(run->sink.emit, CliEachEventCfg, .context = run->sink.context, .event = &end);
     EMBED_CALL(cli_runner_run_spawned_internal.run_cells_free, CliRunnerRunSpawnedCtx, .run = run);
@@ -367,14 +369,14 @@ void cli_run_steps(void *context)
     typedef struct
     {
         CliCommand command;
-        char shown[CLI_COMMAND_TEXT];
+        char displayed[CLI_COMMAND_TEXT];
     } CliRunCommand;
     CliRunCommand *const run_command = g_cli_cells->temporary_buf_alloc(sizeof(CliRunCommand), &g_cli_runs_cells);
     if (run_command == NULL)
     {
         EMBED_CALL(cli_run_print_text, RunnerRunCtx, .run = run, .text = "a run's command could not be taken");
         EMBED_CALL(cli_run_end, RunnerRunCtx, .run = run, .has_code_value = 0, .code_value = 0ll, .pages_found = NULL,
-                   .pages = 0u, .made_text = NULL);
+                   .pages = 0u, .created_text = NULL);
         return;
     }
     CliCommand *const command = &run_command->command;
@@ -401,7 +403,7 @@ void cli_run_steps(void *context)
         if (EMBED_CALL(cli_runner_command_table.runs, CliRunnerCommandCfg, .catalog = catalog, .step = step,
                        .values = run->values))
         {
-            ready[count][0] = (step->program == CLI_PROGRAM_MADE) ? CLI_READY_MADE : CLI_READY_NOW;
+            ready[count][0] = (step->program == CLI_PROGRAM_CREATED) ? CLI_READY_CREATED : CLI_READY_NOW;
             ready[count][1] = job->step_first + at;
             count += 1u;
         }
@@ -409,7 +411,7 @@ void cli_run_steps(void *context)
     if (program && cli_executables_signs())
     {
         unsigned int place = 0u;
-        while ((place < count) && (ready[place][0] != CLI_READY_MADE))
+        while ((place < count) && (ready[place][0] != CLI_READY_CREATED))
         {
             place += 1u;
         }
@@ -424,7 +426,7 @@ void cli_run_steps(void *context)
     int has_code = 1;
     long long code = 0ll;
     int built = 1;
-    CliMade made;
+    CliCreated made;
     memor.set(&(MemoriaCfg){.dst = &made, .val = 0, .bytes = sizeof(made)});
     for (unsigned int at = 0u; at < count; at += 1u)
     {
@@ -442,9 +444,9 @@ void cli_run_steps(void *context)
             continue;
         }
         const CliStep *const step = &catalog->step[ready[at][1]];
-        VerbaLinea shown = {run_command->shown, CLI_COMMAND_TEXT, 0ull};
-        const int made_step = ready[at][0] == CLI_READY_MADE;
-        if (made_step)
+        VerbaLinea displayed = {run_command->displayed, CLI_COMMAND_TEXT, 0ull};
+        const int created_step = ready[at][0] == CLI_READY_CREATED;
+        if (created_step)
         {
             if (!EMBED_CALL(cli_find_init, RunnerRunCtx, .run = run, .made = &made))
             {
@@ -453,7 +455,7 @@ void cli_run_steps(void *context)
             }
             EMBED_CALL(cli_executables_values.run_command, CliExecutablesValuesCfg, .root = run->root,
                        .file = made.file, .values = run->values, .system = step->system, .command = command,
-                       .shown_verba_linea_pointer = &shown);
+                       .displayed_verba_linea_pointer = &displayed);
         }
         else
         {
@@ -461,7 +463,7 @@ void cli_run_steps(void *context)
             VerbaLinea err_msg = {why, sizeof(why), 0ull};
             if (!EMBED_CALL(cli_runner_command_table.command, CliRunnerCommandCfg, .root = run->root,
                             .catalog = catalog, .step = step, .values = run->values, .command = command,
-                            .shown = &shown, .err_msg = &err_msg))
+                            .displayed = &displayed, .err_msg = &err_msg))
             {
                 mmgr_line_finish(&err_msg);
                 EMBED_CALL(cli_run_print_text, RunnerRunCtx, .run = run, .text = why);
@@ -469,25 +471,25 @@ void cli_run_steps(void *context)
                 break;
             }
         }
-        mmgr_line_finish(&shown);
+        mmgr_line_finish(&displayed);
         double began = 0.0;
-        if (!EMBED_CALL(cli_step, RunnerRunCtx, .run = run, .command = command, .shown = run_command->shown,
+        if (!EMBED_CALL(cli_step, RunnerRunCtx, .run = run, .command = command, .displayed = run_command->displayed,
                         .view_out = view_out, .has_code = &has_code, .code = &code, .step_began = &began))
         {
-            built = built && made_step;
+            built = built && created_step;
             break;
         }
-        if (!EMBED_CALL(cli_after_step, RunnerRunCtx, .run = run, .made_step = made_step, .step_began_value = began,
-                        .has_code_value = has_code, .code_value = code, .built = &built))
+        if (!EMBED_CALL(cli_after_step, RunnerRunCtx, .run = run, .created_step = created_step,
+                        .step_began_value = began, .has_code_value = has_code, .code_value = code, .built = &built))
         {
             break;
         }
     }
     g_cli_cells->persistent_buf_release(run_command, &g_cli_runs_cells);
     char (*const pages_found)[CLI_PATH_MAX_LEN] =
-        views ? g_cli_cells->persistent_buf_alloc((unsigned long long)CLI_VIEWS_MOST * CLI_PATH_MAX_LEN,
-                                                  &g_cli_runs_cells)
-              : NULL;
+        views
+            ? g_cli_cells->persistent_buf_alloc((unsigned long long)CLI_VIEWS_MAX * CLI_PATH_MAX_LEN, &g_cli_runs_cells)
+            : NULL;
     const unsigned int pages = (pages_found != NULL)
                                    ? EMBED_CALL(cli_runner_root_internal.run_pages, CliRunnerRootCtx, .root = run->root,
                                                 .view_out = view_out, .lines = run->lines, .views = pages_found)
@@ -500,28 +502,28 @@ void cli_run_steps(void *context)
         const QuerySink sink = {cli_run_print, run};
         EMBED_CALL(cli_executables_root.advice, CliExecutablesRootCfg, .id = id, .lines = run->lines, .sink = sink);
     }
-    char made_text[CLI_PATH_MAX_LEN];
-    const int has_made =
+    char created_text[CLI_PATH_MAX_LEN];
+    const int has_created =
         program && built && !stopped && EMBED_CALL(cli_find_init, RunnerRunCtx, .run = run, .made = &made);
-    if (has_made)
+    if (has_created)
     {
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = run->root, .cap = CLI_CELLS_POOL});
         if (EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = made.file, .other_pointer = run->root,
                        .size = length))
         {
             EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = run->root, .path = made.file,
-                       .relative_out = made_text);
+                       .relative_out = created_text);
         }
         else
         {
             memor.cpy(
-                &(MemoriaCfg){.dst = made_text,
+                &(MemoriaCfg){.dst = created_text,
                               .src = made.file,
                               .bytes = cellul.len(&(CatenaFinitaCfg){.src = made.file, .cap = CLI_CELLS_POOL}) + 1u});
         }
     }
     EMBED_CALL(cli_run_end, RunnerRunCtx, .run = run, .has_code_value = has_code, .code_value = code,
                .pages_found = (const char (*)[CLI_PATH_MAX_LEN])pages_found, .pages = pages,
-               .made_text = has_made ? made_text : NULL);
+               .created_text = has_created ? created_text : NULL);
     g_cli_cells->persistent_buf_release(pages_found, &g_cli_runs_cells);
 }

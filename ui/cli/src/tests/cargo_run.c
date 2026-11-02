@@ -20,7 +20,7 @@ typedef struct
 } CliCargoGroup;
 // the longest list of names a run gives the harness, in characters; past it a target runs whole and only the results
 // requested of it are reported
-#define CLI_CARGO_NAMES_MOST 16000ull
+#define CLI_CARGO_NAMES_MAX 16000ull
 
 // the most targets a run reaches
 #define CLI_CARGO_GROUPS 1024u
@@ -33,7 +33,7 @@ typedef struct
 {
     const CliCargoFound *one;
     const CliCargoFound *other;
-    const char *const *given;
+    const char *const *supplied;
     unsigned int count;
     const char *text;
     const char *root;
@@ -62,12 +62,12 @@ EMBED_INLINE int run_same_target(const CargoRunCtx *args)
                 .src = args->one->target.name, .other = other->target.name, .cap = CLI_CELLS_POOL})));
 }
 
-// whether `given`, `count` of them, contains `text`
+// whether `supplied`, `count` of them, contains `text`
 EMBED_INLINE int run_free(const CargoRunCtx *args)
 {
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = args->given[at], .other = args->text, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = args->supplied[at], .other = args->text, .cap = CLI_CELLS_POOL}))
         {
             return 1;
         }
@@ -101,27 +101,27 @@ static unsigned int run_group(const CargoRunCtx *args)
         group_of[at] = group;
         s_groups[group].total += (group < groups) ? 1u : 0u;
     }
-    unsigned int placed = 0u;
+    unsigned int positioned = 0u;
     unsigned int group_count = 0u;
     for (unsigned int group = 0u; group < groups; group += 1u)
     {
         CliCargoGroup made = s_groups[group];
-        made.first_at = placed;
+        made.first_at = positioned;
         for (unsigned int at = 0u; at < s_tests.count; at += 1u)
         {
             const CliCargoFound *const one = &s_tests.found[at];
             const int by_file =
-                EMBED_CALL(run_free, CargoRunCtx, .given = args->given, .count = count, .text = one->test.file);
+                EMBED_CALL(run_free, CargoRunCtx, .supplied = args->supplied, .count = count, .text = one->test.file);
             if ((group_of[at] == group) &&
-                (EMBED_CALL(run_free, CargoRunCtx, .given = args->given, .count = count, .text = one->test.id) ||
+                (EMBED_CALL(run_free, CargoRunCtx, .supplied = args->supplied, .count = count, .text = one->test.id) ||
                  by_file))
             {
-                s_order[placed] = at;
-                placed += 1u;
+                s_order[positioned] = at;
+                positioned += 1u;
                 made.named = made.named && !by_file;
             }
         }
-        made.count = placed - made.first_at;
+        made.count = positioned - made.first_at;
         if (made.count > 0u)
         {
             s_groups[group_count] = made;
@@ -131,10 +131,10 @@ static unsigned int run_group(const CargoRunCtx *args)
     return group_count;
 }
 
-unsigned int cli_cargo_targets_free(const CliCargoTestsGivenCfg *args)
+unsigned int cli_cargo_targets_free(const CliCargoTestsInputCfg *args)
 {
     const unsigned int groups =
-        EMBED_CALL(run_group, CargoRunCtx, .root = args->root, .given = args->given, .count = args->count);
+        EMBED_CALL(run_group, CargoRunCtx, .root = args->root, .supplied = args->supplied, .count = args->count);
     return groups;
 }
 
@@ -250,13 +250,13 @@ EMBED_INLINE void run_build_fail(const CargoRunCtx *args)
     long long line = -1ll;
     unsigned long long length = 0ull;
     if (!EMBED_CALL(cli_cargo_report_size.cargo_build_error, CliCargoReportSizeCfg, .output = args->errors,
-                    .size = size, .error = message, .room = sizeof(message), .length = &length, .path = path,
+                    .size = size, .error = message, .capacity = sizeof(message), .length = &length, .path = path,
                     .line = &line))
     {
         path[0] = '\0';
         line = -1ll;
         EMBED_CALL(cli_cargo_report_size_text.cargo_last_line, CliCargoReportSizeTextCfg, .text = args->errors,
-                   .size = size, .none = "cargo test ran no test", .out_out = message, .room = sizeof(message),
+                   .size = size, .none = "cargo test ran no test", .out_out = message, .capacity = sizeof(message),
                    .length = &length);
     }
     char file[CLI_PATH_MAX_LEN];
@@ -314,13 +314,13 @@ static void run_worker(void *context)
 EMBED_INLINE void run_target_words(const CargoRunCtx *args)
 {
     CliWords *words = args->words;
-    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = words,
+    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
                .word = (args->target->kind == CLI_CARGO_LIB)   ? "--lib"
                        : (args->target->kind == CLI_CARGO_BIN) ? "--bin"
                                                                : "--test");
     if (args->target->kind != CLI_CARGO_LIB)
     {
-        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = words,
+        EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
                    .word = args->target->name);
     }
 }
@@ -358,57 +358,58 @@ EMBED_INLINE int run_target_start(const CargoRunCtx *args)
     const char *const head[3] = {cargo, "test", "--package"};
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
-        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+        EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
                    .word = head[at]);
     }
-    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
                .word = first->package);
     EMBED_CALL(run_target_words, CargoRunCtx, .words = &s_words, .target = &first->target);
     const char *const middle[5] = {"--no-fail-fast", "--color", "never", "--manifest-path", manifest};
     for (unsigned int at = 0u; at < 5u; at += 1u)
     {
-        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+        EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
                    .word = middle[at]);
     }
-    EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words, .word = "--");
+    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words, .word = "--");
     worker->named = run->named_count;
     unsigned long long names = 0ull;
     for (unsigned int at = 0u; (at < args->group->count) && (run->named_count < CLI_TEST_NAMED); at += 1u)
     {
         const CliCargoFound *const one = &s_tests.found[s_order[args->group->first_at + at]];
         run->named[run->named_count] = (CliTestNamed){
-            EMBED_CALL(cli_test_runs_run_text_internal.test_put, CliTestRunsRunTextCtx, .run = run,
+            EMBED_CALL(cli_test_runs_run_text_internal.test_append, CliTestRunsRunTextCtx, .run = run,
                        .text = one->test.id,
                        .length = cellul.len(&(CatenaFinitaCfg){.src = one->test.id, .cap = CLI_CELLS_POOL})),
-            EMBED_CALL(cli_test_runs_run_text_internal.test_put, CliTestRunsRunTextCtx, .run = run,
+            EMBED_CALL(cli_test_runs_run_text_internal.test_append, CliTestRunsRunTextCtx, .run = run,
                        .text = one->test.file,
                        .length = cellul.len(&(CatenaFinitaCfg){.src = one->test.file, .cap = CLI_CELLS_POOL})),
             one->test.line,
-            EMBED_CALL(cli_test_runs_run_text_internal.test_put, CliTestRunsRunTextCtx, .run = run, .text = one->full,
+            EMBED_CALL(cli_test_runs_run_text_internal.test_append, CliTestRunsRunTextCtx, .run = run,
+                       .text = one->full,
                        .length = cellul.len(&(CatenaFinitaCfg){.src = one->full, .cap = CLI_CELLS_POOL}))};
         run->named_count += 1u;
         names += cellul.len(&(CatenaFinitaCfg){.src = one->full, .cap = CLI_CELLS_POOL});
     }
     worker->named_count = run->named_count - worker->named;
-    if ((args->group->count != args->group->total) && (names < CLI_CARGO_NAMES_MOST))
+    if ((args->group->count != args->group->total) && (names < CLI_CARGO_NAMES_MAX))
     {
         for (unsigned int at = worker->named; at < run->named_count; at += 1u)
         {
-            EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+            EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
                        .word = run->named[at].full);
         }
-        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+        EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
                    .word = "--exact");
     }
     const char *const tail[3] = {"--show-output", "--color", "never"};
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
-        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+        EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
                    .word = tail[at]);
     }
     if (args->group->named)
     {
-        EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &s_words,
+        EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
                    .word = "--include-ignored");
     }
     EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = s_path, .size = sizeof(s_path));
@@ -449,7 +450,7 @@ EMBED_INLINE int run_target_start(const CargoRunCtx *args)
     return 1;
 }
 
-int cli_cargo_workers_start(const CliTestRunsRunGivenCtx *args)
+int cli_cargo_workers_start(const CliTestRunsRunInputCtx *args)
 {
     char cargo[CLI_PATH_MAX_LEN];
     if (!EMBED_CALL(cli_executables_tool.program, CliExecutablesToolCfg, .tool = "rust", .name = "cargo", .path = cargo,
@@ -458,7 +459,7 @@ int cli_cargo_workers_start(const CliTestRunsRunGivenCtx *args)
         return 0;
     }
     const unsigned int groups =
-        EMBED_CALL(run_group, CargoRunCtx, .root = args->run->root, .given = args->given, .count = args->count);
+        EMBED_CALL(run_group, CargoRunCtx, .root = args->run->root, .supplied = args->supplied, .count = args->count);
     int started = 1;
     for (unsigned int group = 0u; started && (group < groups); group += 1u)
     {

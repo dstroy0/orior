@@ -23,7 +23,7 @@ typedef struct CliPending
     const struct CliPending *next;
 } CliPending;
 // the most texts a pattern's braces spread into
-#define CLI_SPREAD_MOST 1024u
+#define CLI_SPREAD_MAX 1024u
 
 typedef struct
 {
@@ -154,7 +154,7 @@ EMBED_INLINE int cli_build(const EditorconfigNamesCtx *args)
 
 // the whole number written in `length` letters at `at`, an optional sign before its digits: 1, or 0 where they are not
 // one or it is past what a long long stores
-EMBED_INLINE int cli_whole(const EditorconfigNamesCtx *args)
+EMBED_INLINE int cli_span_is_whole_word(const EditorconfigNamesCtx *args)
 {
     long long *number = args->number;
     const int below = (args->length != 0ull) && (args->at[0] == '-');
@@ -218,13 +218,13 @@ static int cli_brace(const EditorconfigNamesCtx *args)
     long long from = 0ll;
     long long to = 0ll;
     if (((dots + 1ull) < inner_length) &&
-        EMBED_CALL(cli_whole, EditorconfigNamesCtx, .at = inner, .length = dots, .number = &from) &&
-        EMBED_CALL(cli_whole, EditorconfigNamesCtx, .at = inner + dots + 2u, .length = inner_length - dots - 2ull,
-                   .number = &to))
+        EMBED_CALL(cli_span_is_whole_word, EditorconfigNamesCtx, .at = inner, .length = dots, .number = &from) &&
+        EMBED_CALL(cli_span_is_whole_word, EditorconfigNamesCtx, .at = inner + dots + 2u,
+                   .length = inner_length - dots - 2ull, .number = &to))
     {
         const long long low = (from < to) ? from : to;
         const long long high = (from < to) ? to : from;
-        for (unsigned long long count = 0ull; count < CLI_SPREAD_MOST; count += 1ull)
+        for (unsigned long long count = 0ull; count < CLI_SPREAD_MAX; count += 1ull)
         {
             // the count stays below the span from low to high, so the sum stays inside a long long
             const long long number = low + (long long)count;
@@ -292,7 +292,7 @@ static int cli_brace(const EditorconfigNamesCtx *args)
 static int cli_spread_match(const EditorconfigNamesCtx *args)
 {
     unsigned long long built = args->built;
-    if (args->spreading->tried >= CLI_SPREAD_MOST)
+    if (args->spreading->tried >= CLI_SPREAD_MAX)
     {
         return 0;
     }
@@ -331,7 +331,7 @@ int cli_editorconfig_names(const CliEditorconfigPatternCfg *args)
     static CliSpreading s_spreading;
     const unsigned long long length =
         EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = args->pattern, .size = args->size,
-                   .letters = s_pattern, .room_u64 = CLI_PATH_MAX_LEN);
+                   .letters = s_pattern, .capacity_u64 = CLI_PATH_MAX_LEN);
     unsigned long long slash = 0ull;
     while ((slash < length) && (s_pattern[slash] != '/'))
     {
@@ -346,7 +346,7 @@ int cli_editorconfig_names(const CliEditorconfigPatternCfg *args)
     s_spreading.target = s_target;
     s_spreading.target_length = EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = target,
                                            .size = cellul.len(&(CatenaFinitaCfg){.src = target, .cap = CLI_CELLS_POOL}),
-                                           .letters = s_target, .room_u64 = CLI_PATH_MAX_LEN);
+                                           .letters = s_target, .capacity_u64 = CLI_PATH_MAX_LEN);
     s_spreading.tried = 0u;
     return EMBED_CALL(cli_spread_match, EditorconfigNamesCtx, .spreading = &s_spreading, .built = 0ull,
                       .at = s_pattern + from, .length = length - from, .pending = NULL);

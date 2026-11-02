@@ -49,7 +49,7 @@ EMBED_INLINE void cli_file_problem(const SettingsPartsCtx *args)
 }
 
 // a part of a file put after the parts, its values from `first`
-EMBED_INLINE unsigned int cli_part_put(const SettingsPartsCtx *args)
+EMBED_INLINE unsigned int cli_part_append(const SettingsPartsCtx *args)
 {
     if (args->parts < CLI_LAYER_PARTS)
     {
@@ -61,7 +61,7 @@ EMBED_INLINE unsigned int cli_part_put(const SettingsPartsCtx *args)
 }
 
 // a value a part sets put after the values: the count after
-EMBED_INLINE unsigned int cli_value_put(const SettingsPartsCtx *args)
+EMBED_INLINE unsigned int cli_value_append(const SettingsPartsCtx *args)
 {
     if (args->values < CLI_LAYER_RAW)
     {
@@ -111,11 +111,11 @@ unsigned int cli_settings_file_parts(const CliSettingsLayersCtx *args)
         }
         else if (!EMBED_CALL(cli_settings_key.is_file_key, CliSettingsKeyCfg, .key = key))
         {
-            *values = EMBED_CALL(cli_value_put, SettingsPartsCtx, .values = *values, .key = key, .value = member);
+            *values = EMBED_CALL(cli_value_append, SettingsPartsCtx, .values = *values, .key = key, .value = member);
         }
     }
     const unsigned int rank = args->of_tree ? CLI_RANK_OVER : (args->own ? CLI_RANK_OWN : CLI_RANK_UNDER);
-    parts = EMBED_CALL(cli_part_put, SettingsPartsCtx, .parts = parts, .chain = args->chain, .file_u32 = args->file,
+    parts = EMBED_CALL(cli_part_append, SettingsPartsCtx, .parts = parts, .chain = args->chain, .file_u32 = args->file,
                        .part = NULL, .first_u32 = first, .values = *values, .rank = rank);
     const unsigned int set = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                         .object = object, .name = args->layers->system);
@@ -144,12 +144,13 @@ unsigned int cli_settings_file_parts(const CliSettingsLayersCtx *args)
             }
             else
             {
-                *values = EMBED_CALL(cli_value_put, SettingsPartsCtx, .values = *values, .key = key, .value = member);
+                *values =
+                    EMBED_CALL(cli_value_append, SettingsPartsCtx, .values = *values, .key = key, .value = member);
             }
         }
-        parts = EMBED_CALL(cli_part_put, SettingsPartsCtx, .parts = parts, .chain = args->chain, .file_u32 = args->file,
-                           .part = args->layers->system, .first_u32 = system_first, .values = *values,
-                           .rank = (rank == CLI_RANK_UNDER) ? CLI_RANK_UNDER : CLI_RANK_OVER);
+        parts = EMBED_CALL(cli_part_append, SettingsPartsCtx, .parts = parts, .chain = args->chain,
+                           .file_u32 = args->file, .part = args->layers->system, .first_u32 = system_first,
+                           .values = *values, .rank = (rank == CLI_RANK_UNDER) ? CLI_RANK_UNDER : CLI_RANK_OVER);
     }
     else if (set != CLI_JSON_NONE)
     {
@@ -167,11 +168,13 @@ unsigned int cli_settings_file_parts(const CliSettingsLayersCtx *args)
             const char *const key = json->text + json->node[member].key;
             if (!EMBED_CALL(cli_settings_key.is_file_key, CliSettingsKeyCfg, .key = key))
             {
-                *values = EMBED_CALL(cli_value_put, SettingsPartsCtx, .values = *values, .key = key, .value = member);
+                *values =
+                    EMBED_CALL(cli_value_append, SettingsPartsCtx, .values = *values, .key = key, .value = member);
             }
         }
-        parts = EMBED_CALL(cli_part_put, SettingsPartsCtx, .parts = parts, .chain = args->chain, .file_u32 = args->file,
-                           .part = "machine", .first_u32 = machine_first, .values = *values, .rank = CLI_RANK_OVER);
+        parts =
+            EMBED_CALL(cli_part_append, SettingsPartsCtx, .parts = parts, .chain = args->chain, .file_u32 = args->file,
+                       .part = "machine", .first_u32 = machine_first, .values = *values, .rank = CLI_RANK_OVER);
     }
     return parts;
 }

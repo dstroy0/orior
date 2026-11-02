@@ -11,7 +11,7 @@
 
 #define BENCH_RULE_NAME 28u
 
-static CliRegexpRoom s_room;
+static CliRegexpWorkState s_work_state;
 
 // the pattern tried over `count` loaded files, the letters decoded into `letters` each time: the measure
 static BenchMeasure rules_tried(const CliRegexp *regexp, const BenchFile *files, unsigned int count,
@@ -31,7 +31,7 @@ static BenchMeasure rules_tried(const CliRegexp *regexp, const BenchFile *files,
                 continue;
             }
             const unsigned long long length =
-                EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = (const char *)files[file].bytes, .size = files[file].size, .letters = letters, .room_u64 = files[file].size);
+                EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = (const char *)files[file].bytes, .size = files[file].size, .letters = letters, .capacity_u64 = files[file].size);
             for (unsigned long long at = 0ull; at < length;)
             {
                 const int found = EMBED_CALL(cli_regexp_text_u_32s.match_into, CliRegexpTextU32sCfg, .regexp = regexp, .text_u32s = letters, .length = length, .at = at, .groups = groups);
@@ -41,9 +41,9 @@ static BenchMeasure rules_tried(const CliRegexp *regexp, const BenchFile *files,
             }
             bytes += files[file].size;
         }
-        const unsigned long long took = cli_clock_microseconds() - began;
+        const unsigned long long consumed = cli_clock_microseconds() - began;
         measure.bytes = bytes;
-        measure.least = (took < measure.least) ? took : measure.least;
+        measure.min = (consumed < measure.min) ? consumed : measure.min;
         *matched = hits;
     }
     return measure;
@@ -77,9 +77,9 @@ static void rules_cut_down(const CliJson *json, unsigned int grammar, const Benc
     const unsigned int tokenizer = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = grammar, .name = "tokenizer");
     for (unsigned int at = 0u; at < 5u; at += 1u)
     {
-        const unsigned long long made_room = 1ull << 16u;
-        char *const made_cell = g_cli_cells->temporary_buf_alloc(made_room, &g_checks_cells);
-        VerbaLinea made = mmgr_line_over(made_cell, made_room);
+        const unsigned long long created_capacity = 1ull << 16u;
+        char *const created_cell = g_cli_cells->temporary_buf_alloc(created_capacity, &g_checks_cells);
+        VerbaLinea made = mmgr_line_over(created_cell, created_capacity);
         if (made.out == NULL)
         {
             return;
@@ -100,7 +100,7 @@ static void rules_cut_down(const CliJson *json, unsigned int grammar, const Benc
         CliJson cut;
         char why[CLI_ERR_MSG_MAX_LEN];
         VerbaLinea err_msg = {why, sizeof(why), 0ull};
-        const unsigned int top = EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg, .json = &cut, .text = made.out, .size = made.at, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = &g_checks_cells);
+        const unsigned int top = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &cut, .text = made.out, .size = made.at, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = &g_checks_cells);
         if ((top != CLI_JSON_NONE) && EMBED_CALL(cli_highlight_key_json.store, CliHighlightKeyJsonCfg, .key = "bench-cut", .json = &cut, .def = top, .err_msg = &err_msg))
         {
             bench_row(s_cut_down[at].name, bench_colored("bench-cut", files, count, repeat, largest));
@@ -120,7 +120,7 @@ void bench_rules(const char *root, const BenchFile *files, unsigned int count, u
     char path[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = "ui/plugins/c/plugin.json", .joined = path);
     unsigned long long size = 0ull;
-    const unsigned char *const text = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = path, .size_pointer = &size, .owner = &g_checks_cells);
+    const unsigned char *const text = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = path, .size_pointer = &size, .owner = &g_checks_cells);
     if (text == NULL)
     {
         return;
@@ -128,7 +128,7 @@ void bench_rules(const char *root, const BenchFile *files, unsigned int count, u
     CliJson json;
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    const unsigned int top = EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg, .json = &json, .text = (const char *)text, .size = size, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = &g_checks_cells);
+    const unsigned int top = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json, .text = (const char *)text, .size = size, .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = &g_checks_cells);
     const unsigned int grammar = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json, .object = top, .name = "grammar");
     const unsigned int rules = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json, .object = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json, .object = grammar, .name = "tokenizer"), .name = "root");
     const int fold = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json, .object = grammar, .name = "ignoreCase"), .kind = CFG_JSON_TRUE);
@@ -152,7 +152,7 @@ void bench_rules(const char *root, const BenchFile *files, unsigned int count, u
             continue;
         }
         CliRegexp regexp;
-        EMBED_CALL(cli_regexp_room.room, CliRegexpRoomCfg, .regexp_out = &regexp, .room = &s_room);
+        EMBED_CALL(cli_regexp_capacity.capacity, CliRegexpWorkStateCfg, .regexp_out = &regexp, .work_state = &s_work_state);
         err_msg.at = 0ull;
         if (!EMBED_CALL(cli_regexp_source.read, CliRegexpSourceCfg, .regexp_out = &regexp, .source = pattern, .flags = fold ? "i" : "", .err_msg = &err_msg))
         {

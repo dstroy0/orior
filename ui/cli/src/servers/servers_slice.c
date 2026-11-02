@@ -39,8 +39,8 @@ typedef struct
     VerbaLinea text;
     VerbaLinea map;
     VerbaLinea paths;
-    const char *last_given;
-    unsigned int last_place;
+    const char *last_input;
+    unsigned int last_position;
     unsigned int lines;
 } CliServersSlicing;
 // the last line in view of a file the page has not handed its view of, and the lines of each window the check slices a
@@ -50,7 +50,7 @@ typedef struct
 #define CLI_SERVERS_SLICE_HEIGHT (CLI_SERVERS_SLICE_LAST + 1u)
 #define CLI_SERVERS_SLICE_OPENERS 64u
 #define CLI_SERVERS_SLICES 256u
-#define CLI_SERVERS_SLICE_ROOM (4ull << 20u)
+#define CLI_SERVERS_SLICE_CAPACITY (4ull << 20u)
 #define CLI_SERVERS_SLICE_MAPPED_MORE 4096ull
 
 // One line of a slice: the place of the path it came from among the slice's paths, CLI_JSON_NONE for none, and its
@@ -99,15 +99,15 @@ typedef struct
 } ServersSliceCtx;
 // the place among the paths of the slice being cut of `path`, put after them where it is not among them, CLI_JSON_NONE
 // for none
-EMBED_INLINE unsigned int slice_path_place(const ServersSliceCtx *args)
+EMBED_INLINE unsigned int slice_path_position(const ServersSliceCtx *args)
 {
     if (args->path == NULL)
     {
         return CLI_JSON_NONE;
     }
-    if (args->path == args->slicing->last_given)
+    if (args->path == args->slicing->last_input)
     {
-        return args->slicing->last_place;
+        return args->slicing->last_position;
     }
     const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL});
     unsigned long long at = 0ull;
@@ -126,21 +126,21 @@ EMBED_INLINE unsigned int slice_path_place(const ServersSliceCtx *args)
         mmgr_line_put_n(&args->slicing->paths, args->path, (size_t)size);
         mmgr_line_ch(&args->slicing->paths, '\0');
     }
-    args->slicing->last_given = args->path;
+    args->slicing->last_input = args->path;
     // the paths of one slice are below 2^32 bytes, its lines naming few files
-    args->slicing->last_place = (unsigned int)at;
-    return args->slicing->last_place;
+    args->slicing->last_position = (unsigned int)at;
+    return args->slicing->last_position;
 }
 
 // one line of the slice put after those before it, with where it came from
-static void slice_line_put(const CliSliceLineCfg *args)
+static void slice_line_append(const CliSliceLineCfg *args)
 {
     const char *path = args->path;
     CliServersSlicing *const slicing = args->context;
     // a line of a text is below 2^32 bytes
     mmgr_line_put_n(&slicing->text, args->text, (size_t)args->length);
     mmgr_line_ch(&slicing->text, '\n');
-    const CliServersSliceLine one = {EMBED_CALL(slice_path_place, ServersSliceCtx, .slicing = slicing, .path = path),
+    const CliServersSliceLine one = {EMBED_CALL(slice_path_position, ServersSliceCtx, .slicing = slicing, .path = path),
                                      args->line};
     mmgr_line_put_n(&slicing->map, (const char *)&one, sizeof(one));
     slicing->lines += 1u;
@@ -159,12 +159,12 @@ EMBED_INLINE void slice_lines_free(const ServersSliceCtx *args)
 EMBED_INLINE int slice_lines_init(const ServersSliceCtx *args)
 {
     CliServersSlicing *slicing = args->slicing;
-    char *const text_cell = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_SLICE_ROOM, &g_cli_servers_cells);
-    char *const map_cell = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_SLICE_ROOM, &g_cli_servers_cells);
-    char *const paths_cell = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_SLICE_ROOM, &g_cli_servers_cells);
-    *slicing = (CliServersSlicing){mmgr_line_over(text_cell, CLI_SERVERS_SLICE_ROOM),
-                                   mmgr_line_over(map_cell, CLI_SERVERS_SLICE_ROOM),
-                                   mmgr_line_over(paths_cell, CLI_SERVERS_SLICE_ROOM),
+    char *const text_cell = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_SLICE_CAPACITY, &g_cli_servers_cells);
+    char *const map_cell = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_SLICE_CAPACITY, &g_cli_servers_cells);
+    char *const paths_cell = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_SLICE_CAPACITY, &g_cli_servers_cells);
+    *slicing = (CliServersSlicing){mmgr_line_over(text_cell, CLI_SERVERS_SLICE_CAPACITY),
+                                   mmgr_line_over(map_cell, CLI_SERVERS_SLICE_CAPACITY),
+                                   mmgr_line_over(paths_cell, CLI_SERVERS_SLICE_CAPACITY),
                                    NULL,
                                    CLI_JSON_NONE,
                                    0u};
@@ -184,13 +184,13 @@ static int slice_save(const ServersSliceCtx *args)
     args->head->root_size = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL}) + 1ull;
     args->head->paths_size = args->slicing_read->paths.at;
     const unsigned long long hash =
-        EMBED_CALL(cli_servers_reading_internal.hash_get, CliServersReadingCtx, .text = args->slicing_read->text.out,
-                   .size = args->slicing_read->text.at);
+        EMBED_CALL(cli_servers_read_state_internal.hash_get, CliServersReadStateCtx,
+                   .text = args->slicing_read->text.out, .size = args->slicing_read->text.at);
     *fresh = args->always || (args->head->cut == 0ull) || (args->head->hash != hash);
     // a file opened afresh has had nothing published of it by the server it is opened in
     if (*fresh && (version == 1ull))
     {
-        EMBED_CALL(cli_keyed_key_beside.remove, CliKeyedKeyBesideCfg, .keyed_out = &s_published, .key = key);
+        EMBED_CALL(cli_keyed_key_adjacent.remove, CliKeyedKeyAdjacentCfg, .keyed_out = &s_published, .key = key);
     }
     s_cuts += *fresh ? 1ull : 0ull;
     args->head->cut = *fresh ? s_cuts : args->head->cut;
@@ -217,8 +217,8 @@ static int slice_save(const ServersSliceCtx *args)
             .dst = stored + at, .src = args->slicing_read->paths.out, .bytes = args->slicing_read->paths.at});
     }
     const int saved = (stored != NULL) &&
-                      EMBED_CALL(cli_keyed_key_beside.put, CliKeyedKeyBesideCfg, .keyed_out = &s_slices, .key = key,
-                                 .beside_value = args->path, .text = stored, .size_value = stored_size);
+                      EMBED_CALL(cli_keyed_key_adjacent.put, CliKeyedKeyAdjacentCfg, .keyed_out = &s_slices, .key = key,
+                                 .adjacent_value = args->path, .text = stored, .size_value = stored_size);
     g_cli_cells->persistent_buf_release(stored, &g_cli_servers_cells);
     return saved;
 }
@@ -244,17 +244,18 @@ static char *slice_cut(const ServersSliceCtx *args)
         EMBED_CALL(slice_lines_init, ServersSliceCtx, .slicing = &slicing) && (mmgr_line_finish(&own_line) != 0ull);
     if (made)
     {
-        (void)EMBED_CALL(slice_path_place, ServersSliceCtx, .slicing = &slicing, .path = own);
+        (void)EMBED_CALL(slice_path_position, ServersSliceCtx, .slicing = &slicing, .path = own);
     }
     const int cut = made && EMBED_CALL(cli_symbols_path.slice_each, CliSymbolsPathCfg, .path = own, .text = text,
                                        .size = size, .first = args->head->first, .last = args->head->last,
                                        .opener = opener, .openers = args->head->openers,
-                                       .each_slice_line = slice_line_put, .context = &slicing, .err_msg = err_msg);
-    const int whole = cut && mmgr_line_ok(&slicing.text) && mmgr_line_ok(&slicing.map) && mmgr_line_ok(&slicing.paths);
+                                       .each_slice_line = slice_line_append, .context = &slicing, .err_msg = err_msg);
+    const int integer =
+        cut && mmgr_line_ok(&slicing.text) && mmgr_line_ok(&slicing.map) && mmgr_line_ok(&slicing.paths);
     const int saved =
-        whole && EMBED_CALL(slice_save, ServersSliceCtx, .root = args->root, .path = path, .key = args->key,
-                            .head = args->head, .opener = opener, .slicing_read = &slicing, .version = args->version,
-                            .always = args->always, .fresh = args->fresh);
+        integer && EMBED_CALL(slice_save, ServersSliceCtx, .root = args->root, .path = path, .key = args->key,
+                              .head = args->head, .opener = opener, .slicing_read = &slicing, .version = args->version,
+                              .always = args->always, .fresh = args->fresh);
     if (!saved)
     {
         // a walk that could not cut it gave why already
@@ -275,10 +276,10 @@ static char *slice_cut(const ServersSliceCtx *args)
 EMBED_INLINE const char *slice_store(const ServersSliceCtx *args)
 {
     const char *key = args->key;
-    const char *beside = NULL;
+    const char *adjacent = NULL;
     unsigned long long size = 0ull;
-    const char *const stored = EMBED_CALL(cli_keyed_key_beside.get, CliKeyedKeyBesideCfg, .keyed = &s_slices,
-                                          .key = key, .beside = &beside, .size = &size);
+    const char *const stored = EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &s_slices,
+                                          .key = key, .adjacent = &adjacent, .size = &size);
     if ((stored == NULL) || (size < sizeof(*args->head)))
     {
         return NULL;
@@ -370,7 +371,7 @@ int cli_servers_slice_send(const CliServersPathSizeRootCtx *args)
     g_cli_cells->persistent_buf_release(slice, &g_cli_servers_cells);
     if (sent && fresh)
     {
-        EMBED_CALL(cli_servers_internal.ask_note, CliServersCtx, .server_read = args->server);
+        EMBED_CALL(cli_servers_internal.request_note, CliServersCtx, .server_read = args->server);
     }
     return sent;
 }
@@ -393,9 +394,9 @@ struct CliServersCut
 };
 
 // one line of a window's slice put after those before it
-static void slices_line_put(const CliSliceLineCfg *args)
+static void slices_line_append(const CliSliceLineCfg *args)
 {
-    EMBED_CALL(slice_line_put, CliSliceLineCfg, .context = &((CliServersCut *)args->context)->slicing,
+    EMBED_CALL(slice_line_append, CliSliceLineCfg, .context = &((CliServersCut *)args->context)->slicing,
                .path = args->path, .line = args->line, .text = args->text, .length = args->length);
 }
 
@@ -415,10 +416,10 @@ static int slices_window(const CliSliceWindowCfg *args)
     cut->slicing.text.at = 0u;
     cut->slicing.map.at = 0u;
     cut->slicing.paths.at = 0u;
-    cut->slicing.last_given = NULL;
-    cut->slicing.last_place = CLI_JSON_NONE;
+    cut->slicing.last_input = NULL;
+    cut->slicing.last_position = CLI_JSON_NONE;
     cut->slicing.lines = 0u;
-    (void)EMBED_CALL(slice_path_place, ServersSliceCtx, .slicing = &cut->slicing, .path = cut->own);
+    (void)EMBED_CALL(slice_path_position, ServersSliceCtx, .slicing = &cut->slicing, .path = cut->own);
     return going;
 }
 
@@ -448,14 +449,14 @@ int cli_servers_slices_cut(const CliServersPathSizeRootErrMsgCtx *args)
                      (mmgr_line_finish(&own_line) != 0ull);
     if (made)
     {
-        (void)EMBED_CALL(slice_path_place, ServersSliceCtx, .slicing = &cut->slicing, .path = cut->own);
+        (void)EMBED_CALL(slice_path_position, ServersSliceCtx, .slicing = &cut->slicing, .path = cut->own);
     }
-    const int walked =
-        made && EMBED_CALL(cli_symbols_path_text_size_context_err_msg.slices_each,
-                           CliSymbolsPathTextSizeContextErrMsgCfg, .path = cut->own, .text = args->text,
-                           .size = args->size, .height = CLI_SERVERS_SLICE_HEIGHT, .each_slice_line = slices_line_put,
-                           .window = slices_window, .context = cut, .err_msg = args->err_msg);
-    const int whole = walked && !cut->refused;
+    const int walked = made && EMBED_CALL(cli_symbols_path_text_size_context_err_msg.slices_each,
+                                          CliSymbolsPathTextSizeContextErrMsgCfg, .path = cut->own, .text = args->text,
+                                          .size = args->size, .height = CLI_SERVERS_SLICE_HEIGHT,
+                                          .each_slice_line = slices_line_append, .window = slices_window,
+                                          .context = cut, .err_msg = args->err_msg);
+    const int integer = walked && !cut->refused;
     // a walk that could not cut them gave why already
     if (!made || cut->refused)
     {
@@ -463,7 +464,7 @@ int cli_servers_slices_cut(const CliServersPathSizeRootErrMsgCtx *args)
     }
     EMBED_CALL(slice_lines_free, ServersSliceCtx, .slicing = &cut->slicing);
     g_cli_cells->persistent_buf_release(cut, &g_cli_servers_cells);
-    return whole;
+    return integer;
 }
 
 int cli_servers_cut_send(const CliServersErrMsgServerCtx *args)
@@ -489,7 +490,7 @@ int cli_servers_cut_send(const CliServersErrMsgServerCtx *args)
                                                   .length = args->cut->slicing.text.at, .err_msg = err_msg));
     if (sent)
     {
-        EMBED_CALL(cli_servers_internal.ask_note, CliServersCtx, .server_read = args->server);
+        EMBED_CALL(cli_servers_internal.request_note, CliServersCtx, .server_read = args->server);
     }
     if (!saved)
     {
@@ -511,47 +512,47 @@ void cli_servers_slice_close(const CliServersPathLspCtx *args)
 {
     char key[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = args->path, .key_out = key);
-    EMBED_CALL(cli_keyed_key_beside.remove, CliKeyedKeyBesideCfg, .keyed_out = &s_slices, .key = key);
-    EMBED_CALL(cli_keyed_key_beside.remove, CliKeyedKeyBesideCfg, .keyed_out = &s_published, .key = key);
+    EMBED_CALL(cli_keyed_key_adjacent.remove, CliKeyedKeyAdjacentCfg, .keyed_out = &s_slices, .key = key);
+    EMBED_CALL(cli_keyed_key_adjacent.remove, CliKeyedKeyAdjacentCfg, .keyed_out = &s_published, .key = key);
 }
 
 // One sliced file read for whether it owes its diagnostics, and whether any does
 typedef struct
 {
-    int owed;
+    int pending;
 } CliServersOwing;
 
 // a sliced file stored as `text`, `size` bytes, owing its diagnostics where its version is above the last published
-static void slice_owing(const CliEachKeyBesideTextSizeCfg *args)
+static void slice_owing(const CliEachKeyAdjacentTextSizeCfg *args)
 {
     const char *key = args->key;
-    const char *beside = args->beside;
+    const char *adjacent = args->adjacent;
     unsigned long long size = args->size;
-    (void)beside;
+    (void)adjacent;
     CliServersOwing *const owing = (CliServersOwing *)args->context;
     CliServersSliceHead head;
-    if (owing->owed || (size < sizeof(head)))
+    if (owing->pending || (size < sizeof(head)))
     {
         return;
     }
     memor.cpy(&(MemoriaCfg){.dst = &head, .src = args->text, .bytes = sizeof(head)});
     const char *ignored = NULL;
     unsigned long long published_size = 0ull;
-    const char *const published = EMBED_CALL(cli_keyed_key_beside.get, CliKeyedKeyBesideCfg, .keyed = &s_published,
-                                             .key = key, .beside = &ignored, .size = &published_size);
+    const char *const published = EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &s_published,
+                                             .key = key, .adjacent = &ignored, .size = &published_size);
     unsigned long long version = 0ull;
     if ((published != NULL) && (published_size == sizeof(version)))
     {
         memor.cpy(&(MemoriaCfg){.dst = &version, .src = published, .bytes = sizeof(version)});
     }
-    owing->owed = head.version > version;
+    owing->pending = head.version > version;
 }
 
-int cli_servers_slices_owed(void)
+int cli_servers_slices_pending(void)
 {
     CliServersOwing owing = {0};
     EMBED_CALL(cli_keyed_each_table.each, CliKeyedEachCfg, .keyed = &s_slices, .each = slice_owing, .context = &owing);
-    return owing.owed;
+    return owing.pending;
 }
 
 int cli_servers_view(const CliServersPathOutErrMsgCfg *args)
@@ -565,7 +566,7 @@ int cli_servers_view(const CliServersPathOutErrMsgCfg *args)
             ? EMBED_CALL(cli_servers_path_lsp_internal.owner_start, CliServersPathLspCtx, .path = path)
             : NULL;
     unsigned long long size = 0ull;
-    char *const text = (server != NULL) ? EMBED_CALL(cli_servers_path_size_kind.text_take, CliServersPathSizeKindCfg,
+    char *const text = (server != NULL) ? EMBED_CALL(cli_servers_path_size_kind.text_alloc, CliServersPathSizeKindCfg,
                                                      .path = path, .size_pointer = &size)
                                         : NULL;
     if (text == NULL)
@@ -623,7 +624,7 @@ int cli_servers_view(const CliServersPathOutErrMsgCfg *args)
     }
     if (sent && cut)
     {
-        EMBED_CALL(cli_servers_internal.ask_note, CliServersCtx, .server_read = server);
+        EMBED_CALL(cli_servers_internal.request_note, CliServersCtx, .server_read = server);
     }
     g_cli_cells->persistent_buf_release(text, &g_cli_servers_cells);
     EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = server);
@@ -651,7 +652,7 @@ int cli_servers_slice_in(const CliServersPathLineCtx *args)
 int cli_servers_slice_out(const CliServersPathLineFromCtx *args)
 {
     unsigned int *line = args->line_pointer;
-    VerbaLinea from_line = {args->from_room, CLI_PATH_MAX_LEN, 0ull};
+    VerbaLinea from_line = {args->from_capacity, CLI_PATH_MAX_LEN, 0ull};
     mmgr_line_put(&from_line, args->path);
     (void)mmgr_line_finish(&from_line);
     char key[CLI_PATH_MAX_LEN];
@@ -671,7 +672,7 @@ int cli_servers_slice_out(const CliServersPathLineFromCtx *args)
         {
             const char *const root = EMBED_CALL(slice_root, ServersSliceCtx, .stored = stored, .head_read = &head);
             EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = root + head.root_size + one.path,
-                       .joined = args->from_room);
+                       .joined = args->from_capacity);
         }
     }
     return moved;
@@ -684,11 +685,11 @@ EMBED_INLINE void slice_ranged_write(const ServersSliceCtx *args)
     VerbaLinea *out = args->out;
     const unsigned int range = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                           .object = args->one, .name = "range");
-    const CliTextPlace start =
+    const CliTextPosition start =
         EMBED_CALL(cli_servers_json_node_otherwise_internal.place, CliServersJsonNodeOtherwiseCtx, .json = json,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                       .object = range, .name = "start"));
-    const CliTextPlace end =
+    const CliTextPosition end =
         EMBED_CALL(cli_servers_json_node_otherwise_internal.place, CliServersJsonNodeOtherwiseCtx, .json = json,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                       .object = range, .name = "end"));
@@ -722,11 +723,11 @@ int cli_servers_slice_ranged_in(const CliServersPathJsonCtx *args)
 {
     const unsigned int range = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                           .json_read = args->json, .object = args->one, .name = "range");
-    const CliTextPlace start =
+    const CliTextPosition start =
         EMBED_CALL(cli_servers_json_node_otherwise_internal.place, CliServersJsonNodeOtherwiseCtx, .json = args->json,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
                                       .object = range, .name = "start"));
-    const CliTextPlace end =
+    const CliTextPosition end =
         EMBED_CALL(cli_servers_json_node_otherwise_internal.place, CliServersJsonNodeOtherwiseCtx, .json = args->json,
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
                                       .object = range, .name = "end"));
@@ -785,26 +786,26 @@ char *cli_servers_slice_diagnostics(const CliServersPathSizeCtx *args)
     const char *const stored = ((found != NULL) && (!versioned || (version >= head.version))) ? found : NULL;
     if ((stored != NULL) && versioned)
     {
-        (void)EMBED_CALL(cli_keyed_key_beside.put, CliKeyedKeyBesideCfg, .keyed_out = &s_published, .key = key,
-                         .beside_value = "", .text = (const char *)&version, .size_value = sizeof(version));
+        (void)EMBED_CALL(cli_keyed_key_adjacent.put, CliKeyedKeyAdjacentCfg, .keyed_out = &s_published, .key = key,
+                         .adjacent_value = "", .text = (const char *)&version, .size_value = sizeof(version));
     }
     CliJson json;
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &json,
-               .node_json_node_pointer = NULL, .nodes_most = 0u, .text_out = NULL, .text_most = 0ull);
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
     char quiet[256];
     VerbaLinea ignored = {quiet, sizeof(quiet), 0ull};
-    const unsigned int array = (stored != NULL)
-                                   ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg,
-                                                .json = &json, .text = args->all, .size = size, .nodes_more = 0u,
-                                                .text_more = 0ull, .err_msg = &ignored, .owner = &g_cli_servers_cells)
-                                   : CLI_JSON_NONE;
+    const unsigned int array =
+        (stored != NULL) ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
+                                      .json = &json, .text = args->all, .size = size, .nodes_more = 0u,
+                                      .text_more = 0ull, .err_msg = &ignored, .owner = &g_cli_servers_cells)
+                         : CLI_JSON_NONE;
     // a diagnostic's numbers written again are at most as long again as those it came with
-    const unsigned long long mapped_room = (2ull * size) + CLI_SERVERS_SLICE_MAPPED_MORE;
+    const unsigned long long mapped_capacity = (2ull * size) + CLI_SERVERS_SLICE_MAPPED_MORE;
     char *const mapped_cell = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json,
                                          .node = array, .kind = CFG_JSON_ARRAY)
-                                  ? g_cli_cells->temporary_buf_alloc(mapped_room, args->owner)
+                                  ? g_cli_cells->temporary_buf_alloc(mapped_capacity, args->owner)
                                   : NULL;
-    VerbaLinea mapped = mmgr_line_over(mapped_cell, mapped_room);
+    VerbaLinea mapped = mmgr_line_over(mapped_cell, mapped_capacity);
     const int made = mapped_cell != NULL;
     if (made)
     {
@@ -814,11 +815,11 @@ char *cli_servers_slice_diagnostics(const CliServersPathSizeCtx *args)
         {
             const unsigned int range = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                   .json_read = &json, .object = one, .name = "range");
-            const CliTextPlace start = EMBED_CALL(
+            const CliTextPosition start = EMBED_CALL(
                 cli_servers_json_node_otherwise_internal.place, CliServersJsonNodeOtherwiseCtx, .json = &json,
                 .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
                                    .object = range, .name = "start"));
-            const CliTextPlace end = EMBED_CALL(
+            const CliTextPosition end = EMBED_CALL(
                 cli_servers_json_node_otherwise_internal.place, CliServersJsonNodeOtherwiseCtx, .json = &json,
                 .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
                                    .object = range, .name = "end"));

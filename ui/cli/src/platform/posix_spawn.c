@@ -32,11 +32,11 @@ typedef struct
     const char *const *words;
     const char *folder;
     int detached;
-    int fed;
+    int stdin_written;
     VerbaLinea *err_msg;
     int leader;
     char *name;
-    size_t room;
+    size_t capacity;
     pid_t child;
 #endif
 } PosixSpawnCtx;
@@ -98,14 +98,14 @@ EMBED_INLINE void cli_spawn_lower(const PosixSpawnCtx *args)
 #endif
 }
 
-// a process started, its standard input a pipe this process feeds where `fed`, else /dev/null, at `priority`
+// a process started, its standard input a pipe this process feeds where `stdin_written`, else /dev/null, at `priority`
 static int cli_spawn_with(const PosixSpawnCtx *args)
 {
     memor.set(&(MemoriaCfg){.dst = args->spawned, .val = 0, .bytes = sizeof(*args->spawned)});
     int out[2] = {-1, -1};
     int err[2] = {-1, -1};
     int in[2] = {-1, -1};
-    if ((pipe(out) != 0) || (pipe(err) != 0) || (args->fed && (pipe(in) != 0)))
+    if ((pipe(out) != 0) || (pipe(err) != 0) || (args->stdin_written && (pipe(in) != 0)))
     {
         for (unsigned int at = 0u; at < 2u; at += 1u)
         {
@@ -128,7 +128,7 @@ static int cli_spawn_with(const PosixSpawnCtx *args)
         close(out[1]);
         close(err[0]);
         close(err[1]);
-        if (args->fed)
+        if (args->stdin_written)
         {
             close(in[0]);
             close(in[1]);
@@ -138,7 +138,7 @@ static int cli_spawn_with(const PosixSpawnCtx *args)
     }
     if (child == 0)
     {
-        const int nothing = args->fed ? in[0] : open("/dev/null", O_RDONLY);
+        const int nothing = args->stdin_written ? in[0] : open("/dev/null", O_RDONLY);
         dup2(nothing, 0);
         dup2(out[1], 1);
         dup2(err[1], 2);
@@ -146,7 +146,7 @@ static int cli_spawn_with(const PosixSpawnCtx *args)
         close(out[1]);
         close(err[0]);
         close(err[1]);
-        if (args->fed)
+        if (args->stdin_written)
         {
             close(in[0]);
             close(in[1]);
@@ -167,7 +167,7 @@ static int cli_spawn_with(const PosixSpawnCtx *args)
     }
     close(out[1]);
     close(err[1]);
-    if (args->fed)
+    if (args->stdin_written)
     {
         close(in[0]);
     }
@@ -176,7 +176,7 @@ static int cli_spawn_with(const PosixSpawnCtx *args)
     args->spawned->id = (unsigned long long)child;
     args->spawned->out = (unsigned long long)out[0] + 1ull;
     args->spawned->err = (unsigned long long)err[0] + 1ull;
-    args->spawned->in = args->fed ? ((unsigned long long)in[1] + 1ull) : 0ull;
+    args->spawned->in = args->stdin_written ? ((unsigned long long)in[1] + 1ull) : 0ull;
     return 1;
 }
 
@@ -184,31 +184,31 @@ int cli_spawn(const CliWordsErrMsgCtx *args)
 {
     return EMBED_CALL(cli_spawn_with, PosixSpawnCtx, .priority = CLI_PRIORITY_WORK, .spawned = args->spawned,
                       .words = args->words, .folder = args->folder, .settings = args->settings, .count = args->count,
-                      .detached = args->detached, .fed = 0, .err_msg = args->err_msg);
+                      .detached = args->detached, .stdin_written = 0, .err_msg = args->err_msg);
 }
 
 int cli_spawn_as(const CliWordsErrMsgCtx *args)
 {
     return EMBED_CALL(cli_spawn_with, PosixSpawnCtx, .priority = args->priority, .spawned = args->spawned,
                       .words = args->words, .folder = args->folder, .settings = args->settings, .count = args->count,
-                      .detached = args->detached, .fed = 0, .err_msg = args->err_msg);
+                      .detached = args->detached, .stdin_written = 0, .err_msg = args->err_msg);
 }
 
 int cli_spawn_feed(const CliWordsErrMsgCtx *args)
 {
-    return EMBED_CALL(cli_words_err_msg_internal.spawn_fed_as, CliWordsErrMsgCtx, .priority = CLI_PRIORITY_WORK,
+    return EMBED_CALL(cli_words_err_msg_internal.spawn_piped_as, CliWordsErrMsgCtx, .priority = CLI_PRIORITY_WORK,
                       .spawned = args->spawned, .words = args->words, .folder = args->folder,
                       .settings = args->settings, .count = args->count, .detached = args->detached,
                       .err_msg = args->err_msg);
 }
 
-int cli_spawn_fed_as(const CliWordsErrMsgCtx *args)
+int cli_spawn_piped_as(const CliWordsErrMsgCtx *args)
 {
     // a write to a pipe whose reader has gone fails, and does not end this process
     signal(SIGPIPE, SIG_IGN);
     return EMBED_CALL(cli_spawn_with, PosixSpawnCtx, .priority = args->priority, .spawned = args->spawned,
                       .words = args->words, .folder = args->folder, .settings = args->settings, .count = args->count,
-                      .detached = args->detached, .fed = 1, .err_msg = args->err_msg);
+                      .detached = args->detached, .stdin_written = 1, .err_msg = args->err_msg);
 }
 
 // a terminal's columns or rows as the system counts them, two at the fewest
@@ -218,15 +218,15 @@ EMBED_INLINE unsigned short cli_terminal_extent(const PosixSpawnCtx *args)
     return (unsigned short)((args->count < 2u) ? 2u : ((args->count > 0x7fffu) ? 0x7fffu : args->count));
 }
 
-// the name of the terminal the pseudo-terminal `leader` leads into `name`, sized for `room`: 1, or 0 where the system
-// names none; ptsname's own room is shared, and read under a lock where ptsname_r is not the system's
+// the name of the terminal the pseudo-terminal `leader` leads into `name`, sized for `capacity`: 1, or 0 where the
+// system names none; ptsname's own capacity is shared, and read under a lock where ptsname_r is not the system's
 EMBED_INLINE int cli_terminal_by_name(const PosixSpawnCtx *args)
 {
 #if defined(__linux__)
-    return ptsname_r(args->leader, args->name, args->room) == 0;
+    return ptsname_r(args->leader, args->name, args->capacity) == 0;
 #else
     const char *const named = ptsname(args->leader);
-    VerbaLinea line = {args->name, args->room, 0ull};
+    VerbaLinea line = {args->name, args->capacity, 0ull};
     mmgr_line_put(&line, (named != NULL) ? named : "");
     const int whole = (named != NULL) && (mmgr_line_finish(&line) != 0ull);
     return whole;
@@ -238,9 +238,9 @@ int cli_spawn_terminal(const CliWordsErrMsgSpawnedCtx *args)
     memor.set(&(MemoriaCfg){.dst = args->spawned, .val = 0, .bytes = sizeof(*args->spawned)});
     char follower[CLI_PATH_MAX_LEN];
     const int leader = posix_openpt(O_RDWR | O_NOCTTY);
-    const int opened =
-        (leader >= 0) && (grantpt(leader) == 0) && (unlockpt(leader) == 0) &&
-        EMBED_CALL(cli_terminal_by_name, PosixSpawnCtx, .leader = leader, .name = follower, .room = sizeof(follower));
+    const int opened = (leader >= 0) && (grantpt(leader) == 0) && (unlockpt(leader) == 0) &&
+                       EMBED_CALL(cli_terminal_by_name, PosixSpawnCtx, .leader = leader, .name = follower,
+                                  .capacity = sizeof(follower));
     const int written = opened ? dup(leader) : -1;
     if (!opened || (written < 0))
     {
@@ -345,13 +345,13 @@ void cli_spawn_input_close(const CliSpawnedCtx *args)
     }
 }
 
-unsigned long long cli_spawn_read(const CliRoomPipeHandleCtx *args)
+unsigned long long cli_spawn_read(const CliCapacityPipeHandleCtx *args)
 {
     if (args->pipe_handle == 0ull)
     {
         return 0ull;
     }
-    const ssize_t read_count = read((int)(args->pipe_handle - 1ull), args->piece, (size_t)args->room);
+    const ssize_t read_count = read((int)(args->pipe_handle - 1ull), args->piece, (size_t)args->capacity);
     // a count read is not negative here
     return (read_count > 0) ? (unsigned long long)read_count : 0ull;
 }
@@ -385,25 +385,25 @@ int cli_spawn_poll(const CliSpawnedCtx *args)
 
 // the children let go of before they ended, each waited on once it ends so that none is left a zombie: the most let
 // go of at once
-#define CLI_SPAWN_LET_GO_MOST 256u
-static pid_t s_let_go[CLI_SPAWN_LET_GO_MOST];
+#define CLI_SPAWN_LET_GO_MAX 256u
+static pid_t s_let_go[CLI_SPAWN_LET_GO_MAX];
 
 // `child`, let go of before it ended, put among the children let go of where `child` is not 0, and every one of them
 // that has ended waited on and its place freed
 EMBED_INLINE void cli_spawn_let_go(const PosixSpawnCtx *args)
 {
-    int placed = (args->child == 0);
-    for (unsigned int at = 0u; at < CLI_SPAWN_LET_GO_MOST; at += 1u)
+    int positioned = (args->child == 0);
+    for (unsigned int at = 0u; at < CLI_SPAWN_LET_GO_MAX; at += 1u)
     {
         int status = 0;
         if ((s_let_go[at] != 0) && (waitpid(s_let_go[at], &status, WNOHANG) != 0))
         {
             s_let_go[at] = 0;
         }
-        if (!placed && (s_let_go[at] == 0))
+        if (!positioned && (s_let_go[at] == 0))
         {
             s_let_go[at] = args->child;
-            placed = 1;
+            positioned = 1;
         }
     }
 }
@@ -457,12 +457,12 @@ int cli_spawn_interrupt(const CliColsCtx *args)
     return kill((pid_t)args->spawned_read->process, SIGINT) == 0;
 }
 
-unsigned int cli_path_folders(const CliRoomFoldersCtx *args)
+unsigned int cli_path_folders(const CliCapacityFoldersCtx *args)
 {
-    unsigned int room = args->room_u32;
+    unsigned int capacity = args->capacity_u32;
     static char s_path[QUERY_ENVIRONMENT_MAX_LEN];
     if (!EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "PATH", .value_out = s_path,
-                    .room = sizeof(s_path)))
+                    .capacity = sizeof(s_path)))
     {
         return 0u;
     }
@@ -472,7 +472,7 @@ unsigned int cli_path_folders(const CliRoomFoldersCtx *args)
     {
         if ((at[0] == ':') || (at[0] == '\0'))
         {
-            if ((at > from) && (count < room))
+            if ((at > from) && (count < capacity))
             {
                 VerbaLinea line = {args->folders[count], CLI_PATH_MAX_LEN, 0ull};
                 mmgr_line_put_n(&line, from, (unsigned long long)(at - from));

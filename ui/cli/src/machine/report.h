@@ -37,7 +37,7 @@ typedef struct CliReportCfg CliReportCfg;
     "orior_cli files the errors it meets as issues on dstroy0/orior on its own: through your GitHub CLI where it is "  \
     "signed in, else as a page opened for you to submit. Help, Automatic Error Reports turns it on or off later."
 
-// the longest a filled-in issue page's address grows, which browsers and GitHub both read whole, with room past it
+// the longest a filled-in issue page's address grows, which browsers and GitHub both read whole, with capacity past it
 #define CLI_REPORT_ADDRESS 7000u
 
 #define CLI_REPORT_URL 8192u
@@ -119,7 +119,7 @@ struct CliReportCategoryTextCfg
 {
     const char *category;
     const char *text;
-    char *out_room;
+    char *out_capacity;
 };
 
 struct CliReportRootOutCfg

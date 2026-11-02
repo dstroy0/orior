@@ -98,7 +98,7 @@ typedef struct
 // left and the rest a `step` apart: a point's origin is its row and column, and it stays where it is whatever the box
 // it is laid out over; each keeps the place it moves toward on its circle around its origin, drawn from a seed of its
 // row and column, as its offset across and down, a signed byte each, the circle's radius LATTICE_OFFSET_MOST, two bytes
-// a point for as many as `capacity` points. Made once a page draws with them, as many as `dots_room` and `placed_room`
+// a point for as many as `capacity` points. Made once a page draws with them, as many as `dots_capacity` and `placed_capacity`
 // hold: each point moved and shaded as a dot, and each placed point's place, two doubles a point grouped by level,
 // with how many points stand at each level
 typedef struct
@@ -107,8 +107,8 @@ typedef struct
     LatticeDot *dots;
     double *placed;
     uint32_t capacity;
-    uint32_t dots_room;
-    uint32_t placed_room;
+    uint32_t dots_capacity;
+    uint32_t placed_capacity;
     uint32_t count;
     uint32_t columns;
     uint32_t rows;

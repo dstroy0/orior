@@ -3,11 +3,11 @@
 // panel.h: what the panels over the editor share: the box each stands on, the widget's ground inside a line with the
 // corners rounded; Markdown laid out in a width and drawn, paragraphs in the text face wrapped at blanks, fenced code
 // in the code face line by line, inline code in the code face in the type's color, a rule as a line; and a box placed
-// against the cell it answers for, below it where the room allows, else above, saved inside its bounds (panel.c)
+// against the cell it answers for, below it where the capacity allows, else above, saved inside its bounds (panel.c)
 #ifndef GUI_PARTS_PANEL_H
 #define GUI_PARTS_PANEL_H
 typedef struct GuiPanelRasterCfg GuiPanelRasterCfg;
-typedef struct GuiPanelWideCfg GuiPanelWideCfg;
+typedef struct GuiPanelWidthCfg GuiPanelWidthCfg;
 typedef struct GuiPanelCfg GuiPanelCfg;
 #include "../glyphs.h"
 #include "../palette.h"
@@ -30,16 +30,17 @@ typedef struct GuiPanelCfg GuiPanelCfg;
 // the box drawn: `rect` filled with the widget's ground inside a one pixel line of the widget's line color, the
 // corners rounded
 void gui_panel_box_draw(const GuiPanelCfg *args);
-// `length` bytes of Markdown `text` laid out `wide` pixels wide at `scale` from the top left x, y and drawn on
+// `length` bytes of Markdown `text` laid out `pixel_width` pixels wide at `scale` from the top left x, y and drawn on
 // `raster`, no further than `clip`, or measured alone where `raster` is NULL: the height the text takes in pixels. A
 // line of three backticks opens and closes a fenced block, each line of which is drawn in the code face in the editor's
 // text color, broken by letters where it is wider than the width; a line of three dashes alone is a rule; a blank line
 // ends a paragraph; every other run of lines is one paragraph, its words laid in the text face and wrapped at blanks,
 // the text between single backticks in the code face in the type's color
 int gui_panel_markdown(const GuiPanelRasterCfg *args);
-// a box `wide` by `tall` placed for the cell `anchor`: below the cell's row, off by GUI_PANEL_OFF, where `bounds` has
-// the room, else above it; its left at the anchor's less `back`, saved inside the bounds; `above` 1 prefers above
-GuiRect gui_panel_place(const GuiPanelWideCfg *args);
+// a box `pixel_width` by `pixel_height` placed for the cell `anchor`: below the cell's row, off by GUI_PANEL_OFF, where
+// `bounds` has the capacity, else above it; its left at the anchor's less `back`, saved inside the bounds; `above` 1
+// prefers above
+GuiRect gui_panel_position(const GuiPanelWidthCfg *args);
 struct GuiPanelRasterCfg
 {
     GuiRaster *raster;
@@ -50,16 +51,16 @@ struct GuiPanelRasterCfg
     unsigned long long length;
     int x;
     int y;
-    int wide;
+    int pixel_width;
     GuiRect clip;
 };
 
-struct GuiPanelWideCfg
+struct GuiPanelWidthCfg
 {
     int scale;
-    int wide;
+    int pixel_width;
     GuiRect anchor;
-    int tall;
+    int pixel_height;
     int back;
     GuiRect bounds;
     int above;
@@ -93,11 +94,11 @@ EMBED_TABLE_STORAGE GuiPanelRasterNs gui_panel_raster EMBED_UNUSED = {
 
 typedef struct
 {
-    GuiRect (*place)(const GuiPanelWideCfg *args);
-} GuiPanelWideNs;
-EMBED_TABLE_LAYOUT(GuiPanelWideNs, place);
-EMBED_TABLE_STORAGE GuiPanelWideNs gui_panel_wide EMBED_UNUSED = {
-    .place = gui_panel_place,
+    GuiRect (*place)(const GuiPanelWidthCfg *args);
+} GuiPanelWidthNs;
+EMBED_TABLE_LAYOUT(GuiPanelWidthNs, place);
+EMBED_TABLE_STORAGE GuiPanelWidthNs gui_panel_width EMBED_UNUSED = {
+    .place = gui_panel_position,
 };
 
 #endif

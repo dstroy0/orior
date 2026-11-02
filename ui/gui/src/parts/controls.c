@@ -19,8 +19,8 @@ typedef struct
     unsigned int box;
     int x;
     int y;
-    int wide;
-    int tall;
+    int pixel_width;
+    int pixel_height;
     int radius;
     GuiMask *shadow;
     GuiColor color;
@@ -30,13 +30,13 @@ typedef struct
 // the rectangle of the control `which` among the frame's controls
 EMBED_INLINE GuiRect controls_button(const ControlsCtx *args)
 {
-    const int wide =
-        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_CONTROL_WIDE, .scale = args->frame->scale);
+    const int pixel_width =
+        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_CONTROL_WIDTH, .scale = args->frame->scale);
     const int gap =
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_CONTROL_GAP, .scale = args->frame->scale);
     // a control's index is one of three
-    const int at = args->frame->controls.x + ((int)args->which * (wide + gap));
-    const GuiRect button = {at, args->frame->controls.y, wide, args->frame->controls.height};
+    const int at = args->frame->controls.x + ((int)args->which * (pixel_width + gap));
+    const GuiRect button = {at, args->frame->controls.y, pixel_width, args->frame->controls.height};
     return button;
 }
 
@@ -71,19 +71,22 @@ EMBED_INLINE void controls_box_blur(const ControlsCtx *args)
     }
 }
 
-// whether the pixel at x, y of a box `wide` by `tall` with its corners rounded by `radius` lies inside it
+// whether the pixel at x, y of a box `pixel_width` by `pixel_height` with its corners rounded by `radius` lies inside
+// it
 EMBED_INLINE int controls_in_round(const ControlsCtx *args)
 {
-    if ((args->x < 0) || (args->y < 0) || (args->x >= args->wide) || (args->y >= args->tall))
+    if ((args->x < 0) || (args->y < 0) || (args->x >= args->pixel_width) || (args->y >= args->pixel_height))
     {
         return 0;
     }
-    const int across = (args->x < args->radius)
-                           ? args->radius - args->x
-                           : ((args->x >= args->wide - args->radius) ? args->x - (args->wide - args->radius) + 1 : 0);
-    const int down = (args->y < args->radius)
-                         ? args->radius - args->y
-                         : ((args->y >= args->tall - args->radius) ? args->y - (args->tall - args->radius) + 1 : 0);
+    const int across =
+        (args->x < args->radius)
+            ? args->radius - args->x
+            : ((args->x >= args->pixel_width - args->radius) ? args->x - (args->pixel_width - args->radius) + 1 : 0);
+    const int down =
+        (args->y < args->radius)
+            ? args->radius - args->y
+            : ((args->y >= args->pixel_height - args->radius) ? args->y - (args->pixel_height - args->radius) + 1 : 0);
     return (across == 0) || (down == 0) || (((across * across) + (down * down)) <= (args->radius * args->radius));
 }
 
@@ -122,8 +125,8 @@ EMBED_INLINE void controls_shadow_init(const ControlsCtx *args)
         {
             // the mask's sides are far inside what an int represents
             cover[(y * width) + x] =
-                EMBED_CALL(controls_in_round, ControlsCtx, .x = (int)x - reach, .y = (int)y - reach, .wide = pane.width,
-                           .tall = pane.height, .radius = radius)
+                EMBED_CALL(controls_in_round, ControlsCtx, .x = (int)x - reach, .y = (int)y - reach,
+                           .pixel_width = pane.width, .pixel_height = pane.height, .radius = radius)
                     ? 255u
                     : 0u;
         }
@@ -150,7 +153,7 @@ EMBED_INLINE void controls_shadow_init(const ControlsCtx *args)
         for (unsigned int x = 0u; x < width; x += 1u)
         {
             if (EMBED_CALL(controls_in_round, ControlsCtx, .x = (int)x - reach, .y = (int)y - reach + down,
-                           .wide = pane.width, .tall = pane.height, .radius = radius))
+                           .pixel_width = pane.width, .pixel_height = pane.height, .radius = radius))
             {
                 cover[(y * width) + x] = 0u;
             }
@@ -168,13 +171,13 @@ void gui_controls_shadow_free(const GuiChromeRasterCfg *args)
     args->shadow->height = 0u;
 }
 
-// `color` at `share`, a number of GUI_WHOLE, of its alpha
+// `color` at `share`, a number of GUI_FIXED_ONE, of its alpha
 EMBED_INLINE GuiColor controls_fade(const ControlsCtx *args)
 {
-    const int within = (args->share < 0) ? 0 : ((args->share > GUI_WHOLE) ? GUI_WHOLE : args->share);
-    // an alpha by a share of GUI_WHOLE, rounded, is a byte
+    const int within = (args->share < 0) ? 0 : ((args->share > GUI_FIXED_ONE) ? GUI_FIXED_ONE : args->share);
+    // an alpha by a share of GUI_FIXED_ONE, rounded, is a byte
     return (args->color & 0x00ffffffu) |
-           ((GuiColor)((((int)GUI_ALPHA_OF(args->color) * within) + (GUI_WHOLE / 2)) / GUI_WHOLE) << 24u);
+           ((GuiColor)((((int)GUI_ALPHA_OF(args->color) * within) + (GUI_FIXED_ONE / 2)) / GUI_FIXED_ONE) << 24u);
 }
 
 void gui_controls_draw(const GuiChromeRasterCfg *args)
@@ -203,25 +206,25 @@ void gui_controls_draw(const GuiChromeRasterCfg *args)
     // table whose tint thickens from the sheet's to a pane's by the share, whole while it comes down, and its
     // corners alone once it stands, the base laying the rest of it
     const GuiColor pane = EMBED_CALL(gui_glass.pane_tint, GuiGlassCfg, .glass = args->palette->glass);
-    if (args->frame->controls_pane_share >= GUI_WHOLE)
+    if (args->frame->controls_pane_share >= GUI_FIXED_ONE)
     {
-        EMBED_CALL(gui_raster_rect_radius_ground.pane, GuiRasterRectRadiusGroundCfg, .raster = args->raster,
-                   .ground = args->table, .rect = args->frame->controls_pane, .radius = args->frame->radius,
+        EMBED_CALL(gui_raster_rect_radius_background.pane, GuiRasterRectRadiusBackgroundCfg, .raster = args->raster,
+                   .background_fill = args->table, .rect = args->frame->controls_pane, .radius = args->frame->radius,
                    .inner = pane, .corners_only = 1);
     }
     else if (args->frame->controls_pane_share > 0)
     {
         const int sheet = (int)GUI_ALPHA_OF(args->table.over);
         const int share = args->frame->controls_pane_share;
-        // an alpha between two bytes by a share of GUI_WHOLE, rounded, is a byte
+        // an alpha between two bytes by a share of GUI_FIXED_ONE, rounded, is a byte
         const GuiColor alpha =
-            (GuiColor)(sheet + (((((int)GUI_ALPHA_OF(pane) - sheet) * share) + (GUI_WHOLE / 2)) / GUI_WHOLE));
-        EMBED_CALL(gui_raster_rect_radius_ground.pane, GuiRasterRectRadiusGroundCfg, .raster = args->raster,
-                   .ground = args->table, .rect = args->frame->controls_pane, .radius = args->frame->radius,
+            (GuiColor)(sheet + (((((int)GUI_ALPHA_OF(pane) - sheet) * share) + (GUI_FIXED_ONE / 2)) / GUI_FIXED_ONE));
+        EMBED_CALL(gui_raster_rect_radius_background.pane, GuiRasterRectRadiusBackgroundCfg, .raster = args->raster,
+                   .background_fill = args->table, .rect = args->frame->controls_pane, .radius = args->frame->radius,
                    .inner = (pane & 0x00ffffffu) | (alpha << 24u), .corners_only = 0);
     }
-    const GuiColor ink = EMBED_CALL(controls_fade, ControlsCtx, .color = args->palette->status_text,
-                                    .share = args->frame->controls_alpha);
+    const GuiColor text_color = EMBED_CALL(controls_fade, ControlsCtx, .color = args->palette->status_text,
+                                           .share = args->frame->controls_alpha);
     for (unsigned int which = GUI_CONTROL_MINIMIZE; which <= GUI_CONTROL_CLOSE; which += 1u)
     {
         const GuiRect button = EMBED_CALL(controls_button, ControlsCtx, .frame = args->frame, .which = which);
@@ -237,25 +240,25 @@ void gui_controls_draw(const GuiChromeRasterCfg *args)
         if (which == GUI_CONTROL_MINIMIZE)
         {
             EMBED_CALL(gui_raster_color_x_0.line, GuiRasterColorX0Cfg, .raster = args->raster, .x0 = low, .y0 = middle,
-                       .x1 = high, .y1 = middle, .color = ink);
+                       .x1 = high, .y1 = middle, .color = text_color);
         }
         else if (which == GUI_CONTROL_MAXIMIZE)
         {
             EMBED_CALL(gui_raster_color_x_0.line, GuiRasterColorX0Cfg, .raster = args->raster, .x0 = low, .y0 = above,
-                       .x1 = high, .y1 = above, .color = ink);
+                       .x1 = high, .y1 = above, .color = text_color);
             EMBED_CALL(gui_raster_color_x_0.line, GuiRasterColorX0Cfg, .raster = args->raster, .x0 = low, .y0 = below,
-                       .x1 = high, .y1 = below, .color = ink);
+                       .x1 = high, .y1 = below, .color = text_color);
             EMBED_CALL(gui_raster_color_x_0.line, GuiRasterColorX0Cfg, .raster = args->raster, .x0 = low, .y0 = above,
-                       .x1 = low, .y1 = below, .color = ink);
+                       .x1 = low, .y1 = below, .color = text_color);
             EMBED_CALL(gui_raster_color_x_0.line, GuiRasterColorX0Cfg, .raster = args->raster, .x0 = high, .y0 = above,
-                       .x1 = high, .y1 = below, .color = ink);
+                       .x1 = high, .y1 = below, .color = text_color);
         }
         else
         {
             EMBED_CALL(gui_raster_color_x_0.line, GuiRasterColorX0Cfg, .raster = args->raster, .x0 = low, .y0 = above,
-                       .x1 = high, .y1 = below, .color = ink);
+                       .x1 = high, .y1 = below, .color = text_color);
             EMBED_CALL(gui_raster_color_x_0.line, GuiRasterColorX0Cfg, .raster = args->raster, .x0 = high, .y0 = above,
-                       .x1 = low, .y1 = below, .color = ink);
+                       .x1 = low, .y1 = below, .color = text_color);
         }
     }
 }

@@ -12,8 +12,8 @@
 // the bytes of the paths a paste's walk queues to go to, and the most of them; and the most numbers a free name is
 // looked for under
 #define CLI_PENDING_TEXT (1u << 23u)
-#define CLI_PENDING_MOST 65536u
-#define CLI_FREE_MOST 1000000u
+#define CLI_PENDING_MAX 65536u
+#define CLI_FREE_MAX 1000000u
 
 typedef struct
 {
@@ -106,7 +106,7 @@ void cli_paste_free(const CliFilesFolderCtx *args)
                                         ? (unsigned long long)(dot - args->name_read)
                                         : cellul.len(&(CatenaFinitaCfg){.src = args->name_read, .cap = CLI_CELLS_POOL});
     char numbered[CLI_PATH_MAX_LEN];
-    for (unsigned int number = 2u; number < CLI_FREE_MOST; number += 1u)
+    for (unsigned int number = 2u; number < CLI_FREE_MAX; number += 1u)
     {
         VerbaLinea line = {numbered, sizeof(numbered), 0ull};
         mmgr_line_put(&line, args->folder);
@@ -127,35 +127,17 @@ void cli_paste_free(const CliFilesFolderCtx *args)
     }
 }
 
-void cli_pasted_write(const CliFilesOutCtx *args)
-{
-    mmgr_line_put(args->out, args->first ? "{\"from\":" : ",{\"from\":");
-    if (args->from != NULL)
-    {
-        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out, .text = args->from,
-                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->from, .cap = CLI_CELLS_POOL}));
-    }
-    else
-    {
-        mmgr_line_put(args->out, "null");
-    }
-    mmgr_line_put(args->out, ",\"to\":");
-    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out, .text = args->to,
-               .length = cellul.len(&(CatenaFinitaCfg){.src = args->to, .cap = CLI_CELLS_POOL}));
-    mmgr_line_ch(args->out, '}');
-}
-
 // A walk's paths still to go to, each a pair, where it is and where it goes, the last put first taken; and the names a
 // folder contains as it is read
 typedef struct
 {
     char text[CLI_PENDING_TEXT];
     unsigned long long used;
-    unsigned long long start[CLI_PENDING_MOST];
+    unsigned long long start[CLI_PENDING_MAX];
     unsigned int count;
     char names[CLI_PENDING_TEXT];
     unsigned long long names_used;
-    unsigned long long name_start[CLI_PENDING_MOST];
+    unsigned long long name_start[CLI_PENDING_MAX];
     unsigned int name_count;
     int full;
 } CliPending;
@@ -163,15 +145,14 @@ typedef struct
 // the walk's pairs waiting, a cell taken with the walk's lock and given back with it
 static CliPending *s_pending;
 
-// a pair put to go to: 1, or 0 where the walk has room for no more
-EMBED_INLINE int cli_pending_put(const FilesPasteCtx *args)
+// a pair put to go to: 1, or 0 where the walk has capacity for no more
+EMBED_INLINE int cli_pending_append(const FilesPasteCtx *args)
 {
     const unsigned long long source_length =
         cellul.len(&(CatenaFinitaCfg){.src = args->source, .cap = CLI_CELLS_POOL}) + 1ull;
     const unsigned long long target_length =
         cellul.len(&(CatenaFinitaCfg){.src = args->target, .cap = CLI_CELLS_POOL}) + 1ull;
-    if ((s_pending->count >= CLI_PENDING_MOST) ||
-        ((s_pending->used + source_length + target_length) > CLI_PENDING_TEXT))
+    if ((s_pending->count >= CLI_PENDING_MAX) || ((s_pending->used + source_length + target_length) > CLI_PENDING_TEXT))
     {
         s_pending->full = 1;
         return 0;
@@ -188,7 +169,7 @@ EMBED_INLINE int cli_pending_put(const FilesPasteCtx *args)
 static void cli_pending_name(const CliEachNameIsFolderCfg *args)
 {
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}) + 1ull;
-    if ((s_pending->name_count >= CLI_PENDING_MOST) || ((s_pending->names_used + length) > CLI_PENDING_TEXT))
+    if ((s_pending->name_count >= CLI_PENDING_MAX) || ((s_pending->names_used + length) > CLI_PENDING_TEXT))
     {
         s_pending->full = 1;
         return;
@@ -226,7 +207,7 @@ EMBED_INLINE int cli_pending_entries(const FilesPasteCtx *args)
         mmgr_line_put(&to_line, name);
         s_pending->full = s_pending->full || (mmgr_line_finish(&from_line) == 0ull) ||
                           (mmgr_line_finish(&to_line) == 0ull) ||
-                          !EMBED_CALL(cli_pending_put, FilesPasteCtx, .source = from, .target = to);
+                          !EMBED_CALL(cli_pending_append, FilesPasteCtx, .source = from, .target = to);
     }
     if (s_pending->full)
     {
@@ -248,7 +229,7 @@ int cli_paste_walk(const CliFilesContextErrMsgCtx *args)
     s_pending->count = 0u;
     s_pending->used = 0ull;
     s_pending->full = 0;
-    int walked = EMBED_CALL(cli_pending_put, FilesPasteCtx, .source = args->source, .target = args->target);
+    int walked = EMBED_CALL(cli_pending_append, FilesPasteCtx, .source = args->source, .target = args->target);
     while (walked && (s_pending->count > 0u))
     {
         s_pending->count -= 1u;
@@ -283,69 +264,12 @@ typedef struct
     const char *source;
 } CliCopying;
 
-// a folder made, or a file copied
-static int cli_copy(const CliPasteEachCfg *args)
-{
-    int folder = args->folder;
-    const CliCopying *const copying = (const CliCopying *)args->context;
-    if (folder ? EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = args->target)
-               : EMBED_CALL(query_from_internal.file_copy, QueryFromCtx, .from = args->source, .to = args->target))
-    {
-        return 1;
-    }
-    mmgr_line_put(args->err_msg, copying->source);
-    mmgr_line_put(args->err_msg, ": it could not be copied");
-    return 0;
-}
-
 // that a path could not be moved, reported
 EMBED_INLINE int cli_unmoved(const FilesPasteCtx *args)
 {
     mmgr_line_put(args->err_msg, args->path);
     mmgr_line_put(args->err_msg, ": it could not be moved");
     return 0;
-}
-
-// one of a paste's paths copied or moved into `folder`, where it went into `target`: 1, or 0 with why given. A move
-// between drives is a copy and then a removal
-EMBED_INLINE int cli_pasted_one(const FilesPasteCtx *args)
-{
-    const char *source = args->source;
-    const char *folder = args->folder;
-    const char *name = args->name;
-    char *target = args->target_out;
-    VerbaLinea *err_msg = args->err_msg;
-    if (EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = source) &&
-        EMBED_CALL(cli_files_path_folder_internal.paste_under, CliFilesPathFolderCtx, .folder = source, .path = folder))
-    {
-        mmgr_line_put(err_msg, source);
-        mmgr_line_put(err_msg, " is not pasted into itself");
-        return 0;
-    }
-    EMBED_CALL(cli_files_folder_internal.paste_free, CliFilesFolderCtx, .folder = folder, .name_read = name,
-               .path_out = target);
-    CliCopying copying = {source};
-    if (!args->moving)
-    {
-        return EMBED_CALL(cli_files_context_err_msg_internal.paste_walk, CliFilesContextErrMsgCtx, .source = source,
-                          .target = target, .each = cli_copy, .context = &copying, .err_msg = err_msg);
-    }
-    const int moved = EMBED_CALL(cli_err_msg_from_internal.move, CliErrMsgFromCtx, .from_text = source, .to = target);
-    if (moved == CLI_MOVE_FAILED)
-    {
-        return EMBED_CALL(cli_unmoved, FilesPasteCtx, .path = source, .err_msg = err_msg);
-    }
-    if (moved == CLI_MOVE_ACROSS)
-    {
-        if (!EMBED_CALL(cli_files_context_err_msg_internal.paste_walk, CliFilesContextErrMsgCtx, .source = source,
-                        .target = target, .each = cli_copy, .context = &copying, .err_msg = err_msg))
-        {
-            return 0;
-        }
-        return EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = source) ||
-               EMBED_CALL(cli_unmoved, FilesPasteCtx, .path = source, .err_msg = err_msg);
-    }
-    return 1;
 }
 
 int cli_paste_begin(const CliFilesRootOutCtx *args)
@@ -374,62 +298,6 @@ int cli_paste_by_name(const CliFilesErrMsgCtx *args)
         mmgr_line_put(args->err_msg, " has no name");
         return 0;
     }
-    return 1;
-}
-
-int cli_files_paste(const CliFilesRootCountCfg *args)
-{
-    const char *root = args->root;
-    unsigned int count = args->count;
-    char folder[CLI_PATH_MAX_LEN];
-    if (!EMBED_CALL(cli_files_root_out_internal.paste_begin, CliFilesRootOutCtx, .root = root, .into = args->into,
-                    .folder_out = folder, .out = args->out, .err_msg = args->err_msg))
-    {
-        return 0;
-    }
-    for (unsigned int index = 0u; index < count; index += 1u)
-    {
-        const char *const source = args->from[index];
-        char name[CLI_PATH_MAX_LEN];
-        if (!EMBED_CALL(cli_files_err_msg_internal.paste_by_name, CliFilesErrMsgCtx, .source = source, .name = name,
-                        .err_msg = args->err_msg))
-        {
-            return 0;
-        }
-        char was[CLI_PATH_MAX_LEN];
-        const int inside = EMBED_CALL(cli_files_path_folder_internal.paste_under, CliFilesPathFolderCtx, .folder = root,
-                                      .path = source);
-        if (inside)
-        {
-            EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = root, .path = source,
-                       .relative_out = was);
-        }
-        // a file moved into the folder it is in stays where it is
-        char parent[CLI_PATH_MAX_LEN];
-        const int stays =
-            args->moving &&
-            EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = source, .out = parent) &&
-            EMBED_CALL(cli_files_path_folder_internal.paste_under, CliFilesPathFolderCtx, .folder = parent,
-                       .path = folder) &&
-            EMBED_CALL(cli_files_path_folder_internal.paste_under, CliFilesPathFolderCtx, .folder = folder,
-                       .path = parent);
-        char target[CLI_PATH_MAX_LEN];
-        if (!stays && !EMBED_CALL(cli_pasted_one, FilesPasteCtx, .source = source, .folder = folder, .name = name,
-                                  .moving = args->moving, .target_out = target, .err_msg = args->err_msg))
-        {
-            return 0;
-        }
-        char to[CLI_PATH_MAX_LEN];
-        EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = root, .path = stays ? source : target,
-                   .relative_out = to);
-        EMBED_CALL(cli_files_out_internal.pasted_write, CliFilesOutCtx, .out = args->out, .first = index == 0u,
-                   .from = inside ? was : NULL, .to = to);
-        // what the paste left at each end mirrored to its closest parent, the rest of the tree as it stands
-        const char *const moved[2] = {to, was};
-        EMBED_CALL(cli_symbols_root.tree_mirror, CliSymbolsRootCfg, .root = root, .paths = moved,
-                   .count = inside ? 2u : 1u);
-    }
-    mmgr_line_ch(args->out, ']');
     return 1;
 }
 

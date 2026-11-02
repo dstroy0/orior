@@ -50,7 +50,7 @@ EMBED_INLINE int cli_line_parts(const CheckersLinesCtx *args)
             continue;
         }
         unsigned long long digits = 0ull;
-        digits = EMBED_CALL(cli_text_at_size_classes.past_class, CliTextAtSizeClassesCfg, .text = line, .at = at + 1ull,
+        digits = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = line, .at = at + 1ull,
                             .size = args->length_value, .classes = CLI_TEXT_DIGITS, .set = "") -
                  (at + 1ull);
         if ((digits == 0ull) || ((at + 1ull + digits) >= args->length_value) || (line[at + 1ull + digits] != ':'))
@@ -64,7 +64,7 @@ EMBED_INLINE int cli_line_parts(const CheckersLinesCtx *args)
         }
         const unsigned long long after = at + 2ull + digits;
         unsigned long long col_digits = 0ull;
-        col_digits = EMBED_CALL(cli_text_at_size_classes.past_class, CliTextAtSizeClassesCfg, .text = line, .at = after,
+        col_digits = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = line, .at = after,
                                 .size = args->length_value, .classes = CLI_TEXT_DIGITS, .set = "") -
                      after;
         unsigned long long col = 1ull;
@@ -191,7 +191,7 @@ void cli_checkers_lines_read(const CliCheckersTextCtx *args)
         }
         finding.severity = EMBED_CALL(cli_severity_get, CheckersLinesCtx, .finding = &finding);
         EMBED_CALL(cli_code_get, CheckersLinesCtx, .finding = &finding);
-        EMBED_CALL(cli_checkers_file_internal.finding_put, CliCheckersFileCtx,
+        EMBED_CALL(cli_checkers_file_internal.finding_append, CliCheckersFileCtx,
                    .file =
                        EMBED_CALL(cli_checkers_internal.file_get, CliCheckersCtx, .name = line, .length = path_length),
                    .finding = &finding);

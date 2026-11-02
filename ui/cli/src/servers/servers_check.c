@@ -42,19 +42,11 @@ typedef struct
 // how far the check has gone reported where it goes
 EMBED_INLINE void check_progress_emit(const ServersCheckCtx *args)
 {
-    if (args->sink->emit == NULL)
+    if (args->sink->check_moved != NULL)
     {
-        return;
+        EMBED_CALL(args->sink->check_moved, CliServerCheckCfg, .context = args->sink->context, .done = args->done,
+                   .total = args->total);
     }
-    char progress_buf[128];
-    VerbaLinea line = {progress_buf, sizeof(progress_buf), 0ull};
-    mmgr_line_put(&line, "{\"done\":");
-    mmgr_line_decimal(&line, args->done, 1u);
-    mmgr_line_put(&line, ",\"total\":");
-    mmgr_line_decimal(&line, args->total, 1u);
-    mmgr_line_ch(&line, '}');
-    EMBED_CALL(args->sink->emit, CliEachEventJsonSizeCfg, .context = args->sink->context, .event = "tree-check",
-               .json = progress_buf, .size = line.at);
 }
 
 // a checker thread: each file waiting, once one waits and the check has somewhere to report it, checked and counted
@@ -72,11 +64,12 @@ static void check_checker(void *context)
         }
         const CliServersQueued one = *EMBED_CALL(cli_servers_queue_at_internal.check_queued_at, CliServersQueueAtCtx,
                                                  .queue_read = &s_queue, .at = 0u);
-        memor.cpy(&(MemoriaCfg){.dst = s_path[checker], .src = s_queue.room + one.path, .bytes = one.size + 1u});
+        memor.cpy(&(MemoriaCfg){.dst = s_path[checker], .src = s_queue.capacity + one.path, .bytes = one.size + 1u});
         CliServersWaiting waiting = {one.server, ""};
-        memor.cpy(&(MemoriaCfg){
-            .dst = waiting.id, .src = s_queue.room + one.path + one.size + 1u, .bytes = one.whole - (one.size + 1u)});
-        s_queue.head = (s_queue.head + 1u) % s_queue.waiting_most;
+        memor.cpy(&(MemoriaCfg){.dst = waiting.id,
+                                .src = s_queue.capacity + one.path + one.size + 1u,
+                                .bytes = one.integer - (one.size + 1u)});
+        s_queue.head = (s_queue.head + 1u) % s_queue.waiting_max;
         s_queue.count -= 1u;
         s_queue.used = (s_queue.count == 0u) ? 0ull : s_queue.used;
         s_emit[checker] = s_queue.sink;
@@ -111,7 +104,7 @@ static void check_checkers_start(void)
 unsigned int cli_servers_check_tree(const CliServersRootSinkCountCfg *args)
 {
     const CliServersSink *sink = args->sink;
-    if (!EMBED_CALL(cli_servers_queue_files_internal.check_room_init, CliServersQueueFilesCtx, .queue = &s_queue,
+    if (!EMBED_CALL(cli_servers_queue_files_internal.check_work_state_init, CliServersQueueFilesCtx, .queue = &s_queue,
                     .files = args->files, .count = args->count))
     {
         return 0u;
@@ -124,7 +117,7 @@ unsigned int cli_servers_check_tree(const CliServersRootSinkCountCfg *args)
     s_queue.has_sink = 1;
     s_queue.file_count = 0u;
     s_queue.files_used = 0ull;
-    EMBED_CALL(cli_servers_queue_files_internal.check_files_put, CliServersQueueFilesCtx, .queue = &s_queue,
+    EMBED_CALL(cli_servers_queue_files_internal.check_files_append, CliServersQueueFilesCtx, .queue = &s_queue,
                .files = args->files, .count = args->count);
     check_checkers_start();
     EMBED_CALL(cli_servers_files_internal.check_tree_with_checkers, CliServersFilesCtx, .root = args->root,
@@ -189,17 +182,17 @@ void cli_servers_check_count(const CliServersOnCtx *args)
     *total = s_queue.total;
 }
 
-int cli_servers_check_takes(const CliServersPathLspCtx *args)
+int cli_servers_check_allocs(const CliServersPathLspCtx *args)
 {
     CliLsp *lsp = args->lsp;
-    int took = s_queue.on;
-    if (took)
+    int consumed = s_queue.on;
+    if (consumed)
     {
         CliServersWaiting waiting = {lsp, ""};
         EMBED_CALL(cli_lsp_context.ref, CliLspContextCfg, .lsp = lsp);
-        took = EMBED_CALL(cli_servers_queue_internal.check_queue_put, CliServersQueueCtx, .queue = &s_queue,
-                          .path = args->path, .waiting = &waiting, .front = 1);
-        if (took)
+        consumed = EMBED_CALL(cli_servers_queue_internal.check_queue_append, CliServersQueueCtx, .queue = &s_queue,
+                              .path = args->path, .waiting = &waiting, .front = 1);
+        if (consumed)
         {
             char uri[CLI_PATH_MAX_LEN];
             EMBED_CALL(cli_servers_path_uri_internal.uri_get, CliServersPathUriCtx, .path = args->path, .uri_out = uri);
@@ -212,7 +205,7 @@ int cli_servers_check_takes(const CliServersPathLspCtx *args)
             EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = lsp);
         }
     }
-    return took;
+    return consumed;
 }
 
 void cli_servers_check_let_go(void)
@@ -225,7 +218,7 @@ void cli_servers_check_let_go(void)
     s_queue.files_used = 0ull;
     s_queue.total = 0ull;
     s_queue.done = 0ull;
-    EMBED_CALL(cli_servers_queue_files_internal.check_room_free, CliServersQueueFilesCtx, .queue = &s_queue);
+    EMBED_CALL(cli_servers_queue_files_internal.check_work_state_free, CliServersQueueFilesCtx, .queue = &s_queue);
     cli_servers_check_open_clear();
 }
 
@@ -267,8 +260,8 @@ int cli_servers_check_files_change(const CliServersFilesCountCtx *args)
             }
             if (remaining == s_queue.file_count)
             {
-                EMBED_CALL(cli_servers_queue_files_internal.check_files_put, CliServersQueueFilesCtx, .queue = &s_queue,
-                           .files = &args->files[at], .count = 1u);
+                EMBED_CALL(cli_servers_queue_files_internal.check_files_append, CliServersQueueFilesCtx,
+                           .queue = &s_queue, .files = &args->files[at], .count = 1u);
             }
         }
         unsigned int remaining = 0u;
@@ -305,13 +298,13 @@ unsigned int cli_servers_check_queue(const CliServersCountCtx *args)
         for (unsigned int one = 0u; !queued && (one < s_queue.count); one += 1u)
         {
             queued = (cellul.eq(&(CatenaFinitaCfg){
-                .src = s_queue.room + EMBED_CALL(cli_servers_queue_at_internal.check_queued_at, CliServersQueueAtCtx,
-                                                 .queue_read = &s_queue, .at = one)
-                                          ->path,
+                .src = s_queue.capacity + EMBED_CALL(cli_servers_queue_at_internal.check_queued_at,
+                                                     CliServersQueueAtCtx, .queue_read = &s_queue, .at = one)
+                                              ->path,
                 .other = args->paths[at],
                 .cap = CLI_CELLS_POOL}));
         }
-        if (!queued && EMBED_CALL(cli_servers_queue_internal.check_queue_put, CliServersQueueCtx, .queue = &s_queue,
+        if (!queued && EMBED_CALL(cli_servers_queue_internal.check_queue_append, CliServersQueueCtx, .queue = &s_queue,
                                   .path = args->paths[at], .waiting = &args->waiting[at], .front = 0))
         {
             s_queue.total += 1ull;

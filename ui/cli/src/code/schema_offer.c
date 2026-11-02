@@ -97,7 +97,7 @@ EMBED_INLINE void offer_keys(const SchemaOfferCtx *args)
             if (g_cli_schema_spot.in_string)
             {
                 const unsigned long long typed = base - args->token;
-                (void)EMBED_CALL(cli_edits_items.completion_put, CliEditsItemsCfg, .items = items,
+                (void)EMBED_CALL(cli_edits_items.completion_append, CliEditsItemsCfg, .items = items,
                                  .label = name + typed, .label_size = size - typed, .kind = "field", .detail = s_detail,
                                  .detail_size = detail.at, .insert = name + typed, .insert_size = size - typed,
                                  .snippet = 0);
@@ -138,7 +138,7 @@ EMBED_INLINE void offer_keys(const SchemaOfferCtx *args)
             }
             mmgr_line_put(&insert, ": ");
             mmgr_line_put(&insert, shape);
-            (void)EMBED_CALL(cli_edits_items.completion_put, CliEditsItemsCfg, .items = items, .label = name,
+            (void)EMBED_CALL(cli_edits_items.completion_append, CliEditsItemsCfg, .items = items, .label = name,
                              .label_size = size, .kind = "field", .detail = s_detail, .detail_size = detail.at,
                              .insert = s_insert, .insert_size = insert.at, .snippet = 1);
         }
@@ -265,14 +265,14 @@ EMBED_INLINE void offer_values(const SchemaOfferCtx *args)
             EMBED_CALL(offer_value, SchemaOfferCtx, .json = json, .value = at, .detail = s_detail,
                        .detail_size = detail.at);
         }
-        static const char *const s_given[2] = {"const", "default"};
+        static const char *const s_input[2] = {"const", "default"};
         for (unsigned int word = 0u; word < 2u; word += 1u)
         {
-            const unsigned int given = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json,
-                                                  .map = one, .name = s_given[word]);
-            if (given != CLI_JSON_NONE)
+            const unsigned int supplied = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json,
+                                                     .map = one, .name = s_input[word]);
+            if (supplied != CLI_JSON_NONE)
             {
-                EMBED_CALL(offer_value, SchemaOfferCtx, .json = json, .value = given, .detail = s_detail,
+                EMBED_CALL(offer_value, SchemaOfferCtx, .json = json, .value = supplied, .detail = s_detail,
                            .detail_size = detail.at);
             }
         }

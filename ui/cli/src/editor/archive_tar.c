@@ -142,7 +142,7 @@ int cli_tar_members(const CliArchiveBytesSizeErrMsgCtx *args)
             }
             const unsigned long long name_length = mmgr_line_finish(&line);
             const int dir = (kind == '5') || ((name_length > 0ull) && (name[name_length - 1ull] == '/'));
-            EMBED_CALL(cli_archive_size_internal.member_put, CliArchiveSizeCtx, .members = args->members,
+            EMBED_CALL(cli_archive_size_internal.member_append, CliArchiveSizeCtx, .members = args->members,
                        .name_u32 = EMBED_CALL(cli_archive_members_internal.name_store, CliArchiveMembersCtx,
                                               .members = args->members, .name = name, .length = name_length),
                        .raw = 0u, .has_raw = 0, .dir = dir, .size = length, .at = at);
@@ -163,7 +163,7 @@ int cli_tar_with(const CliArchiveBytesSizeCtx *args)
     const unsigned long long padded = ((args->data_size + 511ull) / 512ull) * 512ull;
     const unsigned long long after = args->target->at + 512ull + (((args->target->size + 511ull) / 512ull) * 512ull);
     const unsigned long long rest = (after < args->size) ? (args->size - after) : 0ull;
-    if (((args->target->at + 512ull) > args->size) || ((args->target->at + 512ull + padded + rest) > args->room))
+    if (((args->target->at + 512ull) > args->size) || ((args->target->at + 512ull + padded + rest) > args->capacity))
     {
         mmgr_line_put(args->err_msg, "the tar is larger than orior_cli supports");
         return 0;
@@ -259,7 +259,7 @@ int cli_gunzip(const CliArchiveBytesCfg *args)
     }
     unsigned long long used = 0ull;
     if (!EMBED_CALL(cli_archive_size.inflate, CliArchiveSizeCfg, .data = bytes + at, .size = args->size - at,
-                    .out = args->out, .room = args->room, .out_size = args->out_size, .used = &used,
+                    .out = args->out, .capacity = args->capacity, .out_size = args->out_size, .used = &used,
                     .err_msg = args->err_msg))
     {
         return 0;
@@ -282,14 +282,14 @@ int cli_gunzip(const CliArchiveBytesCfg *args)
 unsigned long long cli_gzip(const CliArchiveSizeCfg *args)
 {
     static const unsigned char s_head[10] = {0x1fu, 0x8bu, 8u, 0u, 0u, 0u, 0u, 0u, 0u, 255u};
-    if (args->room < 18ull)
+    if (args->capacity < 18ull)
     {
         return 0ull;
     }
     memor.cpy(&(MemoriaCfg){.dst = args->out, .src = s_head, .bytes = sizeof(s_head)});
     const unsigned long long deflated =
         EMBED_CALL(cli_archive_size.deflate, CliArchiveSizeCfg, .data = args->data, .size = args->size,
-                   .out = args->out + 10, .room = args->room - 18ull);
+                   .out = args->out + 10, .capacity = args->capacity - 18ull);
     if ((deflated == 0ull) && (args->size != 0ull))
     {
         return 0ull;

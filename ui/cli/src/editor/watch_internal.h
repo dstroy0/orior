@@ -23,7 +23,7 @@ void cli_watch_poll_end(void);
 // be made standing as none, which the next reading takes the place of; on a thread of its own, the tree read every two
 // seconds and each change since the last reading put for the batches, until the watch stops; and the readings given
 // back, which the polling does as it ends (watch_read.c)
-int cli_watch_first_reading(const CliWatchCtx *args);
+int cli_watch_first_read_state(const CliWatchCtx *args);
 void cli_watch_poll(void *context);
 
 // a change reported: its path from the tree's top, and its kind
@@ -32,8 +32,8 @@ typedef void (*CliWatchChangeFn)(const CliEachPathKindCfg *args);
 // the tree at `root` read again and set against the last reading, each change since it handed to `emit` (watch_read.c)
 void cli_watch_read_again(const CliWatchCtx *args);
 
-// the changes `paths`, `count` of them, each of its kind in `kinds`, of the tree at `root` gathered and written as a
-// batch, while no watch runs: 1 where any are left (watch.c)
+// the changes `paths`, `count` of them, each of its kind in `kinds`, of the tree at `root` gathered and handed to
+// `take` as a batch, while no watch runs: 1 where any are left (watch.c)
 int cli_watch_gathered_get(const CliWatchPathsCtx *args);
 
 struct CliWatchPathsCtx
@@ -42,7 +42,8 @@ struct CliWatchPathsCtx
     const char *const *paths;
     const unsigned int *kinds;
     unsigned int count;
-    VerbaLinea *out;
+    CliWatchTake take;
+    void *context;
 };
 
 struct CliWatchCtx
@@ -63,12 +64,12 @@ EMBED_TABLE_STORAGE CliEachPathKindNs cli_each_path_kind EMBED_UNUSED = {
 
 typedef struct
 {
-    int (*first_reading)(const CliWatchCtx *args);
+    int (*first_read_state)(const CliWatchCtx *args);
     void (*read_again)(const CliWatchCtx *args);
 } CliWatchNsTable;
-EMBED_TABLE_LAYOUT(CliWatchNsTable, first_reading, read_again);
+EMBED_TABLE_LAYOUT(CliWatchNsTable, first_read_state, read_again);
 EMBED_TABLE_STORAGE CliWatchNsTable cli_watch_internal EMBED_UNUSED = {
-    .first_reading = cli_watch_first_reading,
+    .first_read_state = cli_watch_first_read_state,
     .read_again = cli_watch_read_again,
 };
 

@@ -6,7 +6,7 @@
 #include "../text/text.h"
 #include "debug_internal.h"
 
-// the bytes of a string filled in, and the lock the room it is filled in is guarded by
+// the bytes of a string filled in, and the lock the capacity it is filled in is guarded by
 #define CLI_DEBUG_FILLED (1u << 16u)
 
 static char s_filled[2][CLI_DEBUG_FILLED];
@@ -104,7 +104,7 @@ EMBED_INLINE int arguments_ends_with(const DebugArgumentsCtx *args)
     return size <= length;
 }
 
-int cli_debug_takes(const CliDebugFileCtx *args)
+int cli_debug_allocs(const CliDebugFileCtx *args)
 {
     const int python = EMBED_CALL(arguments_ends_with, DebugArgumentsCtx, .text = args->file, .ending = ".py") ||
                        EMBED_CALL(arguments_ends_with, DebugArgumentsCtx, .text = args->file, .ending = ".pyw");
@@ -134,7 +134,7 @@ unsigned long long cli_debug_base64(const CliDebugTextCtx *args)
         if (bits >= 8u)
         {
             bits -= 8u;
-            if (count < args->room)
+            if (count < args->capacity)
             {
                 args->out_bytes[count] = (unsigned char)((accum >> bits) & 0xffu);
                 count += 1ull;
@@ -145,7 +145,8 @@ unsigned long long cli_debug_base64(const CliDebugTextCtx *args)
     return count;
 }
 
-// a string filled in: each "{name}" of `names` replaced by its `withs`, one name after another, into the filled room
+// a string filled in: each "{name}" of `names` replaced by its `withs`, one name after another, into the filled
+// capacity
 EMBED_INLINE const char *arguments_string_fill(const DebugArgumentsCtx *args)
 {
     unsigned long long *size = args->size;
@@ -301,8 +302,8 @@ EMBED_INLINE int arguments_names_path(const DebugArgumentsCtx *args)
     const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->one, .cap = CLI_CELLS_POOL});
     marked = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->one, .at = 0ull,
                         .size = size, .set = "/\\*.") < size;
-    dotted = EMBED_CALL(cli_text_at_size_classes.past_class, CliTextAtSizeClassesCfg, .text = args->one, .at = 0ull,
-                        .size = size, .classes = CLI_TEXT_LETTERS | CLI_TEXT_DIGITS | CLI_TEXT_PAST_ASCII,
+    dotted = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = args->one, .at = 0ull,
+                        .size = size, .classes = CLI_TEXT_LETTERS | CLI_TEXT_DIGITS | CLI_TEXT_END_ASCII,
                         .set = "_.") == size;
     return marked && !dotted;
 }
@@ -316,17 +317,17 @@ void cli_debug_step_arguments(const CliDebugJsonLanguageCtx *args)
     }
     const unsigned int skip = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                          .json_read = args->json, .object = args->stepping, .name = "skip");
-    const unsigned int mine = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                         .json_read = args->json, .object = args->stepping, .name = "mine_only");
+    const unsigned int ours_index = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                               .json_read = args->json, .object = args->stepping, .name = "mine_only");
     if (cellul.eq(&(CatenaFinitaCfg){.src = args->language, .other = "python", .cap = CLI_CELLS_POOL}))
     {
-        const int mine_only =
-            (mine == CLI_JSON_NONE) ||
-            EMBED_CALL(cli_debug_json_node_internal.debug_true, CliDebugJsonNodeCtx, .json = args->json, .node = mine);
+        const int ours_only =
+            (ours_index == CLI_JSON_NONE) || EMBED_CALL(cli_debug_json_node_internal.debug_true, CliDebugJsonNodeCtx,
+                                                        .json = args->json, .node = ours_index);
         EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->to,
                    .object = args->arguments, .name = "justMyCode",
                    .value = EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = args->to,
-                                       .kind = mine_only ? CFG_JSON_TRUE : CFG_JSON_FALSE));
+                                       .kind = ours_only ? CFG_JSON_TRUE : CFG_JSON_FALSE));
         const unsigned int rules =
             EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = args->to, .kind = CFG_JSON_ARRAY);
         unsigned int count = 0u;

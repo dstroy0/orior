@@ -18,7 +18,7 @@ typedef struct QueryToolsCtx QueryToolsCtx;
 // the most groups of patterns a tool's C or C++ sources are given in, and the most sources one tool compiles
 #define QUERY_TOOL_GROUPS 4u
 
-#define QUERY_SOURCES_MOST 2048u
+#define QUERY_SOURCES_MAX 2048u
 
 // the launch queue's two numbers as the interface stores them (interface.h): the compilers run at most this many at
 // once, and this much passes between one start and the next
@@ -106,7 +106,7 @@ struct QueryToolsRootObjectsCtx
     const char *root;
     const char *objects;
     const char *source_text;
-    char *object_room;
+    char *object_capacity;
 };
 
 struct QueryToolsRootCtx

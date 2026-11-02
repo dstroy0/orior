@@ -30,14 +30,14 @@ typedef struct
     unsigned int columns;
     unsigned int rows_by;
     CliRegexp pattern[CLI_TABLES_PATTERNS];
-    int given[CLI_TABLES_PATTERNS];
+    int supplied[CLI_TABLES_PATTERNS];
     VerbaLinea *out;
     int written;
 } CliTableList;
 // the bytes a grammar and a pattern are written in, the most groups a list's pattern has and one, and the most letters
 // of a cell matched
-#define CLI_TABLES_ROOM (4ull << 20u)
-#define CLI_TABLES_PATTERN_ROOM (1ull << 20u)
+#define CLI_TABLES_CAPACITY (4ull << 20u)
+#define CLI_TABLES_PATTERN_CAPACITY (1ull << 20u)
 #define CLI_TABLES_GROUPS 8u
 #define CLI_TABLES_LETTERS 1024u
 
@@ -76,7 +76,7 @@ typedef struct
     unsigned long long *from;
     unsigned long long *to;
     CliRegexp *pattern_out;
-    CliRegexpRoom *room;
+    CliRegexpWorkState *work_state;
     const char *source;
     VerbaLinea *err_msg;
     CliTableList *list;
@@ -138,7 +138,7 @@ EMBED_INLINE int cli_tables_find(const PluginsTablesCtx *args)
     unsigned long long *from = args->from;
     unsigned long long *to = args->to;
     *count = EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = text, .size = length, .letters = letters,
-                        .room_u64 = CLI_TABLES_LETTERS);
+                        .capacity_u64 = CLI_TABLES_LETTERS);
     CliRegexpSpan span[CLI_TABLES_GROUPS];
     const unsigned long long last = args->pattern->anchored ? 0ull : *count;
     for (unsigned long long at = 0ull; at <= last; at += 1ull)
@@ -166,14 +166,15 @@ EMBED_INLINE int cli_tables_matches(const PluginsTablesCtx *args)
                       .length = args->length, .letters = letters, .count = &count, .from = &from, .to = &to);
 }
 
-// the pattern `source` read into `pattern` in `room`: 1, or 0 with why given where it does not read or has more groups
-// than CLI_TABLES_GROUPS holds
+// the pattern `source` read into `pattern` in `capacity`: 1, or 0 with why given where it does not read or has more
+// groups than CLI_TABLES_GROUPS holds
 EMBED_INLINE int cli_tables_pattern_read(const PluginsTablesCtx *args)
 {
-    CliRegexpRoom *room = args->room;
+    CliRegexpWorkState *work_state = args->work_state;
     const char *source = args->source;
     VerbaLinea *err_msg = args->err_msg;
-    EMBED_CALL(cli_regexp_room.room, CliRegexpRoomCfg, .regexp_out = args->pattern_out, .room = room);
+    EMBED_CALL(cli_regexp_capacity.capacity, CliRegexpWorkStateCfg, .regexp_out = args->pattern_out,
+               .work_state = work_state);
     if (!EMBED_CALL(cli_regexp_source.read, CliRegexpSourceCfg, .regexp_out = args->pattern_out, .source = source,
                     .flags = "", .err_msg = err_msg))
     {
@@ -195,13 +196,13 @@ EMBED_INLINE void cli_tables_word(const PluginsTablesCtx *args)
     unsigned long long count = 0ull;
     unsigned long long from = 0ull;
     unsigned long long to = 0ull;
-    if (args->list->given[CLI_TABLES_SKIP] &&
+    if (args->list->supplied[CLI_TABLES_SKIP] &&
         EMBED_CALL(cli_tables_matches, PluginsTablesCtx, .pattern = &args->list->pattern[CLI_TABLES_SKIP],
                    .text = args->cell, .length = length))
     {
         return;
     }
-    if (args->list->given[CLI_TABLES_MATCH])
+    if (args->list->supplied[CLI_TABLES_MATCH])
     {
         if (!EMBED_CALL(cli_tables_find, PluginsTablesCtx, .pattern = &args->list->pattern[CLI_TABLES_MATCH],
                         .text = args->cell, .length = length, .letters = letters, .count = &count, .from = &from,
@@ -213,14 +214,14 @@ EMBED_INLINE void cli_tables_word(const PluginsTablesCtx *args)
     else
     {
         count = EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = args->cell, .size = length,
-                           .letters = letters, .room_u64 = CLI_TABLES_LETTERS);
+                           .letters = letters, .capacity_u64 = CLI_TABLES_LETTERS);
         to = count;
     }
     char word[CLI_NAME_MAX_LEN];
     VerbaLinea line = {word, sizeof(word), 0ull};
     for (unsigned long long at = from; at < to; at += 1ull)
     {
-        EMBED_CALL(cli_line_letter_internal.utf8_put, CliLineLetterCtx, .line = &line, .letter = letters[at]);
+        EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &line, .letter = letters[at]);
     }
     const unsigned long long size = mmgr_line_finish(&line);
     if (size == 0ull)
@@ -292,16 +293,16 @@ static void cli_tables_line(const CliDefsLineEachCfg *args)
                                      : CLI_DEFS_CELLS;
         return;
     }
-    const int saved_by_rows = list->given[CLI_TABLES_ROWS_MATCH] || list->given[CLI_TABLES_ROWS_SKIP];
+    const int saved_by_rows = list->supplied[CLI_TABLES_ROWS_MATCH] || list->supplied[CLI_TABLES_ROWS_SKIP];
     if (saved_by_rows)
     {
         const int has = list->rows_by < line->count;
         const char *const cell = has ? line->cell[list->rows_by] : "";
         const unsigned long long length = has ? line->length[list->rows_by] : 0ull;
-        if ((list->given[CLI_TABLES_ROWS_MATCH] &&
+        if ((list->supplied[CLI_TABLES_ROWS_MATCH] &&
              !EMBED_CALL(cli_tables_matches, PluginsTablesCtx, .pattern = &list->pattern[CLI_TABLES_ROWS_MATCH],
                          .text = cell, .length = length)) ||
-            (list->given[CLI_TABLES_ROWS_SKIP] &&
+            (list->supplied[CLI_TABLES_ROWS_SKIP] &&
              EMBED_CALL(cli_tables_matches, PluginsTablesCtx, .pattern = &list->pattern[CLI_TABLES_ROWS_SKIP],
                         .text = cell, .length = length)))
         {
@@ -327,9 +328,9 @@ EMBED_INLINE int cli_tables_list_write(const PluginsTablesCtx *args)
     const char *name = args->name;
     VerbaLinea *out = args->out;
     char path[CLI_PATH_MAX_LEN];
-    CliRegexpRoom *const room =
-        g_cli_cells->temporary_buf_alloc(CLI_TABLES_PATTERNS * sizeof(CliRegexpRoom), &g_cli_plugins_cells);
-    if (room == NULL)
+    CliRegexpWorkState *const work_state =
+        g_cli_cells->temporary_buf_alloc(CLI_TABLES_PATTERNS * sizeof(CliRegexpWorkState), &g_cli_plugins_cells);
+    if (work_state == NULL)
     {
         mmgr_line_put(args->err_msg, "a table's patterns could not be given a cell");
         return 0;
@@ -354,25 +355,26 @@ EMBED_INLINE int cli_tables_list_write(const PluginsTablesCtx *args)
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                       .object = list, .name = "skip"),
                    .length_pointer = NULL)};
-    int read_whole = 1;
-    for (unsigned int place = 0u; read_whole && (place < CLI_TABLES_PATTERNS); place += 1u)
+    int patterns_read = 1;
+    for (unsigned int place = 0u; patterns_read && (place < CLI_TABLES_PATTERNS); place += 1u)
     {
-        read.given[place] = sources[place] != NULL;
-        read_whole = !read.given[place] ||
-                     EMBED_CALL(cli_tables_pattern_read, PluginsTablesCtx, .pattern_out = &read.pattern[place],
-                                .room = &room[place], .source = sources[place], .err_msg = args->err_msg);
+        read.supplied[place] = sources[place] != NULL;
+        patterns_read =
+            !read.supplied[place] ||
+            EMBED_CALL(cli_tables_pattern_read, PluginsTablesCtx, .pattern_out = &read.pattern[place],
+                       .work_state = &work_state[place], .source = sources[place], .err_msg = args->err_msg);
     }
     mmgr_line_ch(out, '[');
-    if (read_whole && EMBED_CALL(cli_tables_path, PluginsTablesCtx, .json = json,
-                                 .table = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                                     .json_read = json, .object = list, .name = "table"),
-                                 .tree = args->tree, .name = name, .path = path))
+    if (patterns_read && EMBED_CALL(cli_tables_path, PluginsTablesCtx, .json = json,
+                                    .table = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                                        .json_read = json, .object = list, .name = "table"),
+                                    .tree = args->tree, .name = name, .path = path))
     {
         (void)EMBED_CALL(cli_defs_path.lines, CliDefsPathCfg, .path = path, .each = cli_tables_line, .context = &read);
     }
     mmgr_line_ch(out, ']');
-    g_cli_cells->persistent_buf_release(room, &g_cli_plugins_cells);
-    return read_whole;
+    g_cli_cells->persistent_buf_release(work_state, &g_cli_plugins_cells);
+    return patterns_read;
 }
 
 // the grammar at `grammar` in `json` written into `out` with each list a table fills read from it: 1, or 0 with why
@@ -435,7 +437,7 @@ EMBED_INLINE unsigned int cli_tables_words_pattern(const PluginsTablesCtx *args)
     }
     mmgr_line_put(args->source_verba_linea_pointer, args->before);
     mmgr_line_put(args->source_verba_linea_pointer, "(?:");
-    unsigned int taken = 0u;
+    unsigned int reserved = 0u;
     for (unsigned long long size = longest; size != 0ull; size -= 1ull)
     {
         for (unsigned int item = json->node[list].first; item != CLI_JSON_NONE; item = json->node[item].next)
@@ -447,15 +449,15 @@ EMBED_INLINE unsigned int cli_tables_words_pattern(const PluginsTablesCtx *args)
             {
                 continue;
             }
-            mmgr_line_put(args->source_verba_linea_pointer, (taken != 0u) ? "|" : "");
-            EMBED_CALL(cli_text_size_set.put_marked_n, CliTextSizeSetCfg, .out = args->source_verba_linea_pointer,
+            mmgr_line_put(args->source_verba_linea_pointer, (reserved != 0u) ? "|" : "");
+            EMBED_CALL(cli_text_size_set.append_marked_n, CliTextSizeSetCfg, .out = args->source_verba_linea_pointer,
                        .text = word, .size = length, .set = "\\^$.|?*+()[]{}", .mark = '\\');
-            taken += 1u;
+            reserved += 1u;
         }
     }
     mmgr_line_ch(args->source_verba_linea_pointer, ')');
     mmgr_line_put(args->source_verba_linea_pointer, args->after);
-    return taken;
+    return reserved;
 }
 
 // one rule of a state written into `out` after `written` rules before it: one whose pattern is a word list given the
@@ -490,18 +492,18 @@ EMBED_INLINE int cli_tables_rule_write(const PluginsTablesCtx *args)
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                       .object = pattern, .name = "after"),
                    .length_pointer = NULL);
-    char *const source_cell = g_cli_cells->temporary_buf_alloc(CLI_TABLES_PATTERN_ROOM, &g_cli_plugins_cells);
-    VerbaLinea source = mmgr_line_over(source_cell, CLI_TABLES_PATTERN_ROOM);
+    char *const source_cell = g_cli_cells->temporary_buf_alloc(CLI_TABLES_PATTERN_CAPACITY, &g_cli_plugins_cells);
+    VerbaLinea source = mmgr_line_over(source_cell, CLI_TABLES_PATTERN_CAPACITY);
     if (source.out == NULL)
     {
         *failed = 1;
         return 0;
     }
-    const unsigned int taken =
+    const unsigned int reserved =
         EMBED_CALL(cli_tables_words_pattern, PluginsTablesCtx, .json = json, .grammar = args->grammar, .name = words,
                    .before = (before != NULL) ? before : "", .after = (after != NULL) ? after : "",
                    .source_verba_linea_pointer = &source);
-    if (taken != 0u)
+    if (reserved != 0u)
     {
         mmgr_line_put(out, (args->written != 0u) ? ",[" : "[");
         EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = source.out,
@@ -515,7 +517,7 @@ EMBED_INLINE int cli_tables_rule_write(const PluginsTablesCtx *args)
         mmgr_line_ch(out, ']');
     }
     g_cli_cells->persistent_buf_release(source.out, &g_cli_plugins_cells);
-    return taken != 0u;
+    return reserved != 0u;
 }
 
 // the grammar at `grammar` in `json`, its lists filled, written into `out` with each rule whose pattern is a word list
@@ -575,10 +577,10 @@ EMBED_INLINE int cli_tables_rules_write(const PluginsTablesCtx *args)
     return !failed;
 }
 
-int cli_plugins_grammar_whole(const CliPluginsErrMsgJsonCfg *args)
+int cli_plugins_grammar_resolved(const CliPluginsErrMsgJsonCfg *args)
 {
-    char *const lists_cell = g_cli_cells->temporary_buf_alloc(CLI_TABLES_ROOM, &g_cli_plugins_cells);
-    VerbaLinea lists = mmgr_line_over(lists_cell, CLI_TABLES_ROOM);
+    char *const lists_cell = g_cli_cells->temporary_buf_alloc(CLI_TABLES_CAPACITY, &g_cli_plugins_cells);
+    VerbaLinea lists = mmgr_line_over(lists_cell, CLI_TABLES_CAPACITY);
     if (lists.out == NULL)
     {
         mmgr_line_put(args->err_msg, "a grammar could not be given a cell to be made whole in");
@@ -589,9 +591,9 @@ int cli_plugins_grammar_whole(const CliPluginsErrMsgJsonCfg *args)
                 mmgr_line_ok(&lists);
     CliJson filled;
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &filled,
-               .node_json_node_pointer = NULL, .nodes_most = 0u, .text_out = NULL, .text_most = 0ull);
+               .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
     const unsigned int filled_grammar =
-        whole ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_take_temporary, CliJsonTreeTextSizeErrMsgCfg,
+        whole ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc_temporary, CliJsonTreeTextSizeErrMsgCfg,
                            .json = &filled, .text = lists.out, .size = lists.at, .nodes_more = 0u, .text_more = 0ull,
                            .err_msg = args->err_msg, .owner = &g_cli_plugins_cells)
               : CLI_JSON_NONE;
@@ -637,7 +639,7 @@ static void cli_tables_unless_line(const CliDefsLineEachCfg *args)
                                        .text = line->cell[unless->column], .length = line->length[unless->column]));
 }
 
-int cli_plugins_folder_stands(const CliPluginsJsonCfg *args)
+int cli_plugins_folder_exists(const CliPluginsJsonCfg *args)
 {
     const unsigned int except = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                            .json_read = args->json, .object = args->each_u32, .name = "except");
@@ -675,18 +677,19 @@ int cli_plugins_folder_stands(const CliPluginsJsonCfg *args)
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = args->json,
                                       .object = unless, .name = "match"),
                    .length_pointer = NULL);
-    CliRegexpRoom *const room =
-        (source != NULL) ? g_cli_cells->temporary_buf_alloc(sizeof(CliRegexpRoom), &g_cli_plugins_cells) : NULL;
+    CliRegexpWorkState *const work_state =
+        (source != NULL) ? g_cli_cells->temporary_buf_alloc(sizeof(CliRegexpWorkState), &g_cli_plugins_cells) : NULL;
     char why[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     CliRegexp pattern;
-    const int read = (room != NULL) && EMBED_CALL(cli_tables_pattern_read, PluginsTablesCtx, .pattern_out = &pattern,
-                                                  .room = room, .source = source, .err_msg = &err_msg);
+    const int read =
+        (work_state != NULL) && EMBED_CALL(cli_tables_pattern_read, PluginsTablesCtx, .pattern_out = &pattern,
+                                           .work_state = work_state, .source = source, .err_msg = &err_msg);
     CliTablesUnless matched = {args->json, unless, CLI_DEFS_CELLS, read ? &pattern : NULL, 0};
-    const int stands = ((source == NULL) || read) &&
+    const int exists = ((source == NULL) || read) &&
                        EMBED_CALL(cli_defs_path.lines, CliDefsPathCfg, .path = path, .each = cli_tables_unless_line,
                                   .context = &matched) &&
                        !matched.matched;
-    g_cli_cells->persistent_buf_release(room, &g_cli_plugins_cells);
-    return stands;
+    g_cli_cells->persistent_buf_release(work_state, &g_cli_plugins_cells);
+    return exists;
 }

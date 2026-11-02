@@ -43,7 +43,7 @@ unsigned int cli_width(void)
     char columns[32];
     unsigned long long width = 0ull;
     if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "COLUMNS",
-                   .value_out = columns, .room = sizeof(columns)))
+                   .value_out = columns, .capacity = sizeof(columns)))
     {
         const unsigned long long read =
             EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = columns, .at = 0ull,
@@ -63,9 +63,9 @@ void cli_cut(const CliCommandLineTextSizeCtx *args)
         mmgr_line_put_n(args->out, text, size);
         return;
     }
-    const unsigned long long shown = (args->most > 3ull) ? args->most - 3ull : 0ull;
+    const unsigned long long displayed = (args->most > 3ull) ? args->most - 3ull : 0ull;
     unsigned long long at = 0ull;
-    for (unsigned long long letter = 0ull; letter < shown; letter += 1ull)
+    for (unsigned long long letter = 0ull; letter < displayed; letter += 1ull)
     {
         unsigned long long length = 0ull;
         (void)EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = text, .size = size, .at = at, .length = &length);
@@ -81,7 +81,8 @@ void cli_wrap(const CliCommandLineTextCtx *args)
     const char *text = args->text;
     unsigned long long size = args->size;
     static char s_line[1u << 16u];
-    const unsigned long long lead_size = cellul.len(&(CatenaFinitaCfg){.src = args->lead, .cap = CLI_CELLS_POOL});
+    const unsigned long long comment_prefix_size =
+        cellul.len(&(CatenaFinitaCfg){.src = args->lead, .cap = CLI_CELLS_POOL});
     VerbaLinea line = {s_line, sizeof(s_line), 0ull};
     mmgr_line_put(&line, args->lead);
     unsigned long long at = 0ull;
@@ -90,16 +91,16 @@ void cli_wrap(const CliCommandLineTextCtx *args)
     while (EMBED_CALL(cli_text_size_length.word, CliTextSizeLengthCfg, .text = text, .size = size, .at_pointer = &at,
                       .word = &word, .length = &length))
     {
-        const int started = (line.at > lead_size);
+        const int started = (line.at > comment_prefix_size);
         if (started && (line.at + 1ull + length > args->most))
         {
             EMBED_CALL(args->each, CliEachLineSizeCfg, .context = args->context, .line = s_line, .size = line.at);
-            line.at = lead_size;
+            line.at = comment_prefix_size;
         }
-        mmgr_line_put(&line, (line.at > lead_size) ? " " : "");
+        mmgr_line_put(&line, (line.at > comment_prefix_size) ? " " : "");
         mmgr_line_put_n(&line, text + word, length);
     }
-    if (line.at > lead_size)
+    if (line.at > comment_prefix_size)
     {
         EMBED_CALL(args->each, CliEachLineSizeCfg, .context = args->context, .line = s_line, .size = line.at);
     }
@@ -136,7 +137,7 @@ void cli_quoted_word(const CliCommandLineOutCtx *args)
 {
     VerbaLinea *out = args->out;
     mmgr_line_ch(out, '"');
-    EMBED_CALL(cli_text_size_set.put_mark, CliTextSizeSetCfg, .out = out, .text = args->word, .set = "\\\"",
+    EMBED_CALL(cli_text_size_set.append_mark, CliTextSizeSetCfg, .out = out, .text = args->word, .set = "\\\"",
                .mark = '\\');
     mmgr_line_ch(out, '"');
 }
@@ -146,7 +147,7 @@ CliCatalog *cli_command_line_catalog(const CliCommandLineWordCtx *args)
     const char *root = args->root;
     EMBED_CALL(cli_catalog_choice_table.free, CliCatalogChoiceCfg, .catalog = &s_catalog);
     EMBED_CALL(cli_catalog_cells.take, CliCatalogCellsCfg, .catalog = &s_catalog, .cells = &g_cli_line_catalog_cells,
-               .jobs_most = CLI_LINE_JOBS);
+               .jobs_max = CLI_LINE_JOBS);
     EMBED_CALL(cli_catalog_root.read, CliCatalogRootCfg, .root = root, .catalog = &s_catalog);
     return &s_catalog;
 }
@@ -280,7 +281,7 @@ int cli_job_values(const CliCommandLineCatalogCtx *args)
                            .out = &free);
             }
             (void)mmgr_line_finish(&free);
-            EMBED_CALL(cli_catalog_key_values.values_put, CliCatalogKeyValuesCfg, .values_out = values,
+            EMBED_CALL(cli_catalog_key_values.values_append, CliCatalogKeyValuesCfg, .values_out = values,
                        .key = "arguments", .value = s_free);
             break;
         }
@@ -307,7 +308,7 @@ int cli_job_values(const CliCommandLineCatalogCtx *args)
         {
             return 0;
         }
-        EMBED_CALL(cli_catalog_key_values.values_put, CliCatalogKeyValuesCfg, .values_out = values, .key = key,
+        EMBED_CALL(cli_catalog_key_values.values_append, CliCatalogKeyValuesCfg, .values_out = values, .key = key,
                    .value = equals + 1);
     }
     const CliJob *const one = &catalog->job[args->job];
@@ -318,11 +319,12 @@ int cli_job_values(const CliCommandLineCatalogCtx *args)
             EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = catalog, .text_u32 = param->key);
         const char *const fallback = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = catalog,
                                                 .text_u32 = param->fallback);
-        unsigned int given = 0u;
-        (void)EMBED_CALL(cli_catalog_key.values_get, CliCatalogKeyCfg, .values = values, .key = key, .count = &given);
-        if ((fallback[0] != '\0') && (given == 0u))
+        unsigned int supplied = 0u;
+        (void)EMBED_CALL(cli_catalog_key.values_get, CliCatalogKeyCfg, .values = values, .key = key,
+                         .count = &supplied);
+        if ((fallback[0] != '\0') && (supplied == 0u))
         {
-            EMBED_CALL(cli_catalog_key_values.values_put, CliCatalogKeyValuesCfg, .values_out = values, .key = key,
+            EMBED_CALL(cli_catalog_key_values.values_append, CliCatalogKeyValuesCfg, .values_out = values, .key = key,
                        .value = fallback);
         }
     }

@@ -53,13 +53,13 @@ EMBED_INLINE void request_answer(const RecordingRequestCtx *args)
     CliDap *dap = args->dap;
     unsigned int message = args->message;
     s_seq += 1ull;
-    const int body_whole = mmgr_line_ok(args->body);
+    const int body_untruncated = mmgr_line_ok(args->body);
     const unsigned long long command_size = cellul.len(&(CatenaFinitaCfg){.src = args->command, .cap = CLI_CELLS_POOL});
     // the members around the body, the body or null, and the command and the reason with every byte escaped
-    const unsigned long long room =
-        (body_whole ? args->body->at : 4ull) + ((command_size + args->err_msg->at) * 6ull) + 512ull;
-    char *const sent = g_cli_cells->temporary_buf_alloc(room, &g_cli_debug_cells);
-    VerbaLinea reply = mmgr_line_over(sent, room);
+    const unsigned long long capacity =
+        (body_untruncated ? args->body->at : 4ull) + ((command_size + args->err_msg->at) * 6ull) + 512ull;
+    char *const sent = g_cli_cells->temporary_buf_alloc(capacity, &g_cli_debug_cells);
+    VerbaLinea reply = mmgr_line_over(sent, capacity);
     mmgr_line_put(&reply, "{\"seq\":");
     mmgr_line_decimal(&reply, s_seq, 1u);
     mmgr_line_put(&reply, ",\"type\":\"response\",\"request_seq\":");
@@ -70,7 +70,7 @@ EMBED_INLINE void request_answer(const RecordingRequestCtx *args)
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &reply,
                .text_bytes = (const unsigned char *)args->command, .length = command_size);
     mmgr_line_put(&reply, args->success ? ",\"success\":true,\"body\":" : ",\"success\":false,\"message\":");
-    if (args->success && body_whole)
+    if (args->success && body_untruncated)
     {
         (void)mmgr_line_put_n(&reply, args->body->out, args->body->at);
     }
@@ -136,7 +136,7 @@ EMBED_INLINE void request_breakpoints(const RecordingRequestCtx *args)
         const unsigned int line_node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                   .json_read = &s_json, .object = one, .name = "line");
         unsigned long long line = 0ull;
-        const int whole = EMBED_CALL(cli_recording_json_internal.replay_whole, CliRecordingJsonCtx, .json = &s_json,
+        const int whole = EMBED_CALL(cli_recording_json_internal.replay_integer, CliRecordingJsonCtx, .json = &s_json,
                                      .id = line_node, .value = &line);
         // a line past 32 bits retains its low 32, the width of the line numbers the recording stores
         const unsigned int narrow = (unsigned int)(line & 0xffffffffull);
@@ -225,7 +225,7 @@ int cli_recording_serve(const CliDapServeCfg *args)
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     // the request before this one given back with its tree, and this one read into a tree of its size
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &s_json);
-    const unsigned int message = EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg,
+    const unsigned int message = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
                                             .json = &s_json, .text = args->request, .size = size, .nodes_more = 0u,
                                             .text_more = 0ull, .err_msg = &err_msg, .owner = &g_cli_debug_cells);
     if (message == CLI_JSON_NONE)
@@ -249,7 +249,7 @@ int cli_recording_serve(const CliDapServeCfg *args)
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json,
                                       .object = message, .name = "command"),
                    .length_pointer = NULL);
-    EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_room = command, .text = named, .otherwise = "");
+    EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_capacity = command, .text = named, .otherwise = "");
     const unsigned int arguments = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                               .json_read = &s_json, .object = message, .name = "arguments");
     // the answer's body in a cell of the most it holds, given back once the reply is sent
@@ -275,9 +275,9 @@ int cli_recording_serve(const CliDapServeCfg *args)
                        .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_json,
                                           .object = arguments, .name = "python"),
                        .length_pointer = NULL);
-        EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_room = g_cli_replay->program, .text = program,
+        EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_capacity = g_cli_replay->program, .text = program,
                    .otherwise = "");
-        EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_room = g_cli_replay->python, .text = python,
+        EMBED_CALL(cli_text_out.copied_or, CliTextOutCfg, .out_capacity = g_cli_replay->python, .text = python,
                    .otherwise = "");
         mmgr_line_put(&body, "null");
         EMBED_CALL(request_answer, RecordingRequestCtx, .dap = dap, .message = message, .command = command,

@@ -22,7 +22,7 @@ typedef struct CliDapCfg CliDapCfg;
 #include "embed_dispatch_layout.h"
 
 // the most adapters open at once, and the requests that wait on answers at once
-#define CLI_DAPS_MOST 4u
+#define CLI_DAPS_MAX 4u
 #define CLI_DAP_WAITERS 16u
 
 // A debug adapter a session connects to
