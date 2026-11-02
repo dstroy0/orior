@@ -16,6 +16,11 @@ static char s_events[16][4096];
 static unsigned int s_event_count;
 static const CliJson *s_json;
 static CliServersSink s_sink;
+static char s_passed_on[256];
+static unsigned long long s_passed_on_at;
+static unsigned int s_check_moves;
+static unsigned long long s_check_done;
+static unsigned long long s_check_total;
 
 static int s_release_run_result;
 static int s_release_woken;
@@ -35,6 +40,24 @@ static void event_recorded(const CliEachEventJsonSizeCfg *args)
         (void)mmgr_line_finish(&line);
         s_event_count += 1u;
     }
+}
+
+// a file's diagnostics handed on, how many counted after those handed on before, a comma between
+static void diagnostics_counted(const CliServerDiagnosticsCfg *args)
+{
+    VerbaLinea line = {s_passed_on, sizeof(s_passed_on), s_passed_on_at};
+    mmgr_line_put(&line, (line.at > 0ull) ? "," : "");
+    mmgr_line_decimal(&line, args->count, 1u);
+    s_passed_on_at = line.at;
+    (void)mmgr_line_finish(&line);
+}
+
+// how far the tree's check has gone, as it last moved
+static void check_counted(const CliServerCheckCfg *args)
+{
+    s_check_moves += 1u;
+    s_check_done = args->done;
+    s_check_total = args->total;
 }
 
 // the program of the server of `language`, empty where none serves it
@@ -136,21 +159,6 @@ static void diagnostics_published(const char *uri, unsigned int items)
     (void)server_requested("textDocument/publishDiagnostics", s_params);
 }
 
-// the counts of the diagnostics passed on, joined by `,`, into `out`, which is sized for 256
-static void passed_on_counts(char *out)
-{
-    VerbaLinea line = {out, 256u, 0ull};
-    for (unsigned int at = 0u; at < s_event_count; at += 1u)
-    {
-        if (cellul.starts(&(CatenaFinitaCfg){.src = s_events[at], .other = "lsp-diagnostics ", .cap = CLI_CELLS_POOL}))
-        {
-            mmgr_line_put(&line, (line.at > 0ull) ? "," : "");
-            mmgr_line_decimal(&line, event_items(at, "items"), 1u);
-        }
-    }
-    (void)mmgr_line_finish(&line);
-}
-
 // a file's checker woken, the file released, and its diagnostics published again, what each passed on recorded once for the process
 static void release_run_result(void)
 {
@@ -168,14 +176,15 @@ static void release_run_result(void)
     }
     s_release_run_result = 1;
     EMBED_CALL(cli_lsp_length.key_get, CliLspLengthCfg, .uri = s_uri, .length = sizeof(s_uri) - 1u, .key = key);
-    s_event_count = 0u;
+    s_passed_on_at = 0ull;
+    s_passed_on[0] = '\0';
     EMBED_CALL(cli_servers_key_checker_internal.wait_on, CliServersKeyCheckerCtx, .checker = 0u, .key = key);
     diagnostics_published(s_uri, 1u);
     s_release_woken = EMBED_CALL(cli_servers_key_checker_internal.was_wake, CliServersKeyCheckerCtx, .checker = 0u);
     EMBED_CALL(cli_servers_key_checker_internal.let_go_get, CliServersKeyCheckerCtx, .key = key);
     diagnostics_published(s_uri, 1u);
     diagnostics_published(s_written, 0u);
-    passed_on_counts(s_passed_on_after_clear);
+    memor.cpy(&(MemoriaCfg){.dst = s_passed_on_after_clear, .src = s_passed_on, .bytes = sizeof(s_passed_on)});
     const char *adjacent = NULL;
     unsigned long long size = 0ull;
     const char *const published = EMBED_CALL(cli_keyed_key_adjacent.get, CliKeyedKeyAdjacentCfg, .keyed = &g_cli_servers_published, .key = key, .adjacent = &adjacent, .size = &size);
@@ -186,7 +195,7 @@ static void release_run_result(void)
         s_release_items = json->node[read].count;
     }
     diagnostics_published(s_uri, 0u);
-    passed_on_counts(s_passed_on_final);
+    memor.cpy(&(MemoriaCfg){.dst = s_passed_on_final, .src = s_passed_on, .bytes = sizeof(s_passed_on)});
 }
 
 // whether a line of `text` names the stem `stem`
@@ -210,8 +219,9 @@ static int text_names(const char *text, const char *stem)
 void setUp(void)
 {
     cli_unity_begun();
-    s_sink = (CliServersSink){.emit = event_recorded};
+    s_sink = (CliServersSink){.emit = event_recorded, .diagnostics = diagnostics_counted, .check_moved = check_counted};
     s_event_count = 0u;
+    s_check_moves = 0u;
 }
 
 void tearDown(void)
@@ -279,14 +289,15 @@ void test_a_check_stopped_releases_its_files_waiting_and_stays_on_and_reports_do
     EMBED_CALL(cli_servers_sink_internal.check_set, CliServersSinkCtx, .on = 1, .sink = &s_sink, .done = 3ull, .total = 10ull);
     cli_servers_stop_check();
     EMBED_CALL(cli_servers_on_internal.check_count, CliServersOnCtx, .on_pointer = &on, .waiting_u32s = &waiting, .done_pointer = &done, .total_pointer = &total);
-    const unsigned int events = s_event_count;
+    const unsigned int moves = s_check_moves;
     EMBED_CALL(cli_servers_sink_internal.check_set, CliServersSinkCtx, .on = 0, .sink = NULL, .done = 0ull, .total = 0ull);
     TEST_ASSERT_EQUAL_UINT(0u, waiting);
     TEST_ASSERT_EQUAL_UINT64(3ull, done);
     TEST_ASSERT_EQUAL_UINT64(3ull, total);
     TEST_ASSERT_TRUE(on);
-    TEST_ASSERT_EQUAL_UINT(1u, events);
-    TEST_ASSERT_EQUAL_STRING("tree-check {\"done\":3,\"total\":3}", s_events[0]);
+    TEST_ASSERT_EQUAL_UINT(1u, moves);
+    TEST_ASSERT_EQUAL_UINT64(3ull, s_check_done);
+    TEST_ASSERT_EQUAL_UINT64(3ull, s_check_total);
 }
 
 void test_clangd_serves_c(void)

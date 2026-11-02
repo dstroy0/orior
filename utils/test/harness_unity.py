@@ -204,8 +204,8 @@ def lowered_priority():
 
 
 def suite_env():
-    """A suite's environment: its fixtures' commits and tags are not signed."""
-    return dict(os.environ, GIT_CONFIG_COUNT="2", GIT_CONFIG_KEY_0="commit.gpgsign", GIT_CONFIG_VALUE_0="false", GIT_CONFIG_KEY_1="tag.gpgsign", GIT_CONFIG_VALUE_1="false")
+    """A suite's environment: its fixtures' commits and tags are not signed, and git leaves their line ends as written."""
+    return dict(os.environ, GIT_CONFIG_COUNT="3", GIT_CONFIG_KEY_0="commit.gpgsign", GIT_CONFIG_VALUE_0="false", GIT_CONFIG_KEY_1="tag.gpgsign", GIT_CONFIG_VALUE_1="false", GIT_CONFIG_KEY_2="core.autocrlf", GIT_CONFIG_VALUE_2="false")
 
 
 def sanitizer_reports(name, run):

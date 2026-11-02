@@ -12,9 +12,7 @@ static char s_words[CLI_MENUS_MAX][CLI_LABEL_MAX_LEN];
 static void assert_arguments_required(unsigned int needed, const char *args)
 {
     CliItem item = {0};
-    VerbaLinea line = {item.args, sizeof(item.args), 0ull};
-    mmgr_line_put(&line, args);
-    (void)mmgr_line_finish(&line);
+    item.args = args;
     TEST_ASSERT_EQUAL_UINT_MESSAGE(needed, EMBED_CALL(cli_commands_item.item_words_need, CliCommandsItemCfg, .item_read = &item), args);
 }
 

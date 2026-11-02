@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_files.c: a paste copies or moves and writes over nothing; a file and a folder go to a tree on another machine a part at a time; a file and a folder
 // brought in are copied whole, each file reporting its end; a tree in a folder its repository ignores lists its files from the disk; a file in a folder made
-// after git's view was read is tracked, and one in an ignored folder is not; and a file past the size the window pages is read without a cell of its size
+// after git's view was read is tracked, and one in an ignored folder is not
 #include "ui/cli/src/code/git.h"
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "ui/cli/src/code/symbols.h"
@@ -33,7 +33,6 @@ static char s_root[CLI_PATH_MAX_LEN];
 static char s_error[1024];
 
 // a file past the size the window pages, in lines of a hundred bytes
-static unsigned char s_huge[128u << 20u];
 
 static int s_over_run_result;
 static int s_over_fetched;
@@ -56,15 +55,6 @@ static int s_fetch_first;
 static int s_fetch_big_end;
 static int s_fetch_note_end;
 
-static int s_large_run_result;
-static int s_large_read;
-static int s_large_windowed;
-static int s_large_sized;
-static unsigned long long s_large_peak;
-static int s_large_sliced;
-static int s_large_slice_start;
-static int s_large_slice_end;
-static unsigned long long s_large_slice_peak;
 
 // a file of the tree `root` written at `name`, `size` bytes of `bytes`
 static void bytes_written(const char *root, const char *name, const void *bytes, unsigned long long size)
@@ -138,40 +128,6 @@ static int text_contains(const char *text, const char *part)
         }
     }
     return 0;
-}
-
-// a file past the paging size read for the window, then a slice of its lines, what each answered recorded, once for the process
-static void large_run_result(void)
-{
-    char root[CLI_PATH_MAX_LEN];
-    char why[512];
-    unsigned long long pool = 0ull;
-    unsigned long long temporary = 0ull;
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    if (s_large_run_result)
-    {
-        return;
-    }
-    s_large_run_result = 1;
-    cli_unity_folder("files_large", root);
-    for (unsigned long long at = 0ull; at < sizeof(s_huge); at += 1ull)
-    {
-        // lines of a hundred bytes, the letters in turn
-        s_huge[at] = ((at % 100ull) == 99ull) ? (unsigned char)'\n' : (unsigned char)('a' + (at % 26ull));
-    }
-    bytes_written(root, "huge.log", s_huge, sizeof(s_huge));
-    s_large_read = EMBED_CALL(cli_files_root_out_err_msg_file.read, CliFilesRootOutErrMsgFileCfg, .root = root, .file = "huge.log", .out = &out, .err_msg = &err_msg);
-    (void)mmgr_line_finish(&out);
-    s_large_windowed = text_contains(s_out, "\"windowed\":true");
-    s_large_sized = text_contains(s_out, "\"size\":134217728");
-    EMBED_CALL(cli_cells_table.report, CliCellsCfg, .pool = &pool, .persistent = &s_large_peak, .temporary = &temporary);
-    out.at = 0ull;
-    s_large_sliced = EMBED_CALL(cli_files_root_out_err_msg_file.slice, CliFilesRootOutErrMsgFileCfg, .root = root, .file = "huge.log", .start = 8000000ull, .end = 8001000ull, .out = &out, .err_msg = &err_msg);
-    (void)mmgr_line_finish(&out);
-    s_large_slice_start = text_contains(s_out, "\"start\":8000000");
-    s_large_slice_end = text_contains(s_out, "\"end\":8001000");
-    EMBED_CALL(cli_cells_table.report, CliCellsCfg, .pool = &pool, .persistent = &s_large_slice_peak, .temporary = &temporary);
 }
 
 void setUp(void)
@@ -272,34 +228,6 @@ void test_a_file_under_a_folder_git_ignores_is_not_tracked(void)
 {
     tracked_tree_written();
     TEST_ASSERT_FALSE(EMBED_CALL(cli_files_root_path.track, CliFilesRootPathCfg, .root = s_root, .path = "out/deep/x.o"));
-}
-
-void test_a_file_end_the_paging_size_is_read_as_windowed_with_its_size(void)
-{
-    large_run_result();
-    TEST_ASSERT_TRUE(s_large_read);
-    TEST_ASSERT_TRUE(s_large_windowed);
-    TEST_ASSERT_TRUE(s_large_sized);
-}
-
-void test_the_cellblocks_peak_stays_under_the_files_size(void)
-{
-    large_run_result();
-    TEST_ASSERT_LESS_THAN_UINT64(sizeof(s_huge), s_large_peak);
-}
-
-void test_a_slice_of_its_lines_is_read_from_the_line_start_to_the_one_at_the_end(void)
-{
-    large_run_result();
-    TEST_ASSERT_TRUE(s_large_sliced);
-    TEST_ASSERT_TRUE(s_large_slice_start);
-    TEST_ASSERT_TRUE(s_large_slice_end);
-}
-
-void test_a_slice_stores_only_the_bytes_about_it(void)
-{
-    large_run_result();
-    TEST_ASSERT_LESS_THAN_UINT64(sizeof(s_huge), s_large_slice_peak);
 }
 
 void test_the_files_report_what_the_views_and_their_lists_use_of_the_cellblock(void)

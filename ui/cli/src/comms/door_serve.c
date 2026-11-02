@@ -23,11 +23,29 @@ typedef struct
     const char *key;
     const char *name;
 } DoorServeCtx;
-// an answer written to the process: 1, or 0 where its end is broken
+// an answer handed to the writer of the process's end, once the one before it has gone: 1, or 0 where its end is broken
 EMBED_INLINE int serve_answer(const DoorServeCtx *args)
 {
-    return EMBED_CALL(cli_ipc_end_internal.frame_write, CliIpcEndCtx, .end = &args->joined->end, .bytes = args->bytes,
-                      .size = args->size, .region = NULL);
+    CliIpcJoined *const joined = args->joined;
+    for (;;)
+    {
+        const unsigned int seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &joined->queue_wake);
+        if (EMBED_ATOMIC_LOAD(&joined->sending) == 0u)
+        {
+            return 0;
+        }
+        if (EMBED_ATOMIC_LOAD(&joined->answer_waits) == 0u)
+        {
+            break;
+        }
+        EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &joined->queue_wake, .seen = seen);
+    }
+    const unsigned long long size = (args->size < CLI_IPC_SERVE_ANSWER) ? args->size : CLI_IPC_SERVE_ANSWER;
+    memor.cpy(&(MemoriaCfg){.dst = joined->answer, .src = args->bytes, .bytes = (size_t)size});
+    joined->answer_size = size;
+    EMBED_ATOMIC_STORE(&joined->answer_waits, 1u);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &joined->queue_wake);
+    return 1;
 }
 
 // a refusal answered, why it was refused given
@@ -40,21 +58,39 @@ EMBED_INLINE int serve_reject(const DoorServeCtx *args)
     return EMBED_CALL(serve_answer, DoorServeCtx, .joined = args->joined, .bytes = out.out, .size = out.at);
 }
 
-// a message sent on a channel the process listens on queued for it, under the comms layer's lock: 1, 0 where the
-// process is gone, -1 where its queue has no capacity
+// a message sent on a channel the process listens on queued for it, from any thread, the next place claimed before it
+// is written: 1, 0 where the process is gone, -1 where its queue has no capacity
 static int serve_recv(const CliCommsRecvCfg *args)
 {
     unsigned long long size = args->size;
     CliIpcJoined *const joined = (CliIpcJoined *)args->context;
-    if (!joined->read_state)
+    if (EMBED_ATOMIC_LOAD(&joined->read_state) == 0u)
     {
         return 0;
     }
-    if (joined->queued == CLI_IPC_ENTRIES)
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    CliRegion region;
+    const int has_region = (size > CLI_IPC_ENTRY_BODY);
+    if (has_region && !EMBED_CALL(cli_transfer_region_bytes.region_with, CliTransferRegionBytesCfg, .region = &region,
+                                  .bytes = args->body, .size = size, .err_msg = &err_msg))
     {
         return -1;
     }
-    CliIpcEntry *const entry = &joined->entries[(joined->first + joined->queued) % CLI_IPC_ENTRIES];
+    embed_u32 claimed = EMBED_ATOMIC_LOAD(&joined->claimed);
+    do
+    {
+        // the counts run on past the queue's capacity, and their difference stands whole across a wrap
+        if ((claimed - EMBED_ATOMIC_LOAD(&joined->taken)) >= CLI_IPC_ENTRIES)
+        {
+            if (has_region)
+            {
+                EMBED_CALL(cli_transfer_region_bytes.region_close, CliTransferRegionBytesCfg, .region = &region);
+            }
+            return -1;
+        }
+    } while (!EMBED_ATOMIC_CAS_32(&joined->claimed, &claimed, claimed + 1u));
+    CliIpcEntry *const entry = &joined->entries[claimed % CLI_IPC_ENTRIES];
     memor.cpy(&(MemoriaCfg){.dst = entry->channel,
                             .src = args->channel,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->channel, .cap = CLI_CELLS_POOL}) + 1u});
@@ -62,20 +98,16 @@ static int serve_recv(const CliCommsRecvCfg *args)
                             .src = args->from,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->from, .cap = CLI_CELLS_POOL}) + 1u});
     entry->size = size;
-    entry->has_region = (size > CLI_IPC_ENTRY_BODY);
-    char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    if (entry->has_region &&
-        !EMBED_CALL(cli_transfer_region_bytes.region_with, CliTransferRegionBytesCfg, .region = &entry->region,
-                    .bytes = args->body, .size = size, .err_msg = &err_msg))
+    entry->has_region = has_region;
+    if (has_region)
     {
-        return -1;
+        entry->region = region;
     }
-    if (!entry->has_region)
+    else
     {
         memor.cpy(&(MemoriaCfg){.dst = entry->body, .src = args->body, .bytes = (size_t)size});
     }
-    joined->queued += 1u;
+    EMBED_ATOMIC_STORE(&entry->written, 1u);
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &joined->queue_wake);
     return 1;
 }
@@ -126,8 +158,7 @@ EMBED_INLINE int serve_send(const DoorServeCtx *args)
 // a thread's end in the process's place: the last of the two lets the end go and gives the place back
 EMBED_INLINE void serve_thread_end(const DoorServeCtx *args)
 {
-    args->joined->going -= 1u;
-    const int last = (args->joined->going == 0u);
+    const int last = (EMBED_ATOMIC_ADD_32(&args->joined->going, (embed_u32)-1) == 1u);
     if (!last)
     {
         return;
@@ -137,38 +168,59 @@ EMBED_INLINE void serve_thread_end(const DoorServeCtx *args)
     g_cli_cells->persistent_buf_release(args->joined, &g_cli_ipc_cells);
 }
 
-// the messages queued sent to the process, one at a time, until the process is gone and its queue is empty; a message
-// that does not go ends the sending, its channels let go
+// what the process's end has stopped taking told: its reader let go, and nothing more written
+EMBED_INLINE void serve_end_broken(const DoorServeCtx *args)
+{
+    EMBED_ATOMIC_STORE(&args->joined->sending, 0u);
+    EMBED_ATOMIC_STORE(&args->joined->read_state, 0u);
+    EMBED_CALL(cli_ipc_internal.shut, CliIpcCtx, .end = &args->joined->end);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &args->joined->queue_wake);
+}
+
+// the end's one writer: the answer waiting and the messages queued sent to the process, one at a time, until the
+// process is gone and nothing waits; what does not go ends the sending, and what waits after it is let go
 static void serve_drain(void *context)
 {
     CliIpcJoined *const joined = (CliIpcJoined *)context;
-    int sending = 1;
     for (;;)
     {
-        while (joined->read_state && (joined->queued == 0u))
+        const unsigned int seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &joined->queue_wake);
+        if (EMBED_ATOMIC_LOAD(&joined->answer_waits) != 0u)
         {
-            EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &joined->queue_wake);
+            if ((EMBED_ATOMIC_LOAD(&joined->sending) != 0u) &&
+                !EMBED_CALL(cli_ipc_end_internal.frame_write, CliIpcEndCtx, .end = &joined->end,
+                            .bytes = joined->answer, .size = joined->answer_size, .region = NULL))
+            {
+                EMBED_CALL(serve_end_broken, DoorServeCtx, .joined = joined);
+            }
+            EMBED_ATOMIC_STORE(&joined->answer_waits, 0u);
+            EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &joined->queue_wake);
+            continue;
         }
-        if (joined->queued == 0u)
+        CliIpcEntry *const entry = &joined->entries[joined->first];
+        if ((EMBED_ATOMIC_LOAD(&joined->claimed) != EMBED_ATOMIC_LOAD(&joined->taken)) &&
+            (EMBED_ATOMIC_LOAD(&entry->written) != 0u))
+        {
+            if ((EMBED_ATOMIC_LOAD(&joined->sending) != 0u) &&
+                !EMBED_CALL(serve_send, DoorServeCtx, .joined = joined, .entry = entry))
+            {
+                EMBED_CALL(serve_end_broken, DoorServeCtx, .joined = joined);
+            }
+            if (entry->has_region)
+            {
+                EMBED_CALL(cli_transfer_region_bytes.region_close, CliTransferRegionBytesCfg, .region = &entry->region);
+            }
+            EMBED_ATOMIC_STORE(&entry->written, 0u);
+            joined->first = (joined->first + 1u) % CLI_IPC_ENTRIES;
+            (void)EMBED_ATOMIC_ADD_32(&joined->taken, 1u);
+            continue;
+        }
+        if ((EMBED_ATOMIC_LOAD(&joined->read_state) == 0u) &&
+            (EMBED_ATOMIC_LOAD(&joined->claimed) == EMBED_ATOMIC_LOAD(&joined->taken)))
         {
             break;
         }
-        CliIpcEntry *const entry = &joined->entries[joined->first];
-        sending = sending && EMBED_CALL(serve_send, DoorServeCtx, .joined = joined, .entry = entry);
-        if (entry->has_region)
-        {
-            EMBED_CALL(cli_transfer_region_bytes.region_close, CliTransferRegionBytesCfg, .region = &entry->region);
-        }
-        joined->first = (joined->first + 1u) % CLI_IPC_ENTRIES;
-        joined->queued -= 1u;
-        if (!sending)
-        {
-            joined->read_state = 0;
-        }
-        if (!sending)
-        {
-            EMBED_CALL(cli_ipc_internal.shut, CliIpcCtx, .end = &joined->end);
-        }
+        EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &joined->queue_wake, .seen = seen);
     }
     EMBED_CALL(serve_thread_end, DoorServeCtx, .joined = joined);
 }
@@ -253,7 +305,7 @@ static void serve_read(void *context)
     {
         EMBED_CALL(cli_comms_listener.unlisten, CliCommsListenerCfg, .listener_value = joined->listeners[at]);
     }
-    joined->read_state = 0;
+    EMBED_ATOMIC_STORE(&joined->read_state, 0u);
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &joined->queue_wake);
     EMBED_CALL(serve_thread_end, DoorServeCtx, .joined = joined);
 }
@@ -282,11 +334,12 @@ static void serve_accept(void *context)
         {
             place = (g_cli_ipc_served.joined[at] == NULL) ? at : place;
         }
-        // a joined process's frame and queued bodies stand in its cell, after it
+        // a joined process's frame, queued bodies and answer stand in its cell, after it
         joined = (place < CLI_IPC_JOINED)
-                     ? g_cli_cells->persistent_buf_alloc(sizeof(CliIpcJoined) + CLI_IPC_FRAME +
-                                                             ((unsigned long long)CLI_IPC_ENTRIES * CLI_IPC_ENTRY_BODY),
-                                                         &g_cli_ipc_cells)
+                     ? g_cli_cells->persistent_buf_alloc(
+                           sizeof(CliIpcJoined) + CLI_IPC_FRAME +
+                               ((unsigned long long)CLI_IPC_ENTRIES * CLI_IPC_ENTRY_BODY) + CLI_IPC_SERVE_ANSWER,
+                           &g_cli_ipc_cells)
                      : NULL;
         if (joined != NULL)
         {
@@ -295,9 +348,11 @@ static void serve_accept(void *context)
             {
                 joined->entries[at].body =
                     joined->frame + CLI_IPC_FRAME + ((unsigned long long)at * CLI_IPC_ENTRY_BODY);
+                EMBED_ATOMIC_STORE(&joined->entries[at].written, 0u);
             }
+            joined->answer = joined->frame + CLI_IPC_FRAME + ((unsigned long long)CLI_IPC_ENTRIES * CLI_IPC_ENTRY_BODY);
             joined->place = place;
-            joined->going = 2u;
+            EMBED_ATOMIC_STORE(&joined->going, 2u);
             g_cli_ipc_served.joined[place] = joined;
         }
         if (joined == NULL)
@@ -313,13 +368,17 @@ static void serve_accept(void *context)
         joined->peer = peer;
         joined->queue_wake = (CliWake)CLI_WAKE_INIT;
         joined->first = 0u;
-        joined->queued = 0u;
+        EMBED_ATOMIC_STORE(&joined->claimed, 0u);
+        EMBED_ATOMIC_STORE(&joined->taken, 0u);
+        EMBED_ATOMIC_STORE(&joined->answer_waits, 0u);
         joined->listens = 0u;
-        joined->read_state = 1;
+        EMBED_ATOMIC_STORE(&joined->read_state, 1u);
+        EMBED_ATOMIC_STORE(&joined->sending, 1u);
         joined->reader = (CliThread){serve_read, joined};
         joined->reporter = (CliThread){serve_drain, joined};
         if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &joined->reporter))
         {
+            EMBED_ATOMIC_STORE(&joined->sending, 0u);
             EMBED_CALL(serve_thread_end, DoorServeCtx, .joined = joined);
         }
         if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &joined->reader))

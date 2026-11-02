@@ -14,14 +14,14 @@ struct CliIpcClient
     CliIpcEnd end;
     char name[CLI_NAME_MAX_LEN];
     CliWake wake;
-    int read_state;
+    embed_atomic_u32 read_state;
     char *answer;
     unsigned long long answer_size;
-    int answered;
+    embed_atomic_u32 answered;
     char *frame;
     CliIpcEntry recv_queue[CLI_IPC_RECV_QUEUE];
     unsigned int first;
-    unsigned int queued;
+    embed_atomic_u32 queued;
     CliThread reader;
 };
 // the most clients in one process; the bytes of an answer stored; and the messages queued for one client
@@ -48,13 +48,13 @@ EMBED_INLINE void client_recv(const DoorClientCtx *args)
     const unsigned long long channel_end = cli_ipc_field_end(args->message, size, 0ull);
     const unsigned long long from_end =
         (channel_end != 0ull) ? cli_ipc_field_end(args->message, size, channel_end) : 0ull;
-    if ((args->client->queued >= CLI_IPC_RECV_QUEUE) || (from_end == 0ull) || (from_end >= size))
+    const unsigned int queued = EMBED_ATOMIC_LOAD(&args->client->queued);
+    if ((queued >= CLI_IPC_RECV_QUEUE) || (from_end == 0ull) || (from_end >= size))
     {
         return;
     }
     // the entry past the last queued is the reader's alone until it is counted
-    CliIpcEntry *const entry =
-        &args->client->recv_queue[(args->client->first + args->client->queued) % CLI_IPC_RECV_QUEUE];
+    CliIpcEntry *const entry = &args->client->recv_queue[(args->client->first + queued) % CLI_IPC_RECV_QUEUE];
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     VerbaLinea channel = {entry->channel, sizeof(entry->channel), 0ull};
@@ -97,7 +97,7 @@ EMBED_INLINE void client_recv(const DoorClientCtx *args)
         }
         entry->size = rest_size;
     }
-    args->client->queued += 1u;
+    (void)EMBED_ATOMIC_ADD_32(&args->client->queued, 1u);
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &args->client->wake);
 }
 
@@ -129,10 +129,10 @@ static void client_read(void *context)
         const unsigned long long pending = (size < CLI_IPC_ANSWER) ? size : 0ull;
         memor.cpy(&(MemoriaCfg){.dst = client->answer, .src = client->frame, .bytes = (size_t)pending});
         client->answer_size = pending;
-        client->answered = 1;
+        EMBED_ATOMIC_STORE(&client->answered, 1u);
         EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &client->wake);
     }
-    client->read_state = 0;
+    EMBED_ATOMIC_STORE(&client->read_state, 0u);
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &client->wake);
 }
 
@@ -145,7 +145,7 @@ static int client_request(const DoorClientCtx *args)
     unsigned long long size = args->size;
     const CliRegion *region = args->region;
     unsigned long long *delivered = args->delivered;
-    args->client->answered = 0;
+    EMBED_ATOMIC_STORE(&args->client->answered, 0u);
     if (!EMBED_CALL(cli_ipc_end_internal.frame_write, CliIpcEndCtx, .end = &args->client->end, .bytes = args->request,
                     .size = size, .region = region))
     {
@@ -154,12 +154,19 @@ static int client_request(const DoorClientCtx *args)
     }
     const unsigned long long wait = 10000ull + (2000ull * ((region != NULL) ? (region->length >> 20u) : 0ull));
     const unsigned long long until = cli_clock_milliseconds() + wait;
-    while (!args->client->answered && args->client->read_state && (cli_clock_milliseconds() < until))
+    for (;;)
     {
-        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &args->client->wake,
-                         .milliseconds_u64 = until - cli_clock_milliseconds());
+        const unsigned int seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &args->client->wake);
+        const unsigned long long now = cli_clock_milliseconds();
+        if ((EMBED_ATOMIC_LOAD(&args->client->answered) != 0u) ||
+            (EMBED_ATOMIC_LOAD(&args->client->read_state) == 0u) || (now >= until))
+        {
+            break;
+        }
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_seen_for, CliWakeCtx, .wake = &args->client->wake, .seen = seen,
+                         .milliseconds_u64 = until - now);
     }
-    const int answered = args->client->answered;
+    const int answered = EMBED_ATOMIC_LOAD(&args->client->answered) != 0u;
     if (!answered)
     {
         mmgr_line_put(args->err_msg, "the container gave no answer");
@@ -194,15 +201,11 @@ CliIpcClient *cli_ipc_join(const CliIpcErrMsgAddressCfg *args)
         mmgr_line_put(args->err_msg, "this process has as many ends of the door as it can");
         return NULL;
     }
-    // an end's answer, frame and queued bodies stand in one cell, taken as the end is first used and used again after
-    // it
-    if (client->answer == NULL)
-    {
-        client->answer =
-            g_cli_cells->persistent_buf_alloc((unsigned long long)CLI_IPC_ANSWER + CLI_IPC_FRAME +
-                                                  ((unsigned long long)CLI_IPC_RECV_QUEUE * CLI_IPC_ENTRY_BODY),
-                                              &g_cli_ipc_cells);
-    }
+    // an end's answer, frame and queued bodies stand in one cell, for as long as the end does
+    client->answer =
+        g_cli_cells->persistent_buf_alloc((unsigned long long)CLI_IPC_ANSWER + CLI_IPC_FRAME +
+                                              ((unsigned long long)CLI_IPC_RECV_QUEUE * CLI_IPC_ENTRY_BODY),
+                                          &g_cli_ipc_cells);
     if (client->answer == NULL)
     {
         client->reserved = 0;
@@ -216,9 +219,9 @@ CliIpcClient *cli_ipc_join(const CliIpcErrMsgAddressCfg *args)
     }
     client->wake = (CliWake)CLI_WAKE_INIT;
     client->first = 0u;
-    client->queued = 0u;
-    client->answered = 0;
-    client->read_state = 1;
+    EMBED_ATOMIC_STORE(&client->queued, 0u);
+    EMBED_ATOMIC_STORE(&client->answered, 0u);
+    EMBED_ATOMIC_STORE(&client->read_state, 1u);
     char hello[CLI_NAME_MAX_LEN * 2u];
     VerbaLinea request = {hello, sizeof(hello), 0ull};
     mmgr_line_ch(&request, CLI_IPC_KIND_JOIN);
@@ -245,6 +248,8 @@ CliIpcClient *cli_ipc_join(const CliIpcErrMsgAddressCfg *args)
     if (!joined || !EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &client->reader))
     {
         EMBED_CALL(cli_ipc_internal.close, CliIpcCtx, .end = &client->end);
+        g_cli_cells->persistent_buf_release(client->answer, &g_cli_ipc_cells);
+        client->answer = NULL;
         client->reserved = 0;
         return NULL;
     }
@@ -259,11 +264,12 @@ const char *cli_ipc_name(const CliIpcCfg *args)
 void cli_ipc_leave(const CliIpcClientCfg *args)
 {
     EMBED_CALL(cli_ipc_internal.shut, CliIpcCtx, .end = &args->client->end);
-    while (args->client->read_state)
+    while (EMBED_ATOMIC_LOAD(&args->client->read_state) != 0u)
     {
         EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &args->client->wake);
     }
-    for (unsigned int at = 0u; at < args->client->queued; at += 1u)
+    const unsigned int queued = EMBED_ATOMIC_LOAD(&args->client->queued);
+    for (unsigned int at = 0u; at < queued; at += 1u)
     {
         CliIpcEntry *const entry = &args->client->recv_queue[(args->client->first + at) % CLI_IPC_RECV_QUEUE];
         if (entry->has_region)
@@ -272,6 +278,8 @@ void cli_ipc_leave(const CliIpcClientCfg *args)
         }
     }
     EMBED_CALL(cli_ipc_internal.close, CliIpcCtx, .end = &args->client->end);
+    g_cli_cells->persistent_buf_release(args->client->answer, &g_cli_ipc_cells);
+    args->client->answer = NULL;
     args->client->reserved = 0;
 }
 
@@ -326,12 +334,19 @@ int cli_ipc_send(const CliIpcErrMsgCfg *args)
 int cli_ipc_next(const CliIpcClientCfg *args)
 {
     const unsigned long long until = cli_clock_milliseconds() + args->wait;
-    while ((args->client->queued == 0u) && args->client->read_state && (cli_clock_milliseconds() < until))
+    for (;;)
     {
-        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &args->client->wake,
-                         .milliseconds_u64 = until - cli_clock_milliseconds());
+        const unsigned int seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &args->client->wake);
+        const unsigned long long now = cli_clock_milliseconds();
+        if ((EMBED_ATOMIC_LOAD(&args->client->queued) != 0u) || (EMBED_ATOMIC_LOAD(&args->client->read_state) == 0u) ||
+            (now >= until))
+        {
+            break;
+        }
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_seen_for, CliWakeCtx, .wake = &args->client->wake, .seen = seen,
+                         .milliseconds_u64 = until - now);
     }
-    const int has = (args->client->queued > 0u);
+    const int has = (EMBED_ATOMIC_LOAD(&args->client->queued) > 0u);
     CliIpcEntry *const entry = &args->client->recv_queue[args->client->first];
     if (!has)
     {
@@ -351,6 +366,6 @@ int cli_ipc_next(const CliIpcClientCfg *args)
         EMBED_CALL(cli_transfer_region_bytes.region_close, CliTransferRegionBytesCfg, .region = &entry->region);
     }
     args->client->first = (args->client->first + 1u) % CLI_IPC_RECV_QUEUE;
-    args->client->queued -= 1u;
+    (void)EMBED_ATOMIC_ADD_32(&args->client->queued, (embed_u32)-1);
     return 1;
 }

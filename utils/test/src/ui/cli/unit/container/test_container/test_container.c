@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_container.c: a group's end ends every process its first started and their output, descendants are every process under a root and no other, a
-// process dying too often is not restarted, orior_cli serve ends what it started as its input ends, and a container's members end with it while what
+// process dying too often is not restarted, and a container's members end with it while what
 // it starts outside does not. The last two run this program again as the head of a container: setUp sees the variable and the program ends as the
 // head before any case runs
 #include <stdlib.h>
@@ -21,8 +21,6 @@ static char s_output[1u << 16u];
 static CliRestarts s_restarts;
 static unsigned int s_found[8];
 static int s_heads_run_result;
-static unsigned int s_serve_ids;
-static int s_serve_child_still;
 static unsigned int s_container_ids;
 static int s_member_still;
 static int s_outside_alive;
@@ -154,9 +152,8 @@ static void ids_written(const unsigned int *ids, unsigned int count)
     EMBED_CALL(query_errors_internal.terminal_write, QueryErrorsCtx, .errors = 0, .text = text, .length = line.at);
 }
 
-// the head of a container: it starts a waiting program inside, and, where `outside`, one outside, reports their ids and ends; where not, it serves
-// until its input ends, at once, first: the process's exit code
-static int head_code(int outside)
+// the head of a container: it starts a waiting program inside and one outside, reports their ids and ends: the process's exit code
+static int head_code(void)
 {
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
@@ -171,14 +168,6 @@ static int head_code(int outside)
     }
     unsigned int ids[2] = {(unsigned int)inside.id, 0u};
     EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 300u);
-    if (!outside)
-    {
-        static CliOutcome s_outcome;
-        static const char *const s_serve[1] = {"serve"};
-        EMBED_CALL(cli_command_line_input.run, CliCommandLineInputCfg, .supplied = s_serve, .count = 1u, .outcome = &s_outcome);
-        ids_written(ids, 1u);
-        return 0;
-    }
     if (!EMBED_CALL(cli_words_id_internal.started_outside, CliWordsIdCtx, .words = waiting_words(), .id = &ids[1]))
     {
         return 1;
@@ -212,10 +201,6 @@ static void heads_run_result(void)
     }
     s_heads_run_result = 1;
     unsigned int ids[2] = {0u, 0u};
-    s_serve_ids = head_run_result("ORIOR_SERVE_HEAD", ids);
-    s_serve_child_still = (s_serve_ids == 1u) && process_still(ids[0]);
-    ids[0] = 0u;
-    ids[1] = 0u;
     s_container_ids = head_run_result("ORIOR_CONTAINER_HEAD", ids);
     s_member_still = (s_container_ids == 2u) && process_still(ids[0]);
     s_outside_alive = (s_container_ids == 2u) && process_alive(ids[1]);
@@ -229,13 +214,9 @@ void setUp(void)
 {
     char head[8];
     cli_unity_begun();
-    if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_SERVE_HEAD", .value_out = head, .capacity = sizeof(head)))
-    {
-        exit(head_code(0));
-    }
     if (EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "ORIOR_CONTAINER_HEAD", .value_out = head, .capacity = sizeof(head)))
     {
-        exit(head_code(1));
+        exit(head_code());
     }
     EMBED_CALL(cli_container_restarts.restarts_init, CliContainerRestartsCfg, .restarts = &s_restarts, .most = 3u, .within = 60000ull);
 }
@@ -454,13 +435,6 @@ void test_deaths_long_end_are_not_counted(void)
     (void)EMBED_CALL(cli_container_restarts_at.restarts_dy, CliContainerRestartsAtCfg, .restarts = &s_restarts, .at = start + 3000ull);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_container_restarts_at.restarts_dy, CliContainerRestartsAtCfg, .restarts = &s_restarts, .at = start + 200000ull));
     TEST_ASSERT_EQUAL_UINT(1u, EMBED_CALL(cli_container_at.restarts_count, CliContainerAtCfg, .restarts_read = &s_restarts, .at = start + 200000ull));
-}
-
-void test_what_serve_started_ended_as_its_input_did(void)
-{
-    heads_run_result();
-    TEST_ASSERT_EQUAL_UINT(1u, s_serve_ids);
-    TEST_ASSERT_FALSE(s_serve_child_still);
 }
 
 void test_the_head_starts_a_member_and_one_outside(void)

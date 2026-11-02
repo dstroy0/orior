@@ -76,14 +76,14 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\commands\\test_commands\\test_commands.c");
-  run_test(test_no_two_menus_share_a_word, "test_no_two_menus_share_a_word", 33);
-  run_test(test_no_menu_lists_a_command_twice, "test_no_menu_lists_a_command_twice", 45);
-  run_test(test_every_command_is_one_word, "test_every_command_is_one_word", 60);
-  run_test(test_no_command_of_a_job_menu_is_a_job_path, "test_no_command_of_a_job_menu_is_a_job_path", 72);
-  run_test(test_arguments_outside_brackets_are_required, "test_arguments_outside_brackets_are_required", 89);
-  run_test(test_arguments_inside_brackets_are_optional, "test_arguments_inside_brackets_are_optional", 94);
-  run_test(test_a_choice_counts_as_one_argument, "test_a_choice_counts_as_one_argument", 99);
-  run_test(test_a_required_argument_after_an_optional_group_is_required, "test_a_required_argument_after_an_optional_group_is_required", 104);
+  run_test(test_no_two_menus_share_a_word, "test_no_two_menus_share_a_word", 31);
+  run_test(test_no_menu_lists_a_command_twice, "test_no_menu_lists_a_command_twice", 43);
+  run_test(test_every_command_is_one_word, "test_every_command_is_one_word", 58);
+  run_test(test_no_command_of_a_job_menu_is_a_job_path, "test_no_command_of_a_job_menu_is_a_job_path", 70);
+  run_test(test_arguments_outside_brackets_are_required, "test_arguments_outside_brackets_are_required", 87);
+  run_test(test_arguments_inside_brackets_are_optional, "test_arguments_inside_brackets_are_optional", 92);
+  run_test(test_a_choice_counts_as_one_argument, "test_a_choice_counts_as_one_argument", 97);
+  run_test(test_a_required_argument_after_an_optional_group_is_required, "test_a_required_argument_after_an_optional_group_is_required", 102);
 
   return UNITY_END();
 }

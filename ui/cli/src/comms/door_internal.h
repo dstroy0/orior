@@ -16,6 +16,7 @@ typedef struct CliIpcListenerAddressCtx CliIpcListenerAddressCtx;
 typedef struct CliIpcEndBytesCtx CliIpcEndBytesCtx;
 
 #include "door.h"
+#include "embed_atomic.h"
 #include "embed_dispatch_layout.h"
 #include "transfer.h"
 
@@ -40,10 +41,11 @@ typedef struct CliIpcEndBytesCtx CliIpcEndBytesCtx;
 #define CLI_IPC_BODY_INLINE 'B'
 #define CLI_IPC_BODY_TRANSFER 'T'
 
-// A message queued: its channel, its speaker's name, its body's size, and its body, in the entry, or in a region where
-// it is longer
+// A message queued: whether its writer has finished it, its channel, its speaker's name, its body's size, and its body,
+// in the entry, or in a region where it is longer
 typedef struct
 {
+    embed_atomic_u32 written;
     char channel[CLI_NAME_MAX_LEN];
     char from[CLI_NAME_MAX_LEN];
     unsigned long long size;

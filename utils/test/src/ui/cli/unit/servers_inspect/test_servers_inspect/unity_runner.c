@@ -73,10 +73,10 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\servers_inspect\\test_servers_inspect\\test_servers_inspect.c");
-  run_test(test_a_file_with_no_server_opens_without_one, "test_a_file_with_no_server_opens_without_one", 65);
-  run_test(test_a_file_with_no_server_receives_its_findings, "test_a_file_with_no_server_receives_its_findings", 70);
-  run_test(test_a_file_of_the_tree_no_tab_shows_is_inspected, "test_a_file_of_the_tree_no_tab_shows_is_inspected", 77);
-  run_test(test_a_class_that_sets_one_attribute_twice_is_inspected, "test_a_class_that_sets_one_attribute_twice_is_inspected", 83);
+  run_test(test_a_file_with_no_server_opens_without_one, "test_a_file_with_no_server_opens_without_one", 112);
+  run_test(test_a_file_with_no_server_receives_its_findings, "test_a_file_with_no_server_receives_its_findings", 117);
+  run_test(test_a_file_of_the_tree_no_tab_shows_is_inspected, "test_a_file_of_the_tree_no_tab_shows_is_inspected", 124);
+  run_test(test_a_class_that_sets_one_attribute_twice_is_inspected, "test_a_class_that_sets_one_attribute_twice_is_inspected", 130);
 
   return UNITY_END();
 }

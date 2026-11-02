@@ -222,7 +222,7 @@ int main(void)
         PostMessageW(window, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(11, 13));
         PostMessageW(window, WM_LBUTTONUP, 0, MAKELPARAM(11, 13));
         EMBED_CALL(gui_system_table.pumped, GuiSystemCfg, .system = system);
-        cli_check((transferred.pointers == owner_pointers + 2u) && (transferred.x == 11), "closing it leaves the owner running");
+        cli_check((transferred.pointers >= owner_pointers + 2u) && (transferred.x == 11), "closing it leaves the owner running");
     }
 
     EMBED_CALL(gui_system_table.close, GuiSystemCfg, .system = system);

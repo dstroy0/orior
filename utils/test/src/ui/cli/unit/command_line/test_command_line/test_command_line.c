@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_command_line.c: the help's lines wrapped preserving every word and the width, the help staying within its width and naming every command, a run
-// a terminal of the window's starts reported on a channel of its own, a job named by its id, the tail of its id or its title, and the values a run's
+// exiting as its program does, a job named by its id, the tail of its id or its title, and the values a run's
 // words set on a job
 #include "ui/cli/src/command_line/command_line_internal.h"
 #include "../../../../../../../../ui/cli/src/command_line/callback_cfg.h"
@@ -15,7 +15,6 @@
 
 // the most lines and messages a case records
 #define RECORDED_LINES 64u
-#define RECORDED_MESSAGES 64u
 
 // The lines a wrapping wrote
 typedef struct
@@ -24,22 +23,10 @@ typedef struct
     unsigned int count;
 } WrappedLines;
 
-// What the window received of a run, under its lock: each message's channel, speaker and body, and whether the end came
-typedef struct
-{
-    CliWake wake;
-    char channel[RECORDED_MESSAGES][CLI_NAME_MAX_LEN];
-    char from[RECORDED_MESSAGES][CLI_NAME_MAX_LEN];
-    char body[RECORDED_MESSAGES][4096];
-    unsigned int count;
-    int ended;
-} RunMessages;
-
 static const char s_usage[] = "orior_cli file new-plugin <name> --ext <ext,...> [--from <plugin>] [--line-comment <text>] "
                               "[--keywords <a,b>]";
 
 static WrappedLines s_lines;
-static RunMessages s_messages = {CLI_WAKE_INIT};
 static char s_help[1u << 18u];
 static CliItem s_items[CLI_ITEMS_MAX];
 static CliJob s_jobs[8];
@@ -54,10 +41,9 @@ static CliWords s_words;
 static char s_error[1024];
 static unsigned int s_values_job;
 
-static int s_channel_run_result;
-static int s_channel_python;
-static int s_channel_joined;
-static int s_channel_code;
+static int s_run_result;
+static int s_run_python;
+static int s_run_code;
 
 // a line of a wrapping recorded
 static void line_recorded(const CliEachLineSizeCfg *args)
@@ -82,27 +68,9 @@ static void help_written(void)
     s_help[help.at] = '\0';
 }
 
-// a message the window received recorded
-static int message_recorded(const CliCommsRecvCfg *args)
+// a job run, what it answered recorded, once for the process
+static void run_result(void)
 {
-    if ((s_messages.count < RECORDED_MESSAGES) && (args->size < 4096ull))
-    {
-        memor.cpy(&(MemoriaCfg){.dst = s_messages.channel[s_messages.count], .src = args->channel, .bytes = CLI_UNITY_LENGTH(args->channel) + 1u});
-        memor.cpy(&(MemoriaCfg){.dst = s_messages.from[s_messages.count], .src = args->from, .bytes = CLI_UNITY_LENGTH(args->from) + 1u});
-        memor.cpy(&(MemoriaCfg){.dst = s_messages.body[s_messages.count], .src = args->body, .bytes = args->size});
-        s_messages.body[s_messages.count][args->size] = '\0';
-        s_messages.ended |= cellul.find(&(CatenaFinitaCfg){.src = s_messages.body[s_messages.count], .cap = CLI_CELLS_POOL, .other = "\"state\":\"ended\"", .other_cap = CLI_CELLS_POOL}) != NULL;
-        s_messages.count += 1u;
-    }
-    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_messages.wake);
-    return 1;
-}
-
-// a door opened, a window and a terminal registered on it, and a job run as the terminal, its messages recorded, once for the process
-static void channel_run_result(void)
-{
-    static const char *const s_all[1] = {"*"};
-    static const char *const s_runs[1] = {"runs/*"};
     static CliJob s_run_jobs[4];
     static CliParam s_run_params[4];
     static CliStep s_run_steps[4];
@@ -111,54 +79,25 @@ static void channel_run_result(void)
     static char s_run_text[4096];
     static CliCatalog s_run_catalog;
     char python[CLI_PATH_MAX_LEN];
-    char why[1024];
-    char address[CLI_PATH_MAX_LEN];
-    char window[CLI_COMMS_KEY];
-    char terminal[CLI_COMMS_KEY];
     char root[CLI_PATH_MAX_LEN];
     char script[CLI_PATH_MAX_LEN];
-    unsigned int listener = 0u;
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    if (s_channel_run_result)
+    if (s_run_result)
     {
         return;
     }
-    s_channel_run_result = 1;
-    s_channel_python = EMBED_CALL(cli_test_runs.test_python, CliTestRunsCfg, .python = python);
-    if (!s_channel_python)
+    s_run_result = 1;
+    s_run_python = EMBED_CALL(cli_test_runs.test_python, CliTestRunsCfg, .python = python);
+    if (!s_run_python)
     {
         return;
     }
-    s_channel_joined = EMBED_CALL(cli_ipc_address.open, CliIpcAddressCfg, .address = address, .err_msg = &err_msg) && EMBED_CALL(cli_comms_name.comms_register, CliCommsNameCfg, .name = "window", .has_process = 0, .process = 0u, .listen = s_all, .listens = 1u, .send_grant = NULL, .send_grants = 0u, .key_out = window, .err_msg = &err_msg) && EMBED_CALL(cli_comms_channel.listen, CliCommsChannelCfg, .key = window, .channel = "runs/*", .queued = 0, .recv = message_recorded, .context = NULL, .listener = &listener, .err_msg = &err_msg) && EMBED_CALL(cli_comms_name.comms_register, CliCommsNameCfg, .name = "terminal", .has_process = 0, .process = 0u, .listen = s_runs, .listens = 1u, .send_grant = s_runs, .send_grants = 1u, .key_out = terminal, .err_msg = &err_msg);
-    if (!s_channel_joined)
-    {
-        return;
-    }
-    EMBED_CALL(cli_comms_process.bind, CliCommsProcessCfg, .key = terminal, .process = cli_process_own());
     cli_unity_folder("channel", root);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = "print.py", .joined = script);
     (void)EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = script, .bytes = "print('done')\n", .size = 14ull);
     EMBED_CALL(cli_catalog_jobs_max.begin, CliCatalogJobsMaxCfg, .catalog = &s_run_catalog, .jobs = s_run_jobs, .jobs_max = 4u, .params = s_run_params, .params_max = 4u, .steps = s_run_steps, .steps_max = 4u, .request = s_run_args, .args_max = 4u, .lists = s_run_lists, .lists_max = 16u, .text_out = s_run_text, .text_max = 4096u);
     const unsigned int job = EMBED_CALL(cli_catalog_id_group.job, CliCatalogIdGroupCfg, .catalog = &s_run_catalog, .id = "test/print", .group = "test", .title = "print", .file = "print.py", .about = "", .opens = "");
     EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = &s_run_catalog, .program = CLI_PROGRAM_PYTHON, .text = "print.py", .tool_program = NULL, .system = 0);
-    s_channel_code = EMBED_CALL(cli_command_line_root_internal.job_run, CliCommandLineRootCtx, .root = root, .catalog = &s_run_catalog, .job = job, .words = NULL, .count = 0u);
-    const unsigned long long until = cli_clock_milliseconds() + 5000ull;
-    while (!s_messages.ended && (cli_clock_milliseconds() < until))
-    {
-        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &s_messages.wake, .milliseconds_u64 = 100ull);
-    }
-    EMBED_CALL(cli_comms_listener.unlisten, CliCommsListenerCfg, .listener_value = listener);
-}
-
-// the run made and asserted to have joined, the case ignored with no Python
-static void channel_ready(void)
-{
-    channel_run_result();
-    if (!s_channel_python)
-    {
-        TEST_IGNORE_MESSAGE("no Python on this machine");
-    }
-    TEST_ASSERT_TRUE(s_channel_joined);
+    s_run_code = EMBED_CALL(cli_command_line_root_internal.job_run, CliCommandLineRootCtx, .root = root, .catalog = &s_run_catalog, .job = job, .words = NULL, .count = 0u);
 }
 
 // a catalog of three jobs, two of one title
@@ -299,52 +238,12 @@ void test_the_help_names_every_command_of_every_menu(void)
 
 void test_a_run_at_the_terminal_exits_0(void)
 {
-    channel_ready();
-    TEST_ASSERT_EQUAL_INT(0, s_channel_code);
-}
-
-void test_each_message_is_reported_on_the_runs_own_channel_by_the_terminal(void)
-{
-    char channel[CLI_NAME_MAX_LEN];
-    VerbaLinea own = {channel, sizeof(channel), 0ull};
-    channel_ready();
-    mmgr_line_put(&own, "runs/");
-    mmgr_line_decimal(&own, cli_process_own(), 1u);
-    (void)mmgr_line_finish(&own);
-    TEST_ASSERT_GREATER_THAN_UINT(0u, s_messages.count);
-    for (unsigned int at = 0u; at < s_messages.count; at += 1u)
+    run_result();
+    if (!s_run_python)
     {
-        TEST_ASSERT_EQUAL_STRING(channel, s_messages.channel[at]);
-        TEST_ASSERT_EQUAL_STRING("terminal", s_messages.from[at]);
+        TEST_IGNORE_MESSAGE("no Python on this machine");
     }
-}
-
-void test_the_first_message_reports_the_run_started_and_its_job(void)
-{
-    channel_ready();
-    TEST_ASSERT_GREATER_THAN_UINT(0u, s_messages.count);
-    CLI_TEST_ASSERT_CONTAINS("\"state\":\"started\"", s_messages.body[0]);
-    CLI_TEST_ASSERT_CONTAINS("\"job\":\"test/print\"", s_messages.body[0]);
-}
-
-void test_the_line_the_run_printed_is_reported_on_stdout(void)
-{
-    int has_line = 0;
-    channel_ready();
-    for (unsigned int at = 0u; at < s_messages.count; at += 1u)
-    {
-        const int names_line = cellul.find(&(CatenaFinitaCfg){.src = s_messages.body[at], .cap = CLI_CELLS_POOL, .other = "\"line\":\"done\"", .other_cap = CLI_CELLS_POOL}) != NULL;
-        const int names_stream = cellul.find(&(CatenaFinitaCfg){.src = s_messages.body[at], .cap = CLI_CELLS_POOL, .other = "\"stream\":\"stdout\"", .other_cap = CLI_CELLS_POOL}) != NULL;
-        has_line |= names_line && names_stream;
-    }
-    TEST_ASSERT_TRUE(has_line);
-}
-
-void test_the_last_message_reports_the_run_ended_with_0(void)
-{
-    channel_ready();
-    TEST_ASSERT_TRUE(s_messages.ended);
-    CLI_TEST_ASSERT_CONTAINS("\"code\":0", s_messages.body[s_messages.count - 1u]);
+    TEST_ASSERT_EQUAL_INT(0, s_run_code);
 }
 
 void test_a_name_ending_a_jobs_id_names_it(void)

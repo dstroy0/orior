@@ -22,10 +22,6 @@ extern void test_a_short_text_is_one_line(void);
 extern void test_every_line_of_the_help_is_within_its_width(void);
 extern void test_the_help_names_every_command_of_every_menu(void);
 extern void test_a_run_at_the_terminal_exits_0(void);
-extern void test_each_message_is_reported_on_the_runs_own_channel_by_the_terminal(void);
-extern void test_the_first_message_reports_the_run_started_and_its_job(void);
-extern void test_the_line_the_run_printed_is_reported_on_stdout(void);
-extern void test_the_last_message_reports_the_run_ended_with_0(void);
 extern void test_a_name_ending_a_jobs_id_names_it(void);
 extern void test_a_jobs_id_names_it(void);
 extern void test_a_title_of_two_jobs_is_refused(void);
@@ -96,27 +92,23 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\command_line\\test_command_line\\test_command_line.c");
-  run_test(test_a_long_usage_wraps_onto_more_than_one_line, "test_a_long_usage_wraps_onto_more_than_one_line", 217);
-  run_test(test_every_wrapped_line_is_40_letters_at_max, "test_every_wrapped_line_is_40_letters_at_max", 223);
-  run_test(test_every_line_after_the_first_is_indented_two_spaces, "test_every_line_after_the_first_is_indented_two_spaces", 232);
-  run_test(test_the_lines_trimmed_and_joined_restore_the_text, "test_the_lines_trimmed_and_joined_restore_the_text", 242);
-  run_test(test_a_short_text_is_one_line, "test_a_short_text_is_one_line", 258);
-  run_test(test_every_line_of_the_help_is_within_its_width, "test_every_line_of_the_help_is_within_its_width", 265);
-  run_test(test_the_help_names_every_command_of_every_menu, "test_the_help_names_every_command_of_every_menu", 278);
-  run_test(test_a_run_at_the_terminal_exits_0, "test_a_run_at_the_terminal_exits_0", 300);
-  run_test(test_each_message_is_reported_on_the_runs_own_channel_by_the_terminal, "test_each_message_is_reported_on_the_runs_own_channel_by_the_terminal", 306);
-  run_test(test_the_first_message_reports_the_run_started_and_its_job, "test_the_first_message_reports_the_run_started_and_its_job", 322);
-  run_test(test_the_line_the_run_printed_is_reported_on_stdout, "test_the_line_the_run_printed_is_reported_on_stdout", 330);
-  run_test(test_the_last_message_reports_the_run_ended_with_0, "test_the_last_message_reports_the_run_ended_with_0", 343);
-  run_test(test_a_name_ending_a_jobs_id_names_it, "test_a_name_ending_a_jobs_id_names_it", 350);
-  run_test(test_a_jobs_id_names_it, "test_a_jobs_id_names_it", 359);
-  run_test(test_a_title_of_two_jobs_is_refused, "test_a_title_of_two_jobs_is_refused", 368);
-  run_test(test_an_unknown_name_names_no_job, "test_an_unknown_name_names_no_job", 378);
-  run_test(test_a_value_not_sent_has_its_default, "test_a_value_not_sent_has_its_default", 385);
-  run_test(test_a_key_sent_twice_contains_both, "test_a_key_sent_twice_contains_both", 393);
-  run_test(test_the_words_after_a_double_dash_come_back_complete, "test_the_words_after_a_double_dash_come_back_complete", 401);
-  run_test(test_a_key_the_job_does_not_accept_is_refused, "test_a_key_the_job_does_not_accept_is_refused", 416);
-  run_test(test_a_word_that_is_no_key_and_value_is_refused, "test_a_word_that_is_no_key_and_value_is_refused", 423);
+  run_test(test_a_long_usage_wraps_onto_more_than_one_line, "test_a_long_usage_wraps_onto_more_than_one_line", 156);
+  run_test(test_every_wrapped_line_is_40_letters_at_max, "test_every_wrapped_line_is_40_letters_at_max", 162);
+  run_test(test_every_line_after_the_first_is_indented_two_spaces, "test_every_line_after_the_first_is_indented_two_spaces", 171);
+  run_test(test_the_lines_trimmed_and_joined_restore_the_text, "test_the_lines_trimmed_and_joined_restore_the_text", 181);
+  run_test(test_a_short_text_is_one_line, "test_a_short_text_is_one_line", 197);
+  run_test(test_every_line_of_the_help_is_within_its_width, "test_every_line_of_the_help_is_within_its_width", 204);
+  run_test(test_the_help_names_every_command_of_every_menu, "test_the_help_names_every_command_of_every_menu", 217);
+  run_test(test_a_run_at_the_terminal_exits_0, "test_a_run_at_the_terminal_exits_0", 239);
+  run_test(test_a_name_ending_a_jobs_id_names_it, "test_a_name_ending_a_jobs_id_names_it", 249);
+  run_test(test_a_jobs_id_names_it, "test_a_jobs_id_names_it", 258);
+  run_test(test_a_title_of_two_jobs_is_refused, "test_a_title_of_two_jobs_is_refused", 267);
+  run_test(test_an_unknown_name_names_no_job, "test_an_unknown_name_names_no_job", 277);
+  run_test(test_a_value_not_sent_has_its_default, "test_a_value_not_sent_has_its_default", 284);
+  run_test(test_a_key_sent_twice_contains_both, "test_a_key_sent_twice_contains_both", 292);
+  run_test(test_the_words_after_a_double_dash_come_back_complete, "test_the_words_after_a_double_dash_come_back_complete", 300);
+  run_test(test_a_key_the_job_does_not_accept_is_refused, "test_a_key_the_job_does_not_accept_is_refused", 315);
+  run_test(test_a_word_that_is_no_key_and_value_is_refused, "test_a_word_that_is_no_key_and_value_is_refused", 322);
 
   return UNITY_END();
 }

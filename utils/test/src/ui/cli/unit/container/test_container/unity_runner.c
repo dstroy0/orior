@@ -26,7 +26,6 @@ extern void test_this_process_is_under_its_parent(void);
 extern void test_a_process_may_die_three_times_a_minute(void);
 extern void test_a_fourth_death_within_a_minute_stops_restarts_and_is_counted(void);
 extern void test_deaths_long_end_are_not_counted(void);
-extern void test_what_serve_started_ended_as_its_input_did(void);
 extern void test_the_head_starts_a_member_and_one_outside(void);
 extern void test_the_member_ended_with_the_container(void);
 extern void test_what_was_started_outside_lives_on(void);
@@ -91,26 +90,25 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\container\\test_container\\test_container.c");
-  run_test(test_windows_a_process_started_in_a_group_has_its_own_job_and_runs, "test_windows_a_process_started_in_a_group_has_its_own_job_and_runs", 247);
-  run_test(test_windows_a_groups_end_ends_every_process_and_their_output, "test_windows_a_groups_end_ends_every_process_and_their_output", 265);
-  run_test(test_windows_a_group_released_as_orior_ends_ends_every_process_in_it, "test_windows_a_group_released_as_orior_ends_ends_every_process_in_it", 286);
-  run_test(test_windows_a_groups_end_ends_a_scripts_processes_under_gits_bash_launcher, "test_windows_a_groups_end_ends_a_scripts_processes_under_gits_bash_launcher", 304);
-  run_test(test_posix_a_tree_end_ends_a_detached_groups_processes_and_their_output, "test_posix_a_tree_end_ends_a_detached_groups_processes_and_their_output", 341);
-  run_test(test_descendants_are_every_process_under_a_root, "test_descendants_are_every_process_under_a_root", 373);
-  run_test(test_a_leaf_has_no_descendants, "test_a_leaf_has_no_descendants", 383);
-  run_test(test_children_come_after_their_parents, "test_children_come_after_their_parents", 388);
-  run_test(test_a_process_is_under_each_process_above_it, "test_a_process_is_under_each_process_above_it", 395);
-  run_test(test_a_process_is_under_no_other, "test_a_process_is_under_no_other", 401);
-  run_test(test_a_process_listing_as_its_own_parent_ends_the_walk, "test_a_process_listing_as_its_own_parent_ends_the_walk", 407);
-  run_test(test_a_loop_of_reused_ids_ends_the_walk, "test_a_loop_of_reused_ids_ends_the_walk", 412);
-  run_test(test_this_process_is_under_its_parent, "test_this_process_is_under_its_parent", 417);
-  run_test(test_a_process_may_die_three_times_a_minute, "test_a_process_may_die_three_times_a_minute", 430);
-  run_test(test_a_fourth_death_within_a_minute_stops_restarts_and_is_counted, "test_a_fourth_death_within_a_minute_stops_restarts_and_is_counted", 438);
-  run_test(test_deaths_long_end_are_not_counted, "test_deaths_long_end_are_not_counted", 448);
-  run_test(test_what_serve_started_ended_as_its_input_did, "test_what_serve_started_ended_as_its_input_did", 459);
-  run_test(test_the_head_starts_a_member_and_one_outside, "test_the_head_starts_a_member_and_one_outside", 466);
-  run_test(test_the_member_ended_with_the_container, "test_the_member_ended_with_the_container", 472);
-  run_test(test_what_was_started_outside_lives_on, "test_what_was_started_outside_lives_on", 478);
+  run_test(test_windows_a_process_started_in_a_group_has_its_own_job_and_runs, "test_windows_a_process_started_in_a_group_has_its_own_job_and_runs", 228);
+  run_test(test_windows_a_groups_end_ends_every_process_and_their_output, "test_windows_a_groups_end_ends_every_process_and_their_output", 246);
+  run_test(test_windows_a_group_released_as_orior_ends_ends_every_process_in_it, "test_windows_a_group_released_as_orior_ends_ends_every_process_in_it", 267);
+  run_test(test_windows_a_groups_end_ends_a_scripts_processes_under_gits_bash_launcher, "test_windows_a_groups_end_ends_a_scripts_processes_under_gits_bash_launcher", 285);
+  run_test(test_posix_a_tree_end_ends_a_detached_groups_processes_and_their_output, "test_posix_a_tree_end_ends_a_detached_groups_processes_and_their_output", 322);
+  run_test(test_descendants_are_every_process_under_a_root, "test_descendants_are_every_process_under_a_root", 354);
+  run_test(test_a_leaf_has_no_descendants, "test_a_leaf_has_no_descendants", 364);
+  run_test(test_children_come_after_their_parents, "test_children_come_after_their_parents", 369);
+  run_test(test_a_process_is_under_each_process_above_it, "test_a_process_is_under_each_process_above_it", 376);
+  run_test(test_a_process_is_under_no_other, "test_a_process_is_under_no_other", 382);
+  run_test(test_a_process_listing_as_its_own_parent_ends_the_walk, "test_a_process_listing_as_its_own_parent_ends_the_walk", 388);
+  run_test(test_a_loop_of_reused_ids_ends_the_walk, "test_a_loop_of_reused_ids_ends_the_walk", 393);
+  run_test(test_this_process_is_under_its_parent, "test_this_process_is_under_its_parent", 398);
+  run_test(test_a_process_may_die_three_times_a_minute, "test_a_process_may_die_three_times_a_minute", 411);
+  run_test(test_a_fourth_death_within_a_minute_stops_restarts_and_is_counted, "test_a_fourth_death_within_a_minute_stops_restarts_and_is_counted", 419);
+  run_test(test_deaths_long_end_are_not_counted, "test_deaths_long_end_are_not_counted", 429);
+  run_test(test_the_head_starts_a_member_and_one_outside, "test_the_head_starts_a_member_and_one_outside", 440);
+  run_test(test_the_member_ended_with_the_container, "test_the_member_ended_with_the_container", 446);
+  run_test(test_what_was_started_outside_lives_on, "test_what_was_started_outside_lives_on", 452);
 
   return UNITY_END();
 }

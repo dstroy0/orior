@@ -25,33 +25,27 @@ static VerbaLinea s_err_msg;
 static unsigned int s_listener;
 static CliReachAnswer s_answer;
 
-// a command the window receives answered on `answer/` and its id, its message its menu, command and first word
+// a command the window receives answered on `answer/` and its id, its message its menu, command and first word; a
+// command's bytes are its id, menu, command and words, each ended by a 0
 static int command_answered(const CliCommsRecvCfg *args)
 {
-    const char *channel = args->channel;
-    const char *body = args->body;
-    unsigned long long size = args->size;
-    (void)channel;
-    unsigned int root = CLI_JSON_NONE;
-    const CliJson *const json = cli_unity_parsed(body, size, &root);
+    const char *const id = args->body;
+    const char *const menu = id + CLI_UNITY_LENGTH(id) + 1u;
+    const char *const command = menu + CLI_UNITY_LENGTH(menu) + 1u;
+    const char *const first = command + CLI_UNITY_LENGTH(command) + 1u;
     char answer_channel[CLI_NAME_MAX_LEN];
     VerbaLinea channel_line = {answer_channel, sizeof(answer_channel), 0ull};
     mmgr_line_put(&channel_line, "answer/");
-    mmgr_line_put(&channel_line, cli_unity_member_text(root, "id"));
+    mmgr_line_put(&channel_line, id);
     (void)mmgr_line_finish(&channel_line);
-    char reply_text[256];
-    VerbaLinea reply_line = {reply_text, sizeof(reply_text), 0ull};
-    mmgr_line_put(&reply_line, cli_unity_member_text(root, "menu"));
-    mmgr_line_ch(&reply_line, ' ');
-    mmgr_line_put(&reply_line, cli_unity_member_text(root, "command"));
-    mmgr_line_ch(&reply_line, ' ');
-    const char *const first = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json, .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = json, .array = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = root, .name = "args"), .index = 0u), .length_pointer = NULL);
-    mmgr_line_put(&reply_line, (first != NULL) ? first : "");
     char reply[512];
     VerbaLinea out = {reply, sizeof(reply), 0ull};
-    mmgr_line_put(&out, "{\"done\":true,\"message\":");
-    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &out, .text = reply_text, .length = reply_line.at);
-    mmgr_line_ch(&out, '}');
+    mmgr_line_ch(&out, CLI_REACH_DONE);
+    mmgr_line_put(&out, menu);
+    mmgr_line_ch(&out, ' ');
+    mmgr_line_put(&out, command);
+    mmgr_line_ch(&out, ' ');
+    mmgr_line_put(&out, first);
     unsigned long long delivered = 0ull;
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
@@ -133,7 +127,7 @@ void tearDown(void)
 void test_a_window_on_the_tree_answers(void)
 {
     window_answering();
-    TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_reach_menu.request_in, CliReachMenuCfg, .home = s_home, .root = s_tree, .menu = "view", .command = "word-wrap", .request = s_on, .count = 1u, .answer = &s_answer, .err_msg = &s_err_msg));
+    TEST_ASSERT_EQUAL_INT_MESSAGE(1, EMBED_CALL(cli_reach_menu.request_in, CliReachMenuCfg, .home = s_home, .root = s_tree, .menu = "view", .command = "word-wrap", .request = s_on, .count = 1u, .answer = &s_answer, .err_msg = &s_err_msg), s_error);
     TEST_ASSERT_TRUE(s_answer.done);
     TEST_ASSERT_EQUAL_STRING("view word-wrap on", s_answer.text);
 }
@@ -149,7 +143,7 @@ void test_no_window_answers_on_another_tree(void)
 void test_the_only_window_answers_with_no_tree_named(void)
 {
     window_answering();
-    TEST_ASSERT_EQUAL_INT(1, EMBED_CALL(cli_reach_menu.request_in, CliReachMenuCfg, .home = s_home, .root = NULL, .menu = "view", .command = "word-wrap", .request = s_off, .count = 1u, .answer = &s_answer, .err_msg = &s_err_msg));
+    TEST_ASSERT_EQUAL_INT_MESSAGE(1, EMBED_CALL(cli_reach_menu.request_in, CliReachMenuCfg, .home = s_home, .root = NULL, .menu = "view", .command = "word-wrap", .request = s_off, .count = 1u, .answer = &s_answer, .err_msg = &s_err_msg), s_error);
 }
 
 void test_a_window_is_stored(void)
@@ -179,7 +173,7 @@ void test_posix_the_stored_file_is_readable_only_by_its_owner(void)
     char path[CLI_PATH_MAX_LEN];
     struct stat file;
     (void)EMBED_CALL(cli_reach.store_in, CliReachCfg, .home = s_home, .process = 3u, .root = NULL, .address = "a", .key = "k", .err_msg = &s_err_msg);
-    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_home, .relative = "windows/3.json", .joined = path);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_home, .relative = "windows/3.window", .joined = path);
     TEST_ASSERT_EQUAL_INT(0, stat(path, &file));
     TEST_ASSERT_EQUAL_UINT(0600u, file.st_mode & 0777u);
 #endif

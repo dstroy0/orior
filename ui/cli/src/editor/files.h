@@ -18,7 +18,6 @@ typedef struct CliFilesRootOutCfg CliFilesRootOutCfg;
 typedef struct CliFilesRootPathCfg CliFilesRootPathCfg;
 typedef struct CliFilesQueryCfg CliFilesQueryCfg;
 typedef struct CliFilesRootOutErrMsgCfg CliFilesRootOutErrMsgCfg;
-typedef struct CliFilesRootOutErrMsgFileCfg CliFilesRootOutErrMsgFileCfg;
 typedef struct CliFilesRootEachCfg CliFilesRootEachCfg;
 typedef struct CliFilesRootErrMsgCfg CliFilesRootErrMsgCfg;
 typedef struct CliFilesRootErrMsgTextCfg CliFilesRootErrMsgTextCfg;
@@ -304,16 +303,6 @@ struct CliFilesRootOutErrMsgCfg
     const CliPatterns *set;
 };
 
-struct CliFilesRootOutErrMsgFileCfg
-{
-    const char *root;
-    VerbaLinea *out;
-    VerbaLinea *err_msg;
-    const char *file;
-    unsigned long long start;
-    unsigned long long end;
-};
-
 struct CliFilesRootEachCfg
 {
     const char *root;
@@ -551,21 +540,12 @@ EMBED_TABLE_STORAGE CliFilesRootOutErrMsgNs cli_files_root_out_err_msg EMBED_UNU
 
 typedef struct
 {
-    int (*read)(const CliFilesRootOutErrMsgFileCfg *args);
-    int (*slice)(const CliFilesRootOutErrMsgFileCfg *args);
-} CliFilesRootOutErrMsgFileNs;
-EMBED_TABLE_LAYOUT(CliFilesRootOutErrMsgFileNs, read, slice);
-
-typedef struct
-{
     unsigned int (*open)(const CliFilesOpenCfg *args);
 } CliFilesOpenNs;
 EMBED_TABLE_LAYOUT(CliFilesOpenNs, open);
 EMBED_TABLE_STORAGE CliFilesOpenNs cli_files_opening EMBED_UNUSED = {
     .open = cli_files_open,
 };
-
-EMBED_TABLE_STORAGE CliFilesRootOutErrMsgFileNs cli_files_root_out_err_msg_file EMBED_UNUSED = {};
 
 typedef struct
 {

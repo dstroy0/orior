@@ -12,19 +12,23 @@ typedef struct CliIpcServeErrorCfg CliIpcServeErrorCfg;
 #include "door_internal.h"
 #include "embed_dispatch_layout.h"
 
-// the most processes joined at once; the messages queued for one process; and the channels one process listens on
+// the most processes joined at once; the messages queued for one process; the channels one process listens on; and the
+// bytes of an answer waiting to be written
 #define CLI_IPC_JOINED 16u
 #define CLI_IPC_ENTRIES 128u
 #define CLI_IPC_LISTENS 32u
+#define CLI_IPC_SERVE_ANSWER (CLI_ERR_MSG_MAX_LEN + CLI_NAME_MAX_LEN + 8u)
 
 // A joined process's place, a cell of the cellblock from its join to the end of its last thread: where it stands among
-// the places and how many of its two threads go on; its end and the process at the other end; its key; the lock its
-// writes are guarded by; the frame read; the messages queued for it, their lock and wake,
-// and whether its reader goes on; the listeners it owns; and its two threads
+// the places and how many of its two threads go on; its end and the process at the other end; its key; the frame read;
+// the messages queued for it, any thread claiming the next place, the writer of the end taking them in turn; the answer
+// its reader has for the writer, and whether one waits; the wake of the two threads; whether its reader goes on and
+// whether its end still takes what is written; the listeners it owns; and its two threads. The end has one writer, the
+// thread that sends the messages, which writes the reader's answers too, a frame never falling inside another
 typedef struct
 {
     unsigned int place;
-    unsigned int going;
+    embed_atomic_u32 going;
     CliIpcEnd end;
     int has_peer;
     unsigned int peer;
@@ -32,9 +36,14 @@ typedef struct
     char *frame;
     CliIpcEntry entries[CLI_IPC_ENTRIES];
     unsigned int first;
-    unsigned int queued;
+    embed_atomic_u32 claimed;
+    embed_atomic_u32 taken;
+    char *answer;
+    unsigned long long answer_size;
+    embed_atomic_u32 answer_waits;
     CliWake queue_wake;
-    int read_state;
+    embed_atomic_u32 read_state;
+    embed_atomic_u32 sending;
     unsigned int listeners[CLI_IPC_LISTENS];
     unsigned int listens;
     CliThread reader;
@@ -56,7 +65,7 @@ extern CliIpcServed g_cli_ipc_served;
 extern CellOwner g_cli_ipc_cells;
 
 // `channel` listened on for the joined process: 1, or 0 with why given; a refusal answered, `size` bytes of why; and an
-// answer of `size` bytes written: each 1, or 0 where its end is broken (ipc_serve.c)
+// answer of `size` bytes handed to the writer of its end: each 1, or 0 where its end is broken (ipc_serve.c)
 int cli_ipc_listen_request(const CliIpcServeChannelCfg *args);
 int cli_ipc_reject(const CliIpcServeErrorCfg *args);
 int cli_ipc_answer(const CliIpcServeCfg *args);

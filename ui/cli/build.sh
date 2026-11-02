@@ -151,8 +151,8 @@ words_of() {
         *) SUFFIX=""; LIBRARIES=(-lpthread -ldl -lm -lrt) ;;
     esac
     vector_words_of "$target"
-    WORDS=("$CC" "--target=$target" -std=c11 "$OPTIMIZE_WORD" -g -c "${MMGR_WORDS[@]}" "${VECTOR_WORDS[@]}" "${LTO_WORDS[@]}"
-           "${SANITIZE_WORDS[@]}" "${COVERAGE_WORDS[@]}")
+    WORDS=("$CC" "--target=$target" -std=c11 "$OPTIMIZE_WORD" -g -c "${MMGR_WORDS[@]}" ${VECTOR_WORDS[@]+"${VECTOR_WORDS[@]}"} "${LTO_WORDS[@]}"
+           ${SANITIZE_WORDS[@]+"${SANITIZE_WORDS[@]}"} ${COVERAGE_WORDS[@]+"${COVERAGE_WORDS[@]}"})
 }
 
 # MMgr built for `target` by orior's CMake, src/cu, into build/orior_cmake/<target>, as orior builds it, with no CUDA

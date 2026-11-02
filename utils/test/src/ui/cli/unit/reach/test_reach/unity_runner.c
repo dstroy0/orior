@@ -79,14 +79,14 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\reach\\test_reach\\test_reach.c");
-  run_test(test_a_window_on_the_tree_answers, "test_a_window_on_the_tree_answers", 133);
-  run_test(test_no_window_answers_on_another_tree, "test_no_window_answers_on_another_tree", 141);
-  run_test(test_the_only_window_answers_with_no_tree_named, "test_the_only_window_answers_with_no_tree_named", 149);
-  run_test(test_a_window_is_stored, "test_a_window_is_stored", 155);
-  run_test(test_a_window_whose_ipc_is_closed_does_not_answer, "test_a_window_whose_ipc_is_closed_does_not_answer", 161);
-  run_test(test_a_window_whose_ipc_is_closed_is_forgotten, "test_a_window_whose_ipc_is_closed_is_forgotten", 167);
-  run_test(test_posix_the_stored_file_is_readable_only_by_its_owner, "test_posix_the_stored_file_is_readable_only_by_its_owner", 174);
-  run_test(test_posix_the_stored_folder_is_readable_only_by_its_owner, "test_posix_the_stored_folder_is_readable_only_by_its_owner", 188);
+  run_test(test_a_window_on_the_tree_answers, "test_a_window_on_the_tree_answers", 127);
+  run_test(test_no_window_answers_on_another_tree, "test_no_window_answers_on_another_tree", 135);
+  run_test(test_the_only_window_answers_with_no_tree_named, "test_the_only_window_answers_with_no_tree_named", 143);
+  run_test(test_a_window_is_stored, "test_a_window_is_stored", 149);
+  run_test(test_a_window_whose_ipc_is_closed_does_not_answer, "test_a_window_whose_ipc_is_closed_does_not_answer", 155);
+  run_test(test_a_window_whose_ipc_is_closed_is_forgotten, "test_a_window_whose_ipc_is_closed_is_forgotten", 161);
+  run_test(test_posix_the_stored_file_is_readable_only_by_its_owner, "test_posix_the_stored_file_is_readable_only_by_its_owner", 168);
+  run_test(test_posix_the_stored_folder_is_readable_only_by_its_owner, "test_posix_the_stored_folder_is_readable_only_by_its_owner", 182);
 
   return UNITY_END();
 }

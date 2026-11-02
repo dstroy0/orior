@@ -20,10 +20,6 @@ extern void test_a_file_git_would_track_is_tracked(void);
 extern void test_a_file_in_a_folder_created_since_is_tracked(void);
 extern void test_a_file_a_folder_further_down_is_tracked(void);
 extern void test_a_file_under_a_folder_git_ignores_is_not_tracked(void);
-extern void test_a_file_end_the_paging_size_is_read_as_windowed_with_its_size(void);
-extern void test_the_cellblocks_peak_stays_under_the_files_size(void);
-extern void test_a_slice_of_its_lines_is_read_from_the_line_start_to_the_one_at_the_end(void);
-extern void test_a_slice_stores_only_the_bytes_about_it(void);
 extern void test_the_files_report_what_the_views_and_their_lists_use_of_the_cellblock(void);
 
 
@@ -86,19 +82,15 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\files\\test_files\\test_files.c");
-  run_test(test_a_file_written_where_a_folder_exists_is_refused_with_the_systems_reason, "test_a_file_written_where_a_folder_exists_is_refused_with_the_systems_reason", 187);
-  run_test(test_a_search_finds_every_line_in_cells_grown_end_their_first_capacity_each_released, "test_a_search_finds_every_line_in_cells_grown_end_their_first_capacity_each_released", 200);
-  run_test(test_a_tree_its_repository_ignores_lists_its_files_from_the_disk, "test_a_tree_its_repository_ignores_lists_its_files_from_the_disk", 227);
-  run_test(test_the_kinds_view_records_each_files_name_and_ending_once, "test_the_kinds_view_records_each_files_name_and_ending_once", 239);
-  run_test(test_a_file_git_would_track_is_tracked, "test_a_file_git_would_track_is_tracked", 253);
-  run_test(test_a_file_in_a_folder_created_since_is_tracked, "test_a_file_in_a_folder_created_since_is_tracked", 259);
-  run_test(test_a_file_a_folder_further_down_is_tracked, "test_a_file_a_folder_further_down_is_tracked", 265);
-  run_test(test_a_file_under_a_folder_git_ignores_is_not_tracked, "test_a_file_under_a_folder_git_ignores_is_not_tracked", 271);
-  run_test(test_a_file_end_the_paging_size_is_read_as_windowed_with_its_size, "test_a_file_end_the_paging_size_is_read_as_windowed_with_its_size", 277);
-  run_test(test_the_cellblocks_peak_stays_under_the_files_size, "test_the_cellblocks_peak_stays_under_the_files_size", 285);
-  run_test(test_a_slice_of_its_lines_is_read_from_the_line_start_to_the_one_at_the_end, "test_a_slice_of_its_lines_is_read_from_the_line_start_to_the_one_at_the_end", 291);
-  run_test(test_a_slice_stores_only_the_bytes_about_it, "test_a_slice_stores_only_the_bytes_about_it", 299);
-  run_test(test_the_files_report_what_the_views_and_their_lists_use_of_the_cellblock, "test_the_files_report_what_the_views_and_their_lists_use_of_the_cellblock", 305);
+  run_test(test_a_file_written_where_a_folder_exists_is_refused_with_the_systems_reason, "test_a_file_written_where_a_folder_exists_is_refused_with_the_systems_reason", 143);
+  run_test(test_a_search_finds_every_line_in_cells_grown_end_their_first_capacity_each_released, "test_a_search_finds_every_line_in_cells_grown_end_their_first_capacity_each_released", 156);
+  run_test(test_a_tree_its_repository_ignores_lists_its_files_from_the_disk, "test_a_tree_its_repository_ignores_lists_its_files_from_the_disk", 183);
+  run_test(test_the_kinds_view_records_each_files_name_and_ending_once, "test_the_kinds_view_records_each_files_name_and_ending_once", 195);
+  run_test(test_a_file_git_would_track_is_tracked, "test_a_file_git_would_track_is_tracked", 209);
+  run_test(test_a_file_in_a_folder_created_since_is_tracked, "test_a_file_in_a_folder_created_since_is_tracked", 215);
+  run_test(test_a_file_a_folder_further_down_is_tracked, "test_a_file_a_folder_further_down_is_tracked", 221);
+  run_test(test_a_file_under_a_folder_git_ignores_is_not_tracked, "test_a_file_under_a_folder_git_ignores_is_not_tracked", 227);
+  run_test(test_the_files_report_what_the_views_and_their_lists_use_of_the_cellblock, "test_the_files_report_what_the_views_and_their_lists_use_of_the_cellblock", 233);
 
   return UNITY_END();
 }
