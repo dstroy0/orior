@@ -19,6 +19,10 @@
 
 #define CLI_BUNDLE_OUT (1u << 27u)
 
+// the bundled table of the bundler itself, which runs before plugins_bundled.c exists: empty
+const CliBundled g_cli_bundled[1] = {{NULL, NULL, 0ull, NULL, 0ull}};
+const unsigned int g_cli_bundled_count = 0u;
+
 static char s_ids[CLI_BUNDLE_MOST][CLI_NAME_MAX_LEN];
 static unsigned int s_count;
 static unsigned char s_bytes[CLI_BUNDLE_BYTES];
