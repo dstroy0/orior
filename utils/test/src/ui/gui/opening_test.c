@@ -10,7 +10,7 @@
 #include "../../../../../ui/gui/src/window.h"
 #include "../cli/cli_check.h"
 
-// the wake the link gives the window's thread, counted
+// the wake the interface gives the window's thread, counted
 typedef struct
 {
     CliWake wake;
@@ -373,7 +373,7 @@ int main(void)
         cli_check(0, why_text);
         return cli_on_check();
     }
-    cli_window_begun(gui_link_emit, &window.link);
+    cli_window_begun(gui_interface_emit, &window.cli);
     cli_check(EMBED_CALL(gui_window_width.resize, GuiWindowWidthCfg, .window = &window, .width = 800u, .height = 500u, .system_scale = 100), "the window is sized");
 
     EMBED_CALL(gui_window_path.file_open, GuiWindowPathCfg, .window = &window, .path = "ui/gui/src/raster.c");
@@ -509,7 +509,7 @@ int main(void)
 
     EMBED_CALL(gui_editor_table.init, GuiEditorCfg, .editor = &window.editor);
     static const char s_command[] = "{\"id\":\"1\",\"command\":\"open-file\",\"args\":[\"ui/gui/src/frame.c\"]}";
-    gui_link_emit(&window.link, "command", s_command, sizeof(s_command) - 1u);
+    gui_interface_emit(&window.cli, "command", s_command, sizeof(s_command) - 1u);
     cli_check(lines_came(&window, &count), "a door command to open a file shows its lines");
     cli_check(line_starts(&window.editor, 2u, "// frame.c"), "the file the command names is shown");
 
@@ -563,11 +563,11 @@ int main(void)
     // the last says it is done
     unsigned long long check_since = 0ull;
     static const char s_check_running[] = "{\"done\":3,\"total\":10}";
-    gui_link_emit(&window.link, "tree-check", s_check_running, sizeof(s_check_running) - 1ull);
+    gui_interface_emit(&window.cli, "tree-check", s_check_running, sizeof(s_check_running) - 1ull);
     EMBED_CALL(gui_window_table.drain, GuiWindowCfg, .window = &window);
     cli_check(EMBED_CALL(gui_busy_since.waiting, GuiBusySinceCfg, .busy_read = &window.busy, .since = &check_since), "the tree's check running stands as an ask does");
     static const char s_check_done[] = "{\"done\":10,\"total\":10}";
-    gui_link_emit(&window.link, "tree-check", s_check_done, sizeof(s_check_done) - 1ull);
+    gui_interface_emit(&window.cli, "tree-check", s_check_done, sizeof(s_check_done) - 1ull);
     EMBED_CALL(gui_window_table.drain, GuiWindowCfg, .window = &window);
     cli_check(asks_answered(&window, &count), "its last file done, nothing stands");
 
@@ -635,7 +635,7 @@ int main(void)
     static const char s_diagnostics[] = "{\"path\":\"ui/gui/src/"
                                         "palette.c\",\"items\":[{\"from\":{\"line\":13,\"col\":4},\"to\":{\"line\":13,"
                                         "\"col\":18},\"severity\":1,\"message\":\"a test's error\"}]}";
-    gui_link_emit(&window.link, "lsp-diagnostics", s_diagnostics, sizeof(s_diagnostics) - 1u);
+    gui_interface_emit(&window.cli, "lsp-diagnostics", s_diagnostics, sizeof(s_diagnostics) - 1u);
     waited(&window, &count, 50ull);
     cli_check((problem_row(&window.problems, "a test's error") >= 0) && window.strip.problems_marked,
               "a file's diagnostics event is taken and the Problems tool marked");

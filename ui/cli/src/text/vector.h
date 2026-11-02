@@ -63,19 +63,23 @@ unsigned long long cli_vector_common_on(const CliVectorLengthCfg *args);
 // the plain loop of a find from `start` on; and each path's loops, where the machine has them
 int cli_vector_stands_at(const CliVectorTextSoughtCfg *args);
 unsigned long long cli_vector_plain_find(const CliVectorTextLengthCfg *args);
+#if ENGINE_TARGET_X86_64
 int cli_vector_avx2_present(void);
 unsigned long long cli_vector_find_unit_sse2(const CliVectorUnitCfg *args);
 unsigned long long cli_vector_find_unit_avx2(const CliVectorUnitCfg *args);
-unsigned long long cli_vector_find_unit_neon(const CliVectorUnitCfg *args);
 unsigned long long cli_vector_common_sse2(const CliVectorLengthCfg *args);
 unsigned long long cli_vector_common_avx2(const CliVectorLengthCfg *args);
-unsigned long long cli_vector_common_neon(const CliVectorLengthCfg *args);
 int cli_vector_same_sse2(const CliVectorLengthACfg *args);
 int cli_vector_same_avx2(const CliVectorLengthACfg *args);
-int cli_vector_same_neon(const CliVectorLengthACfg *args);
 unsigned long long cli_vector_find_sse2(const CliVectorTextLengthCfg *args);
 unsigned long long cli_vector_find_avx2(const CliVectorTextLengthCfg *args);
+#endif
+#if ENGINE_TARGET_AARCH64
+unsigned long long cli_vector_find_unit_neon(const CliVectorUnitCfg *args);
+unsigned long long cli_vector_common_neon(const CliVectorLengthCfg *args);
+int cli_vector_same_neon(const CliVectorLengthACfg *args);
 unsigned long long cli_vector_find_neon(const CliVectorTextLengthCfg *args);
+#endif
 
 struct CliVectorTextCfg
 {
@@ -166,18 +170,12 @@ typedef struct
     unsigned short (*fold)(const CliVectorUnitCfg *args);
     unsigned long long (*find_unit)(const CliVectorUnitCfg *args);
     unsigned long long (*find_unit_on)(const CliVectorUnitCfg *args);
-    unsigned long long (*find_unit_sse2)(const CliVectorUnitCfg *args);
-    unsigned long long (*find_unit_avx2)(const CliVectorUnitCfg *args);
-    unsigned long long (*find_unit_neon)(const CliVectorUnitCfg *args);
 } CliVectorUnitNs;
-EMBED_TABLE_LAYOUT(CliVectorUnitNs, fold, find_unit, find_unit_on, find_unit_sse2, find_unit_avx2, find_unit_neon);
+EMBED_TABLE_LAYOUT(CliVectorUnitNs, fold, find_unit, find_unit_on);
 EMBED_TABLE_STORAGE CliVectorUnitNs cli_vector_unit EMBED_UNUSED = {
     .fold = cli_vector_fold,
     .find_unit = cli_vector_find_unit,
     .find_unit_on = cli_vector_find_unit_on,
-    .find_unit_sse2 = cli_vector_find_unit_sse2,
-    .find_unit_avx2 = cli_vector_find_unit_avx2,
-    .find_unit_neon = cli_vector_find_unit_neon,
 };
 
 typedef struct
@@ -216,16 +214,10 @@ EMBED_TABLE_STORAGE CliVectorALengthNs cli_vector_a_length EMBED_UNUSED = {
 typedef struct
 {
     unsigned long long (*common_on)(const CliVectorLengthCfg *args);
-    unsigned long long (*common_sse2)(const CliVectorLengthCfg *args);
-    unsigned long long (*common_avx2)(const CliVectorLengthCfg *args);
-    unsigned long long (*common_neon)(const CliVectorLengthCfg *args);
 } CliVectorLengthNs;
-EMBED_TABLE_LAYOUT(CliVectorLengthNs, common_on, common_sse2, common_avx2, common_neon);
+EMBED_TABLE_LAYOUT(CliVectorLengthNs, common_on);
 EMBED_TABLE_STORAGE CliVectorLengthNs cli_vector_length EMBED_UNUSED = {
     .common_on = cli_vector_common_on,
-    .common_sse2 = cli_vector_common_sse2,
-    .common_avx2 = cli_vector_common_avx2,
-    .common_neon = cli_vector_common_neon,
 };
 
 typedef struct
@@ -240,29 +232,95 @@ EMBED_TABLE_STORAGE CliVectorTextSoughtNs cli_vector_text_sought EMBED_UNUSED = 
 typedef struct
 {
     unsigned long long (*plain_find)(const CliVectorTextLengthCfg *args);
-    unsigned long long (*find_sse2)(const CliVectorTextLengthCfg *args);
-    unsigned long long (*find_avx2)(const CliVectorTextLengthCfg *args);
-    unsigned long long (*find_neon)(const CliVectorTextLengthCfg *args);
 } CliVectorTextLengthNs;
-EMBED_TABLE_LAYOUT(CliVectorTextLengthNs, plain_find, find_sse2, find_avx2, find_neon);
+EMBED_TABLE_LAYOUT(CliVectorTextLengthNs, plain_find);
 EMBED_TABLE_STORAGE CliVectorTextLengthNs cli_vector_text_length EMBED_UNUSED = {
     .plain_find = cli_vector_plain_find,
-    .find_sse2 = cli_vector_find_sse2,
-    .find_avx2 = cli_vector_find_avx2,
-    .find_neon = cli_vector_find_neon,
+};
+
+// each path's loops, on the architecture that has them
+#if ENGINE_TARGET_X86_64
+typedef struct
+{
+    unsigned long long (*find_unit_sse2)(const CliVectorUnitCfg *args);
+    unsigned long long (*find_unit_avx2)(const CliVectorUnitCfg *args);
+} CliVectorUnitX86Ns;
+EMBED_TABLE_LAYOUT(CliVectorUnitX86Ns, find_unit_sse2, find_unit_avx2);
+EMBED_TABLE_STORAGE CliVectorUnitX86Ns cli_vector_unit_x86 EMBED_UNUSED = {
+    .find_unit_sse2 = cli_vector_find_unit_sse2,
+    .find_unit_avx2 = cli_vector_find_unit_avx2,
+};
+
+typedef struct
+{
+    unsigned long long (*common_sse2)(const CliVectorLengthCfg *args);
+    unsigned long long (*common_avx2)(const CliVectorLengthCfg *args);
+} CliVectorLengthX86Ns;
+EMBED_TABLE_LAYOUT(CliVectorLengthX86Ns, common_sse2, common_avx2);
+EMBED_TABLE_STORAGE CliVectorLengthX86Ns cli_vector_length_x86 EMBED_UNUSED = {
+    .common_sse2 = cli_vector_common_sse2,
+    .common_avx2 = cli_vector_common_avx2,
 };
 
 typedef struct
 {
     int (*same_sse2)(const CliVectorLengthACfg *args);
     int (*same_avx2)(const CliVectorLengthACfg *args);
-    int (*same_neon)(const CliVectorLengthACfg *args);
-} CliVectorLengthANs;
-EMBED_TABLE_LAYOUT(CliVectorLengthANs, same_sse2, same_avx2, same_neon);
-EMBED_TABLE_STORAGE CliVectorLengthANs cli_vector_length_a EMBED_UNUSED = {
+} CliVectorLengthAX86Ns;
+EMBED_TABLE_LAYOUT(CliVectorLengthAX86Ns, same_sse2, same_avx2);
+EMBED_TABLE_STORAGE CliVectorLengthAX86Ns cli_vector_length_a_x86 EMBED_UNUSED = {
     .same_sse2 = cli_vector_same_sse2,
     .same_avx2 = cli_vector_same_avx2,
+};
+
+typedef struct
+{
+    unsigned long long (*find_sse2)(const CliVectorTextLengthCfg *args);
+    unsigned long long (*find_avx2)(const CliVectorTextLengthCfg *args);
+} CliVectorTextLengthX86Ns;
+EMBED_TABLE_LAYOUT(CliVectorTextLengthX86Ns, find_sse2, find_avx2);
+EMBED_TABLE_STORAGE CliVectorTextLengthX86Ns cli_vector_text_length_x86 EMBED_UNUSED = {
+    .find_sse2 = cli_vector_find_sse2,
+    .find_avx2 = cli_vector_find_avx2,
+};
+#endif
+
+#if ENGINE_TARGET_AARCH64
+typedef struct
+{
+    unsigned long long (*find_unit_neon)(const CliVectorUnitCfg *args);
+} CliVectorUnitNeonNs;
+EMBED_TABLE_LAYOUT(CliVectorUnitNeonNs, find_unit_neon);
+EMBED_TABLE_STORAGE CliVectorUnitNeonNs cli_vector_unit_neon EMBED_UNUSED = {
+    .find_unit_neon = cli_vector_find_unit_neon,
+};
+
+typedef struct
+{
+    unsigned long long (*common_neon)(const CliVectorLengthCfg *args);
+} CliVectorLengthNeonNs;
+EMBED_TABLE_LAYOUT(CliVectorLengthNeonNs, common_neon);
+EMBED_TABLE_STORAGE CliVectorLengthNeonNs cli_vector_length_neon EMBED_UNUSED = {
+    .common_neon = cli_vector_common_neon,
+};
+
+typedef struct
+{
+    int (*same_neon)(const CliVectorLengthACfg *args);
+} CliVectorLengthANeonNs;
+EMBED_TABLE_LAYOUT(CliVectorLengthANeonNs, same_neon);
+EMBED_TABLE_STORAGE CliVectorLengthANeonNs cli_vector_length_a_neon EMBED_UNUSED = {
     .same_neon = cli_vector_same_neon,
 };
+
+typedef struct
+{
+    unsigned long long (*find_neon)(const CliVectorTextLengthCfg *args);
+} CliVectorTextLengthNeonNs;
+EMBED_TABLE_LAYOUT(CliVectorTextLengthNeonNs, find_neon);
+EMBED_TABLE_STORAGE CliVectorTextLengthNeonNs cli_vector_text_length_neon EMBED_UNUSED = {
+    .find_neon = cli_vector_find_neon,
+};
+#endif
 
 #endif

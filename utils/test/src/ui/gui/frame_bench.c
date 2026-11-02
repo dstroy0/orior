@@ -223,7 +223,7 @@ int main(void)
     bench_timed("the work's outline", part_outline, &window);
     // the busy circle: its stages made once as it comes, and a stage's step, all a frame of it owes
     g_test_clock_ms = 1000ull;
-    EMBED_CALL(gui_busy_ticket.request, GuiBusyTicketCfg, .busy = &window.busy, .ticket = window.link.tickets + 1ull);
+    EMBED_CALL(gui_busy_ticket.request, GuiBusyTicketCfg, .busy = &window.busy, .ticket = window.cli.tickets + 1ull);
     g_test_clock_ms = 1000ull + GUI_BUSY_SHOW_DELAY_MS;
     (void)EMBED_CALL(gui_busy_ticket.tick, GuiBusyTicketCfg, .busy = &window.busy);
     s_busy_ms = window.busy.visible_start_ms;

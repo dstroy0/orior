@@ -548,7 +548,7 @@ typedef struct
     int ok;
     const char *text;
     unsigned long long size;
-} GuiLinkEachCfg;
+} GuiInterfaceEachCfg;
 
 typedef struct
 {

@@ -26,7 +26,7 @@
 
 int gui_window_begin(const GuiWindowWokenCfg *args)
 {
-    GuiLinkWoken woken = args->woken;
+    GuiInterfaceWoken woken = args->woken;
     void *context = args->context;
     VerbaLinea *err_msg = args->err_msg;
     memor.set(&(MemoriaCfg){.dst = args->window, .val = 0, .bytes = sizeof(*args->window)});
@@ -87,10 +87,10 @@ int gui_window_begin(const GuiWindowWokenCfg *args)
     {
         return 0;
     }
-    if (!EMBED_CALL(cli_link.begin, GuiLinkCfg, .link = &args->window->link, .woken = woken, .context = context))
+    if (!EMBED_CALL(gui_interface.begin, GuiInterfaceCfg, .cli = &args->window->cli, .woken = woken, .context = context))
     {
         EMBED_CALL(cli_glyphs.free, GuiGlyphsCfg, .glyphs = &args->window->glyphs);
-        mmgr_line_put(err_msg, "the link to orior_cli could not begin");
+        mmgr_line_put(err_msg, "the interface to orior_cli could not begin");
         return 0;
     }
     args->window->pressed = GUI_HIT_CLIENT;
@@ -152,7 +152,7 @@ static void window_session_write(const GuiWindowCtx *args);
 
 void gui_window_end(const GuiWindowCfg *args)
 {
-    EMBED_CALL(cli_link.end, GuiLinkCfg, .link = &args->window->link);
+    EMBED_CALL(gui_interface.end, GuiInterfaceCfg, .cli = &args->window->cli);
     EMBED_CALL(window_session_write, GuiWindowCtx, .window = args->window, .ended = 1);
     for (unsigned int at = 0u; at < args->window->tabs; at += 1u)
     {
@@ -233,7 +233,7 @@ EMBED_INLINE unsigned long long window_call(const GuiWindowCtx *args)
     const char *name = args->name;
     const VerbaLinea *arguments = args->request;
     const unsigned long long ticket =
-        EMBED_CALL(gui_link_own.call, GuiLinkOwnCfg, .link = &args->window->link, .own = own, .name = name,
+        EMBED_CALL(gui_interface_own.call, GuiInterfaceOwnCfg, .cli = &args->window->cli, .own = own, .name = name,
                    .request = arguments->out, .size = mmgr_line_ok(arguments) ? arguments->at : 0ull);
     if (ticket != 0ull)
     {
@@ -242,8 +242,8 @@ EMBED_INLINE unsigned long long window_call(const GuiWindowCtx *args)
     return ticket;
 }
 
-_Static_assert(GUI_BUSY_ASKS > (GUI_LINK_WORKERS * (GUI_LINK_CALLS + 1u + GUI_LINK_ITEMS)),
-               "the circle keeps every ask the link can stand unanswered");
+_Static_assert(GUI_BUSY_ASKS > (GUI_INTERFACE_WORKERS * (GUI_INTERFACE_CALLS + 1u + GUI_INTERFACE_ITEMS)),
+               "the circle keeps every ask the interface can stand unanswered");
 
 // an input of the view's sent, `{"key", "kind", ...}` with `more` after the kind, its own members written already
 EMBED_INLINE void window_view_input(const GuiWindowCtx *args)
@@ -811,8 +811,8 @@ EMBED_INLINE void window_names_free(const GuiWindowCtx *args)
 // the tree's session and the explorer's group written to orior's folder under the keys the page saves them by, once
 // the tree's saved tabs are back: the tabs' paths in order, the one shown, and the strip's side tool shown; a window
 // with no tabs and no session known writes nothing, which saves a session the folder holds from being written over
-// by a read that failed to bring it. The write goes through the link while the window runs and straight to the CLI as
-// it ends, when the link has let go of what it had not run
+// by a read that failed to bring it. The write goes through the interface while the window runs and straight to the CLI as
+// it ends, when the interface has let go of what it had not run
 static void window_session_write(const GuiWindowCtx *args)
 {
     if (!args->window->restored || (args->window->root[0] == '\0') ||
@@ -896,7 +896,7 @@ static void window_session_write(const GuiWindowCtx *args)
     g_cli_cells->persistent_buf_release(arguments.out, &g_gui_cells);
 }
 
-// the session saved through the link, as each change to it is made
+// the session saved through the interface, as each change to it is made
 EMBED_INLINE void window_save(const GuiWindowCtx *args)
 {
     EMBED_CALL(window_session_write, GuiWindowCtx, .window = args->window, .ended = 0);
@@ -2359,7 +2359,7 @@ EMBED_INLINE void window_mark_tree_read(const GuiWindowCtx *args)
 }
 
 // one answer or event taken
-static void window_take(const GuiLinkEachCfg *args)
+static void window_take(const GuiInterfaceEachCfg *args)
 {
     unsigned long long ticket = args->ticket;
     const char *name = args->name;
@@ -2765,7 +2765,7 @@ EMBED_INLINE void window_memory_request(const GuiWindowCtx *args)
 
 void gui_window_drain(const GuiWindowCfg *args)
 {
-    (void)EMBED_CALL(gui_link_context.drain, GuiLinkContextCfg, .link = &args->window->link, .each = window_take,
+    (void)EMBED_CALL(gui_interface_context.drain, GuiInterfaceContextCfg, .cli = &args->window->cli, .each = window_take,
                      .context = args->window);
     EMBED_CALL(window_memory_request, GuiWindowCtx, .window = args->window);
     EMBED_CALL(window_mark_tree_read, GuiWindowCtx, .window = args->window);

@@ -297,7 +297,7 @@ int main(void)
         EMBED_CALL(main_err, MainCtx, .err_msg = &why);
         return 1;
     }
-    cli_window_begun(gui_link_emit, &s_window.link);
+    cli_window_begun(gui_interface_emit, &s_window.cli);
     CliWindowArea areas[GUI_MONITORS];
     const unsigned int count =
         EMBED_CALL(cli_system_areas.areas, GuiSystemAreasCfg, .areas = areas, .most = GUI_MONITORS);

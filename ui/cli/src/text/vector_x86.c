@@ -150,7 +150,7 @@ CLI_AVX2_TARGET unsigned long long cli_vector_find_unit_avx2(const CliVectorUnit
         at += 16ull;
     }
     const unsigned long long found =
-        EMBED_CALL(cli_vector_unit.find_unit_sse2, CliVectorUnitCfg, .text = args->text + at,
+        EMBED_CALL(cli_vector_unit_x86.find_unit_sse2, CliVectorUnitCfg, .text = args->text + at,
                    .length = args->length - at, .unit = args->unit);
     return (found == CLI_VECTOR_NONE) ? found : (at + found);
 }
@@ -193,7 +193,7 @@ CLI_AVX2_TARGET unsigned long long cli_vector_common_avx2(const CliVectorLengthC
         }
         at += 4ull;
     }
-    return at + EMBED_CALL(cli_vector_length.common_sse2, CliVectorLengthCfg, .a_u64s = args->a_u64s + at,
+    return at + EMBED_CALL(cli_vector_length_x86.common_sse2, CliVectorLengthCfg, .a_u64s = args->a_u64s + at,
                            .b_u64s = args->b_u64s + at, .length = args->length - at);
 }
 
@@ -227,7 +227,7 @@ CLI_AVX2_TARGET int cli_vector_same_avx2(const CliVectorLengthACfg *args)
         }
         at += 16ull;
     }
-    return EMBED_CALL(cli_vector_length_a.same_sse2, CliVectorLengthACfg, .a = args->a + at, .b = args->b + at,
+    return EMBED_CALL(cli_vector_length_a_x86.same_sse2, CliVectorLengthACfg, .a = args->a + at, .b = args->b + at,
                       .length = args->length - at);
 }
 
@@ -313,7 +313,7 @@ CLI_AVX2_TARGET unsigned long long cli_vector_find_avx2(const CliVectorTextLengt
         at += 16ull;
     }
     const unsigned long long found = EMBED_CALL(
-        cli_vector_text_length.find_sse2, CliVectorTextLengthCfg, .text = args->text + at, .length = args->length - at,
+        cli_vector_text_length_x86.find_sse2, CliVectorTextLengthCfg, .text = args->text + at, .length = args->length - at,
         .sought = args->sought, .sought_length = args->sought_length, .folded = args->folded);
     return (found == CLI_VECTOR_NONE) ? found : (at + found);
 }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // window.h: the window apart from the system it stands on: its frame laid out for its size, its raster drawn with the
 // parts, the glyphs and the palette they draw with, the editor showing the open file with the minimap beside it, the
-// menu bar over the catalog of commands, and the link to the CLI, each answer and event taken on the window's thread;
+// menu bar over the catalog of commands, and the interface to the CLI, each answer and event taken on the window's thread;
 // the pointer's place read as the caption, a border, a control or the client; the wheel scrolling the editor; a menu's
 // choice run, its keys sent to the editor's view; and the file opened as the launch command or a door command names it
 // (window.c)
@@ -26,7 +26,7 @@ typedef struct GuiWindowAtCfg GuiWindowAtCfg;
 #include "framebuffer.h"
 #include "ground.h"
 #include "input_event.h"
-#include "link.h"
+#include "interface.h"
 #include "parts/busy.h"
 #include "parts/editor.h"
 #include "parts/explorer.h"
@@ -63,7 +63,7 @@ typedef struct GuiWindowAtCfg GuiWindowAtCfg;
 // The window: its frame; its two framebuffers, the raster the frame is drawn into and the one shown, flipped as a frame
 // is presented, the shown one NULL before any; the base every frame starts from and the ground under it, glyphs, icons,
 // palette, editor, minimap, menu The window: its frame, raster, the ground every frame starts from, glyphs, icons,
-// palette, editor, minimap, menu bar, strip, explorer and link; the panels over the editor, the hover, the completion
+// palette, editor, minimap, menu bar, strip, explorer and interface; the panels over the editor, the hover, the completion
 // and the signature, with the tickets of their asks in flight, 0 where none is, whether the completion is to be asked
 // for as the next frame comes, whether that ask was forced by the keys, whether each panel's ask is to be made again
 // with the server once its answer without the server comes, whether the server is to be told the text as the next frame
@@ -105,7 +105,7 @@ typedef struct GuiWindow
     GuiMenubar menubar;
     GuiStrip strip;
     GuiExplorer explorer;
-    GuiLink link;
+    GuiInterface cli;
     GuiHover hover;
     GuiSuggest suggest;
     GuiSignature signature;
@@ -208,7 +208,7 @@ typedef struct GuiWindow
 #define GUI_CARET_FADE_MS 300ull
 #define GUI_CARET_DIM 64u
 
-// the window begun: its glyphs read, its palette the dark scheme, its editor empty and its link's workers started, the
+// the window begun: its glyphs read, its palette the dark scheme, its editor empty and its interface's workers started, the
 // window's thread woken through `woken` with `context`: 1, or 0 with why given; and ended, every cell given back
 int gui_window_begin(const GuiWindowWokenCfg *args);
 void gui_window_end(const GuiWindowCfg *args);
@@ -270,7 +270,7 @@ int gui_window_icon(const GuiWindowIconCfg *args);
 struct GuiWindowWokenCfg
 {
     GuiWindow *window;
-    GuiLinkWoken woken;
+    GuiInterfaceWoken woken;
     void *context;
     VerbaLinea *err_msg;
 };

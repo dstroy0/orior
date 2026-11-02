@@ -97,17 +97,17 @@ unsigned long long cli_vector_common_on(const CliVectorLengthCfg *args)
 #if ENGINE_TARGET_X86_64
     if (args->path == CLI_VECTOR_SSE2)
     {
-        return cli_vector_length.common_sse2(args);
+        return cli_vector_length_x86.common_sse2(args);
     }
     if ((args->path == CLI_VECTOR_AVX2) && cli_vector_avx2_present())
     {
-        return cli_vector_length.common_avx2(args);
+        return cli_vector_length_x86.common_avx2(args);
     }
 #endif
 #if ENGINE_TARGET_AARCH64
     if (args->path == CLI_VECTOR_NEON)
     {
-        return cli_vector_length.common_neon(args);
+        return cli_vector_length_neon.common_neon(args);
     }
 #endif
     unsigned long long at = 0ull;
@@ -123,17 +123,17 @@ unsigned long long cli_vector_find_unit_on(const CliVectorUnitCfg *args)
 #if ENGINE_TARGET_X86_64
     if (args->path == CLI_VECTOR_SSE2)
     {
-        return cli_vector_unit.find_unit_sse2(args);
+        return cli_vector_unit_x86.find_unit_sse2(args);
     }
     if ((args->path == CLI_VECTOR_AVX2) && cli_vector_avx2_present())
     {
-        return cli_vector_unit.find_unit_avx2(args);
+        return cli_vector_unit_x86.find_unit_avx2(args);
     }
 #endif
 #if ENGINE_TARGET_AARCH64
     if (args->path == CLI_VECTOR_NEON)
     {
-        return cli_vector_unit.find_unit_neon(args);
+        return cli_vector_unit_neon.find_unit_neon(args);
     }
 #endif
     for (unsigned long long at = 0ull; at < args->length; at += 1ull)
@@ -155,19 +155,19 @@ int cli_vector_same_on(const CliVectorACfg *args)
 #if ENGINE_TARGET_X86_64
     if (args->path == CLI_VECTOR_SSE2)
     {
-        return EMBED_CALL(cli_vector_length_a.same_sse2, CliVectorLengthACfg, .a = args->a, .b = args->b,
+        return EMBED_CALL(cli_vector_length_a_x86.same_sse2, CliVectorLengthACfg, .a = args->a, .b = args->b,
                           .length = args->a_length);
     }
     if ((args->path == CLI_VECTOR_AVX2) && cli_vector_avx2_present())
     {
-        return EMBED_CALL(cli_vector_length_a.same_avx2, CliVectorLengthACfg, .a = args->a, .b = args->b,
+        return EMBED_CALL(cli_vector_length_a_x86.same_avx2, CliVectorLengthACfg, .a = args->a, .b = args->b,
                           .length = args->a_length);
     }
 #endif
 #if ENGINE_TARGET_AARCH64
     if (args->path == CLI_VECTOR_NEON)
     {
-        return EMBED_CALL(cli_vector_length_a.same_neon, CliVectorLengthACfg, .a = args->a, .b = args->b,
+        return EMBED_CALL(cli_vector_length_a_neon.same_neon, CliVectorLengthACfg, .a = args->a, .b = args->b,
                           .length = args->a_length);
     }
 #endif
@@ -200,13 +200,13 @@ unsigned long long cli_vector_find_on(const CliVectorTextCfg *args)
     if (args->path == CLI_VECTOR_SSE2)
     {
         found =
-            EMBED_CALL(cli_vector_text_length.find_sse2, CliVectorTextLengthCfg, .text = rest, .length = rest_length,
+            EMBED_CALL(cli_vector_text_length_x86.find_sse2, CliVectorTextLengthCfg, .text = rest, .length = rest_length,
                        .sought = args->sought, .sought_length = args->sought_length, .folded = args->folded);
     }
     else if ((args->path == CLI_VECTOR_AVX2) && cli_vector_avx2_present())
     {
         found =
-            EMBED_CALL(cli_vector_text_length.find_avx2, CliVectorTextLengthCfg, .text = rest, .length = rest_length,
+            EMBED_CALL(cli_vector_text_length_x86.find_avx2, CliVectorTextLengthCfg, .text = rest, .length = rest_length,
                        .sought = args->sought, .sought_length = args->sought_length, .folded = args->folded);
     }
     else
@@ -215,7 +215,7 @@ unsigned long long cli_vector_find_on(const CliVectorTextCfg *args)
         if (args->path == CLI_VECTOR_NEON)
     {
         found =
-            EMBED_CALL(cli_vector_text_length.find_neon, CliVectorTextLengthCfg, .text = rest, .length = rest_length,
+            EMBED_CALL(cli_vector_text_length_neon.find_neon, CliVectorTextLengthCfg, .text = rest, .length = rest_length,
                        .sought = args->sought, .sought_length = args->sought_length, .folded = args->folded);
     }
     else

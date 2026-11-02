@@ -66,7 +66,7 @@ int main(void)
     cli_check(same(text, "150 MB"), "a reading past a hundred is written whole");
     GuiStatus status;
     memor.set(&(MemoriaCfg){.dst = &status, .val = 0, .bytes = sizeof(status)});
-    status.path = "ui/gui/src/link.c";
+    status.path = "ui/gui/src/interface.c";
     status.has_cursor = 1;
     status.line = 11ull;
     status.col = 2ull;

@@ -18,7 +18,7 @@ typedef struct GuiBusySinceCfg GuiBusySinceCfg;
 #include "../palette.h"
 #include "embed_dispatch_layout.h"
 
-// the tickets of asks saved at once, a power of two past every ask the link can stand unanswered; the milliseconds an
+// the tickets of asks saved at once, a power of two past every ask the interface can stand unanswered; the milliseconds an
 // ask stands before the circle comes, and the least the circle stands once it has come; a swirl's stages, a power of
 // two, and the shift from milliseconds to a stage; and the sizes in the page's pixels: the circle's side, how far the
 // ring's middle reaches from its center, and how far the circle saves from the editor's corner

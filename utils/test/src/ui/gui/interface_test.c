@@ -1,13 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// link_test.c: the link's check: a call queued is answered on a worker and its answer waits in the queue with its
+// interface_test.c: the interface's check: a call queued is answered on a worker and its answer waits in the queue with its
 // ticket in the call's room, the window's thread woken; an event emitted waits there with no ticket; the queue drains
-// in order and is then empty; the window's own calls are answered in the order queued; and the link ends with its
+// in order and is then empty; the window's own calls are answered in the order queued; and the interface ends with its
 // workers, the window's own calls still queued run first
 #include "../../../../../ui/cli/src/machine/state.h"
 #include "../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "../../../../../ui/cli/src/text/text.h"
-#include "../../../../../ui/gui/src/link.h"
+#include "../../../../../ui/gui/src/interface.h"
 #include "../cli/cli_check.h"
 
 // what the window's thread is handed as it drains: the last item's ticket, name, outcome and text, how many came, and
@@ -22,7 +22,7 @@ typedef struct
     int ordered;
 } Drained;
 
-static void each(const GuiLinkEachCfg *args)
+static void each(const GuiInterfaceEachCfg *args)
 {
     unsigned long long ticket = args->ticket;
     int ok = args->ok;
@@ -39,7 +39,7 @@ static void each(const GuiLinkEachCfg *args)
     (void)mmgr_line_finish(&texted);
 }
 
-// the wake the link gives the window's thread, counted
+// the wake the interface gives the window's thread, counted
 typedef struct
 {
     CliWake wake;
@@ -70,36 +70,36 @@ int main(void)
 {
     (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
     Woken count = {CLI_WAKE_INIT, 0u};
-    static GuiLink link;
-    cli_check(EMBED_CALL(cli_link.begin, GuiLinkCfg, .link = &link, .woken = woken, .context = &count), "the link begins with its workers");
+    static GuiInterface cli;
+    cli_check(EMBED_CALL(gui_interface.begin, GuiInterfaceCfg, .cli = &cli, .woken = woken, .context = &count), "the cli begins with its workers");
     Drained drained = {0ull, "", 0, "", 0u, 1};
-    cli_check(EMBED_CALL(gui_link_context.drain, GuiLinkContextCfg, .link = &link, .each = each, .context = &drained) == 0u, "a link begun has nothing to drain");
+    cli_check(EMBED_CALL(gui_interface_context.drain, GuiInterfaceContextCfg, .cli = &cli, .each = each, .context = &drained) == 0u, "a cli begun has nothing to drain");
 
-    const unsigned long long ticket = EMBED_CALL(gui_link_own.call, GuiLinkOwnCfg, .link = &link, .own = 1, .name = "root", .request = "{}", .size = 2ull);
+    const unsigned long long ticket = EMBED_CALL(gui_interface_own.call, GuiInterfaceOwnCfg, .cli = &cli, .own = 1, .name = "root", .request = "{}", .size = 2ull);
     cli_check(ticket != 0ull, "a call queued takes a ticket");
     cli_check(waited(&count, 1u), "the window's thread is woken as the call is answered");
-    cli_check(EMBED_CALL(gui_link_context.drain, GuiLinkContextCfg, .link = &link, .each = each, .context = &drained) == 1u, "the answer drains as one item");
+    cli_check(EMBED_CALL(gui_interface_context.drain, GuiInterfaceContextCfg, .cli = &cli, .each = each, .context = &drained) == 1u, "the answer drains as one item");
     cli_check(drained.ticket == ticket, "the answer carries the call's ticket");
     cli_check(cellul.eq(&(CatenaFinitaCfg){.src = drained.name, .other = "root", .cap = 64ull}),
               "the answer carries the call's name");
     cli_check(drained.text[0] != '\0', "the answer carries a text, an answer or why it failed");
 
-    gui_link_emit(&link, "tree-changed", "{\"paths\":[]}", 12ull);
+    gui_interface_emit(&cli, "tree-changed", "{\"paths\":[]}", 12ull);
     cli_check(waited(&count, 2u), "the window's thread is woken as an event comes");
-    cli_check(EMBED_CALL(gui_link_context.drain, GuiLinkContextCfg, .link = &link, .each = each, .context = &drained) == 1u, "the event drains as one item");
+    cli_check(EMBED_CALL(gui_interface_context.drain, GuiInterfaceContextCfg, .cli = &cli, .each = each, .context = &drained) == 1u, "the event drains as one item");
     cli_check(drained.ticket == 0ull, "an event carries no ticket");
     cli_check(cellul.eq(&(CatenaFinitaCfg){.src = drained.name, .other = "tree-changed", .cap = 64ull}),
               "an event carries its name");
     cli_check(cellul.eq(&(CatenaFinitaCfg){.src = drained.text, .other = "{\"paths\":[]}", .cap = 256ull}),
               "an event carries its body whole");
 
-    const unsigned long long first = EMBED_CALL(gui_link_own.call, GuiLinkOwnCfg, .link = &link, .own = 1, .name = "root", .request = "{}", .size = 2ull);
-    const unsigned long long second = EMBED_CALL(gui_link_own.call, GuiLinkOwnCfg, .link = &link, .own = 1, .name = "root_now", .request = "{}", .size = 2ull);
+    const unsigned long long first = EMBED_CALL(gui_interface_own.call, GuiInterfaceOwnCfg, .cli = &cli, .own = 1, .name = "root", .request = "{}", .size = 2ull);
+    const unsigned long long second = EMBED_CALL(gui_interface_own.call, GuiInterfaceOwnCfg, .cli = &cli, .own = 1, .name = "root_now", .request = "{}", .size = 2ull);
     cli_check(second == first + 1ull, "tickets count up");
     cli_check(waited(&count, 4u), "both calls are answered");
     drained.came = 0u;
-    cli_check(EMBED_CALL(gui_link_context.drain, GuiLinkContextCfg, .link = &link, .each = each, .context = &drained) == 2u, "two answers drain together");
-    cli_check(EMBED_CALL(gui_link_context.drain, GuiLinkContextCfg, .link = &link, .each = each, .context = &drained) == 0u, "the queue drained is empty");
+    cli_check(EMBED_CALL(gui_interface_context.drain, GuiInterfaceContextCfg, .cli = &cli, .each = each, .context = &drained) == 2u, "two answers drain together");
+    cli_check(EMBED_CALL(gui_interface_context.drain, GuiInterfaceContextCfg, .cli = &cli, .each = each, .context = &drained) == 0u, "the queue drained is empty");
 
     // the window's own calls, many at once, are answered in the order queued; the tree's are answered as the pool runs
     // them
@@ -109,7 +109,7 @@ int main(void)
     int queued = 1;
     for (unsigned int at = 0u; at < 40u; at += 1u)
     {
-        queued = queued && (EMBED_CALL(gui_link_own.call, GuiLinkOwnCfg, .link = &link, .own = 1, .name = "root", .request = "{}", .size = 2ull) != 0ull);
+        queued = queued && (EMBED_CALL(gui_interface_own.call, GuiInterfaceOwnCfg, .cli = &cli, .own = 1, .name = "root", .request = "{}", .size = 2ull) != 0ull);
     }
     cli_check(queued, "forty own calls queue");
     // an answer stays in its room until it is drained: at most as many answers wait as there are rooms, and the
@@ -118,32 +118,32 @@ int main(void)
     for (unsigned int rounds = 0u; (answered < 40u) && (rounds < 400u); rounds += 1u)
     {
         (void)waited(&count, 4u + answered + 1u);
-        answered += EMBED_CALL(gui_link_context.drain, GuiLinkContextCfg, .link = &link, .each = each, .context = &drained);
+        answered += EMBED_CALL(gui_interface_context.drain, GuiInterfaceContextCfg, .cli = &cli, .each = each, .context = &drained);
     }
     cli_check(answered == 40u, "every own call is answered as the window's thread drains");
     cli_check(drained.came == 40u, "forty answers drain");
     cli_check(drained.ordered, "the own calls' answers come in the order queued");
 
-    // every room taken by an answer no one drains and a worker at the next call waiting for a room: the link still ends,
+    // every room taken by an answer no one drains and a worker at the next call waiting for a room: the interface still ends,
     // and a run where it does not is ended as stalled
     queued = 1;
     for (unsigned int at = 0u; at < 40u; at += 1u)
     {
-        queued = queued && (EMBED_CALL(gui_link_own.call, GuiLinkOwnCfg, .link = &link, .own = 1, .name = "root", .request = "{}", .size = 2ull) != 0ull);
+        queued = queued && (EMBED_CALL(gui_interface_own.call, GuiInterfaceOwnCfg, .cli = &cli, .own = 1, .name = "root", .request = "{}", .size = 2ull) != 0ull);
     }
     cli_check(queued, "forty more own calls queue");
     cli_check(waited(&count, 44u + CLI_WINDOW_ROOMS), "the answers fill every room");
     // a save queued behind them, the window closing with it unanswered, still reaches orior's folder
-    static const char s_saved[] = "{\"changes\":{\"orior.link.last\":\"saved\"}}";
-    cli_check(EMBED_CALL(gui_link_own.call, GuiLinkOwnCfg, .link = &link, .own = 1, .name = "state_write", .request = s_saved, .size = sizeof(s_saved) - 1ull) != 0ull, "a save queues behind them");
+    static const char s_saved[] = "{\"changes\":{\"orior.cli.last\":\"saved\"}}";
+    cli_check(EMBED_CALL(gui_interface_own.call, GuiInterfaceOwnCfg, .cli = &cli, .own = 1, .name = "state_write", .request = s_saved, .size = sizeof(s_saved) - 1ull) != 0ull, "a save queues behind them");
 
-    EMBED_CALL(cli_link.end, GuiLinkCfg, .link = &link);
-    cli_check(EMBED_ATOMIC_LOAD(&link.workers) == 0u, "the link ended has no workers");
+    EMBED_CALL(gui_interface.end, GuiInterfaceCfg, .cli = &cli);
+    cli_check(EMBED_ATOMIC_LOAD(&cli.workers) == 0u, "the cli ended has no workers");
     char folder[CLI_PATH_MAX_LEN];
     static char state_text[1u << 16u];
     VerbaLinea state = {state_text, sizeof(state_text), 0ull};
     unsigned long long found_at = 0ull;
-    cli_check(EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = folder) && EMBED_CALL(cli_state_out.read, CliStateOutCfg, .folder = folder, .out = &state) && mmgr_line_ok(&state) && EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = state.out, .length_value = state.at, .wanted = "link.last", .size = 9ull, .at_pointer = &found_at),
-              "the window's own calls queued as the link ends are run: a save is not lost");
+    cli_check(EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = folder) && EMBED_CALL(cli_state_out.read, CliStateOutCfg, .folder = folder, .out = &state) && mmgr_line_ok(&state) && EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = state.out, .length_value = state.at, .wanted = "cli.last", .size = 8ull, .at_pointer = &found_at),
+              "the window's own calls queued as the cli ends are run: a save is not lost");
     return cli_on_check();
 }

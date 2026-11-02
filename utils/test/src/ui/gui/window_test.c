@@ -258,7 +258,7 @@ int main(void)
     const GuiColor under_circle = at(&window, circle.x + (circle.width / 2), circle.y + 3);
     // the asks this check has left unanswered let go, one ask of its own the only one standing
     EMBED_CALL(cli_busy_still.init, GuiBusyStillCfg, .busy = &window.busy);
-    const unsigned long long asked_ticket = window.link.tickets + 1ull;
+    const unsigned long long asked_ticket = window.cli.tickets + 1ull;
     EMBED_CALL(gui_busy_ticket.request, GuiBusyTicketCfg, .busy = &window.busy, .ticket = asked_ticket);
     cli_check((EMBED_CALL(cli_window_input.timeout_ms, GuiWindowInputCfg, .window_read = &window) > 1ull) && (EMBED_CALL(cli_window_input.timeout_ms, GuiWindowInputCfg, .window_read = &window) <= GUI_BUSY_SHOW_DELAY_MS), "an ask waiting, the window is due as the wait ends");
     EMBED_CALL(gui_window_table.tick, GuiWindowCfg, .window = &window);
