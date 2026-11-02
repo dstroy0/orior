@@ -88,25 +88,25 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\deploy\\test_deploy\\test_deploy.c");
-  run_test(test_a_pattern_leaves_out_a_name, "test_a_pattern_leaves_out_a_name", 100);
-  run_test(test_a_pattern_leaves_out_a_name_in_any_folder, "test_a_pattern_leaves_out_a_name_in_any_folder", 105);
-  run_test(test_a_folders_pattern_leaves_out_its_contents, "test_a_folders_pattern_leaves_out_its_contents", 110);
-  run_test(test_a_folders_pattern_applies_at_any_depth, "test_a_folders_pattern_applies_at_any_depth", 115);
-  run_test(test_a_path_leaves_out_its_file, "test_a_path_leaves_out_its_file", 120);
-  run_test(test_gits_folder_is_left_out, "test_gits_folder_is_left_out", 125);
-  run_test(test_a_file_no_pattern_names_is_sent, "test_a_file_no_pattern_names_is_sent", 130);
-  run_test(test_a_name_starting_like_a_folder_is_sent, "test_a_name_starting_like_a_folder_is_sent", 135);
-  run_test(test_a_release_is_named_by_its_utc_time, "test_a_release_is_named_by_its_utc_time", 140);
-  run_test(test_a_release_is_named_to_the_second, "test_a_release_is_named_to_the_second", 145);
-  run_test(test_a_place_on_a_machine_is_not_local, "test_a_place_on_a_machine_is_not_local", 150);
-  run_test(test_a_place_in_a_container_is_not_local, "test_a_place_in_a_container_is_not_local", 155);
-  run_test(test_a_folder_is_a_local_place, "test_a_folder_is_a_local_place", 160);
-  run_test(test_a_folder_under_the_tree_is_a_local_place, "test_a_folder_under_the_tree_is_a_local_place", 165);
-  run_test(test_a_files_header_names_it_and_its_mode, "test_a_files_header_names_it_and_its_mode", 170);
-  run_test(test_a_files_bytes_follow_its_header, "test_a_files_bytes_follow_its_header", 177);
-  run_test(test_a_long_name_goes_in_a_pax_header, "test_a_long_name_goes_in_a_pax_header", 183);
-  run_test(test_a_tar_stream_is_whole_blocks, "test_a_tar_stream_is_whole_blocks", 200);
-  run_test(test_a_difference_shows_the_removed_and_added_lines, "test_a_difference_shows_the_removed_and_added_lines", 205);
+  run_test(test_a_pattern_leaves_out_a_name, "test_a_pattern_leaves_out_a_name", 98);
+  run_test(test_a_pattern_leaves_out_a_name_in_any_folder, "test_a_pattern_leaves_out_a_name_in_any_folder", 103);
+  run_test(test_a_folders_pattern_leaves_out_its_contents, "test_a_folders_pattern_leaves_out_its_contents", 108);
+  run_test(test_a_folders_pattern_applies_at_any_depth, "test_a_folders_pattern_applies_at_any_depth", 113);
+  run_test(test_a_path_leaves_out_its_file, "test_a_path_leaves_out_its_file", 118);
+  run_test(test_gits_folder_is_left_out, "test_gits_folder_is_left_out", 123);
+  run_test(test_a_file_no_pattern_names_is_sent, "test_a_file_no_pattern_names_is_sent", 128);
+  run_test(test_a_name_starting_like_a_folder_is_sent, "test_a_name_starting_like_a_folder_is_sent", 133);
+  run_test(test_a_release_is_named_by_its_utc_time, "test_a_release_is_named_by_its_utc_time", 138);
+  run_test(test_a_release_is_named_to_the_second, "test_a_release_is_named_to_the_second", 143);
+  run_test(test_a_place_on_a_machine_is_not_local, "test_a_place_on_a_machine_is_not_local", 148);
+  run_test(test_a_place_in_a_container_is_not_local, "test_a_place_in_a_container_is_not_local", 153);
+  run_test(test_a_folder_is_a_local_place, "test_a_folder_is_a_local_place", 158);
+  run_test(test_a_folder_under_the_tree_is_a_local_place, "test_a_folder_under_the_tree_is_a_local_place", 163);
+  run_test(test_a_files_header_names_it_and_its_mode, "test_a_files_header_names_it_and_its_mode", 168);
+  run_test(test_a_files_bytes_follow_its_header, "test_a_files_bytes_follow_its_header", 175);
+  run_test(test_a_long_name_goes_in_a_pax_header, "test_a_long_name_goes_in_a_pax_header", 181);
+  run_test(test_a_tar_stream_is_whole_blocks, "test_a_tar_stream_is_whole_blocks", 198);
+  run_test(test_a_difference_shows_the_removed_and_added_lines, "test_a_difference_shows_the_removed_and_added_lines", 203);
 
   return UNITY_END();
 }

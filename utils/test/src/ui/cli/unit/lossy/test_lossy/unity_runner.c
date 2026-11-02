@@ -80,7 +80,7 @@ int main(void)
   run_test(test_each_byte_of_a_surrogate_becomes_a_replacement_character, "test_each_byte_of_a_surrogate_becomes_a_replacement_character", 52);
   run_test(test_a_full_line_stops_before_a_character_that_does_not_fit, "test_a_full_line_stops_before_a_character_that_does_not_fit", 62);
   run_test(test_a_full_line_stops_before_a_replacement_that_does_not_fit, "test_a_full_line_stops_before_a_replacement_that_does_not_fit", 71);
-  run_test(test_a_full_line_saves_a_character_that_fits_whole, "test_a_full_line_keeps_a_character_that_fits_whole", 80);
+  run_test(test_a_full_line_saves_a_character_that_fits_whole, "test_a_full_line_saves_a_character_that_fits_whole", 80);
 
   return UNITY_END();
 }

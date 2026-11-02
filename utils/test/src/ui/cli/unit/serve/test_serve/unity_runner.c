@@ -87,23 +87,23 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\serve\\test_serve\\test_serve.c");
-  run_test(test_base64_round_trips_every_length, "test_base64_round_trips_every_length", 183);
-  run_test(test_base64_writes_the_standards_letters, "test_base64_writes_the_standards_letters", 207);
-  run_test(test_a_name_of_two_words_is_found_as_the_page_writes_it, "test_a_name_of_two_words_is_found_as_the_page_writes_it", 215);
-  run_test(test_a_name_of_one_word_is_itself, "test_a_name_of_one_word_is_itself", 223);
-  run_test(test_a_name_not_sent_is_none, "test_a_name_not_sent_is_none", 229);
-  run_test(test_an_arrays_strings_are_read_into_a_cell_of_their_count, "test_an_arrays_strings_are_read_into_a_cell_of_their_count", 235);
-  run_test(test_no_more_strings_are_read_than_requested, "test_no_more_strings_are_read_than_requested", 248);
-  run_test(test_an_array_not_all_strings_is_refused_and_each_cell_is_released, "test_an_array_not_all_strings_is_refused_and_each_cell_is_released", 259);
-  run_test(test_the_server_reports_it_serves_first, "test_the_server_reports_it_serves_first", 269);
-  run_test(test_a_call_is_answered_with_what_it_read, "test_a_call_is_answered_with_what_it_read", 275);
-  run_test(test_a_call_of_no_name_reports_it, "test_a_call_of_no_name_reports_it", 282);
-  run_test(test_a_call_that_answers_nothing_is_null, "test_a_call_that_answers_nothing_is_null", 288);
-  run_test(test_what_a_call_writes_is_written, "test_what_a_call_writes_is_written", 295);
-  run_test(test_a_notebook_is_read_with_a_cells_lines_joined, "test_a_notebook_is_read_with_a_cells_lines_joined", 308);
-  run_test(test_a_job_started_here_ends, "test_a_job_started_here_ends", 316);
-  run_test(test_a_jobs_start_comes_first_its_lines_in_order_and_its_end_last, "test_a_jobs_start_comes_first_its_lines_in_order_and_its_end_last", 323);
-  run_test(test_a_jobs_gathering_is_released, "test_a_jobs_gathering_is_released", 339);
+  run_test(test_base64_round_trips_every_length, "test_base64_round_trips_every_length", 176);
+  run_test(test_base64_writes_the_standards_letters, "test_base64_writes_the_standards_letters", 200);
+  run_test(test_a_name_of_two_words_is_found_as_the_page_writes_it, "test_a_name_of_two_words_is_found_as_the_page_writes_it", 208);
+  run_test(test_a_name_of_one_word_is_itself, "test_a_name_of_one_word_is_itself", 216);
+  run_test(test_a_name_not_sent_is_none, "test_a_name_not_sent_is_none", 222);
+  run_test(test_an_arrays_strings_are_read_into_a_cell_of_their_count, "test_an_arrays_strings_are_read_into_a_cell_of_their_count", 228);
+  run_test(test_no_more_strings_are_read_than_requested, "test_no_more_strings_are_read_than_requested", 241);
+  run_test(test_an_array_not_all_strings_is_refused_and_each_cell_is_released, "test_an_array_not_all_strings_is_refused_and_each_cell_is_released", 252);
+  run_test(test_the_server_reports_it_serves_first, "test_the_server_reports_it_serves_first", 262);
+  run_test(test_a_call_is_answered_with_what_it_read, "test_a_call_is_answered_with_what_it_read", 268);
+  run_test(test_a_call_of_no_name_reports_it, "test_a_call_of_no_name_reports_it", 275);
+  run_test(test_a_call_that_answers_nothing_is_null, "test_a_call_that_answers_nothing_is_null", 281);
+  run_test(test_what_a_call_writes_is_written, "test_what_a_call_writes_is_written", 288);
+  run_test(test_a_notebook_is_read_with_a_cells_lines_joined, "test_a_notebook_is_read_with_a_cells_lines_joined", 301);
+  run_test(test_a_job_started_here_ends, "test_a_job_started_here_ends", 309);
+  run_test(test_a_jobs_start_comes_first_its_lines_in_order_and_its_end_last, "test_a_jobs_start_comes_first_its_lines_in_order_and_its_end_last", 316);
+  run_test(test_a_jobs_gathering_is_released, "test_a_jobs_gathering_is_released", 330);
 
   return UNITY_END();
 }

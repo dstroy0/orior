@@ -85,22 +85,22 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\pg\\test_pg\\test_pg.c");
-  run_test(test_scrams_final_message_has_rfc_7677s_proof, "test_scrams_final_message_has_rfc_7677s_proof", 156);
-  run_test(test_scrams_signature_is_rfc_7677s, "test_scrams_signature_is_rfc_7677s", 162);
-  run_test(test_the_server_reports_its_version, "test_the_server_reports_its_version", 168);
-  run_test(test_a_query_gives_its_columns_each_of_its_type, "test_a_query_gives_its_columns_each_of_its_type", 174);
-  run_test(test_a_page_of_rows_comes_and_the_rest_wait, "test_a_page_of_rows_comes_and_the_rest_wait", 184);
-  run_test(test_a_pages_rows_come_in_order, "test_a_pages_rows_come_in_order", 192);
-  run_test(test_a_null_is_read_as_null, "test_a_null_is_read_as_null", 199);
-  run_test(test_a_time_with_a_zone_has_its_offset, "test_a_time_with_a_zone_has_its_offset", 206);
-  run_test(test_the_next_page_follows_on, "test_the_next_page_follows_on", 215);
-  run_test(test_the_last_page_ends_with_the_statements_tag, "test_the_last_page_ends_with_the_statements_tag", 223);
-  run_test(test_a_failure_gives_the_servers_code, "test_a_failure_gives_the_servers_code", 233);
-  run_test(test_an_open_transaction_is_reported, "test_an_open_transaction_is_reported", 240);
-  run_test(test_a_closed_transaction_is_reported, "test_a_closed_transaction_is_reported", 248);
-  run_test(test_a_cancel_stops_a_statement_and_the_connection_answers_after_it, "test_a_cancel_stops_a_statement_and_the_connection_answers_after_it", 256);
-  run_test(test_an_md5_user_signs_in_with_its_password_and_not_another, "test_an_md5_user_signs_in_with_its_password_and_not_another", 283);
-  run_test(test_a_cleartext_user_signs_in_with_its_password_and_not_another, "test_a_cleartext_user_signs_in_with_its_password_and_not_another", 288);
+  run_test(test_scrams_final_message_has_rfc_7677s_proof, "test_scrams_final_message_has_rfc_7677s_proof", 153);
+  run_test(test_scrams_signature_is_rfc_7677s, "test_scrams_signature_is_rfc_7677s", 159);
+  run_test(test_the_server_reports_its_version, "test_the_server_reports_its_version", 165);
+  run_test(test_a_query_gives_its_columns_each_of_its_type, "test_a_query_gives_its_columns_each_of_its_type", 171);
+  run_test(test_a_page_of_rows_comes_and_the_rest_wait, "test_a_page_of_rows_comes_and_the_rest_wait", 181);
+  run_test(test_a_pages_rows_come_in_order, "test_a_pages_rows_come_in_order", 189);
+  run_test(test_a_null_is_read_as_null, "test_a_null_is_read_as_null", 196);
+  run_test(test_a_time_with_a_zone_has_its_offset, "test_a_time_with_a_zone_has_its_offset", 203);
+  run_test(test_the_next_page_follows_on, "test_the_next_page_follows_on", 212);
+  run_test(test_the_last_page_ends_with_the_statements_tag, "test_the_last_page_ends_with_the_statements_tag", 220);
+  run_test(test_a_failure_gives_the_servers_code, "test_a_failure_gives_the_servers_code", 230);
+  run_test(test_an_open_transaction_is_reported, "test_an_open_transaction_is_reported", 237);
+  run_test(test_a_closed_transaction_is_reported, "test_a_closed_transaction_is_reported", 245);
+  run_test(test_a_cancel_stops_a_statement_and_the_connection_answers_after_it, "test_a_cancel_stops_a_statement_and_the_connection_answers_after_it", 253);
+  run_test(test_an_md5_user_signs_in_with_its_password_and_not_another, "test_an_md5_user_signs_in_with_its_password_and_not_another", 278);
+  run_test(test_a_cleartext_user_signs_in_with_its_password_and_not_another, "test_a_cleartext_user_signs_in_with_its_password_and_not_another", 283);
 
   return UNITY_END();
 }

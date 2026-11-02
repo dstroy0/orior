@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// posix_threads.c: the command line's locks, wakes and threads on Linux and macOS: a POSIX mutex, a condition
-// variable, and a thread of its own, let go; and the processors the machine has online
+// posix_threads.c: the command line's wakes and threads on Linux and macOS: a wake is a futex on a generation word on
+// Linux and a timed sleep elsewhere, a thread is started and let go, and the processors the machine has are read
 #if !defined(_WIN32)
 // the count of processors online is the system's, outside strict C11 and POSIX alike
 #define _GNU_SOURCE
@@ -17,6 +17,7 @@
 #include "../command_line/cli_internal.h"
 
 #if !defined(_WIN32)
+#include <pthread.h>
 #include <sched.h>
 #include <sys/resource.h>
 #include <time.h>

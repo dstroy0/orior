@@ -76,11 +76,11 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\servers_slice\\test_servers_slice\\test_servers_slice.c");
-  run_test(test_a_file_is_sent_a_window_at_a_time_opened_with_the_first_and_changed_with_each_after, "test_a_file_is_sent_a_window_at_a_time_opened_with_the_first_and_changed_with_each_after", 257);
-  run_test(test_what_the_server_publishes_of_each_window_is_on_the_files_own_lines, "test_what_the_server_publishes_of_each_window_is_on_the_files_own_lines", 264);
-  run_test(test_what_it_publishes_of_a_version_before_the_stored_slice_is_dropped, "test_what_it_publishes_of_a_version_before_the_stored_slice_is_dropped", 270);
-  run_test(test_what_it_publishes_of_the_same_text_sent_again_is_moved, "test_what_it_publishes_of_the_same_text_sent_again_is_moved", 276);
-  run_test(test_the_files_slice_is_released_as_it_closes, "test_the_files_slice_is_released_as_it_closes", 282);
+  run_test(test_a_file_is_sent_a_window_at_a_time_opened_with_the_first_and_changed_with_each_after, "test_a_file_is_sent_a_window_at_a_time_opened_with_the_first_and_changed_with_each_after", 250);
+  run_test(test_what_the_server_publishes_of_each_window_is_on_the_files_own_lines, "test_what_the_server_publishes_of_each_window_is_on_the_files_own_lines", 257);
+  run_test(test_what_it_publishes_of_a_version_before_the_stored_slice_is_dropped, "test_what_it_publishes_of_a_version_before_the_stored_slice_is_dropped", 263);
+  run_test(test_what_it_publishes_of_the_same_text_sent_again_is_moved, "test_what_it_publishes_of_the_same_text_sent_again_is_moved", 269);
+  run_test(test_the_files_slice_is_released_as_it_closes, "test_the_files_slice_is_released_as_it_closes", 275);
 
   return UNITY_END();
 }

@@ -84,20 +84,20 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\jupyter\\test_jupyter\\test_jupyter.c");
-  run_test(test_a_signed_message_reads_back_with_its_type, "test_a_signed_message_reads_back_with_its_type", 311);
-  run_test(test_a_signed_message_reads_back_with_its_content, "test_a_signed_message_reads_back_with_its_content", 323);
-  run_test(test_a_forged_message_does_not_read_back, "test_a_forged_message_does_not_read_back", 335);
-  run_test(test_a_cells_print_is_received, "test_a_cells_print_is_received", 346);
-  run_test(test_a_cells_value_is_received, "test_a_cells_value_is_received", 357);
-  run_test(test_a_cells_error_is_received, "test_a_cells_error_is_received", 367);
-  run_test(test_a_loop_interrupted_stops, "test_a_loop_interrupted_stops", 377);
-  run_test(test_the_kernel_stops_when_requested, "test_the_kernel_stops_when_requested", 388);
-  run_test(test_a_kernel_with_no_debugpy_reports_it, "test_a_kernel_with_no_debugpy_reports_it", 398);
-  run_test(test_debugpy_listens_at_a_port, "test_debugpy_listens_at_a_port", 412);
-  run_test(test_other_code_is_named_as_the_kernel_names_it, "test_other_code_is_named_as_the_kernel_names_it", 418);
-  run_test(test_the_files_code_is_named_by_the_file, "test_the_files_code_is_named_by_the_file", 424);
-  run_test(test_only_the_next_run_is_named_by_the_file, "test_only_the_next_run_is_named_by_the_file", 431);
-  run_test(test_debugpy_listens_at_the_same_port_again, "test_debugpy_listens_at_the_same_port_again", 437);
+  run_test(test_a_signed_message_reads_back_with_its_type, "test_a_signed_message_reads_back_with_its_type", 302);
+  run_test(test_a_signed_message_reads_back_with_its_content, "test_a_signed_message_reads_back_with_its_content", 314);
+  run_test(test_a_forged_message_does_not_read_back, "test_a_forged_message_does_not_read_back", 326);
+  run_test(test_a_cells_print_is_received, "test_a_cells_print_is_received", 337);
+  run_test(test_a_cells_value_is_received, "test_a_cells_value_is_received", 348);
+  run_test(test_a_cells_error_is_received, "test_a_cells_error_is_received", 358);
+  run_test(test_a_loop_interrupted_stops, "test_a_loop_interrupted_stops", 368);
+  run_test(test_the_kernel_stops_when_requested, "test_the_kernel_stops_when_requested", 379);
+  run_test(test_a_kernel_with_no_debugpy_reports_it, "test_a_kernel_with_no_debugpy_reports_it", 389);
+  run_test(test_debugpy_listens_at_a_port, "test_debugpy_listens_at_a_port", 403);
+  run_test(test_other_code_is_named_as_the_kernel_names_it, "test_other_code_is_named_as_the_kernel_names_it", 409);
+  run_test(test_the_files_code_is_named_by_the_file, "test_the_files_code_is_named_by_the_file", 415);
+  run_test(test_only_the_next_run_is_named_by_the_file, "test_only_the_next_run_is_named_by_the_file", 422);
+  run_test(test_debugpy_listens_at_the_same_port_again, "test_debugpy_listens_at_the_same_port_again", 428);
 
   return UNITY_END();
 }

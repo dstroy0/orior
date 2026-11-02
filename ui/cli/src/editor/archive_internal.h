@@ -345,6 +345,7 @@ typedef struct
 } CliArchiveErrMsgPartsNs;
 EMBED_TABLE_LAYOUT(CliArchiveErrMsgPartsNs, lock, descend);
 EMBED_TABLE_STORAGE CliArchiveErrMsgPartsNs cli_archive_err_msg_parts_internal EMBED_UNUSED = {
+    .lock = cli_archive_lock,
 
     .descend = cli_archive_descend,
 };

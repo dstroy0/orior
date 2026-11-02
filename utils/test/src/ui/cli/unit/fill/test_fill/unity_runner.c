@@ -75,9 +75,9 @@ int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\fill\\test_fill\\test_fill.c");
   run_test(test_a_comment_wraps_to_the_margin_and_leaves_its_neighbours, "test_a_comment_wraps_to_the_margin_and_leaves_its_neighbours", 36);
-  run_test(test_a_docstring_first_paragraph_saves_its_opening_quotes, "test_a_docstring_first_paragraph_keeps_its_opening_quotes", 42);
-  run_test(test_a_docstring_last_paragraph_saves_its_closing_quotes, "test_a_docstring_last_paragraph_keeps_its_closing_quotes", 49);
-  run_test(test_a_one_line_docstring_saves_both_quotes, "test_a_one_line_docstring_keeps_both_quotes", 56);
+  run_test(test_a_docstring_first_paragraph_saves_its_opening_quotes, "test_a_docstring_first_paragraph_saves_its_opening_quotes", 42);
+  run_test(test_a_docstring_last_paragraph_saves_its_closing_quotes, "test_a_docstring_last_paragraph_saves_its_closing_quotes", 49);
+  run_test(test_a_one_line_docstring_saves_both_quotes, "test_a_one_line_docstring_saves_both_quotes", 56);
   run_test(test_a_doc_comment_aligns_its_tags_and_wraps_its_text, "test_a_doc_comment_aligns_its_tags_and_wraps_its_text", 62);
   run_test(test_plain_text_wraps_by_blank_lines, "test_plain_text_wraps_by_blank_lines", 74);
 

@@ -89,25 +89,25 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\test_runs\\test_test_runs\\test_test_runs.c");
-  run_test(test_a_run_is_spread_by_whole_files_the_largest_first, "test_a_run_is_spread_by_whole_files_the_largest_first", 202);
-  run_test(test_a_run_has_no_more_shares_than_files, "test_a_run_has_no_more_shares_than_files", 222);
-  run_test(test_a_run_has_one_share_where_one_is_requested, "test_a_run_has_one_share_where_one_is_requested", 233);
-  run_test(test_pytests_verbose_line_is_read, "test_pytests_verbose_line_is_read", 244);
-  run_test(test_pytests_verbose_line_is_read_with_a_tests_parameters, "test_pytests_verbose_line_is_read_with_a_tests_parameters", 249);
-  run_test(test_pytests_summary_is_not_a_result, "test_pytests_summary_is_not_a_result", 254);
-  run_test(test_unittests_verbose_line_is_read, "test_unittests_verbose_line_is_read", 259);
-  run_test(test_unittests_verbose_line_reads_a_skipped_test, "test_unittests_verbose_line_reads_a_skipped_test", 264);
-  run_test(test_a_test_is_named_as_unittest_accepts_it, "test_a_test_is_named_as_unittest_accepts_it", 269);
-  run_test(test_a_failure_has_its_message_and_the_line_it_failed_at, "test_a_failure_has_its_message_and_the_line_it_failed_at", 277);
-  run_test(test_a_test_that_passed_has_its_time, "test_a_test_that_passed_has_its_time", 289);
-  run_test(test_a_test_skipped_has_its_line, "test_a_test_skipped_has_its_line", 303);
-  run_test(test_a_reports_tags_and_texts_are_in_cells_sized_to_it_and_released, "test_a_reports_tags_and_texts_are_in_cells_sized_to_it_and_released", 314);
-  run_test(test_unittests_failures_are_read, "test_unittests_failures_are_read", 323);
-  run_test(test_two_files_use_two_processes, "test_two_files_use_two_processes", 340);
-  run_test(test_a_runs_end_has_its_counts, "test_a_runs_end_has_its_counts", 347);
-  run_test(test_a_real_failure_has_its_message_and_line, "test_a_real_failure_has_its_message_and_line", 357);
-  run_test(test_a_real_skipped_test_is_reported_skipped, "test_a_real_skipped_test_is_reported_skipped", 379);
-  run_test(test_coverage_reports_a_files_lines_ran_and_missed, "test_coverage_reports_a_files_lines_ran_and_missed", 387);
+  run_test(test_a_run_is_spread_by_whole_files_the_largest_first, "test_a_run_is_spread_by_whole_files_the_largest_first", 195);
+  run_test(test_a_run_has_no_more_shares_than_files, "test_a_run_has_no_more_shares_than_files", 215);
+  run_test(test_a_run_has_one_share_where_one_is_requested, "test_a_run_has_one_share_where_one_is_requested", 226);
+  run_test(test_pytests_verbose_line_is_read, "test_pytests_verbose_line_is_read", 237);
+  run_test(test_pytests_verbose_line_is_read_with_a_tests_parameters, "test_pytests_verbose_line_is_read_with_a_tests_parameters", 242);
+  run_test(test_pytests_summary_is_not_a_result, "test_pytests_summary_is_not_a_result", 247);
+  run_test(test_unittests_verbose_line_is_read, "test_unittests_verbose_line_is_read", 252);
+  run_test(test_unittests_verbose_line_reads_a_skipped_test, "test_unittests_verbose_line_reads_a_skipped_test", 257);
+  run_test(test_a_test_is_named_as_unittest_accepts_it, "test_a_test_is_named_as_unittest_accepts_it", 262);
+  run_test(test_a_failure_has_its_message_and_the_line_it_failed_at, "test_a_failure_has_its_message_and_the_line_it_failed_at", 270);
+  run_test(test_a_test_that_passed_has_its_time, "test_a_test_that_passed_has_its_time", 282);
+  run_test(test_a_test_skipped_has_its_line, "test_a_test_skipped_has_its_line", 296);
+  run_test(test_a_reports_tags_and_texts_are_in_cells_sized_to_it_and_released, "test_a_reports_tags_and_texts_are_in_cells_sized_to_it_and_released", 307);
+  run_test(test_unittests_failures_are_read, "test_unittests_failures_are_read", 316);
+  run_test(test_two_files_use_two_processes, "test_two_files_use_two_processes", 333);
+  run_test(test_a_runs_end_has_its_counts, "test_a_runs_end_has_its_counts", 340);
+  run_test(test_a_real_failure_has_its_message_and_line, "test_a_real_failure_has_its_message_and_line", 350);
+  run_test(test_a_real_skipped_test_is_reported_skipped, "test_a_real_skipped_test_is_reported_skipped", 372);
+  run_test(test_coverage_reports_a_files_lines_ran_and_missed, "test_coverage_reports_a_files_lines_ran_and_missed", 380);
 
   return UNITY_END();
 }

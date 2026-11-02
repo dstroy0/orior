@@ -75,7 +75,7 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\root\\test_root\\test_root.c");
-  run_test(test_mounting_a_folder_again_saves_its_name, "test_mounting_a_folder_again_keeps_its_name", 65);
+  run_test(test_mounting_a_folder_again_saves_its_name, "test_mounting_a_folder_again_saves_its_name", 65);
   run_test(test_a_file_in_a_mounted_folder_is_reached_by_its_name, "test_a_file_in_a_mounted_folder_is_reached_by_its_name", 73);
   run_test(test_a_mounted_file_is_reached_by_its_name_alone, "test_a_mounted_file_is_reached_by_its_name_alone", 82);
   run_test(test_a_mounted_path_written_relative_to_the_tree_names_the_mount, "test_a_mounted_path_written_relative_to_the_tree_names_the_mount", 91);
