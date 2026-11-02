@@ -69,5 +69,22 @@ int main(void)
     cli_check((large != NULL) && (large->width == 29u) && (at(large, 14u, 23u) > 200u) && (at(large, 14u, 2u) == 0u),
               "an icon at the strip's size covers its folder's foot and not the space above it");
     gui_icons_given(&icons);
+
+    // a shape of straight sides filled on a cover of its own width and height: covered by each pixel's share inside it,
+    // an overlap of the shape's outline with itself inside it as SVG's nonzero fill has it
+    float cover[6u * 4u] = {0.0f};
+    const float box[8] = {1.0f, 1.0f, 3.5f, 1.0f, 3.5f, 3.0f, 1.0f, 3.0f};
+    gui_icons_polygon_filled(cover, 6u, 4u, box, 4u);
+    cli_check((cover[(1u * 6u) + 1u] == 1.0f) && (cover[(2u * 6u) + 2u] == 1.0f), "a pixel inside the shape is covered whole");
+    cli_check((cover[(1u * 6u) + 3u] > 0.4f) && (cover[(1u * 6u) + 3u] < 0.6f), "a pixel its side halves is covered by half");
+    cli_check((cover[(1u * 6u) + 4u] == 0.0f) && (cover[0] == 0.0f) && (cover[(3u * 6u) + 1u] == 0.0f), "a pixel outside is clear");
+    float folded[6u * 4u] = {0.0f};
+    const float twice[16] = {0.0f, 0.0f, 4.0f, 0.0f, 4.0f, 4.0f, 0.0f, 4.0f, 0.0f, 0.0f, 4.0f, 0.0f, 4.0f, 4.0f, 0.0f, 4.0f};
+    gui_icons_polygon_filled(folded, 6u, 4u, twice, 8u);
+    cli_check(folded[(1u * 6u) + 1u] == 1.0f, "an outline that goes round twice is inside, not out");
+    float offset[6u * 4u] = {0.0f};
+    const float past[8] = {4.0f, 2.0f, 9.0f, 2.0f, 9.0f, 9.0f, 4.0f, 9.0f};
+    gui_icons_polygon_filled(offset, 6u, 4u, past, 4u);
+    cli_check((offset[(3u * 6u) + 5u] == 1.0f) && (offset[(3u * 6u) + 3u] == 0.0f), "a shape past the cover fills what lies on it");
     return cli_checked();
 }

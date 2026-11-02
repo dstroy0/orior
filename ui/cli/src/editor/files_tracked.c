@@ -1,16 +1,17 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// files_tracked.c: whether git tracks a path or would, as the view of the tree stores it: a file it lists, a file in a
-// folder containing one it lists or at the tree's top, or a file in a folder the view does not contain that git does
-// not ignore, git queried once a view for each such folder. Every path is, in a tree git cannot read
+// files_tracked.c: whether git tracks a path or would, as the tree's branches stand: a file it lists, a file in a folder
+// containing one it lists or at the tree's top, or a file in a folder the tree does not contain that git does not
+// ignore, git queried once a listing for each such folder. Every path is, in a tree git cannot read
+#include "../code/symbols.h"
 #include "../machine/trust.h"
 #include "../text/text.h"
 #include "files_internal.h"
 
-// the most folders outside the view whose answers are cached for it
+// the most folders outside the tree whose answers are cached for a listing
 #define CLI_TRACKED_CACHE 64u
 
-// What git reported of each folder outside its view it was queried about, for the view read at `at`, under their own
+// What git reported of each folder outside the tree it was queried about, for the listing made at `at`, under their own
 // lock
 static char s_cached_paths[CLI_TRACKED_CACHE][CLI_PATH_MAX_LEN];
 static int s_ignored[CLI_TRACKED_CACHE];
@@ -18,8 +19,8 @@ static unsigned int s_cached_count;
 static unsigned long long s_cached_at;
 static CliLock s_cache_lock = CLI_LOCK_INIT;
 
-// the answer cached for `outside` of the view read at `at`: 1 with whether git ignores it, or 0 where none is cached;
-// the answers cached for a view read before let go
+// the answer cached for `outside` of the listing made at `at`: 1 with whether git ignores it, or 0 where none is cached;
+// the answers cached for a listing before let go
 static int tracked_cached(const char *outside, unsigned long long at, int *ignored)
 {
     cli_lock_take(&s_cache_lock);
@@ -38,7 +39,7 @@ static int tracked_cached(const char *outside, unsigned long long at, int *ignor
     return found;
 }
 
-// git's answer for `outside` cached for the view read at `at`, where it is that view's still and room is left
+// git's answer for `outside` cached for the listing made at `at`, where it is that listing's still and room is left
 static void tracked_put(const char *outside, unsigned long long at, int ignored)
 {
     cli_lock_take(&s_cache_lock);
@@ -55,10 +56,9 @@ static void tracked_put(const char *outside, unsigned long long at, int ignored)
 
 int cli_files_tracked(const char *root, const char *path)
 {
-    const CliSeen *const seen = cli_seen_acquire(root);
-    if ((seen == NULL) || !seen->git)
+    cli_tree_listed(root);
+    if (!cli_tree_git())
     {
-        cli_seen_let(seen);
         return 1;
     }
     const char *const slash =
@@ -68,13 +68,12 @@ int cli_files_tracked(const char *root, const char *path)
     VerbaLinea line = {folder, sizeof(folder), 0ull};
     mmgr_line_put_n(&line, path, folder_length);
     mmgr_line_finish(&line);
-    if (cli_files_contains(&seen->files, path) || (folder_length == 0ull) || cli_files_contains(&seen->dirs, folder))
+    if (cli_tree_has_file(path) || (folder_length == 0ull) || cli_tree_has_folder(folder))
     {
-        cli_seen_let(seen);
         return 1;
     }
-    // the first folder down the path the view does not contain: an empty folder git lists nothing of, a folder made
-    // since the view was read, or one git ignores, as a build's output is
+    // the first folder down the path the tree does not contain: an empty folder git lists nothing of, a folder made
+    // since it was listed, or one git ignores, as a build's output is
     char outside[CLI_PATH_MAX_LEN];
     unsigned long long end = 0ull;
     for (unsigned long long at = 0ull;;)
@@ -84,14 +83,13 @@ int cli_files_tracked(const char *root, const char *path)
         VerbaLinea part = {outside, sizeof(outside), 0ull};
         mmgr_line_put_n(&part, path, end);
         mmgr_line_finish(&part);
-        if (!cli_files_contains(&seen->dirs, outside) || (end >= folder_length))
+        if (!cli_tree_has_folder(outside) || (end >= folder_length))
         {
             break;
         }
         at = end + 1ull;
     }
-    const unsigned long long read_at = seen->at;
-    cli_seen_let(seen);
+    const unsigned long long read_at = cli_tree_listed_at();
     int ignored = 0;
     if (tracked_cached(outside, read_at, &ignored))
     {

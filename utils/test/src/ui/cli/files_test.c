@@ -5,6 +5,7 @@
 // tree in a folder its repository ignores lists its files from the disk; and a file in a folder made after git's view
 // was read is tracked, and one in an ignored folder is not
 #include "../../../../../ui/cli/src/code/git.h"
+#include "../../../../../ui/cli/src/code/symbols.h"
 #include "../../../../../ui/cli/src/editor/files.h"
 #include "../../../../../ui/cli/src/editor/files_search_hits.h"
 #include "../../../../../ui/cli/src/text/base64.h"
@@ -364,7 +365,7 @@ static void files_listing(void)
     files_written(repo, ".gitignore", "out/\n", 5ull);
     files_written(repo, "a.txt", "one", 3ull);
     cli_check(cli_git_run(repo, s_init, 2u, &out, &err_msg), "a repository is made");
-    cli_files_forget_seen();
+    cli_tree_forgotten();
     cli_check(cli_files_tracked(repo, "a.txt"), "a file git would track");
     files_written(repo, "made/new.txt", "two", 3ull);
     files_folder(repo, "made/deeper", path);
@@ -374,7 +375,7 @@ static void files_listing(void)
     cli_check(cli_files_tracked(repo, "made/new.txt"), "a file in a folder made since");
     cli_check(cli_files_tracked(repo, "made/deeper/more.txt"), "and one a folder further down");
     cli_check(!cli_files_tracked(repo, "out/deep/x.o"), "a file under a folder git ignores");
-    cli_files_forget_seen();
+    cli_tree_forgotten();
 }
 
 // a search stores what it finds in one cell at its most, given back as it ends
@@ -392,7 +393,7 @@ static void files_searched(void)
     }
     files_written(root, "a.txt", many, lines.at);
     files_written(root, "b.txt", "no\nthe needle\n", 14ull);
-    cli_files_forget_seen();
+    cli_tree_forgotten();
     const CliPatterns none = {0};
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     const int found = cli_files_search(root, "needle", (CliSearching){0, 0, 0}, &none, &out, &err_msg);
@@ -409,7 +410,7 @@ static void files_searched(void)
     cli_check((embed_atomic_usize_load(&g_cli_search_cells.in_use) == 0ull) &&
                   (embed_atomic_usize_load(&g_cli_search_cells.hw) > (64ull * sizeof(CliSearchHit))),
               "the lines found are stored in cells grown past their first room, each given back");
-    cli_files_forget_seen();
+    cli_tree_forgotten();
 }
 
 // a find walks the folders of a tree git does not read and names each file whose path contains the query's words,
@@ -423,11 +424,11 @@ static void files_found(void)
     files_written(root, "alpha.txt", "a", 1ull);
     files_written(root, "beta/alpha.js", "b", 1ull);
     files_written(root, "gamma.txt", "c", 1ull);
-    cli_files_forget_seen();
+    cli_tree_forgotten();
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     cli_files_find(root, "alpha", &out);
     cli_check_text(s_out, out.at, "[\"alpha.txt\",\"beta/alpha.js\"]", "a find names the files that contain the query");
-    cli_files_forget_seen();
+    cli_tree_forgotten();
 }
 
 // a file written where a folder stands is refused with the system's reason, for the window to report a refusal of

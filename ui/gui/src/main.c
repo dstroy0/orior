@@ -44,6 +44,10 @@ static void main_pointer(void *context, unsigned int kind, int x, int y, unsigne
     {
         gui_window_moved(window, x, y);
     }
+    else if (kind == GUI_POINTER_LEFT)
+    {
+        gui_window_left(window);
+    }
     else if (kind == GUI_POINTER_UP)
     {
         const unsigned int pressed = window->pressed;
@@ -102,20 +106,26 @@ static void main_idle(void *context)
     }
     if (window->owed)
     {
-        if (window->caret_alone)
+        gui_window_drawn(window);
+        gui_system_present(s_system, window->raster);
+        gui_window_flipped(window);
+    }
+    // no frame whole owed: the caret's ink or the circle's stage alone has changed, each drawn again over the frame and its rows
+    // shown again
+    if (window->caret_alone)
+    {
+        const GuiRect caret = gui_window_caret_drawn(window);
+        if (!gui_rect_empty(caret))
         {
-            // the caret's ink alone has changed: the caret drawn again over the frame and its rows shown again
-            const GuiRect caret = gui_window_caret_drawn(window);
-            if (!gui_rect_empty(caret))
-            {
-                gui_system_present_part(s_system, (window->shown != NULL) ? window->shown : window->raster, caret);
-            }
+            gui_system_present_part(s_system, (window->shown != NULL) ? window->shown : window->raster, caret);
         }
-        else
+    }
+    if (window->busy_alone)
+    {
+        const GuiRect circle = gui_window_busy_drawn(window);
+        if (!gui_rect_empty(circle))
         {
-            gui_window_drawn(window);
-            gui_system_present(s_system, window->raster);
-            gui_window_flipped(window);
+            gui_system_present_part(s_system, (window->shown != NULL) ? window->shown : window->raster, circle);
         }
     }
     gui_system_tick(s_system, gui_window_due(window));
@@ -124,6 +134,11 @@ static void main_idle(void *context)
 static void main_ticked(void *context)
 {
     gui_window_ticked((GuiWindow *)context);
+}
+
+static void main_motion(void *context)
+{
+    gui_window_motion_told((GuiWindow *)context, gui_system_motion_reduced(s_system));
 }
 
 static void main_shown(void *context, int shown)
@@ -173,7 +188,7 @@ int main(void)
         }
     }
     static const GuiSystemEvents s_events = {main_sized, main_pointer, main_wheel, main_key,  main_text,  main_woken,
-                                             main_closing, main_hit,   main_idle,  main_ticked, main_shown};
+                                             main_closing, main_hit,   main_idle,  main_ticked, main_shown, main_motion};
     s_system = gui_system_opened(&place, "orior", &s_events, &s_window, &why);
     if (s_system == NULL)
     {
@@ -191,6 +206,7 @@ int main(void)
         gui_raster_given(&large);
         gui_raster_given(&small);
     }
+    gui_window_motion_told(&s_window, gui_system_motion_reduced(s_system));
     gui_window_started(&s_window);
     // the record kept here for the giving after the loop, since closing the window inside the loop lets go of
     // s_system and leaves the record for the loop to read until it returns

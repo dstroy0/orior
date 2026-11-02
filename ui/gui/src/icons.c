@@ -301,75 +301,113 @@ static void pen_drawn(GuiPen *pen, float x, float y)
     pen->y = y;
 }
 
-// the shape of the pen's gathered corners filled: each pixel of the shape's box covered by the share of its samples
-// inside the shape, a sample inside where the edges cross a ray from it an odd count of times, where that is more
-// than the pixel has
-static void pen_filled(GuiPen *pen)
+void gui_icons_polygon_filled(float *cover, unsigned int width, unsigned int height, const float *corner,
+                              unsigned int corners)
 {
-    if (pen->corners < 3u)
+    if (corners < 3u)
     {
         return;
     }
-    float least_x = pen->corner[0];
-    float most_x = pen->corner[0];
-    float least_y = pen->corner[1];
-    float most_y = pen->corner[1];
-    for (unsigned int at = 1u; at < pen->corners; at += 1u)
+    float least_y = corner[1];
+    float most_y = corner[1];
+    for (unsigned int at = 1u; at < corners; at += 1u)
     {
-        const float x = pen->corner[at * 2u];
-        const float y = pen->corner[(at * 2u) + 1u];
-        least_x = (x < least_x) ? x : least_x;
-        most_x = (x > most_x) ? x : most_x;
+        const float y = corner[(at * 2u) + 1u];
         least_y = (y < least_y) ? y : least_y;
         most_y = (y > most_y) ? y : most_y;
     }
-    // the square's side is far inside what an int represents
-    const int side = (int)pen->side;
-    const int left = (int)floorf(least_x);
-    const int right = (int)ceilf(most_x);
+    unsigned char *const counts = g_cli_cells->temporary_buf_alloc(width, &g_gui_icons_cells);
+    if (counts == NULL)
+    {
+        return;
+    }
+    memor.set(&(MemoriaCfg){.dst = counts, .val = 0, .bytes = width});
+    // the cover's sides are far inside what an int represents, and a sample's column past them is clipped
+    const int tall = (int)height;
+    const int samples_wide = (int)width * (int)ICONS_SAMPLES;
     const int top = (int)floorf(least_y);
     const int bottom = (int)ceilf(most_y);
     const float step = 1.0f / (float)ICONS_SAMPLES;
-    for (int y = (top < 0) ? 0 : top; (y <= bottom) && (y < side); y += 1)
+    const unsigned int kept = (corners < ICONS_CORNERS) ? corners : ICONS_CORNERS;
+    for (int y = (top < 0) ? 0 : top; (y <= bottom) && (y < tall); y += 1)
     {
-        for (int x = (left < 0) ? 0 : left; (x <= right) && (x < side); x += 1)
+        int seen_from = samples_wide;
+        int seen_to = 0;
+        for (unsigned int row = 0u; row < ICONS_SAMPLES; row += 1u)
         {
-            unsigned int inside = 0u;
-            for (unsigned int row = 0u; row < ICONS_SAMPLES; row += 1u)
+            const float sample_y = (float)y + (((float)row + 0.5f) * step);
+            // the edges this row of samples crosses, in order across, each with the way it winds
+            float cross_x[ICONS_CORNERS];
+            int cross_way[ICONS_CORNERS];
+            unsigned int crossings = 0u;
+            for (unsigned int at = 0u; at < kept; at += 1u)
             {
-                const float sample_y = (float)y + (((float)row + 0.5f) * step);
-                for (unsigned int column = 0u; column < ICONS_SAMPLES; column += 1u)
+                const unsigned int next = (at + 1u) % kept;
+                const float x0 = corner[at * 2u];
+                const float y0 = corner[(at * 2u) + 1u];
+                const float x1 = corner[next * 2u];
+                const float y1 = corner[(next * 2u) + 1u];
+                if ((y0 > sample_y) != (y1 > sample_y))
                 {
-                    const float sample_x = (float)x + (((float)column + 0.5f) * step);
-                    unsigned int crossings = 0u;
-                    for (unsigned int at = 0u; at < pen->corners; at += 1u)
+                    const float x = x0 + ((sample_y - y0) * (x1 - x0) / (y1 - y0));
+                    unsigned int place = crossings;
+                    while ((place > 0u) && (cross_x[place - 1u] > x))
                     {
-                        const unsigned int next = (at + 1u) % pen->corners;
-                        const float x0 = pen->corner[at * 2u];
-                        const float y0 = pen->corner[(at * 2u) + 1u];
-                        const float x1 = pen->corner[next * 2u];
-                        const float y1 = pen->corner[(next * 2u) + 1u];
-                        if (((y0 > sample_y) != (y1 > sample_y)) &&
-                            (sample_x < x0 + ((sample_y - y0) * (x1 - x0) / (y1 - y0))))
-                        {
-                            crossings += 1u;
-                        }
+                        cross_x[place] = cross_x[place - 1u];
+                        cross_way[place] = cross_way[place - 1u];
+                        place -= 1u;
                     }
-                    inside += crossings & 1u;
+                    cross_x[place] = x;
+                    cross_way[place] = (y1 > y0) ? 1 : -1;
+                    crossings += 1u;
                 }
             }
-            if (inside != 0u)
+            // each run the winding holds off zero counted across the samples it covers, a whole pixel at a time inside it
+            int winding = 0;
+            float run_from = 0.0f;
+            for (unsigned int at = 0u; at < crossings; at += 1u)
             {
-                // the pixel lies on the square: its place is not negative
-                float *const had = &pen->cover[((unsigned int)y * pen->side) + (unsigned int)x];
-                const float share = (float)inside / (float)(ICONS_SAMPLES * ICONS_SAMPLES);
-                if (share > *had)
+                const int before = winding;
+                winding += cross_way[at];
+                if ((before == 0) && (winding != 0))
                 {
-                    *had = share;
+                    run_from = cross_x[at];
+                }
+                else if ((before != 0) && (winding == 0))
+                {
+                    // a sample stands at the middle of its fraction of a pixel: the first at or past each end
+                    const int first = (int)ceilf((run_from * (float)ICONS_SAMPLES) - 0.5f);
+                    const int past = (int)ceilf((cross_x[at] * (float)ICONS_SAMPLES) - 0.5f);
+                    int sample = (first < 0) ? 0 : first;
+                    const int stop = (past > samples_wide) ? samples_wide : past;
+                    seen_from = ((sample < stop) && (sample < seen_from)) ? sample : seen_from;
+                    seen_to = ((sample < stop) && (stop > seen_to)) ? stop : seen_to;
+                    while (sample < stop)
+                    {
+                        const int whole = (((sample % (int)ICONS_SAMPLES) == 0) && (sample + (int)ICONS_SAMPLES <= stop)) ? (int)ICONS_SAMPLES : 1;
+                        // a pixel's count of its samples is a small count, and the sample lies on the row
+                        counts[(unsigned int)sample / ICONS_SAMPLES] = (unsigned char)(counts[(unsigned int)sample / ICONS_SAMPLES] + whole);
+                        sample += whole;
+                    }
                 }
             }
         }
+        // the pixels this row touched take their shares, where those are more than they have
+        const int pixels_to = (seen_to + (int)ICONS_SAMPLES - 1) / (int)ICONS_SAMPLES;
+        for (int x = seen_from / (int)ICONS_SAMPLES; x < pixels_to; x += 1)
+        {
+            // the pixel lies on the cover: its place is not negative
+            const unsigned int count = counts[(unsigned int)x];
+            counts[(unsigned int)x] = 0u;
+            float *const had = &cover[((unsigned int)y * width) + (unsigned int)x];
+            const float share = (float)count / (float)(ICONS_SAMPLES * ICONS_SAMPLES);
+            if (share > *had)
+            {
+                *had = share;
+            }
+        }
     }
+    g_cli_cells->persistent_buf_release(counts, &g_gui_icons_cells);
 }
 
 // a cubic curve drawn from the pen through its control points x1, y1 and x2, y2 to x, y, as lines between points
@@ -770,7 +808,7 @@ static int icons_drawn(const GuiIconShape *shape, unsigned int size, float strok
         pen.corner = corners;
         pen.corners = 0u;
         pen_path(&pen, shape->filled);
-        pen_filled(&pen);
+        gui_icons_polygon_filled(pen.cover, pen.side, pen.side, pen.corner, pen.corners);
         pen.corner = NULL;
     }
     for (unsigned long long at = 0ull; at < pixels; at += 1ull)

@@ -283,7 +283,7 @@ int cli_servers_plugin_start(const char *root, const char *id, const char *optio
         if (started)
         {
             CliPluginHanding handing = {plugin, {NULL, 0u, 0u}};
-            cli_plugins_languages(&handing.languages);
+            cli_plugins_languages_for_call(&handing.languages);
             cli_lock_take(&g_cli_servers_texts_lock);
             cli_keyed_each(&g_cli_servers_texts, plugins_open_handed, &handing);
             cli_lock_give(&g_cli_servers_texts_lock);

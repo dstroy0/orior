@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // watch.c: the changes the system reports, or a reading of the tree finds, gathered in batches and handed to the
 // window, less those the watching's patterns hide
+#include "../code/symbols.h"
 #include "../command_line/cells.h"
 #include "../text/json_tree.h"
 #include "../text/patterns.h"
@@ -111,6 +112,13 @@ static void cli_changes_given(CliChanges *changes)
     *changes = (CliChanges){NULL, 0u, 0ull, NULL, 0ull, 0ull};
 }
 
+// a list emptied, its cells standing for the next round
+static void cli_changes_cleared(CliChanges *changes)
+{
+    changes->count = 0u;
+    changes->used = 0ull;
+}
+
 int cli_watch_stopping(void)
 {
     cli_lock_take(&s_lock);
@@ -145,7 +153,7 @@ static void cli_waiting_taken(CliBatch *batch)
             batch->lost = 1;
         }
     }
-    cli_changes_given(&s_watching.waiting);
+    cli_changes_cleared(&s_watching.waiting);
     batch->lost = batch->lost || s_watching.overflowed;
     s_watching.overflowed = 0;
 }
@@ -158,10 +166,15 @@ static int cli_gathered(CliBatch *batch, VerbaLinea *out)
     // each change puts at most its own path in one of the lists, and the bundle's paths and their bytes are their size
     const unsigned int count = batch->changes.count;
     const unsigned long long bytes = batch->changes.used;
-    const int made = cli_files_made(&batch->folders, count, bytes) && cli_files_made(&batch->written, count, bytes);
+    const int made =
+        cli_files_work_made(&batch->folders, count, bytes) && cli_files_work_made(&batch->written, count, bytes);
     batch->lost = batch->lost || !made;
     int git = batch->lost;
-    int moved = 0;
+    int relist = batch->lost;
+    // the paths that came and went, to be mirrored to their closest parents as the round ends
+    const char **const moved =
+        g_cli_cells->temporary_buf_alloc((unsigned long long)count * sizeof(const char *), &g_cli_watch_cells);
+    unsigned int moves = 0u;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         const char *const path = cli_change_path(&batch->changes, at);
@@ -178,16 +191,26 @@ static int cli_gathered(CliBatch *batch, VerbaLinea *out)
             git = git || (cellul.eq(&(CatenaFinitaCfg){.src = path, .other = ".git/index", .cap = CLI_CELLS_POOL})) ||
                   (cellul.eq(&(CatenaFinitaCfg){.src = path, .other = ".git/HEAD", .cap = CLI_CELLS_POOL})) ||
                   (cellul.starts(&(CatenaFinitaCfg){.src = path, .other = ".git/refs/", .cap = CLI_CELLS_POOL}));
+            relist = relist || (cellul.eq(&(CatenaFinitaCfg){.src = path, .other = ".git/index", .cap = CLI_CELLS_POOL})) ||
+                     (cellul.eq(&(CatenaFinitaCfg){.src = path, .other = ".git/info/exclude", .cap = CLI_CELLS_POOL}));
             continue;
         }
+        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
+        relist = relist || ((length >= 10ull) && cli_text_same(path + length - 10ull, ".gitignore", 10ull) &&
+                            ((length == 10ull) || (path[length - 11ull] == '/')));
         char full[CLI_PATH_MAX_LEN];
         cli_full(root, path, full);
         const int dir = query_is_folder(full);
+        const int tracked = (path[0] != '\0') && cli_files_tracked(root, path);
+        if (tracked && (moved != NULL) && ((kind == CLI_CHANGE_ADDED) || (kind == CLI_CHANGE_REMOVED)))
+        {
+            moved[moves] = path;
+            moves += 1u;
+        }
         if ((path[0] == '\0') || cli_patterns_hides(&batch->patterns, path, dir))
         {
             continue;
         }
-        const int tracked = cli_files_tracked(root, path);
         git = git || tracked;
         if ((kind == CLI_CHANGE_ADDED) || (kind == CLI_CHANGE_REMOVED))
         {
@@ -195,7 +218,6 @@ static int cli_gathered(CliBatch *batch, VerbaLinea *out)
                 cli_text_last(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), '/');
             // the slash lies in the path, at or past its start
             cli_files_put(&batch->folders, path, (slash != NULL) ? (unsigned long long)(slash - path) : 0ull);
-            moved = moved || tracked;
             if ((kind == CLI_CHANGE_ADDED) && !dir)
             {
                 cli_files_put(&batch->written, path,
@@ -211,10 +233,17 @@ static int cli_gathered(CliBatch *batch, VerbaLinea *out)
             cli_files_put(&batch->written, path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
         }
     }
-    if (moved || batch->lost)
+    // a change joins or leaves the one branch it names; the tree is listed again only where the rules of the listing
+    // changed, or changes were lost
+    if (relist)
     {
-        cli_files_forget_seen();
+        cli_tree_relisted(root, NULL, NULL);
     }
+    else
+    {
+        cli_tree_mirrored(root, moved, moves);
+    }
+    g_cli_cells->persistent_buf_release((void *)moved, &g_cli_watch_cells);
     batch->lost = batch->lost || !cli_files_sorted(&batch->folders) || !cli_files_sorted(&batch->written);
     mmgr_line_put(out, "{\"folders\":[");
     for (unsigned int at = 0u; at < batch->folders.count; at += 1u)
@@ -235,7 +264,7 @@ static int cli_gathered(CliBatch *batch, VerbaLinea *out)
     const int any = (batch->folders.count != 0u) || (batch->written.count != 0u) || git || batch->lost;
     cli_files_emptied(&batch->folders);
     cli_files_emptied(&batch->written);
-    cli_changes_given(&batch->changes);
+    cli_changes_cleared(&batch->changes);
     return any;
 }
 
@@ -243,8 +272,9 @@ static int cli_gathered(CliBatch *batch, VerbaLinea *out)
 static void cli_batched(void *context)
 {
     (void)context;
-    // the bundle a cell for as long as the batcher runs; with no room for it the batcher ends at once
-    CliBatch *const batch = g_cli_cells->temporary_buf_alloc(sizeof(CliBatch), &g_cli_watch_cells);
+    // the bundle a cell for as long as the batcher runs, past any one call; with no room for it the batcher ends at
+    // once
+    CliBatch *const batch = g_cli_cells->persistent_buf_alloc(sizeof(CliBatch), &g_cli_watch_cells);
     cli_lock_take(&s_lock);
     if (batch != NULL)
     {
@@ -307,6 +337,10 @@ static void cli_batched(void *context)
     s_watching.ended += 1u;
     cli_wake_all(&s_watching.wake);
     cli_lock_give(&s_lock);
+    if (batch != NULL)
+    {
+        cli_changes_given(&batch->changes);
+    }
     g_cli_cells->persistent_buf_release(batch, &g_cli_watch_cells);
 }
 
@@ -352,10 +386,6 @@ void cli_watch_start(const char *root, CliTake take, void *context)
     {
         s_watching.poller = (CliThread){cli_watch_polled, s_watching.root};
         const int polling = cli_watch_first_reading(root) && cli_thread_started(&s_watching.poller);
-        if (!polling)
-        {
-            cli_watch_readings_given();
-        }
         cli_lock_take(&s_lock);
         s_watching.polling = polling;
         cli_lock_give(&s_lock);
@@ -395,6 +425,7 @@ int cli_watch_gathered_of(const char *root, const char *const *paths, const unsi
         batch->lost = batch->lost || !cli_change_put(&batch->changes, paths[at], kinds[at], CLI_WATCH_GATHERED);
     }
     const int any = cli_gathered(batch, out);
+    cli_changes_given(&batch->changes);
     g_cli_cells->persistent_buf_release(batch, &g_cli_watch_cells);
     return any;
 }

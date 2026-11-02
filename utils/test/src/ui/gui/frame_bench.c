@@ -28,13 +28,13 @@ typedef void (*BenchPart)(GuiWindow *window);
 
 static void bench_timed(const char *name, BenchPart part, GuiWindow *window)
 {
-    const unsigned long long began = cli_clock_milliseconds();
+    const unsigned long long began = cli_clock_microseconds();
     for (unsigned int run = 0u; run < BENCH_FRAMES; run += 1u)
     {
         part(window);
     }
-    const unsigned long long took = cli_clock_milliseconds() - began;
-    printf("  %s: %.2f ms\n", name, (double)took / (double)BENCH_FRAMES);
+    const unsigned long long took = cli_clock_microseconds() - began;
+    printf("  %s: %.3f ms\n", name, ((double)took / 1000.0) / (double)BENCH_FRAMES);
 }
 
 static void part_frame(GuiWindow *window)
@@ -118,7 +118,7 @@ static void part_map(GuiWindow *window)
 static void part_glass(GuiWindow *window)
 {
     gui_strip_drawn(window->raster, &window->icons, window->palette, &window->frame, &window->strip);
-    gui_bar_drawn(window->raster, &window->glyphs, window->palette, &window->frame, window->title, bench_table(window));
+    gui_bar_drawn(window->raster, &window->glyphs, window->palette, &window->frame, window->title, bench_table(window), &window->controls_shadow);
     const GuiStatus status = {"ui/gui/src/raster.c", 1, 3ull, 4ull, 3ull, 4ull, 0, 0, 4u, 100000000ull};
     gui_statusbar_drawn(window->raster, &window->glyphs, &window->icons, window->palette, &window->frame, &status);
 }
@@ -130,7 +130,33 @@ static void part_strip(GuiWindow *window)
 
 static void part_bar(GuiWindow *window)
 {
-    gui_bar_drawn(window->raster, &window->glyphs, window->palette, &window->frame, window->title, bench_table(window));
+    gui_bar_drawn(window->raster, &window->glyphs, window->palette, &window->frame, window->title, bench_table(window), &window->controls_shadow);
+}
+
+// the name as it stands or goes at the moment the bench has set
+static unsigned long long s_name_ms;
+
+static void part_name(GuiWindow *window)
+{
+    gui_wordmark_drawn(&window->wordmark, window->raster, &window->glyphs, &window->icons, window->palette, &window->frame, s_name_ms);
+}
+
+// the frames of a slide run over and over from `s_slide_from`, each laid and drawn as the window's tick lays and draws it
+static unsigned long long s_slide_from;
+static unsigned long long s_busy_ms;
+static unsigned int s_slide_frame;
+
+static void part_sliding(GuiWindow *window)
+{
+    s_slide_frame = (s_slide_frame + 1u) % 18u;
+    gui_window_claim_laid(window, s_slide_from + (16ull * s_slide_frame));
+    gui_window_drawn(window);
+}
+
+static void part_busy_step(GuiWindow *window)
+{
+    s_busy_ms += GUI_BUSY_STAGE_MS;
+    (void)gui_busy_redrawn(&window->busy, window->raster, s_busy_ms);
 }
 
 static void part_status(GuiWindow *window)
@@ -165,13 +191,13 @@ int main(void)
     }
     (void)gui_window_text_put(&window, text, mmgr_line_ok(&lines) ? lines.at : 0ull);
     gui_window_drawn(&window);
-    const unsigned long long frames_began = cli_clock_milliseconds();
+    const unsigned long long frames_began = cli_clock_microseconds();
     for (unsigned int frame = 0u; frame < BENCH_FRAMES; frame += 1u)
     {
         gui_window_drawn(&window);
     }
-    const unsigned long long frames_took = cli_clock_milliseconds() - frames_began;
-    printf("frame: %.2f ms over %u frames at %u by %u\n", (double)frames_took / (double)BENCH_FRAMES, BENCH_FRAMES, BENCH_WIDTH, BENCH_HEIGHT);
+    const unsigned long long frames_took = cli_clock_microseconds() - frames_began;
+    printf("frame: %.3f ms over %u frames at %u by %u\n", ((double)frames_took / 1000.0) / (double)BENCH_FRAMES, BENCH_FRAMES, BENCH_WIDTH, BENCH_HEIGHT);
     printf("the frame's parts, each drawn alone:\n");
     bench_timed("the base through the map", part_base, &window);
     bench_timed("the map laid", part_map_laid, &window);
@@ -187,25 +213,77 @@ int main(void)
     bench_timed("  the status bar", part_status, &window);
     bench_timed("the panes' corners", part_pane_corners, &window);
     bench_timed("the work's outline", part_outline, &window);
+    // the busy circle: its stages made once as it comes, and a stage's step, all a frame of it owes
+    gui_busy_asked(&window.busy, window.link.tickets + 1ull, 1000ull);
+    (void)gui_busy_ticked(&window.busy, 1000ull + GUI_BUSY_WAITS);
+    s_busy_ms = window.busy.shown_ms;
+    const unsigned long long busy_made = cli_clock_microseconds();
+    gui_busy_drawn(&window.busy, window.raster, window.palette, &window.frame, s_busy_ms);
+    printf("  the busy circle's stages made, once: %.3f ms for %u stages in %llu bytes\n", (double)(cli_clock_microseconds() - busy_made) / 1000.0, window.busy.stages,
+           window.busy.cell_bytes);
+    bench_timed("a step of the busy circle", part_busy_step, &window);
+    gui_busy_given(&window.busy);
+    gui_busy_made(&window.busy);
+    // the claim coming on, and the bar coming in over the claim with its room coming after it
+    s_slide_from = 100000ull;
+    gui_claim_set(&window.claim, 1, s_slide_from);
+    const unsigned long long made_on = cli_clock_microseconds();
+    gui_window_claim_laid(&window, s_slide_from);
+    printf("  the claim's stages made, once: %.3f ms for %u stages\n", (double)(cli_clock_microseconds() - made_on) / 1000.0, window.stages.count);
+    bench_timed("a frame of the claim coming on", part_sliding, &window);
+    s_slide_from = 200000ull;
+    gui_claim_moved(&window.claim, 900, 5, GUI_CLAIM_TOP, 0, s_slide_from - GUI_CLAIM_RESTS);
+    (void)gui_claim_stepped(&window.claim, s_slide_from);
+    const unsigned long long made_in = cli_clock_microseconds();
+    gui_window_claim_laid(&window, s_slide_from);
+    const GuiStage *const last_stage = &window.stages.stage[window.stages.count - 1u];
+    printf("  the bar's stages made, once: %.3f ms for %u stages in %llu bytes\n", (double)(cli_clock_microseconds() - made_in) / 1000.0, window.stages.count,
+           (unsigned long long)((const char *)(last_stage->title + last_stage->titles) - (const char *)window.stages.stage));
+    bench_timed("a frame of the bar coming in", part_sliding, &window);
+    gui_claim_made(&window.claim);
+    gui_frame_laid(&window.frame, BENCH_WIDTH, BENCH_HEIGHT, 1.0f);
+    gui_window_claim_laid(&window, 300000ull);
+    // the name on its pane whole, and up its funnel three quarters of the way through the flight
+    const unsigned long long stood = 1000ull;
+    gui_wordmark_stood(&window.wordmark, stood);
+    s_name_ms = stood + 800ull;
+    // the pictures are made by the first drawing, once a start: timed on their own and left out of the row
+    const unsigned long long made_began = cli_clock_microseconds();
+    part_name(&window);
+    printf("  the name's pictures made, once: %.3f ms\n", (double)(cli_clock_microseconds() - made_began) / 1000.0);
+    bench_timed("the name standing", part_name, &window);
+    gui_wordmark_tree_read(&window.wordmark);
+    const unsigned long long went = stood + GUI_WORDMARK_SHORTEST;
+    const unsigned long long flight_on = cli_clock_microseconds();
+    (void)gui_wordmark_ticked(&window.wordmark, &window.glyphs, &window.icons, window.palette, &window.frame, went);
+    const unsigned int flight_stages = (unsigned int)(GUI_WORDMARK_FLIES / GUI_WORDMARK_FRAME) + 1u;
+    const unsigned int flight_spans = window.wordmark.flight_first[flight_stages];
+    const GuiWordmarkSpan *const flight_last = &window.wordmark.flight_span[flight_spans - 1u];
+    printf("  the flight's stages made, once: %.3f ms for %u stages, %u spans, %u bytes of coverage\n", (double)(cli_clock_microseconds() - flight_on) / 1000.0,
+           flight_stages, flight_spans, flight_last->cover + flight_last->count);
+    s_name_ms = went + ((GUI_WORDMARK_FLIES * 3ull) / 4ull);
+    bench_timed("the name up the funnel", part_name, &window);
+    gui_wordmark_given(&window.wordmark);
+    gui_wordmark_made(&window.wordmark);
     // the same frame with the editor holding no lines: the text's own cost is the difference
     gui_editor_given(&window.editor);
     gui_editor_made(&window.editor);
-    const unsigned long long bare_began = cli_clock_milliseconds();
+    const unsigned long long bare_began = cli_clock_microseconds();
     for (unsigned int frame = 0u; frame < BENCH_FRAMES; frame += 1u)
     {
         part_frame(&window);
     }
-    const unsigned long long bare_took = cli_clock_milliseconds() - bare_began;
-    printf("frame with no text: %.2f ms, the text %.2f ms of the frame\n", (double)bare_took / (double)BENCH_FRAMES,
-           ((double)frames_took - (double)bare_took) / (double)BENCH_FRAMES);
+    const unsigned long long bare_took = cli_clock_microseconds() - bare_began;
+    printf("frame with no text: %.3f ms, the text %.3f ms of the frame\n", ((double)bare_took / 1000.0) / (double)BENCH_FRAMES,
+           (((double)frames_took - (double)bare_took) / 1000.0) / (double)BENCH_FRAMES);
     const GuiRect whole = {0, 0, (int)BENCH_WIDTH, (int)BENCH_HEIGHT};
-    const unsigned long long fills_began = cli_clock_milliseconds();
+    const unsigned long long fills_began = cli_clock_microseconds();
     for (unsigned int fill = 0u; fill < BENCH_FILLS; fill += 1u)
     {
         gui_raster_filled(window.raster, whole, GUI_RGBA(0x80u, 0x40u, 0xc0u, 0x80u));
     }
-    const unsigned long long fills_took = cli_clock_milliseconds() - fills_began;
-    printf("blend of the whole raster: %.2f ms over %u fills\n", (double)fills_took / (double)BENCH_FILLS, BENCH_FILLS);
+    const unsigned long long fills_took = cli_clock_microseconds() - fills_began;
+    printf("blend of the whole raster: %.3f ms over %u fills\n", ((double)fills_took / 1000.0) / (double)BENCH_FILLS, BENCH_FILLS);
     gui_window_ended(&window);
     return 0;
 }

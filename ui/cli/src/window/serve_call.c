@@ -75,6 +75,8 @@ int cli_serve_answered(CliServeAnswer answer, const char *args, unsigned long lo
     {
         const CliServeArgs read = {&json, object};
         answered = answer(&read, out, err_msg);
+        // the pool leaves a cell as it is, and a password a call carries lies in its arguments' cell
+        cli_serve_secret_wiped(&read, "password");
     }
     cli_json_given(&json);
     return answered;

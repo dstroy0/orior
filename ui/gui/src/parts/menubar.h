@@ -17,7 +17,9 @@
 
 // the titles the bar holds at the most and the menus open at once at the most, one under another; and the sizes in
 // the page's pixels: a title's padding each side and its margins across and along, its corner radius, how far the
-// titles start after the bar's left edge, the room kept at the bar's right for the tree's name, a menu's least width,
+// titles start after the bar's left edge, the bar's padding of 16 less the eye's negative margin of 4.4, the room the
+// eye takes before them while the claim does not hold, its width and the gap of .7rem after it, the room kept at the
+// bar's right for the tree's name, a menu's least width,
 // its padding and corner radius, an item's padding across, its height, the least gap between a label and its keys, a
 // line's height with its margins, how far a menu opens below its title, how far a menu of items opens beside and
 // above its item, how far a menu keeps from the window's edges, and the keys' size
@@ -27,7 +29,8 @@
 #define GUI_TITLE_MARGIN_X 2
 #define GUI_TITLE_MARGIN_Y 7
 #define GUI_TITLE_RADIUS 5
-#define GUI_MENUBAR_START 13
+#define GUI_MENUBAR_START 12
+#define GUI_MENUBAR_EYE_ROOM 40
 #define GUI_MENUBAR_NAME_ROOM 278
 #define GUI_MENU_WIDE_LEAST 208
 #define GUI_MENU_PAD 5
@@ -123,6 +126,11 @@ void gui_menubar_cataloged(GuiMenubar *menubar, const CliJson *json, unsigned in
 // the titles laid across the frame's bar, as many as the window's width shows, the rest folded into the last; any
 // menu open closed
 void gui_menubar_laid(GuiMenubar *menubar, GuiGlyphs *glyphs, const GuiFrame *frame);
+// the titles laid across the frame's bar as it moves, any menu open staying open and following its title; and the titles
+// as a stage of the claim's movement laid them, `count` of them, the menus from `folded_from` on folded, any menu open
+// following the same way
+void gui_menubar_titles_laid(GuiMenubar *menubar, GuiGlyphs *glyphs, const GuiFrame *frame);
+void gui_menubar_titles_taken(GuiMenubar *menubar, const GuiTitle *title, unsigned int count, unsigned int folded_from, const GuiFrame *frame);
 // whether the pixel at x, y stands on a title or an open menu
 int gui_menubar_holds(const GuiMenubar *menubar, int x, int y);
 // a press at x, y taken: a title's menu opened or closed, an item's items opened, or an item chosen into `choice`,

@@ -490,6 +490,8 @@ int cli_requests_from_curl(const char *line, unsigned long long size, VerbaLinea
     {
         cli_json_quoted(out, s_curl->written, written.at);
     }
+    // a request's headers may carry a secret, and the pool leaves a cell as it is
+    mmgr_zero_buf(s_curl, sizeof(*s_curl));
     g_cli_cells->persistent_buf_release(s_curl, &g_cli_requests_cells);
     s_curl = NULL;
     cli_lock_give(&s_lock);

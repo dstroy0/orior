@@ -284,7 +284,7 @@ static unsigned int spans_leaf_at(const CliLeafRead *read, unsigned long long by
 int cli_symbols_spans(const char *path, const char *text, unsigned long long size, CliSymbolPlace from,
                       CliSymbolPlace to, CliSpanned each, void *context, VerbaLinea *err_msg)
 {
-    CliSymbolsLanguages *const languages = cli_symbols_languages_read();
+    CliSymbolsLanguages *const languages = cli_symbols_languages_for_call();
     CliLeafRead read = {text, NULL, 0u, 0u, 0u, NULL, 0, NULL, NULL, 0};
     const int leaved = (languages != NULL) && cli_symbols_leaves_kept(languages, path, "root", text, size, &read);
     if (leaved && (read.count > 0u))
@@ -364,7 +364,7 @@ static unsigned int spans_bracket_at(const CliLeafRead *read, unsigned long long
 int cli_symbols_pair(const char *path, const char *state, const char *text, unsigned long long size, CliSymbolPlace at,
                      CliSymbolPlace *pair)
 {
-    CliSymbolsLanguages *const languages = cli_symbols_languages_read();
+    CliSymbolsLanguages *const languages = cli_symbols_languages_for_call();
     CliLeafRead read = {text, NULL, 0u, 0u, 0u, NULL, 0, NULL, NULL, 1};
     const int leaved = (languages != NULL) && cli_symbols_leaves_temporary(languages, path, state, text, size, &read);
     const unsigned int bracket = leaved ? spans_bracket_at(&read, spans_byte_of(text, size, at)) : read.count;

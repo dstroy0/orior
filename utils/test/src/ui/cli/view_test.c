@@ -191,6 +191,173 @@ static int frame_has(const char *wanted)
                          cellul.len(&(CatenaFinitaCfg){.src = wanted, .cap = CLI_CELLS_POOL}), &at);
 }
 
+// the view's top as its frame writes it, read into s_frame_top
+static unsigned long long s_frame_top;
+
+static void frame_top_read(void)
+{
+    VerbaLinea frame = {s_out, sizeof(s_out), 0ull};
+    s_frame_top = ~0ull;
+    if (cli_view_frame_written(s_key, &frame) && (mmgr_line_finish(&frame) != 0ull))
+    {
+        unsigned long long found = 0ull;
+        if (cli_text_find(s_out, frame.at, "\"top\":", 6ull, &found))
+        {
+            s_frame_top = 0ull;
+            for (const char *digit = s_out + found + 6ull; (*digit >= '0') && (*digit <= '9'); digit += 1)
+            {
+                s_frame_top = (s_frame_top * 10ull) + (unsigned long long)(*digit - '0');
+            }
+        }
+    }
+}
+
+// a view opened anew on `text` as the file `path`, its language the plugin's by the extension, sized twenty rows
+static void fresh_named(const char *text, const char *path)
+{
+    cli_view_closed(s_key);
+    cli_document_release(s_key);
+    CliShape shape;
+    (void)cli_document_store(s_key, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), &shape);
+    (void)cli_view_opened(s_key, path);
+    CliViewInput size = view_key("");
+    size.kind = CLI_VIEW_SIZE;
+    size.rows = 20u;
+    size.columns = 80u;
+    (void)given(&size);
+}
+
+// a view opened anew on `text`, as a file of the C plugin's language
+static void fresh(const char *text)
+{
+    fresh_named(text, "check/view.c");
+}
+
+// whether the whole text reads as `wanted`, its lines joined by "\n"
+static int whole(const char *wanted)
+{
+    return reads(0ull, lines_now(), wanted);
+}
+
+// the line edits, each as the page's editor makes it and carrying the selection as its edits carry it
+static void view_lines_checked(void)
+{
+    fresh("a  \n   b\n\nc");
+    cli_check(key("Mod+J") && whole("a b\n\nc") && at(0ull, 3ull, 0ull, 0ull),
+              "Mod+J joins the cursor's line to the next with one space, the two left selected");
+    cli_check(key("Mod+Z") && whole("a  \n   b\n\nc"), "undo takes the join back");
+    fresh("one\n  two\n\nthree");
+    cli_check(key("Shift+Down") && key("Shift+Down") && key("Shift+Down") && key("join-lines") && whole("one two three") &&
+                  at(0ull, 13ull, 0ull, 0ull),
+              "the join-lines command joins the selection's lines, a blank line adding nothing");
+    fresh("   \nb");
+    cli_check(key("Mod+J") && whole("b"), "a blank line joined takes no space");
+    fresh("x\ny");
+    cli_check(key("Down") && key("Mod+J") && whole("x\ny"), "the last line joins nothing");
+
+    fresh("1\n2\n3\n4");
+    cli_check(key("Down") && key("Alt+Down") && whole("1\n3\n2\n4") && at(2ull, 0ull, 2ull, 0ull), "Alt+Down moves the line down, the cursor with it");
+    cli_check(key("Alt+Up") && key("Alt+Up") && whole("2\n1\n3\n4") && at(0ull, 0ull, 0ull, 0ull), "Alt+Up moves it up");
+    cli_check(key("Alt+Up") && whole("2\n1\n3\n4"), "the first line does not move up");
+    cli_check(key("Mod+Z") && key("Mod+Z") && key("Mod+Z") && whole("1\n2\n3\n4"), "each move is a step of its own");
+    fresh("1\n2\n3\n4");
+    cli_check(key("Shift+Down") && key("move-line-down") && whole("2\n1\n3\n4") && at(2ull, 0ull, 1ull, 0ull),
+              "a selection ending at a line's start leaves that line out and moves with its line");
+
+    fresh("1\n2\n3");
+    cli_check(key("Down") && key("Shift+Alt+Down") && whole("1\n2\n2\n3") && at(2ull, 0ull, 2ull, 0ull), "Shift+Alt+Down copies the line down, the cursor on the copy");
+    cli_check(key("Alt+Shift+Up") && whole("1\n2\n2\n2\n3") && at(2ull, 0ull, 2ull, 0ull), "Alt+Shift+Up copies it up, the cursor staying");
+
+    fresh("one\ntwo\nthree");
+    cli_check(key("Down") && key("End") && key("Mod+Shift+K") && whole("one\nthree") && at(1ull, 3ull, 1ull, 3ull), "Mod+Shift+K deletes the line, the cursor keeping its column");
+    cli_check(key("End") && key("Mod+Shift+K") && whole("one") && at(0ull, 3ull, 0ull, 3ull), "the last line deleted takes the line break before it");
+    cli_check(key("Mod+Shift+K") && whole("") && at(0ull, 0ull, 0ull, 0ull), "the only line deleted leaves the text empty");
+
+    fresh("a\n\nb");
+    cli_check(key("Mod+]") && whole("    a\n\nb") && at(0ull, 4ull, 0ull, 4ull), "Mod+] indents the cursor's line, the cursor with it");
+    cli_check(key("Mod+[") && whole("a\n\nb") && at(0ull, 0ull, 0ull, 0ull), "Mod+[ takes it back");
+    cli_check(key("Mod+A") && key("Mod+]") && whole("    a\n\n    b") && at(2ull, 5ull, 0ull, 0ull), "the lines selected indent, a blank one left, the selection's start at its line's start");
+    cli_check(key("Mod+[") && whole("a\n\nb") && at(2ull, 1ull, 0ull, 0ull), "and outdent");
+    cli_check(key("Tab") && whole("    a\n\n    b"), "Tab over lines indents them");
+    cli_check(key("Shift+Tab") && whole("a\n\nb"), "Shift+Tab outdents them");
+    fresh("\tx");
+    cli_check(key("Shift+Tab") && whole("x"), "an outdent takes a tab");
+
+    fresh("  a\n\n    b");
+    cli_check(key("Mod+A") && key("Mod+/") && whole("  // a\n\n  //   b") && at(2ull, 8ull, 0ull, 0ull), "Mod+/ marks the filled lines at their least indentation");
+    cli_check(key("Mod+/") && whole("  a\n\n    b") && at(2ull, 5ull, 0ull, 0ull), "Mod+/ takes the marks and a space after them back out");
+    cli_check(key("Mod+Z") && whole("  // a\n\n  //   b"), "undo takes the lines back as one step");
+    fresh("x");
+    cli_check(key("comment") && whole("// x") && at(0ull, 3ull, 0ull, 0ull), "the comment command marks a cursor's line");
+    fresh("\n\n");
+    cli_check(key("Mod+A") && key("Mod+/") && whole("\n\n"), "blank lines take no mark");
+    // a language with block marks alone
+    fresh_named("x y", "check/view.html");
+    cli_check(key("Mod+A") && key("Mod+/") && whole("<!-- x y -->") && at(0ull, 8ull, 0ull, 5ull), "Mod+/ wraps the selection in the language's block marks, the selection kept on what it held");
+    cli_check(key("Mod+A") && key("comment") && whole("x y") && at(0ull, 3ull, 0ull, 0ull), "over a selection standing wrapped it takes the marks and the space inside each out");
+    cli_check(key("Mod+Z") && whole("<!-- x y -->"), "undo puts them back");
+    // the bracket the cursor stands at, and the one it pairs with
+    fresh("f(a[1]) b");
+    cli_check(key("Right") && key("Mod+Shift+\\") && at(0ull, 7ull, 0ull, 7ull), "Mod+Shift+\\ takes the cursor past the bracket the one at it pairs with");
+    fresh("f(a[1]) b");
+    cli_check(key("Right") && key("Right") && key("Right") && key("bracket") && at(0ull, 6ull, 0ull, 6ull), "the bracket command does the same from an inner bracket");
+    fresh("abc");
+    cli_check(key("bracket") && at(0ull, 0ull, 0ull, 0ull), "where no bracket stands the cursor stays");
+    // the selection grown through the spans the tree reads, the least first, and taken back a step at a time
+    fresh("f(ab)");
+    cli_check(key("Right") && key("Right") && key("Right") && key("expand-selection") && at(0ull, 4ull, 0ull, 2ull), "Expand Selection takes in the word at the cursor");
+    cli_check(key("Shift+Alt+Right") && at(0ull, 5ull, 0ull, 1ull), "again it takes in the brackets around it");
+    cli_check(key("Alt+Shift+Right") && at(0ull, 5ull, 0ull, 0ull), "and then the whole text");
+    cli_check(key("Shift+Alt+Right") && at(0ull, 5ull, 0ull, 0ull), "past the whole text it stays");
+    cli_check(key("shrink-selection") && at(0ull, 5ull, 0ull, 1ull), "Shrink Selection takes the last step back");
+    cli_check(key("Shift+Alt+Left") && at(0ull, 4ull, 0ull, 2ull), "and the one before it");
+    cli_check(key("Alt+Shift+Left") && at(0ull, 3ull, 0ull, 3ull), "and the first, the cursor where it stood");
+    cli_check(key("Shift+Alt+Left") && at(0ull, 3ull, 0ull, 3ull), "with no step left it stays");
+    cli_check(key("expand-selection") && key("Right") && key("shrink-selection") && at(0ull, 4ull, 0ull, 4ull), "a selection moved since it grew has no step to take back");
+
+    fresh("  a\nb");
+    cli_check(key("End") && key("Mod+Enter") && whole("  a\n  \nb") && at(1ull, 2ull, 1ull, 2ull), "Mod+Enter opens a line below at the line's indentation");
+    cli_check(key("Mod+Shift+Enter") && whole("  a\n  \n  \nb") && at(1ull, 2ull, 1ull, 2ull), "Mod+Shift+Enter opens one above");
+
+    fresh("a\nb\nc");
+    cli_check(key("Mod+L") && at(1ull, 0ull, 0ull, 0ull), "Mod+L selects the line");
+    cli_check(key("Mod+L") && at(2ull, 0ull, 0ull, 0ull), "again it takes the next");
+    cli_check(key("select-line") && at(2ull, 1ull, 0ull, 0ull), "the last line selects to its end");
+
+    fresh("foo bar");
+    cli_check(key("End") && key("Mod+Backspace") && whole("foo ") && at(0ull, 4ull, 0ull, 4ull), "Mod+Backspace takes the word before the cursor");
+    cli_check(key("Mod+Home") && key("Mod+Delete") && whole(" ") && at(0ull, 0ull, 0ull, 0ull), "Mod+Delete takes the word after it");
+
+    fresh("b10\nB2\na\n_x\n9");
+    cli_check(key("sort-ascending") && whole("_x\n9\na\nB2\nb10") && at(4ull, 3ull, 0ull, 0ull), "the lines sort by the numbers in them, marks before digits before letters");
+    cli_check(key("sort-descending") && whole("b10\nB2\na\n9\n_x"), "and descending");
+    fresh("A\na\nb\na");
+    cli_check(key("sort-ascending") && whole("a\na\nA\nb"), "a small letter sorts before its capital");
+    fresh("c\nb\na\nz");
+    cli_check(key("Shift+Down") && key("Shift+Down") && key("Shift+Down") && key("sort-ascending") && whole("a\nb\nc\nz"), "a selection sorts its own lines");
+    fresh("a\nb\na\nc\nb");
+    cli_check(key("unique-lines") && whole("a\nb\nc"), "the duplicate lines go, the first of each kept");
+
+    fresh("foo Bar");
+    cli_check(key("upper-case") && whole("FOO Bar") && at(0ull, 3ull, 0ull, 0ull), "upper-case takes the word at the cursor");
+    cli_check(key("Mod+A") && key("lower-case") && whole("foo bar"), "lower-case takes the selection");
+    cli_check(key("title-case") && whole("Foo Bar"), "title-case takes each word's first letter");
+    fresh("\xc3\xa9t\xc3\xa9");
+    cli_check(key("upper-case") && whole("\xc3\x89T\xc3\x89"), "a letter past ASCII changes case");
+    fresh(" a");
+    cli_check(key("upper-case") && whole(" a"), "a cursor on no word changes nothing");
+
+    fresh("0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\n20\n21\n22\n23\n24\n25");
+    frame_top_read();
+    const unsigned long long top_before = s_frame_top;
+    cli_check(key("Mod+Down") && (frame_top_read(), s_frame_top == top_before + 1ull) && at(0ull, 0ull, 0ull, 0ull), "Mod+Down scrolls a line, the cursor staying");
+    cli_check(key("Mod+Up") && (frame_top_read(), s_frame_top == top_before), "Mod+Up scrolls it back");
+    cli_check(key("Mod+Alt+Down") && at(0ull, 0ull, 0ull, 0ull), "a key that adds a cursor moves none");
+    cli_check(key("no-such-command") && at(0ull, 0ull, 0ull, 0ull), "a name the view has no use for does nothing");
+    cli_view_closed(s_key);
+    cli_document_release(s_key);
+}
+
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
@@ -592,5 +759,6 @@ int main(void)
     cli_view_closed(s_paged);
     cli_document_release(s_paged);
     cli_pages_release(s_paged);
+    view_lines_checked();
     return cli_checked();
 }

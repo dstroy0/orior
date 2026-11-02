@@ -480,6 +480,7 @@ static int plugin_secret_write(const CliServeArgs *args, VerbaLinea *out, VerbaL
     const char *const value = cli_serve_string_or(args, "value", NULL);
     const int done =
         (value != NULL) ? cli_keychain_store(service, key, value, err_msg) : cli_keychain_forget(service, key, err_msg);
+    cli_serve_secret_wiped(args, "value");
     mmgr_line_put(out, "null");
     return done;
 }

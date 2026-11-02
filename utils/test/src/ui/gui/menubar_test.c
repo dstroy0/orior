@@ -80,6 +80,7 @@ int main(void)
               "each title opens its own menu");
     cli_check((menubar.title[0].letter == 0u) && (menubar.title[1].letter == 0u) && (menubar.title[2].letter == 0u),
               "each title has a letter for Alt, the first no title before it took");
+    cli_check(menubar.title[0].rect.x == frame.bar.x + 54, "the titles start past the eye's room, 52 and a title's margin of 2");
     cli_check((menubar.title[0].rect.x < menubar.title[1].rect.x) &&
                   (menubar.title[1].rect.x < menubar.title[2].rect.x) && (menubar.title[0].rect.y > frame.bar.y) &&
                   (menubar.title[0].rect.height < frame.bar.height),

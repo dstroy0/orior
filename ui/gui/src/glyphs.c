@@ -85,6 +85,18 @@ static void glyphs_emptied(GuiGlyphs *glyphs)
     glyphs->cached = 0u;
 }
 
+// the face's font and file given back where it was read
+static void glyphs_face_given(GuiGlyphs *glyphs, unsigned int face)
+{
+    if (glyphs->has[face])
+    {
+        g_cli_cells->persistent_buf_release(glyphs->face[face].range, &g_gui_glyphs_cells);
+        cli_file_given(glyphs->data[face], &g_gui_glyphs_cells);
+    }
+    glyphs->has[face] = 0;
+    glyphs->data[face] = NULL;
+}
+
 // the cells emptied: every cell's lanes given back and every cell marked unused
 static void glyphs_cells_emptied(GuiGlyphs *glyphs)
 {
@@ -161,18 +173,41 @@ void gui_glyphs_given(GuiGlyphs *glyphs)
     glyphs->contours = NULL;
     for (unsigned int face = 0u; face < GUI_FACES; face += 1u)
     {
-        if (glyphs->has[face])
-        {
-            g_cli_cells->persistent_buf_release(glyphs->face[face].range, &g_gui_glyphs_cells);
-            cli_file_given(glyphs->data[face], &g_gui_glyphs_cells);
-        }
-        glyphs->has[face] = 0;
-        glyphs->data[face] = NULL;
+        glyphs_face_given(glyphs, face);
     }
+}
+
+int gui_glyphs_head_bold_read(GuiGlyphs *glyphs)
+{
+    if (glyphs->has[GUI_FACE_HEAD_BOLD])
+    {
+        return 0;
+    }
+    unsigned int (*const ranges)[3] = g_cli_cells->temporary_buf_alloc(CLI_FONT_RANGES * sizeof(*ranges), &g_gui_glyphs_cells);
+    if (ranges == NULL)
+    {
+        return 0;
+    }
+    char paths[4][CLI_PATH_MAX_LEN];
+    cli_font_found(s_sans, sizeof(s_sans) / sizeof(s_sans[0]), paths);
+    glyphs->has[GUI_FACE_HEAD_BOLD] = glyphs_face_read(glyphs, GUI_FACE_HEAD_BOLD, paths[1], ranges);
+    g_cli_cells->persistent_buf_release(ranges, &g_gui_glyphs_cells);
+    return glyphs->has[GUI_FACE_HEAD_BOLD];
+}
+
+void gui_glyphs_head_bold_given(GuiGlyphs *glyphs)
+{
+    // its letters' masks go with it: every mask let go, the others drawn again as they are asked for
+    glyphs_emptied(glyphs);
+    glyphs_face_given(glyphs, GUI_FACE_HEAD_BOLD);
 }
 
 unsigned int gui_face_had(const GuiGlyphs *glyphs, unsigned int face)
 {
+    if ((face == GUI_FACE_HEAD_BOLD) && !glyphs->has[face] && glyphs->has[GUI_FACE_HEAD])
+    {
+        return GUI_FACE_HEAD;
+    }
     return ((face < GUI_FACES) && glyphs->has[face]) ? face : GUI_FACE_CODE;
 }
 

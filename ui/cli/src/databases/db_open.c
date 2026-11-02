@@ -174,6 +174,8 @@ void cli_db_close(CliDbOpen *open)
         s_opens[entry_at] = (s_opens[entry_at] == open) ? NULL : s_opens[entry_at];
     }
     cli_lock_give(&s_opens_lock);
+    // the connection's password lies in its cell, which the pool leaves as it is
+    mmgr_zero_buf(open, sizeof(*open));
     g_cli_cells->persistent_buf_release(open, &g_cli_db_cells);
 }
 

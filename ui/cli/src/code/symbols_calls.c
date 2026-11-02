@@ -133,9 +133,9 @@ static int calls_file_read(CliCallsFile *file, const char *path, CliOpenText ope
     if (given == NULL)
     {
         char full[CLI_PATH_MAX_LEN];
-        cli_lock_take(&g_cli_symbols_lock);
-        cli_full(g_cli_symbols_root, path, full);
-        cli_lock_give(&g_cli_symbols_lock);
+        cli_lock_take(&g_cli_walk_lock);
+        cli_full(g_cli_tree_root, path, full);
+        cli_lock_give(&g_cli_walk_lock);
         // a text read mapped is read and never written
         file->text = (char *)cli_file_taken(full, &file->size, &g_cli_code_cells);
     }

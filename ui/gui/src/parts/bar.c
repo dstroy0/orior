@@ -12,7 +12,7 @@
 #define GUI_BAR_NAME_WIDE 256
 
 void gui_bar_drawn(GuiRaster *raster, GuiGlyphs *glyphs, const GuiPalette *palette, const GuiFrame *frame,
-                   const char *title, GuiUnder table)
+                   const char *title, GuiUnder table, GuiMask *shadow)
 {
     // the bar's pane is the slat its edge shows, whole outside the claim, laid by the frame's base
     const GuiRect pane = gui_rect_met(frame->bar_slat, frame->bar);
@@ -29,5 +29,5 @@ void gui_bar_drawn(GuiRaster *raster, GuiGlyphs *glyphs, const GuiPalette *palet
     const GuiRect clip = {right - wide, frame->bar.y, wide, frame->bar.height};
     (void)gui_text_drawn(raster, glyphs, GUI_FACE_HEAD, size, (float)(right - wide), baseline, title, length,
                          palette->bar_text, gui_rect_met(clip, pane));
-    gui_controls_drawn(raster, palette, frame, table);
+    gui_controls_drawn(raster, palette, frame, table, shadow);
 }

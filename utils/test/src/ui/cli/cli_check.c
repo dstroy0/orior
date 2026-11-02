@@ -171,7 +171,7 @@ void cli_check_server(const char *name, unsigned int port, char *host, unsigned 
     {
         return;
     }
-    char *const colon = cli_text_last(named, cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}), ':');
+    const char *const colon = cli_text_last(named, cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}), ':');
     unsigned long long number = 0ull;
     int digits = (colon != NULL) && (colon[1] != '\0');
     for (const char *letter = (colon != NULL) ? colon + 1 : ""; digits && (letter[0] != '\0'); letter += 1)
@@ -181,7 +181,7 @@ void cli_check_server(const char *name, unsigned int port, char *host, unsigned 
     }
     if (digits && (number < 65536ull))
     {
-        colon[0] = '\0';
+        named[colon - named] = '\0';
         memor.cpy(&(MemoriaCfg){.dst = host,
                                 .src = named,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}) + 1u});

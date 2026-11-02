@@ -191,8 +191,8 @@ static void check_exported(void *context, const char *name, unsigned long long s
     s_export_used += (unsigned int)size;
 }
 
-// what the other SConstructs and SConscripts of the tree export, the file at `path` left out: the tree's files the
-// view pinned in place for the walk, and each file read into cells given back before the next
+// what the other SConstructs and SConscripts of the tree export, the file at `path` left out: the tree's files laid
+// flat for the walk, and each file read into cells given back before the next
 static void check_others(const char *root, const char *path)
 {
     const CliFiles *const files = cli_files_view(root);

@@ -141,7 +141,7 @@ static int editor_view_serve(const CliServeArgs *args, VerbaLinea *out, VerbaLin
     cli_full(root, path, full);
     char id[CLI_NAME_MAX_LEN];
     CliLanguages languages;
-    cli_plugins_languages(&languages);
+    cli_plugins_languages_for_call(&languages);
     const int known = cli_plugins_language_for(&languages, path, id);
     cli_plugins_languages_given(&languages);
     unsigned long long size = 0ull;

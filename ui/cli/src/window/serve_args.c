@@ -124,6 +124,16 @@ const char *cli_serve_string_or(const CliServeArgs *args, const char *key, const
     return (text != NULL) ? text : otherwise;
 }
 
+void cli_serve_secret_wiped(const CliServeArgs *args, const char *key)
+{
+    const char *const text = cli_json_string(args->json, cli_serve_arg(args, key), NULL);
+    if (text != NULL)
+    {
+        // the text lies in the arguments' cell, which this call owns; const is the reader's view of it
+        mmgr_zero_buf((void *)(uintptr_t)text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
+    }
+}
+
 int cli_serve_whole(const CliServeArgs *args, const char *key, unsigned long long *value, VerbaLinea *err_msg)
 {
     const unsigned int node = cli_serve_arg(args, key);

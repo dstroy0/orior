@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // ground.c: the window's ground, the lattice drawn into a raster of its own. The pens are made as the page makes them,
 // one a level of disorder, its color the palette's three lattice colors blended by the level and its ink and radius
-// by the order; the lattice blends them into its shades. Each drawing fills the ground color and puts every dot down
+// by the order; the lattice blends them into its shades. Each drawing fills the deep color and puts every dot down
 // where the loop stands, the dot's place and radius taken from the page's pixels to the window's by the scale
 #include "ground.h"
 
@@ -102,12 +102,12 @@ void gui_ground_drawn(GuiGround *ground, const GuiPalette *palette, unsigned lon
 {
     GuiRaster *const raster = &ground->raster;
     const double seconds = gui_ground_seconds(ground, now);
-    // the raster zeroed first, since the ground color is blended over what the raster holds and a cell kept across
+    // the raster zeroed first, since the deep color is blended over what the raster holds and a cell kept across
     // sizes holds the ground last drawn at another pitch; a raster's sides are far inside what an int represents
     memor.set(&(MemoriaCfg){.dst = raster->pixels,
                             .val = 0,
                             .bytes = (unsigned long long)raster->width * raster->height * sizeof(GuiColor)});
-    gui_raster_filled(raster, (GuiRect){0, 0, (int)raster->width, (int)raster->height}, palette->ground);
+    gui_raster_filled(raster, (GuiRect){0, 0, (int)raster->width, (int)raster->height}, palette->deep);
     ground->drawn_at = seconds;
     ground->shows_at = lattice_shown_after(seconds, seconds);
     ground->frames += 1u;

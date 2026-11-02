@@ -44,6 +44,19 @@ int main(void)
     }
     cli_check(glyphs.has[GUI_FACE_CODE], "the code face is read");
     cli_check(gui_face_had(&glyphs, GUI_FACE_CODE_BOLD) < GUI_FACES, "a face asked for is answered with one read");
+    cli_check(gui_face_had(&glyphs, GUI_FACE_HEAD_BOLD) != GUI_FACE_HEAD_BOLD, "the interface's bold is not read until it is asked for");
+    float regular_wide = 0.0f;
+    (void)gui_glyph(&glyphs, GUI_FACE_HEAD, (unsigned int)'o', 88u, &regular_wide);
+    const int bold_read = gui_glyphs_head_bold_read(&glyphs);
+    cli_check(!bold_read || (gui_face_had(&glyphs, GUI_FACE_HEAD_BOLD) == GUI_FACE_HEAD_BOLD), "asked for, it is read where the system has it");
+    float bold_wide = 0.0f;
+    (void)gui_glyph(&glyphs, GUI_FACE_HEAD_BOLD, (unsigned int)'o', 88u, &bold_wide);
+    cli_check(!bold_read || (bold_wide > regular_wide), "the bold's letters stand wider than the regular's");
+    if (bold_read)
+    {
+        gui_glyphs_head_bold_given(&glyphs);
+    }
+    cli_check((gui_face_had(&glyphs, GUI_FACE_HEAD_BOLD) != GUI_FACE_HEAD_BOLD) && (glyphs.data[GUI_FACE_HEAD_BOLD] == NULL), "given back it holds no file");
 
     float advance = 0.0f;
     const GuiMask *const letter = gui_glyph(&glyphs, GUI_FACE_CODE, 'M', 13u, &advance);

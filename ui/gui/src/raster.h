@@ -137,9 +137,28 @@ void gui_raster_masked(GuiRaster *raster, const GuiMask *mask, int x, int y, Gui
 // ground's lanes by the rest plus the ink's, the one blend every drawing goes through, laid straight along
 void gui_raster_lanes_laid(GuiRaster *raster, const unsigned int *red_blue, const unsigned int *green, const unsigned int *rest,
                            unsigned int width, unsigned int height, int x, int y, GuiRect clip);
+// a row of `width` coverage bytes stretched across the raster's row `y` from `left` to `right`, each a count of pixels
+// with sixteen bits of fraction, no further than the raster: each pixel blended in `color` by the mean of what of the
+// row lands on it and the share of it the row covers
+unsigned int gui_raster_row_covered(const unsigned char *cover, unsigned int width, int left, int right, unsigned int raster_width,
+                                    unsigned char *out, int *x);
+// a span of `count` pixels of coverage laid in `color` at x, y, y off the raster laying nothing: the blit a stage of a
+// movement is made of
+void gui_raster_span_laid(GuiRaster *raster, int x, int y, const unsigned char *cover, unsigned int count, GuiColor color);
+// the share of 255 of a pixel inside an arc of `reach` pixels, the pixel `across` and `down` whole pixels from the arc's
+// center, read from a table made once for the reach: every rounded corner, fillet and turn of a frame reads it
+unsigned int gui_raster_arc_cover(unsigned int reach, unsigned int across, unsigned int down);
 // the raster made `mask`'s picture in `color`: each pixel the color with the mask's cover as its alpha, straight
 // over nothing, the raster's size the mask's, for an icon the system takes with its own alpha
 void gui_raster_stenciled(GuiRaster *raster, const GuiMask *mask, GuiColor color);
+// `mask` in `color` laid at x, y over a picture that keeps its own alpha, straight, no further than the picture; and
+// such a picture laid on `raster` at x, y, no further than the raster, each pixel blended by its alpha and `opacity`
+// of 255
+void gui_raster_stenciled_over(GuiRaster *picture, const GuiMask *mask, int x, int y, GuiColor color);
+void gui_raster_picture_laid(GuiRaster *raster, const GuiRaster *picture, int x, int y, unsigned int opacity);
+// the 4 by 4 ordered threshold at x, y, 0 to 15, as the page's shader orders it: the pixel's own parity across and
+// down weighs most, its pair's parity the rest
+unsigned int gui_raster_ordered(int x, int y);
 // a dot about x, y of `radius`, each in pixels, soft-edged: each pixel takes `color` by the color's alpha and the
 // pixel's share inside the dot, a pixel-wide ramp from all of it at the dot's edge to none a pixel out, the share
 // dithered by a 4 by 4 ordered threshold below one level of 255, which puts a share between two levels down as both

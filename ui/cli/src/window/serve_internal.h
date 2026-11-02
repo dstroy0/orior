@@ -59,6 +59,9 @@ typedef struct
     unsigned int object;
 } CliServeArgs;
 
+// the text of the argument `key`, where it is one, zeroed where it lies: a secret a call carries
+void cli_serve_secret_wiped(const CliServeArgs *args, const char *key);
+
 // the argument `key`, by its own name or by the page's, CLI_JSON_NONE where there is none; a string argument, NULL with
 // why given where it is none; the same, `otherwise` where it is none or null; a whole number, 1, or 0 with why given;
 // the same, `otherwise` where it is none or null; a whole number that may be below 0; whether a boolean is true,
@@ -96,8 +99,7 @@ int cli_serve_at(const CliServeArgs *args, char *root, char *full, VerbaLinea *e
 // given back with g_cli_cells->persistent_buf_release (serve_args.c)
 void *cli_serve_cell(unsigned long long size, const char *what, VerbaLinea *err_msg);
 
-// The tree's files as the view of it stores them, pinned in place for one call, and a pointer to each, `count` of them
-// in the same cell
+// The tree's files laid flat for one call, and a pointer to each, `count` of them in the same cell
 typedef struct
 {
     const CliFiles *files;
@@ -105,8 +107,8 @@ typedef struct
     const char **paths;
 } CliServeFiles;
 
-// the view of the tree at `root` pinned and a pointer to each of its files listed into a cell: it, or NULL with why
-// given; and the view let go and the cell given back, NULL given back as nothing (serve_args.c)
+// the files of the tree at `root` laid flat and a pointer to each listed into a cell: it, or NULL with why given; and
+// the list and the cell given back, NULL given back as nothing (serve_args.c)
 CliServeFiles *cli_serve_files_listed(const char *root, VerbaLinea *err_msg);
 void cli_serve_files_given(CliServeFiles *listed);
 // a place argument `{line, col}` read into `place`: 1, or 0 with why given

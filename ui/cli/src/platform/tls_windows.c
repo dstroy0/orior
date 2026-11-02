@@ -349,6 +349,15 @@ void cli_tls_closed(CliTls *tls)
 {
     DeleteSecurityContext(&tls->context);
     FreeCredentialsHandle(&tls->credential);
+    // what came and went in the clear, which the pool would leave as it is
+    if (tls->plain != NULL)
+    {
+        mmgr_zero_buf(tls->plain, tls->plain_room);
+    }
+    if (tls->message != NULL)
+    {
+        mmgr_zero_buf(tls->message, tls->message_room);
+    }
     g_cli_cells->persistent_buf_release(tls->sealed, &g_cli_tls_cells);
     g_cli_cells->persistent_buf_release(tls->plain, &g_cli_tls_cells);
     g_cli_cells->persistent_buf_release(tls->message, &g_cli_tls_cells);

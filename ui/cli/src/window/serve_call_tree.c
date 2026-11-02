@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // serve_call_tree.c: the calls of the tree as a whole: the tree open, set and reported; the page's answer to a command
 // line; the definitions; a folder's entries, the files found by name and every file; a file's indentation; the patterns
-// of a part of the window; the tree's files and what they declare read behind the window, from the tree's opening, and
-// whether each is read yet; a quick open's list stored on this side, matched as each letter is typed, and let go; the
+// of a part of the window; the tree's files and what they declare listed and walked behind the window, one time from
+// the tree's opening, and whether each is done yet; a quick open's list stored on this side, matched as each letter is typed, and let go; the
 // reading of the tree's symbols ended where it stands, Go to Symbol answering from what it read; the signature of the
 // call the cursor stands in, from the tree; a search of every line; and the folders mounted beside the tree
 #include "../code/symbols.h"
@@ -18,20 +18,6 @@
 // gives
 #define CLI_SERVE_SYMBOLS 200u
 #define CLI_SERVE_LINES 4096u
-
-// the tree's symbols brought up to date from its files as the listing gives them; left as they are where no room for
-// the listing is left
-static void tree_symbols_refreshed(const char *root)
-{
-    char why[CLI_NAME_MAX_LEN];
-    VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    CliServeFiles *const listed = cli_serve_files_listed(root, &err_msg);
-    if (listed != NULL)
-    {
-        cli_symbols_refresh(root, listed->paths, listed->count);
-    }
-    cli_serve_files_given(listed);
-}
 
 static int root_get(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
@@ -192,10 +178,6 @@ static int patterns_set(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *e
         return 0;
     }
     const int changed = cli_patterns_set(at, s_lines, count);
-    if (changed && (at == CLI_PART_SEARCH))
-    {
-        cli_files_view_cleared();
-    }
     mmgr_line_put(out, changed ? "true" : "false");
     return 1;
 }
@@ -209,7 +191,7 @@ static int tree_read(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_
         return 0;
     }
     cli_files_read_behind(root);
-    tree_symbols_refreshed(root);
+    cli_tree_walked(root);
     mmgr_line_put(out, "null");
     return 1;
 }
@@ -224,13 +206,13 @@ static int tree_unread(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *er
     }
     unsigned long long done = 0ull;
     unsigned long long of = 0ull;
-    if (!cli_symbols_progress(&done, &of))
+    if (!cli_tree_walk_progress(&done, &of))
     {
         done = 0ull;
         of = 0ull;
     }
     mmgr_line_put(out, cli_files_unread(root) ? "{\"files\":true" : "{\"files\":false");
-    mmgr_line_put(out, cli_symbols_unread() ? ",\"symbols\":true,\"done\":" : ",\"symbols\":false,\"done\":");
+    mmgr_line_put(out, cli_tree_unwalked() ? ",\"symbols\":true,\"done\":" : ",\"symbols\":false,\"done\":");
     mmgr_line_decimal(out, done, 1u);
     mmgr_line_put(out, ",\"of\":");
     mmgr_line_decimal(out, of, 1u);
@@ -276,7 +258,7 @@ static int tree_read_stop(const CliServeArgs *args, VerbaLinea *out, VerbaLinea 
 {
     (void)args;
     (void)err_msg;
-    cli_symbols_stop();
+    cli_tree_walk_stopped();
     mmgr_line_put(out, "null");
     return 1;
 }
@@ -289,8 +271,8 @@ static int symbols_find(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *e
     {
         return 0;
     }
-    tree_symbols_refreshed(root);
-    cli_symbols_find(query, CLI_SERVE_SYMBOLS, out);
+    cli_tree_walked(root);
+    cli_tree_declarations_found(query, CLI_SERVE_SYMBOLS, out);
     return 1;
 }
 
@@ -307,7 +289,7 @@ static int symbols_signature(const CliServeArgs *args, VerbaLinea *out, VerbaLin
     {
         return 0;
     }
-    tree_symbols_refreshed(root);
+    cli_tree_walked(root);
     // a line and a column of a text the page holds are below 2^32
     return cli_symbols_signature(path, cli_serve_string_or(args, "state", "root"), text,
                                  cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), (unsigned int)line,

@@ -67,8 +67,8 @@ void cli_compile_inputs(const char *root, CliInputs *inputs)
 {
     static const char *const s_reply[4] = {".cmake", "api", "v1", "reply"};
     cli_compile_inputs_given(inputs);
-    inputs->file = g_cli_cells->persistent_buf_alloc((unsigned long long)CLI_COMPILE_INPUTS * sizeof(CliStamped),
-                                                     &g_cli_compile_cells);
+    inputs->file = g_cli_cells->temporary_buf_alloc((unsigned long long)CLI_COMPILE_INPUTS * sizeof(CliStamped),
+                                                    &g_cli_compile_cells);
     inputs->room = (inputs->file != NULL) ? CLI_COMPILE_INPUTS : 0u;
     char own[3][CLI_PATH_MAX_LEN];
     unsigned int owns = 0u;
@@ -142,6 +142,21 @@ typedef struct
 static CliLookCache s_cache;
 static CliLock s_cache_lock = CLI_LOCK_INIT;
 
+// the files a look read kept for the next look in a cell of their count, the one kept before and the reading given back
+static void cli_inputs_kept(CliInputs *kept, CliInputs *reading)
+{
+    cli_compile_inputs_given(kept);
+    const unsigned long long bytes = (unsigned long long)reading->count * sizeof(CliStamped);
+    CliStamped *const file = (bytes != 0ull) ? g_cli_cells->persistent_buf_alloc(bytes, &g_cli_compile_cells) : NULL;
+    if (file != NULL)
+    {
+        memor.cpy(&(MemoriaCfg){.dst = file, .src = reading->file, .bytes = bytes});
+    }
+    const unsigned int count = (file != NULL) ? reading->count : 0u;
+    *kept = (CliInputs){reading->own, file, count, count};
+    cli_compile_inputs_given(reading);
+}
+
 // whether two looks read the same files at the same times
 static int cli_same_inputs(const CliInputs *one, const CliInputs *other)
 {
@@ -189,9 +204,8 @@ int cli_compile_db_refresh(const char *root, CliDatabase *database)
                             .src = root,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
     s_cache.at = cli_clock_milliseconds();
-    // the files this look read are stored in place of the last look's, whose cell is given back
-    cli_compile_inputs_given(&s_cache.read);
-    s_cache.read = reading;
+    // the files this look read are stored in place of the last look's
+    cli_inputs_kept(&s_cache.read, &reading);
     *database = s_cache.database;
     cli_lock_give(&s_cache_lock);
     return same;

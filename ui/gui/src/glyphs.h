@@ -9,14 +9,16 @@
 #include "../../cli/src/print/font.h"
 #include "raster.h"
 
-// the faces: the code face regular, bold, italic and bold italic, the interface face and the reading face
+// the faces: the code face regular, bold, italic and bold italic, the interface face, the reading face and the
+// interface face bold, the large name's
 #define GUI_FACE_CODE 0u
 #define GUI_FACE_CODE_BOLD 1u
 #define GUI_FACE_CODE_ITALIC 2u
 #define GUI_FACE_CODE_BOLD_ITALIC 3u
 #define GUI_FACE_HEAD 4u
 #define GUI_FACE_TEXT 5u
-#define GUI_FACES 6u
+#define GUI_FACE_HEAD_BOLD 6u
+#define GUI_FACES 7u
 // the glyphs kept drawn at once; past three quarters of them every one is let go and drawn again as it is asked for
 #define GUI_GLYPH_SLOTS 4096u
 // the stem darkening: how far a stroke's side is pushed out, most at the small sizes and least at the large, in pixels;
@@ -105,8 +107,13 @@ typedef struct
 // given, the code face being the one the window cannot do without; and every cell of theirs given back
 int gui_glyphs_made(GuiGlyphs *glyphs, VerbaLinea *err_msg);
 void gui_glyphs_given(GuiGlyphs *glyphs);
-// the face `face` is drawn with: itself where it was read, else the code face
+// the face `face` is drawn with: itself where it was read, the interface face in place of its bold where that was
+// read, else the code face
 unsigned int gui_face_had(const GuiGlyphs *glyphs, unsigned int face);
+// the interface face's bold read for as long as it is drawn from, it being read at no other time: 1 where it was read
+// now, 0 where it already was or the system has none; and given back with its letters' masks
+int gui_glyphs_head_bold_read(GuiGlyphs *glyphs);
+void gui_glyphs_head_bold_given(GuiGlyphs *glyphs);
 // the glyph of `letter` in `face` at `size` pixels an em, drawn and kept: its mask, with no pixels where the letter
 // draws none, or NULL where it could not be drawn; its advance in pixels into `advance`
 const GuiMask *gui_glyph(GuiGlyphs *glyphs, unsigned int face, unsigned int letter, unsigned int size, float *advance);

@@ -331,7 +331,7 @@ static int cli_users_locked(VerbaLinea *err_msg)
     return 1;
 }
 
-// the search given back with the view of the tree's files it retained, and the users' lock with it
+// the search given back with the list of the tree's files it laid flat, and the users' lock with it
 static void cli_users_released(void)
 {
     cli_files_let(s_users->files);

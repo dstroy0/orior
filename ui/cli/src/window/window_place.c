@@ -127,7 +127,7 @@ int cli_window_place_kept(const CliWindowArea *areas, unsigned int count, CliWin
     cli_lock_give(&s_lock);
     // a place kept is one the window stood in, each of its numbers within the 32 bits the system gives it
     *place = (CliWindowPlace){(int)x, (int)y, (unsigned int)width, (unsigned int)height, maximized};
-    return read && place_fitted(place, areas, count);
+    return read && (place->width >= CLI_PLACE_LEAST_WIDTH) && (place->height >= CLI_PLACE_LEAST_HEIGHT) && place_fitted(place, areas, count);
 }
 
 // a number written as the member `name` of `object`

@@ -45,4 +45,9 @@ int gui_icon_named(const char *name);
 // the icon named `name` drawn on a square of `size` pixels a side, its line `stroke` pixels wide, and kept: its mask,
 // laid with its top left at the square's, or NULL where no icon has the name or a cell could not be taken
 const GuiMask *gui_icon(GuiIcons *icons, const char *name, unsigned int size, float stroke);
+// the shape of `corners` corners, each an x and a y in pixels, filled on `cover`, `width` by `height` floats from 0 to
+// 1: each pixel of it takes its share inside the shape where that is more than it has, a sample inside where the edges
+// round it wind about it, as SVG's nonzero fill has it
+void gui_icons_polygon_filled(float *cover, unsigned int width, unsigned int height, const float *corner,
+                              unsigned int corners);
 #endif

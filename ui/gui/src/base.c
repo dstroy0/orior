@@ -205,8 +205,11 @@ static void base_bands_read(GuiBase *base)
     {
         base->band_from[band] = rows[band];
     }
+    unsigned int laid_runs = 0u;
     for (unsigned int band = 0u; band < base->bands; band += 1u)
     {
+        base->run_first[band] = laid_runs;
+        GuiBaseRun *const band_runs = &base->run[laid_runs];
         // the band's row and width are far inside what an int represents
         const int y = (int)base->band_from[band];
         unsigned int columns[GUI_BASE_RUNS + 1u];
@@ -226,33 +229,33 @@ static void base_bands_read(GuiBase *base)
         for (unsigned int edge = 0u; edge + 1u < edges; edge += 1u)
         {
             const unsigned int layer = gui_base_layer_at(base, (int)columns[edge], y);
-            if ((runs > 0u) && (base->run[band][runs - 1u].layer == layer))
+            if ((runs > 0u) && (band_runs[runs - 1u].layer == layer))
             {
-                base->run[band][runs - 1u].count += columns[edge + 1u] - columns[edge];
+                band_runs[runs - 1u].count += columns[edge + 1u] - columns[edge];
                 continue;
             }
-            base->run[band][runs] = (GuiBaseRun){columns[edge], columns[edge + 1u] - columns[edge], layer};
+            band_runs[runs] = (GuiBaseRun){columns[edge], columns[edge + 1u] - columns[edge], layer};
             runs += 1u;
         }
-        base->runs[band] = runs;
+        laid_runs += runs;
     }
+    base->run_first[base->bands] = laid_runs;
 }
 
-int gui_base_laid(GuiBase *base, const GuiFrame *frame, const GuiPalette *palette, int controls_steady)
+void gui_base_painted(GuiBase *base, const GuiPalette *palette)
 {
-    const int same = base->laid && (memor.cmp(&(MemoriaCfg){.src = &base->frame, .other = frame, .bytes = sizeof(*frame)}) == 0) &&
-                     (base->editor_ground == palette->editor_ground) && (base->side_ground == palette->side_ground) &&
-                     (base->surface == palette->surface) && (base->glass == palette->glass) && (base->controls_steady == controls_steady);
-    if (same || (base->tile_red_blue == NULL))
+    if ((base->tile_red_blue == NULL) ||
+        (base->painted && (base->editor_ground == palette->editor_ground) && (base->side_ground == palette->side_ground) &&
+         (base->surface == palette->surface) && (base->glass == palette->glass)))
     {
-        return 0;
+        return;
     }
-    base->frame = *frame;
+    base->painted = 1;
+    base->laid = 0;
     base->editor_ground = palette->editor_ground;
     base->side_ground = palette->side_ground;
     base->surface = palette->surface;
     base->glass = palette->glass;
-    base->controls_steady = controls_steady;
     const GuiColor pane = gui_glass_pane_tint(palette->glass);
     base_entry_set(&base->entry[GUI_BASE_CLEAR], 0u, 0u);
     base_entry_set(&base->entry[GUI_BASE_EDITOR], palette->editor_ground, 0u);
@@ -289,6 +292,19 @@ int gui_base_laid(GuiBase *base, const GuiFrame *frame, const GuiPalette *palett
         base->tile_green[(GUI_GRAIN_TILE * GUI_GRAIN_TILE) + at] = paned->green;
         base->tile_rest[(GUI_GRAIN_TILE * GUI_GRAIN_TILE) + at] = paned->rest;
     }
+}
+
+int gui_base_laid(GuiBase *base, const GuiFrame *frame, const GuiPalette *palette, int controls_steady)
+{
+    gui_base_painted(base, palette);
+    const int same = base->laid && (memor.cmp(&(MemoriaCfg){.src = &base->frame, .other = frame, .bytes = sizeof(*frame)}) == 0) &&
+                     (base->controls_steady == controls_steady);
+    if (same || (base->tile_red_blue == NULL))
+    {
+        return 0;
+    }
+    base->frame = *frame;
+    base->controls_steady = controls_steady;
     // the sheet everywhere, the work's inside its parts' grounds, the map's column and the lines' ring the lattice
     // the map's sides are far inside what an int represents
     base->layers = 0u;
@@ -435,16 +451,25 @@ static void base_run_drawn(const GuiBase *base, GuiColor *out, const GuiColor *u
 
 void gui_base_drawn(const GuiBase *base, GuiRaster *raster, const GuiRaster *ground, GuiColor color)
 {
-    if (!base->laid || (raster->pixels == NULL) || (raster->width != base->width) || (raster->height != base->height))
+    if (base->laid)
+    {
+        const GuiBaseMap own = {base->bands, base->band_from, base->run_first, base->run};
+        gui_base_map_drawn(base, &own, raster, ground, color);
+    }
+}
+
+void gui_base_map_drawn(const GuiBase *base, const GuiBaseMap *map, GuiRaster *raster, const GuiRaster *ground, GuiColor color)
+{
+    if ((raster->pixels == NULL) || (raster->width != base->width) || (raster->height != base->height))
     {
         return;
     }
     const int from_ground = (ground != NULL) && (ground->pixels != NULL) && (ground->width == base->width) && (ground->height == base->height);
-    for (unsigned int band = 0u; band < base->bands; band += 1u)
+    for (unsigned int band = 0u; band < map->bands; band += 1u)
     {
-        const GuiBaseRun *const runs = base->run[band];
-        const unsigned int count = base->runs[band];
-        for (unsigned int y = base->band_from[band]; y < base->band_from[band + 1u]; y += 1u)
+        const GuiBaseRun *const runs = &map->run[map->run_first[band]];
+        const unsigned int count = map->run_first[band + 1u] - map->run_first[band];
+        for (unsigned int y = map->band_from[band]; y < map->band_from[band + 1u]; y += 1u)
         {
             GuiColor *const out = raster->pixels + (y * base->width);
             const GuiColor *const under = from_ground ? ground->pixels + (y * base->width) : NULL;

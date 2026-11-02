@@ -46,6 +46,8 @@ int gui_window_begun(GuiWindow *window, GuiLinkWoken woken, void *context, Verba
         return 0;
     }
     gui_claim_made(&window->claim);
+    gui_wordmark_made(&window->wordmark);
+    gui_busy_made(&window->busy);
     gui_hover_made(&window->hover);
     gui_signature_made(&window->signature);
     if (!gui_suggest_made(&window->suggest))
@@ -105,6 +107,9 @@ void gui_window_ended(GuiWindow *window)
     }
     gui_glyphs_given(&window->glyphs);
     gui_icons_given(&window->icons);
+    gui_wordmark_given(&window->wordmark);
+    gui_busy_given(&window->busy);
+    gui_controls_shadow_given(&window->controls_shadow);
     gui_explorer_given(&window->explorer);
     gui_minimap_given(&window->minimap);
     gui_hover_given(&window->hover);
@@ -112,6 +117,8 @@ void gui_window_ended(GuiWindow *window)
     gui_signature_given(&window->signature);
     gui_problems_given(&window->problems);
     gui_ground_given(&window->ground);
+    gui_stages_given(&window->stages);
+    window->stage = NULL;
     gui_base_given(&window->base);
     gui_framebuffer_given(&window->framebuffer);
 }
@@ -154,8 +161,15 @@ static float window_on_screen(const GuiWindow *window)
 // a call of the window's own or the tree's made with `args`: its ticket
 static unsigned long long window_called(GuiWindow *window, int own, const char *name, const VerbaLinea *args)
 {
-    return gui_link_called(&window->link, own, name, args->out, mmgr_line_ok(args) ? args->at : 0ull);
+    const unsigned long long ticket = gui_link_called(&window->link, own, name, args->out, mmgr_line_ok(args) ? args->at : 0ull);
+    if (ticket != 0ull)
+    {
+        gui_busy_asked(&window->busy, ticket, cli_clock_milliseconds());
+    }
+    return ticket;
 }
+
+_Static_assert(GUI_BUSY_ASKS > ((2u * GUI_LINK_PENDING) + GUI_LINK_WORKERS + GUI_LINK_DONE), "the circle keeps every ask the link can stand unanswered");
 
 // an input of the view's sent, `{"key", "kind", ...}` with `more` after the kind, its own members written already
 static void window_view_input(GuiWindow *window, unsigned int kind, const char *more)
@@ -462,14 +476,43 @@ static void window_view_sized(GuiWindow *window)
     window_view_input(window, CLI_VIEW_SIZE, more);
 }
 
-// the frame laid for the claim's numbers now, the menu bar's titles laid over the bar again, and a frame owed
+void gui_window_claim_laid(GuiWindow *window, unsigned long long now)
+{
+    window->owed = 1;
+    if (gui_claim_moving(&window->claim, now))
+    {
+        if ((window->stages.stage == NULL) || (window->stages.made_for != window->claim.sent) || window->stages_stale)
+        {
+            if (window->stage != NULL)
+            {
+                gui_stage_claim_taken(window->stage, &window->claim);
+            }
+            window->stage = NULL;
+            window->stages_stale = 0;
+            (void)gui_stages_made(&window->stages, &window->claim, &window->frame, &window->base, window->palette, &window->menubar, &window->glyphs, now);
+        }
+        const GuiStage *const stage = gui_stages_at(&window->stages, now);
+        if (stage != NULL)
+        {
+            window->stage = stage;
+            window->frame = stage->frame;
+            gui_menubar_titles_taken(&window->menubar, stage->title, stage->titles, stage->folded_from, &window->frame);
+            return;
+        }
+    }
+    // at rest, or the stages' cell not taken: the frame the numbers lay now, and no stage left standing
+    window->stage = NULL;
+    window->stages_stale = 0;
+    gui_stages_given(&window->stages);
+    GuiClaimNumbers numbers;
+    gui_claim_numbers(&window->claim, now, &numbers);
+    gui_frame_claimed(&window->frame, &numbers);
+    gui_menubar_titles_laid(&window->menubar, &window->glyphs, &window->frame);
+}
+
 static void window_claim_laid(GuiWindow *window)
 {
-    GuiClaimNumbers numbers;
-    gui_claim_numbers(&window->claim, cli_clock_milliseconds(), &numbers);
-    gui_frame_claimed(&window->frame, &numbers);
-    gui_menubar_laid(&window->menubar, &window->glyphs, &window->frame);
-    window->owed = 1;
+    gui_window_claim_laid(window, cli_clock_milliseconds());
 }
 
 // the claim made, as the editor takes the keys while a file is shown, or let go, as they leave it
@@ -700,6 +743,12 @@ static void window_sided(GuiWindow *window)
     const int side = window_side_shown(window);
     gui_frame_sided(&window->frame, side);
     window->owed = 1;
+    // a movement under way runs on with the side as it now stands
+    if (window->stage != NULL)
+    {
+        window->stages_stale = 1;
+        window_claim_laid(window);
+    }
     window_view_sized(window);
     if (side && !gui_explorer_root_asked(&window->explorer))
     {
@@ -739,6 +788,8 @@ int gui_window_sized(GuiWindow *window, unsigned int width, unsigned int height,
                                      height, scale, window->palette, cli_clock_milliseconds());
     gui_frame_laid(&window->frame, width, height, scale);
     gui_frame_sided(&window->frame, window_side_shown(window));
+    window->stages_stale = 1;
+    gui_menubar_closed(&window->menubar);
     window_claim_laid(window);
     window_view_sized(window);
     return laid;
@@ -757,9 +808,32 @@ int gui_window_icon(GuiWindow *window, GuiRaster *icon, unsigned int size)
     return 1;
 }
 
+// less motion as the system's wish and the kept setting now ask: the claim's slides standing where they are bound, the
+// name home with no flight and the lattice kept still, and a frame owed
+static void window_motion_laid(GuiWindow *window)
+{
+    window->motion_still = window->motion_system || window->motion_kept;
+    gui_claim_still(&window->claim, window->motion_still);
+    gui_wordmark_still(&window->wordmark, window->motion_still);
+    gui_busy_still(&window->busy, window->motion_still);
+    gui_ground_paused(&window->ground, window->motion_still || window->off_screen, cli_clock_milliseconds());
+    window->owed = 1;
+    if (window->stage != NULL)
+    {
+        window_claim_laid(window);
+    }
+}
+
+void gui_window_motion_told(GuiWindow *window, int reduced)
+{
+    window->motion_system = reduced;
+    window_motion_laid(window);
+}
+
 void gui_window_shown(GuiWindow *window, int shown)
 {
-    gui_ground_paused(&window->ground, !shown, cli_clock_milliseconds());
+    window->off_screen = !shown;
+    gui_ground_paused(&window->ground, !shown || window->motion_still, cli_clock_milliseconds());
     window->owed = shown || window->owed;
 }
 
@@ -776,35 +850,56 @@ static unsigned int window_caret_slid(unsigned long long through, unsigned int f
     return (unsigned int)((double)from + (((double)to - (double)from) * eased) + 0.5);
 }
 
-// the caret's ink at `now`, 0 to 255, where its breath stands since it began: full through the first rest, sliding
-// down, dim through the second rest, and sliding up again; full while no cursor stands
+// the caret's breath, its ink at each stage of it, made once: full through the first rest, sliding down, dim through the
+// second rest, and sliding up again
+#define GUI_CARET_STAGE 16ull
+static unsigned char s_caret_ink[(GUI_CARET_BREATH / GUI_CARET_STAGE) + 1ull];
+static int s_caret_ink_made;
+
+static void window_caret_made(void)
+{
+    for (unsigned long long stage = 0ull; stage <= GUI_CARET_BREATH / GUI_CARET_STAGE; stage += 1ull)
+    {
+        const unsigned long long at = stage * GUI_CARET_STAGE;
+        unsigned int ink = 255u;
+        if ((at >= GUI_CARET_REST) && (at < GUI_CARET_REST + GUI_CARET_SLIDE))
+        {
+            ink = window_caret_slid(at - GUI_CARET_REST, 255u, GUI_CARET_DIM);
+        }
+        else if ((at >= GUI_CARET_REST + GUI_CARET_SLIDE) && (at < (2ull * GUI_CARET_REST) + GUI_CARET_SLIDE))
+        {
+            ink = GUI_CARET_DIM;
+        }
+        else if (at >= (2ull * GUI_CARET_REST) + GUI_CARET_SLIDE)
+        {
+            ink = window_caret_slid(at - (2ull * GUI_CARET_REST) - GUI_CARET_SLIDE, GUI_CARET_DIM, 255u);
+        }
+        // an ink is a byte
+        s_caret_ink[stage] = (unsigned char)ink;
+    }
+    s_caret_ink_made = 1;
+}
+
+// the caret's ink at `now`, 0 to 255, where its breath stands since it began; full while no cursor stands or less motion
+// is asked for
 static unsigned int window_caret_ink(const GuiWindow *window, unsigned long long now)
 {
-    if (!window->editor.has_cursor)
+    if (!window->editor.has_cursor || window->motion_still)
     {
         return 255u;
     }
-    const unsigned long long at = (now - window->caret_since_ms) % GUI_CARET_BREATH;
-    if (at < GUI_CARET_REST)
+    if (!s_caret_ink_made)
     {
-        return 255u;
+        window_caret_made();
     }
-    if (at < GUI_CARET_REST + GUI_CARET_SLIDE)
-    {
-        return window_caret_slid(at - GUI_CARET_REST, 255u, GUI_CARET_DIM);
-    }
-    if (at < (2ull * GUI_CARET_REST) + GUI_CARET_SLIDE)
-    {
-        return GUI_CARET_DIM;
-    }
-    return window_caret_slid(at - (2ull * GUI_CARET_REST) - GUI_CARET_SLIDE, GUI_CARET_DIM, 255u);
+    return s_caret_ink[((now - window->caret_since_ms) % GUI_CARET_BREATH) / GUI_CARET_STAGE];
 }
 
 // the milliseconds until the caret's ink next changes: the rest's end while it rests, else 1, which the system holds
 // to the display's refresh; 0 where no cursor stands
 static unsigned long long window_caret_due(const GuiWindow *window, unsigned long long now)
 {
-    if (!window->editor.has_cursor)
+    if (!window->editor.has_cursor || window->motion_still)
     {
         return 0ull;
     }
@@ -839,6 +934,7 @@ void gui_window_ticked(GuiWindow *window)
         window_map_asked(window);
     }
     window->claim_moving = moving;
+    window->owed = gui_wordmark_ticked(&window->wordmark, &window->glyphs, &window->icons, window->palette, &window->frame, now) || window->owed;
     // the ground where its loop shows a change, and the menus where a rest has ended
     window->owed = gui_ground_ticked(&window->ground, window->palette, now) || window->owed;
     window->owed = gui_menubar_ticked(&window->menubar, &window->glyphs, &window->frame, now) || window->owed;
@@ -857,10 +953,18 @@ void gui_window_ticked(GuiWindow *window)
     {
         window_view_told(window);
     }
-    // the caret where its ink has changed: where nothing else owes a frame, the caret drawn again pays it alone
-    const int caret_changed = window_caret_ink(window, now) != window->caret_ink;
-    window->caret_alone = caret_changed && !window->owed && !moving;
-    window->owed = caret_changed || window->owed;
+    // the busy circle coming or going owes a frame whole
+    window->owed = gui_busy_ticked(&window->busy, now) || window->owed;
+    // the caret where its ink has changed and the circle where its stage has: where nothing else owes a frame, each drawn again
+    // pays it alone, and a frame owed after this tick is still paid whole; no caret stands while the view is not drawn, and a
+    // caret under the circle owes the frame whole, neither knowing what the other has laid
+    const int caret_changed = !window->wordmark.stands && (window_caret_ink(window, now) != window->caret_ink);
+    const int busy_stepped = window->busy.under_kept && !window->off_screen && (gui_busy_stage_at(&window->busy, now) != window->busy.stage_drawn);
+    const int crossed = window->busy.under_kept && window->editor.caret_kept && !gui_rect_empty(gui_rect_met(window->busy.under_rect, window->editor.caret_rect));
+    const int alone = !window->owed && !moving && !crossed;
+    window->caret_alone = caret_changed && alone;
+    window->busy_alone = busy_stepped && alone;
+    window->owed = window->owed || ((caret_changed || busy_stepped) && !alone);
 }
 
 // whether a panel or a menu lies over `caret`, which keeps the caret from being drawn over them
@@ -896,12 +1000,17 @@ void gui_window_flipped(GuiWindow *window)
 
 GuiRect gui_window_caret_drawn(GuiWindow *window)
 {
-    window->owed = 0;
     window->caret_alone = 0;
     window->caret_ink = window_caret_ink(window, cli_clock_milliseconds());
     window->editor.caret_ink = window->caret_ink;
     return gui_editor_caret_redrawn(&window->editor, (window->shown != NULL) ? window->shown : window->raster,
                                     window->palette);
+}
+
+GuiRect gui_window_busy_drawn(GuiWindow *window)
+{
+    window->busy_alone = 0;
+    return gui_busy_redrawn(&window->busy, (window->shown != NULL) ? window->shown : window->raster, cli_clock_milliseconds());
 }
 
 // the milliseconds until the view's rest is told, 0 where no telling waits
@@ -932,8 +1041,11 @@ unsigned long long gui_window_due(const GuiWindow *window)
     due = window_sooner(due, gui_hover_due(&window->hover, now));
     due = window_sooner(due, gui_signature_due(&window->signature, now));
     due = window_sooner(due, gui_ground_due(&window->ground, now));
+    due = window_sooner(due, gui_wordmark_due(&window->wordmark, now));
     due = window_sooner(due, gui_menubar_due(&window->menubar, now));
     due = window_sooner(due, window_caret_due(window, now));
+    // the circle's clock stands while the window is off screen, an answer waking it as any does
+    due = window_sooner(due, window->off_screen ? 0ull : gui_busy_due(&window->busy, now));
     return window_sooner(due, window_view_due(window, now));
 }
 
@@ -977,16 +1089,20 @@ static void window_cataloged(GuiWindow *window, const char *text, unsigned long 
     window->cataloged = 1;
     gui_menubar_cataloged(&window->menubar, &window->catalog, cli_json_member(&window->catalog, root, "menus"));
     gui_menubar_laid(&window->menubar, &window->glyphs, &window->frame);
+    window->stages_stale = window->stage != NULL;
 }
 
 // the catalog's commands the window runs itself; whether `command` is among them
-static const char *const s_window_commands[] = {"exit", "close-editor", "close-all", "last-editor"};
+static const char *const s_window_commands[] = {"exit", "close-editor", "close-all", "last-editor", "reduce-motion"};
+// the line edits of the menus with no keys of their own, which the view runs by name
+static const char *const s_view_commands[] = {"sort-ascending", "sort-descending", "unique-lines", "upper-case", "lower-case", "title-case"};
 
-static int window_runs(const char *command)
+// whether `command` is among `count` names
+static int window_named_among(const char *command, const char *const *names, unsigned int count)
 {
-    for (unsigned int at = 0u; at < sizeof(s_window_commands) / sizeof(s_window_commands[0]); at += 1u)
+    for (unsigned int at = 0u; at < count; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = s_window_commands[at], .cap = 256ull}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = names[at], .cap = 256ull}))
         {
             return 1;
         }
@@ -994,10 +1110,12 @@ static int window_runs(const char *command)
     return 0;
 }
 
-// a menu's choice run: an item with keys runs as those keys pressed, the editor's view taking them; `exit` closes the
-// window as the close control does; `close-editor` closes the tab shown, `close-all` every tab, and `last-editor`
-// shows the tab shown before
-static void window_chosen(GuiWindow *window, const GuiChoice *choice)
+static int window_runs(const char *command)
+{
+    return window_named_among(command, s_window_commands, sizeof(s_window_commands) / sizeof(s_window_commands[0]));
+}
+
+void gui_window_chosen(GuiWindow *window, const GuiChoice *choice)
 {
     if (cellul.eq(&(CatenaFinitaCfg){.src = choice->command, .other = "exit", .cap = sizeof(choice->command)}))
     {
@@ -1029,9 +1147,25 @@ static void window_chosen(GuiWindow *window, const GuiChoice *choice)
         }
         return;
     }
+    if (cellul.eq(&(CatenaFinitaCfg){.src = choice->command, .other = "reduce-motion", .cap = sizeof(choice->command)}))
+    {
+        // chosen, it asks for the opposite of what the window now does, and orior's folder keeps it
+        window->motion_kept = !window->motion_still;
+        char text[128];
+        VerbaLinea args = {text, sizeof(text), 0ull};
+        mmgr_line_put(&args, "{\"changes\":{\"" GUI_WINDOW_REDUCE_KEY "\":");
+        mmgr_line_put(&args, window->motion_kept ? "\"true\"}}" : "\"false\"}}");
+        (void)window_called(window, 1, "state_write", &args);
+        window_motion_laid(window);
+        return;
+    }
     if (choice->keys[0] != '\0')
     {
         gui_window_key(window, choice->keys);
+    }
+    else if (window_named_among(choice->command, s_view_commands, sizeof(s_view_commands) / sizeof(s_view_commands[0])))
+    {
+        gui_window_key(window, choice->command);
     }
 }
 
@@ -1453,11 +1587,65 @@ static void window_commanded(GuiWindow *window, const CliJson *json, unsigned in
     (void)window_called(window, 0, "command_answer", &answer);
 }
 
+// what orior's folder keeps read for the name, `is_object` 0 where it could not be: the session last started in down to
+// its two words, and the session the system names asked for
+static void window_mark_kept_read(GuiWindow *window, int is_object, const CliJson *json, unsigned int root)
+{
+    unsigned long long length = 0ull;
+    const char *const kept = is_object ? cli_json_string(json, cli_json_member(json, root, GUI_WORDMARK_SESSION_KEY), &length) : NULL;
+    (void)gui_wordmark_session_read(kept, length, &window->wordmark.kept);
+    char text[8];
+    VerbaLinea args = {text, sizeof(text), 0ull};
+    mmgr_line_put(&args, "{}");
+    window->asked_mark_session = window_called(window, 1, "session_key", &args);
+}
+
+// the session the system names come, `named`, `size` bytes of it, NULL where it names none: kept as the session started
+// in, and the name set going on the first start in it, or the eye home at once on any start after
+static void window_mark_session_named(GuiWindow *window, const char *named, unsigned long long size)
+{
+    GuiWordmarkSession now;
+    (void)gui_wordmark_session_read(named, size, &now);
+    const int first = gui_wordmark_first_in(&window->wordmark.kept, &now);
+    if (named != NULL)
+    {
+        char text[2048];
+        VerbaLinea args = {text, sizeof(text), 0ull};
+        mmgr_line_put(&args, "{\"changes\":{\"" GUI_WORDMARK_SESSION_KEY "\":");
+        cli_json_quoted(&args, named, size);
+        mmgr_line_put(&args, "}}");
+        (void)window_called(window, 1, "state_write", &args);
+    }
+    if (first)
+    {
+        gui_wordmark_stood(&window->wordmark, cli_clock_milliseconds());
+    }
+    else
+    {
+        gui_wordmark_landed(&window->wordmark);
+    }
+}
+
+// the name told the tree is read while its pane stands: the root answered, and what the folder keeps for a tree back
+// with its tabs opened, where there is a tree
+static void window_mark_tree_read(GuiWindow *window)
+{
+    if (window->wordmark.stands && !window->wordmark.tree_read && (window->asked_root == 0ull) && (window->asked_state == 0ull) &&
+        ((window->root[0] == '\0') || window->restored))
+    {
+        gui_wordmark_tree_read(&window->wordmark);
+    }
+}
+
 // one answer or event taken
 static void window_taken(void *context, unsigned long long ticket, const char *name, int ok, const char *text,
                          unsigned long long size)
 {
     GuiWindow *const window = (GuiWindow *)context;
+    if (ticket != 0ull)
+    {
+        gui_busy_answered(&window->busy, ticket);
+    }
     char err_text[256];
     VerbaLinea err_msg = {err_text, sizeof(err_text), 0ull};
     // the answer's tree read on the window thread's lane against a mark, the lane left before the answer is handled:
@@ -1496,17 +1684,25 @@ static void window_taken(void *context, unsigned long long ticket, const char *n
             VerbaLinea kept = {window->root, sizeof(window->root), 0ull};
             mmgr_line_put_n(&kept, tree, length);
             (void)mmgr_line_finish(&kept);
-            // what the folder keeps for the tree is asked once the tree is known
-            char args_text[8];
-            VerbaLinea args = {args_text, sizeof(args_text), 0ull};
-            mmgr_line_put(&args, "{}");
-            window->asked_state = window_called(window, 1, "state_read", &args);
         }
+        // what orior's folder keeps is asked once whether there is a tree is known: the tree's places and the name's
+        // session are one answer
+        char args_text[8];
+        VerbaLinea args = {args_text, sizeof(args_text), 0ull};
+        mmgr_line_put(&args, "{}");
+        window->asked_state = window_called(window, 1, "state_read", &args);
     }
     else if ((ticket != 0ull) && (ticket == window->asked_state))
     {
         window->asked_state = 0ull;
-        if (ok && (root != CLI_JSON_NONE) && cli_json_is(&json, root, CFG_JSON_OBJECT))
+        const int is_object = ok && (root != CLI_JSON_NONE) && cli_json_is(&json, root, CFG_JSON_OBJECT);
+        // less motion as orior's folder keeps it, read before the name stands
+        unsigned long long reduce_length = 0ull;
+        const char *const reduce = is_object ? cli_json_string(&json, cli_json_member(&json, root, GUI_WINDOW_REDUCE_KEY), &reduce_length) : NULL;
+        window->motion_kept = (reduce != NULL) && (reduce_length == 4ull) && (memor.cmp(&(MemoriaCfg){.src = reduce, .other = "true", .bytes = 4u}) == 0);
+        window_motion_laid(window);
+        window_mark_kept_read(window, is_object, &json, root);
+        if (is_object && (window->root[0] != '\0'))
         {
             window_restored(window, &json, root);
         }
@@ -1514,6 +1710,11 @@ static void window_taken(void *context, unsigned long long ticket, const char *n
         {
             window->restored = 1;
         }
+    }
+    else if ((ticket != 0ull) && (ticket == window->asked_mark_session))
+    {
+        window->asked_mark_session = 0ull;
+        window_mark_session_named(window, ok ? text : NULL, size);
     }
     else if ((ticket != 0ull) && (ticket == window->asked_catalog))
     {
@@ -1736,6 +1937,8 @@ static void window_taken(void *context, unsigned long long ticket, const char *n
     {
         gui_problems_checking(&window->problems, gui_answer_member_whole(&json, root, "done", 0ull),
                               gui_answer_member_whole(&json, root, "total", 0ull));
+        // the check runs on past its ask's answer, its progress coming as these events: the busy circle stands through it
+        gui_busy_work(&window->busy, gui_problems_running(&window->problems), cli_clock_milliseconds());
     }
     else if ((ticket != 0ull) && (ticket == window->asked_check))
     {
@@ -1766,9 +1969,10 @@ void gui_window_drained(GuiWindow *window)
 {
     (void)gui_link_drained(&window->link, window_taken, window);
     window_memory_asked(window);
+    window_mark_tree_read(window);
 }
 
-// the panels over the editor drawn inside the work's inside: the hover under its word, hidden where the word's line
+// the panels over the editor drawn inside the work's inside: the hover under its word, hidden where theword's line
 // has left the rows; the completion under the prefix's first cell; and the signature over the cursor's row
 static void window_panels_drawn(GuiWindow *window)
 {
@@ -1821,53 +2025,13 @@ static void window_panels_drawn(GuiWindow *window)
     }
 }
 
-void gui_window_drawn(GuiWindow *window)
+// the view drawn: the tabs row, the editor with the map beside it, and the side where one is shown, each on the ground
+// the base laid it, and the panels over them
+static void window_view_drawn(GuiWindow *window)
 {
     const GuiFrame *const frame = &window->frame;
     const GuiPalette *const palette = window->palette;
     GuiRaster *const raster = window->raster;
-    window->owed = 0;
-    window->caret_alone = 0;
-    if (raster->pixels == NULL)
-    {
-        return;
-    }
-    // the base: the lattice as it stands, where its raster is the window's size, else the ground color, with the
-    // glass sheet about the work, the work's parts' grounds and the panes that have slid in laid over it in one
-    // pass through the map; the controls' pane is the base's once it stands
-    const GuiRaster *ground = &window->ground.raster;
-    if ((ground->pixels == NULL) || (ground->width != raster->width) || (ground->height != raster->height))
-    {
-        ground = NULL;
-    }
-    (void)gui_base_laid(&window->base, frame, palette, frame->controls_pane_share >= GUI_WHOLE);
-    gui_base_drawn(&window->base, raster, ground, palette->ground);
-    // the table the panes lie on: the lattice with the sheet's tint and grain; each pane's corners rounded on it
-    const GuiUnder table = gui_glass_table(ground, palette->ground, palette->glass);
-    const GuiColor pane = gui_glass_pane_tint(palette->glass);
-    gui_raster_paned(raster, table, gui_rect_met(frame->bar_slat, frame->bar), frame->pane_radius, pane, 1);
-    gui_raster_paned(raster, table, gui_rect_met(frame->strip_slat, frame->strip), frame->pane_radius, pane, 1);
-    gui_raster_paned(raster, table, gui_rect_met(frame->status_slat, frame->status), frame->pane_radius, pane, 1);
-    // the work's outline: the lines it stands in, as the page draws them, the signal along its head, a thin line of
-    // it down its left, the link darkened down its right and along its foot, bent round its corners and round the
-    // holes the parts shown over the work make in it while the claim holds
-    const GuiColor right_line =
-        GUI_RGB((GUI_RED_OF(palette->link) * 65u) / 100u, (GUI_GREEN_OF(palette->link) * 65u) / 100u,
-                (GUI_BLUE_OF(palette->link) * 65u) / 100u);
-    const GuiOutline lines = {palette->signal,
-                              right_line,
-                              right_line,
-                              (palette->signal & 0x00ffffffu) | (0x59u << 24u),
-                              gui_scaled(GUI_WORK_PAD_TOP, frame->scale),
-                              gui_scaled(GUI_WORK_PAD_RIGHT, frame->scale),
-                              gui_scaled(GUI_WORK_PAD_BOTTOM, frame->scale),
-                              gui_scaled(GUI_WORK_PAD_LEFT, frame->scale)};
-    const GuiUnder clear = {ground, 0u, NULL, 0u, palette->ground};
-    GuiRect holes[4];
-    const unsigned int count = gui_frame_holes(frame, holes);
-    gui_raster_outlined(raster, frame->work, frame->inside, frame->radius, &lines, holes, count, table, clear);
-    // the work's inside: the tabs row, the editor with the map beside it, and the side where one is shown, each on
-    // the ground the base laid it
     gui_tabs_drawn(raster, &window->glyphs, palette, frame, window->tab, window->tabs, window->active);
     gui_editor_drawn(&window->editor, raster, &window->glyphs, palette, frame->editor, frame->scale);
     // the shown file's diagnostics underlined on the rows drawn
@@ -1889,10 +2053,87 @@ void gui_window_drawn(GuiWindow *window)
         }
     }
     window_panels_drawn(window);
+}
+
+void gui_window_drawn(GuiWindow *window)
+{
+    const GuiFrame *const frame = &window->frame;
+    const GuiPalette *const palette = window->palette;
+    GuiRaster *const raster = window->raster;
+    window->owed = 0;
+    window->caret_alone = 0;
+    window->busy_alone = 0;
+    if (raster->pixels == NULL)
+    {
+        return;
+    }
+    // the base: the lattice as it stands, where its raster is the window's size, else the deep color, with the
+    // glass sheet about the work, the work's parts' grounds and the panes that have slid in laid over it in one
+    // pass through the map; the controls' pane is the base's once it stands; while the name's pane stands the view is
+    // not drawn and the lattice shows through the work
+    const GuiRaster *ground = &window->ground.raster;
+    if ((ground->pixels == NULL) || (ground->width != raster->width) || (ground->height != raster->height))
+    {
+        ground = NULL;
+    }
+    const int view_shown = !window->wordmark.stands;
+    // a stage of the claim's movement brings its map and its holes; only a frame at rest lays them
+    const GuiStage *const stage = view_shown ? window->stage : NULL;
+    if (stage != NULL)
+    {
+        gui_base_painted(&window->base, palette);
+        gui_base_map_drawn(&window->base, &stage->map, raster, ground, palette->deep);
+    }
+    else
+    {
+        const GuiFrame *based = frame;
+        GuiFrame bare;
+        if (!view_shown)
+        {
+            bare = *frame;
+            bare.side = (GuiRect){0, 0, 0, 0};
+            bare.tabs = (GuiRect){0, 0, 0, 0};
+            bare.editor = (GuiRect){0, 0, 0, 0};
+            bare.map = (GuiRect){0, 0, 0, 0};
+            based = &bare;
+        }
+        (void)gui_base_laid(&window->base, based, palette, frame->controls_pane_share >= GUI_WHOLE);
+        gui_base_drawn(&window->base, raster, ground, palette->deep);
+    }
+    // the table the panes lie on: the lattice with the sheet's tint and grain; each pane's corners rounded on it
+    const GuiUnder table = gui_glass_table(ground, palette->deep, palette->glass);
+    const GuiColor pane = gui_glass_pane_tint(palette->glass);
+    gui_raster_paned(raster, table, gui_rect_met(frame->bar_slat, frame->bar), frame->pane_radius, pane, 1);
+    gui_raster_paned(raster, table, gui_rect_met(frame->strip_slat, frame->strip), frame->pane_radius, pane, 1);
+    gui_raster_paned(raster, table, gui_rect_met(frame->status_slat, frame->status), frame->pane_radius, pane, 1);
+    // the work's outline: the lines it stands in, as the page draws them, the signal along its head, a thin line of
+    // it down its left, the link darkened down its right and along its foot, bent round its corners and round the
+    // holes the parts shown over the work make in it while the claim holds
+    const GuiColor right_line =
+        GUI_RGB((GUI_RED_OF(palette->link) * 65u) / 100u, (GUI_GREEN_OF(palette->link) * 65u) / 100u,
+                (GUI_BLUE_OF(palette->link) * 65u) / 100u);
+    const GuiOutline lines = {palette->signal,
+                              right_line,
+                              right_line,
+                              (palette->signal & 0x00ffffffu) | (0x59u << 24u),
+                              gui_scaled(GUI_WORK_PAD_TOP, frame->scale),
+                              gui_scaled(GUI_WORK_PAD_RIGHT, frame->scale),
+                              gui_scaled(GUI_WORK_PAD_BOTTOM, frame->scale),
+                              gui_scaled(GUI_WORK_PAD_LEFT, frame->scale)};
+    const GuiUnder clear = {ground, 0u, NULL, 0u, palette->deep};
+    GuiRect holes_laid[4];
+    const unsigned int count = (stage != NULL) ? stage->hole_count : gui_frame_holes(frame, holes_laid);
+    gui_raster_outlined(raster, frame->work, frame->inside, frame->radius, &lines, (stage != NULL) ? stage->holes : holes_laid, count, table, clear);
+    // the work's inside: the tabs row, the editor with the map beside it, and the side where one is shown, each on
+    // the ground the base laid it
+    if (view_shown)
+    {
+        window_view_drawn(window);
+    }
     // the parts about the work, each on its pane: the strip, the bar with the menu bar's titles and the controls,
     // and the status bar
     gui_strip_drawn(raster, &window->icons, palette, frame, &window->strip);
-    gui_bar_drawn(raster, &window->glyphs, palette, frame, window->title, table);
+    gui_bar_drawn(raster, &window->glyphs, palette, frame, window->title, table, &window->controls_shadow);
     gui_menubar_titles_drawn(&window->menubar, raster, &window->glyphs, palette, frame);
     const GuiStatus status = {window->path,
                               window->editor.has_cursor,
@@ -1905,14 +2146,18 @@ void gui_window_drawn(GuiWindow *window)
                               window->editor.indent_size,
                               window->memory_bytes};
     gui_statusbar_drawn(raster, &window->glyphs, &window->icons, palette, frame, &status);
+    // the large name as it stands or goes, the funnel over the whole window, and the eye over the bar and the strip
+    const unsigned long long drawn_ms = cli_clock_milliseconds();
+    gui_wordmark_drawn(&window->wordmark, raster, &window->glyphs, &window->icons, palette, frame, drawn_ms);
+    gui_wordmark_eye_drawn(&window->wordmark, raster, &window->icons, palette, frame);
     // the menus open go over every part
     gui_menubar_menus_drawn(&window->menubar, raster, &window->glyphs, palette, frame);
     // the caret last, at the ink its breath stands at, where no panel or menu lies over it: drawn over the frame
-    // whole, its breath's steps draw it again alone
-    window->caret_ink = window_caret_ink(window, cli_clock_milliseconds());
+    // whole, its breath's steps draw it again alone; none stands while the view is not drawn
+    window->caret_ink = window_caret_ink(window, drawn_ms);
     window->editor.caret_ink = window->caret_ink;
     const GuiRect caret = gui_editor_caret_rect(&window->editor, &window->glyphs, frame->editor, frame->scale);
-    if (!gui_rect_empty(caret) && !window_caret_covered(window, caret))
+    if (view_shown && !gui_rect_empty(caret) && !window_caret_covered(window, caret))
     {
         (void)gui_editor_caret_drawn(&window->editor, raster, palette, caret);
     }
@@ -1920,6 +2165,8 @@ void gui_window_drawn(GuiWindow *window)
     {
         window->editor.caret_kept = 0;
     }
+    // the busy circle over all of it, the pixels under it kept for its stages' steps
+    gui_busy_drawn(&window->busy, raster, palette, frame, drawn_ms);
 }
 
 unsigned int gui_window_hit(const GuiWindow *window, int x, int y)
@@ -1958,8 +2205,9 @@ unsigned int gui_window_hit(const GuiWindow *window, int x, int y)
     {
         return GUI_HIT_CLOSE;
     }
-    // the menu bar's titles and its open menus are the client's, not the caption's
-    if (gui_menubar_holds(&window->menubar, x, y))
+    // the menu bar's titles and its open menus are the client's, not the caption's, and the eye in the bar is too
+    if (gui_menubar_holds(&window->menubar, x, y) ||
+        (window->wordmark.home && gui_rect_holds(gui_wordmark_eye_square(frame), x, y)))
     {
         return GUI_HIT_CLIENT;
     }
@@ -1989,6 +2237,11 @@ static void window_scrolled_to(GuiWindow *window, unsigned long long top)
 
 void gui_window_wheel(GuiWindow *window, int x, int y, int rows)
 {
+    // while the name's pane stands no view takes the wheel
+    if (window->wordmark.stands)
+    {
+        return;
+    }
     // the wheel over the side scrolls the explorer's rows; over the editor or the map, the text
     if (gui_rect_holds(window->frame.side, x, y))
     {
@@ -2085,11 +2338,24 @@ void gui_window_pressed(GuiWindow *window, int x, int y, unsigned int mods)
         }
         if (choice.command[0] != '\0')
         {
-            window_chosen(window, &choice);
+            gui_window_chosen(window, &choice);
         }
         return;
     }
     window->owed = window->owed || menus_open;
+    // a press on the name opens orior's repository, and the rest of the name's pane takes a press to no view
+    if (gui_wordmark_holds(&window->wordmark, &window->frame, x, y))
+    {
+        char text[64];
+        VerbaLinea args = {text, sizeof(text), 0ull};
+        mmgr_line_put(&args, "{\"url\":\"" GUI_WORDMARK_REPOSITORY "\"}");
+        (void)window_called(window, 1, "report_open", &args);
+        return;
+    }
+    if (window->wordmark.stands && gui_rect_holds(window->frame.work, x, y))
+    {
+        return;
+    }
     // a press on the strip shows a tool's window or closes it, the keys going to it
     if (gui_strip_pressed(&window->strip, &window->frame, x, y))
     {
@@ -2229,6 +2495,17 @@ void gui_window_moved(GuiWindow *window, int x, int y)
     gui_hover_moved(&window->hover, in_text, row, column, x, y, cli_clock_milliseconds());
 }
 
+void gui_window_left(GuiWindow *window)
+{
+    const int near_before = window->claim.near;
+    gui_claim_left(&window->claim);
+    if (window->claim.near != near_before)
+    {
+        window->claim_moving = 1;
+        window_claim_laid(window);
+    }
+}
+
 void gui_window_released(GuiWindow *window, int x, int y)
 {
     if (window->minimap.dragging)
@@ -2257,15 +2534,20 @@ void gui_window_key(GuiWindow *window, const char *name)
         }
         if (choice.command[0] != '\0')
         {
-            window_chosen(window, &choice);
+            gui_window_chosen(window, &choice);
         }
+        return;
+    }
+    // while the name's pane stands no view takes the keys
+    if (window->wordmark.stands)
+    {
         return;
     }
     // the keys of a command the window runs itself run it, a tool's keys show its window; every other key is the
     // view's, which takes the keys and makes the claim
     if (gui_menubar_keys_command(&window->menubar, name, &choice) && window_runs(choice.command))
     {
-        window_chosen(window, &choice);
+        gui_window_chosen(window, &choice);
         return;
     }
     if (gui_strip_keyed(&window->strip, name))
@@ -2326,6 +2608,11 @@ void gui_window_key(GuiWindow *window, const char *name)
 
 void gui_window_text(GuiWindow *window, const char *text, unsigned long long size)
 {
+    // while the name's pane stands no view takes the text
+    if (window->wordmark.stands)
+    {
+        return;
+    }
     char more[CLI_PATH_MAX_LEN];
     VerbaLinea line = {more, sizeof(more), 0ull};
     mmgr_line_put(&line, ",\"text\":");

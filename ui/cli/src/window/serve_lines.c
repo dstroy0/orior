@@ -135,6 +135,8 @@ static void lines_caller(void *context)
         lines_answered(caller, answer, why);
         g_cli_cells->persistent_buf_release(why, &g_cli_window_cells);
         g_cli_cells->persistent_buf_release(answer, &g_cli_window_cells);
+        // a call's line may carry a secret, and the pool leaves a cell as it is
+        mmgr_zero_buf(caller->line, caller->size);
         g_cli_cells->persistent_buf_release(caller->line, &g_cli_window_cells);
         cli_lock_take(&s_lock);
         caller->size = 0ull;

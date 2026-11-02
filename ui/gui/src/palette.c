@@ -1,7 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// palette.c: the colors the window draws in, each the value style.css gives its variable in the scheme; a translucent
-// color carries the stylesheet's alpha as a byte of 255
+// palette.c: the colors the window draws in, each the value style.css gives its variable in the scheme, but for the
+// bar's resting text, the large name and what the pointer lights, which stand on the luminance ladder under the rung of
+// what they serve; a translucent color carries the stylesheet's alpha as a byte of 255
 #include "palette.h"
 
 #include "../../cli/src/text/text.h"
@@ -36,7 +37,9 @@ static const GuiTokenColor s_dark_tokens[] = {
 // --status-fg; --ed-bg at --editor-opacity, --ed-fg, --ed-num, --ed-current, --ed-sel, --ed-sel-idle, --ed-caret,
 // --ed-guide, --ed-same,
 // --ed-widget-line, --ed-match, --ed-match-on, --ed-mini-sel, --ed-mini-match, --ed-mini-slider, --ed-mini-slider-on,
-// --plasma-dusk, --fuse-fire, --bar-signal at 18%, --ink at 50%, --ed-error, --ed-warning, --ed-note, --lattice-1 to
+// --plasma-dusk, --fuse-fire, --bar-signal at 18%, --ink at 50%, --ed-error, --ed-warning, --ed-note, --open-fg,
+// --bar-mark, --lifted, the color .wordmark-under's rule makes, --deep at 80% with black and its OKLCH lightness by
+// 1.15, --fuse-ash, --fuse-burn, --fuse-fire, the white the page's plasma lights its core with, --lattice-1 to
 // --lattice-3, --t1 to --t8
 static const GuiPalette s_dark = {
     GUI_RGB(0x13u, 0x13u, 0x31u),
@@ -53,10 +56,10 @@ static const GuiPalette s_dark = {
     GUI_RGB(0xffu, 0xa3u, 0xbdu),
     GUI_RGB(0x1du, 0x18u, 0x50u),
     GUI_RGBA(0x1du, 0x18u, 0x50u, 0x4du),
-    GUI_RGB(0xf3u, 0xf2u, 0xfbu),
+    GUI_RGB(0xd7u, 0xd6u, 0xdfu),
     GUI_RGBA(0xf3u, 0xf2u, 0xfbu, 0xc7u),
     GUI_RGBA(0xf3u, 0xf2u, 0xfbu, 0x1au),
-    GUI_RGB(0xffu, 0xffu, 0xffu),
+    GUI_RGB(0xe5u, 0xe4u, 0xedu),
     GUI_RGBA(0xf3u, 0xf2u, 0xfbu, 0x99u),
     GUI_RGBA(0xf3u, 0xf2u, 0xfbu, 0xd1u),
     GUI_RGBA(0x13u, 0x13u, 0x31u, 0xccu),
@@ -82,6 +85,14 @@ static const GuiPalette s_dark = {
     GUI_RGB(0xffu, 0x6bu, 0x81u),
     GUI_RGB(0xe8u, 0xc4u, 0x6au),
     GUI_RGB(0x7au, 0xa2u, 0xf7u),
+    GUI_RGB(0xd7u, 0xd6u, 0xdfu),
+    GUI_RGB(0xdfu, 0xe0u, 0xf0u),
+    GUI_RGBA(0x08u, 0x06u, 0x1eu, 0x73u),
+    GUI_RGB(0x11u, 0x10u, 0x2bu),
+    GUI_RGB(50u, 18u, 98u),
+    GUI_RGB(94u, 40u, 166u),
+    GUI_RGB(148u, 94u, 232u),
+    GUI_RGB(199u, 163u, 255u),
     {GUI_RGB(0x6fu, 0xdcu, 0xb4u), GUI_RGB(0x8au, 0xb8u, 0xffu), GUI_RGB(0xb4u, 0x9cu, 0xffu)},
     {GUI_RGB(0xffu, 0x8fu, 0xa3u), GUI_RGB(0x6fu, 0xdcu, 0xb4u), GUI_RGB(0xf2u, 0xd4u, 0x8au),
      GUI_RGB(0x8au, 0xb8u, 0xffu), GUI_RGB(0xb4u, 0x9cu, 0xffu), GUI_RGB(0x7fu, 0xd8u, 0xe8u),

@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // symbols.h: what the files of a tree declare, for Go to Symbol in the tree and Search Everywhere: each file read off
-// the leaves of the grammar of the plugin its extension opens it as (symbols_read.c). The tree stores each file's
-// declarations with the time the file was last written and reads a file again only once that time moves. It is read
-// on a thread of its own, and a search requested while it is read answers from what is read so far and reports so
-// (symbols.c)
+// the leaves of the grammar of the plugin its extension opens it as (symbols_read.c). The filesystem is the tree's trunk
+// and its files are its branches, each stored under its closest parent with its declarations and its stamp. It is
+// listed and walked one time as it opens, on a thread of its own, and a search requested meanwhile answers from what is
+// walked so far and reports so. Each change after that joins, leaves or walks the one branch it names (symbols.c)
 #ifndef SYMBOLS_H
 #define SYMBOLS_H
 
@@ -19,6 +19,7 @@ typedef void (*CliDeclared)(void *context, const char *name, unsigned long long 
 typedef struct CliSymbolsLanguages CliSymbolsLanguages;
 // the languages read in a cell taken from the cells, NULL where it is refused, and given back with the cell
 CliSymbolsLanguages *cli_symbols_languages_read(void);
+CliSymbolsLanguages *cli_symbols_languages_for_call(void);
 void cli_symbols_languages_given(CliSymbolsLanguages *read);
 
 // whether the declarations of the file at `path` are read: whether its language is one read here
@@ -30,21 +31,48 @@ void cli_symbols_declared(const char *path, const char *text, unsigned long long
 // its letters in order. Case is set aside, and the shorter of two names that answer alike comes first. 1, or 0 where it
 // does not name it
 int cli_symbols_score(const char *query, const char *name, unsigned long long name_length, long long *points);
-// every file forgotten, for a tree opened in place of the last
-void cli_symbols_forget(void);
-// the tree brought up to date on a thread of its own, unless it is being brought up to date already or was within
-// four seconds; `paths`, `count` of them, the tree's files as the file listing gives them
-void cli_symbols_refresh(const char *root, const char *const *paths, unsigned int count);
+// every branch forgotten, for a tree opened in place of the last
+void cli_tree_forgotten(void);
+// the tree at `root` listed, one time as it opens: every file git tracks or would track, or for a tree git cannot read
+// every file less `.git` and `target`, a branch under its closest parent, at most CLI_BRANCHES_MOST of them. Standing
+// already, it is left as it stands. Whether it is listed, without listing it; whether git listed it; and when it was
+// last listed, in milliseconds
+void cli_tree_listed(const char *root);
+int cli_tree_is_listed(const char *root);
+int cli_tree_git(void);
+unsigned long long cli_tree_listed_at(void);
+// the files of the tree standing, how many and the bytes of their paths with their ends; the next file at or past
+// `*at`, from 0, its path into `path`, sized for CLI_PATH_MAX_LEN, `*at` moved past it: 1, or 0 past the last; and
+// whether a branch of the listed tree stands at `path`, a file and a folder
+void cli_tree_files_counted(unsigned int *count, unsigned long long *bytes);
+int cli_tree_next_file(unsigned int *at, char *path);
+int cli_tree_has_file(const char *path);
+int cli_tree_has_folder(const char *path);
+// a change the tree tells of: its path from the tree's top, and its kind, a CLI_CHANGE_ number
+typedef void (*CliTreeChange)(void *context, const char *path, unsigned int kind);
+// what the trunk holds now at each of `paths`, `count` of them, mirrored to its closest parent: a file git does not
+// ignore joined, the file walked and not the tree; a folder's own files joined; what is not there let go, each folder
+// left with nothing under it let go in turn
+void cli_tree_mirrored(const char *root, const char *const *paths, unsigned int count);
+// the tree at `root` listed again, as a listing's rules change or changes were lost: each file now listed joined and
+// each no longer listed let go, each handed to `emit` where it is given, every other branch left as it stands
+void cli_tree_relisted(const char *root, CliTreeChange emit, void *context);
+// each file of the tree stamped where nothing reports its changes, each stamp that moved handed to `emit`
+void cli_tree_stamped(const char *root, CliTreeChange emit, void *context);
+// the tree's branches walked on a thread of its own, one time as it opens, and again only over a mount added or taken
+void cli_tree_walked(const char *root);
+// the branches `paths`, `count` of them, each of a file that changed, walked in this call
+void cli_tree_branches_walked(const char *root, const char *const *paths, unsigned int count);
 // how far the first reading of the tree's files has gone, `done` of `total`: 1 while it goes, else 0
-int cli_symbols_progress(unsigned long long *done, unsigned long long *total);
+int cli_tree_walk_progress(unsigned long long *done, unsigned long long *total);
 // the reading going ended, what it has read retained
-void cli_symbols_stop(void);
+void cli_tree_walk_stopped(void);
 // whether the tree's files are being read for the first time
-int cli_symbols_unread(void);
+int cli_tree_unwalked(void);
 // the declarations whose names answer `query`, at most `most` of them, the best first, written as `{"symbols":
 // [{"name", "kind", "path", "line", "text"}...], "reading"}`, `text` the declaration's own line trimmed, read from
 // its file as the answer is written
-void cli_symbols_find(const char *query, unsigned int most, VerbaLinea *out);
+void cli_tree_declarations_found(const char *query, unsigned int most, VerbaLinea *out);
 // the signature of the call the cursor stands in at `line`, `col` in UTF-16 units of `size` bytes of `text`, the lines
 // the page hands from the file at `path`, the first starting in its grammar's `state`: written as `{"name", "active",
 // "arguments": [{"text", "type"}], "declarations": [{"path", "line", "label", "params": [[from, to]], "types",

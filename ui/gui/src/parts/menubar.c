@@ -335,11 +335,58 @@ static int menubar_title_wide(const GuiMenubar *menubar, const GuiTitle *title, 
     return (int)roundf(gui_text_width(glyphs, GUI_FACE_HEAD, size, text, length)) + (2 * gui_scaled(GUI_TITLE_PAD, scale));
 }
 
+// the menus open moved together to follow their title as the bar moves: the first under its title, turned in from the
+// window's edges as it was when it opened, and the ones beside it by as much
+static void menubar_menus_followed(GuiMenubar *menubar, const GuiFrame *frame)
+{
+    if ((menubar->levels == 0u) || (menubar->open < 0))
+    {
+        return;
+    }
+    // the open title is not negative past the test; a menu whose title the bar no longer shows closes
+    if ((unsigned int)menubar->open >= menubar->titles)
+    {
+        gui_menubar_closed(menubar);
+        return;
+    }
+    const GuiRect first = menubar->menu[0].rect;
+    const int edge = gui_scaled(GUI_MENU_EDGE, frame->scale);
+    // the window's sides are far inside what an int represents
+    const int most_left = (int)frame->width - first.width - edge;
+    const int wanted_left = menubar->title[menubar->open].rect.x;
+    const int left_inside = (wanted_left > most_left) ? most_left : wanted_left;
+    const int left = (left_inside < edge) ? edge : left_inside;
+    const int wanted_top = frame->bar.y + frame->bar.height + gui_scaled(GUI_MENU_BELOW, frame->scale);
+    const int top = (wanted_top < edge) ? edge : wanted_top;
+    for (unsigned int level = 0u; level < menubar->levels; level += 1u)
+    {
+        menubar->menu[level].rect.x += left - first.x;
+        menubar->menu[level].rect.y += top - first.y;
+    }
+}
+
+void gui_menubar_titles_taken(GuiMenubar *menubar, const GuiTitle *title, unsigned int count, unsigned int folded_from, const GuiFrame *frame)
+{
+    memor.cpy(&(MemoriaCfg){.dst = menubar->title, .src = title, .bytes = (unsigned long long)count * sizeof(GuiTitle)});
+    menubar->titles = count;
+    menubar->folded_from = folded_from;
+    menubar_menus_followed(menubar, frame);
+}
+
 void gui_menubar_laid(GuiMenubar *menubar, GuiGlyphs *glyphs, const GuiFrame *frame)
 {
     gui_menubar_closed(menubar);
+    gui_menubar_titles_laid(menubar, glyphs, frame);
+}
+
+void gui_menubar_titles_laid(GuiMenubar *menubar, GuiGlyphs *glyphs, const GuiFrame *frame)
+{
     menubar->titles = 0u;
-    menubar->pointed = -1;
+    // the bar moves under a pointer standing still, which marks no title until it moves, while a menu open keeps its own
+    if (menubar->levels == 0u)
+    {
+        menubar->pointed = -1;
+    }
     if ((menubar->json == NULL) || (menubar->menus == CLI_JSON_NONE))
     {
         return;
@@ -356,7 +403,10 @@ void gui_menubar_laid(GuiMenubar *menubar, GuiGlyphs *glyphs, const GuiFrame *fr
         }
     }
     // the room the titles have: from the bar's start to where the tree's name keeps its room
-    const int start = frame->bar.x + gui_scaled(GUI_MENUBAR_START, frame->scale);
+    // and the eye's room before it, given up as the claim runs
+    const long long eye_room = ((long long)(GUI_WHOLE - frame->claim.claim) * (long long)gui_scaled(GUI_MENUBAR_EYE_ROOM, frame->scale)) / GUI_WHOLE;
+    // the room is less than the window's width: it is far inside what an int represents
+    const int start = frame->bar.x + gui_scaled(GUI_MENUBAR_START, frame->scale) + (int)eye_room;
     const int room_end = frame->controls.x - gui_scaled(GUI_MENUBAR_NAME_ROOM, frame->scale);
     const int margin_x = gui_scaled(GUI_TITLE_MARGIN_X, frame->scale);
     const int margin_y = gui_scaled(GUI_TITLE_MARGIN_Y, frame->scale);
@@ -398,6 +448,7 @@ void gui_menubar_laid(GuiMenubar *menubar, GuiGlyphs *glyphs, const GuiFrame *fr
         menubar->titles += 1u;
     }
     menubar_lettered(menubar);
+    menubar_menus_followed(menubar, frame);
 }
 
 // the title at x, y, -1 for none; and the row of the open menu at `level` at x, y, -1 for none

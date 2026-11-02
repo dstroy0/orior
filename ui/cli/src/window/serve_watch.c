@@ -100,6 +100,7 @@ static void watch_taker(void *context)
         }
         if (unique_count > 0u)
         {
+            cli_tree_branches_walked(root, paths, unique_count);
             cli_servers_changed(root, paths, unique_count);
         }
         g_cli_cells->persistent_buf_release(paths, &g_cli_window_cells);

@@ -54,16 +54,16 @@ static void find_line_written(const char *path, unsigned int line, VerbaLinea *o
 }
 
 // one declaration of a stored file, read out of its cell
-static CliSymbol find_symbol_read(const CliSymbolFile *branch, unsigned int symbol)
+static CliDeclaration find_symbol_read(const CliTreeBranch *branch, unsigned int symbol)
 {
-    CliSymbol read = {0u, 0u, 0u, 0u};
+    CliDeclaration read = {0u, 0u, 0u, 0u};
     (void)g_cli_cells->movable_buf_read(&(CarcerMovableCfg){
-        .cell = branch->cell, .offset = (size_t)symbol * sizeof(CliSymbol), .dst = &read, .bytes = sizeof(read)});
+        .cell = branch->cell, .offset = (size_t)symbol * sizeof(CliDeclaration), .dst = &read, .bytes = sizeof(read)});
     return read;
 }
 
 // two runs of bytes in two stored files' cells ordered by their first difference over the shorter
-static int find_bytes_order(const CliSymbolFile *one, unsigned int one_at, const CliSymbolFile *other,
+static int find_bytes_order(const CliTreeBranch *one, unsigned int one_at, const CliTreeBranch *other,
                             unsigned int other_at, unsigned int bytes)
 {
     const embed_iword order = g_cli_cells->movable_buf_compare(&(CarcerMovableCfg){
@@ -72,7 +72,7 @@ static int find_bytes_order(const CliSymbolFile *one, unsigned int one_at, const
 }
 
 // two texts in two stored files' cells ordered: a text with its terminator differs from another there at the latest
-static int find_text_order(const CliSymbolFile *one, unsigned int one_at, const CliSymbolFile *other,
+static int find_text_order(const CliTreeBranch *one, unsigned int one_at, const CliTreeBranch *other,
                            unsigned int other_at)
 {
     const size_t measured = g_cli_cells->movable_buf_measure(&(CarcerMovableCfg){.cell = one->cell, .offset = one_at});
@@ -90,10 +90,10 @@ static int cli_ranks_before(const CliScored *one, const CliScored *other)
     {
         return one->points > other->points;
     }
-    const CliSymbolFile *const one_file = &g_cli_symbol_files[one->file];
-    const CliSymbolFile *const other_file = &g_cli_symbol_files[other->file];
-    const CliSymbol left = find_symbol_read(one_file, one->symbol);
-    const CliSymbol right = find_symbol_read(other_file, other->symbol);
+    const CliTreeBranch *const one_file = &g_cli_branches[one->file];
+    const CliTreeBranch *const other_file = &g_cli_branches[other->file];
+    const CliDeclaration left = find_symbol_read(one_file, one->symbol);
+    const CliDeclaration right = find_symbol_read(other_file, other->symbol);
     const unsigned int shorter = (left.length < right.length) ? left.length : right.length;
     int order = find_bytes_order(one_file, left.name, other_file, right.name, shorter);
     order = (order != 0) ? order : ((left.length < right.length) ? -1 : (left.length > right.length) ? 1 : 0);
@@ -102,23 +102,23 @@ static int cli_ranks_before(const CliScored *one, const CliScored *other)
     return (order != 0) ? (order < 0) : (left.line < right.line);
 }
 
-void cli_symbols_find(const char *query, unsigned int most, VerbaLinea *out)
+void cli_tree_declarations_found(const char *query, unsigned int most, VerbaLinea *out)
 {
     static CliScored s_found[CLI_SYMBOLS_FOUND];
     const unsigned int room = (most < CLI_SYMBOLS_FOUND) ? most : CLI_SYMBOLS_FOUND;
     unsigned int count = 0u;
-    cli_lock_take(&g_cli_symbols_lock);
-    char *const scratch = cli_symbol_scratch_taken();
-    for (unsigned int file = 0u; (scratch != NULL) && (file < g_cli_symbol_file_count); file += 1u)
+    cli_lock_take(&g_cli_walk_lock);
+    char *const scratch = cli_branch_copy_taken();
+    for (unsigned int file = 0u; (scratch != NULL) && (file < g_cli_branch_count); file += 1u)
     {
-        if (g_cli_symbol_files[file].used)
+        if (g_cli_branches[file].used)
         {
-            cli_symbol_file_read(&g_cli_symbol_files[file], scratch);
+            cli_branch_copied(&g_cli_branches[file], scratch);
         }
-        for (unsigned int each = 0u; g_cli_symbol_files[file].used && (each < g_cli_symbol_files[file].count);
+        for (unsigned int each = 0u; g_cli_branches[file].used && (each < g_cli_branches[file].count);
              each += 1u)
         {
-            const CliSymbol *const symbol = &cli_symbol_file_symbols(scratch)[each];
+            const CliDeclaration *const symbol = &cli_branch_copy_declarations(scratch)[each];
             CliScored scored = {0ll, file, each};
             if (!cli_symbols_score(query, scratch + symbol->name, symbol->length, &scored.points))
             {
@@ -144,10 +144,10 @@ void cli_symbols_find(const char *query, unsigned int most, VerbaLinea *out)
     mmgr_line_put(out, "{\"symbols\":[");
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        const CliSymbolFile *const branch = &g_cli_symbol_files[s_found[at].file];
-        cli_symbol_file_read(branch, scratch);
-        const CliSymbol *const symbol = &cli_symbol_file_symbols(scratch)[s_found[at].symbol];
-        const char *const path = cli_symbol_file_path(branch, scratch);
+        const CliTreeBranch *const branch = &g_cli_branches[s_found[at].file];
+        cli_branch_copied(branch, scratch);
+        const CliDeclaration *const symbol = &cli_branch_copy_declarations(scratch)[s_found[at].symbol];
+        const char *const path = cli_branch_copy_path(branch, scratch);
         mmgr_line_put(out, (at != 0u) ? ",{\"name\":" : "{\"name\":");
         cli_json_quoted_lossy(out, (const unsigned char *)(scratch + symbol->name), symbol->length);
         mmgr_line_put(out, ",\"kind\":");
@@ -159,11 +159,11 @@ void cli_symbols_find(const char *query, unsigned int most, VerbaLinea *out)
         mmgr_line_decimal(out, symbol->line, 1u);
         mmgr_line_put(out, ",\"text\":");
         char full[CLI_PATH_MAX_LEN];
-        cli_full(g_cli_symbols_root, path, full);
+        cli_full(g_cli_tree_root, path, full);
         find_line_written(full, symbol->line, out);
         mmgr_line_ch(out, '}');
     }
-    mmgr_line_put(out, g_cli_symbols_reading ? "],\"reading\":true}" : "],\"reading\":false}");
-    cli_symbol_scratch_given(scratch);
-    cli_lock_give(&g_cli_symbols_lock);
+    mmgr_line_put(out, g_cli_tree_walking ? "],\"reading\":true}" : "],\"reading\":false}");
+    cli_branch_copy_given(scratch);
+    cli_lock_give(&g_cli_walk_lock);
 }

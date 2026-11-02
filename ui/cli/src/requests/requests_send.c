@@ -52,8 +52,12 @@ void cli_requests_room_given(CliRequestsRoom *room)
         return;
     }
     g_cli_cells->persistent_buf_release(room->unpacked, &g_cli_requests_cells);
+    // what a request sent and what came back may carry a secret, and the pool leaves a cell as it is
+    mmgr_zero_buf(room->raw.out, room->raw.at);
+    mmgr_zero_buf(room->body.out, room->body.at);
     g_cli_cells->persistent_buf_release(room->raw.out, &g_cli_requests_cells);
     g_cli_cells->persistent_buf_release(room->body.out, &g_cli_requests_cells);
+    mmgr_zero_buf(room, sizeof(*room));
     g_cli_cells->persistent_buf_release(room, &g_cli_requests_cells);
     cli_lock_take(&s_lock);
     s_rooms_used -= 1u;

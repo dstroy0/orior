@@ -5,6 +5,7 @@
 // stopped, and every connection closed is given back to the cellblock. The servers' checks are db_servers_test.c's
 #include "../../../../../ui/cli/src/databases/db_internal.h"
 #include "../../../../../ui/cli/src/tests/test_runs.h"
+#include "../../../../../ui/cli/src/window/serve_internal.h"
 #include "cli_check.h"
 
 static char s_out[1u << 20u];
@@ -400,6 +401,78 @@ static void db_slow(void)
     cli_db_close(open);
 }
 
+// whether `marked` lies anywhere among the pool's bytes
+static int db_pool_holds(const char *marked)
+{
+    unsigned long long pool = 0ull;
+    unsigned long long persistent = 0ull;
+    unsigned long long temporary = 0ull;
+    cli_cells_report(&pool, &persistent, &temporary);
+    char *const probe = g_cli_cells->temporary_buf_alloc(64ull, &g_checks_cells);
+    const unsigned long long top = (unsigned long long)g_cli_cells->temporary_buf_mark();
+    // the probe stands at the top of the temporary tier, its distance from the pool's start: a page short of each end
+    const unsigned char *const start = (const unsigned char *)probe - top + 4096ull;
+    const unsigned long long bytes = pool - 8192ull;
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = marked, .cap = 64u});
+    int holds = 0;
+    for (unsigned long long at = 0ull; !holds && ((at + length) < bytes); at += 1ull)
+    {
+        holds = (start[at] == (unsigned char)marked[0]) &&
+                (memor.cmp(&(MemoriaCfg){.src = start + at, .other = marked, .bytes = (size_t)length}) == 0);
+    }
+    g_cli_cells->persistent_buf_release(probe, &g_checks_cells);
+    return holds;
+}
+
+// a call's answer that reads the password its arguments carry
+static int db_password_read(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+{
+    (void)err_msg;
+    mmgr_line_put(out, (cli_serve_string_or(args, "password", "")[0] != '\0') ? "read" : "none");
+    return 1;
+}
+
+// a password lies in the pool only while it is used: the cells it passes through are wiped as they are given back, the
+// pool itself leaving what a cell stored
+static void db_password_wiped(void)
+{
+    char root[CLI_PATH_MAX_LEN];
+    cli_check_folder("db_password_wiped", root);
+    // made here, so that what the look through the pool finds cannot be the check's own text
+    char marked[32];
+    VerbaLinea made = {marked, sizeof(marked), 0ull};
+    mmgr_line_put(&made, "marked-");
+    mmgr_line_put(&made, "password-7f3a");
+    (void)mmgr_line_finish(&made);
+    static const char *const s_kinds[2] = {"postgres", "mysql"};
+    for (unsigned int at = 0u; at < 2u; at += 1u)
+    {
+        CliDbConnection connection;
+        db_connection(&connection, "closed", s_kinds[at]);
+        (void)cellul.copy(&(CatenaFinitaCfg){.dst = connection.host, .src = "127.0.0.1", .cap = CLI_NAME_MAX_LEN});
+        (void)cellul.copy(&(CatenaFinitaCfg){.dst = connection.user, .src = "app", .cap = CLI_NAME_MAX_LEN});
+        connection.port = 1u;
+        CliDbOpen *const open = cli_db_connect(root, &connection, marked, &s_failure);
+        cli_check(open == NULL, "a port nothing listens on refuses the connection");
+        cli_check(!db_pool_holds(marked), "and no cell it passed through keeps the password");
+    }
+    char args[128];
+    VerbaLinea written = {args, sizeof(args), 0ull};
+    mmgr_line_put(&written, "{\"password\":\"");
+    mmgr_line_put(&written, marked);
+    mmgr_line_put(&written, "\"}");
+    const unsigned long long size = written.at;
+    (void)mmgr_line_finish(&written);
+    char answer[16];
+    char why[64];
+    VerbaLinea out = {answer, sizeof(answer), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    cli_check(cli_serve_answered(db_password_read, args, size, &out, &err_msg), "a call reads the password it carries");
+    (void)mmgr_line_finish(&out);
+    cli_check_text(answer, 4ull, "read", "and answers");
+    cli_check(!db_pool_holds(marked), "and no cell of its arguments keeps it");
+}
+
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
@@ -408,6 +481,7 @@ int main(void)
     db_keychain();
     db_sqlite();
     db_slow();
+    db_password_wiped();
     char python[CLI_PATH_MAX_LEN];
     cli_check((embed_atomic_usize_load(&g_cli_db_cells.in_use) == 0ull) && ((embed_atomic_usize_load(&g_cli_db_cells.hw) != 0ull) || !cli_test_python(python)),
               "every connection and SQLite process closed is given back, the most they used marked");

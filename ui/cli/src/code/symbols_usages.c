@@ -302,9 +302,9 @@ static char *usages_text(const char *path, CliOpenText open_text, void *open_tex
         return given;
     }
     char full[CLI_PATH_MAX_LEN];
-    cli_lock_take(&g_cli_symbols_lock);
-    cli_full(g_cli_symbols_root, path, full);
-    cli_lock_give(&g_cli_symbols_lock);
+    cli_lock_take(&g_cli_walk_lock);
+    cli_full(g_cli_tree_root, path, full);
+    cli_lock_give(&g_cli_walk_lock);
     // a text read mapped is read and never written
     return (char *)cli_file_taken(full, size, &g_cli_code_cells);
 }
@@ -327,7 +327,7 @@ static void usages_text_given(char *text, unsigned long long size, int mapped)
 static unsigned long long usages_name_at(const char *path, const char *text, unsigned long long size, unsigned int line,
                                          unsigned int col, char *name)
 {
-    CliSymbolsLanguages *const languages = cli_symbols_languages_read();
+    CliSymbolsLanguages *const languages = cli_symbols_languages_for_call();
     CliLeafRead read;
     const int leaved = (languages != NULL) && cli_symbols_leaves_kept(languages, path, "root", text, size, &read);
     unsigned long long length = 0ull;
@@ -375,22 +375,22 @@ static unsigned long long usages_name_at(const char *path, const char *text, uns
 // the paths of the tree's files the tree reads, but `path` and the mounts', each with a 0 after, into `paths`
 static void usages_tree_paths(const char *path, VerbaLinea *paths)
 {
-    cli_lock_take(&g_cli_symbols_lock);
-    for (unsigned int at = 0u; at < g_cli_symbol_file_count; at += 1u)
+    cli_lock_take(&g_cli_walk_lock);
+    for (unsigned int at = 0u; at < g_cli_branch_count; at += 1u)
     {
         char one[CLI_PATH_MAX_LEN];
-        if (g_cli_symbol_files[at].used)
+        if (g_cli_branches[at].used)
         {
-            cli_symbol_path_read(&g_cli_symbol_files[at], one);
+            cli_branch_path_read(&g_cli_branches[at], one);
         }
-        if (g_cli_symbol_files[at].used && (one[0] != '@') &&
+        if (g_cli_branches[at].used && (one[0] != '@') &&
             !cellul.eq(&(CatenaFinitaCfg){.src = one, .other = path, .cap = CLI_CELLS_POOL}))
         {
             mmgr_line_put(paths, one);
             mmgr_line_ch(paths, '\0');
         }
     }
-    cli_lock_give(&g_cli_symbols_lock);
+    cli_lock_give(&g_cli_walk_lock);
 }
 
 // the usages read across the tree's files but `path`, each holding the name walked, the notes whose definition is

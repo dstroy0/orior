@@ -46,7 +46,7 @@ static long long symbols_score(const char *query, const char *name)
 static unsigned int symbols_found(const char *query, unsigned int most, const CliJson **json, int *reading)
 {
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
-    cli_symbols_find(query, most, &out);
+    cli_tree_declarations_found(query, most, &out);
     unsigned int found = CLI_JSON_NONE;
     *json = cli_check_parsed(s_out, out.at, &found);
     *reading = cli_json_is(*json, cli_json_member(*json, found, "reading"), CFG_JSON_TRUE);
@@ -77,30 +77,37 @@ static void symbols_stop(void)
         cli_full(root, s_names[at], path);
         (void)query_file_written(path, text, line.at);
     }
-    cli_symbols_forget();
-    cli_symbols_refresh(root, s_paths, 3000u);
+    cli_tree_forgotten();
+    cli_tree_walked(root);
     unsigned long long done = 0ull;
     unsigned long long total = 0ull;
     int seen = 0;
     for (unsigned int tries = 0u; !seen && (tries < 500u); tries += 1u)
     {
-        seen = cli_symbols_progress(&done, &total) && (done > 0ull);
+        seen = cli_tree_walk_progress(&done, &total) && (done > 0ull);
         query_paused(1u);
     }
     cli_check(seen && (total == 3000ull) && (done <= total), "the reading reports how far it has gone");
-    cli_symbols_stop();
-    for (unsigned int tries = 0u; cli_symbols_progress(&done, &total) && (tries < 500u); tries += 1u)
+    cli_tree_walk_stopped();
+    for (unsigned int tries = 0u; cli_tree_walk_progress(&done, &total) && (tries < 500u); tries += 1u)
     {
         query_paused(2u);
     }
-    cli_check(!cli_symbols_progress(&done, &total), "the reading ended");
-    cli_check(!cli_symbols_unread(), "and is no longer the first reading");
+    cli_check(!cli_tree_walk_progress(&done, &total), "the reading ended");
+    cli_check(!cli_tree_unwalked(), "and is no longer the first reading");
     const CliJson *json = NULL;
     int reading = 0;
     const unsigned int found_node = symbols_found("step_", 3000u, &json, &reading);
     cli_check((json->node[found_node].count > 0u) && (json->node[found_node].count < 3000u),
               "what it read stays, and no further");
-    cli_check(json->node[symbols_found("step_0", 1u, &json, &reading)].count == 1u, "Go to Symbol answers from it");
+    // a walk goes in the listing's order, which the system's folders set: a name it read, whichever that was
+    char read_name[32];
+    unsigned long long read_length = 0ull;
+    const char *const named =
+        cli_json_string(json, cli_json_member(json, cli_json_item(json, found_node, 0u), "name"), &read_length);
+    (void)cellul.copy(&(CatenaFinitaCfg){.dst = read_name, .src = (named != NULL) ? named : "", .cap = sizeof(read_name)});
+    const unsigned int answered = symbols_found(read_name, 1u, &json, &reading);
+    cli_check(json->node[answered].count == 1u, "Go to Symbol answers from it");
 }
 
 // the tree waited for until it is no longer being read
@@ -122,7 +129,6 @@ static void symbols_read_waited(void)
 // the tree is read and a file read again once it changes
 static void symbols_tree(void)
 {
-    static const char *const s_first[2] = {"a.py", "notes.txt"};
     static const char *const s_again[1] = {"a.py"};
     char root[CLI_PATH_MAX_LEN];
     char path[CLI_PATH_MAX_LEN];
@@ -130,8 +136,8 @@ static void symbols_tree(void)
     cli_check_folder("symbols_tree", root);
     cli_full(root, "a.py", path);
     (void)query_file_written(path, "def first():\n    pass\n", 22ull);
-    cli_symbols_forget();
-    cli_symbols_refresh(root, s_first, 2u);
+    cli_tree_forgotten();
+    cli_tree_walked(root);
     symbols_read_waited();
     const CliJson *json = NULL;
     int reading = 0;
@@ -144,12 +150,9 @@ static void symbols_tree(void)
         "the tree is read");
     query_paused(20u);
     (void)query_file_written(path, "\ndef second():\n    pass\n", 24ull);
-    // a tree is brought up to date again once four seconds have passed since the last
-    query_paused(4100u);
-    cli_symbols_refresh(root, s_again, 1u);
-    symbols_read_waited();
-    cli_check(json->node[symbols_found("first", 10u, &json, &reading)].count == 0u,
-              "a file that changed is read again");
+    cli_tree_branches_walked(root, s_again, 1u);
+    found = symbols_found("first", 10u, &json, &reading);
+    cli_check(json->node[found].count == 0u, "a file that changed is read again");
     found = symbols_found("second", 10u, &json, &reading);
     line.at = 0ull;
     cli_json_write(json, cli_json_member(json, cli_json_item(json, found, 0u), "line"), &line, 0u, 0);
@@ -207,8 +210,8 @@ static void symbols_signature(void)
     (void)query_file_written(path, s_python, sizeof(s_python) - 1u);
     cli_full(root, "served.c", path);
     (void)query_file_written(path, s_served, sizeof(s_served) - 1u);
-    cli_symbols_forget();
-    cli_symbols_refresh(root, s_paths, 4u);
+    cli_tree_forgotten();
+    cli_tree_walked(root);
     symbols_read_waited();
     symbols_signature_open_text(
         "use.c", "static void run(unsigned int count)\n{\n    const char *name = \"x\";\n    total(count, name", 3u,
@@ -347,8 +350,8 @@ static void symbols_effect(void)
     mmgr_line_put(&database, "\n]\n");
     (void)mmgr_line_finish(&database);
     symbols_written(root, "compile_commands.json", s_database);
-    cli_symbols_forget();
-    cli_symbols_refresh(root, s_paths, 9u);
+    cli_tree_forgotten();
+    cli_tree_walked(root);
     symbols_read_waited();
     symbols_effect_open_text("src/a/use.c", 2u, "LIMIT",
                              "{\"name\":\"LIMIT\",\"path\":\"src/two.h\",\"line\":2,\"text\":\"16\"}",
@@ -620,8 +623,8 @@ static void symbols_usages(void)
                     "static int area(int x)\n{\n    return x;\n}\nint call(void)\n{\n    return area(2);\n}\n");
     symbols_written(root, "src/u/calc.py",
                     "def area(w):\n    return w * 2\n\ndef total(n):\n    w = area(n)\n    return area(w)\n");
-    cli_symbols_forget();
-    cli_symbols_refresh(root, s_paths, 5u);
+    cli_tree_forgotten();
+    cli_tree_walked(root);
     symbols_read_waited();
     static const char *const s_area[5] = {"src/u/use.c:3:12-16", "src/u/use.c:4:15-19", "src/u/shape.h:2:4-8",
                                           "src/u/area.c:1:4-8", NULL};
@@ -706,8 +709,8 @@ static void symbols_slice(void)
         "measure(struct box *b, int n)\n{\n    int total = 0;\n    int other = 1;\n    for (int i = 0; i < n; "
         "i++)\n    {\n        total += AREA(b[i].w, b[i].h) +\n                 perimeter(&b[i]) *\n         "
         "        SIDES;\n        total += twice(i);\n    }\n    return total + other;\n}\n");
-    cli_symbols_forget();
-    cli_symbols_refresh(root, s_paths, 2u);
+    cli_tree_forgotten();
+    cli_tree_walked(root);
     symbols_read_waited();
     static const unsigned int s_openers[2] = {6u, 10u};
     char why[256];
@@ -787,7 +790,7 @@ static void symbols_slice(void)
                                                        .other = "\"line\":3,\"text\":\"static int twice(int v)\"",
                                                        .other_cap = CLI_CELLS_POOL}) != NULL),
               "and what the editor's text declares stands on its own lines, not on the disk's");
-    cli_symbols_forget();
+    cli_tree_forgotten();
     out.at = 0ull;
     const int unread = cli_symbols_slice("src/s/use.c", NULL, 0ull, 13u, 15u, s_openers, 2u, &out, &err_msg);
     (void)mmgr_line_finish(&out);
@@ -875,8 +878,8 @@ static void symbols_slices(void)
     mmgr_line_put(&use, "        total = area(total);\n    }\n    return helper(total);\n}\n");
     (void)mmgr_line_finish(&use);
     symbols_written(root, "src/w/use.c", s_use);
-    cli_symbols_forget();
-    cli_symbols_refresh(root, s_paths, 2u);
+    cli_tree_forgotten();
+    cli_tree_walked(root);
     symbols_read_waited();
     char why[256];
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};

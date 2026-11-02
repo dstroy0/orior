@@ -104,6 +104,15 @@ static void watch_system(void)
     watch_tree("watch_system", root);
     cli_watch_start(root, watch_taken, NULL);
     query_paused(200u);
+    // the watch's threads run for as long as the watch does, and none of what they keep lies in the temporary tier,
+    // whose cells last one call: the tier's top comes back with the watch running
+    const unsigned long long settled = cli_clock_milliseconds() + 2000ull;
+    while ((g_cli_cells->temporary_buf_mark() != CLI_CELLS_POOL) && (cli_clock_milliseconds() < settled))
+    {
+        query_paused(10u);
+    }
+    cli_check(g_cli_cells->temporary_buf_mark() == CLI_CELLS_POOL,
+              "a running watch keeps nothing in the temporary tier");
     watch_file(root, "src/a.rs", "two");
     watch_file(root, "src/b.rs", "three");
     const unsigned long long until = cli_clock_milliseconds() + 20000ull;
@@ -111,6 +120,10 @@ static void watch_system(void)
     {
         query_paused(50u);
     }
+    // the lists a round used stand for the next, each taken once for as long as the watch runs: read once the changes
+    // are done and the last round has had longer than a round's longest to end
+    query_paused(1500u);
+    cli_check(mmgr_owner_in_use(&g_cli_watch_cells) >= (512ull << 10u), "a round's lists stand for the next round");
     cli_watch_stop();
     cli_check(watch_named("\"src/a.rs\"") && watch_named("\"src/b.rs\""),
               "the system reports a file written and one made");
@@ -152,7 +165,6 @@ static void watch_reading(void)
     cli_check(cellul.find(&(CatenaFinitaCfg){
                   .src = s_seen, .cap = CLI_CELLS_POOL, .other = wanted, .other_cap = CLI_CELLS_POOL}) != NULL,
               "and one made found made");
-    cli_watch_readings_given();
 }
 
 int main(void)
@@ -163,7 +175,8 @@ int main(void)
     watch_system();
     watch_reading();
     // the changes waiting and a group's are each a few paths, far below the room a fixed queue gave them
-    cli_check((embed_atomic_usize_load(&g_cli_watch_cells.in_use) == 0ull) && (embed_atomic_usize_load(&g_cli_watch_cells.hw) != 0ull) &&
+    cli_check((embed_atomic_usize_load(&g_cli_watch_cells.in_use) == 0ull) &&
+                  (embed_atomic_usize_load(&g_cli_watch_cells.hw) != 0ull) &&
                   (embed_atomic_usize_load(&g_cli_watch_cells.hw) < (1ull << 20u)),
               "the changes and a batch are stored in cells sized to them, and given back");
     return cli_checked();

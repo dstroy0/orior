@@ -88,10 +88,14 @@ extern "C"
         unsigned int height;
     } CliWindowArea;
 
+    // the least size the window is dragged to, and a place kept is read back at, in pixels at a scale of one
+#define CLI_PLACE_LEAST_WIDTH 960u
+#define CLI_PLACE_LEAST_HEIGHT 600u
+
     // the place kept for the tree open, fitted to the monitors `areas`, `count` of them, the system's main one first,
-    // into `place`: 1, or 0 where none is kept or there is no monitor; and `place` kept for the tree open, beside the
-    // places of the other trees, as its window closes, nothing kept where no tree is open, and why it could not be
-    // written on the errors (window_place.c)
+    // into `place`: 1, or 0 where none is kept, it is below the least size or there is no monitor; and `place` kept for
+    // the tree open, beside the places of the other trees, as its window closes, nothing kept where no tree is open, and
+    // why it could not be written on the errors (window_place.c)
     int cli_window_place_kept(const CliWindowArea *areas, unsigned int count, CliWindowPlace *place);
     void cli_window_place_keep(const CliWindowPlace *place);
 

@@ -124,13 +124,13 @@ static void hints_arguments(const CliLeafRead *read, unsigned int open, const Cl
 int cli_symbols_hints(const char *path, const char *text, unsigned long long size, unsigned int from, unsigned int to,
                       CliHinted each, void *context, VerbaLinea *err_msg)
 {
-    CliSymbolsLanguages *const languages = cli_symbols_languages_read();
+    CliSymbolsLanguages *const languages = cli_symbols_languages_for_call();
     CliLeafRead read;
     const int leaved = (languages != NULL) && cli_symbols_leaves_kept(languages, path, "root", text, size, &read);
     char root[CLI_PATH_MAX_LEN];
-    cli_lock_take(&g_cli_symbols_lock);
-    memor.cpy(&(MemoriaCfg){.dst = root, .src = g_cli_symbols_root, .bytes = sizeof(root)});
-    cli_lock_give(&g_cli_symbols_lock);
+    cli_lock_take(&g_cli_walk_lock);
+    memor.cpy(&(MemoriaCfg){.dst = root, .src = g_cli_tree_root, .bytes = sizeof(root)});
+    cli_lock_give(&g_cli_walk_lock);
     CliHints hints = {path, text, size, "", 0u, 0};
     int done = 1;
     for (unsigned int leaf = 0u; done && leaved && (leaf < read.count) && (read.leaf[leaf].line <= to); leaf += 1u)

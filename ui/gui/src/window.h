@@ -13,6 +13,7 @@
 #include "claim.h"
 #include "ground.h"
 #include "link.h"
+#include "parts/busy.h"
 #include "parts/editor.h"
 #include "parts/explorer.h"
 #include "parts/hover.h"
@@ -24,6 +25,8 @@
 #include "parts/strip.h"
 #include "parts/suggest.h"
 #include "parts/tabs.h"
+#include "parts/wordmark.h"
+#include "stages.h"
 
 // where the pointer stands: the client, the caption the system drags the window by, the borders and corners the
 // system resizes it by, and the three controls
@@ -52,11 +55,14 @@
 // whether the server is to be told the text as the next frame comes, an input having changed it, and the cursor's
 // place the signature was last asked at; the problems pane, the ticket of the tree's check asked for, and the place
 // the shown file's cursor is to be put at as its next frame comes, where one is wanted; when the caret's breath last
-// began, each frame of the view beginning it again, the caret's ink in the last frame drawn, and whether the frame
-// owed is the caret's ink alone, which the caret drawn again over the frame pays; when the view's rows last
+// began, each frame of the view beginning it again, the caret's ink in the last frame drawn, and whether its ink alone
+// has changed, which the caret drawn again over the frame pays with no frame whole; the busy circle, with whether its
+// stage alone has changed, which the stage blitted over the frame pays the same way; when the view's rows last
 // moved, 0 once the
 // server was told the view they rest at, whether it was told, and the top and rows it was told; the claim and
-// whether its slides ran at the last tick, the view told the editor's size as they stop; the
+// whether its slides ran at the last tick, the view told the editor's size as they stop; the controls' tab's shadow,
+// made once it is wanted; the wordmark, the tickets
+// of what orior's folder keeps as read for it and of the session the system names, and the session kept, its size; the
 // catalog of commands the menu bar reads, parsed into a JSON tree of its own once it came; the tree's name shown in the bar;
 // the tree's root as the CLI names it, empty where none is open; the files open as tabs, how many, the one shown, -1
 // for none, and the one shown before it, -1 for none; the shown file's path and the key it is stored under; whether
@@ -106,12 +112,24 @@ typedef struct
     unsigned long long caret_since_ms;
     unsigned int caret_ink;
     int caret_alone;
+    GuiBusy busy;
+    int busy_alone;
     unsigned long long view_moved_ms;
     int view_told;
     unsigned long long view_told_top;
     unsigned int view_told_rows;
     GuiClaim claim;
     int claim_moving;
+    GuiStages stages;
+    const GuiStage *stage;
+    int stages_stale;
+    GuiMask controls_shadow;
+    GuiWordmark wordmark;
+    unsigned long long asked_mark_session;
+    int motion_system;
+    int motion_kept;
+    int motion_still;
+    int off_screen;
     CliJson catalog;
     int cataloged;
     char title[CLI_NAME_MAX_LEN];
@@ -157,6 +175,8 @@ typedef struct
 #define GUI_MEMORY_EVERY 2000ull
 #define GUI_VIEW_RESTS 250ull
 #define GUI_CARET_BREATH 1500ull
+// the entry orior's folder keeps View's Reduce Motion under
+#define GUI_WINDOW_REDUCE_KEY "orior.reduce-motion"
 #define GUI_CARET_SLIDE 300ull
 #define GUI_CARET_DIM 64u
 
@@ -174,19 +194,26 @@ void gui_window_started(GuiWindow *window);
 void gui_window_drawn(GuiWindow *window);
 void gui_window_flipped(GuiWindow *window);
 // the caret drawn again on the raster shown, over the frame last drawn, at the ink its breath stands at now, the frame owed for its ink
-// alone paid: the caret's rectangle, the rows of which are to be shown again, empty where no caret stands
+// alone paid: the caret's rectangle, the rows of which are to be shown again, empty where no caret stands; and the busy
+// circle's stage at now blitted again on the raster shown, its step paid: its rectangle, the same way
 GuiRect gui_window_caret_drawn(GuiWindow *window);
+GuiRect gui_window_busy_drawn(GuiWindow *window);
 // where the pointer at x, y stands
 unsigned int gui_window_hit(const GuiWindow *window, int x, int y);
 // the wheel turned `rows` rows, down where positive, with the pointer at x, y, over the editor or the map; a button
 // pressed at x, y with the modifier keys `mods` down, as system.h names them; the pointer moved to x, y; the button let go;
-// a key pressed, named as the page's editor names it; and `size` bytes of text typed
+// the pointer gone out of the window; a key pressed, named as the page's editor names it; and `size` bytes of text typed
 void gui_window_wheel(GuiWindow *window, int x, int y, int rows);
 void gui_window_pressed(GuiWindow *window, int x, int y, unsigned int mods);
 void gui_window_moved(GuiWindow *window, int x, int y);
 void gui_window_released(GuiWindow *window, int x, int y);
+void gui_window_left(GuiWindow *window);
 void gui_window_key(GuiWindow *window, const char *name);
 void gui_window_text(GuiWindow *window, const char *text, unsigned long long size);
+// a menu's choice run: an item with keys runs as those keys pressed, the editor's view taking them; a line edit with
+// none runs by its name, the view taking that; `exit` closes the window as the close control does; `close-editor` closes
+// the tab shown, `close-all` every tab, and `last-editor` shows the tab shown before
+void gui_window_chosen(GuiWindow *window, const GuiChoice *choice);
 // the file at `path` opened through the CLI as a tab, shown in the editor as its answers come, or shown where it is
 // open already; the tab `at` shown; and the tab `at` closed, its view and its branch let go, the tab beside it shown
 void gui_window_file_opened(GuiWindow *window, const char *path);
@@ -201,6 +228,12 @@ void gui_window_drained(GuiWindow *window);
 // never
 void gui_window_ticked(GuiWindow *window);
 unsigned long long gui_window_due(const GuiWindow *window);
+// the frame laid for the claim's movement at `now`: while a slide runs the stage standing then, the stages made where a
+// slide has been sent since they were; at rest the frame the slides rest at
+void gui_window_claim_laid(GuiWindow *window, unsigned long long now);
+// the system's wish for less motion told, 1 where it asks for less: that or View's Reduce Motion, kept in orior's folder,
+// stills the lattice, the claim's slides, the name's flight and the caret's breath
+void gui_window_motion_told(GuiWindow *window, int reduced);
 // the window gone off the screen, `shown` 0, its ground's clock standing still, or back on it, 1, a frame owed
 void gui_window_shown(GuiWindow *window, int shown);
 // the window's icon, the wordmark's eye in the text's color, made into `icon` at `size` pixels a side with its own

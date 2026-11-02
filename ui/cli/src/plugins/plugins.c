@@ -287,7 +287,14 @@ static void cli_language_each(void *context, const CliPlugin *plugin)
 
 void cli_plugins_languages(CliLanguages *languages)
 {
-    // the table lasts a call or a batch of them, so it stands in the temporary tier
+    CliLanguagePair *const pair =
+        g_cli_cells->persistent_buf_alloc((unsigned long long)CLI_LANGUAGE_PAIRS * sizeof(*pair), &g_cli_plugins_cells);
+    *languages = (CliLanguages){pair, 0u, (pair != NULL) ? CLI_LANGUAGE_PAIRS : 0u};
+    cli_plugins_each(cli_language_each, languages);
+}
+
+void cli_plugins_languages_for_call(CliLanguages *languages)
+{
     CliLanguagePair *const pair =
         g_cli_cells->temporary_buf_alloc((unsigned long long)CLI_LANGUAGE_PAIRS * sizeof(*pair), &g_cli_plugins_cells);
     *languages = (CliLanguages){pair, 0u, (pair != NULL) ? CLI_LANGUAGE_PAIRS : 0u};

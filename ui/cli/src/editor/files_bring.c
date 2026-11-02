@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // files_bring.c: files and folders copied into the tree as a paste copies them, each file reported as it is copied, and
 // copied into a tree on another machine through calls of the tree's side there, a part at a time
+#include "../code/symbols.h"
 #include "../command_line/cells.h"
 #include "../text/base64.h"
 #include "../text/json_tree.h"
@@ -113,9 +114,11 @@ int cli_files_bring(const char *root, const char *into, const char *const *from,
         char to[CLI_PATH_MAX_LEN];
         cli_relative(root, target, to);
         cli_pasted_written(out, index == 0u, inside ? was : NULL, to);
+        // what the paste left at each end mirrored to its closest parent, the rest of the tree as it stands
+        const char *const moved[2] = {to, was};
+        cli_tree_mirrored(root, moved, inside ? 2u : 1u);
     }
     mmgr_line_ch(out, ']');
-    cli_files_forget_seen();
     return 1;
 }
 

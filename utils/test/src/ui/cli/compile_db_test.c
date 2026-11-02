@@ -116,7 +116,8 @@ static void compile_cmake(void)
     query_paused(2100u);
     (void)cli_compile_db_refresh(dir, &s_database);
     cli_check(
-        (embed_atomic_usize_load(&g_cli_compile_cells.hw) != 0ull) && (in_use_before != 0ull) && (embed_atomic_usize_load(&g_cli_compile_cells.in_use) == in_use_before),
+        (embed_atomic_usize_load(&g_cli_compile_cells.hw) != 0ull) && (in_use_before != 0ull) &&
+            (embed_atomic_usize_load(&g_cli_compile_cells.in_use) == in_use_before),
         "a look retains only the files it read once it is done, and a look again that finds them the same no more");
     line.at = 0ull;
     mmgr_line_ch(&line, '[');
@@ -166,7 +167,10 @@ static void compile_own(void)
     (void)query_folder_made(out);
     compile_file(dir, ".clangd", s_clangd, sizeof(s_clangd) - 1u);
     compile_file(out, "compile_commands.json", s_own, sizeof(s_own) - 1u);
+    const size_t top_before = g_cli_cells->temporary_buf_mark();
     cli_compile_inputs(dir, &s_inputs);
+    cli_check(g_cli_cells->temporary_buf_mark() < top_before,
+              "the files a look reads lie in the temporary tier, the look comparing them and giving them back");
     cli_full(out, "compile_commands.json", own);
     cli_check(s_inputs.own && (s_inputs.count == 1u) &&
                   (cellul.eq(&(CatenaFinitaCfg){.src = s_inputs.file[0].path, .other = own, .cap = CLI_CELLS_POOL})),

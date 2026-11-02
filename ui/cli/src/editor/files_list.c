@@ -6,6 +6,7 @@
 #include "../text/json_tree.h"
 #include "../text/text.h"
 #include "archive.h"
+#include "../code/symbols.h"
 #include "files_internal.h"
 
 // the most entries a folder lists
@@ -137,19 +138,21 @@ static void cli_entries_written(VerbaLinea *out)
 
 // every folder of the view's files that contains a file the patterns leave, counted on a first pass, the containing
 // folders made at that size, put on a second, and sorted
-static void cli_folders_collected(const CliSeen *seen)
+static void cli_folders_collected(const char *root)
 {
+    const CliFiles *const files = cli_files_view(root);
     unsigned long long count = 0ull;
     unsigned long long bytes = 0ull;
-    for (unsigned int pass = 0u; (seen != NULL) && (pass < 2u); pass += 1u)
+    for (unsigned int pass = 0u; (files != NULL) && (pass < 2u); pass += 1u)
     {
-        if ((pass == 1u) && !cli_files_made(&s_listing->folders, count, bytes))
+        if ((pass == 1u) && !cli_files_work_made(&s_listing->folders, count, bytes))
         {
+            cli_files_let(files);
             return;
         }
-        for (unsigned int index = 0u; index < seen->files.count; index += 1u)
+        for (unsigned int index = 0u; index < files->count; index += 1u)
         {
-            const char *const file = cli_files_at(&seen->files, index);
+            const char *const file = cli_files_at(files, index);
             if (cli_patterns_hides(&s_listing->patterns, file, 0))
             {
                 continue;
@@ -167,6 +170,7 @@ static void cli_folders_collected(const CliSeen *seen)
             }
         }
     }
+    cli_files_let(files);
     (void)cli_files_sorted(&s_listing->folders);
 }
 
@@ -176,7 +180,7 @@ typedef struct
 {
     const char *root;
     const char *folder;
-    const CliSeen *seen;
+    int git;
     int include_only;
 } CliListed;
 
@@ -205,10 +209,9 @@ static void cli_listed_each(void *context, const char *name, int is_folder)
         return;
     }
     int ignored = 0;
-    if (listed->seen != NULL)
+    if (listed->git)
     {
-        ignored = is_folder ? !cli_files_contains(&listed->seen->dirs, path)
-                            : !cli_files_contains(&listed->seen->files, path);
+        ignored = is_folder ? !cli_tree_has_folder(path) : !cli_tree_has_file(path);
     }
     else if (is_folder && ((cellul.eq(&(CatenaFinitaCfg){.src = name, .other = ".git", .cap = CLI_CELLS_POOL})) ||
                            (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "target", .cap = CLI_CELLS_POOL}))))
@@ -307,15 +310,14 @@ int cli_files_list(const char *root, const char *dir, VerbaLinea *out, VerbaLine
     }
     cli_patterns_of(CLI_PART_EXPLORER, &s_listing->patterns);
     const int include_only = cli_patterns_include_only(&s_listing->patterns);
-    const CliSeen *const seen = cli_seen_acquire(root);
+    cli_tree_listed(root);
     if (include_only)
     {
-        cli_folders_collected(seen);
+        cli_folders_collected(root);
     }
     // a tree git cannot read marks nothing as left out
-    CliListed listed = {root, folder, ((seen != NULL) && seen->git) ? seen : NULL, include_only};
+    CliListed listed = {root, folder, cli_tree_git(), include_only};
     const int read = query_folder_each(folder, cli_listed_each, &listed);
-    cli_seen_let(seen);
     if (!read)
     {
         mmgr_line_put(err_msg, dir);

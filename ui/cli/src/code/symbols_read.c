@@ -147,6 +147,18 @@ CliSymbolsLanguages *cli_symbols_languages_read(void)
     return read;
 }
 
+CliSymbolsLanguages *cli_symbols_languages_for_call(void)
+{
+    CliSymbolsLanguages *const read = g_cli_cells->temporary_buf_alloc(sizeof(CliSymbolsLanguages), &g_cli_code_cells);
+    if (read != NULL)
+    {
+        cli_plugins_languages_for_call(&read->languages);
+        read->grammars = 0u;
+        cli_plugins_each(cli_symbols_grammar_noted, read);
+    }
+    return read;
+}
+
 void cli_symbols_languages_given(CliSymbolsLanguages *read)
 {
     if (read != NULL)

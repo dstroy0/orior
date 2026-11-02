@@ -6,10 +6,98 @@
 #include "../../../../../ui/gui/src/raster.h"
 #include "../cli/cli_check.h"
 
+#include <math.h>
+
+static void row_laid(GuiRaster *raster, const unsigned char *cover, unsigned int width, int left, int right, int y, GuiColor color);
+
 // the red channel of a pixel
 static unsigned int red_of(GuiColor color)
 {
     return (color >> 16u) & 0xffu;
+}
+
+// a row of coverage stretched between two places: laid one pixel to one byte, spread, squeezed and on fractions
+static void rows_checked(void)
+{
+    const unsigned char row[2] = {255u, 0u};
+    const unsigned char full[1] = {255u};
+    const GuiColor over = GUI_RGB(0xffu, 0xffu, 0xffu);
+    const GuiColor under = GUI_RGB(0u, 0u, 0u);
+    GuiRaster raster;
+    cli_check(gui_raster_made(&raster, 8u, 2u), "a raster for the rows is made");
+    gui_raster_filled(&raster, (GuiRect){0, 0, 8, 2}, under);
+    row_laid(&raster, row, 2u, 1 << 16, 3 << 16, 0, over);
+    cli_check((raster.pixels[0] == under) && (raster.pixels[1] == over) && (raster.pixels[2] == under), "a row laid one to one is its bytes");
+    gui_raster_filled(&raster, (GuiRect){0, 0, 8, 2}, under);
+    row_laid(&raster, row, 2u, 0, 4 << 16, 1, over);
+    cli_check((raster.pixels[8] == over) && (raster.pixels[9] == over) && (raster.pixels[10] == under) && (raster.pixels[11] == under),
+              "a row spread to twice its width takes two pixels a byte");
+    cli_check(raster.pixels[0] == under, "and touches its own row alone");
+    gui_raster_filled(&raster, (GuiRect){0, 0, 8, 2}, under);
+    row_laid(&raster, row, 2u, 0, 1 << 16, 0, over);
+    cli_check((red_of(raster.pixels[0]) >= 127u) && (red_of(raster.pixels[0]) <= 128u) && (raster.pixels[1] == under),
+              "a row squeezed to one pixel is the mean of its bytes");
+    gui_raster_filled(&raster, (GuiRect){0, 0, 8, 2}, under);
+    row_laid(&raster, full, 1u, 1 << 15, (1 << 16) + (1 << 15), 0, over);
+    cli_check((red_of(raster.pixels[0]) >= 127u) && (red_of(raster.pixels[0]) <= 128u) && (red_of(raster.pixels[1]) >= 127u) &&
+                  (red_of(raster.pixels[1]) <= 128u) && (raster.pixels[2] == under),
+              "a pixel a row's end falls in takes its share");
+    gui_raster_filled(&raster, (GuiRect){0, 0, 8, 2}, under);
+    row_laid(&raster, full, 1u, -(4 << 16), 20 << 16, 0, over);
+    cli_check((raster.pixels[0] == over) && (raster.pixels[7] == over), "a row is clipped to the raster's sides");
+    row_laid(&raster, full, 1u, 0, 8 << 16, 5, over);
+    row_laid(&raster, full, 1u, 0, 8 << 16, -1, over);
+    row_laid(&raster, full, 1u, 5 << 16, 5 << 16, 1, over);
+    cli_check(raster.pixels[13] == under, "a row off the raster or of no width lays nothing");
+    gui_raster_given(&raster);
+}
+
+// a picture with its own alpha: masks laid over it keep it straight, and it is laid by its alpha and an opacity
+static void pictures_checked(void)
+{
+    const GuiColor under = GUI_RGB(0u, 0u, 0u);
+    GuiRaster raster;
+    GuiRaster picture;
+    cli_check(gui_raster_made(&picture, 2u, 1u), "a picture is made clear");
+    unsigned char solid[2] = {255u, 255u};
+    const GuiMask both = {2u, 1u, 0, 0, solid};
+    gui_raster_stenciled_over(&picture, &both, 0, 0, GUI_RGBA(0x80u, 0u, 0u, 0x80u));
+    cli_check(picture.pixels[0] == GUI_RGBA(0x80u, 0u, 0u, 0x80u), "a mask over clear is its color straight");
+    unsigned char whole[1] = {255u};
+    const GuiMask one = {1u, 1u, 0, 0, whole};
+    gui_raster_stenciled_over(&picture, &one, 1, 0, GUI_RGB(0u, 0u, 0xffu));
+    cli_check(picture.pixels[1] == GUI_RGB(0u, 0u, 0xffu), "an opaque mask takes the pixel whole");
+    gui_raster_stenciled_over(&picture, &one, 5, 0, GUI_RGB(0u, 0u, 0xffu));
+    cli_check(picture.pixels[0] == GUI_RGBA(0x80u, 0u, 0u, 0x80u), "a mask off the picture lays nothing");
+    gui_raster_stenciled_over(&picture, &one, 0, 0, GUI_RGBA(0u, 0xffu, 0u, 0x80u));
+    cli_check((GUI_ALPHA_OF(picture.pixels[0]) >= 0xbfu) && (GUI_ALPHA_OF(picture.pixels[0]) <= 0xc1u) &&
+                  (GUI_GREEN_OF(picture.pixels[0]) > GUI_RED_OF(picture.pixels[0])),
+              "a mask over part of an alpha adds to the alpha and leads the color");
+    cli_check(gui_raster_made(&raster, 4u, 1u), "a raster for the picture is made");
+    gui_raster_filled(&raster, (GuiRect){0, 0, 4, 1}, under);
+    gui_raster_picture_laid(&raster, &picture, 1, 0, 255u);
+    cli_check((raster.pixels[0] == under) && (raster.pixels[2] == GUI_RGB(0u, 0u, 0xffu)) && (raster.pixels[3] == under),
+              "a picture is laid at its place, an opaque pixel whole");
+    gui_raster_filled(&raster, (GuiRect){0, 0, 4, 1}, under);
+    gui_raster_picture_laid(&raster, &picture, 1, 0, 128u);
+    cli_check((GUI_BLUE_OF(raster.pixels[2]) >= 127u) && (GUI_BLUE_OF(raster.pixels[2]) <= 129u), "an opacity takes its share of it");
+    gui_raster_filled(&raster, (GuiRect){0, 0, 4, 1}, under);
+    gui_raster_picture_laid(&raster, &picture, 3, 0, 255u);
+    cli_check((raster.pixels[3] != under) && (raster.pixels[0] == under), "a picture is clipped to the raster");
+    gui_raster_filled(&raster, (GuiRect){0, 0, 4, 1}, under);
+    gui_raster_picture_laid(&raster, &picture, -9, 0, 255u);
+    cli_check(raster.pixels[0] == under, "and one off it lays nothing");
+    gui_raster_given(&raster);
+    gui_raster_given(&picture);
+}
+
+// a row stretched to coverage and that coverage laid, as a stage of a movement is made and blitted
+static void row_laid(GuiRaster *raster, const unsigned char *cover, unsigned int width, int left, int right, int y, GuiColor color)
+{
+    static unsigned char s_out[256];
+    int x = 0;
+    const unsigned int count = gui_raster_row_covered(cover, width, left, right, raster->width, s_out, &x);
+    gui_raster_span_laid(raster, x, y, s_out, count, color);
 }
 
 int main(void)
@@ -236,5 +324,25 @@ int main(void)
 
     gui_raster_given(&raster);
     cli_check(raster.pixels == NULL, "a raster given back holds no pixels");
+    rows_checked();
+    pictures_checked();
+    // the arcs read from their tables are the distance from each pixel's middle to the arc, at every reach a frame uses
+    int arcs_right = 1;
+    for (unsigned int reach = 0u; reach <= 36u; reach += 1u)
+    {
+        for (unsigned int down = 0u; down <= reach + 1u; down += 1u)
+        {
+            for (unsigned int across = 0u; across <= reach + 1u; across += 1u)
+            {
+                const float inside = (float)reach + 0.5f - hypotf((float)across + 0.5f, (float)down + 0.5f);
+                const float kept = (inside < 0.0f) ? 0.0f : ((inside > 1.0f) ? 1.0f : inside);
+                const unsigned int wanted = (unsigned int)((255.0f * kept) + 0.5f);
+                arcs_right = arcs_right && (gui_raster_arc_cover(reach, across, down) == wanted);
+            }
+        }
+    }
+    cli_check(arcs_right, "an arc's table holds each pixel's share inside it, at every reach");
+    cli_check((gui_raster_arc_cover(7u, 0u, 0u) == 255u) && (gui_raster_arc_cover(7u, 7u, 7u) == 0u), "a pixel by the center is whole inside and one past the arc is out");
+    cli_check(gui_raster_arc_cover(90u, 0u, 0u) == 255u, "a reach past the tables is worked out");
     return cli_checked();
 }

@@ -344,7 +344,7 @@ static int cli_effect_tree_file(const char *folder, unsigned long long folder_le
     mmgr_line_put(&line, ((folder_length != 0ull) && (folder[folder_length - 1u] != '/')) ? "/" : "");
     mmgr_line_put_n(&line, named, length);
     return (mmgr_line_finish(&line) != 0ull) && cli_effect_path_made(joined, out) &&
-           (cli_symbols_file_of(out) != CLI_SYMBOL_FILES);
+           (cli_branch_of(out) != CLI_BRANCHES_MOST);
 }
 
 // the file of the tree an include of `named`, `length` bytes, in the branch at `path` reaches into `out`, sized for
@@ -357,7 +357,7 @@ static int cli_effect_included(const CliEffect *effect, const char *path, const 
 {
     const char *const slash =
         cli_text_last(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), '/');
-    cli_lock_take(&g_cli_symbols_lock);
+    cli_lock_take(&g_cli_walk_lock);
     // the branch's folder runs to its last slash, at or past its start
     int found = !angled && cli_effect_tree_file(path, (slash != NULL) ? (unsigned long long)(slash - path) : 0ull,
                                                 named, length, out);
@@ -370,13 +370,13 @@ static int cli_effect_included(const CliEffect *effect, const char *path, const 
                                      named, length, out);
     }
     found = found || cli_effect_tree_file("", 0ull, named, length, out);
-    for (unsigned int file = 0u; !found && (file < g_cli_symbol_file_count); file += 1u)
+    for (unsigned int file = 0u; !found && (file < g_cli_branch_count); file += 1u)
     {
-        const CliSymbolFile *const branch = &g_cli_symbol_files[file];
+        const CliTreeBranch *const branch = &g_cli_branches[file];
         char stored_path[CLI_PATH_MAX_LEN] = {'\0'};
         if (branch->used)
         {
-            cli_symbol_path_read(branch, stored_path);
+            cli_branch_path_read(branch, stored_path);
         }
         const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = stored_path, .cap = CLI_CELLS_POOL});
         const int ends = (size > length) && (stored_path[size - length - 1u] == '/') &&
@@ -387,7 +387,7 @@ static int cli_effect_included(const CliEffect *effect, const char *path, const 
             found = 1;
         }
     }
-    cli_lock_give(&g_cli_symbols_lock);
+    cli_lock_give(&g_cli_walk_lock);
     return found;
 }
 
@@ -433,18 +433,18 @@ static void cli_effect_sought(CliEffect *effect, const char *path, CliEffectBran
     {
         return;
     }
-    cli_lock_take(&g_cli_symbols_lock);
-    const unsigned int file = cli_symbols_file_of(path);
-    const CliSymbolFile *const stored = (file != CLI_SYMBOL_FILES) ? &g_cli_symbol_files[file] : NULL;
-    char *const scratch = (stored != NULL) ? cli_symbol_scratch_taken() : NULL;
+    cli_lock_take(&g_cli_walk_lock);
+    const unsigned int file = cli_branch_of(path);
+    const CliTreeBranch *const stored = (file != CLI_BRANCHES_MOST) ? &g_cli_branches[file] : NULL;
+    char *const scratch = (stored != NULL) ? cli_branch_copy_taken() : NULL;
     if (scratch != NULL)
     {
-        cli_symbol_file_read(stored, scratch);
+        cli_branch_copied(stored, scratch);
     }
     const unsigned int count = (scratch != NULL) ? stored->count : 0u;
     for (unsigned int each = 0u; each < count; each += 1u)
     {
-        const CliSymbol *const symbol = &cli_symbol_file_symbols(scratch)[each];
+        const CliDeclaration *const symbol = &cli_branch_copy_declarations(scratch)[each];
         if ((symbol->length == effect->length) && (branch->soughts < CLI_EFFECT_SOUGHT) &&
             cli_text_same(scratch + symbol->name, effect->name, effect->length))
         {
@@ -452,8 +452,8 @@ static void cli_effect_sought(CliEffect *effect, const char *path, CliEffectBran
             branch->soughts += 1u;
         }
     }
-    cli_symbol_scratch_given(scratch);
-    cli_lock_give(&g_cli_symbols_lock);
+    cli_branch_copy_given(scratch);
+    cli_lock_give(&g_cli_walk_lock);
 }
 
 // a declaration the leaves of a branch a slice's walk or a noting walk reads name, as the leaves are read: a branch's
@@ -883,9 +883,9 @@ CliEffect *cli_effect_made(const char *path, const char *name, int slicing, Verb
     }
     effect->text = (VerbaLinea){cell + list_bytes, CLI_EFFECT_TEXT_ROOM, 0ull};
     effect->languages = languages;
-    cli_lock_take(&g_cli_symbols_lock);
-    memor.cpy(&(MemoriaCfg){.dst = effect->root, .src = g_cli_symbols_root, .bytes = CLI_PATH_MAX_LEN});
-    cli_lock_give(&g_cli_symbols_lock);
+    cli_lock_take(&g_cli_walk_lock);
+    memor.cpy(&(MemoriaCfg){.dst = effect->root, .src = g_cli_tree_root, .bytes = CLI_PATH_MAX_LEN});
+    cli_lock_give(&g_cli_walk_lock);
     effect->start = path;
     effect->start_text = NULL;
     effect->start_size = 0ull;

@@ -257,8 +257,8 @@ static void inspect_passed_on(const char *root, const char *found, unsigned long
     g_cli_cells->persistent_buf_release(files, &g_cli_servers_cells);
 }
 
-// the tree read from `root`, each Python and JavaScript file of it read where it lies, the view of the
-// tree's files pinned in place for the read: 1, or 0 where a tree was let go meanwhile or the view could not be pinned
+// the tree read from `root`, each Python and JavaScript file of it read where it lies, the tree's files laid flat for
+// the read: 1, or 0 where a tree was let go meanwhile or the list could not be taken
 static int inspect_tree_read(const char *root, unsigned long long born)
 {
     const CliFiles *const files = cli_files_view(root);

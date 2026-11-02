@@ -58,11 +58,22 @@ typedef struct
     unsigned int layer;
 } GuiBaseRun;
 
+// A map read for drawing: how many bands; the row each starts at, the last's end after them; where each band's runs
+// start among the runs, the last's end after them; and the runs
+typedef struct
+{
+    unsigned int bands;
+    const unsigned int *band_from;
+    const unsigned int *run_first;
+    const GuiBaseRun *run;
+} GuiBaseMap;
+
 // The base: the size of its map; the entries; the sheet's and a pane's entries laid out as the grain's tile is, one
 // for each of the tile's pixels, lane by lane in a cell of their own, the sheet's tile first and the pane's after,
 // which a run of either reads straight along; the rectangles laid, in order; the bands, each the row it starts at,
-// the last's end after them, and each band's runs with their count; the frame and the colors the map was laid for,
-// whether it was laid with the controls' pane standing, and whether it is laid; and how many times it has been laid
+// the last's end after them, and where each band's runs start among the runs; the frame and the colors the map was laid
+// for, whether it was laid with the controls' pane standing, and whether it is laid; whether the entries are made for
+// the colors; and how many times it has been laid
 typedef struct
 {
     unsigned int width;
@@ -74,9 +85,9 @@ typedef struct
     GuiBaseLayer layer[GUI_BASE_LAYERS];
     unsigned int layers;
     unsigned int band_from[GUI_BASE_BANDS + 1u];
+    unsigned int run_first[GUI_BASE_BANDS + 1u];
     unsigned int bands;
-    GuiBaseRun run[GUI_BASE_BANDS][GUI_BASE_RUNS];
-    unsigned int runs[GUI_BASE_BANDS];
+    GuiBaseRun run[GUI_BASE_BANDS * GUI_BASE_RUNS];
     GuiFrame frame;
     GuiColor editor_ground;
     GuiColor side_ground;
@@ -84,6 +95,7 @@ typedef struct
     GuiColor glass;
     int controls_steady;
     int laid;
+    int painted;
     unsigned int laid_count;
 } GuiBase;
 
@@ -98,7 +110,11 @@ void gui_base_sized(GuiBase *base, unsigned int width, unsigned int height);
 int gui_base_laid(GuiBase *base, const GuiFrame *frame, const GuiPalette *palette, int controls_steady);
 // the layer the map holds at x, y: the last rectangle laid over the pixel, or nothing
 unsigned int gui_base_layer_at(const GuiBase *base, int x, int y);
+// the entries made for `palette`'s colors, where they are not already; a map read over them keeps its runs
+void gui_base_painted(GuiBase *base, const GuiPalette *palette);
 // every pixel of `raster` written once from `ground`'s pixel, or `color` where the ground is not the raster's
-// size, through the runs of its row's band
+// size, through the runs of its row's band; and the same through `map`, a map made for a stage, which the base's own
+// entries color
 void gui_base_drawn(const GuiBase *base, GuiRaster *raster, const GuiRaster *ground, GuiColor color);
+void gui_base_map_drawn(const GuiBase *base, const GuiBaseMap *map, GuiRaster *raster, const GuiRaster *ground, GuiColor color);
 #endif

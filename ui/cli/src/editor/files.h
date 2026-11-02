@@ -17,9 +17,9 @@
 
 #define CLI_FILES_TEXT (1u << 23u)
 
-// The tree's files as a view stores them: each path where it starts in the text, ended by a 0, sorted by their bytes,
-// `count` of them in room for `most`; and the bytes the text uses, in room for `text_most`. A view's starts and text
-// are cells of the cellblock, counted to the files, taken at the sizes the tree gives
+// A list of paths: each path where it starts in the text, ended by a 0, `count` of them in room for `most`; and the
+// bytes the text uses, in room for `text_most`. Its starts and text are cells of the cellblock, counted to the files,
+// taken at the sizes known as it is made
 typedef struct
 {
     unsigned int *start;
@@ -30,18 +30,26 @@ typedef struct
     unsigned long long text_most;
 } CliFiles;
 
-// every file git tracks or would track, or for a tree git cannot read every file less `.git` and `target`, at most
-// CLI_FILES_MOST of them, sorted, as the view of the tree at `root` stores them: the view, pinned in place until
-// cli_files_let gives it back, so no view a holder reads is filled again under it; or NULL where neither of the two
-// views is free to be filled for a tree read now, or the cellblock cannot meet it (files_seen.c)
+// every file of the tree at `root`, at most CLI_FILES_MOST of them, sorted, laid flat in the temporary tier for the
+// length of one call, until cli_files_let gives it back; or NULL where the cellblock cannot meet it (files_seen.c)
 const CliFiles *cli_files_view(const char *root);
 void cli_files_let(const CliFiles *files);
 // the files of the folder at `root`, less `.git` and `target`, walked from its top: each file's path from the top
 // handed to `each`, at most CLI_FILES_MOST of them (files_seen.c)
 void cli_files_walked(const char *root, void (*each)(void *context, const char *path, unsigned long long length),
                       void *context);
-// the name of every file of the same view, and every ending, `.lean` from a name's last dot, each once, sorted, stored
-// as cli_files_view stores the files and given back by cli_files_let; or NULL as there (files_seen.c)
+// each path the tree lists off its trunk handed to `each`, git's where git reads the tree, its word into `*git`: 1
+// where the listing is whole; and a folder's alone, by the same means. Whether a path runs through a folder a walk does
+// not go into, `git` naming whether git decides the rest. Which of `paths`, `count` of them, git ignores, 1 into
+// `ignored` for each (files_seen.c)
+int cli_files_listed(const char *root, void (*each)(void *context, const char *path, unsigned long long length),
+                     void *context, int *git);
+int cli_files_folder_listed(const char *root, const char *folder, int git,
+                            void (*each)(void *context, const char *path, unsigned long long length), void *context);
+int cli_files_path_skipped(const char *path, int git);
+void cli_files_ignored_read(const char *root, const char *const *paths, unsigned int count, unsigned char *ignored);
+// the name of every file of the tree, and every ending, `.lean` from a name's last dot, each once, sorted, laid flat
+// for one call and given back by cli_files_let; or NULL as there (files_seen.c)
 const CliFiles *cli_files_kinds_view(const char *root);
 // the files' own report, `<pool's bytes> <their mark> 0`, the most the views and lists occupied of the cellblock at
 // once, written into `out`; the path at `index`; and whether `path` is among the files, which are sorted
@@ -49,12 +57,10 @@ const CliFiles *cli_files_kinds_view(const char *root);
 void cli_files_cells_usage_written(VerbaLinea *out);
 const char *cli_files_at(const CliFiles *files, unsigned int index);
 int cli_files_contains(const CliFiles *files, const char *path);
-// git's view of the tree read behind the window, as a tree opens; git's view let go, to be read again by the next list
-// or search, as after files are made, moved or taken out; and whether git tracks the path or would: a file it lists, a
-// file in a folder containing one it lists or at the tree's top, or a file in a folder the view does not contain, as
-// one just made, that git does not ignore. Every path is, in a tree git cannot read (files_seen.c)
+// the tree listed behind the window, as a tree opens; and whether git tracks the path or would: a file it lists, a
+// file in a folder containing one it lists or at the tree's top, or a file in a folder the tree does not contain, as
+// one just made, that git does not ignore. Every path is, in a tree git cannot read (files_seen.c, files_tracked.c)
 void cli_files_warm(const char *root);
-void cli_files_forget_seen(void);
 int cli_files_tracked(const char *root, const char *path);
 
 // a folder's entries, less what the explorer's patterns hide, written as the window reads them, `[{"name", "path",
@@ -81,15 +87,14 @@ int cli_files_fuzzy_matches(const unsigned int *wanted, unsigned int wanted_coun
                             const unsigned int *lower, unsigned int count, unsigned int *latest, double *score,
                             unsigned int *hits, unsigned int *hit_count);
 
-// the quick open's files read behind the window, where they are neither stored nor being read; whether they are not
-// read yet; and read again behind the window, as after the search's patterns change; and the tree's files that answer
+// the tree listed behind the window for the quick open, where it is not listed; whether it is not listed yet; and the
+// tree's files that answer
 // `query`, at most `most` of them, the best first, written as `{"found": [{"path", "score", "hits"}], "reading"}`:
 // until the files are read, those of `recent` alone answer; a file in `recent` scores more, and one named as typed
 // more again; with `fuzzy` off a file answers only where its path contains the query as typed, case aside
 // (files_ranked.c)
 void cli_files_read_behind(const char *root);
 int cli_files_unread(const char *root);
-void cli_files_view_cleared(void);
 void cli_files_ranked(const char *root, const char *query, const char *const *recent, unsigned int recents,
                       unsigned int most, int fuzzy, VerbaLinea *out);
 // the same of the `count` paths of `files`, as though they were the tree's files read

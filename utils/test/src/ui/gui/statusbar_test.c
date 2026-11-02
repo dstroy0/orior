@@ -115,6 +115,21 @@ int main(void)
     cli_check(painted(&raster, (GuiRect){900 - 16 - 16 - 14 - 18 - 60, frame.status.y + 6, 60, 16}, tint), "the indentation is drawn before the lock");
     cli_check(bare(&raster, (GuiRect){400, frame.status.y + 3, 100, 20}, &bare_base), "the bar's middle is bare");
 
+    // the claim holding with the bar come back, the crumbs stand at the bar's left with no strip's room before them
+    GuiClaimNumbers numbers = frame.claim;
+    numbers.claim = GUI_WHOLE;
+    numbers.reveal_bottom = GUI_WHOLE;
+    numbers.room_bottom = GUI_WHOLE;
+    GuiFrame claimed = frame;
+    gui_frame_claimed(&claimed, &numbers);
+    (void)gui_base_laid(&base, &claimed, palette, 0);
+    gui_base_drawn(&base, &bare_base, NULL, palette->ground);
+    gui_base_drawn(&base, &raster, NULL, palette->ground);
+    gui_statusbar_drawn(&raster, &glyphs, &icons, palette, &claimed, &status);
+    cli_check(!bare(&raster, (GuiRect){claimed.status.x + 8, claimed.status.y + 6, 160, 16}, &bare_base), "the crumbs stand at the bar's left while the claim holds");
+    (void)gui_base_laid(&base, &frame, palette, 0);
+    gui_base_drawn(&base, &bare_base, NULL, palette->ground);
+
     gui_base_drawn(&base, &raster, NULL, palette->ground);
     status.path = "";
     status.has_cursor = 0;

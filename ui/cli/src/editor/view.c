@@ -31,6 +31,10 @@
 #define CLI_VIEW_PAIRS 16u
 #define CLI_VIEW_QUOTES 8u
 #define CLI_VIEW_PATTERN 512u
+// the bytes a language's comment mark takes at the most
+#define CLI_VIEW_COMMENT 16u
+// the steps Shrink Selection can take back; past them the oldest goes
+#define CLI_VIEW_GROWN 32u
 // the matches find keeps at the most
 #define CLI_VIEW_MATCHES 100000ull
 #define CLI_VIEW_KIND_NONE 0u
@@ -79,8 +83,9 @@ typedef struct
 // A view: the key of its text, the path of its file, which names its language, the whole path its language server
 // was handed, empty where none was, whether the text changed since the server was last told, and whether the text is
 // paged, its lines read through the pages; the language's pairs, each an opener and its closer, its quotes, and its
-// pattern of a line that opens a block, as its plugin names them, in units; its top, rows and columns; the cursor and
-// the anchor; the column the cursor keeps as it moves up and down, in cells; the indentation; the frames written; the
+// pattern of a line that opens a block and its comment marks, as its plugin names them, in units; its top, rows and columns; the cursor and
+// the anchor; the column the cursor keeps as it moves up and down, in cells; the selections Expand Selection grew from,
+// each its cursor and its anchor, how many, and the selection it last made; the indentation; the frames written; the
 // steps, in a cell of their own, how many are stored and how many of them are done, those past the done ones being
 // undone; the folds closed, in a cell of their own in the order of their first lines, how many and the room; find:
 // whether its bar is open and whether the keys are its own, its query in a cell of its own, in units, its length, the
@@ -102,6 +107,9 @@ typedef struct
     unsigned int quote[CLI_VIEW_QUOTES];
     unsigned int quotes;
     char indent_after[CLI_VIEW_PATTERN];
+    char comment_line[CLI_VIEW_COMMENT];
+    char comment_open[CLI_VIEW_COMMENT];
+    char comment_close[CLI_VIEW_COMMENT];
     int find_open;
     int find_focus;
     unsigned short *find_query;
@@ -123,6 +131,10 @@ typedef struct
     CliPlace anchor;
     unsigned long long goal;
     int goal_kept;
+    CliPlace grown[CLI_VIEW_GROWN][2];
+    unsigned int grown_count;
+    CliPlace grown_cursor;
+    CliPlace grown_anchor;
     CliIndent indent;
     unsigned long long seq;
     CliViewStep *step;
@@ -205,6 +217,19 @@ static unsigned int view_letter_of(const CliJson *json, unsigned int node)
 
 // the pairs, quotes and pattern of the plugin whose id is sought read into the view; where the plugin names none,
 // the defaults apply: the brackets, the two quotes and the pattern of an opener at a line's end
+// a comment's mark read off the string at `node` of the plugin's tree into `mark`, sized for `room`, empty where none
+static void view_comment_read(char *mark, unsigned long long room, const CliJson *json, unsigned int node)
+{
+    unsigned long long length = 0ull;
+    const char *const text = cli_json_string(json, node, &length);
+    VerbaLinea line = {mark, room, 0ull};
+    mmgr_line_put_n(&line, (text != NULL) ? text : "", (text != NULL) ? length : 0ull);
+    if (mmgr_line_finish(&line) == 0ull)
+    {
+        mark[0] = '\0';
+    }
+}
+
 static void view_plugin_read(void *context, const CliPlugin *plugin)
 {
     CliViewPluginSought *const sought = context;
@@ -225,6 +250,11 @@ static void view_plugin_read(void *context, const CliPlugin *plugin)
     const unsigned int pairs = cli_json_member(&json, root, "pairs");
     const unsigned int quotes = cli_json_member(&json, root, "quotes");
     const unsigned int after = cli_json_member(&json, root, "indentAfter");
+    const unsigned int comments = cli_json_member(&json, root, "comments");
+    view_comment_read(view->comment_line, sizeof(view->comment_line), &json, cli_json_member(&json, comments, "line"));
+    const unsigned int block = cli_json_member(&json, comments, "block");
+    view_comment_read(view->comment_open, sizeof(view->comment_open), &json, cli_json_item(&json, block, 0u));
+    view_comment_read(view->comment_close, sizeof(view->comment_close), &json, cli_json_item(&json, block, 1u));
     view->pairs = 0u;
     view->quotes = 0u;
     if (cli_json_is(&json, pairs, CFG_JSON_ARRAY))
@@ -297,7 +327,7 @@ static void view_language_read(CliView *view)
 {
     char id[CLI_NAME_MAX_LEN];
     CliLanguages languages;
-    cli_plugins_languages(&languages);
+    cli_plugins_languages_for_call(&languages);
     const int named = cli_plugins_language_for(&languages, view->path, id);
     cli_plugins_languages_given(&languages);
     if (named)
@@ -1281,48 +1311,74 @@ static int view_written(CliView *view, const CliEdit *const *edits, const unsign
     return written;
 }
 
-// `length` bytes of `text` written over the span from `from` to `to`, recorded in a step of `kind`, joined to the last
-// step where it is of the same kind and came within CLI_VIEW_JOINED milliseconds; the cursor and the anchor put after
-// the text written: 1, or 0 with why given
-static int view_edited(CliView *view, CliPlace from, CliPlace to, const char *text, unsigned long long length,
-                       unsigned int kind, VerbaLinea *err_msg)
+// the bytes of UTF-8 the span from `from` to `to` of the text takes, each line but the last with a byte for its break
+static unsigned long long view_span_bytes(CliView *view, CliPlace from, CliPlace to)
 {
-    // the text taken out, read into a cell of the edit's own with the text put in: each line of the span through the
-    // view's line cell, the span's units of it written as UTF-8
-    unsigned long long took_room = 0ull;
+    unsigned long long bytes = 0ull;
     for (unsigned long long line = from.line; line <= to.line; line += 1ull)
     {
-        took_room += (view_length(view, line) * 4ull) + 1ull;
+        const unsigned long long length = view_length(view, line);
+        const unsigned long long start = (line == from.line) ? from.col : 0ull;
+        const unsigned long long end = ((line == to.line) && (to.col < length)) ? to.col : length;
+        for (unsigned long long at = start; at < end; at += 1ull)
+        {
+            const unsigned int unit = view->line_units[at];
+            bytes += (unit < 0x80u) ? 1ull : ((unit < 0x800u) ? 2ull : 3ull);
+        }
+        bytes += (line < to.line) ? 1ull : 0ull;
     }
-    CliViewEdit *const made =
-        g_cli_cells->persistent_buf_alloc(sizeof(CliViewEdit) + length + 1ull + took_room + 1ull, &g_cli_views_cells);
+    return bytes;
+}
+
+// the place `bytes` bytes of UTF-8 `text` end at when they begin at `from`
+static CliPlace view_place_past(CliPlace from, const char *text, unsigned long long bytes)
+{
+    CliPlace place = from;
+    unsigned long long start = 0ull;
+    for (unsigned long long at = 0ull; at < bytes; at += 1ull)
+    {
+        if (text[at] == '\n')
+        {
+            place.line += 1ull;
+            start = at + 1ull;
+        }
+    }
+    const unsigned long long units = cli_text_units(text + start, bytes - start);
+    place.col = (place.line == from.line) ? from.col + units : units;
+    return place;
+}
+
+static void view_span_written(CliView *view, CliPlace from, CliPlace to, VerbaLinea *out);
+
+// one cell for an edit of the span from `from` to `to`, the exact size it takes: the edit, room for the text to put in,
+// `put_bytes` bytes and `put_spans` times what the span holds, and the text the span holds read in after that room: the
+// cell, or NULL with why given
+static CliViewEdit *view_edit_cell(CliView *view, CliPlace from, CliPlace to, unsigned long long put_bytes, unsigned long long put_spans,
+                                   VerbaLinea *err_msg)
+{
+    const unsigned long long took_room = view_span_bytes(view, from, to);
+    const unsigned long long put_room = put_bytes + (put_spans * took_room);
+    CliViewEdit *const made = g_cli_cells->persistent_buf_alloc(sizeof(CliViewEdit) + put_room + 1ull + took_room + 1ull, &g_cli_views_cells);
     if (made == NULL)
     {
         mmgr_line_put(err_msg, "the edit's cell could not be taken");
-        return 0;
+        return NULL;
     }
     char *const cell = (char *)(made + 1);
-    memor.cpy(&(MemoriaCfg){.dst = cell, .src = text, .bytes = length});
-    cell[length] = '\0';
-    VerbaLinea took = {cell + length + 1ull, took_room + 1ull, 0ull};
-    for (unsigned long long line = from.line; line <= to.line; line += 1ull)
-    {
-        const unsigned long long line_length = view_length(view, line);
-        const unsigned long long start = (line == from.line) ? from.col : 0ull;
-        const unsigned long long end = (line == to.line) ? to.col : line_length;
-        const unsigned long long clipped_end = (end < line_length) ? end : line_length;
-        if (start < clipped_end)
-        {
-            cli_document_units_utf8(&took, view->line_units + start, clipped_end - start);
-        }
-        if (line < to.line)
-        {
-            mmgr_line_ch(&took, '\n');
-        }
-    }
+    VerbaLinea took = {cell + put_room + 1ull, took_room + 1ull, 0ull};
+    view_span_written(view, from, to, &took);
     const unsigned long long took_length = mmgr_line_finish(&took);
+    *made = (CliViewEdit){from, to, from, cell, 0ull, took.out, took_length, NULL, NULL};
+    return made;
+}
+
+// the edit in its cell written to the text, `put_length` bytes at its `put`, and recorded in a step of `kind`, joined to
+// the last step where it is of the same kind and came within CLI_VIEW_JOINED milliseconds; the cursor and the anchor put
+// after the text written: 1, or 0 with why given and the cell given back
+static int view_edit_cell_written(CliView *view, CliViewEdit *made, unsigned int kind, VerbaLinea *err_msg)
+{
     // the edit made, a paged text's through the pages, and the line cell read anew after it
-    const CliEdit edit = {from, to, text, length};
+    const CliEdit edit = {made->from, made->to, made->put, made->put_length};
     const CliEdit *const edits[1] = {&edit};
     const unsigned int counts[1] = {1u};
     view->line_known = 0;
@@ -1331,19 +1387,7 @@ static int view_edited(CliView *view, CliPlace from, CliPlace to, const char *te
         g_cli_cells->persistent_buf_release(made, &g_cli_views_cells);
         return 0;
     }
-    // where the text put in ends
-    CliPlace end = from;
-    unsigned long long last_line_start = 0ull;
-    for (unsigned long long at = 0ull; at < length; at += 1ull)
-    {
-        if (text[at] == '\n')
-        {
-            end.line += 1ull;
-            last_line_start = at + 1ull;
-        }
-    }
-    const unsigned long long last_units = cli_text_units(text + last_line_start, length - last_line_start);
-    end.col = (end.line == from.line) ? from.col + last_units : last_units;
+    made->end = view_place_past(made->from, made->put, made->put_length);
     // the step the edit joins or begins
     const unsigned long long now = cli_clock_milliseconds();
     view_steps_cut(view, view->done);
@@ -1379,7 +1423,8 @@ static int view_edited(CliView *view, CliPlace from, CliPlace to, const char *te
         step->anchor_before = view->anchor;
         view->steps += 1u;
     }
-    *made = (CliViewEdit){from, to, end, cell, length, cell + length + 1ull, took_length, step->last, NULL};
+    made->before = step->last;
+    made->after = NULL;
     if (step->last != NULL)
     {
         step->last->after = made;
@@ -1389,10 +1434,26 @@ static int view_edited(CliView *view, CliPlace from, CliPlace to, const char *te
     step->edits += 1u;
     step->at_ms = now;
     view->done = view->steps;
-    view_moved(view, end, 0, 0);
+    view_moved(view, made->end, 0, 0);
     step->cursor_after = view->cursor;
     step->anchor_after = view->anchor;
     return 1;
+}
+
+// `length` bytes of `text` written over the span from `from` to `to`, as view_edit_cell_written writes them: 1, or 0 with
+// why given
+static int view_edited(CliView *view, CliPlace from, CliPlace to, const char *text, unsigned long long length,
+                       unsigned int kind, VerbaLinea *err_msg)
+{
+    CliViewEdit *const made = view_edit_cell(view, from, to, length, 0ull, err_msg);
+    if (made == NULL)
+    {
+        return 0;
+    }
+    memor.cpy(&(MemoriaCfg){.dst = made->put, .src = text, .bytes = length});
+    made->put[length] = '\0';
+    made->put_length = length;
+    return view_edit_cell_written(view, made, kind, err_msg);
 }
 
 // the last step done undone, its edits written back from the last to the first; and the first step undone done again
@@ -1884,6 +1945,1177 @@ static int view_letter_typed(CliView *view, const char *text, unsigned long long
     return view_edited(view, from, to, text, length, kind, err_msg);
 }
 
+static int view_pair(const CliView *view, CliPlace *pair);
+static int view_word_span(CliView *view, unsigned long long line, unsigned long long col, unsigned long long *from,
+                          unsigned long long *to);
+
+// the lines the selection covers, a selection ending at a later line's start leaving that line out
+static void view_lines_covered(const CliView *view, unsigned long long *first, unsigned long long *last)
+{
+    CliPlace from;
+    CliPlace to;
+    view_selection(view, &from, &to);
+    *first = from.line;
+    *last = ((to.line > from.line) && (to.col == 0ull)) ? to.line - 1ull : to.line;
+}
+
+// a place carried through the edit of the span from `from` to `to` by text ending at `end`: before it it stays, inside
+// it it goes to the span's start, or with `after` to the text's end, and past it it moves with the span's end; a place
+// at the span's start goes on only with `after`
+static CliPlace view_place_carried(CliPlace place, CliPlace from, CliPlace to, CliPlace end, int after)
+{
+    if (view_before(place, from) || (!view_before(from, place) && !after))
+    {
+        return place;
+    }
+    if (view_before(place, to))
+    {
+        return after ? end : from;
+    }
+    if (place.line == to.line)
+    {
+        return (CliPlace){end.line, end.col + place.col - to.col};
+    }
+    return (CliPlace){place.line + end.line - to.line, place.col};
+}
+
+// the edit cut to the whole lines it changes, those it leaves as they stand taken off its head and its foot: the text
+// is one array, an edit moving all that lies after it, and the smaller the span the less the line tables and the
+// walk redo: 1, or 0 with its cell given back where it changes nothing
+static int view_edit_trimmed(CliView *view, CliViewEdit *made)
+{
+    const unsigned long long shorter = (made->put_length < made->took_length) ? made->put_length : made->took_length;
+    unsigned long long head = 0ull;
+    unsigned long long head_lines = 0ull;
+    unsigned long long same = 0ull;
+    while ((same < shorter) && (made->put[same] == made->took[same]))
+    {
+        if (made->put[same] == '\n')
+        {
+            head_lines += 1ull;
+            head = same + 1ull;
+        }
+        same += 1ull;
+    }
+    if ((same == shorter) && (made->put_length == made->took_length))
+    {
+        g_cli_cells->persistent_buf_release(made, &g_cli_views_cells);
+        return 0;
+    }
+    made->put += head;
+    made->took += head;
+    made->put_length -= head;
+    made->took_length -= head;
+    if (head_lines != 0ull)
+    {
+        made->from = (CliPlace){made->from.line + head_lines, 0ull};
+    }
+    const unsigned long long rest = (made->put_length < made->took_length) ? made->put_length : made->took_length;
+    unsigned long long foot = 0ull;
+    unsigned long long foot_lines = 0ull;
+    unsigned long long back = 0ull;
+    while ((back < rest) && (made->put[made->put_length - 1ull - back] == made->took[made->took_length - 1ull - back]))
+    {
+        if (made->put[made->put_length - 1ull - back] == '\n')
+        {
+            foot_lines += 1ull;
+            foot = back + 1ull;
+        }
+        back += 1ull;
+    }
+    made->put_length -= foot;
+    made->took_length -= foot;
+    if (foot_lines != 0ull)
+    {
+        const unsigned long long line = made->to.line - foot_lines;
+        made->to = (CliPlace){line, view_length(view, line)};
+    }
+    return 1;
+}
+
+// the edit its cell holds written as a step of its own, cut to the lines it changes, the selection carried through the
+// span it covers whole: the cursor to the text's end where it stood in the span, and the anchor to its start, or its end
+// where the anchor stood after the cursor
+static int view_cell_replaced(CliView *view, CliViewEdit *made, VerbaLinea *err_msg)
+{
+    const CliPlace from = made->from;
+    const CliPlace to = made->to;
+    const CliPlace end = view_place_past(from, made->put, made->put_length);
+    const CliPlace cursor = view->cursor;
+    const CliPlace anchor = view->anchor;
+    const int after = view_selected(view) && view_before(cursor, anchor);
+    const CliPlace cursor_carried = view_place_carried(cursor, from, to, end, 1);
+    const CliPlace anchor_carried = view_place_carried(anchor, from, to, end, after);
+    if (!view_edit_trimmed(view, made))
+    {
+        view->anchor = anchor_carried;
+        view_moved(view, cursor_carried, 1, 0);
+        return 1;
+    }
+    if (!view_edit_cell_written(view, made, CLI_VIEW_KIND_NONE, err_msg))
+    {
+        return 0;
+    }
+    view_settled(view, cursor_carried, anchor_carried);
+    return 1;
+}
+
+// the selection's lines joined into one, and a cursor's line with the line after it: the space where two lines meet
+// made one space, or none where either side is blank
+static int view_lines_joined(CliView *view, VerbaLinea *err_msg)
+{
+    CliPlace from;
+    CliPlace to;
+    view_selection(view, &from, &to);
+    const unsigned long long count = view_lines(view);
+    const unsigned long long first = from.line;
+    const unsigned long long wanted = (to.line > first + 1ull) ? to.line : first + 1ull;
+    const unsigned long long last = ((count != 0ull) && (wanted > count - 1ull)) ? count - 1ull : wanted;
+    if (last == first)
+    {
+        return 1;
+    }
+    CliViewEdit *const made = view_edit_cell(view, (CliPlace){first, 0ull}, (CliPlace){last, view_length(view, last)}, 0ull, 1ull, err_msg);
+    if (made == NULL)
+    {
+        return 0;
+    }
+    // a line's break gives way to the one space, so the joined text never outgrows what was read
+    const char *const took = made->took;
+    const unsigned long long size = made->took_length;
+    char *const put = made->put;
+    unsigned long long at = 0ull;
+    unsigned long long read = 0ull;
+    while ((read < size) && (took[read] != '\n'))
+    {
+        put[at] = took[read];
+        at += 1ull;
+        read += 1ull;
+    }
+    while (read < size)
+    {
+        read += 1ull;
+        while ((read < size) && ((took[read] == ' ') || (took[read] == '\t')))
+        {
+            read += 1ull;
+        }
+        while ((at > 0ull) && ((put[at - 1ull] == ' ') || (put[at - 1ull] == '\t')))
+        {
+            at -= 1ull;
+        }
+        if ((at != 0ull) && (read < size) && (took[read] != '\n'))
+        {
+            put[at] = ' ';
+            at += 1ull;
+        }
+        while ((read < size) && (took[read] != '\n'))
+        {
+            put[at] = took[read];
+            at += 1ull;
+            read += 1ull;
+        }
+    }
+    made->put_length = at;
+    return view_cell_replaced(view, made, err_msg);
+}
+
+// the selection's lines moved a line up or down over their neighbour, the selection with them
+static int view_lines_moved(CliView *view, int up, VerbaLinea *err_msg)
+{
+    unsigned long long first = 0ull;
+    unsigned long long last = 0ull;
+    view_lines_covered(view, &first, &last);
+    const unsigned long long count = view_lines(view);
+    if ((up && (first == 0ull)) || (!up && (last + 1ull >= count)))
+    {
+        return 1;
+    }
+    const unsigned long long from_line = up ? first - 1ull : first;
+    const unsigned long long to_line = up ? last : last + 1ull;
+    CliViewEdit *const made = view_edit_cell(view, (CliPlace){from_line, 0ull}, (CliPlace){to_line, view_length(view, to_line)}, 0ull, 1ull, err_msg);
+    if (made == NULL)
+    {
+        return 0;
+    }
+    // the neighbour's line and the block change places: up, the first line goes to the foot; down, the last to the head
+    const char *const took = made->took;
+    const unsigned long long size = made->took_length;
+    unsigned long long split = up ? 0ull : size - 1ull;
+    while (took[split] != '\n')
+    {
+        split = up ? split + 1ull : split - 1ull;
+    }
+    const unsigned long long after = size - split - 1ull;
+    memor.cpy(&(MemoriaCfg){.dst = made->put, .src = took + split + 1ull, .bytes = after});
+    made->put[after] = '\n';
+    memor.cpy(&(MemoriaCfg){.dst = made->put + after + 1ull, .src = took, .bytes = split});
+    made->put_length = size;
+    const CliPlace cursor = {up ? view->cursor.line - 1ull : view->cursor.line + 1ull, view->cursor.col};
+    const CliPlace anchor = {up ? view->anchor.line - 1ull : view->anchor.line + 1ull, view->anchor.col};
+    if (!view_edit_cell_written(view, made, CLI_VIEW_KIND_NONE, err_msg))
+    {
+        return 0;
+    }
+    view_settled(view, cursor, anchor);
+    return 1;
+}
+
+// the selection's lines copied above or below themselves: below, the selection goes with the copy; above, it stays
+static int view_lines_copied(CliView *view, int up, VerbaLinea *err_msg)
+{
+    unsigned long long first = 0ull;
+    unsigned long long last = 0ull;
+    view_lines_covered(view, &first, &last);
+    const CliPlace head = {first, 0ull};
+    const CliPlace foot = {last, view_length(view, last)};
+    const unsigned long long bytes = view_span_bytes(view, head, foot);
+    const CliPlace place = up ? head : foot;
+    CliViewEdit *const made = view_edit_cell(view, place, place, bytes + 1ull, 0ull, err_msg);
+    if (made == NULL)
+    {
+        return 0;
+    }
+    VerbaLinea copy = {made->put, bytes + 2ull, 0ull};
+    if (!up)
+    {
+        mmgr_line_ch(&copy, '\n');
+    }
+    view_span_written(view, head, foot, &copy);
+    if (up)
+    {
+        mmgr_line_ch(&copy, '\n');
+    }
+    made->put_length = copy.at;
+    const unsigned long long by = last - first + 1ull;
+    const CliPlace cursor = {view->cursor.line + (((view->cursor.line > last) || !up) ? by : 0ull), view->cursor.col};
+    const CliPlace anchor = {view->anchor.line + (((view->anchor.line > last) || !up) ? by : 0ull), view->anchor.col};
+    if (!view_edit_cell_written(view, made, CLI_VIEW_KIND_NONE, err_msg))
+    {
+        return 0;
+    }
+    view_settled(view, cursor, anchor);
+    return 1;
+}
+
+// the selection's lines deleted with a line's break, the one after them where one follows and else the one before: a
+// cursor left on what comes up into their place, at its column as far as that line reaches
+static int view_lines_deleted(CliView *view, VerbaLinea *err_msg)
+{
+    unsigned long long first = 0ull;
+    unsigned long long last = 0ull;
+    view_lines_covered(view, &first, &last);
+    const unsigned long long count = view_lines(view);
+    const unsigned long long col = view->cursor.col;
+    const int follows = last + 1ull < count;
+    const CliPlace from = (follows || (first == 0ull)) ? (CliPlace){first, 0ull} : (CliPlace){first - 1ull, view_length(view, first - 1ull)};
+    const CliPlace to = follows ? (CliPlace){last + 1ull, 0ull} : (CliPlace){last, view_length(view, last)};
+    if (!view_edited(view, from, to, "", 0ull, CLI_VIEW_KIND_NONE, err_msg))
+    {
+        return 0;
+    }
+    const unsigned long long length = view_length(view, from.line);
+    const CliPlace place = {from.line, (col < length) ? col : length};
+    view_settled(view, place, place);
+    return 1;
+}
+
+// the selection's lines a step of indentation deeper, a blank line among several left as it is, or a step shallower: a
+// tab or as many spaces of a step as lead the line; the selection carried, a place at a line's start staying there
+// where a selection stands
+static int view_lines_indented(CliView *view, int deeper, VerbaLinea *err_msg)
+{
+    unsigned long long first = 0ull;
+    unsigned long long last = 0ull;
+    view_lines_covered(view, &first, &last);
+    const int tabs = view->indent.tabs == 1;
+    const unsigned long long stop = view_tab(view);
+    const unsigned long long step = tabs ? 1ull : stop;
+    const unsigned long long lines = last - first + 1ull;
+    CliViewEdit *const made = view_edit_cell(view, (CliPlace){first, 0ull}, (CliPlace){last, view_length(view, last)}, deeper ? lines * step : 0ull, 1ull, err_msg);
+    if (made == NULL)
+    {
+        return 0;
+    }
+    const char *const took = made->took;
+    const unsigned long long size = made->took_length;
+    char *const put = made->put;
+    const int selected = view_selected(view);
+    CliPlace cursor = view->cursor;
+    CliPlace anchor = view->anchor;
+    unsigned long long at = 0ull;
+    unsigned long long read = 0ull;
+    for (unsigned long long line = first; line <= last; line += 1ull)
+    {
+        unsigned long long end = read;
+        int filled = 0;
+        while ((end < size) && (took[end] != '\n'))
+        {
+            filled = filled || ((took[end] != ' ') && (took[end] != '\t'));
+            end += 1ull;
+        }
+        unsigned long long cut = 0ull;
+        unsigned long long added = 0ull;
+        if (deeper)
+        {
+            added = (filled || (lines == 1ull)) ? step : 0ull;
+            memor.set(&(MemoriaCfg){.dst = put + at, .val = tabs ? '\t' : ' ', .bytes = added});
+            at += added;
+        }
+        else if ((read < end) && (took[read] == '\t'))
+        {
+            cut = 1ull;
+        }
+        else
+        {
+            while ((cut < stop) && (read + cut < end) && (took[read + cut] == ' '))
+            {
+                cut += 1ull;
+            }
+        }
+        memor.cpy(&(MemoriaCfg){.dst = put + at, .src = took + read + cut, .bytes = end - read - cut});
+        at += end - read - cut;
+        if ((added != 0ull) || (cut != 0ull))
+        {
+            const CliPlace from = {line, 0ull};
+            const CliPlace to = {line, cut};
+            const CliPlace ends = {line, added};
+            if (view->cursor.line == line)
+            {
+                cursor = view_place_carried(view->cursor, from, to, ends, (view->cursor.col > 0ull) || !selected);
+            }
+            if (view->anchor.line == line)
+            {
+                anchor = view_place_carried(view->anchor, from, to, ends, (view->anchor.col > 0ull) || !selected);
+            }
+        }
+        if (end < size)
+        {
+            put[at] = '\n';
+            at += 1ull;
+        }
+        read = end + 1ull;
+    }
+    made->put_length = at;
+    if (!view_edit_trimmed(view, made))
+    {
+        return 1;
+    }
+    if (!view_edit_cell_written(view, made, CLI_VIEW_KIND_NONE, err_msg))
+    {
+        return 0;
+    }
+    view_settled(view, cursor, anchor);
+    return 1;
+}
+
+// the selection's filled lines marked as comments with the language's line mark, at the least indentation among them, or
+// where each is marked already the mark and a space after it taken out; the selection carried through each line's edit
+static int view_lines_commented(CliView *view, VerbaLinea *err_msg)
+{
+    const unsigned long long token = cellul.len(&(CatenaFinitaCfg){.src = view->comment_line, .cap = sizeof(view->comment_line)});
+    unsigned long long first = 0ull;
+    unsigned long long last = 0ull;
+    view_lines_covered(view, &first, &last);
+    const unsigned long long lines = last - first + 1ull;
+    CliViewEdit *const made = view_edit_cell(view, (CliPlace){first, 0ull}, (CliPlace){last, view_length(view, last)}, lines * (token + 1ull), 1ull, err_msg);
+    if (made == NULL)
+    {
+        return 0;
+    }
+    const char *const took = made->took;
+    const unsigned long long size = made->took_length;
+    char *const put = made->put;
+    // the filled lines read: whether each begins with the mark past its blanks, and the least of their blanks
+    int any = 0;
+    int marked = 1;
+    unsigned long long lead = ~0ull;
+    unsigned long long read = 0ull;
+    while (read <= size)
+    {
+        unsigned long long end = read;
+        while ((end < size) && (took[end] != '\n'))
+        {
+            end += 1ull;
+        }
+        unsigned long long blanks = read;
+        while ((blanks < end) && ((took[blanks] == ' ') || (took[blanks] == '\t')))
+        {
+            blanks += 1ull;
+        }
+        if (blanks < end)
+        {
+            any = 1;
+            lead = (blanks - read < lead) ? blanks - read : lead;
+            marked = marked && (end - blanks >= token) && (memor.cmp(&(MemoriaCfg){.src = took + blanks, .other = view->comment_line, .bytes = token}) == 0);
+        }
+        read = end + 1ull;
+    }
+    if (!any)
+    {
+        g_cli_cells->persistent_buf_release(made, &g_cli_views_cells);
+        return 1;
+    }
+    const int after = view_selected(view) && view_before(view->cursor, view->anchor);
+    const unsigned long long token_units = cli_text_units(view->comment_line, token);
+    CliPlace cursor = view->cursor;
+    CliPlace anchor = view->anchor;
+    unsigned long long at = 0ull;
+    read = 0ull;
+    for (unsigned long long line = first; line <= last; line += 1ull)
+    {
+        unsigned long long end = read;
+        while ((end < size) && (took[end] != '\n'))
+        {
+            end += 1ull;
+        }
+        unsigned long long blanks = read;
+        while ((blanks < end) && ((took[blanks] == ' ') || (took[blanks] == '\t')))
+        {
+            blanks += 1ull;
+        }
+        if (blanks < end)
+        {
+            // the blanks are a byte a unit: a place among them is their count
+            const unsigned long long place = marked ? blanks - read : lead;
+            const unsigned long long cut = (marked && (blanks + token < end) && (took[blanks + token] == ' ')) ? token + 1ull : (marked ? token : 0ull);
+            const CliPlace from = {line, place};
+            const CliPlace to = {line, place + (marked ? (cut - token) + token_units : 0ull)};
+            const CliPlace ends = {line, marked ? place : place + token_units + 1ull};
+            if (view->cursor.line == line)
+            {
+                cursor = view_place_carried(view->cursor, from, to, ends, 1);
+            }
+            if (view->anchor.line == line)
+            {
+                anchor = view_place_carried(view->anchor, from, to, ends, after);
+            }
+            memor.cpy(&(MemoriaCfg){.dst = put + at, .src = took + read, .bytes = place});
+            at += place;
+            if (!marked)
+            {
+                memor.cpy(&(MemoriaCfg){.dst = put + at, .src = view->comment_line, .bytes = token});
+                at += token;
+                put[at] = ' ';
+                at += 1ull;
+            }
+            const unsigned long long rest = read + place + cut;
+            memor.cpy(&(MemoriaCfg){.dst = put + at, .src = took + rest, .bytes = end - rest});
+            at += end - rest;
+        }
+        else
+        {
+            memor.cpy(&(MemoriaCfg){.dst = put + at, .src = took + read, .bytes = end - read});
+            at += end - read;
+        }
+        if (end < size)
+        {
+            put[at] = '\n';
+            at += 1ull;
+        }
+        read = end + 1ull;
+    }
+    made->put_length = at;
+    if (!view_edit_trimmed(view, made))
+    {
+        return 1;
+    }
+    if (!view_edit_cell_written(view, made, CLI_VIEW_KIND_NONE, err_msg))
+    {
+        return 0;
+    }
+    view_settled(view, cursor, anchor);
+    return 1;
+}
+
+// the selection wrapped in the language's block marks, the selection kept on the same text; or where it stands wrapped
+// already the marks and a space inside each taken out
+static int view_block_commented(CliView *view, VerbaLinea *err_msg)
+{
+    CliPlace from;
+    CliPlace to;
+    view_selection(view, &from, &to);
+    const unsigned long long open = cellul.len(&(CatenaFinitaCfg){.src = view->comment_open, .cap = sizeof(view->comment_open)});
+    const unsigned long long close = cellul.len(&(CatenaFinitaCfg){.src = view->comment_close, .cap = sizeof(view->comment_close)});
+    CliViewEdit *const made = view_edit_cell(view, from, to, open + close + 2ull, 1ull, err_msg);
+    if (made == NULL)
+    {
+        return 0;
+    }
+    const char *const took = made->took;
+    const unsigned long long size = made->took_length;
+    char *const put = made->put;
+    const int wrapped = (size >= open + close) && (memor.cmp(&(MemoriaCfg){.src = took, .other = view->comment_open, .bytes = open}) == 0) &&
+                        (memor.cmp(&(MemoriaCfg){.src = took + size - close, .other = view->comment_close, .bytes = close}) == 0);
+    unsigned long long kept_from = 0ull;
+    unsigned long long kept_bytes = 0ull;
+    if (wrapped)
+    {
+        unsigned long long inner = open;
+        unsigned long long stop = size - close;
+        inner += ((inner < stop) && (took[inner] == ' ')) ? 1ull : 0ull;
+        stop -= ((inner < stop) && (took[stop - 1ull] == ' ')) ? 1ull : 0ull;
+        kept_bytes = stop - inner;
+        memor.cpy(&(MemoriaCfg){.dst = put, .src = took + inner, .bytes = kept_bytes});
+        made->put_length = kept_bytes;
+    }
+    else
+    {
+        memor.cpy(&(MemoriaCfg){.dst = put, .src = view->comment_open, .bytes = open});
+        put[open] = ' ';
+        memor.cpy(&(MemoriaCfg){.dst = put + open + 1ull, .src = took, .bytes = size});
+        put[open + 1ull + size] = ' ';
+        memor.cpy(&(MemoriaCfg){.dst = put + open + 2ull + size, .src = view->comment_close, .bytes = close});
+        made->put_length = open + 2ull + size + close;
+        kept_from = open + 1ull;
+        kept_bytes = size;
+    }
+    const CliPlace start = view_place_past(from, put, kept_from);
+    const CliPlace end = view_place_past(from, put, kept_from + kept_bytes);
+    if (!view_edit_cell_written(view, made, CLI_VIEW_KIND_NONE, err_msg))
+    {
+        return 0;
+    }
+    view_settled(view, end, start);
+    return 1;
+}
+
+// a line opened below the cursor's line at its indentation, the cursor on it; or above it, the cursor on that line
+static int view_line_inserted(CliView *view, int below, VerbaLinea *err_msg)
+{
+    const unsigned long long line = view->cursor.line;
+    const unsigned long long lead = view_first_letter(view, line);
+    const CliPlace place = below ? (CliPlace){line, view_length(view, line)} : (CliPlace){line, 0ull};
+    // the lead is blanks, a byte a unit
+    CliViewEdit *const made = view_edit_cell(view, place, place, lead + 1ull, 0ull, err_msg);
+    if (made == NULL)
+    {
+        return 0;
+    }
+    char *const put = made->put;
+    unsigned long long at = 0ull;
+    if (below)
+    {
+        put[0] = '\n';
+        at = 1ull;
+    }
+    for (unsigned long long col = 0ull; col < lead; col += 1ull)
+    {
+        // a blank unit is a byte
+        put[at] = (char)view_unit(view, line, col);
+        at += 1ull;
+    }
+    if (!below)
+    {
+        put[at] = '\n';
+        at += 1ull;
+    }
+    made->put_length = at;
+    if (!view_edit_cell_written(view, made, CLI_VIEW_KIND_NONE, err_msg))
+    {
+        return 0;
+    }
+    if (!below)
+    {
+        const CliPlace kept = {line, lead};
+        view_settled(view, kept, kept);
+    }
+    return 1;
+}
+
+// the whole lines the selection touches selected, through the next line's start, the next line taken where the selection
+// is whole lines already
+static void view_line_selected(CliView *view)
+{
+    CliPlace from;
+    CliPlace to;
+    view_selection(view, &from, &to);
+    const unsigned long long count = view_lines(view);
+    if (view_selected(view) && (from.col == 0ull) && (to.col == 0ull))
+    {
+        to.col = 1ull;
+    }
+    const unsigned long long last = ((to.col == 0ull) && (to.line > from.line)) ? to.line - 1ull : to.line;
+    view->anchor = (CliPlace){from.line, 0ull};
+    view_moved(view, (last + 1ull < count) ? (CliPlace){last + 1ull, 0ull} : (CliPlace){last, view_length(view, last)}, 1, 0);
+}
+
+// the ASCII marks in the order a collation of the root locale orders them, blanks before them, digits and letters after
+static const char s_view_marks[] = "_-,;:!?.'\"()[]{}@*/\\&#%`^+<=>|~$";
+
+// each byte's first rank in the collation: a blank, a mark in its order, a digit, a letter whatever its case, and a byte
+// past ASCII past them all; made once
+static unsigned short s_view_ranks[256];
+
+static void view_ranks_made(void)
+{
+    if (s_view_ranks['a'] != 0u)
+    {
+        return;
+    }
+    for (unsigned int byte = 0u; byte < 256u; byte += 1u)
+    {
+        s_view_ranks[byte] = (unsigned short)(1000u + byte);
+    }
+    s_view_ranks[' '] = 1u;
+    s_view_ranks['\t'] = 1u;
+    for (unsigned int at = 0u; at + 1u < sizeof(s_view_marks); at += 1u)
+    {
+        s_view_ranks[(unsigned char)s_view_marks[at]] = (unsigned short)(2u + at);
+    }
+    for (unsigned int digit = '0'; digit <= '9'; digit += 1u)
+    {
+        s_view_ranks[digit] = (unsigned short)(100u + digit);
+    }
+    for (unsigned int letter = 'a'; letter <= 'z'; letter += 1u)
+    {
+        s_view_ranks[letter] = (unsigned short)(300u + letter);
+        s_view_ranks[letter - ('a' - 'A')] = (unsigned short)(300u + letter);
+    }
+}
+
+// two lines as the numeric collator orders them: by rank, a run of digits by the number it writes, and where those are
+// level a small letter before its capital: below 0, 0 or above 0
+static int view_lines_collated(const char *one, unsigned long long one_length, const char *other, unsigned long long other_length)
+{
+    unsigned long long left = 0ull;
+    unsigned long long right = 0ull;
+    while ((left < one_length) && (right < other_length))
+    {
+        const unsigned char a = (unsigned char)one[left];
+        const unsigned char b = (unsigned char)other[right];
+        if (((unsigned int)(a - '0') < 10u) && ((unsigned int)(b - '0') < 10u))
+        {
+            unsigned long long a_end = left;
+            unsigned long long b_end = right;
+            while ((a_end < one_length) && ((unsigned int)((unsigned char)one[a_end] - '0') < 10u))
+            {
+                a_end += 1ull;
+            }
+            while ((b_end < other_length) && ((unsigned int)((unsigned char)other[b_end] - '0') < 10u))
+            {
+                b_end += 1ull;
+            }
+            while ((left + 1ull < a_end) && (one[left] == '0'))
+            {
+                left += 1ull;
+            }
+            while ((right + 1ull < b_end) && (other[right] == '0'))
+            {
+                right += 1ull;
+            }
+            if (a_end - left != b_end - right)
+            {
+                return (a_end - left < b_end - right) ? -1 : 1;
+            }
+            const int digits = memor.cmp(&(MemoriaCfg){.src = one + left, .other = other + right, .bytes = a_end - left});
+            if (digits != 0)
+            {
+                return digits;
+            }
+            left = a_end;
+            right = b_end;
+            continue;
+        }
+        if (s_view_ranks[a] != s_view_ranks[b])
+        {
+            return (s_view_ranks[a] < s_view_ranks[b]) ? -1 : 1;
+        }
+        left += 1ull;
+        right += 1ull;
+    }
+    if ((left < one_length) || (right < other_length))
+    {
+        return (left < one_length) ? 1 : -1;
+    }
+    // level but for case: a small letter, the greater byte, first
+    const unsigned long long shorter = (one_length < other_length) ? one_length : other_length;
+    for (unsigned long long at = 0ull; at < shorter; at += 1ull)
+    {
+        if (one[at] != other[at])
+        {
+            return ((unsigned char)one[at] > (unsigned char)other[at]) ? -1 : 1;
+        }
+    }
+    return 0;
+}
+
+// two lines by their bytes
+static int view_lines_bytes(const char *one, unsigned long long one_length, const char *other, unsigned long long other_length)
+{
+    const unsigned long long shorter = (one_length < other_length) ? one_length : other_length;
+    const int bytes = memor.cmp(&(MemoriaCfg){.src = one, .other = other, .bytes = shorter});
+    if (bytes != 0)
+    {
+        return bytes;
+    }
+    return (one_length == other_length) ? 0 : ((one_length < other_length) ? -1 : 1);
+}
+
+// the `count` lines of `text`, each at its `start` and ending a byte before the next, their numbers in `order` merge
+// sorted, level ones keeping their order, by `compare`, or its reverse with `descending`, `work` a table of as many
+static void view_lines_merged(const char *text, const unsigned long long *start, unsigned int *order, unsigned int *work, unsigned int count,
+                              int (*compare)(const char *, unsigned long long, const char *, unsigned long long), int descending)
+{
+    unsigned int *from = order;
+    unsigned int *into = work;
+    for (unsigned int width = 1u; width < count; width *= 2u)
+    {
+        for (unsigned int first = 0u; first < count; first += 2u * width)
+        {
+            const unsigned int middle = (first + width < count) ? first + width : count;
+            const unsigned int end = (first + (2u * width) < count) ? first + (2u * width) : count;
+            unsigned int left = first;
+            unsigned int right = middle;
+            for (unsigned int at = first; at < end; at += 1u)
+            {
+                int take_left = left < middle;
+                if (take_left && (right < end))
+                {
+                    const unsigned int one = from[left];
+                    const unsigned int other = from[right];
+                    const int compared = compare(text + start[one], start[one + 1u] - start[one] - 1ull, text + start[other], start[other + 1u] - start[other] - 1ull);
+                    take_left = (descending ? -compared : compared) <= 0;
+                }
+                into[at] = take_left ? from[left] : from[right];
+                left += take_left ? 1u : 0u;
+                right += take_left ? 0u : 1u;
+            }
+        }
+        unsigned int *const was = from;
+        from = into;
+        into = was;
+    }
+    if (from != order)
+    {
+        memor.cpy(&(MemoriaCfg){.dst = order, .src = from, .bytes = (unsigned long long)count * sizeof(*order)});
+    }
+}
+
+// the selection's lines, or with a cursor alone the whole text's, sorted by the numeric collator, or with `unique` the
+// lines that repeat one before them taken out, the first of each kept; a table of the lines' places and numbers lasts
+// the call, the text being the edit's own
+static int view_lines_sorted(CliView *view, int descending, int unique, VerbaLinea *err_msg)
+{
+    unsigned long long first = 0ull;
+    unsigned long long last = (view_lines(view) != 0ull) ? view_lines(view) - 1ull : 0ull;
+    if (view_selected(view))
+    {
+        view_lines_covered(view, &first, &last);
+    }
+    // the lines a text holds are counted by an unsigned int
+    const unsigned int count = (unsigned int)(last - first + 1ull);
+    if (count < 2u)
+    {
+        return 1;
+    }
+    CliViewEdit *const made = view_edit_cell(view, (CliPlace){first, 0ull}, (CliPlace){last, view_length(view, last)}, 0ull, 1ull, err_msg);
+    const unsigned long long table = (((unsigned long long)count + 1ull) * sizeof(unsigned long long)) + ((unsigned long long)count * ((2ull * sizeof(unsigned int)) + 1ull));
+    unsigned long long *const start = (made != NULL) ? g_cli_cells->temporary_buf_alloc(table, &g_cli_views_cells) : NULL;
+    if (start == NULL)
+    {
+        g_cli_cells->persistent_buf_release(made, &g_cli_views_cells);
+        return 0;
+    }
+    unsigned int *const order = (unsigned int *)(start + count + 1u);
+    unsigned int *const work = order + count;
+    unsigned char *const repeats = (unsigned char *)(work + count);
+    const char *const took = made->took;
+    const unsigned long long size = made->took_length;
+    unsigned int line = 0u;
+    start[0] = 0ull;
+    for (unsigned long long at = 0ull; at < size; at += 1ull)
+    {
+        if (took[at] == '\n')
+        {
+            line += 1u;
+            start[line] = at + 1ull;
+        }
+    }
+    start[count] = size + 1ull;
+    for (unsigned int at = 0u; at < count; at += 1u)
+    {
+        order[at] = at;
+    }
+    char *const put = made->put;
+    unsigned long long at = 0ull;
+    if (unique)
+    {
+        view_lines_merged(took, start, order, work, count, view_lines_bytes, 0);
+        memor.set(&(MemoriaCfg){.dst = repeats, .val = 0, .bytes = count});
+        for (unsigned int sorted = 1u; sorted < count; sorted += 1u)
+        {
+            const unsigned int one = order[sorted - 1u];
+            const unsigned int other = order[sorted];
+            if (view_lines_bytes(took + start[one], start[one + 1u] - start[one] - 1ull, took + start[other], start[other + 1u] - start[other] - 1ull) == 0)
+            {
+                repeats[other] = 1u;
+            }
+        }
+    }
+    else
+    {
+        view_ranks_made();
+        view_lines_merged(took, start, order, work, count, view_lines_collated, descending);
+    }
+    for (unsigned int written = 0u; written < count; written += 1u)
+    {
+        const unsigned int each = unique ? written : order[written];
+        if (!unique || !repeats[each])
+        {
+            if (at != 0ull)
+            {
+                put[at] = '\n';
+                at += 1ull;
+            }
+            const unsigned long long length = start[each + 1u] - start[each] - 1ull;
+            memor.cpy(&(MemoriaCfg){.dst = put + at, .src = took + start[each], .bytes = length});
+            at += length;
+        }
+    }
+    made->put_length = at;
+    g_cli_cells->persistent_buf_release(start, &g_cli_views_cells);
+    return view_cell_replaced(view, made, err_msg);
+}
+
+// a letter in its other case: `upper` its capital, else its small letter, the letters of ASCII, Latin-1, Latin
+// Extended-A, Greek and Cyrillic; any other as it is; each stays as many bytes of UTF-8 as it was
+static unsigned int view_unit_cased(unsigned int unit, int upper)
+{
+    const int small_run = ((unit >= 'a') && (unit <= 'z')) || ((unit >= 0xe0u) && (unit <= 0xfeu) && (unit != 0xf7u)) ||
+                          ((unit >= 0x3b1u) && (unit <= 0x3c9u) && (unit != 0x3c2u)) || ((unit >= 0x430u) && (unit <= 0x44fu));
+    const int capital_run = ((unit >= 'A') && (unit <= 'Z')) || ((unit >= 0xc0u) && (unit <= 0xdeu) && (unit != 0xd7u)) ||
+                            ((unit >= 0x391u) && (unit <= 0x3a9u)) || ((unit >= 0x410u) && (unit <= 0x42fu));
+    if (upper && small_run)
+    {
+        return unit - 0x20u;
+    }
+    if (!upper && capital_run)
+    {
+        return unit + 0x20u;
+    }
+    if (upper && (unit >= 0x450u) && (unit <= 0x45fu))
+    {
+        return unit - 0x50u;
+    }
+    if (!upper && (unit >= 0x400u) && (unit <= 0x40fu))
+    {
+        return unit + 0x50u;
+    }
+    // Latin Extended-A pairs each capital with the letter after it, an even or an odd capital by its run
+    const int even_run = ((unit >= 0x100u) && (unit <= 0x137u)) || ((unit >= 0x14au) && (unit <= 0x177u));
+    const int odd_run = ((unit >= 0x139u) && (unit <= 0x148u)) || ((unit >= 0x179u) && (unit <= 0x17eu));
+    if (even_run || odd_run)
+    {
+        const int capital = even_run ? ((unit & 1u) == 0u) : ((unit & 1u) == 1u);
+        return (upper && !capital) ? unit - 1u : ((!upper && capital) ? unit + 1u : unit);
+    }
+    return unit;
+}
+
+// whether a unit is a letter, and whether it carries a title's word on, a letter, a digit or an apostrophe
+static int view_unit_letter(unsigned int unit)
+{
+    return cli_text_alphanumeric(unit) && !((unit >= '0') && (unit <= '9'));
+}
+
+static int view_unit_word_on(unsigned int unit)
+{
+    return cli_text_alphanumeric(unit) || (unit == '\'') || (unit == 0x2019u);
+}
+
+// the selection, or the word at the cursor, in capitals (`mode` 1), small letters (0) or with each word's first letter a
+// capital and the rest small (2)
+static int view_case_changed(CliView *view, unsigned int mode, VerbaLinea *err_msg)
+{
+    CliPlace from;
+    CliPlace to;
+    view_selection(view, &from, &to);
+    if (!view_selected(view))
+    {
+        unsigned long long start = 0ull;
+        unsigned long long end = 0ull;
+        if (!view_word_span(view, view->cursor.line, view->cursor.col, &start, &end))
+        {
+            return 1;
+        }
+        from = (CliPlace){view->cursor.line, start};
+        to = (CliPlace){view->cursor.line, end};
+    }
+    CliViewEdit *const made = view_edit_cell(view, from, to, 0ull, 1ull, err_msg);
+    if (made == NULL)
+    {
+        return 0;
+    }
+    VerbaLinea cased = {made->put, made->took_length + 1ull, 0ull};
+    int in_word = 0;
+    for (unsigned long long at = 0ull; at < made->took_length;)
+    {
+        unsigned long long bytes = 0ull;
+        const unsigned int unit = cli_text_letter(made->took, made->took_length, at, &bytes);
+        at += bytes;
+        if (mode == 2u)
+        {
+            const int begins = !in_word && view_unit_letter(unit);
+            in_word = begins || (in_word && view_unit_word_on(unit));
+            cli_utf8_put(&cased, begins ? view_unit_cased(unit, 1) : (in_word ? view_unit_cased(unit, 0) : unit));
+        }
+        else
+        {
+            cli_utf8_put(&cased, view_unit_cased(unit, mode == 1u));
+        }
+    }
+    made->put_length = cased.at;
+    const CliPlace cursor = view->cursor;
+    const CliPlace anchor = view->anchor;
+    const CliPlace end = view_place_past(from, made->put, made->put_length);
+    if (!view_edit_cell_written(view, made, CLI_VIEW_KIND_NONE, err_msg))
+    {
+        return 0;
+    }
+    view_settled(view, view_place_carried(cursor, from, to, end, 1), view_place_carried(anchor, from, to, end, 0));
+    return 1;
+}
+
+// the cursor taken past the bracket the one at it pairs with, where one stands there
+static void view_bracket_jumped(CliView *view)
+{
+    CliPlace pair[2];
+    if (view_pair(view, pair))
+    {
+        view_moved(view, (CliPlace){pair[1].line, pair[1].col + 1ull}, 0, 0);
+    }
+}
+
+// the span Expand Selection takes: the tree hands the least first, and that one is kept
+typedef struct
+{
+    int found;
+    CliSymbolPlace from;
+    CliSymbolPlace to;
+} CliViewSpan;
+
+static void view_span_kept(void *context, CliSymbolPlace from, CliSymbolPlace to)
+{
+    CliViewSpan *const span = (CliViewSpan *)context;
+    if (!span->found)
+    {
+        span->found = 1;
+        span->from = from;
+        span->to = to;
+    }
+}
+
+// whether the selection is the one Expand Selection last made, with a step to take back
+static int view_still_grown(const CliView *view)
+{
+    return (view->grown_count != 0u) && (view->cursor.line == view->grown_cursor.line) && (view->cursor.col == view->grown_cursor.col) &&
+           (view->anchor.line == view->grown_anchor.line) && (view->anchor.col == view->grown_anchor.col);
+}
+
+// the selection grown to the least span the tree reads off the text that holds it and is more than it, the selection it
+// grew from kept for Shrink Selection; a paged text is not in memory whole and has no spans to grow through
+static int view_selection_grown(CliView *view, VerbaLinea *err_msg)
+{
+    unsigned long long size = 0ull;
+    char *const text = view->paged ? NULL : cli_document_text_taken(view->key, &size, &g_cli_views_cells);
+    if (text == NULL)
+    {
+        return 1;
+    }
+    CliPlace from;
+    CliPlace to;
+    view_selection(view, &from, &to);
+    CliViewSpan span;
+    span.found = 0;
+    // a place in a text a view shows stands below 2^32 lines and columns
+    const int read = cli_symbols_spans(view->path, text, size, (CliSymbolPlace){(unsigned int)from.line, (unsigned int)from.col},
+                                       (CliSymbolPlace){(unsigned int)to.line, (unsigned int)to.col}, view_span_kept, &span, err_msg);
+    g_cli_cells->persistent_buf_release(text, &g_cli_views_cells);
+    if (!read)
+    {
+        return 0;
+    }
+    if (span.found)
+    {
+        view->grown_count = view_still_grown(view) ? view->grown_count : 0u;
+        if (view->grown_count == CLI_VIEW_GROWN)
+        {
+            for (unsigned int at = 1u; at < CLI_VIEW_GROWN; at += 1u)
+            {
+                view->grown[at - 1u][0] = view->grown[at][0];
+                view->grown[at - 1u][1] = view->grown[at][1];
+            }
+            view->grown_count -= 1u;
+        }
+        view->grown[view->grown_count][0] = view->cursor;
+        view->grown[view->grown_count][1] = view->anchor;
+        view->grown_count += 1u;
+        view->anchor = (CliPlace){span.from.line, span.from.col};
+        view_moved(view, (CliPlace){span.to.line, span.to.col}, 1, 0);
+        view->grown_cursor = view->cursor;
+        view->grown_anchor = view->anchor;
+    }
+    return 1;
+}
+
+// the last step Expand Selection took taken back, where the selection is still the one it made
+static void view_selection_shrunk(CliView *view)
+{
+    if (view_still_grown(view))
+    {
+        view->grown_count -= 1u;
+        view->anchor = view->grown[view->grown_count][1];
+        view_moved(view, view->grown[view->grown_count][0], 1, 0);
+        view->grown_cursor = view->cursor;
+        view->grown_anchor = view->anchor;
+    }
+}
+
+// `name` run where it names a line edit of the menus: 1 with whether it was taken into `taken`, or 0 where it names none
+static int view_command_run(CliView *view, const char *name, int *taken, VerbaLinea *err_msg)
+{
+    if (view_named(name, "comment"))
+    {
+        *taken = (view->comment_line[0] != '\0') ? view_lines_commented(view, err_msg)
+                                                 : ((view->comment_open[0] != '\0') ? view_block_commented(view, err_msg) : 1);
+    }
+    else if (view_named(name, "select-line"))
+    {
+        view_line_selected(view);
+    }
+    else if (view_named(name, "join-lines"))
+    {
+        *taken = view_lines_joined(view, err_msg);
+    }
+    else if (view_named(name, "sort-ascending") || view_named(name, "sort-descending"))
+    {
+        *taken = view_lines_sorted(view, view_named(name, "sort-descending"), 0, err_msg);
+    }
+    else if (view_named(name, "unique-lines"))
+    {
+        *taken = view_lines_sorted(view, 0, 1, err_msg);
+    }
+    else if (view_named(name, "upper-case") || view_named(name, "lower-case") || view_named(name, "title-case"))
+    {
+        *taken = view_case_changed(view, view_named(name, "upper-case") ? 1u : (view_named(name, "title-case") ? 2u : 0u), err_msg);
+    }
+    else if (view_named(name, "copy-line-up") || view_named(name, "copy-line-down"))
+    {
+        *taken = view_lines_copied(view, view_named(name, "copy-line-up"), err_msg);
+    }
+    else if (view_named(name, "move-line-up") || view_named(name, "move-line-down"))
+    {
+        *taken = view_lines_moved(view, view_named(name, "move-line-up"), err_msg);
+    }
+    else if (view_named(name, "bracket"))
+    {
+        view_bracket_jumped(view);
+    }
+    else if (view_named(name, "expand-selection"))
+    {
+        *taken = view_selection_grown(view, err_msg);
+    }
+    else if (view_named(name, "shrink-selection"))
+    {
+        view_selection_shrunk(view);
+    }
+    else
+    {
+        return 0;
+    }
+    return 1;
+}
+
+// a key's name taken where it runs a line edit, by the keys the page's editor binds them to: 1 with whether it was taken
+// into `taken`, or 0 where the key is none of them
+static int view_line_keyed(CliView *view, const char *name, int mod, int shift, int alt, int *taken, VerbaLinea *err_msg)
+{
+    const int vertical = view_named(name, "Up") || view_named(name, "Down");
+    if (vertical && (mod || alt))
+    {
+        const int up = view_named(name, "Up");
+        if (mod && !alt && !shift)
+        {
+            // Mod and an arrow scroll a line, the cursor staying; with Alt they would add a cursor, which the view has not
+            view->top = up ? view_up(view, view->top, 1ull) : view_down(view, view->top, 1ull);
+        }
+        else if (alt && !mod)
+        {
+            *taken = shift ? view_lines_copied(view, up, err_msg) : view_lines_moved(view, up, err_msg);
+        }
+        return 1;
+    }
+    if (alt && shift && !mod && view_named(name, "Right"))
+    {
+        *taken = view_selection_grown(view, err_msg);
+        return 1;
+    }
+    if (alt && shift && !mod && view_named(name, "Left"))
+    {
+        view_selection_shrunk(view);
+        return 1;
+    }
+    if (mod && !alt)
+    {
+        if (!shift && view_named(name, "L"))
+        {
+            view_line_selected(view);
+            return 1;
+        }
+        if (!shift && view_named(name, "J"))
+        {
+            *taken = view_lines_joined(view, err_msg);
+            return 1;
+        }
+        if (!shift && view_named(name, "/"))
+        {
+            return view_command_run(view, "comment", taken, err_msg);
+        }
+        if (shift && view_named(name, "K"))
+        {
+            *taken = view_lines_deleted(view, err_msg);
+            return 1;
+        }
+        if (!shift && (view_named(name, "]") || view_named(name, "[")))
+        {
+            *taken = view_lines_indented(view, view_named(name, "]"), err_msg);
+            return 1;
+        }
+        if (shift && view_named(name, "\\"))
+        {
+            view_bracket_jumped(view);
+            return 1;
+        }
+        if (view_named(name, "Enter"))
+        {
+            *taken = view_line_inserted(view, !shift, err_msg);
+            return 1;
+        }
+        if (!view_selected(view) && view_named(name, "Backspace") && (view->cursor.col != 0ull))
+        {
+            *taken = view_edited(view, view_word_left(view, view->cursor), view->cursor, "", 0ull, CLI_VIEW_KIND_DELETE, err_msg);
+            return 1;
+        }
+        if (!view_selected(view) && view_named(name, "Delete") && (view->cursor.col < view_length(view, view->cursor.line)))
+        {
+            *taken = view_edited(view, view->cursor, view_word_right(view, view->cursor), "", 0ull, CLI_VIEW_KIND_DELETE_FORWARD, err_msg);
+            return 1;
+        }
+    }
+    if (view_named(name, "Tab"))
+    {
+        CliPlace from;
+        CliPlace to;
+        view_selection(view, &from, &to);
+        if (shift || (from.line != to.line))
+        {
+            *taken = view_lines_indented(view, !shift, err_msg);
+            return 1;
+        }
+    }
+    return 0;
+}
+
 // a key's name parsed: the modifier keys down into `mod`, `shift` and `alt`, and the key's own name
 static const char *view_key_read(const char *name, int *mod, int *shift, int *alt)
 {
@@ -1933,6 +3165,11 @@ static int view_keyed(CliView *view, const char *given, VerbaLinea *err_msg)
     if (view_find_keyed(view, name, mod, shift, alt))
     {
         return 1;
+    }
+    int taken = 1;
+    if (view_command_run(view, name, &taken, err_msg) || view_line_keyed(view, name, mod, shift, alt, &taken, err_msg))
+    {
+        return taken;
     }
     if (view_named(name, "Left"))
     {

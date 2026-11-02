@@ -121,9 +121,9 @@ int main(void)
               "the lattice is laid in the page's pixels, half the window's");
     cli_check(ground.frames == 1u, "the ground laid is drawn once");
     const GuiColor origin = ground.raster.pixels[(4u * 200u) + 4u];
-    cli_check(origin != palette->ground, "a dot stands at the first point's origin");
-    cli_check(ground.raster.pixels[(99u * 200u) + 0u] == palette->ground,
-              "the corner clear of every dot is the ground color");
+    cli_check(origin != palette->deep, "a dot stands at the first point's origin");
+    cli_check(ground.raster.pixels[(99u * 200u) + 0u] == palette->deep,
+              "the corner clear of every dot is the deep color");
     const unsigned long long due = gui_ground_due(&ground, 1000ull);
     cli_check((due >= 16000ull) && (due <= 20000ull), "the ground is due as the first change shows");
     cli_check(!gui_ground_ticked(&ground, palette, 6000ull) && (ground.frames == 1u),

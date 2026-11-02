@@ -100,6 +100,24 @@ static int catalog_came(GuiWindow *window, Woken *count)
     return 0;
 }
 
+// the window's thread draining each wake until every ask it has made is answered, or five seconds pass
+static int asks_answered(GuiWindow *window, Woken *count)
+{
+    for (unsigned int left = 500u; left > 0u; left -= 1u)
+    {
+        cli_lock_take(&count->lock);
+        (void)cli_wake_wait_for(&count->wake, &count->lock, 10ull);
+        cli_lock_give(&count->lock);
+        gui_window_drained(window);
+        unsigned long long since = 0ull;
+        if (!gui_busy_waiting(&window->busy, &since))
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 // the window's thread draining each wake until the explorer holds rows, or five seconds pass
 static int rows_came(GuiWindow *window, Woken *count)
 {
@@ -236,6 +254,21 @@ static int served_came(GuiWindow *window, Woken *count)
     return 0;
 }
 
+// the session the system names answered and read against the one kept: the name standing or the eye home, 0 where
+// neither came within ten seconds
+static int name_came(GuiWindow *window, Woken *count)
+{
+    const unsigned long long until = cli_clock_milliseconds() + 10000ull;
+    while (!window->wordmark.stands && !window->wordmark.home && (cli_clock_milliseconds() < until))
+    {
+        cli_lock_take(&count->lock);
+        (void)cli_wake_wait_for(&count->wake, &count->lock, 10ull);
+        cli_lock_give(&count->lock);
+        gui_window_drained(window);
+    }
+    return window->wordmark.stands || window->wordmark.home;
+}
+
 // the window's thread waiting `ms` milliseconds, draining each wake meanwhile
 static void waited(GuiWindow *window, Woken *count, unsigned long long ms)
 {
@@ -331,6 +364,23 @@ static int line_starts(const GuiEditor *editor, unsigned int line, const char *h
     return head[at] == '\0';
 }
 
+// whether the line `line` comes to begin with `head`, the frames drained as they come, within five seconds
+static int line_came(GuiWindow *window, Woken *count, unsigned int line, const char *head)
+{
+    for (unsigned int left = 500u; left > 0u; left -= 1u)
+    {
+        cli_lock_take(&count->lock);
+        (void)cli_wake_wait_for(&count->wake, &count->lock, 10ull);
+        cli_lock_give(&count->lock);
+        gui_window_drained(window);
+        if (line_starts(&window->editor, line, head))
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 // the first line of the editor that begins with `head`, or the editor's count where none does
 static unsigned int line_beginning(const GuiEditor *editor, const char *head)
 {
@@ -378,6 +428,14 @@ int main(void)
     gui_window_key(&window, "Mod+Z");
     cli_check(cursor_came_at(&window, &count, 1ull, 2ull) && line_starts(&window.editor, 1u, "// "),
               "undo takes the typing out");
+    // a line edit of the menus with no keys of its own reaches the view by its name
+    gui_window_key(&window, "Mod+L");
+    cli_check(cursor_came_at(&window, &count, 2ull, 0ull), "Mod+L selects the line");
+    const GuiChoice upper = {"upper-case", ""};
+    gui_window_chosen(&window, &upper);
+    cli_check(line_came(&window, &count, 1u, "// SPDX-LICENSE-IDENTIFIER"), "Transform to Uppercase, a command with no keys, reaches the view by its name");
+    gui_window_key(&window, "Mod+Z");
+    cli_check(line_came(&window, &count, 1u, "// SPDX-License-Identifier"), "undo takes it back");
 
     // the panels over the editor through the CLI: the pointer resting on a declared name shows its declaration, a
     // word's letters typed on a line opened inside a function open the completion's list with the file's words, and
@@ -400,11 +458,11 @@ int main(void)
                   "a search of the tree's declarations begins their first read");
         cli_window_given(room);
     }
-    for (unsigned int left = 600u; (left > 0u) && cli_symbols_unread(); left -= 1u)
+    for (unsigned int left = 600u; (left > 0u) && cli_tree_unwalked(); left -= 1u)
     {
         waited(&window, &count, 100ull);
     }
-    cli_check(!cli_symbols_unread(), "the tree's declarations are read within a minute of the first search");
+    cli_check(!cli_tree_unwalked(), "the tree's declarations are read within a minute of the first search");
     // the file is a file of the tree: the declaration is found, and the statement two lines under it is pressed
     const unsigned int declared = line_beginning(&window.editor, "int gui_rect_empty(");
     const unsigned long long statement = (unsigned long long)declared + 2ull;
@@ -510,6 +568,15 @@ int main(void)
     // the catalog's keys for the window's own commands: Ctrl+Tab shows the tab shown before, Ctrl+W closes the shown
     gui_window_started(&window);
     cli_check(catalog_came(&window, &count), "the catalog comes as the window starts");
+    // the first start in the system's session, nothing kept in the checks' own folder, stands the name on its pane,
+    // which takes the view's presses and keys; the pane let go for what the check drives through the view
+    cli_check(name_came(&window, &count) && window.wordmark.stands && !window.wordmark.home,
+              "the first start in the session stands the name on its pane");
+    const unsigned int tabs_before = window.tabs;
+    gui_window_key(&window, "Mod+W");
+    cli_check(window.tabs == tabs_before, "while the pane stands the view takes no keys");
+    window.wordmark.stands = 0;
+    gui_wordmark_landed(&window.wordmark);
     gui_window_key(&window, "Mod+Tab");
     cli_check((window.active == 0) && (window.last_active == 1), "Mod+Tab shows the tab shown before");
     gui_editor_made(&window.editor);
@@ -517,6 +584,52 @@ int main(void)
     cli_check((window.tabs == 1u) && (window.active == 0) && lines_came(&window, &count) &&
                   line_starts(&window.editor, 2u, "// glyphs.c"),
               "Mod+W closes the tab shown, the one left shown");
+
+    // every ask the window has made through all of this comes to be answered, which lets the busy circle go; a ticket the circle
+    // kept and no answer reached would leave it swirling for good
+    cli_check(asks_answered(&window, &count), "every ask the window has made is answered, the busy circle's count of them coming to none");
+    gui_window_ticked(&window);
+    cli_check((window.busy.shown_ms == 0ull) || !gui_busy_ticked(&window.busy, cli_clock_milliseconds() + GUI_BUSY_STANDS), "and it goes, if it came");
+    cli_check(!window.busy.shown, "no circle stands with nothing asked");
+    // the tree's check runs on past its ask's answer, its progress coming as events: the circle's wait runs from the first until
+    // the last says it is done
+    unsigned long long check_since = 0ull;
+    static const char s_check_running[] = "{\"done\":3,\"total\":10}";
+    gui_link_emitted(&window.link, "tree-check", s_check_running, sizeof(s_check_running) - 1ull);
+    gui_window_drained(&window);
+    cli_check(gui_busy_waiting(&window.busy, &check_since), "the tree's check running stands as an ask does");
+    static const char s_check_done[] = "{\"done\":10,\"total\":10}";
+    gui_link_emitted(&window.link, "tree-check", s_check_done, sizeof(s_check_done) - 1ull);
+    gui_window_drained(&window);
+    cli_check(asks_answered(&window, &count), "its last file done, nothing stands");
+
+    // a menu opened by its keys while the claim holds lets the claim go and stays open through the slide, under the bar
+    // as the bar comes back; the window sized closes it
+    gui_window_key(&window, "Right");
+    waited(&window, &count, GUI_CLAIM_SLIDE + 50ull);
+    gui_window_ticked(&window);
+    cli_check(window.claim.claimed && !gui_claim_moving(&window.claim, cli_clock_milliseconds()), "a key the view takes makes the claim");
+    const int bar_away = window.frame.bar.y + window.frame.bar.height;
+    gui_window_key(&window, "Alt+F");
+    const GuiRect menu_opened = window.menubar.menu[0].rect;
+    cli_check((window.menubar.levels != 0u) && !window.claim.claimed, "a menu opened by its keys lets the claim go and stays open");
+    waited(&window, &count, GUI_CLAIM_SLIDE / 2ull);
+    gui_window_ticked(&window);
+    cli_check(window.menubar.levels != 0u, "partway through the slide it stands open");
+    waited(&window, &count, GUI_CLAIM_SLIDE);
+    gui_window_ticked(&window);
+    gui_window_ticked(&window);
+    cli_check((window.menubar.levels != 0u) && (window.menubar.menu[0].rect.y == window.frame.bar.y + window.frame.bar.height + gui_scaled(GUI_MENU_BELOW, window.frame.scale)),
+              "at rest it stands open under the bar come back");
+    cli_check((window.menubar.menu[0].rect.y > menu_opened.y) && (window.frame.bar.y + window.frame.bar.height > bar_away),
+              "the menu came down with the bar");
+    gui_window_key(&window, "Down");
+    cli_check(window.menubar.menu[0].pointed >= 0, "the keys step its rows as it stands");
+    cli_check(gui_window_sized(&window, 820u, 500u, 1.0f) && (window.menubar.levels == 0u), "the window sized closes it");
+    cli_check(gui_window_sized(&window, 800u, 500u, 1.0f), "the window sized back");
+    gui_window_key(&window, "Alt+F");
+    gui_window_key(&window, "Escape");
+    cli_check(window.menubar.levels == 0u, "Escape closes it");
 
     // the explorer: the strip's explorer tool pressed opens the side with the tree's files, and a file pressed there
     // opens as a tab
@@ -619,7 +732,25 @@ int main(void)
                       .src = again.tab[again.active].path, .other = "ui/gui/src/palette.c", .cap = CLI_PATH_MAX_LEN}),
               "the window started again brings the kept tabs back and shows the one kept shown");
     cli_check(lines_came(&again, &count), "the tab brought back shows its lines");
+    cli_check(name_came(&again, &count) && again.wordmark.home && !again.wordmark.stands,
+              "a start after it in the same session has the eye home at once");
+    // View's Reduce Motion is kept in orior's folder and read before the name stands on the next start
+    const GuiChoice reduce = {"reduce-motion", ""};
+    gui_window_chosen(&again, &reduce);
+    cli_check(again.motion_kept && kept_came(&again, &count, "reduce-motion"), "View's Reduce Motion is kept in orior's folder");
     gui_window_ended(&again);
+    static GuiWindow third;
+    const int begun_third = gui_window_begun(&third, woken, &count, &why) && gui_window_sized(&third, 800u, 500u, 1.0f);
+    cli_check(begun_third, "a window begins a third time");
+    if (!begun_third)
+    {
+        cli_window_ended();
+        return cli_checked();
+    }
+    gui_window_started(&third);
+    cli_check(name_came(&third, &count) && third.motion_kept && third.motion_still && third.claim.still && third.wordmark.still,
+              "the window started again reads it before the name stands");
+    gui_window_ended(&third);
     cli_window_ended();
     return cli_checked();
 }

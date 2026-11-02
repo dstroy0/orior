@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // ground.h: the window's ground: the lattice behind every part, laid out over the window in the page's pixels, its
-// dots drawn soft-edged and dithered over the ground color into a raster of the ground's own that every frame starts
+// dots drawn soft-edged and dithered over the deep color into a raster of the ground's own that every frame starts
 // from; drawn again only at a moment the loop shows a change, which the lattice finds, and its clock standing still
 // while the window is off the screen, the loop taking up where it stood (ground.c)
 #ifndef GUI_GROUND_H
@@ -18,7 +18,7 @@
 #define GUI_GROUND_RADIUS 0.59
 #define GUI_GROUND_RADIUS_SPREAD 0.16
 
-// The ground: its raster, the ground color with the dots over it, a view of the region's ground raster; its `slot`
+// The ground: its raster, the deep color with the dots over it, a view of the region's ground raster; its `slot`
 // of the lattice; the size and scale it is laid out for and whether it is; the shades its dots take; its clock, when
 // it began, the milliseconds lost to every stretch it was kept still and when the stretch holding it now began, 0
 // while none does; the loop's moment it was last drawn at, in seconds, and the moment the loop next shows a change
@@ -47,10 +47,10 @@ void gui_ground_given(GuiGround *ground);
 // the ground laid out for a window `width` by `height` at `scale` in `palette`'s colors at `now` on `raster`, the
 // region's ground raster at that size, which the ground draws into and never gives back: the lattice laid over the
 // window in the page's pixels, its shades made from the palette's lattice colors, and the raster drawn: 1, or 0 where
-// the lattice's cells could not be taken, the raster drawn in the ground color alone
+// the lattice's cells could not be taken, the raster drawn in the deep color alone
 int gui_ground_laid(GuiGround *ground, const GuiRaster *raster, unsigned int width, unsigned int height, float scale,
                     const GuiPalette *palette, unsigned long long now);
-// the ground drawn at the loop's moment at `now`: the ground color, and every dot over it where it stands
+// the ground drawn at the loop's moment at `now`: the deep color, and every dot over it where it stands
 void gui_ground_drawn(GuiGround *ground, const GuiPalette *palette, unsigned long long now);
 // the tick come at `now`: the ground drawn again where the loop has moved since it was drawn enough to be seen: 1
 // where it was, a frame owed, else 0

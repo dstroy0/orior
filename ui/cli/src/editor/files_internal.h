@@ -1,36 +1,15 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// files_internal.h: what the files sources share: git's view of the tree, guarded by its lock while it is read
+// files_internal.h: what the files sources share: the cells and lists of paths they make
 #ifndef FILES_INTERNAL_H
 #define FILES_INTERNAL_H
 
 #include "files.h"
 
-// A view of the tree: every file git tracks or would track, and every folder containing one, or for a tree git cannot
-// read every file walked from its top and no folders; the name of every file, and every ending, `.lean` from its last
-// dot, each once; whether git read the tree; and the milliseconds the clock that only goes forward read as the view
-// was read
+// The files a reader picks off the tree for one call: a list laid flat in the temporary tier, and how many
 typedef struct
 {
-    CliFiles files;
-    CliFiles dirs;
-    CliFiles kinds;
-    int git;
-    unsigned long long at;
-} CliSeen;
-
-// the view of the tree at `root`, as cached, read again behind it once it is older than four seconds, or read now where
-// none is cached: the view, pinned in place until cli_seen_let gives it back, or NULL where no view is free to be read
-// for it or the cells cannot meet it (files_seen.c)
-const CliSeen *cli_seen_acquire(const char *root);
-void cli_seen_let(const CliSeen *seen);
-
-// The files of a pinned view a reader picks: the view, pinned in place while they are picked, and the places in its
-// files of those picked, `count` of them, a cell of the cellblock counted to the files
-typedef struct
-{
-    const CliSeen *seen;
-    unsigned int *place;
+    CliFiles *files;
     unsigned int count;
 } CliPicked;
 
@@ -39,15 +18,17 @@ typedef struct
 // A list made for `count` paths of `bytes` together, each bounded by the list's limits, none made for no paths: 1, or 0
 // where the cellblock cannot meet its cells, the list left empty; a path put after the files: 1, or 0 where they are
 // full; the paths sorted by their bytes, each listed once, the sort's spare a cell taken and given back: 1, or 0 where
-// it could not be taken; and a list's cells given back and the list emptied. The files of the view of the tree at
-// `root` that `filter` admits picked, the view pinned: 1, or 0 where no view could be pinned or the cellblock cannot
-// meet their places, nothing pinned; the path of the one picked at `index`; and the view let go and the places given
-// back (files_cells.c)
-// a cell of the files' lists, from the temporary tier: a list lasts a call, a batch or a watch's round, and nothing
-// that short-lived stands in the persistent tier to leave a hole under a cell laid above it
+// it could not be taken; and a list's cells given back and the list emptied. A list made for work given back within
+// its call, in the temporary tier, the same. The files of the tree at `root` that `filter` admits picked: 1, or 0 where
+// the cellblock cannot meet them; the path of the one picked at `index`; and their cell given back (files_cells.c)
+// a cell of the files' lists, which outlive the call that makes them; and one for work given back within its call, from
+// the temporary tier: no short cell stands in the persistent tier to leave a hole under one laid above it. Each is
+// given back the same way
 void *cli_files_cell_taken(unsigned long long bytes);
+void *cli_files_work_taken(unsigned long long bytes);
 void cli_files_cell_given(void *cell);
 int cli_files_made(CliFiles *files, unsigned long long count, unsigned long long bytes);
+int cli_files_work_made(CliFiles *files, unsigned long long count, unsigned long long bytes);
 int cli_files_put(CliFiles *files, const char *path, unsigned long long length);
 int cli_files_sorted(CliFiles *files);
 void cli_files_emptied(CliFiles *files);

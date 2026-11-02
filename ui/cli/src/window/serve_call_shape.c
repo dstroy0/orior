@@ -195,10 +195,10 @@ static int shape_search(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *e
     }
     if (one == NULL)
     {
-        cli_plugins_languages(languages);
+        cli_plugins_languages_for_call(languages);
     }
     // the languages the pattern and each file are read in, read once for the search
-    CliSymbolsLanguages *const read = cli_symbols_languages_read();
+    CliSymbolsLanguages *const read = cli_symbols_languages_for_call();
     mmgr_line_ch(&found, '[');
     mmgr_line_ch(&files, '[');
     const unsigned int count = (one != NULL) ? 1u : listed->count;

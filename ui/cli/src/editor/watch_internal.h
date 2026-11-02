@@ -21,7 +21,6 @@ void cli_watch_poll_ended(void);
 // back, which the polling does as it ends (watch_read.c)
 int cli_watch_first_reading(const char *root);
 void cli_watch_polled(void *context);
-void cli_watch_readings_given(void);
 
 // a change reported: its path from the tree's top, and its kind
 typedef void (*CliWatchChangeFn)(void *context, const char *path, unsigned int kind);

@@ -4,6 +4,7 @@
 // from it is given back, a cell counted to an owner is listed in the audit and taken off as it is given back, a take
 // past the pool is refused, and a file of whole pages stored in a cell is measured and searched with a cap far past it,
 // the word a walk loads over its last bytes landing in the pool and not past a page
+#include "../../../../../ui/cli/src/code/symbols.h"
 #include "../../../../../ui/cli/src/command_line/cells.h"
 #include "../../../../../ui/cli/src/editor/files.h"
 #include "../../../../../ui/cli/src/editor/files_internal.h"
@@ -36,9 +37,9 @@ static void cells_walk_counted(void *context, const char *path, unsigned long lo
     *(unsigned int *)context += 1u;
 }
 
-// Work given back within its call, its batch or a watch's round, a walk, a list sorted, the languages' table, leaves
-// the persistent tier's end where it stood, since a short cell there leaves a hole under whatever is laid above it; the
-// temporary tier carries it. The pool is made anew for the reading, which puts the peaks back
+// Work given back within its call, a walk, a list's sort, the languages' table a call reads, leaves the persistent
+// tier's end where it stood, and what outlives its call stands in the persistent tier: the temporary tier's cells last
+// one call. The pool is made anew for the reading, which puts the peaks back
 static void cells_work_checked(void)
 {
     cli_check(cli_cells_made(CLI_CELLS_POOL), "the pool is made anew for the work's reading");
@@ -59,20 +60,33 @@ static void cells_work_checked(void)
     cli_check(cli_files_made(&files, 2ull, 8ull), "a list is made");
     (void)cli_files_put(&files, "b", 1ull);
     (void)cli_files_put(&files, "a", 1ull);
+    cli_cells_report(&pool, &persistent, &temporary);
+    const unsigned long long listed = persistent;
+    cli_check(listed != 0ull, "a list outlives the call that makes it and stands in the persistent tier");
     cli_check(cli_files_sorted(&files) && (files.start[0] == 2u), "it is sorted");
     cli_cells_report(&pool, &persistent, &temporary);
-    cli_check(persistent == 0ull,
-              "a list and its spare, which last a watch's round at the most, stay out of the persistent tier");
+    cli_check(persistent == listed, "its spare list, which lasts the call, stays out of the persistent tier");
     cli_files_emptied(&files);
 
     CliLanguages languages;
     cli_cells_report(&pool, &persistent, &temporary);
     const unsigned long long before_languages = persistent;
-    cli_plugins_languages(&languages);
-    cli_check(languages.pair != NULL, "the languages' table is taken");
+    cli_plugins_languages_for_call(&languages);
+    cli_check(languages.pair != NULL, "the languages' table is taken for a call");
     cli_cells_report(&pool, &persistent, &temporary);
     cli_check(persistent == before_languages, "out of the persistent tier");
     cli_plugins_languages_given(&languages);
+    cli_plugins_languages(&languages);
+    cli_check(languages.pair != NULL, "the languages' table is taken to outlive a call");
+    cli_cells_report(&pool, &persistent, &temporary);
+    cli_check(persistent > before_languages, "in the persistent tier");
+    cli_plugins_languages_given(&languages);
+    const unsigned long long before_read = persistent;
+    CliSymbolsLanguages *const read = cli_symbols_languages_for_call();
+    cli_check(read != NULL, "the languages a call reads the tree's files in are taken for it");
+    cli_cells_report(&pool, &persistent, &temporary);
+    cli_check(persistent == before_read, "out of the persistent tier");
+    cli_symbols_languages_given(read);
     cli_check(mmgr_owner_in_use(&g_cli_files_views_cells) == 0u, "the walk's and the list's cells are all given back");
 }
 

@@ -3,6 +3,7 @@
 // cli_bench_files.c: the bench's passes over the tree's files as files: the corpus read by several threads at once,
 // through the cells or through the system's allocator alone; the view of the tree's files picked as a search picks it;
 // and the tree searched as the window's search does it
+#include "../../../../../../ui/cli/src/code/symbols.h"
 #include "../../../../../../ui/cli/src/editor/files.h"
 #include "../../../../../../ui/cli/src/editor/files_internal.h"
 #include "bench.h"
@@ -109,9 +110,9 @@ BenchMeasure bench_picked(const BenchCorpus *corpus)
         // the view is read once, as the window caches it between searches; the first repeat pays for it
         if (round == 0u)
         {
-            cli_files_forget_seen();
+            cli_tree_forgotten();
         }
-        CliPicked picked = {NULL, NULL, 0u};
+        CliPicked picked = {NULL, 0u};
         const unsigned long long began = cli_clock_microseconds();
         (void)cli_files_picked(&picked, under, picked_include, NULL);
         const unsigned long long took = cli_clock_microseconds() - began;
@@ -138,7 +139,7 @@ BenchMeasure bench_search(const BenchCorpus *corpus, const char *needle)
         out.at = 0ull;
         if (round == 0u)
         {
-            cli_files_forget_seen();
+            cli_tree_forgotten();
         }
         const unsigned long long began = cli_clock_microseconds();
         (void)cli_files_search(under, needle, (CliSearching){0, 0, 0}, &none, &out, &err_msg);

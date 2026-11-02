@@ -28,9 +28,10 @@ typedef struct
 // among the text, a fold's, the line of a widget over the text and the grounds of find's matches, the current one's
 // stronger; the minimap's selection, its match, its slider and the slider dragged; the shown tab's ground and the
 // line along it; the ground of the strip's tool whose window shows, the signal at a share; the side pane's ground,
-// the ink at half; a diagnostic's error, warning and note colors; the lattice's three colors, a point in place the
-// first and a moved one passing through the second to the third; the eight colors a file's mark takes; and its
-// tokens, `token_count` of them
+// the ink at half; a diagnostic's error, warning and note colors; the large name's color and the eye's in the bar; the
+// shade under a raised thing and the color of TABVLA's cuts; a fuse's ash, burn, fire and the white of its hottest
+// core; the lattice's three colors, a point in place the first and a moved one passing through the second to the third;
+// the eight colors a file's mark takes; and its tokens, `token_count` of them
 typedef struct
 {
     GuiColor ground;
@@ -76,6 +77,14 @@ typedef struct
     GuiColor error;
     GuiColor warning;
     GuiColor note;
+    GuiColor open_text;
+    GuiColor bar_mark;
+    GuiColor lifted;
+    GuiColor incised;
+    GuiColor fuse_ash;
+    GuiColor fuse_burn;
+    GuiColor fuse_fire;
+    GuiColor fuse_core;
     GuiColor lattice[3];
     GuiColor mark[GUI_MARKS];
     const GuiTokenColor *token;

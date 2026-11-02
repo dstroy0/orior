@@ -67,6 +67,13 @@ static void window_place_checked(void)
     cli_window_place_keep(&(CliWindowPlace){1200, 600, 1440u, 920u, 0});
     cli_check(cli_window_place_kept(s_main, 1u, &place) && window_place_is(&place, 480, 160, 1440u, 920u, 0),
               "a place hanging off its monitor is moved wholly onto it");
+    cli_window_place_keep(&(CliWindowPlace){0, 0, 305u, 1392u, 0});
+    cli_check(!cli_window_place_kept(s_main, 1u, &place), "a place narrower than the window's least width is none, the window opening at its first size");
+    cli_window_place_keep(&(CliWindowPlace){0, 0, 1440u, 300u, 0});
+    cli_check(!cli_window_place_kept(s_main, 1u, &place), "a place lower than its least height is none");
+    cli_window_place_keep(&(CliWindowPlace){0, 0, CLI_PLACE_LEAST_WIDTH, CLI_PLACE_LEAST_HEIGHT, 0});
+    cli_check(cli_window_place_kept(s_main, 1u, &place) && window_place_is(&place, 0, 0, CLI_PLACE_LEAST_WIDTH, CLI_PLACE_LEAST_HEIGHT, 0),
+              "a place of the least size holds");
 }
 
 // the window's own call `name` with the JSON `args` answered, its answer, or why it failed, into `answer`, sized for

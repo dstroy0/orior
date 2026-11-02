@@ -187,18 +187,18 @@ static void cli_signature_arguments(const CliLeafRead *read, unsigned int line, 
 
 // whether a stored file is one of the call's language, its cell copied into `scratch` where it is
 static int signature_file_read(CliSymbolsLanguages *languages, CliSymbolSignature *signature,
-                               const CliSymbolFile *branch, char *scratch)
+                               const CliTreeBranch *branch, char *scratch)
 {
     if (!branch->used)
     {
         return 0;
     }
     char path[CLI_PATH_MAX_LEN];
-    cli_symbol_path_read(branch, path);
+    cli_branch_path_read(branch, path);
     const int spoken = cli_signature_language_is(languages, signature, path);
     if (spoken)
     {
-        cli_symbol_file_read(branch, scratch);
+        cli_branch_copied(branch, scratch);
     }
     return spoken;
 }
@@ -209,27 +209,27 @@ static void cli_signature_tree_type(CliSymbolsLanguages *languages, CliSymbolSig
                                     unsigned long long length, CliSymbolType *type)
 {
     int seen = 0;
-    cli_lock_take(&g_cli_symbols_lock);
-    char *const scratch = cli_symbol_scratch_taken();
-    for (unsigned int file = 0u; !seen && (scratch != NULL) && (file < g_cli_symbol_file_count); file += 1u)
+    cli_lock_take(&g_cli_walk_lock);
+    char *const scratch = cli_branch_copy_taken();
+    for (unsigned int file = 0u; !seen && (scratch != NULL) && (file < g_cli_branch_count); file += 1u)
     {
-        const CliSymbolFile *const branch = &g_cli_symbol_files[file];
+        const CliTreeBranch *const branch = &g_cli_branches[file];
         const int spoken = signature_file_read(languages, signature, branch, scratch);
         for (unsigned int each = 0u; !seen && spoken && (each < branch->count); each += 1u)
         {
-            const CliSymbol *const symbol = &cli_symbol_file_symbols(scratch)[each];
+            const CliDeclaration *const symbol = &cli_branch_copy_declarations(scratch)[each];
             seen = (symbol->length == length) && cli_text_same(scratch + symbol->name, name, length);
             if (seen)
             {
-                const char *const path = cli_symbol_file_path(branch, scratch);
+                const char *const path = cli_branch_copy_path(branch, scratch);
                 const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
                 memor.cpy(&(MemoriaCfg){.dst = signature->sought, .src = path, .bytes = (size_t)size + 1u});
                 signature->sought_line = symbol->line;
             }
         }
     }
-    cli_symbol_scratch_given(scratch);
-    cli_lock_give(&g_cli_symbols_lock);
+    cli_branch_copy_given(scratch);
+    cli_lock_give(&g_cli_walk_lock);
     char full[CLI_PATH_MAX_LEN];
     cli_full(signature->root, signature->sought, full);
     unsigned long long size = 0ull;
@@ -316,20 +316,20 @@ static void cli_signature_heads(CliSymbolsLanguages *languages, CliSymbolSignatu
                                 unsigned long long length)
 {
     signature->heads = 0u;
-    cli_lock_take(&g_cli_symbols_lock);
-    char *const scratch = cli_symbol_scratch_taken();
-    for (unsigned int file = 0u; (scratch != NULL) && (file < g_cli_symbol_file_count); file += 1u)
+    cli_lock_take(&g_cli_walk_lock);
+    char *const scratch = cli_branch_copy_taken();
+    for (unsigned int file = 0u; (scratch != NULL) && (file < g_cli_branch_count); file += 1u)
     {
-        const CliSymbolFile *const branch = &g_cli_symbol_files[file];
+        const CliTreeBranch *const branch = &g_cli_branches[file];
         const int spoken = signature_file_read(languages, signature, branch, scratch);
         for (unsigned int each = 0u; spoken && (each < branch->count); each += 1u)
         {
-            const CliSymbol *const symbol = &cli_symbol_file_symbols(scratch)[each];
+            const CliDeclaration *const symbol = &cli_branch_copy_declarations(scratch)[each];
             if ((signature->heads < CLI_SYMBOLS_HEADS) && (symbol->length == length) &&
                 cli_text_same(scratch + symbol->name, name, length))
             {
                 CliSymbolHead *const head = &signature->head[signature->heads];
-                const char *const path = cli_symbol_file_path(branch, scratch);
+                const char *const path = cli_branch_copy_path(branch, scratch);
                 const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
                 memor.cpy(&(MemoriaCfg){.dst = head->path, .src = path, .bytes = (size_t)size + 1u});
                 head->line = symbol->line;
@@ -337,8 +337,8 @@ static void cli_signature_heads(CliSymbolsLanguages *languages, CliSymbolSignatu
             }
         }
     }
-    cli_symbol_scratch_given(scratch);
-    cli_lock_give(&g_cli_symbols_lock);
+    cli_branch_copy_given(scratch);
+    cli_lock_give(&g_cli_walk_lock);
     const CliSymbolCall *const call = &signature->call;
     unsigned int given = 0u;
     for (unsigned int argument = 0u; argument < call->arguments; argument += 1u)
@@ -458,15 +458,15 @@ static void cli_signature_written(const CliLeafRead *read, const CliSymbolSignat
         }
         mmgr_line_put(out, "]}");
     }
-    cli_lock_take(&g_cli_symbols_lock);
-    mmgr_line_put(out, g_cli_symbols_reading ? "],\"reading\":true}" : "],\"reading\":false}");
-    cli_lock_give(&g_cli_symbols_lock);
+    cli_lock_take(&g_cli_walk_lock);
+    mmgr_line_put(out, g_cli_tree_walking ? "],\"reading\":true}" : "],\"reading\":false}");
+    cli_lock_give(&g_cli_walk_lock);
 }
 
 int cli_symbols_signature(const char *path, const char *state, const char *text, unsigned long long size,
                           unsigned int line, unsigned int col, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    CliSymbolsLanguages *const languages = cli_symbols_languages_read();
+    CliSymbolsLanguages *const languages = cli_symbols_languages_for_call();
     CliSymbolSignature *const signature =
         (languages != NULL) ? g_cli_cells->temporary_buf_alloc(sizeof(CliSymbolSignature), &g_cli_code_cells) : NULL;
     if (signature == NULL)
@@ -475,9 +475,9 @@ int cli_symbols_signature(const char *path, const char *state, const char *text,
         mmgr_line_put(err_msg, "the cells cannot meet a signature's reading");
         return 0;
     }
-    cli_lock_take(&g_cli_symbols_lock);
-    memor.cpy(&(MemoriaCfg){.dst = signature->root, .src = g_cli_symbols_root, .bytes = CLI_PATH_MAX_LEN});
-    cli_lock_give(&g_cli_symbols_lock);
+    cli_lock_take(&g_cli_walk_lock);
+    memor.cpy(&(MemoriaCfg){.dst = signature->root, .src = g_cli_tree_root, .bytes = CLI_PATH_MAX_LEN});
+    cli_lock_give(&g_cli_walk_lock);
     signature->language[0] = '\0';
     (void)cli_plugins_language_for(&languages->languages, path, signature->language);
     CliLeafRead read;

@@ -142,31 +142,77 @@ void gui_raster_filled(GuiRaster *raster, GuiRect rect, GuiColor color)
     }
 }
 
-// how much of the pixel at x, y of `rect` lies inside its corners' arcs of `radius`, 0 to 1: 1 away from the corners,
-// read in whole pixels with no square root, and in a corner's square the distance left from the pixel's middle to
-// the arc, clamped
-static float raster_corner_share(GuiRect rect, unsigned int radius, int x, int y)
+// the reaches an arc's table is kept for, past every corner a frame rounds at any scale, and the tables, each made once:
+// a table's rows and columns the whole pixels from the arc's center, each entry the pixel's share of 255 inside the arc
+#define RASTER_ARC_MOST 47u
+static unsigned char s_arc[RASTER_ARC_MOST + 1u][RASTER_ARC_MOST + 1u][RASTER_ARC_MOST + 1u];
+static unsigned char s_arc_made[RASTER_ARC_MOST + 1u];
+
+// the share of 255 inside an arc of `reach` of the pixel `across` and `down` whole pixels from its center: the distance
+// left from the pixel's middle to the arc, clamped, by 255, rounded
+static unsigned int raster_arc_worked(unsigned int reach, unsigned int across, unsigned int down)
+{
+    const float inside = (float)reach + 0.5f - hypotf((float)across + 0.5f, (float)down + 0.5f);
+    const float kept = (inside < 0.0f) ? 0.0f : ((inside > 1.0f) ? 1.0f : inside);
+    // a share of 255 by a factor from 0 to 1, rounded, is a byte
+    return (unsigned int)((255.0f * kept) + 0.5f);
+}
+
+unsigned int gui_raster_arc_cover(unsigned int reach, unsigned int across, unsigned int down)
+{
+    if (reach > RASTER_ARC_MOST)
+    {
+        return raster_arc_worked(reach, across, down);
+    }
+    if ((across > reach) || (down > reach))
+    {
+        return 0u;
+    }
+    if (!s_arc_made[reach])
+    {
+        for (unsigned int row = 0u; row <= reach; row += 1u)
+        {
+            for (unsigned int column = 0u; column <= reach; column += 1u)
+            {
+                // a share of 255 is a byte
+                s_arc[reach][row][column] = (unsigned char)raster_arc_worked(reach, column, row);
+            }
+        }
+        s_arc_made[reach] = 1u;
+    }
+    return s_arc[reach][down][across];
+}
+
+// the whole pixels from `centre` to the pixel `at` along one side, on either side of it
+static unsigned int raster_arc_off(int at, int centre)
+{
+    // the difference is not negative on the side it is taken for
+    return (at >= centre) ? (unsigned int)(at - centre) : (unsigned int)(centre - at - 1);
+}
+
+// the share of 255 of the pixel at `column`, `row` inside the arc of `reach` about the pixel corner `centre_x`, `centre_y`
+static unsigned int raster_arc_at(int centre_x, int centre_y, unsigned int reach, int column, int row)
+{
+    return gui_raster_arc_cover(reach, raster_arc_off(column, centre_x), raster_arc_off(row, centre_y));
+}
+
+// how much of the pixel at x, y of `rect` lies inside its corners' arcs of `radius`, a share of 255: whole away from the
+// corners, and in a corner's square as the arc's table has it
+static unsigned int raster_corner_cover(GuiRect rect, unsigned int radius, int x, int y)
 {
     // the corners' squares are radius by radius, which an int holds
     const int side = (int)radius;
-    const int in_corner_column = (x < rect.x + side) || (x >= rect.x + rect.width - side);
-    const int in_corner_row = (y < rect.y + side) || (y >= rect.y + rect.height - side);
-    if (!in_corner_column || !in_corner_row)
+    const int left = rect.x + side;
+    const int right = rect.x + rect.width - side;
+    const int top = rect.y + side;
+    const int bottom = rect.y + rect.height - side;
+    const int in_left = x < left;
+    const int in_top = y < top;
+    if ((!in_left && (x < right)) || (!in_top && (y < bottom)))
     {
-        return 1.0f;
+        return 255u;
     }
-    const float reach = (float)radius;
-    const float left = (float)rect.x + reach;
-    const float right = (float)(rect.x + rect.width) - reach;
-    const float top = (float)rect.y + reach;
-    const float bottom = (float)(rect.y + rect.height) - reach;
-    const float middle_x = (float)x + 0.5f;
-    const float middle_y = (float)y + 0.5f;
-    const float centre_x = (middle_x < left) ? left : ((middle_x > right) ? right : middle_x);
-    const float centre_y = (middle_y < top) ? top : ((middle_y > bottom) ? bottom : middle_y);
-    const float away = hypotf(middle_x - centre_x, middle_y - centre_y);
-    const float share = reach + 0.5f - away;
-    return (share < 0.0f) ? 0.0f : ((share > 1.0f) ? 1.0f : share);
+    return raster_arc_at(in_left ? left : right, in_top ? top : bottom, radius, x, y);
 }
 
 void gui_raster_rounded(GuiRaster *raster, GuiRect rect, unsigned int radius, GuiColor color)
@@ -194,11 +240,11 @@ void gui_raster_rounded(GuiRaster *raster, GuiRect rect, unsigned int radius, Gu
         }
         for (int x = on.x; x < on.x + on.width; x += 1)
         {
-            const float share = raster_corner_share(rect, radius, x, y);
-            if (share > 0.0f)
+            const unsigned int cover = raster_corner_cover(rect, radius, x, y);
+            if (cover != 0u)
             {
-                // a share of 255 by a factor from 0 to 1, rounded, is a byte
-                raster_put(raster, x, y, color, (unsigned int)((float)alpha * share + 0.5f));
+                // two shares of 255 multiplied are a share of 255 once divided by 255
+                raster_put(raster, x, y, color, ((alpha * cover) + 127u) / 255u);
             }
         }
     }
@@ -256,8 +302,8 @@ void gui_raster_paned(GuiRaster *raster, GuiUnder ground, GuiRect rect, unsigned
     {
         return;
     }
-    const float outer_alpha = (float)GUI_ALPHA_OF(ground.over);
-    const float inner_alpha = (float)GUI_ALPHA_OF(inner);
+    const int outer_alpha = (int)GUI_ALPHA_OF(ground.over);
+    const int alpha_span = (int)GUI_ALPHA_OF(inner) - outer_alpha;
     // the corners' squares are radius by radius, which an int holds
     const int side = (int)radius;
     for (int y = on.y; y < on.y + on.height; y += 1)
@@ -274,9 +320,9 @@ void gui_raster_paned(GuiRaster *raster, GuiUnder ground, GuiRect rect, unsigned
             {
                 continue;
             }
-            const float share = in_corner ? raster_corner_share(rect, radius, x, y) : 1.0f;
-            // an alpha between two bytes by a factor from 0 to 1, rounded, is a byte
-            const unsigned int alpha = (unsigned int)(outer_alpha + ((inner_alpha - outer_alpha) * share) + 0.5f);
+            // the cover is a share of 255 and a byte's span by it, rounded, comes back between the two bytes
+            const int cover = in_corner ? (int)raster_corner_cover(rect, radius, x, y) : 255;
+            const unsigned int alpha = (unsigned int)(outer_alpha + (((alpha_span * cover) + ((alpha_span < 0) ? -127 : 127)) / 255));
             // the pixel lies on the raster: its coordinates are not negative
             raster->pixels[((unsigned int)y * raster->width) + (unsigned int)x] = raster_pane_at(ground, x, y, inner, alpha);
         }
@@ -303,24 +349,14 @@ void gui_raster_corners_cut(GuiRaster *raster, GuiRect rect, unsigned int radius
         {
             for (int x = square.x; x < square.x + square.width; x += 1)
             {
-                const float outside = 1.0f - raster_corner_share(rect, radius, x, y);
-                if (outside > 0.0f)
+                const unsigned int outside = 255u - raster_corner_cover(rect, radius, x, y);
+                if (outside != 0u)
                 {
-                    // a share of 255 by a factor from 0 to 1, rounded, is a byte
-                    raster_put(raster, x, y, raster_ground_at(ground, x, y), (unsigned int)((255.0f * outside) + 0.5f));
+                    raster_put(raster, x, y, raster_ground_at(ground, x, y), outside);
                 }
             }
         }
     }
-}
-
-// the share of the pixel at `column`, `row` inside the arc of `reach` about `centre_x`, `centre_y`, 0 to 1 by the
-// distance left from the pixel's middle to the arc
-static float raster_arc_share(float centre_x, float centre_y, unsigned int reach, int column, int row)
-{
-    const float away = hypotf(((float)column + 0.5f) - centre_x, ((float)row + 0.5f) - centre_y);
-    const float inside = (float)reach + 0.5f - away;
-    return (inside < 0.0f) ? 0.0f : ((inside > 1.0f) ? 1.0f : inside);
 }
 
 // the turn of the work's outline out at x, y on the work's edge, rounded by `reach`: the square of that side from
@@ -332,17 +368,16 @@ static void raster_turned_out(GuiRaster *raster, int x, int y, unsigned int reac
     const int side = (int)reach;
     const GuiRect square = {(toward_x < 0) ? x - side : x, (toward_y < 0) ? y - side : y, side, side};
     const GuiRect on = gui_rect_met(square, raster_rect(raster));
-    const float centre_x = (float)(x + (toward_x * side));
-    const float centre_y = (float)(y + (toward_y * side));
+    const int centre_x = x + (toward_x * side);
+    const int centre_y = y + (toward_y * side);
     for (int row = on.y; row < on.y + on.height; row += 1)
     {
         for (int column = on.x; column < on.x + on.width; column += 1)
         {
-            const float outside = 1.0f - raster_arc_share(centre_x, centre_y, reach, column, row);
-            if (outside > 0.0f)
+            const unsigned int outside = 255u - raster_arc_at(centre_x, centre_y, reach, column, row);
+            if (outside != 0u)
             {
-                // a share of 255 by a factor from 0 to 1, rounded, is a byte
-                raster_put(raster, column, row, raster_ground_at(ground, column, row), (unsigned int)((255.0f * outside) + 0.5f));
+                raster_put(raster, column, row, raster_ground_at(ground, column, row), outside);
             }
         }
     }
@@ -399,20 +434,20 @@ static int raster_notch_read(GuiRect work, GuiRect notch, unsigned int radius, R
 
 // the square of the fillet at the notch's `corner`, inside the hole at the corner, and the arc's center, the far
 // corner of the square
-static GuiRect raster_fillet_square(const RasterNotch *notch, unsigned int corner, float *centre_x, float *centre_y)
+static GuiRect raster_fillet_square(const RasterNotch *notch, unsigned int corner, int *centre_x, int *centre_y)
 {
     // the square's side is the radius, which an int holds
     const int side = (int)notch->reach;
     const GuiRect square = {(notch->into_x[corner] < 0) ? notch->corner_x[corner] - side : notch->corner_x[corner],
                             (notch->into_y[corner] < 0) ? notch->corner_y[corner] - side : notch->corner_y[corner], side, side};
-    *centre_x = (float)(notch->corner_x[corner] + (notch->into_x[corner] * side));
-    *centre_y = (float)(notch->corner_y[corner] + (notch->into_y[corner] * side));
+    *centre_x = notch->corner_x[corner] + (notch->into_x[corner] * side);
+    *centre_y = notch->corner_y[corner] + (notch->into_y[corner] * side);
     return square;
 }
 
 // the square of the turn out at the notch's `corner`, on one of the work's edges: reaching from the corner into the
 // work along the edge away from the hole and in from the edge, and the arc's center, the square's far corner
-static GuiRect raster_turn_square(const RasterNotch *notch, unsigned int corner, float *centre_x, float *centre_y)
+static GuiRect raster_turn_square(const RasterNotch *notch, unsigned int corner, int *centre_x, int *centre_y)
 {
     const int toward_x = notch->on_y[corner] ? -notch->into_x[corner] : notch->into_x[corner];
     const int toward_y = notch->on_x[corner] ? -notch->into_y[corner] : notch->into_y[corner];
@@ -421,8 +456,8 @@ static GuiRect raster_turn_square(const RasterNotch *notch, unsigned int corner,
     const int x = notch->corner_x[corner];
     const int y = notch->corner_y[corner];
     const GuiRect square = {(toward_x < 0) ? x - side : x, (toward_y < 0) ? y - side : y, side, side};
-    *centre_x = (float)(x + (toward_x * side));
-    *centre_y = (float)(y + (toward_y * side));
+    *centre_x = x + (toward_x * side);
+    *centre_y = y + (toward_y * side);
     return square;
 }
 
@@ -438,8 +473,8 @@ unsigned int gui_raster_notch_fillets(GuiRect work, GuiRect notch, unsigned int 
     {
         if (!read.on_x[corner] && !read.on_y[corner])
         {
-            float centre_x = 0.0f;
-            float centre_y = 0.0f;
+            int centre_x = 0;
+            int centre_y = 0;
             squares[count] = raster_fillet_square(&read, corner, &centre_x, &centre_y);
             count += 1u;
         }
@@ -457,8 +492,8 @@ void gui_raster_notched(GuiRaster *raster, GuiRect work, GuiRect notch, unsigned
     // the fillets: at a corner inside the work the outline turns in round the hole, and the square of the radius
     // inside the hole at the corner takes the ground inside the arc alone, what was drawn standing outside it
     GuiRect fillet[4];
-    float centre_x[4];
-    float centre_y[4];
+    int centre_x[4];
+    int centre_y[4];
     unsigned int fillets = 0u;
     for (unsigned int corner = 0u; (read.reach > 0u) && (corner < 4u); corner += 1u)
     {
@@ -473,18 +508,17 @@ void gui_raster_notched(GuiRaster *raster, GuiRect work, GuiRect notch, unsigned
     {
         for (int column = on.x; column < on.x + on.width; column += 1)
         {
-            float share = 1.0f;
+            unsigned int share = 255u;
             for (unsigned int at = 0u; at < fillets; at += 1u)
             {
                 if (gui_rect_holds(fillet[at], column, row))
                 {
-                    share = raster_arc_share(centre_x[at], centre_y[at], read.reach, column, row);
+                    share = raster_arc_at(centre_x[at], centre_y[at], read.reach, column, row);
                 }
             }
-            if (share > 0.0f)
+            if (share != 0u)
             {
-                // a share of 255 by a factor from 0 to 1, rounded, is a byte
-                raster_put(raster, column, row, raster_ground_at(ground, column, row), (unsigned int)((255.0f * share) + 0.5f));
+                raster_put(raster, column, row, raster_ground_at(ground, column, row), share);
             }
         }
     }
@@ -496,31 +530,29 @@ void gui_raster_notched(GuiRaster *raster, GuiRect work, GuiRect notch, unsigned
         {
             continue;
         }
-        float turn_x = 0.0f;
-        float turn_y = 0.0f;
+        int turn_x = 0;
+        int turn_y = 0;
         const GuiRect square = raster_turn_square(&read, corner, &turn_x, &turn_y);
         const GuiRect turn_on = gui_rect_met(square, raster_rect(raster));
         for (int row = turn_on.y; row < turn_on.y + turn_on.height; row += 1)
         {
             for (int column = turn_on.x; column < turn_on.x + turn_on.width; column += 1)
             {
-                const float outside = 1.0f - raster_arc_share(turn_x, turn_y, read.reach, column, row);
-                if (outside > 0.0f)
+                const unsigned int outside = 255u - raster_arc_at(turn_x, turn_y, read.reach, column, row);
+                if (outside != 0u)
                 {
-                    // a share of 255 by a factor from 0 to 1, rounded, is a byte
-                    raster_put(raster, column, row, raster_ground_at(ground, column, row), (unsigned int)((255.0f * outside) + 0.5f));
+                    raster_put(raster, column, row, raster_ground_at(ground, column, row), outside);
                 }
             }
         }
     }
 }
 
-// a line's `color` put at x, y by `cover`, 0 to 1, of the color's alpha
-static void raster_line_put(GuiRaster *raster, int x, int y, GuiColor color, float cover)
+// a line's `color` put at x, y by `cover`, a share of 255, of the color's alpha; a cover below none puts nothing
+static void raster_line_put(GuiRaster *raster, int x, int y, GuiColor color, int cover)
 {
-    const float within = (cover < 0.0f) ? 0.0f : ((cover > 1.0f) ? 1.0f : cover);
-    // an alpha by a factor from 0 to 1, rounded, is a byte
-    const unsigned int share = (unsigned int)(((float)GUI_ALPHA_OF(color) * within) + 0.5f);
+    // the cover is not negative past the test, and two shares of 255 multiplied are a share of 255 once divided by 255
+    const unsigned int share = (cover <= 0) ? 0u : ((GUI_ALPHA_OF(color) * (unsigned int)cover) + 127u) / 255u;
     if (share != 0u)
     {
         raster_put(raster, x, y, color, share);
@@ -569,15 +601,16 @@ static void raster_corner_outlined(GuiRaster *raster, GuiRect work, GuiRect insi
     {
         for (int x = on.x; x < on.x + on.width; x += 1)
         {
-            const float outer = raster_corner_share(work, radius, x, y);
-            const float inner = gui_rect_holds(inside, x, y) ? raster_corner_share(inside, inner_radius, x, y) : 0.0f;
-            // a share of 255 by a factor from 0 to 1, rounded, is a byte
-            raster_put(raster, x, y, raster_ground_at(clear, x, y), (unsigned int)((255.0f * (1.0f - inner)) + 0.5f));
-            // the nearer edge's line: how far the pixel's middle stands in from the edge across and the edge down
-            const float from_across = at_bottom ? (float)(work.y + work.height) - ((float)y + 0.5f) : ((float)y + 0.5f) - (float)work.y;
-            const float from_down = at_right ? (float)(work.x + work.width) - ((float)x + 0.5f) : ((float)x + 0.5f) - (float)work.x;
-            raster_line_put(raster, x, y, (from_across <= from_down) ? across : down, outer - inner);
-            raster_put(raster, x, y, raster_ground_at(table, x, y), (unsigned int)((255.0f * (1.0f - outer)) + 0.5f));
+            const unsigned int outer = raster_corner_cover(work, radius, x, y);
+            const unsigned int inner = gui_rect_holds(inside, x, y) ? raster_corner_cover(inside, inner_radius, x, y) : 0u;
+            raster_put(raster, x, y, raster_ground_at(clear, x, y), 255u - inner);
+            // the nearer edge's line: how far the pixel's middle stands in from the edge across and the edge down, in
+            // half pixels
+            const int from_across = at_bottom ? (2 * (work.y + work.height - y)) - 1 : (2 * (y - work.y)) + 1;
+            const int from_down = at_right ? (2 * (work.x + work.width - x)) - 1 : (2 * (x - work.x)) + 1;
+            // the shares are bytes
+            raster_line_put(raster, x, y, (from_across <= from_down) ? across : down, (int)outer - (int)inner);
+            raster_put(raster, x, y, raster_ground_at(table, x, y), 255u - outer);
         }
     }
 }
@@ -638,8 +671,8 @@ static void raster_notch_outlined(GuiRaster *raster, GuiRect work, const RasterN
     const GuiRect hole = notch->hole;
     for (unsigned int corner = 0u; (notch->reach > 0u) && (corner < 4u); corner += 1u)
     {
-        float centre_x = 0.0f;
-        float centre_y = 0.0f;
+        int centre_x = 0;
+        int centre_y = 0;
         if (!notch->on_x[corner] && !notch->on_y[corner])
         {
             // the fillet: the line lies outside the arc, the square grown by the line's width on its sides at the corner
@@ -651,14 +684,13 @@ static void raster_notch_outlined(GuiRaster *raster, GuiRect work, const RasterN
             {
                 for (int x = on.x; x < on.x + on.width; x += 1)
                 {
-                    const float inside = raster_arc_share(centre_x, centre_y, notch->reach, x, y);
+                    const unsigned int inside = raster_arc_at(centre_x, centre_y, notch->reach, x, y);
                     if (gui_rect_holds(square, x, y))
                     {
-                        // a share of 255 by a factor from 0 to 1, rounded, is a byte
-                        raster_put(raster, x, y, raster_ground_at(table, x, y), (unsigned int)((255.0f * inside) + 0.5f));
+                        raster_put(raster, x, y, raster_ground_at(table, x, y), inside);
                     }
-                    // the line's width is far inside what an unsigned int represents
-                    raster_line_put(raster, x, y, color, raster_arc_share(centre_x, centre_y, notch->reach + (unsigned int)wide, x, y) - inside);
+                    // the line's width is far inside what an unsigned int represents, and the shares are bytes
+                    raster_line_put(raster, x, y, color, (int)raster_arc_at(centre_x, centre_y, notch->reach + (unsigned int)wide, x, y) - (int)inside);
                 }
             }
         }
@@ -672,10 +704,10 @@ static void raster_notch_outlined(GuiRaster *raster, GuiRect work, const RasterN
             {
                 for (int x = on.x; x < on.x + on.width; x += 1)
                 {
-                    const float inside = raster_arc_share(centre_x, centre_y, notch->reach, x, y);
-                    // a share of 255 by a factor from 0 to 1, rounded, is a byte
-                    raster_put(raster, x, y, raster_ground_at(table, x, y), (unsigned int)((255.0f * (1.0f - inside)) + 0.5f));
-                    raster_line_put(raster, x, y, color, inside - raster_arc_share(centre_x, centre_y, inner, x, y));
+                    const unsigned int inside = raster_arc_at(centre_x, centre_y, notch->reach, x, y);
+                    raster_put(raster, x, y, raster_ground_at(table, x, y), 255u - inside);
+                    // the shares are bytes
+                    raster_line_put(raster, x, y, color, (int)inside - (int)raster_arc_at(centre_x, centre_y, inner, x, y));
                 }
             }
         }
@@ -843,9 +875,132 @@ void gui_raster_stenciled(GuiRaster *raster, const GuiMask *mask, GuiColor color
     }
 }
 
-// the 4 by 4 ordered threshold at x, y, 0 to 15, as the page's shader orders it: the pixel's own parity across and
-// down weighs most, its pair's parity the rest
-static unsigned int raster_ordered(int x, int y)
+unsigned int gui_raster_row_covered(const unsigned char *cover, unsigned int width, int left, int right, unsigned int raster_width,
+                                    unsigned char *out, int *x)
+{
+    *x = 0;
+    if ((right <= left) || (width == 0u))
+    {
+        return 0u;
+    }
+    const long long span = (long long)right - (long long)left;
+    const int first = (left < 0) ? 0 : (left >> 16);
+    const int ends = (int)((((long long)right + 65535ll) >> 16));
+    // the raster's width is far inside what an int represents
+    const int past = (ends > (int)raster_width) ? (int)raster_width : ends;
+    if (past <= first)
+    {
+        return 0u;
+    }
+    *x = first;
+    // the pixels are not negative in count, past being past first
+    const unsigned int count = (unsigned int)(past - first);
+    if (out == NULL)
+    {
+        return count;
+    }
+    // how much of the row a whole pixel takes, in the row's bytes with sixteen bits of fraction, and one over it with
+    // forty, each worked once for the row: a pixel's share is the row's cover summed along what of it lands on the
+    // pixel, by that one over: no division a pixel
+    const long long whole = (((long long)width << 16) << 16) / span;
+    const long long over = (1ll << 40) / whole;
+    const long long stop_place = (long long)width << 16;
+    long long place = (first == (left >> 16)) ? 0ll : ((((long long)first << 16) - (long long)left) * whole) >> 16;
+    unsigned int at = (unsigned int)(place >> 16);
+    for (unsigned int pixel = 0u; pixel < count; pixel += 1u)
+    {
+        const long long end_word = (((long long)first + (long long)pixel + 1ll) << 16);
+        const long long worked = (((end_word > (long long)right) ? (long long)right : end_word) - (long long)left) * whole >> 16;
+        const long long stop = (worked > stop_place) ? stop_place : worked;
+        long long area = 0ll;
+        while (place < stop)
+        {
+            const long long next = ((long long)at + 1ll) << 16;
+            const long long upto = (next < stop) ? next : stop;
+            area += (long long)cover[at] * (upto - place);
+            place = upto;
+            at += (upto == next) ? 1u : 0u;
+        }
+        // a mean of bytes, rounded, is a share of 255
+        out[pixel] = (unsigned char)(((area * over) + (1ll << 39)) >> 40);
+    }
+    return count;
+}
+
+void gui_raster_span_laid(GuiRaster *raster, int x, int y, const unsigned char *cover, unsigned int count, GuiColor color)
+{
+    const unsigned int alpha = GUI_ALPHA_OF(color);
+    // the raster's sides are far inside what an int represents, and a span made for the raster lies inside its width
+    if ((y < 0) || (y >= (int)raster->height) || (alpha == 0u))
+    {
+        return;
+    }
+    GuiColor *const out = &raster->pixels[((unsigned int)y * raster->width) + (unsigned int)x];
+    for (unsigned int at = 0u; at < count; at += 1u)
+    {
+        if (cover[at] != 0u)
+        {
+            out[at] = raster_blended(out[at], color, ((cover[at] * alpha) + 127u) / 255u);
+        }
+    }
+}
+
+void gui_raster_stenciled_over(GuiRaster *picture, const GuiMask *mask, int x, int y, GuiColor color)
+{
+    // the mask's sides are far inside what an int represents
+    const GuiRect on = gui_rect_met((GuiRect){x, y, (int)mask->width, (int)mask->height}, raster_rect(picture));
+    const unsigned int alpha = GUI_ALPHA_OF(color);
+    if (gui_rect_empty(on) || (alpha == 0u))
+    {
+        return;
+    }
+    for (int row = on.y; row < on.y + on.height; row += 1)
+    {
+        // the row and column inside the mask are not negative, the rectangle drawn lying inside it
+        const unsigned char *const cover = mask->cover + ((unsigned int)(row - y) * mask->width);
+        for (int column = on.x; column < on.x + on.width; column += 1)
+        {
+            const unsigned int laid = ((cover[(unsigned int)(column - x)] * alpha) + 127u) / 255u;
+            if (laid != 0u)
+            {
+                GuiColor *const at = &picture->pixels[((unsigned int)row * picture->width) + (unsigned int)column];
+                const GuiColor had = *at;
+                const unsigned int kept = ((GUI_ALPHA_OF(had) * (255u - laid)) + 127u) / 255u;
+                const unsigned int total = laid + kept;
+                // the two shares of a channel over their sum, rounded, are a byte
+                *at = GUI_RGBA(((GUI_RED_OF(color) * laid) + (GUI_RED_OF(had) * kept) + (total / 2u)) / total,
+                               ((GUI_GREEN_OF(color) * laid) + (GUI_GREEN_OF(had) * kept) + (total / 2u)) / total,
+                               ((GUI_BLUE_OF(color) * laid) + (GUI_BLUE_OF(had) * kept) + (total / 2u)) / total, total);
+            }
+        }
+    }
+}
+
+void gui_raster_picture_laid(GuiRaster *raster, const GuiRaster *picture, int x, int y, unsigned int opacity)
+{
+    // the picture's sides are far inside what an int represents
+    const GuiRect on = gui_rect_met((GuiRect){x, y, (int)picture->width, (int)picture->height}, raster_rect(raster));
+    if (gui_rect_empty(on) || (opacity == 0u))
+    {
+        return;
+    }
+    for (int row = on.y; row < on.y + on.height; row += 1)
+    {
+        // the row and column inside the picture are not negative, the rectangle laid lying inside it
+        const GuiColor *const from = picture->pixels + ((unsigned int)(row - y) * picture->width);
+        for (int column = on.x; column < on.x + on.width; column += 1)
+        {
+            const GuiColor pixel = from[(unsigned int)(column - x)];
+            const unsigned int share = ((GUI_ALPHA_OF(pixel) * opacity) + 127u) / 255u;
+            if (share != 0u)
+            {
+                raster_put(raster, column, row, pixel, share);
+            }
+        }
+    }
+}
+
+unsigned int gui_raster_ordered(int x, int y)
 {
     // a coordinate's low bits read the same whatever its sign
     const unsigned int across = (unsigned int)x;
@@ -892,8 +1047,8 @@ void gui_raster_grained(GuiRaster *raster, GuiRect rect, unsigned int radius, co
             column = (column + 1u == tile) ? 0u : column + 1u;
             if ((grain != 0u) && through_corners)
             {
-                // a byte by a factor from 0 to 1, rounded, is a byte
-                grain = (unsigned int)(((float)grain * raster_corner_share(rect, radius, x, y)) + 0.5f);
+                // two shares of 255 multiplied are a share of 255 once divided by 255
+                grain = ((grain * raster_corner_cover(rect, radius, x, y)) + 127u) / 255u;
             }
             if (grain != 0u)
             {
@@ -923,7 +1078,7 @@ void gui_raster_dotted(GuiRaster *raster, float x, float y, float radius, GuiCol
                 continue;
             }
             const float share = ink * ((inside < 1.0f) ? inside : 1.0f);
-            const float threshold = ((float)raster_ordered(column, row) - 7.5f) / 16.0f;
+            const float threshold = ((float)gui_raster_ordered(column, row) - 7.5f) / 16.0f;
             // the pixel lies on the raster: its coordinates are not negative
             GuiColor *const at = &raster->pixels[((unsigned int)row * raster->width) + (unsigned int)column];
             *at = GUI_RGB(raster_dot_channel(GUI_RED_OF(*at), GUI_RED_OF(color), share, threshold),

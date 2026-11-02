@@ -12,6 +12,8 @@
 // the tree names a structure Atom in its engine's headers, which the CLI's headers include; X's Atom is renamed
 // X11Atom here, in X's own headers and in this file alike
 #define Atom X11Atom
+#include "xsettings.h"
+
 #include <X11/Xatom.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
@@ -49,6 +51,8 @@ struct GuiSystem
     Atom state;
     Atom state_maximized_horizontal;
     Atom state_maximized_vertical;
+    Window settings_owner;
+    Atom settings;
 };
 
 // the scale of the screen: its pixels an inch over 96
@@ -209,9 +213,73 @@ static long system_direction(unsigned int hit)
     return (hit < 13u) ? s_directions[hit] : -1l;
 }
 
+// a request of the settings' window's refused as that window goes: nothing is to be done about it
+static int system_settings_refused(Display *display, XErrorEvent *error)
+{
+    (void)display;
+    (void)error;
+    return 0;
+}
+
+int gui_system_motion_reduced(const GuiSystem *system)
+{
+    if (system->settings_owner == None)
+    {
+        return 0;
+    }
+    Atom type = None;
+    int format = 0;
+    unsigned long count = 0ul;
+    unsigned long after = 0ul;
+    unsigned char *data = NULL;
+    const XErrorHandler kept = XSetErrorHandler(system_settings_refused);
+    // a settings list is far shorter than a million words
+    const int asked = XGetWindowProperty(system->display, system->settings_owner, system->settings, 0l, 1l << 20, False, AnyPropertyType, &type, &format,
+                                         &count, &after, &data);
+    XSync(system->display, False);
+    XSetErrorHandler(kept);
+    int enabled = 1;
+    const int read = (asked == Success) && (data != NULL) && (format == 8) && gui_xsettings_animations(data, count, &enabled);
+    if (data != NULL)
+    {
+        XFree(data);
+    }
+    return read && !enabled;
+}
+
+// the window holding the desktop's settings found and its changes watched, where the desktop runs one
+static void system_settings_watched(GuiSystem *system)
+{
+    char name[32];
+    VerbaLinea named = {name, sizeof(name), 0ull};
+    mmgr_line_put(&named, "_XSETTINGS_S");
+    // a screen's number is not negative
+    mmgr_line_decimal(&named, (unsigned long long)system->screen, 1u);
+    (void)mmgr_line_finish(&named);
+    system->settings = XInternAtom(system->display, "_XSETTINGS_SETTINGS", False);
+    system->settings_owner = XGetSelectionOwner(system->display, XInternAtom(system->display, name, False));
+    if (system->settings_owner != None)
+    {
+        XSelectInput(system->display, system->settings_owner, PropertyChangeMask | StructureNotifyMask);
+    }
+}
+
 // one event of the display's taken
 static void system_event(GuiSystem *system, XEvent *event)
 {
+    if ((system->settings_owner != None) && (event->xany.window == system->settings_owner))
+    {
+        if (event->type == DestroyNotify)
+        {
+            system->settings_owner = None;
+            system->events->motion(system->context);
+        }
+        else if ((event->type == PropertyNotify) && (event->xproperty.atom == system->settings))
+        {
+            system->events->motion(system->context);
+        }
+        return;
+    }
     switch (event->type)
     {
     case Expose:
@@ -240,6 +308,13 @@ static void system_event(GuiSystem *system, XEvent *event)
     case MotionNotify:
         system->events->pointer(system->context, GUI_POINTER_MOVED, event->xmotion.x, event->xmotion.y, 0u,
                                 system_mods(event->xmotion.state));
+        break;
+    case LeaveNotify:
+        // a grab's crossing is no leave: the pointer has not gone
+        if (event->xcrossing.mode == NotifyNormal)
+        {
+            system->events->pointer(system->context, GUI_POINTER_LEFT, 0, 0, 0u, system_mods(event->xcrossing.state));
+        }
         break;
     case KeyPress:
         system_key_pressed(system, &event->xkey);
@@ -344,7 +419,7 @@ GuiSystem *gui_system_opened(const CliWindowPlace *place, const char *title, con
     XSetWindowAttributes attributes;
     attributes.background_pixel = 0x131331ul;
     attributes.event_mask = ExposureMask | StructureNotifyMask | ButtonPressMask | ButtonReleaseMask |
-                            PointerMotionMask | KeyPressMask | KeyReleaseMask;
+                            PointerMotionMask | LeaveWindowMask | KeyPressMask | KeyReleaseMask;
     system->window = XCreateWindow(system->display, root, place->x, place->y, place->width, place->height, 0,
                                    CopyFromParent, InputOutput, CopyFromParent, CWBackPixel | CWEventMask, &attributes);
     // the decorations taken off: the hints' flags word says the decorations word counts, and it is zero
@@ -360,6 +435,13 @@ GuiSystem *gui_system_opened(const CliWindowPlace *place, const char *title, con
     system->state_maximized_vertical = XInternAtom(system->display, "_NET_WM_STATE_MAXIMIZED_VERT", False);
     XSetWMProtocols(system->display, system->window, &system->delete_window, 1);
     XStoreName(system->display, system->window, title);
+    // the least size the window manager drags the window to; a size is far inside an int
+    XSizeHints least;
+    least.flags = PMinSize;
+    least.min_width = (int)CLI_PLACE_LEAST_WIDTH;
+    least.min_height = (int)CLI_PLACE_LEAST_HEIGHT;
+    XSetWMNormalHints(system->display, system->window, &least);
+    system_settings_watched(system);
     XMapWindow(system->display, system->window);
     if (place->maximized)
     {

@@ -249,7 +249,7 @@ int cli_serve_root_set(const char *path, VerbaLinea *out, VerbaLinea *err_msg)
         cli_serve_databases_closed();
         cli_unmounted_all();
         cli_servers_let_go();
-        cli_symbols_forget();
+        cli_tree_forgotten();
         // the pool made anew for the tree: its files' bytes over the fixed pool, where no cell is allocated across the
         // move
         (void)cli_cells_made(cli_tree_bytes(full) + CLI_CELLS_POOL);

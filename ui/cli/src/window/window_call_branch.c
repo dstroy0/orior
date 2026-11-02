@@ -58,7 +58,7 @@ static void branch_colored_in(const char *key, const char *id, VerbaLinea *out)
 static void branch_language_of(const char *path, char *id)
 {
     CliLanguages languages;
-    cli_plugins_languages(&languages);
+    cli_plugins_languages_for_call(&languages);
     if (!cli_plugins_language_for(&languages, path, id))
     {
         id[0] = '\0';

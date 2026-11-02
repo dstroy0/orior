@@ -97,8 +97,10 @@ typedef struct
 // every plugin handed to `each`: those that come with orior, then the reader's, each in the order of its id
 void cli_plugins_each(void (*each)(void *context, const CliPlugin *plugin), void *context);
 // the language each extension opens as, by the language plugins, a reader's plugin standing in for one that comes with
-// orior, a key whose room could not be taken left out; and the languages' cell given back
+// orior, a key whose room could not be taken left out; the same for a caller giving it back within its call, from the
+// temporary tier; and the languages' cell given back, either way
 void cli_plugins_languages(CliLanguages *languages);
+void cli_plugins_languages_for_call(CliLanguages *languages);
 void cli_plugins_languages_given(CliLanguages *languages);
 // the grammar of the language plugin `id` stored for the colorer under `plugin:<id>`, its key written into `key`,
 // sized for CLI_NAME_MAX_LEN: read from the plugin.json of the plugin of that id that stands, and read again only where

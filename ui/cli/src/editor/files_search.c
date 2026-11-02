@@ -3,6 +3,7 @@
 // files_search.c: every line in the tree's files that contains a query. The files are what git tracks or would track,
 // or the whole tree where git cannot read it. Text is found by the sift: a worker on each core orior's work may take
 // reads the next file into a cell of its size and searches it there; a regular expression is git's to search
+#include "../code/symbols.h"
 #include "../machine/cores.h"
 #include "../text/regexp.h"
 #include "../text/text.h"
@@ -14,7 +15,7 @@
 #define CLI_WORKERS_MOST 256u
 #define CLI_BINARY_LOOK 8192ull
 
-// One search: the files searched, picked from the view of the tree pinned through the search, and the most bytes of one
+// One search: the files searched, picked off the tree for the search's length, and the most bytes of one
 // read, what is looked for and its letters in lower case; the next file to read; the workers searching; the lines
 // found; and each worker's thread
 typedef struct
@@ -121,14 +122,19 @@ static int cli_search_includes(void *context, const char *path)
     return !cli_patterns_hides(hides->patterns, path, 0) && !cli_patterns_hides(hides->set, path, 0);
 }
 
-// the tree's files the search reads picked into the search, the view pinned until the search ends: git's view, or the
-// tree's own files where git cannot read it, less those the patterns hide; none where no view could be pinned. And the
+// the tree's files the search reads picked into the search for its length and sorted, less those the patterns hide;
+// none where the cellblock cannot meet them. And the
 // most bytes it reads of one, a tree git cannot read passing over a larger file
 static void cli_search_paths(const char *root, const CliPatterns *patterns, const CliPatterns *set)
 {
     CliSearchHides hides = {patterns, set};
     (void)cli_files_picked(&s_search.paths, root, cli_search_includes, &hides);
-    s_search.most = ((s_search.paths.seen != NULL) && s_search.paths.seen->git) ? ~0ull : CLI_SEARCHED_BYTES;
+    if (s_search.paths.files != NULL)
+    {
+        (void)cli_files_sorted(s_search.paths.files);
+        s_search.paths.count = s_search.paths.files->count;
+    }
+    s_search.most = cli_tree_git() ? ~0ull : CLI_SEARCHED_BYTES;
 }
 
 // the files read and searched, a worker on each core the work may take, and the lines found written

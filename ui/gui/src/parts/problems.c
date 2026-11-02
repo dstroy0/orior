@@ -239,6 +239,11 @@ void gui_problems_checking(GuiProblems *problems, unsigned long long done, unsig
     problems->total = total;
 }
 
+int gui_problems_running(const GuiProblems *problems)
+{
+    return (problems->total != 0ull) && (problems->done < problems->total);
+}
+
 unsigned int gui_problems_of(const GuiProblems *problems, const char *path, unsigned int *first)
 {
     const int at =
@@ -367,8 +372,7 @@ int gui_problems_pressed(GuiProblems *problems, const GuiFrame *frame, int x, in
     }
     if (gui_rect_holds(problems_head_rect(frame), x, y))
     {
-        const int running = (problems->total != 0ull) && (problems->done < problems->total);
-        pick->kind = running ? GUI_PROBLEMS_PICK_STOP : GUI_PROBLEMS_PICK_CHECK;
+        pick->kind = gui_problems_running(problems) ? GUI_PROBLEMS_PICK_STOP : GUI_PROBLEMS_PICK_CHECK;
         return 1;
     }
     unsigned int row = 0u;
@@ -459,7 +463,7 @@ static void problems_head_drawn(const GuiProblems *problems, GuiRaster *raster, 
     const int pad = gui_scaled(GUI_PROBLEMS_PAD_LEFT, scale);
     char text[160];
     VerbaLinea line = {text, sizeof(text), 0ull};
-    const int running = (problems->total != 0ull) && (problems->done < problems->total);
+    const int running = gui_problems_running(problems);
     if (running)
     {
         mmgr_line_put(&line, "Checking the tree: ");

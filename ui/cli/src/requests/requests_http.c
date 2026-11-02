@@ -303,6 +303,8 @@ static int http_written(HttpConnection *connection, const char *host, VerbaLinea
         mmgr_line_put(err_msg, ": the request could not be sent");
         written = 0;
     }
+    // a request's headers may carry a secret, and the pool leaves a cell as it is
+    mmgr_zero_buf(head.out, head.at);
     g_cli_cells->persistent_buf_release(head.out, &g_cli_requests_cells);
     return written;
 }

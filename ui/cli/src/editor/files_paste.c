@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // files_paste.c: files and folders copied or moved into a folder of the tree, a name the folder contains already
 // numbered, and a file brought from another machine written a part at a time beside the file it becomes
+#include "../code/symbols.h"
 #include "../command_line/cells.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
@@ -377,9 +378,11 @@ int cli_files_paste(const char *root, const char *into, const char *const *from,
         char to[CLI_PATH_MAX_LEN];
         cli_relative(root, stays ? source : target, to);
         cli_pasted_written(out, index == 0u, inside ? was : NULL, to);
+        // what the paste left at each end mirrored to its closest parent, the rest of the tree as it stands
+        const char *const moved[2] = {to, was};
+        cli_tree_mirrored(root, moved, inside ? 2u : 1u);
     }
     mmgr_line_ch(out, ']');
-    cli_files_forget_seen();
     return 1;
 }
 
@@ -454,7 +457,8 @@ int cli_files_write_part(const char *root, const char *path, unsigned long long 
         {
             return cli_unmoved(target, err_msg);
         }
-        cli_files_forget_seen();
+        const char *const moved[1] = {path};
+        cli_tree_mirrored(root, moved, 1u);
     }
     return 1;
 }

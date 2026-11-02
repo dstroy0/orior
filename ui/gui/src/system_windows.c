@@ -65,6 +65,7 @@ struct GuiSystem
     unsigned long long presented_ms;
     unsigned int frame_ms;
     SystemDevice device;
+    DWORD leave_watched;
 };
 
 // the system the pages' surfaces stand on, one window's; NULL before it opens and after it closes
@@ -530,6 +531,29 @@ static void system_blitted(GuiSystem *system, HDC context, unsigned int from, un
                       DIB_RGB_COLORS);
 }
 
+// the system asked to say when the pointer leaves, by `flags`, the client's or the frame's, where it is not asked that
+// already
+static void system_leave_watched(GuiSystem *system, HWND window, DWORD flags)
+{
+    if (system->leave_watched != flags)
+    {
+        TRACKMOUSEEVENT track = {sizeof(track), flags, window, 0u};
+        system->leave_watched = TrackMouseEvent(&track) ? flags : 0u;
+    }
+}
+
+// the pointer gone from the client or the frame: the window told where it stands off the window altogether, as a move
+// from the client onto the frame is no leave
+static void system_pointer_left(GuiSystem *system, HWND window)
+{
+    POINT at;
+    RECT frame;
+    if (GetCursorPos(&at) && GetWindowRect(window, &frame) && !PtInRect(&frame, at))
+    {
+        system->events->pointer(system->context, GUI_POINTER_LEFT, 0, 0, 0u, system_mods(system));
+    }
+}
+
 // the hit test's answer as the system names the places
 static LRESULT system_hit_code(unsigned int hit)
 {
@@ -603,6 +627,21 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM wide, L
             system->events->idle(system->context);
         }
         return 0;
+    case WM_SETTINGCHANGE:
+        if (wide == SPI_SETCLIENTAREAANIMATION)
+        {
+            system->events->motion(system->context);
+        }
+        return 0;
+    case WM_GETMINMAXINFO:
+    {
+        // the least size the window is dragged to, at its monitor's scale; a size at a scale is far inside a LONG
+        MINMAXINFO *const limits = (MINMAXINFO *)low;
+        const float scale = system_scale_of(window);
+        limits->ptMinTrackSize.x = (LONG)((float)CLI_PLACE_LEAST_WIDTH * scale);
+        limits->ptMinTrackSize.y = (LONG)((float)CLI_PLACE_LEAST_HEIGHT * scale);
+        return 0;
+    }
     case WM_DPICHANGED:
     {
         const RECT *const suggested = (const RECT *)low;
@@ -627,8 +666,17 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM wide, L
     }
     case WM_ERASEBKGND:
         return 1;
+    case WM_NCMOUSEMOVE:
+        system_leave_watched(system, window, TME_LEAVE | TME_NONCLIENT);
+        return DefWindowProcW(window, message, wide, low);
+    case WM_MOUSELEAVE:
+    case WM_NCMOUSELEAVE:
+        system->leave_watched = 0;
+        system_pointer_left(system, window);
+        return 0;
     case WM_MOUSEMOVE:
-        system->events->pointer(system->context, GUI_POINTER_MOVED, GET_X_LPARAM(low), GET_Y_LPARAM(low), 0u,
+        system_leave_watched(system, window, TME_LEAVE);
+        system->events->pointer(system->context, GUI_POINTER_MOVED, GET_X_LPARAM(low), GET_Y_LPARAM(low),0u,
                                 system_mods(system));
         return 0;
     case WM_LBUTTONDOWN:
@@ -1034,6 +1082,13 @@ void gui_system_placed(const GuiSystem *system, CliWindowPlace *place)
     place->width = (unsigned int)(rect->right - rect->left);
     place->height = (unsigned int)(rect->bottom - rect->top);
     place->maximized = (placement.showCmd == SW_SHOWMAXIMIZED) ? 1 : 0;
+}
+
+int gui_system_motion_reduced(const GuiSystem *system)
+{
+    (void)system;
+    BOOL animates = TRUE;
+    return SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION, 0u, &animates, 0u) && !animates;
 }
 
 float gui_system_scale(const GuiSystem *system)

@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// files_ranked.c: the quick open: the tree's files, less what the search's patterns hide, read behind the window and
-// stored, and those that answer a query, the best first. A file named exactly as typed scores over any match, one whose
+// files_ranked.c: the quick open: the tree's files, less what the search's patterns hide, and those that answer a query, the best first. A file named exactly as typed scores over any match, one whose
 // name starts with what was typed half that, and one opened lately over the match itself
+#include "../code/symbols.h"
 #include "../command_line/cells.h"
 #include "../text/json_tree.h"
 #include "../text/regexp.h"
@@ -11,26 +11,7 @@
 // what a file named as typed scores over the match itself, and what a file opened lately scores over it
 #define CLI_RANKED_EXACT 100000.0
 #define CLI_RANKED_LATELY 6.0
-// the milliseconds the files read stay before a search reads them again behind it
-#define CLI_RANKED_SEEN_FOR 4000ull
 
-// The tree's files as the last quick open read them, in the current room, the other the reader's: the tree, when they
-// were read, whether they are being read again, whether they have been read once, and how many reads have begun. Each
-// room is the files picked from a pinned view of the tree; the room the reader leaves behind is let go as it turns
-typedef struct
-{
-    CliPicked room[2];
-    unsigned int current;
-    char root[CLI_PATH_MAX_LEN];
-    int is_cached;
-    unsigned long long at;
-    int reading;
-    int read;
-    unsigned long long begun;
-    CliThread reader;
-} CliCachedFiles;
-
-static CliCachedFiles s_cached;
 static CliLock s_lock = CLI_LOCK_INIT;
 
 // whether the quick open reads a file: the search's patterns do not hide it
@@ -39,107 +20,17 @@ static int cli_ranked_includes(void *context, const char *path)
     return !cli_patterns_hides((const CliPatterns *)context, path, 0);
 }
 
-// the tree's files picked into the spare room, less what the search's patterns hide, and the rooms turned where no read
-// has begun since, the room left behind let go. Readers take turns: the spare room is one reader's while it reads
-static void cli_reader(void *context)
-{
-    static CliPatterns s_patterns;
-    static char s_root[CLI_PATH_MAX_LEN];
-    static CliLock s_turn = CLI_LOCK_INIT;
-    (void)context;
-    cli_lock_take(&s_turn);
-    cli_lock_take(&s_lock);
-    memor.cpy(&(MemoriaCfg){.dst = s_root,
-                            .src = s_cached.root,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_cached.root, .cap = CLI_CELLS_POOL}) + 1u});
-    const unsigned long long begun = s_cached.begun;
-    const unsigned int spare = 1u - s_cached.current;
-    cli_lock_give(&s_lock);
-    cli_patterns_of(CLI_PART_SEARCH, &s_patterns);
-    CliPicked picked;
-    (void)cli_files_picked(&picked, s_root, cli_ranked_includes, &s_patterns);
-    cli_lock_take(&s_lock);
-    if (s_cached.is_cached &&
-        (cellul.eq(&(CatenaFinitaCfg){.src = s_cached.root, .other = s_root, .cap = CLI_CELLS_POOL})) &&
-        (s_cached.begun == begun))
-    {
-        cli_picked_let(&s_cached.room[spare]);
-        s_cached.room[spare] = picked;
-        cli_picked_let(&s_cached.room[s_cached.current]);
-        s_cached.current = spare;
-        s_cached.at = cli_clock_milliseconds();
-        s_cached.reading = 0;
-        s_cached.read = 1;
-    }
-    else
-    {
-        cli_picked_let(&picked);
-    }
-    cli_lock_give(&s_lock);
-    cli_lock_give(&s_turn);
-}
-
-// the tree's files read again on a thread of their own, the lock acquired
-static void cli_read_into(void)
-{
-    s_cached.reading = 1;
-    s_cached.begun += 1ull;
-    s_cached.reader = (CliThread){cli_reader, NULL, CLI_PRIORITY_IDLE};
-    if (!cli_thread_started(&s_cached.reader))
-    {
-        s_cached.reading = 0;
-    }
-}
-
-// whether the files stored are the tree's at `root`, the lock acquired
-static int cli_cached_for(const char *root)
-{
-    return s_cached.is_cached &&
-           (cellul.eq(&(CatenaFinitaCfg){.src = s_cached.root, .other = root, .cap = CLI_CELLS_POOL}));
-}
-
-// the files stored for the tree at `root`, none yet, the rooms of another tree let go, and their first read begun, the
-// lock acquired
-static void cli_cached_begun(const char *root)
-{
-    memor.cpy(&(MemoriaCfg){.dst = s_cached.root,
-                            .src = root,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
-    s_cached.is_cached = 1;
-    s_cached.at = cli_clock_milliseconds();
-    cli_picked_let(&s_cached.room[0]);
-    cli_picked_let(&s_cached.room[1]);
-    s_cached.read = 0;
-    s_cached.begun = 0ull;
-    cli_read_into();
-}
-
 void cli_files_read_behind(const char *root)
 {
-    cli_lock_take(&s_lock);
-    if (!cli_cached_for(root))
+    if (!cli_tree_is_listed(root))
     {
-        cli_cached_begun(root);
+        cli_files_warm(root);
     }
-    cli_lock_give(&s_lock);
 }
 
 int cli_files_unread(const char *root)
 {
-    cli_lock_take(&s_lock);
-    const int unread = !(cli_cached_for(root) && s_cached.read);
-    cli_lock_give(&s_lock);
-    return unread;
-}
-
-void cli_files_view_cleared(void)
-{
-    cli_lock_take(&s_lock);
-    if (s_cached.is_cached)
-    {
-        cli_read_into();
-    }
-    cli_lock_give(&s_lock);
+    return !cli_tree_is_listed(root);
 }
 
 // A file that answers: its place among the files ranked and its score
@@ -419,26 +310,23 @@ void cli_files_ranked(const char *root, const char *query, const char *const *re
         cli_lock_give(&s_lock);
         return;
     }
-    int read = 0;
-    if (cli_cached_for(root))
+    // until the files are listed, those opened lately alone answer
+    const int read = cli_tree_is_listed(root);
+    if (!read)
     {
-        const int old = (cli_clock_milliseconds() - s_cached.at) >= CLI_RANKED_SEEN_FOR;
-        if (s_cached.read && old && !s_cached.reading)
-        {
-            cli_read_into();
-        }
-        read = s_cached.read;
+        cli_files_warm(root);
     }
-    else
+    static CliPatterns s_patterns;
+    cli_patterns_of(CLI_PART_SEARCH, &s_patterns);
+    CliPicked picked = {NULL, 0u};
+    if (read)
     {
-        cli_cached_begun(root);
+        (void)cli_files_picked(&picked, root, cli_ranked_includes, &s_patterns);
     }
-    // until the files are read, those opened lately alone answer
-    const CliPicked *const files = read ? &s_cached.room[s_cached.current] : NULL;
     unsigned int paths = 0u;
-    for (unsigned int index = 0u; read && (index < files->count); index += 1u)
+    for (unsigned int index = 0u; index < picked.count; index += 1u)
     {
-        s_ranking->path[paths] = cli_picked_at(files, index);
+        s_ranking->path[paths] = cli_picked_at(&picked, index);
         paths += 1u;
     }
     for (unsigned int index = 0u; !read && (index < recents) && (paths < CLI_FILES_MOST); index += 1u)
@@ -447,6 +335,7 @@ void cli_files_ranked(const char *root, const char *query, const char *const *re
         paths += 1u;
     }
     cli_ranked_of(paths, query, recent, recents, most, fuzzy, read, out);
+    cli_picked_let(&picked);
     ranking_released();
     cli_lock_give(&s_lock);
 }

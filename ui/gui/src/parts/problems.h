@@ -110,6 +110,8 @@ void gui_problems_given(GuiProblems *problems);
 int gui_problems_put(GuiProblems *problems, const CliJson *json, unsigned int root);
 // the tree's check gone `done` of `total` files, a total of 0 for no check running
 void gui_problems_checking(GuiProblems *problems, unsigned long long done, unsigned long long total);
+// whether the tree's check is running
+int gui_problems_running(const GuiProblems *problems);
 // the diagnostics of the file at `path`: how many, and the first of them into `first`
 unsigned int gui_problems_of(const GuiProblems *problems, const char *path, unsigned int *first);
 // the rows: a row for each file and, where its rows are open, one for each of its diagnostics: how many; and the

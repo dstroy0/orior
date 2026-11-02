@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-# gui_test.sh: the window's C checked without a display: the command line's library built for this machine by
-# ui/cli/build.sh, then each *_test.c here compiled against it with the window's modules that include no system header
+# gui_test.sh: the window's C checked, one check alone opening a window of its own: the command line's library built by
+# ui/cli/build.sh for this machine, then each *_test.c here compiled against it with the window's modules and its system body
 # and the checks' cli_check.c, and run from build/gui_test, its exit said as the harness reads it; the checks named
 # after it alone where any are, and a program of its own here, the frame bench, by its name. The compiler is CC where
 # it is set, else clang.

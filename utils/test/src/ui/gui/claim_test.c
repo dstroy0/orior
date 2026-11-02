@@ -112,5 +112,26 @@ int main(void)
     cli_check(gui_claim_stepped(&claim, 9300ull) && (claim.shown == GUI_CLAIM_TOP), "the bar comes under the controls without waiting for them to go");
     gui_claim_left(&claim);
     cli_check((claim.rest_due == 0ull) && (claim.zone_now == GUI_CLAIM_NONE) && !claim.near, "the pointer gone out of the window leaves nothing waiting on its rest");
+
+    // less motion asked for: a slide stands at once where it is bound, a part's rest still counted before it comes
+    gui_claim_made(&claim);
+    gui_claim_still(&claim, 1);
+    gui_claim_set(&claim, 1, 10000ull);
+    gui_claim_numbers(&claim, 10000ull, &numbers);
+    cli_check((numbers.claim == GUI_WHOLE) && !gui_claim_moving(&claim, 10000ull), "less motion asked for, the claim stands whole at once");
+    gui_claim_moved(&claim, 500, 10, GUI_CLAIM_TOP, 0, 10100ull);
+    cli_check(gui_claim_stepped(&claim, 10100ull + GUI_CLAIM_RESTS) && (claim.shown == GUI_CLAIM_TOP), "the pointer's rest still reveals the bar");
+    gui_claim_numbers(&claim, 10100ull + GUI_CLAIM_RESTS, &numbers);
+    cli_check((numbers.reveal_top == GUI_WHOLE) && (numbers.room_top == GUI_WHOLE) && !gui_claim_moving(&claim, 10100ull + GUI_CLAIM_RESTS),
+              "and the bar and its room stand there at once");
+    gui_claim_set(&claim, 0, 11000ull);
+    gui_claim_numbers(&claim, 11000ull, &numbers);
+    cli_check((numbers.claim == 0) && (numbers.reveal_top == 0) && !gui_claim_moving(&claim, 11000ull), "let go, every part stands back at once");
+    gui_claim_still(&claim, 0);
+    gui_claim_set(&claim, 1, 12000ull);
+    cli_check(gui_claim_moving(&claim, 12100ull), "no longer asked for, the slides run");
+    gui_claim_still(&claim, 1);
+    gui_claim_numbers(&claim, 12100ull, &numbers);
+    cli_check((numbers.claim == GUI_WHOLE) && !gui_claim_moving(&claim, 12100ull), "asked for while a slide runs, it ends where it was bound");
     return cli_checked();
 }

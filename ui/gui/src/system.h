@@ -17,6 +17,7 @@
 #define GUI_POINTER_MOVED 0u
 #define GUI_POINTER_DOWN 1u
 #define GUI_POINTER_UP 2u
+#define GUI_POINTER_LEFT 3u
 #define GUI_MOD_SHIFT 1u
 #define GUI_MOD_CONTROL 2u
 #define GUI_MOD_ALT 4u
@@ -45,6 +46,7 @@ typedef struct
     void (*idle)(void *context);
     void (*ticked)(void *context);
     void (*shown)(void *context, int shown);
+    void (*motion)(void *context);
 } GuiSystemEvents;
 
 // the monitors' areas into `areas`, sized for `most`, the system's main one first: their count
@@ -91,4 +93,6 @@ void gui_system_icon(GuiSystem *system, const GuiRaster *title_icon, const GuiRa
 // draws it at, 1 at 96 dots an inch
 void gui_system_placed(const GuiSystem *system, CliWindowPlace *place);
 float gui_system_scale(const GuiSystem *system);
+// whether the system asks for less motion: 1 where it does; a change of it comes as the `motion` event
+int gui_system_motion_reduced(const GuiSystem *system);
 #endif

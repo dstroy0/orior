@@ -141,7 +141,7 @@ void cli_servers_run_checkers(const char *root, const char *path, const char *te
     cli_lock_give(&g_cli_servers.lock);
     char language[CLI_NAME_MAX_LEN];
     CliLanguages languages;
-    cli_plugins_languages(&languages);
+    cli_plugins_languages_for_call(&languages);
     const int known = (ids != 0u) && cli_plugins_language_for(&languages, path, language);
     cli_plugins_languages_given(&languages);
     if (!known)

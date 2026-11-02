@@ -56,17 +56,17 @@ static void complete_kind_declared(const char *path, const char *name, unsigned 
                                    char *kind)
 {
     kind[0] = '\0';
-    cli_lock_take(&g_cli_symbols_lock);
-    const unsigned int file = cli_symbols_file_of(path);
-    const CliSymbolFile *const branch = (file < CLI_SYMBOL_FILES) ? &g_cli_symbol_files[file] : NULL;
-    char *const scratch = ((branch != NULL) && branch->used) ? cli_symbol_scratch_taken() : NULL;
+    cli_lock_take(&g_cli_walk_lock);
+    const unsigned int file = cli_branch_of(path);
+    const CliTreeBranch *const branch = (file < CLI_BRANCHES_MOST) ? &g_cli_branches[file] : NULL;
+    char *const scratch = ((branch != NULL) && branch->used) ? cli_branch_copy_taken() : NULL;
     if (scratch != NULL)
     {
-        cli_symbol_file_read(branch, scratch);
+        cli_branch_copied(branch, scratch);
     }
     for (unsigned int at = 0u; (scratch != NULL) && (kind[0] == '\0') && (at < branch->count); at += 1u)
     {
-        const CliSymbol *const one = &cli_symbol_file_symbols(scratch)[at];
+        const CliDeclaration *const one = &cli_branch_copy_declarations(scratch)[at];
         if ((one->line == line) && (one->length == length) && cli_text_same(scratch + one->name, name, length))
         {
             VerbaLinea written = {kind, CLI_NAME_MAX_LEN, 0ull};
@@ -74,8 +74,8 @@ static void complete_kind_declared(const char *path, const char *name, unsigned 
             kind[(mmgr_line_finish(&written) != 0ull) ? written.at : 0ull] = '\0';
         }
     }
-    cli_symbol_scratch_given(scratch);
-    cli_lock_give(&g_cli_symbols_lock);
+    cli_branch_copy_given(scratch);
+    cli_lock_give(&g_cli_walk_lock);
 }
 
 // the defines in effect where the walk ended, the database's first, each of the kind its declaration's grammar names,
@@ -159,7 +159,7 @@ static void complete_locals(CliComplete *complete, const CliLeafRead *read, unsi
 int cli_symbols_complete(const char *path, const char *text, unsigned long long size, unsigned int line,
                          unsigned int col, CliDeclared each, void *context, VerbaLinea *err_msg)
 {
-    CliSymbolsLanguages *const languages = cli_symbols_languages_read();
+    CliSymbolsLanguages *const languages = cli_symbols_languages_for_call();
     CliLeafRead read;
     const int leaved = (languages != NULL) && cli_symbols_leaves_kept(languages, path, "root", text, size, &read);
     // the byte the place stands at: its line's first, then its column's

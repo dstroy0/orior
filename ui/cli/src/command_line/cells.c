@@ -14,9 +14,9 @@
 
 // The pool: MMgr's host site, one block taken from the system for the bytes requested, zero as the system hands it out,
 // the cellblock's record at its start; made anew for another request, the block before given back whole, while no cell
-// is allocated. Maximum security: a cell is wiped to zero as it is given back, and every cell handed out is zero, the
-// host block's bytes being zero from the start, and no room reads the bytes of the one that occupied its cell before it
-LocusCarcerumHospes(cli_cells_site, MMGR_MAXIMUM_SECURITY(cli_cells_pool));
+// is allocated. Minimum security: a cell is left as it is when given back and handed out unzeroed, so that a give costs
+// no bytes it did not use and no page it did not touch; a room writes what it reads
+LocusCarcerumHospes(cli_cells_site, MMGR_MINIMUM_SECURITY(cli_cells_pool));
 
 #define CLI_CELL_OWNER(name_, text_) CellOwner name_ = MMGR_CELL_OWNER(text_);
 #include "cells_owners.h"
@@ -69,7 +69,7 @@ void mmgr_carcer_hw_misnamed(const CellOwner *named, const CellOwner *cell_owner
     cells_logged("misnamed", &line);
 }
 
-const MaximumSecurityGuard *const g_cli_cells = &cli_cells_site.cli_cells_pool;
+const MinimumSecurityGuard *const g_cli_cells = &cli_cells_site.cli_cells_pool;
 
 // the turnstiles the option's storage has room for, which the machine's processors are bounded to, and the rows of
 // touches per thread it keeps

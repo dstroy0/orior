@@ -153,7 +153,7 @@ static void slice_read_waited(void)
     for (unsigned int tries = 0u; tries < 200u; tries += 1u)
     {
         VerbaLinea out = {s_found, sizeof(s_found), 0ull};
-        cli_symbols_find("", 1u, &out);
+        cli_tree_declarations_found("", 1u, &out);
         unsigned int found = CLI_JSON_NONE;
         const CliJson *const json = cli_check_parsed(s_found, out.at, &found);
         if (!cli_json_is(json, cli_json_member(json, found, "reading"), CFG_JSON_TRUE))
@@ -196,8 +196,8 @@ static void slice_check(void)
     (void)mmgr_line_finish(&use);
     slice_written(root, "src/checked_shape.h", "int checked_area(int w);\n");
     slice_written(root, "src/checked_use.c", s_use);
-    cli_symbols_forget();
-    cli_symbols_refresh(root, s_paths, 2u);
+    cli_tree_forgotten();
+    cli_tree_walked(root);
     slice_read_waited();
     cli_full(root, "src/checked_use.c", s_heard.path);
     char script[CLI_PATH_MAX_LEN];

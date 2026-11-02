@@ -26,7 +26,7 @@ extern "C"
     // persistent_buf_alloc(bytes, owner) and given back with persistent_buf_release(cell, owner), owner the
     // CellOwner the cell counts to: a give naming another is refused and logged. A take the cellblock cannot meet
     // returns NULL, which the caller reports where and as it chooses. Read once the pool is made
-    extern const MaximumSecurityGuard *const g_cli_cells;
+    extern const MinimumSecurityGuard *const g_cli_cells;
 
     // The shared cellblock's owners, one for each module that takes from it
 #define CLI_CELL_OWNER(name_, text_) extern CellOwner name_;

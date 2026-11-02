@@ -148,7 +148,8 @@ void gui_statusbar_drawn(GuiRaster *raster, GuiGlyphs *glyphs, GuiIcons *icons, 
     }
     const GuiRect room = gui_rect_met((GuiRect){bar.x, bar.y, (int)right - bar.x, bar.height}, bar);
     // the crumbs start past the strip's width, which the claim takes to none
-    const int strip_room = (int)(((1.0f - frame->claim.claim) * (float)frame->strip.width) + 0.5f);
+    // a share of a width in pixels, rounded, is far inside what an int represents
+    const int strip_room = (int)((((long long)(GUI_WHOLE - frame->claim.claim) * (long long)frame->strip.width) + (GUI_WHOLE / 2)) / GUI_WHOLE);
     float x = (float)(frame->status.x + strip_room + gui_scaled(GUI_STATUS_PAD, scale));
     const float crumb_gap = (float)gui_scaled(GUI_STATUS_CRUMB_GAP, scale);
     const char *at = status->path;

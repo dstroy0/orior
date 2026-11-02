@@ -25,6 +25,7 @@ typedef struct
     unsigned int mods;
     int wheel_rows;
     unsigned int sized;
+    unsigned int motions;
 } Handed;
 
 static void handed_sized(void *context, unsigned int width, unsigned int height, float scale)
@@ -90,6 +91,11 @@ static void handed_shown(void *context, int shown)
     (void)shown;
 }
 
+static void handed_motion(void *context)
+{
+    ((Handed *)context)->motions += 1u;
+}
+
 static int same(const char *one, const char *other)
 {
     return cellul.eq(&(CatenaFinitaCfg){.src = one, .other = other, .cap = 64ull});
@@ -118,7 +124,7 @@ int main(void)
     static Handed handed;
     static const GuiSystemEvents s_events = {handed_sized,   handed_pointer, handed_wheel,   handed_key,
                                              handed_text,    handed_nothing, handed_nothing, handed_hit,
-                                             handed_nothing, handed_nothing, handed_shown};
+                                             handed_nothing, handed_nothing, handed_shown, handed_motion};
     const CliWindowPlace place = {20, 20, 320, 200, 0};
     GuiSystem *const system = gui_system_opened(&place, "orior check", &s_events, &handed, &why);
     cli_check(system != NULL, "a window opens on the system");
@@ -131,6 +137,19 @@ int main(void)
     HWND window = (HWND)gui_system_native(system);
     gui_system_pumped(system);
     cli_check(handed.sized > 0u, "the window is sized as it opens");
+    SetWindowPos(window, NULL, 0, 0, 100, 100, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+    gui_system_pumped(system);
+    RECT least;
+    GetWindowRect(window, &least);
+    cli_check(((least.right - least.left) >= (LONG)CLI_PLACE_LEAST_WIDTH) && ((least.bottom - least.top) >= (LONG)CLI_PLACE_LEAST_HEIGHT),
+              "a window sized below its least size stands at the least");
+    BOOL animates = TRUE;
+    (void)SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION, 0u, &animates, 0u);
+    cli_check(gui_system_motion_reduced(system) == (animates ? 0 : 1), "the system's wish for less motion is read");
+    SendMessageW(window, WM_SETTINGCHANGE, SPI_SETCLIENTAREAANIMATION, 0);
+    cli_check(handed.motions == 1u, "the wish changed is handed on");
+    SendMessageW(window, WM_SETTINGCHANGE, SPI_SETWORKAREA, 0);
+    cli_check(handed.motions == 1u, "another setting changed is not");
 
     unsigned int most_width = 0u;
     unsigned int most_height = 0u;
@@ -176,6 +195,15 @@ int main(void)
     gui_system_pumped(system);
     cli_check((handed.pointers == 2u) && (handed.pointer == GUI_POINTER_UP) && (handed.x == 50) && (handed.y == 60),
               "the pointer's press and release come at their pixel");
+
+    // the pointer gone from the client is told only where it stands off the window altogether
+    POINT cursor;
+    RECT frame;
+    const int cursor_read = GetCursorPos(&cursor) && GetWindowRect(window, &frame);
+    const int off_window = cursor_read && !PtInRect(&frame, cursor);
+    PostMessageW(window, WM_MOUSELEAVE, 0, 0);
+    gui_system_pumped(system);
+    cli_check((handed.pointer == GUI_POINTER_LEFT) == (off_window != 0), "a leave off the window is told as the pointer gone");
 
     gui_system_closed(system);
     gui_system_given(system);

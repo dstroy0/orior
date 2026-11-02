@@ -57,10 +57,13 @@ typedef struct
 // pointer's edge, the edge whose rest runs and when it is due, when the linger is due, when the ghost is due; whether
 // the controls' ghost shows; whether the pointer stands over the shown part, as its last move left it; where the
 // pointer stands; its path over the last span; the slides: the claim, each edge's reveal, the controls' way down,
-// each edge's room and the controls' opacity; each slat's grown share and its reveal as last read; and the point of
-// each edge its slat is pulled from, -1 where none has been
+// each edge's room and the controls' opacity; each slat's grown share and its reveal as last read; the point of each
+// edge its slat is pulled from, -1 where none has been; whether less motion is asked for; and how many times a slide
+// has been sent somewhere new, which says when the stages made from them stand out of date
 typedef struct
 {
+    int still;
+    unsigned int sent;
     int claimed;
     unsigned int shown;
     unsigned int waiting;
@@ -100,6 +103,11 @@ typedef struct
 // the page's ease curve, cubic-bezier(0.25, 0.1, 0.25, 1), at `share` of the way, 0 to GUI_WHOLE: its number, 0 to
 // GUI_WHOLE, read from a table of the curve at sixty-four steps, the step between two entries laid straight
 int gui_ease(int share);
+// a CSS cubic-bezier(x1, y1, x2, y2) made into a table of its number at each of GUI_EASE_STEPS steps of the way, its ends
+// 0 and GUI_WHOLE; and such a table read at `share` of the way, 0 to GUI_WHOLE, the step between two entries laid straight
+#define GUI_EASE_STEPS 64u
+void gui_ease_table_made(int *table, double x1, double y1, double x2, double y2);
+int gui_ease_table_read(const int *table, int share);
 // a slide's number at `now`; and the slide sent to `to` from where it stands at `now`, after `delay`, a slide already
 // bound for `to` left running
 int gui_slide_at(const GuiSlide *slide, unsigned long long now);
@@ -109,6 +117,9 @@ int gui_slide_running(const GuiSlide *slide, unsigned long long now);
 
 // a claim not holding, every number at 0 and the controls whole
 void gui_claim_made(GuiClaim *claim);
+// less motion asked for or no longer: asked for, every slide stands where it is bound, a slide running ending there, and
+// a part waiting on the shown one to go comes as soon as it is asked for
+void gui_claim_still(GuiClaim *claim, int still);
 // the claim made or let go at `now`: let go, every part goes back
 void gui_claim_set(GuiClaim *claim, int on, unsigned long long now);
 // the edge whose band the pointer at x, y stands in, for a window `width` by `height` at `scale` whose controls are
@@ -125,8 +136,9 @@ int gui_claim_stepped(GuiClaim *claim, unsigned long long now);
 // when the claim next wants the clock, in milliseconds from `now`: 0 for never, the time to the nearest timer, or a
 // frame's time while a slide runs
 unsigned long long gui_claim_due(const GuiClaim *claim, unsigned long long now);
-// whether any slide runs at `now`
+// whether any slide runs at `now`; and when the last of them comes to rest, `now` where none runs
 int gui_claim_moving(const GuiClaim *claim, unsigned long long now);
+unsigned long long gui_claim_rests_at(const GuiClaim *claim, unsigned long long now);
 // the numbers at `now` for the frame: each slide's number, each slat's grown share, coming in as its reveal, going as
 // it grew, whole outside the claim, and the points the slats are pulled from
 void gui_claim_numbers(GuiClaim *claim, unsigned long long now, GuiClaimNumbers *numbers);
