@@ -4,7 +4,7 @@
 // across the top, the status bar across the foot, the strip down the left, the frame's gap down the right, the work
 // between them with the tabs row at its head, the map's column at its right and the editor filling the rest, each
 // scaled with the system's scale
-#include "../../../../../ui/gui/src/frame.h"
+#include "../../../../../ui/cli/src/view/frame.h"
 #include "../cli/cli_check.h"
 
 static int same(GuiRect rect, int x, int y, int width, int height)

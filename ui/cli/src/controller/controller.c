@@ -149,7 +149,7 @@ static void controller_run(void *context)
         const unsigned long long due_ms = waits ? 1ull : cli_controller_model_due_ms();
         if (due_ms != 0ull)
         {
-            (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &s_controller.wake,
+            (void)EMBED_CALL(cli_wake_internal.wake_wait_seen_for, CliWakeCtx, .wake = &s_controller.wake, .seen = seen,
                              .milliseconds_u64 = due_ms);
         }
         else

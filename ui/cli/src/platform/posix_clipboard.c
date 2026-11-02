@@ -63,7 +63,7 @@ typedef struct
     const void *bytes;
     void *bytes_out;
     int wait;
-    unsigned char *capacity_bytes;
+    unsigned char *storage;
     unsigned long long capacity_bytes;
     unsigned char *packet;
     unsigned char *extra;
@@ -443,7 +443,7 @@ EMBED_INLINE int x11_receive(const PosixClipboardCtx *args)
     return 1;
 }
 
-// `size` bytes the server sends passed over, read through `capacity`, sized for `capacity_bytes`: 1, or 0 where they
+// `size` bytes the server sends passed over, read through `storage`, sized for `capacity_bytes`: 1, or 0 where they
 // did not come
 EMBED_INLINE int x11_pass(const PosixClipboardCtx *args)
 {
@@ -451,8 +451,8 @@ EMBED_INLINE int x11_pass(const PosixClipboardCtx *args)
     while (size > 0ull)
     {
         const unsigned long long piece = (size < args->capacity_bytes) ? size : args->capacity_bytes;
-        if (!EMBED_CALL(x11_receive, PosixClipboardCtx, .x11 = args->x11, .bytes_out = args->capacity_bytes,
-                        .size = piece, .wait = CLI_X11_WAIT))
+        if (!EMBED_CALL(x11_receive, PosixClipboardCtx, .x11 = args->x11, .bytes_out = args->storage, .size = piece,
+                        .wait = CLI_X11_WAIT))
         {
             return 0;
         }
@@ -482,7 +482,7 @@ EMBED_INLINE int x11_packet(const PosixClipboardCtx *args)
     unsigned char passed[64];
     return EMBED_CALL(x11_receive, PosixClipboardCtx, .x11 = args->x11, .bytes_out = args->extra, .size = *size,
                       .wait = CLI_X11_WAIT) &&
-           EMBED_CALL(x11_pass, PosixClipboardCtx, .x11 = args->x11, .size = more - *size, .capacity_bytes = passed,
+           EMBED_CALL(x11_pass, PosixClipboardCtx, .x11 = args->x11, .size = more - *size, .storage = passed,
                       .capacity_bytes = sizeof(passed));
 }
 
@@ -723,8 +723,8 @@ EMBED_INLINE int x11_set_up(const PosixClipboardCtx *args)
     const unsigned long long formats = (unsigned long long)fixed[21] * 8ull;
     unsigned char capacity[256];
     unsigned char screen[4];
-    if (!EMBED_CALL(x11_pass, PosixClipboardCtx, .x11 = args->x11_out, .size = vendor + formats,
-                    .capacity_bytes = capacity, .capacity_bytes = sizeof(capacity)) ||
+    if (!EMBED_CALL(x11_pass, PosixClipboardCtx, .x11 = args->x11_out, .size = vendor + formats, .storage = capacity,
+                    .capacity_bytes = sizeof(capacity)) ||
         !EMBED_CALL(x11_receive, PosixClipboardCtx, .x11 = args->x11_out, .bytes_out = screen, .size = sizeof(screen),
                     .wait = CLI_X11_WAIT))
     {
@@ -735,7 +735,7 @@ EMBED_INLINE int x11_set_up(const PosixClipboardCtx *args)
     // the window's id is the first the server gives this client
     args->x11_out->window = base | (mask & (~mask + 1u));
     return (read <= length) && EMBED_CALL(x11_pass, PosixClipboardCtx, .x11 = args->x11_out, .size = length - read,
-                                          .capacity_bytes = capacity, .capacity_bytes = sizeof(capacity));
+                                          .storage = capacity, .capacity_bytes = sizeof(capacity));
 }
 
 // a connection made to the display, set up, a window of its own made that hears its own property changes, and the

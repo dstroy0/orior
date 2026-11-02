@@ -6,7 +6,7 @@
 // moved by its offset's share of the reach; the loop showing no change through the rest and a change through the
 // spread, and the soonest moment it shows one; and the window's ground: laid out at a scale, drawn with a dot at a
 // point's origin, due at the moment the loop next shows, drawn again on a tick past it and lattice still off the screen
-#include "../../../../../ui/gui/src/ground.h"
+#include "../../../../../ui/cli/src/view/ground.h"
 #include "../cli/cli_check.h"
 #include "test_clock.h"
 

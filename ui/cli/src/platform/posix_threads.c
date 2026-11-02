@@ -60,6 +60,11 @@ int cli_wake_wait_for(const CliWakeCtx *args)
                       args->milliseconds_u64);
 }
 
+int cli_wake_wait_seen_for(const CliWakeCtx *args)
+{
+    return wake_sleep(args->wake, args->seen, args->milliseconds_u64);
+}
+
 unsigned int cli_wake_read(const CliWakeCtx *args)
 {
     return atomic_load_explicit(&args->wake->generation, memory_order_acquire);

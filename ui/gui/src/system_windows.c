@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // system_windows.c: the window on Windows. A popup window with a sizing frame whose non-client area is nothing, so the
 // client is the whole window and the system still drags, snaps and resizes it by what the window answers to the
-// hit test, the compositor rounding its corners and drawing its one-pixel border; the raster blitted into the client
-// as a top-down 32-bit bitmap, a frame drawn at each size the system drags it to and at each tick, inside the
-// system's own drag loop too, and a tick coming no sooner than the monitor's next refresh after the last frame; the
-// thread woken by a message posted to the window; the scale and the refresh rate read from the window's monitor
+// hit test, the compositor rounding its corners and drawing its one-pixel border; the raster it is handed flipped
+// through the graphics device or blitted into the client as a top-down 32-bit bitmap; the thread woken by a message
+// posted to the window, inside the system's own drag loop too; the scale and the refresh rate read from the window's
+// monitor. The records of the two windows that stand at once are this file's own
 #define _WIN32_WINNT 0x0A00
 #define UNICODE
 #define _UNICODE
@@ -48,16 +48,17 @@ typedef struct
 } SystemDevice;
 struct GuiSystem
 {
+    int taken;
     HWND window;
     const GuiSystemEvents *events;
     void *context;
-    const GuiRaster *displayed;
+    GuiRaster displayed;
     int closed;
     unsigned short high_surrogate;
     unsigned int mods;
-    unsigned long long presented_ms;
     unsigned int frame_ms;
     SystemDevice device;
+    int device_tried;
     DWORD leave_watched;
     int owner;
 };
@@ -65,11 +66,10 @@ struct GuiSystem
 #define GUI_WAKE_MESSAGE (WM_APP + 1u)
 // the rows one notch of the wheel scrolls
 #define GUI_WHEEL_ROWS 3
-// the timer the window's tick comes on
-#define GUI_TICK_TIMER 1u
+// the windows that stand at once: the main one and Preferences'
+#define SYSTEM_WINDOWS 2u
 
-// the system the pages' surfaces stand on, one window's; NULL before it opens and after it closes
-static GuiSystem *s_presenting;
+static GuiSystem s_systems[SYSTEM_WINDOWS];
 
 // the boundary a framebuffer's buffer is placed on in its heap, and the bytes a copied row's pitch steps by
 #define SYSTEM_PLACE (64ull << 10u)
@@ -105,6 +105,7 @@ typedef struct
     unsigned int hit;
     int active;
     HWND owner;
+    void *pages;
     const CliWindowPosition *place;
     const char *title;
     const GuiSystemEvents *events;
@@ -163,8 +164,8 @@ EMBED_INLINE void system_device_release(const SystemWindowsCtx *args)
 }
 
 // the device made for `window`: its queue, its copy's allocator and list, its fence, and a flip swapchain of two
-// buffers over the window; first a heap opened over a page of the system's own, which a device that cannot read the
-// pages where they lie refuses before any swapchain stands over the window: 1, or 0 with nothing made
+// buffers over the window; first a heap opened over `pages`, which a device that cannot read pages where they lie
+// refuses before any swapchain stands over the window: 1, or 0 with nothing made
 EMBED_INLINE int system_device_init(const SystemWindowsCtx *args)
 {
     memor.set(&(MemoriaCfg){.dst = args->device, .val = 0, .bytes = sizeof(*args->device)});
@@ -179,15 +180,10 @@ EMBED_INLINE int system_device_init(const SystemWindowsCtx *args)
     {
         return 0;
     }
-    void *const trial = VirtualAlloc(NULL, (SIZE_T)SYSTEM_PLACE, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
     ID3D12Heap *trial_heap = NULL;
-    const int pinned = (trial != NULL) && SUCCEEDED(ID3D12Device3_OpenExistingHeapFromAddress(
-                                              args->device->device, trial, &IID_ID3D12Heap, (void **)&trial_heap));
+    const int pinned = SUCCEEDED(ID3D12Device3_OpenExistingHeapFromAddress(args->device->device, args->pages,
+                                                                           &IID_ID3D12Heap, (void **)&trial_heap));
     SYSTEM_RELEASED(trial_heap, ID3D12Heap_Release);
-    if (trial != NULL)
-    {
-        VirtualFree(trial, 0u, MEM_RELEASE);
-    }
     D3D12_COMMAND_QUEUE_DESC queue_desc;
     memor.set(&(MemoriaCfg){.dst = &queue_desc, .val = 0, .bytes = sizeof(queue_desc)});
     queue_desc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
@@ -318,10 +314,17 @@ EMBED_INLINE ID3D12Resource *system_position(const SystemWindowsCtx *args)
 
 // `raster` copied by the device from where it lies into the swapchain's buffer and flipped onto the screen, the copy
 // done before this returns, the raster free to be drawn into again: 1, or 0 where the device cannot, which leaves the
-// raster to the system's drawing calls
+// raster to the system's drawing calls. The device is made as the first raster with pages comes, on the main window
+// alone
 static int system_flip(const SystemWindowsCtx *args)
 {
     SystemDevice *const device = &args->system->device;
+    if (!device->ready && !args->system->owner && !args->system->device_tried && (args->raster->pages != NULL))
+    {
+        (void)EMBED_CALL(system_device_init, SystemWindowsCtx, .device = device, .window = args->system->window,
+                         .pages = args->raster->pages);
+        args->system->device_tried = 1;
+    }
     if (!device->ready || (args->raster->pages == NULL) ||
         (((unsigned long long)args->raster->width * sizeof(GuiColor)) % SYSTEM_ROW_STEP != 0ull) ||
         !EMBED_CALL(system_back_resize, SystemWindowsCtx, .device = device, .window = args->system->window))
@@ -386,21 +389,6 @@ static int system_flip(const SystemWindowsCtx *args)
         WaitForSingleObject(device->fence_event, INFINITE);
     }
     return SUCCEEDED(displayed);
-}
-
-void *gui_system_pages(const GuiSystemBytesCfg *args)
-{
-    // the pages a heap can be opened over are one allocation of the system's own, from its base
-    return VirtualAlloc(NULL, (SIZE_T)args->bytes, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-}
-
-void gui_system_pages_free(const GuiSystemBytesCfg *args)
-{
-    if ((s_presenting != NULL) && (s_presenting->device.heap_pages == args->pages))
-    {
-        EMBED_CALL(system_surfaces_release, SystemWindowsCtx, .device = &s_presenting->device);
-    }
-    VirtualFree(args->pages, 0u, MEM_RELEASE);
 }
 
 // the milliseconds of one refresh of `window`'s monitor, whole, at least one; 1000 / 60 where the monitor does not
@@ -554,11 +542,18 @@ EMBED_INLINE int system_scale_get(const SystemWindowsCtx *args)
     return (int)(((GetDpiForWindow(args->window) * 100u) + 48u) / 96u);
 }
 
+// the pixels of `window`'s sizing frame a side, at its monitor's scale
+EMBED_INLINE int system_frame_get(const SystemWindowsCtx *args)
+{
+    const UINT dots = GetDpiForWindow(args->window);
+    return GetSystemMetricsForDpi(SM_CXFRAME, dots) + GetSystemMetricsForDpi(SM_CXPADDEDBORDER, dots);
+}
+
 // the raster shown blitted into `context`, its `rows` rows from the row `from`, as a bitmap of those rows alone
 EMBED_INLINE void system_blit(const SystemWindowsCtx *args)
 {
-    const GuiRaster *const raster = args->system->displayed;
-    if ((raster == NULL) || (raster->pixels == NULL) || (args->from >= raster->height) || (args->rows == 0u))
+    const GuiRaster *const raster = &args->system->displayed;
+    if ((raster->pixels == NULL) || (args->from >= raster->height) || (args->rows == 0u))
     {
         return;
     }
@@ -643,8 +638,22 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM pixel_w
     switch (message)
     {
     case WM_NCCALCSIZE:
-        // the client is the whole window
-        return (pixel_width != 0u) ? 0 : DefWindowProcW(window, message, pixel_width, low);
+        if (pixel_width == 0u)
+        {
+            return DefWindowProcW(window, message, pixel_width, low);
+        }
+        // the client is the whole window; a maximized window's frame stands past the monitor's edges, which the client
+        // leaves out
+        if (IsZoomed(window))
+        {
+            NCCALCSIZE_PARAMS *const sizes = (NCCALCSIZE_PARAMS *)low;
+            const int frame = EMBED_CALL(system_frame_get, SystemWindowsCtx, .window = window);
+            sizes->rgrc[0].left += frame;
+            sizes->rgrc[0].top += frame;
+            sizes->rgrc[0].right -= frame;
+            sizes->rgrc[0].bottom -= frame;
+        }
+        return 0;
     case WM_NCACTIVATE:
         // the window taking or losing the focus: its border colored for the state, and the system told not to paint
         // its own frame over the client, which -1 in place of the update region does
@@ -671,10 +680,8 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM pixel_w
             // the client's sides, as the message carries them, are not negative
             EMBED_CALL(system->events->sized, GuiEachWidthHeightScaleCfg, .context = system->context,
                        .width = (unsigned int)LOWORD(low), .height = (unsigned int)HIWORD(low),
-                       .scale = EMBED_CALL(system_scale_get, SystemWindowsCtx, .window = window));
-            // the frame at the new size is drawn here: while the system drags the window's edge it runs a loop of
-            // its own, and the run loop's idle does not come until the drag ends
-            system->events->idle(system->context);
+                       .scale = EMBED_CALL(system_scale_get, SystemWindowsCtx, .window = window),
+                       .frame_ms = system->frame_ms);
         }
         return 0;
     case WM_SETTINGCHANGE:
@@ -689,6 +696,18 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM pixel_w
         const int scale = EMBED_CALL(system_scale_get, SystemWindowsCtx, .window = window);
         limits->ptMinTrackSize.x = (LONG)((CLI_POSITION_MIN_WIDTH * scale) / 100);
         limits->ptMinTrackSize.y = (LONG)((CLI_POSITION_MIN_HEIGHT * scale) / 100);
+        // maximized it fills the part of its monitor the taskbar leaves, its frame past those edges
+        MONITORINFO info;
+        info.cbSize = sizeof(info);
+        if (GetMonitorInfoW(MonitorFromWindow(window, MONITOR_DEFAULTTONEAREST), &info))
+        {
+            const int frame = EMBED_CALL(system_frame_get, SystemWindowsCtx, .window = window);
+            limits->ptMaxPosition.x = (info.rcWork.left - info.rcMonitor.left) - frame;
+            limits->ptMaxPosition.y = (info.rcWork.top - info.rcMonitor.top) - frame;
+            limits->ptMaxSize.x = (info.rcWork.right - info.rcWork.left) + (2 * frame);
+            limits->ptMaxSize.y = (info.rcWork.bottom - info.rcWork.top) + (2 * frame);
+            limits->ptMaxTrackSize = limits->ptMaxSize;
+        }
         return 0;
     }
     case WM_DPICHANGED: {
@@ -704,11 +723,11 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM pixel_w
     case WM_PAINT: {
         PAINTSTRUCT paint;
         HDC context = BeginPaint(window, &paint);
-        if ((system->displayed == NULL) ||
-            !EMBED_CALL(system_flip, SystemWindowsCtx, .system = system, .raster = system->displayed))
+        if ((system->displayed.pixels != NULL) &&
+            !EMBED_CALL(system_flip, SystemWindowsCtx, .system = system, .raster = &system->displayed))
         {
             EMBED_CALL(system_blit, SystemWindowsCtx, .system = system, .context = context, .from = 0u,
-                       .rows = (system->displayed != NULL) ? system->displayed->height : 0u);
+                       .rows = system->displayed.height);
         }
         EndPaint(window, &paint);
         return 0;
@@ -778,15 +797,6 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM pixel_w
     case GUI_WAKE_MESSAGE:
         system->events->woken(system->context);
         return 0;
-    case WM_TIMER:
-        if (pixel_width == GUI_TICK_TIMER)
-        {
-            KillTimer(window, GUI_TICK_TIMER);
-            system->events->ticked(system->context);
-            // the frame the tick owes is drawn here, which saves the ground moving while the system drags the window
-            system->events->idle(system->context);
-        }
-        return 0;
     case WM_CLOSE:
         system->events->closing(system->context);
         return 0;
@@ -808,12 +818,12 @@ static BOOL CALLBACK system_monitor_visit(HMONITOR monitor, HDC context, LPRECT 
 {
     (void)context;
     (void)rect;
-    unsigned int *const count = (unsigned int *)data;
-    CliWindowArea *const areas = (CliWindowArea *)(count + 2);
-    const unsigned int most = count[1];
+    const GuiSystemAreasCfg *const asked = (const GuiSystemAreasCfg *)data;
+    CliWindowArea *const areas = asked->areas;
+    unsigned int *const count = asked->count_out;
     MONITORINFO info;
     info.cbSize = sizeof(info);
-    if (!GetMonitorInfoW(monitor, &info) || (count[0] >= most))
+    if (!GetMonitorInfoW(monitor, &info) || (count[0] >= asked->most))
     {
         return TRUE;
     }
@@ -858,6 +868,8 @@ static BOOL CALLBACK system_monitor_measure(HMONITOR monitor, HDC context, LPREC
 
 void gui_system_display_max(const GuiSystemWidthCfg *args)
 {
+    // the system's pixels, not its scaled ones: the first the program asks of the system
+    SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     unsigned int *width = args->width;
     unsigned int *height = args->height;
     unsigned int most[2] = {0u, 0u};
@@ -868,20 +880,9 @@ void gui_system_display_max(const GuiSystemWidthCfg *args)
 
 unsigned int gui_system_areas(const GuiSystemAreasCfg *args)
 {
-    // the count, the most and the areas handed to the enumeration together, the areas after two words
-    unsigned int *const words = g_cli_cells->temporary_buf_alloc(
-        (2u * sizeof(unsigned int)) + ((args->most != 0u ? args->most : 1u) * sizeof(*args->areas)),
-        &g_gui_system_cells);
-    if (words == NULL)
-    {
-        return 0u;
-    }
-    words[0] = 0u;
-    words[1] = args->most;
-    EnumDisplayMonitors(NULL, NULL, system_monitor_visit, (LPARAM)words);
-    const unsigned int count = words[0];
-    memor.cpy(&(MemoriaCfg){.dst = args->areas, .src = words + 2, .bytes = count * sizeof(*args->areas)});
-    g_cli_cells->persistent_buf_release(words, &g_gui_system_cells);
+    unsigned int count = 0u;
+    const GuiSystemAreasCfg counted = {args->areas, args->most, &count};
+    EnumDisplayMonitors(NULL, NULL, system_monitor_visit, (LPARAM)&counted);
     return count;
 }
 
@@ -891,13 +892,18 @@ static GuiSystem *system_window_init(const SystemWindowsCtx *args)
 {
     const GuiSystemEvents *events = args->events;
     void *context = args->context_bytess;
-    GuiSystem *const system = g_cli_cells->persistent_buf_alloc(sizeof(*system), &g_gui_system_cells);
+    GuiSystem *system = NULL;
+    for (unsigned int at = 0u; (at < SYSTEM_WINDOWS) && (system == NULL); at += 1u)
+    {
+        system = s_systems[at].taken ? NULL : &s_systems[at];
+    }
     if (system == NULL)
     {
-        mmgr_line_put(args->err_msg, "the system window's cell could not be taken");
+        mmgr_line_put(args->err_msg, "the program's two windows already stand");
         return NULL;
     }
     memor.set(&(MemoriaCfg){.dst = system, .val = 0, .bytes = sizeof(*system)});
+    system->taken = 1;
     system->events = events;
     system->context = context;
     WNDCLASSEXW class_of;
@@ -910,7 +916,7 @@ static GuiSystem *system_window_init(const SystemWindowsCtx *args)
     class_of.lpszClassName = s_class;
     if ((RegisterClassExW(&class_of) == 0) && (GetLastError() != ERROR_CLASS_ALREADY_EXISTS))
     {
-        g_cli_cells->persistent_buf_release(system, &g_gui_system_cells);
+        system->taken = 0;
         mmgr_line_put(args->err_msg, "the window's class could not be registered");
         return NULL;
     }
@@ -927,7 +933,7 @@ static GuiSystem *system_window_init(const SystemWindowsCtx *args)
                                      args->owner, NULL, class_of.hInstance, NULL);
     if (system->window == NULL)
     {
-        g_cli_cells->persistent_buf_release(system, &g_gui_system_cells);
+        system->taken = 0;
         mmgr_line_put(args->err_msg, "the window could not be made");
         return NULL;
     }
@@ -943,7 +949,6 @@ static GuiSystem *system_window_init(const SystemWindowsCtx *args)
 
 GuiSystem *gui_system_open(const GuiSystemPositionTitleCfg *args)
 {
-    SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     GuiSystem *const system =
         EMBED_CALL(system_window_init, SystemWindowsCtx, .owner = NULL, .place = args->place, .title = args->title,
                    .events = args->events, .context_bytess = args->context, .err_msg = args->err_msg);
@@ -951,10 +956,6 @@ GuiSystem *gui_system_open(const GuiSystemPositionTitleCfg *args)
     {
         return NULL;
     }
-    // the frames flipped through the graphics device where it can read the framebuffers where they lie, else
-    // written through the system's drawing calls
-    (void)EMBED_CALL(system_device_init, SystemWindowsCtx, .device = &system->device, .window = system->window);
-    s_presenting = system;
     ShowWindow(system->window, args->place->maximized ? SW_SHOWMAXIMIZED : SW_SHOW);
     return system;
 }
@@ -995,10 +996,6 @@ void gui_system_run(const GuiSystemCfg *args)
     while (!args->system->closed && (GetMessageW(&message, NULL, 0u, 0u) > 0))
     {
         EMBED_CALL(system_message_alloc, SystemWindowsCtx, .message = &message);
-        if (!args->system->closed && !PeekMessageW(&message, NULL, 0u, 0u, PM_NOREMOVE))
-        {
-            args->system->events->idle(args->system->context);
-        }
     }
 }
 
@@ -1019,10 +1016,6 @@ void *gui_system_native(const GuiSystemPositionCfg *args)
 void gui_system_close(const GuiSystemCfg *args)
 {
     EMBED_CALL(system_device_release, SystemWindowsCtx, .device = &args->system->device);
-    if (s_presenting == args->system)
-    {
-        s_presenting = NULL;
-    }
     if (args->system->window != NULL)
     {
         DestroyWindow(args->system->window);
@@ -1033,12 +1026,12 @@ void gui_system_close(const GuiSystemCfg *args)
 
 void gui_system_free(const GuiSystemCfg *args)
 {
-    g_cli_cells->persistent_buf_release(args->system, &g_gui_system_cells);
+    args->system->taken = 0;
 }
 
 void gui_system_present(const GuiSystemRasterCfg *args)
 {
-    args->system->displayed = args->raster;
+    args->system->displayed = *args->raster;
     if (!EMBED_CALL(system_flip, SystemWindowsCtx, .system = args->system, .raster = args->raster))
     {
         HDC context = GetDC(args->system->window);
@@ -1046,16 +1039,14 @@ void gui_system_present(const GuiSystemRasterCfg *args)
                    .rows = args->raster->height);
         ReleaseDC(args->system->window, context);
     }
-    args->system->presented_ms = cli_clock_milliseconds();
 }
 
 void gui_system_present_part(const GuiSystemRasterCfg *args)
 {
-    args->system->displayed = args->raster;
+    args->system->displayed = *args->raster;
     // a flip shows a whole buffer: the device flips the raster whole, and the system's drawing calls write the part
     if (EMBED_CALL(system_flip, SystemWindowsCtx, .system = args->system, .raster = args->raster))
     {
-        args->system->presented_ms = cli_clock_milliseconds();
         return;
     }
     if (!EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = args->part) && (args->part.y >= 0))
@@ -1066,7 +1057,6 @@ void gui_system_present_part(const GuiSystemRasterCfg *args)
                    .from = (unsigned int)args->part.y, .rows = (unsigned int)args->part.height);
         ReleaseDC(args->system->window, context);
     }
-    args->system->presented_ms = cli_clock_milliseconds();
 }
 
 void gui_system_wake(const GuiSystemCfg *args)
@@ -1075,25 +1065,6 @@ void gui_system_wake(const GuiSystemCfg *args)
     {
         PostMessageW(args->system->window, GUI_WAKE_MESSAGE, 0u, 0);
     }
-}
-
-void gui_system_tick(const GuiSystemAfterCfg *args)
-{
-    if (args->system->window == NULL)
-    {
-        return;
-    }
-    if (args->after == 0ull)
-    {
-        KillTimer(args->system->window, GUI_TICK_TIMER);
-        return;
-    }
-    // no sooner than the monitor's next refresh after the last frame presented
-    const unsigned long long since = cli_clock_milliseconds() - args->system->presented_ms;
-    const unsigned long long until_refresh = (since < args->system->frame_ms) ? args->system->frame_ms - since : 0ull;
-    const unsigned long long wait = (args->after > until_refresh) ? args->after : until_refresh;
-    // a wait is far inside what the timer's milliseconds hold
-    SetTimer(args->system->window, GUI_TICK_TIMER, (wait > USER_TIMER_MAXIMUM) ? USER_TIMER_MAXIMUM : (UINT)wait, NULL);
 }
 
 // an icon made from `raster`'s pixels with their alpha: a 32-bit section the pixels are copied into and an empty mask

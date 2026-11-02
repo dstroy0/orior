@@ -3,7 +3,7 @@
 // glass_test.c: the glass's check: the grain's tile is the same every time, its alphas within the grain's share of
 // white and varying across the tile; a pane drawn over the ground is tinted, grained inside and rounded at its
 // corners, and two panes lay the same grain at one pixel of the window
-#include "../../../../../ui/gui/src/parts/glass.h"
+#include "../../../../../ui/cli/src/view/parts/glass.h"
 #include "../cli/cli_check.h"
 
 int main(void)

@@ -18,11 +18,9 @@ typedef struct CliDocumentThenCfg CliDocumentThenCfg;
 typedef struct CliDocumentErrMsgCfg CliDocumentErrMsgCfg;
 typedef struct CliDocumentLinesCfg CliDocumentLinesCfg;
 typedef struct CliDocumentOutCfg CliDocumentOutCfg;
-typedef struct CliDocumentOutKeyCfg CliDocumentOutKeyCfg;
 typedef struct CliDocumentOutNeedleCfg CliDocumentOutNeedleCfg;
 typedef struct CliDocumentLinesOutCfg CliDocumentLinesOutCfg;
 typedef struct CliDocumentOutKeyHeadInputCfg CliDocumentOutKeyHeadInputCfg;
-typedef struct CliDocumentOutKeyFirstCfg CliDocumentOutKeyFirstCfg;
 typedef struct CliDocumentKeyLineCfg CliDocumentKeyLineCfg;
 typedef struct CliDocumentTextCfg CliDocumentTextCfg;
 typedef struct CliDocumentUnitsCfg CliDocumentUnitsCfg;
@@ -180,29 +178,21 @@ CliDocumentNames *cli_document_names_alloc(const CliDocumentNamesCfg *args);
 // the colors worked out from here on handed to `colored`, NULL for nowhere, and walked out by a thread of their own
 // where `threaded` is 1; the text stored under `key` colored by the grammar stored under `grammar`, empty for none,
 // every line of it not colored yet and the walk woken, the names its grammar's tokens take handed on by the caller
-// where `named` is 1, else with the colors handed on first: 1, or 0 where no text is stored under `key`; the lines from
-// `first` to `last` of the text under `key` colored where they are not, the walk worked out from `first` after: each
-// run of lines not colored entered in the state the line above it ends in, else from root as far above it as
-// CLI_DOC_PREFIX lines not colored reach, the lines after it colored again until one is entered in the state it was
-// before, a paged text's no line outside those the page holds, their runs written into `out` as a JSON array of
-// `{"from", "runs"}`, or handed to `colored` where `out` is NULL: 1, or 0 where no text is stored under `key`; and
-// every text's walk taken to its end on the calling thread (document_branch.c)
+// where `named` is 1, else with the colors handed on first: 1, or 0 where no text is stored under `key`; and every
+// text's walk taken to its end on the calling thread (document_branch.c)
 void cli_document_colors_to(const CliDocumentColoredCfg *args);
 int cli_document_colored_by(const CliDocumentKeyGrammarCfg *args);
-int cli_document_view(const CliDocumentOutKeyFirstCfg *args);
 void cli_document_walk(void);
 // how many walkers walk the texts' colors out on threads of their own now (document_branch.c)
 unsigned int cli_document_walkers(void);
 // the lines from `first` to `last` of the text under `key` as UTF-8, each but the last followed by "\n", in a cell
 // taken for `owner`, given back with persistent_buf_release, their bytes into `size`, and the state the first is
 // entered in written into `state`, `capacity` bytes, root where it is not colored yet, empty where it does not fit:
-// NULL where no text is stored under `key` or the cells cannot meet the lines; and the same lines written into `out` as
-// a JSON string: 1, or 0 where no text is stored under `key` or the cells cannot meet the lines (document_branch.c)
+// NULL where no text is stored under `key` or the cells cannot meet the lines (document_branch.c)
 char *cli_document_lines_alloc(const CliDocumentKeyCfg *args);
 // the lines of the text under `key` read for it, from `*low` to before `*high`: a paged text's those the page holds,
 // and every line of any other: 1, or 0 where no text is stored under `key` (document_branch.c)
 int cli_document_bounds(const CliDocumentKeyLowCfg *args);
-int cli_document_text_write(const CliDocumentOutKeyCfg *args);
 // the text read whole stored under `key` as UTF-8, its lines joined by "\n" and a NUL after the last, in a cell taken
 // for `owner`, given back with persistent_buf_release, its bytes into `size`: NULL where no text read whole is stored
 // under `key` or the cells cannot meet it (document_branch.c)
@@ -212,15 +202,6 @@ char *cli_document_text_alloc(const CliDocumentKeyCfg *args);
 // outside them colored with no runs handed on: 1, or 0 where no text is stored under `key`. A text stored hands every
 // line's runs on until the page names the lines it mirrors (document_branch.c)
 int cli_document_cache(const CliDocumentKeyFromCfg *args);
-// the lines from `first` to `last` of the text under `key`, each with the runs the walk saved for it, colored where it
-// saves none, entered in the state the line above it ends in, written into `out` as a JSON array of `{"from", "runs"}`
-// whatever lines the page mirrors. Where
-// `mirrored` is 1 the page mirrors them from here on, as it does the lines it reads: the lines it mirrors take them in,
-// joined to those it mirrors where the two meet and in their place where they do not, the walk hands their runs on no
-// second time, and each one's runs are written as far as the view draws; where 0 the lines it mirrors stand as they
-// were and each line's runs are written whole, as a print of them asks: 1, or 0 where no text is stored under `key`
-// (document_branch.c)
-int cli_document_runs_write(const CliDocumentOutKeyFirstCfg *args);
 // Where a line's runs stand among `word`, its columns then its names, and how many
 typedef struct
 {
@@ -370,16 +351,6 @@ struct CliDocumentOutCfg
     unsigned int count_u32;
 };
 
-struct CliDocumentOutKeyCfg
-{
-    VerbaLinea *out;
-    const char *key;
-    unsigned long long first;
-    unsigned long long last;
-    char *state;
-    unsigned long long capacity;
-};
-
 struct CliDocumentOutNeedleCfg
 {
     VerbaLinea *out;
@@ -405,15 +376,6 @@ struct CliDocumentOutKeyHeadInputCfg
     int head_free;
     const char *head;
     unsigned long long head_size;
-};
-
-struct CliDocumentOutKeyFirstCfg
-{
-    VerbaLinea *out;
-    const char *key;
-    unsigned long long first;
-    unsigned long long last;
-    int mirrored;
 };
 
 struct CliDocumentKeyLineCfg
@@ -626,17 +588,6 @@ EMBED_TABLE_STORAGE CliDocumentKeyGrammarNs cli_document_key_grammar EMBED_UNUSE
 
 typedef struct
 {
-    int (*view)(const CliDocumentOutKeyFirstCfg *args);
-    int (*runs_write)(const CliDocumentOutKeyFirstCfg *args);
-} CliDocumentOutKeyFirstNs;
-EMBED_TABLE_LAYOUT(CliDocumentOutKeyFirstNs, view, runs_write);
-EMBED_TABLE_STORAGE CliDocumentOutKeyFirstNs cli_document_out_key_first EMBED_UNUSED = {
-    .view = cli_document_view,
-    .runs_write = cli_document_runs_write,
-};
-
-typedef struct
-{
     char *(*lines_alloc)(const CliDocumentKeyCfg *args);
     char *(*text_alloc)(const CliDocumentKeyCfg *args);
 } CliDocumentKeyNs;
@@ -653,15 +604,6 @@ typedef struct
 EMBED_TABLE_LAYOUT(CliDocumentKeyLowNs, bounds);
 EMBED_TABLE_STORAGE CliDocumentKeyLowNs cli_document_key_low EMBED_UNUSED = {
     .bounds = cli_document_bounds,
-};
-
-typedef struct
-{
-    int (*text_write)(const CliDocumentOutKeyCfg *args);
-} CliDocumentOutKeyNs;
-EMBED_TABLE_LAYOUT(CliDocumentOutKeyNs, text_write);
-EMBED_TABLE_STORAGE CliDocumentOutKeyNs cli_document_out_key EMBED_UNUSED = {
-    .text_write = cli_document_text_write,
 };
 
 typedef struct

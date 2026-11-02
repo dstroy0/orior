@@ -16,6 +16,7 @@
 
 #if !defined(_WIN32)
 #include <fcntl.h>
+#include <stdlib.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #if defined(__APPLE__)
@@ -53,6 +54,17 @@ int cli_random_bytes(const CliSizeBytesCtx *args)
     }
     close(source);
     return 1;
+}
+
+void *cli_pages_alloc(const CliSizeBytesCtx *args)
+{
+    // the pages are the C library's here, zero; no surface of the system's reads them where they lie
+    return calloc(1u, (size_t)args->size);
+}
+
+void cli_pages_free(const CliSizeBytesCtx *args)
+{
+    free(args->bytes_out);
 }
 
 void cli_temp_folder(const CliFolderCtx *args)

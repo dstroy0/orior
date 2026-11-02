@@ -3,7 +3,7 @@
 // glyphs_test.c: the glyphs' check: the system's code font is read, a letter's glyph is drawn once and saved, a space
 // has an advance and no pixels, the code face's cell is its glyphs' advance, and a text drawn lands its pixels where
 // its letters stand and ends where its width says
-#include "../../../../../ui/gui/src/glyphs.h"
+#include "../../../../../ui/cli/src/view/glyphs.h"
 #include "../cli/cli_check.h"
 
 // whether any pixel of `rect` on the raster is not `background_fill`

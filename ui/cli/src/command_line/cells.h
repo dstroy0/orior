@@ -56,8 +56,8 @@ extern "C"
     // `<pool's bytes> <its peak> 0`
     void cli_cells_usage_write(const CliCellsCfg *args);
     void cli_cells_owner_usage_write(const CliCellsCfg *args);
-    // every owner in MMgr's owner queue, as JSON, `[{"name", "in_use", "hw"}...]`, in the order they registered: the
-    // audit of who owns what in the cellblock and the lanes
+    // every owner in MMgr's owner queue, a line each, its name, the bytes it has in use and the most it has had, a tab
+    // between them, in the order they registered: the audit of who owns what in the cellblock and the lanes
     void cli_cells_owners_write(const CliCellsCfg *args);
 
     // a report appended as the record `cells/<name>` to the run this process is a member of, and nothing where it is a

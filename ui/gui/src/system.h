@@ -1,9 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// system.h: the face of the system the window stands on, the only part of the window written twice, once a system: the
-// monitors' areas; a window opened undecorated at a place, its events handed to the window as they come, its pixels
-// presented from a raster, its thread woken from another, its place read, its state changed and its closing; and the
-// scale the system draws it at (system_windows.c, system_x11.c)
+// system.h: the face of the system the window stands on, the only part of the program written twice, once a system: the
+// monitors' areas; a window opened undecorated at a place, its events handed on as they come, its pixels presented from
+// a raster it is handed, its thread woken from another, its place read, its state changed and its closing; and the
+// scale the system draws it at. Nothing here takes memory: each window's record is the body's own (system_windows.c,
+// system_x11.c)
 #ifndef GUI_SYSTEM_H
 #define GUI_SYSTEM_H
 typedef struct GuiSystemPositionTitleCfg GuiSystemPositionTitleCfg;
@@ -12,19 +13,12 @@ typedef struct GuiSystemRasterCfg GuiSystemRasterCfg;
 typedef struct GuiSystemCfg GuiSystemCfg;
 typedef struct GuiSystemAreasCfg GuiSystemAreasCfg;
 typedef struct GuiSystemWidthCfg GuiSystemWidthCfg;
-typedef struct GuiSystemBytesCfg GuiSystemBytesCfg;
 typedef struct GuiSystemPositionCfg GuiSystemPositionCfg;
-typedef struct GuiSystemAfterCfg GuiSystemAfterCfg;
 #include "../../cli/src/command_line/callback_cfg.h"
 #include "../../cli/src/controller/controller.h"
+#include "../../cli/src/view/view.h"
 #include "embed_dispatch_layout.h"
 #include "input_event.h"
-#include "raster.h"
-
-// what the window does to itself through the system: minimized, maximized or restored, and closed
-#define GUI_ACT_MINIMIZE 0u
-#define GUI_ACT_MAXIMIZE 1u
-#define GUI_ACT_CLOSE 2u
 
 // A system window, as its body defines it
 typedef struct GuiSystem GuiSystem;
@@ -35,11 +29,11 @@ typedef struct
     const GuiInput *input;
 } GuiEachInputCfg;
 
-// Where the system hands the window its events, each with the context given at the opening: the client sized, with
-// the scale the system draws at; an input; the thread woken by another; the system asking to close; where the
-// pointer on the input stands, as window.h names the places, for the system's own drag and resize; the queue empty,
-// where a frame owed is drawn and presented; the tick the window asked for come; and the window gone off the screen,
-// minimized or unmapped, `displayed` 0, or back on it, 1
+// Where the system hands its events, each with the context given at the opening: the client sized, with the scale the
+// system draws at and the milliseconds of one refresh of its monitor; an input; the thread woken by another; the system
+// asking to close; where the pointer on the input stands, as view.h names the places, for the system's own drag and
+// resize; the window gone off the screen, minimized or unmapped, `displayed` 0, or back on it, 1; and the system's wish
+// for less motion changed
 typedef struct
 {
     void (*sized)(const GuiEachWidthHeightScaleCfg *args);
@@ -47,8 +41,6 @@ typedef struct
     void (*woken)(void *context);
     void (*closing)(void *context);
     unsigned int (*hit)(const GuiEachInputCfg *args);
-    void (*idle)(void *context);
-    void (*ticked)(void *context);
     void (*displayed)(const GuiEachDisplayedCfg *args);
     void (*motion)(void *context);
 } GuiSystemEvents;
@@ -75,12 +67,8 @@ GuiSystem *gui_system_owner_open(const GuiSystemPositionTitleCfg *args);
 // system's own handle of the window, for a check to post them to
 void gui_system_pumped(const GuiSystemCfg *args);
 void *gui_system_native(const GuiSystemPositionCfg *args);
-// `bytes` of pages from the system's own page allocator, zero, one allocation the system's surfaces can read from
-// where it lets them, NULL where it gives none; and pages so taken given back, every surface the system made over
-// them let go first
-void *gui_system_pages(const GuiSystemBytesCfg *args);
-void gui_system_pages_free(const GuiSystemBytesCfg *args);
-// `raster` shown in the client, and shown again as the system asks for the client to be painted: where its pixels
+// `raster` shown in the client, its description copied, and shown again as the system asks for the client to be
+// painted: where its pixels
 // lie in pages the system gave and the system can read them where they lie, copied from there into its own surface by
 // its graphics device and flipped onto the screen, else written through the system's drawing calls
 void gui_system_present(const GuiSystemRasterCfg *args);
@@ -88,9 +76,6 @@ void gui_system_present(const GuiSystemRasterCfg *args);
 void gui_system_present_part(const GuiSystemRasterCfg *args);
 // the window's thread woken, from any thread
 void gui_system_wake(const GuiSystemCfg *args);
-// a tick asked for `after` milliseconds from now, on the window's thread, one at a time, the last asked the one that
-// comes, and no sooner than the display's next refresh after the last frame presented; 0 asks for none
-void gui_system_tick(const GuiSystemAfterCfg *args);
 // the window minimized, maximized or restored, or asked to close
 void gui_system_act(const GuiSystemCfg *args);
 // the window's icon given to the system as `title_icon` and `taskbar_icon`, each a raster of the icon's pixels with
@@ -137,6 +122,7 @@ struct GuiSystemAreasCfg
 {
     CliWindowArea *areas;
     unsigned int most;
+    unsigned int *count_out;
 };
 
 struct GuiSystemWidthCfg
@@ -145,22 +131,10 @@ struct GuiSystemWidthCfg
     unsigned int *height;
 };
 
-struct GuiSystemBytesCfg
-{
-    unsigned long long bytes;
-    void *pages;
-};
-
 struct GuiSystemPositionCfg
 {
     const GuiSystem *system_read;
     CliWindowPosition *position_out;
-};
-
-struct GuiSystemAfterCfg
-{
-    GuiSystem *system;
-    unsigned long long after;
 };
 
 typedef struct
@@ -228,17 +202,6 @@ EMBED_TABLE_STORAGE GuiSystemPositionNs gui_system_position EMBED_UNUSED = {
 
 typedef struct
 {
-    void *(*pages)(const GuiSystemBytesCfg *args);
-    void (*pages_free)(const GuiSystemBytesCfg *args);
-} GuiSystemBytesNs;
-EMBED_TABLE_LAYOUT(GuiSystemBytesNs, pages, pages_free);
-EMBED_TABLE_STORAGE GuiSystemBytesNs gui_system_bytes EMBED_UNUSED = {
-    .pages = gui_system_pages,
-    .pages_free = gui_system_pages_free,
-};
-
-typedef struct
-{
     void (*present)(const GuiSystemRasterCfg *args);
     void (*present_part)(const GuiSystemRasterCfg *args);
 } GuiSystemRasterNs;
@@ -246,15 +209,6 @@ EMBED_TABLE_LAYOUT(GuiSystemRasterNs, present, present_part);
 EMBED_TABLE_STORAGE GuiSystemRasterNs gui_system_raster EMBED_UNUSED = {
     .present = gui_system_present,
     .present_part = gui_system_present_part,
-};
-
-typedef struct
-{
-    void (*tick)(const GuiSystemAfterCfg *args);
-} GuiSystemAfterNs;
-EMBED_TABLE_LAYOUT(GuiSystemAfterNs, tick);
-EMBED_TABLE_STORAGE GuiSystemAfterNs gui_system_after EMBED_UNUSED = {
-    .tick = gui_system_tick,
 };
 
 typedef struct

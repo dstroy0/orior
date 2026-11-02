@@ -427,6 +427,9 @@ unsigned int cli_wake_read(const CliWakeCtx *args);
 void cli_wake_wait_seen(const CliWakeCtx *args);
 // the same wait, given up once `milliseconds` have passed: 1 where it was woken, 0 where the time ran out
 int cli_wake_wait_for(const CliWakeCtx *args);
+// a sleep until the generation moves off `seen`, given up once `milliseconds` have passed: 1 where it moved, 0 where
+// the time ran out
+int cli_wake_wait_seen_for(const CliWakeCtx *args);
 
 // what happened to a path the system reports: made or moved there, taken out or moved away, or written; and that the
 // system's record of changes ran over, and any file may have changed
@@ -499,6 +502,11 @@ int cli_socket_accept(const CliListenerCtx *args);
 // inherits, made unsignaled, its handle, 0 where none was made and off Windows; the event signaled: 1, or 0 where it
 // could not be, and off Windows; and the event let go (platform/windows_system.c, platform/posix_system.c)
 int cli_random_bytes(const CliSizeBytesCtx *args);
+// `size` bytes of pages from the system's own page allocator, zero, one allocation a graphics device can read from
+// where the system lets it: the pages, or NULL where it gives none; and pages so taken at `bytes_out`, `size` of them,
+// given back
+void *cli_pages_alloc(const CliSizeBytesCtx *args);
+void cli_pages_free(const CliSizeBytesCtx *args);
 // a folder made with every folder above it, readable by the reader alone, and a file written whole, made anew,
 // readable by the reader alone: each 1, or 0 where it could not be (platform/windows_system.c,
 // platform/posix_system.c)
@@ -1224,14 +1232,16 @@ typedef struct
     unsigned int (*wake_read)(const CliWakeCtx *args);
     void (*wake_wait_seen)(const CliWakeCtx *args);
     int (*wake_wait_for)(const CliWakeCtx *args);
+    int (*wake_wait_seen_for)(const CliWakeCtx *args);
 } CliWakeNs;
-EMBED_TABLE_LAYOUT(CliWakeNs, wake_wait, wake_all, wake_read, wake_wait_seen, wake_wait_for);
+EMBED_TABLE_LAYOUT(CliWakeNs, wake_wait, wake_all, wake_read, wake_wait_seen, wake_wait_for, wake_wait_seen_for);
 EMBED_TABLE_STORAGE CliWakeNs cli_wake_internal EMBED_UNUSED = {
     .wake_wait = cli_wake_wait,
     .wake_all = cli_wake_all,
     .wake_read = cli_wake_read,
     .wake_wait_seen = cli_wake_wait_seen,
     .wake_wait_for = cli_wake_wait_for,
+    .wake_wait_seen_for = cli_wake_wait_seen_for,
 };
 
 typedef struct
@@ -1573,11 +1583,15 @@ typedef struct
 {
     int (*socket_read)(const CliSizeBytesCtx *args);
     int (*random_bytes)(const CliSizeBytesCtx *args);
+    void *(*pages_alloc)(const CliSizeBytesCtx *args);
+    void (*pages_free)(const CliSizeBytesCtx *args);
 } CliSizeBytesNs;
-EMBED_TABLE_LAYOUT(CliSizeBytesNs, socket_read, random_bytes);
+EMBED_TABLE_LAYOUT(CliSizeBytesNs, socket_read, random_bytes, pages_alloc, pages_free);
 EMBED_TABLE_STORAGE CliSizeBytesNs cli_size_bytes_internal EMBED_UNUSED = {
     .socket_read = cli_socket_read,
     .random_bytes = cli_random_bytes,
+    .pages_alloc = cli_pages_alloc,
+    .pages_free = cli_pages_free,
 };
 
 typedef struct

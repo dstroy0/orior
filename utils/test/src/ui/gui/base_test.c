@@ -3,7 +3,7 @@
 // base_test.c: the base's check: the map laid for a frame and laid again only as the frame changes, the frame's
 // start drawn through it in one pass, the editor's and the tabs row's grounds the fill's own blend, the sheet and a
 // pane the ink with the grain, the lines' ring and the map's column the lattice, and a hole the sheet
-#include "../../../../../ui/gui/src/base.h"
+#include "../../../../../ui/cli/src/view/base.h"
 #include "../cli/cli_check.h"
 
 // the pixel of `raster` at x, y

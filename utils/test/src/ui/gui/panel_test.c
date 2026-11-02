@@ -4,7 +4,7 @@
 // paragraph one line high and two paragraphs two with the margin between, a fenced block a code line a line, a rule
 // its margins and line, a long paragraph wrapped in a narrow width, inline code drawn in the type's color, and a box
 // placed below its cell where the capacity allows, above where it does not, and saved inside its bounds
-#include "../../../../../ui/gui/src/parts/panel.h"
+#include "../../../../../ui/cli/src/view/parts/panel.h"
 #include "../cli/cli_check.h"
 
 // whether any pixel of `rect` is `color`

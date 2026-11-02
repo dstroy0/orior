@@ -26,6 +26,14 @@ int cli_wake_wait_for(const CliWakeCtx *args)
     return WaitOnAddress(&args->wake->generation, &seen, sizeof(seen), waited) != FALSE;
 }
 
+int cli_wake_wait_seen_for(const CliWakeCtx *args)
+{
+    unsigned int seen = args->seen;
+    // a wait past the longest a DWORD counts waits that long
+    const DWORD waited = (DWORD)((args->milliseconds_u64 < 0xfffffffeull) ? args->milliseconds_u64 : 0xfffffffeull);
+    return WaitOnAddress(&args->wake->generation, &seen, sizeof(seen), waited) != FALSE;
+}
+
 unsigned int cli_wake_read(const CliWakeCtx *args)
 {
     return atomic_load_explicit(&args->wake->generation, memory_order_acquire);

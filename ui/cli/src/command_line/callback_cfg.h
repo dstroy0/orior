@@ -532,6 +532,7 @@ typedef struct
     unsigned int width;
     unsigned int height;
     int scale;
+    unsigned int frame_ms;
 } GuiEachWidthHeightScaleCfg;
 
 typedef struct

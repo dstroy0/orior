@@ -20,34 +20,36 @@ static void events_ignored(const CliEachEventJsonSizeCfg *args)
     (void)args;
 }
 
-// a whole number member of a node, 0 where it has none
-static unsigned long long integer_member(const CliJson *json, unsigned int node, const char *name)
-{
-    const unsigned int number = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = node, .name = name);
-    unsigned long long value = 0ull;
-    for (unsigned long long at = 0ull; EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = number, .kind = CFG_JSON_NUMBER) && (at < json->node[number].length); at += 1ull)
-    {
-        value = value * 10ull + (unsigned long long)(json->text[json->node[number].text + at] - '0');
-    }
-    return value;
-}
-
 // the bytes in use by the tree check's owners, as the memory audit counts them
 static unsigned long long check_bytes_in_use(void)
 {
     VerbaLinea out = {s_owners, sizeof(s_owners), 0ull};
     EMBED_CALL(cli_cells_table.owners_write, CliCellsCfg, .out = &out);
-    unsigned int owners = CLI_JSON_NONE;
-    const CliJson *const json = cli_unity_parsed(s_owners, out.at, &owners);
+    (void)mmgr_line_finish(&out);
+    static const char s_named[] = "the tree's check";
     unsigned long long in_use = 0ull;
-    for (unsigned int at = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = json, .array = owners, .index = at) != CLI_JSON_NONE; at += 1u)
+    const char *line = s_owners;
+    while (*line != '\0')
     {
-        const unsigned int one = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = json, .array = owners, .index = at);
-        const char *const name = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = one, .name = "name"), .length_pointer = NULL);
-        if ((name != NULL) && (cellul.starts(&(CatenaFinitaCfg){.src = name, .other = "the tree's check", .cap = CLI_CELLS_POOL})))
+        const char *tab = line;
+        while ((*tab != '\0') && (*tab != '\t'))
         {
-            in_use += integer_member(json, one, "in_use");
+            tab += 1u;
         }
+        if ((*tab == '\t') && (memor.cmp(&(MemoriaCfg){.src = line, .other = s_named, .bytes = sizeof(s_named) - 1u}) == 0))
+        {
+            unsigned long long value = 0ull;
+            for (const char *digit = tab + 1u; (*digit >= '0') && (*digit <= '9'); digit += 1u)
+            {
+                value = (value * 10ull) + (unsigned long long)(*digit - '0');
+            }
+            in_use += value;
+        }
+        while ((*line != '\0') && (*line != '\n'))
+        {
+            line += 1u;
+        }
+        line += (*line != '\0') ? 1u : 0u;
     }
     return in_use;
 }

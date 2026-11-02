@@ -3,8 +3,8 @@
 // statusbar_test.c: the status bar's check: the memory reading written in megabytes, the cursor as line and column
 // from one, the selection as lines or letters, the indentation as tabs or spaces; and the bar drawn with the file's
 // crumbs at its left and the editor's line at its right, the lock at the end, bare where no file is open
-#include "../../../../../ui/gui/src/base.h"
-#include "../../../../../ui/gui/src/parts/statusbar.h"
+#include "../../../../../ui/cli/src/view/base.h"
+#include "../../../../../ui/cli/src/view/parts/statusbar.h"
 #include "../cli/cli_check.h"
 
 // whether any pixel of `rect` is not `background_fill`

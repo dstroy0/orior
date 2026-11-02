@@ -1,12 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// controller.h: the window's controller. The window is a view: it writes input and draws what is published, and it asks
-// nothing, waits for nothing, decides nothing and allocates nothing. The controller's thread owns the model, reads the
-// input, runs every command whoever pressed what, and publishes each part the window draws as a snapshot in the CLI's
-// cells, immutable once published. Nothing the CLI hands out comes back: a part's ring moves on as the window moves to
-// a newer snapshot, and the controller releases each cell the ring's position shows it has passed. Work that blocks
-// runs on workers, whose results come back to the controller and never to the window. Each queue is an anularis ring
-// with one writer and one reader (controller.c)
+// controller.h: the view's controller. The view writes input and draws what is published, and it asks nothing, waits
+// for nothing and decides nothing. The controller's thread owns the model, reads the input, runs every command whoever
+// pressed what, and publishes each part the view draws as a snapshot in the CLI's cells, immutable once published.
+// Nothing the CLI hands out comes back: a part's ring moves on as the view moves to a newer snapshot, and the
+// controller releases each cell the ring's position shows it has passed. Work that blocks runs on workers, whose
+// results come back to the controller and never to the view. Each queue is an anularis ring with one writer and one
+// reader (controller.c)
 #ifndef CONTROLLER_H
 #define CONTROLLER_H
 #include "../command_line/cli_internal.h"

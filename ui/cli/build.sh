@@ -118,6 +118,8 @@ while IFS= read -r source; do
         *) SOURCES+=("$source") ;;
     esac
 done < <(find "$TOP/ui/cli/src" "$TOP/ui/query/src" -name '*.c' -not -path '*/bundle/*' | sort)
+# the one input's dispatch, which the window and the view's thread share
+SOURCES+=("$TOP/ui/gui/src/input_event.c")
 for folder in src/cu/includes/file_defs/qry/writer src/cu/includes/file_defs/qry/writer/platform; do
     for source in "$TOP/$folder"/*.c; do
         [ -f "$source" ] && SOURCES+=("$source")
@@ -288,6 +290,7 @@ if [ "$WINDOW" = 1 ]; then
     while IFS= read -r source; do
         case "$source" in
             */system_*.c) [ "$(basename "$source")" = "$BODY" ] && GUI_SOURCES+=("$source") ;;
+            */input_event.c) ;;
             *) GUI_SOURCES+=("$source") ;;
         esac
     done < <(find "$TOP/ui/gui/src" -name '*.c' | sort)

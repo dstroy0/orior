@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // system_x11.c: the window on X11. A window with its decorations taken off through the Motif hints, moved and resized
-// by the window manager through _NET_WM_MOVERESIZE as the pointer presses on the caption or a border; the raster put
-// into the window as a 32-bit image, a tick coming no sooner than the screen's next refresh after it; the thread
-// woken through a pipe the loop waits on beside the display's connection; the scale read from the screen's size in
-// millimetres; the screen the one area
+// by the window manager through _NET_WM_MOVERESIZE as the pointer presses on the caption or a border; the raster it is
+// handed put into the window as a 32-bit image; the thread woken through a pipe the loop waits on beside the display's
+// connection; the scale read from the screen's size in millimetres; the screen the one area. The records of the two
+// windows that stand at once, and the words their icon goes to the system in, are this file's own
 #include "../../cli/src/command_line/callback_cfg.h"
 #include "system.h"
 
@@ -20,21 +20,19 @@
 #include <X11/Xutil.h>
 #include <X11/keysym.h>
 #include <poll.h>
-#include <stdlib.h>
 #include <unistd.h>
 
 struct GuiSystem
 {
+    int taken;
     Display *display;
     Window window;
     int screen;
     const GuiSystemEvents *events;
     void *context;
-    const GuiRaster *displayed;
+    GuiRaster displayed;
     int wake_pipe[2];
     int closed;
-    unsigned long long tick_deadline_ms;
-    unsigned long long presented_ms;
     unsigned int width;
     unsigned int height;
     Atom delete_window;
@@ -46,7 +44,7 @@ struct GuiSystem
     Window settings_owner;
     Atom settings;
     GuiSystem *owner;
-    GuiSystem *owner;
+    GuiSystem *owned;
 };
 // the rows one notch of the wheel scrolls; the Motif hints that take the decorations off, their flags word and the
 // decorations word; and the window manager's move and resize directions, as the specification numbers them, and its
@@ -55,7 +53,13 @@ struct GuiSystem
 #define GUI_MOTIF_HINTS_DECORATIONS 2ul
 #define GUI_MOVERESIZE_MOVE 8l
 // the milliseconds of one refresh of the screen, taken as 60 a second: the core protocol carries no rate
-#define GUI_FRAME_MS 17ull
+#define GUI_FRAME_MS 17u
+// the windows that stand at once: the main one and Preferences'
+#define SYSTEM_WINDOWS 2u
+
+static GuiSystem s_systems[SYSTEM_WINDOWS];
+// the icon property's words: each icon's width and height and then its pixels
+static unsigned long s_icon_words[4u + (GUI_ICON_SMALL * GUI_ICON_SMALL) + (GUI_ICON_LARGE * GUI_ICON_LARGE)];
 
 typedef struct
 {
@@ -76,6 +80,21 @@ typedef struct
     unsigned long *data;
     const GuiRaster *raster;
 } SystemX11Ctx;
+// the first record no window stands on, cleared and taken: NULL where both stand
+static GuiSystem *system_record_take(void)
+{
+    for (unsigned int at = 0u; at < SYSTEM_WINDOWS; at += 1u)
+    {
+        if (!s_systems[at].taken)
+        {
+            memor.set(&(MemoriaCfg){.dst = &s_systems[at], .val = 0, .bytes = sizeof(s_systems[at])});
+            s_systems[at].taken = 1;
+            return &s_systems[at];
+        }
+    }
+    return NULL;
+}
+
 // the scale of the screen: its pixels an inch over 96
 EMBED_INLINE int system_scale_get(const SystemX11Ctx *args)
 {
@@ -91,12 +110,11 @@ EMBED_INLINE int system_scale_get(const SystemX11Ctx *args)
     return ((scale > 90) && (scale < 110)) ? 100 : scale;
 }
 
-// the raster shown put into the window
 // the raster shown put into the window, its `rows` rows from the row `from`
 EMBED_INLINE void system_append(const SystemX11Ctx *args)
 {
-    const GuiRaster *const raster = args->system->displayed;
-    if ((raster == NULL) || (raster->pixels == NULL))
+    const GuiRaster *const raster = &args->system->displayed;
+    if (raster->pixels == NULL)
     {
         return;
     }
@@ -300,9 +318,9 @@ EMBED_INLINE void system_settings_watch(const SystemX11Ctx *args)
 static void system_event(const SystemX11Ctx *args)
 {
     // a window owned shares this one's connection and its events come through its loop
-    if ((args->system->owner != NULL) && (args->event_x_event_pointer->xany.window == args->system->owner->window))
+    if ((args->system->owned != NULL) && (args->event_x_event_pointer->xany.window == args->system->owned->window))
     {
-        EMBED_CALL(system_event, SystemX11Ctx, .system = args->system->owner,
+        EMBED_CALL(system_event, SystemX11Ctx, .system = args->system->owned,
                    .event_x_event_pointer = args->event_x_event_pointer);
         return;
     }
@@ -327,7 +345,7 @@ static void system_event(const SystemX11Ctx *args)
         if (args->event_x_event_pointer->xexpose.count == 0)
         {
             EMBED_CALL(system_append, SystemX11Ctx, .system = args->system, .from = 0u,
-                       .rows = (args->system->displayed != NULL) ? args->system->displayed->height : 0u);
+                       .rows = args->system->displayed.height);
         }
         break;
     case ConfigureNotify:
@@ -340,7 +358,8 @@ static void system_event(const SystemX11Ctx *args)
             EMBED_CALL(args->system->events->sized, GuiEachWidthHeightScaleCfg, .context = args->system->context,
                        .width = args->system->width, .height = args->system->height,
                        .scale = EMBED_CALL(system_scale_get, SystemX11Ctx, .display = args->system->display,
-                                           .screen = args->system->screen));
+                                           .screen = args->system->screen),
+                       .frame_ms = GUI_FRAME_MS);
         }
         break;
     case MapNotify:
@@ -498,26 +517,25 @@ GuiSystem *gui_system_open(const GuiSystemPositionTitleCfg *args)
 {
     const GuiSystemEvents *events = args->events;
     void *context = args->context;
-    GuiSystem *const system = g_cli_cells->persistent_buf_alloc(sizeof(*system), &g_gui_system_cells);
+    GuiSystem *const system = system_record_take();
     if (system == NULL)
     {
-        mmgr_line_put(args->err_msg, "the system window's cell could not be taken");
+        mmgr_line_put(args->err_msg, "the program's two windows already stand");
         return NULL;
     }
-    memor.set(&(MemoriaCfg){.dst = system, .val = 0, .bytes = sizeof(*system)});
     system->events = events;
     system->context = context;
     system->display = XOpenDisplay(NULL);
     if (system->display == NULL)
     {
-        g_cli_cells->persistent_buf_release(system, &g_gui_system_cells);
+        system->taken = 0;
         mmgr_line_put(args->err_msg, "no X display is open to the window");
         return NULL;
     }
     if (pipe(system->wake_pipe) != 0)
     {
         XCloseDisplay(system->display);
-        g_cli_cells->persistent_buf_release(system, &g_gui_system_cells);
+        system->taken = 0;
         mmgr_line_put(args->err_msg, "the pipe the window's thread is woken through could not be made");
         return NULL;
     }
@@ -537,13 +555,12 @@ GuiSystem *gui_system_owner_open(const GuiSystemPositionTitleCfg *args)
     GuiSystem *owner = args->owner;
     const GuiSystemEvents *events = args->events;
     void *context = args->context;
-    GuiSystem *const system = g_cli_cells->persistent_buf_alloc(sizeof(*system), &g_gui_system_cells);
+    GuiSystem *const system = system_record_take();
     if (system == NULL)
     {
-        mmgr_line_put(args->err_msg, "the system window's cell could not be taken");
+        mmgr_line_put(args->err_msg, "the program's two windows already stand");
         return NULL;
     }
-    memor.set(&(MemoriaCfg){.dst = system, .val = 0, .bytes = sizeof(*system)});
     system->events = events;
     system->context = context;
     system->display = owner->display;
@@ -551,7 +568,7 @@ GuiSystem *gui_system_owner_open(const GuiSystemPositionTitleCfg *args)
     EMBED_CALL(system_window_init, SystemX11Ctx, .system = system, .place = args->place, .title = args->title);
     // the window manager saves a transient window in front of the one it is for
     XSetTransientForHint(system->display, system->window, owner->window);
-    owner->owner = system;
+    owner->owned = system;
     XMapWindow(system->display, system->window);
     XFlush(system->display);
     return system;
@@ -576,22 +593,9 @@ void gui_system_run(const GuiSystemCfg *args)
         {
             break;
         }
-        args->system->events->idle(args->system->context);
-        if (XPending(args->system->display) > 0)
-        {
-            continue;
-        }
         waited[0].revents = 0;
         waited[1].revents = 0;
-        // the wait ends at the tick asked for, where one is
-        int wait = -1;
-        if (args->system->tick_deadline_ms != 0ull)
-        {
-            const unsigned long long now = cli_clock_milliseconds();
-            // the milliseconds to a tick are far inside what an int represents
-            wait = (args->system->tick_deadline_ms > now) ? (int)(args->system->tick_deadline_ms - now) : 0;
-        }
-        if (poll(waited, 2, wait) < 0)
+        if (poll(waited, 2, -1) < 0)
         {
             continue;
         }
@@ -603,26 +607,7 @@ void gui_system_run(const GuiSystemCfg *args)
             }
             args->system->events->woken(args->system->context);
         }
-        if ((args->system->tick_deadline_ms != 0ull) && (cli_clock_milliseconds() >= args->system->tick_deadline_ms))
-        {
-            args->system->tick_deadline_ms = 0ull;
-            args->system->events->ticked(args->system->context);
-        }
     }
-}
-
-void gui_system_tick(const GuiSystemAfterCfg *args)
-{
-    if (args->after == 0ull)
-    {
-        args->system->tick_deadline_ms = 0ull;
-        return;
-    }
-    // no sooner than the screen's next refresh after the last frame presented
-    const unsigned long long now = cli_clock_milliseconds();
-    const unsigned long long since = now - args->system->presented_ms;
-    const unsigned long long until_refresh = (since < GUI_FRAME_MS) ? GUI_FRAME_MS - since : 0ull;
-    args->system->tick_deadline_ms = now + ((args->after > until_refresh) ? args->after : until_refresh);
 }
 
 void gui_system_pumped(const GuiSystemCfg *args)
@@ -646,7 +631,7 @@ void gui_system_close(const GuiSystemCfg *args)
     if (args->system->owner != NULL)
     {
         // the connection is the owner's and stays open
-        args->system->owner->owner = NULL;
+        args->system->owner->owned = NULL;
         XDestroyWindow(args->system->display, args->system->window);
         XFlush(args->system->display);
         args->system->display = NULL;
@@ -667,30 +652,18 @@ void gui_system_free(const GuiSystemCfg *args)
         close(args->system->wake_pipe[0]);
         close(args->system->wake_pipe[1]);
     }
-    g_cli_cells->persistent_buf_release(args->system, &g_gui_system_cells);
-}
-
-void *gui_system_pages(const GuiSystemBytesCfg *args)
-{
-    // the pages are the C library's here, zero; no surface of the system's reads them where they lie
-    return calloc(1u, (size_t)args->bytes);
-}
-
-void gui_system_pages_free(const GuiSystemBytesCfg *args)
-{
-    free(args->pages);
+    args->system->taken = 0;
 }
 
 void gui_system_present(const GuiSystemRasterCfg *args)
 {
-    args->system->displayed = args->raster;
+    args->system->displayed = *args->raster;
     EMBED_CALL(system_append, SystemX11Ctx, .system = args->system, .from = 0, .rows = args->raster->height);
-    args->system->presented_ms = cli_clock_milliseconds();
 }
 
 void gui_system_present_part(const GuiSystemRasterCfg *args)
 {
-    args->system->displayed = args->raster;
+    args->system->displayed = *args->raster;
     if (!EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = args->part) && (args->part.y >= 0) &&
         (args->part.y < (int)args->raster->height))
     {
@@ -701,7 +674,6 @@ void gui_system_present_part(const GuiSystemRasterCfg *args)
                                       : args->raster->height - from;
         EMBED_CALL(system_append, SystemX11Ctx, .system = args->system, .from = from, .rows = rows);
     }
-    args->system->presented_ms = cli_clock_milliseconds();
 }
 
 void gui_system_wake(const GuiSystemCfg *args)
@@ -728,19 +700,18 @@ void gui_system_icon(const GuiSystemTitleIconCfg *args)
 {
     const unsigned long words = 4ul + ((unsigned long)args->title_icon->width * args->title_icon->height) +
                                 ((unsigned long)args->taskbar_icon->width * args->taskbar_icon->height);
-    unsigned long *const data = g_cli_cells->temporary_buf_alloc(words * sizeof(*data), &g_gui_system_cells);
-    if (data == NULL)
+    if (words > (sizeof(s_icon_words) / sizeof(s_icon_words[0])))
     {
         return;
     }
-    const unsigned long put = EMBED_CALL(system_icon_append, SystemX11Ctx, .data = data, .raster = args->title_icon);
-    (void)EMBED_CALL(system_icon_append, SystemX11Ctx, .data = data + put, .raster = args->taskbar_icon);
+    const unsigned long put =
+        EMBED_CALL(system_icon_append, SystemX11Ctx, .data = s_icon_words, .raster = args->title_icon);
+    (void)EMBED_CALL(system_icon_append, SystemX11Ctx, .data = s_icon_words + put, .raster = args->taskbar_icon);
     const Atom icon = XInternAtom(args->system->display, "_NET_WM_ICON", False);
     // the words are far fewer than an int counts
     XChangeProperty(args->system->display, args->system->window, icon, XA_CARDINAL, 32, PropModeReplace,
-                    (const unsigned char *)data, (int)words);
+                    (const unsigned char *)s_icon_words, (int)words);
     XFlush(args->system->display);
-    g_cli_cells->persistent_buf_release(data, &g_gui_system_cells);
 }
 
 void gui_system_act(const GuiSystemCfg *args)

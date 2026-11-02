@@ -3,7 +3,7 @@
 // preferences_test.c: Preferences's check: the zoom's steps and the opacities' ends, each row a sentence, the keys and presses
 // marking and moving what they name, one section drawn at a time with how bright each thing stands telling them apart, and the
 // colors' grid, a value typed as hex taken and one that is no color refused
-#include "../../../../../ui/gui/src/parts/preferences.h"
+#include "../../../../../ui/cli/src/view/parts/preferences.h"
 #include "../cli/cli_check.h"
 
 // the bytes of `text`

@@ -2,7 +2,7 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # gui_test.sh: the window's C checked, one check alone opening a window of its own: the command line's library built by
-# ui/cli/build.sh for this machine, then each *_test.c here compiled against it with the window's modules and its system body
+# ui/cli/build.sh for this machine, then each *_test.c here compiled against it with the view's modules, the window's and its system body
 # and the checks' cli_check.c, and run from build/gui_test, its exit said as the harness reads it; the checks named
 # after it alone where any are, and a program of its own here, the frame bench, by its name. The compiler is CC where
 # it is set, else clang.
@@ -16,6 +16,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$HERE/../../../../.." && pwd)"
 CLI_CHECKS="$TOP/utils/test/src/ui/cli"
 WINDOW="$TOP/ui/gui/src"
+VIEW="$TOP/ui/cli/src/view"
 CC="${CC:-clang}"
 
 # the system's body for this machine joins the modules, with the libraries it links: the body is checked too
@@ -54,7 +55,8 @@ if [ ! -f "$TOP/build/compile_commands.json" ]; then
     "$(command -v python3 || command -v python)" "$TOP/utils/maint/engine/clangd_database.py" > /dev/null || exit 1
 fi
 
-# the window's modules a check may reach: every source but the program's own and the other systems' bodies
+# the modules a check may reach, compiled here under the check's clock: every source of the view and the window but the
+# program's own and the other systems' bodies
 MODULES=()
 while IFS= read -r source; do
     case "$source" in
@@ -62,7 +64,7 @@ while IFS= read -r source; do
         */system_*.c) [ "$(basename "$source")" = "$BODY" ] && MODULES+=("$source") ;;
         *) MODULES+=("$source") ;;
     esac
-done < <(find "$WINDOW" -name '*.c' | sort)
+done < <(find "$WINDOW" "$VIEW" -name '*.c' | sort)
 
 # a name is a check, `<name>_test.c`, or a program of its own here, `<name>.c`, as the frame bench is
 TESTS=()

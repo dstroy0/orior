@@ -24,18 +24,6 @@ static char s_list_result[1u << 14u];
 static char s_bytes[2u * PAGE];
 static char s_folder[CLI_PATH_MAX_LEN];
 
-// a whole number member of a node, 0 where it has none
-static unsigned long long integer_member(const CliJson *json, unsigned int node, const char *name)
-{
-    const unsigned int number = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = node, .name = name);
-    unsigned long long value = 0ull;
-    for (unsigned long long at = 0ull; EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = number, .kind = CFG_JSON_NUMBER) && (at < json->node[number].length); at += 1ull)
-    {
-        value = value * 10ull + (unsigned long long)(json->text[json->node[number].text + at] - '0');
-    }
-    return value;
-}
-
 // a found path counted
 static void path_counted(const CliEachPathLengthCfg *args)
 {
@@ -234,25 +222,40 @@ void test_an_allocation_is_counted_to_its_owner(void)
     TEST_ASSERT_GREATER_OR_EQUAL_UINT64(1000ull, in_use);
 }
 
+// the bytes in use the audit's line for the owner `name` gives, 0 where it has no line
+static unsigned long long listed_in_use(const char *listing, const char *name)
+{
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = 64u});
+    const char *line = listing;
+    while (*line != '\0')
+    {
+        if ((memor.cmp(&(MemoriaCfg){.src = line, .other = name, .bytes = length}) == 0) && (line[length] == '\t'))
+        {
+            unsigned long long value = 0ull;
+            for (const char *digit = line + length + 1u; (*digit >= '0') && (*digit <= '9'); digit += 1u)
+            {
+                value = (value * 10ull) + (unsigned long long)(*digit - '0');
+            }
+            return value;
+        }
+        while ((*line != '\0') && (*line != '\n'))
+        {
+            line += 1u;
+        }
+        line += (*line != '\0') ? 1u : 0u;
+    }
+    return 0ull;
+}
+
 void test_the_audit_lists_the_owner_with_its_bytes(void)
 {
     void *const counted = g_cli_cells->persistent_buf_alloc(1000ull, &s_checked);
     VerbaLinea listing = {s_list_result, sizeof(s_list_result), 0ull};
     EMBED_CALL(cli_cells_table.owners_write, CliCellsCfg, .out = &listing);
     TEST_ASSERT_TRUE(mmgr_line_ok(&listing));
+    (void)mmgr_line_finish(&listing);
     const unsigned long long in_use = embed_atomic_usize_load(&s_checked.in_use);
-    unsigned int owners = CLI_JSON_NONE;
-    const CliJson *const json = cli_unity_parsed(s_list_result, listing.at, &owners);
-    unsigned long long list_entries = 0ull;
-    for (unsigned int at = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = json, .array = owners, .index = at) != CLI_JSON_NONE; at += 1u)
-    {
-        const unsigned int one = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = json, .array = owners, .index = at);
-        const char *const name = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json, .object = one, .name = "name"), .length_pointer = NULL);
-        if ((name != NULL) && cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "cells_check", .cap = 64u}))
-        {
-            list_entries = integer_member(json, one, "in_use");
-        }
-    }
+    const unsigned long long list_entries = listed_in_use(s_list_result, "cells_check");
     g_cli_cells->persistent_buf_release(counted, &s_checked);
     TEST_ASSERT_EQUAL_UINT64(in_use, list_entries);
 }

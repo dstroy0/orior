@@ -3,7 +3,7 @@
 // icons_test.c: the icons' check: an icon is drawn on a square of pixels as its path says, a line's pixels covered and
 // the rest clear, a square's middle clear, the filled dots covered, an arc a ring, a curve of relative steps reaching
 // its end, the cog's teeth at its rim; an icon asked again is the one saved; and a name no icon has draws nothing
-#include "../../../../../ui/gui/src/icons.h"
+#include "../../../../../ui/cli/src/view/icons.h"
 #include "../cli/cli_check.h"
 
 // the cover of the pixel at x, y of a mask of `size` a side

@@ -3,7 +3,7 @@
 // framebuffer_test.c: the framebuffer's check: the rasters are made clear on their boundaries with capacity for the largest
 // monitor and no more, resized where they stand, refused past their capacity, flipped between the two while the ground
 // stays, and counted to their owner until they are given back
-#include "../../../../../ui/gui/src/framebuffer.h"
+#include "../../../../../ui/cli/src/view/framebuffer.h"
 #include "../cli/cli_check.h"
 
 // the largest monitor the check names, and the rows past it that clear the capacity's rounding to its boundary

@@ -5,14 +5,11 @@
 # app, each on the system's own runner:
 #
 #   cli     the command line's checks on Ubuntu for x86-64 and for arm64, on Windows and on macOS;
-#   window  every test of the window, the real window built and driven on Ubuntu for x86-64 and for
-#           arm64, through WebKitGTK's WebDriver on X's display in memory, and on Windows, through
-#           WebView2's debugging port; on macOS, the tests of ui/test/appium, through Appium's Mac2
-#           driver and the window's accessibility tree.
+#   window  the window's C checks on Ubuntu for x86-64 and for arm64, on X's display in memory, and on
+#           Windows; macOS has no window to check.
 #
 # A push to main that changes the app's Markdown alone runs nothing; a pull request is matched by
-# all it changes. Each window job keeps the harness's report as an artifact. The harness fails a run
-# where any test fails or any part of the app has no test, and the job fails with it.
+# all it changes. The job fails where any check fails.
 
 name: ui
 
@@ -55,6 +52,8 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - uses: actions/setup-python@v5
         with:
@@ -80,113 +79,31 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-latest]
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 180
+    timeout-minutes: 120
     defaults:
       run:
         shell: bash
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      # The window's libraries, WebKitGTK's WebDriver, a display of X's that draws in memory and a session bus, and the
-      # tools the window's tests drive: clangd, clang and lld, which build the page's lattice to wasm, lldb's and gdb's
-      # debuggers, debugpy and pytest, and TeX and Poppler, which make a LaTeX file's pages and draw them
-      - name: Linux libraries and tools
+      - name: Linux libraries
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends build-essential pkg-config git rsync openssh-client \
-            libwebkit2gtk-4.1-dev webkit2gtk-driver libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev \
-            xvfb xauth dbus dbus-x11 at-spi2-core fonts-dejavu-core fonts-noto-core \
-            cmake ninja-build clangd clang clang-tidy lld libclang-rt-18-dev llvm-18 cppcheck lldb gdb \
-            python3-debugpy python3-pytest texlive-latex-base poppler-utils unzip openjdk-17-jre-headless
-          found="$(ls /usr/bin/lldb-dap* /usr/lib/llvm-*/bin/lldb-dap 2>/dev/null | head -1)"
-          if [ -n "$found" ]; then sudo ln -sf "$found" /usr/local/bin/lldb-dap; fi
+          sudo apt-get install -y --no-install-recommends build-essential clang lld llvm cmake ninja-build libx11-dev libssl-dev xvfb fonts-dejavu-core
 
-      # SonarQube for IDE, as the SonarQube plugin's toolchain finds it: the extension unpacked where VS Code keeps its
-      # extensions; on arm64 no extension carries a Java, and the system's Java 17 stands where the carried one would
-      - name: SonarQube for IDE
+      - name: The window's checks
         if: runner.os == 'Linux'
-        env:
-          SONARLINT: 6.1.1
-        run: |
-          mkdir -p /tmp/sonarlint "$HOME/.vscode/extensions"
-          if [ "$(uname -m)" = x86_64 ]; then
-            curl -sSfL --retry 3 -o /tmp/sonarlint.vsix "https://open-vsx.org/api/SonarSource/sonarlint-vscode/linux-x64/${SONARLINT}/file/SonarSource.sonarlint-vscode-${SONARLINT}@linux-x64.vsix"
-            unzip -q /tmp/sonarlint.vsix -d /tmp/sonarlint
-            mv /tmp/sonarlint/extension "$HOME/.vscode/extensions/sonarsource.sonarlint-vscode-${SONARLINT}-linux-x64"
-          else
-            curl -sSfL --retry 3 -o /tmp/sonarlint.vsix "https://open-vsx.org/api/SonarSource/sonarlint-vscode/${SONARLINT}/file/SonarSource.sonarlint-vscode-${SONARLINT}.vsix"
-            unzip -q /tmp/sonarlint.vsix -d /tmp/sonarlint
-            mv /tmp/sonarlint/extension "$HOME/.vscode/extensions/sonarsource.sonarlint-vscode-${SONARLINT}"
-            mkdir -p "$HOME/.vscode/extensions/sonarsource.sonarlint-vscode-${SONARLINT}/jre"
-            ln -s "$(dirname "$(dirname "$(readlink -f "$(command -v java)")")")" "$HOME/.vscode/extensions/sonarsource.sonarlint-vscode-${SONARLINT}/jre/system"
-          fi
+        run: xvfb-run -a -s '-screen 0 1920x1080x24 -dpi 96' python utils/test/harness.py window check
 
-      - name: Rust, where the runner has none
-        run: |
-          if ! command -v cargo > /dev/null; then
-            curl -sSf --retry 3 https://sh.rustup.rs | sh -s -- -y --profile minimal
-            echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
-          fi
-
-      # The name git gives the commits a test makes in the run's tree
-      - name: Git's name
-        run: |
-          git config --global user.name "orior harness"
-          git config --global user.email harness@localhost
-
-      # A runner has no GPU: the web view draws in software, through X
-      - name: The window's suite
-        if: runner.os == 'Linux'
-        env:
-          LIBGL_ALWAYS_SOFTWARE: "1"
-          WEBKIT_DISABLE_COMPOSITING_MODE: "1"
-          GDK_BACKEND: x11
-        run: dbus-run-session -- xvfb-run -a -s '-screen 0 1920x1080x24 -dpi 96' python utils/test/harness.py window test --driver webdriver
-
-      - name: The window's suite
+      - name: The window's checks
         if: runner.os == 'Windows'
-        run: python utils/test/harness.py window test --driver cdp
-
-      - uses: actions/setup-node@v4
-        if: runner.os == 'macOS'
-        with:
-          node-version: "22"
-
-      - name: Appium and its Mac2 driver
-        if: runner.os == 'macOS'
-        run: |
-          npm install -g appium
-          appium driver install mac2
-          appium driver doctor mac2 || true
-
-      # XCTest drives the window through Xcode Helper, which needs Accessibility: granted in the system's TCC
-      # database, which GitHub's macOS runners leave writable, and automation mode turned on without a prompt
-      - name: Accessibility and automation mode
-        if: runner.os == 'macOS'
-        run: |
-          helper="$(xcode-select -p)/Platforms/MacOSX.platform/Developer/Library/Xcode/Agents/Xcode Helper.app/Contents/MacOS/Xcode Helper"
-          sudo sqlite3 "/Library/Application Support/com.apple.TCC/TCC.db" "INSERT OR REPLACE INTO access (service, client, client_type, auth_value, auth_reason, auth_version, indirect_object_identifier, flags, last_modified) VALUES ('kTCCServiceAccessibility', '$helper', 1, 2, 3, 1, 'UNUSED', 0, CAST(strftime('%s', 'now') AS INTEGER));"
-          sudo launchctl kickstart -k system/com.apple.tccd || sudo pkill -HUP tccd || true
-          sudo automationmodetool enable-automationmode-without-authentication || true
-
-      - name: The window's suite
-        if: runner.os == 'macOS'
-        run: python utils/test/harness.py window test --driver appium
-
-      - name: Keep the report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: report-window-${{ matrix.os }}
-          path: |
-            build/ui_test/runs/*/report.md
-            build/ui_test/runs/*/window.log
-            build/ui_test/runs/*/webdriver.log
-            build/ui_test/runs/*/appium.log
+        run: python utils/test/harness.py window check

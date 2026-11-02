@@ -32,6 +32,17 @@ int cli_random_bytes(const CliSizeBytesCtx *args)
     return 1;
 }
 
+void *cli_pages_alloc(const CliSizeBytesCtx *args)
+{
+    // the pages a graphics device's heap is opened over are one allocation of the system's own, from its base
+    return VirtualAlloc(NULL, (SIZE_T)args->size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+}
+
+void cli_pages_free(const CliSizeBytesCtx *args)
+{
+    VirtualFree(args->bytes_out, 0u, MEM_RELEASE);
+}
+
 void cli_temp_folder(const CliFolderCtx *args)
 {
     const DWORD length = GetTempPathA(CLI_PATH_MAX_LEN, args->folder_out);

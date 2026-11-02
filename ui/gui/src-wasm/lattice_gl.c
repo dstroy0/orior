@@ -8,7 +8,7 @@
 // stands from the dot's edge, a pixel wide ramp from all of it to none, and the result dithered by a 4 by 4 ordered
 // threshold below one level of 255, so a shade between two levels is put down as both. The radius is taken at FITS of
 // the pen's, which puts down the ink the page's own canvas puts down for the same dots.
-#include "../src/lattice.h"
+#include "../../cli/src/view/lattice.h"
 
 // the page's WebGL on the context of `slot`'s canvas, every object it makes named by a number above 0: a shader
 // compiled from `length` bytes of source, vertex where `vertex` is 1; a program linked from two shaders, 0 where it

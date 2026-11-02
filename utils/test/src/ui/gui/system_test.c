@@ -112,8 +112,8 @@ int main(void)
     char error_text[1024];
     VerbaLinea why = {error_text, sizeof(error_text), 0ull};
     static Transferred transferred;
-    static const GuiSystemEvents s_events = {transferred_sized,   transferred_input,   transferred_nothing, transferred_nothing, transferred_hit,
-                                             transferred_nothing, transferred_nothing, transferred_displayed,   transferred_motion};
+    static const GuiSystemEvents s_events = {transferred_sized, transferred_input,     transferred_nothing, transferred_nothing,
+                                             transferred_hit,   transferred_displayed, transferred_motion};
     const CliWindowPosition place = {20, 20, 320, 200, 0};
     GuiSystem *const system = EMBED_CALL(gui_system_position_title.open, GuiSystemPositionTitleCfg, .place = &place, .title = "orior check", .events = &s_events, .context = &transferred, .err_msg = &why);
     cli_check(system != NULL, "a window opens on the system");

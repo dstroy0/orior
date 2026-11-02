@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // palette_test.c: the palette's check: the dark scheme's colors are the stylesheet's, a token's name finds its color
 // and a name no token has finds the editor's text color
-#include "../../../../../ui/gui/src/palette.h"
+#include "../../../../../ui/cli/src/view/palette.h"
 #include "../cli/cli_check.h"
 
 // the named color called `required`: whether one has the name and its color is `color`

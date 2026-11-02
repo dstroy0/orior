@@ -62,6 +62,9 @@ def processor_seconds(process, job=None):
         import harness_win32 as win
 
         return win.job_processor_seconds(job) if job else None
+    # a system with no /proc, as macOS has none, cannot say
+    if not os.path.isdir("/proc"):
+        return None
     # every process under the child, running or ended: a process's own stat counts its running children not at all
     parents = {}
     ticks = {}

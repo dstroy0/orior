@@ -251,6 +251,21 @@ void cli_cells_owner_usage_write(const CliCellsCfg *args)
                .temporary = 0ull);
 }
 
+void cli_cells_owners_write(const CliCellsCfg *args)
+{
+    CliCellsOwnerRead owners[MMGR_CARCER_OWNERS];
+    const unsigned int count = EMBED_CALL(cells_owners_read, CellsCtx, .owners = owners);
+    for (unsigned int at = 0u; at < count; at += 1u)
+    {
+        mmgr_line_put(args->out, owners[at].name);
+        mmgr_line_ch(args->out, '\t');
+        mmgr_line_decimal(args->out, owners[at].in_use, 1u);
+        mmgr_line_ch(args->out, '\t');
+        mmgr_line_decimal(args->out, owners[at].hw, 1u);
+        mmgr_line_ch(args->out, '\n');
+    }
+}
+
 void cli_cells_peaks_report(void)
 {
     if (qry_member_run() == NULL)

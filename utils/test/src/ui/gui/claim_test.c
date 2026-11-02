@@ -4,7 +4,7 @@
 // claim made runs its number to one, a rest in an edge's band reveals the edge's part and a pass through it does not,
 // the part lingers after the pointer leaves and goes, one edge's part waits for another's to go, the controls' ghost
 // shows as the pointer slows in their corner, and the slats grow from the point of rest
-#include "../../../../../ui/gui/src/claim.h"
+#include "../../../../../ui/cli/src/view/claim.h"
 #include "../cli/cli_check.h"
 #include "test_clock.h"
 

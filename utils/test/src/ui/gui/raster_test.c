@@ -3,7 +3,7 @@
 // raster_test.c: the raster's check: a raster made is clear, a fill colors its rectangle and nothing about it, is
 // clipped to the raster and blends by its alpha, a mask blends by its coverage inside the clip, two rectangles meet in
 // their overlap, a rounded fill leaves its corners short, a line colors its ends and a dot is soft-edged
-#include "../../../../../ui/gui/src/raster.h"
+#include "../../../../../ui/cli/src/view/raster.h"
 #include "../cli/cli_check.h"
 
 #include <math.h>
