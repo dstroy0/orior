@@ -40,10 +40,12 @@ jobs:
     # A pull request from a fork has no secrets, and its scan would fail on the missing token.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     steps:
-      # The whole history: a shallow clone breaks blame-based new-code detection.
+      # The whole history: a shallow clone breaks blame-based new-code detection. MMgr and embedded_types are submodules
+      # every C source includes.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          submodules: true
 
       - uses: actions/setup-python@v5
         with:
@@ -69,14 +71,21 @@ jobs:
       - name: Build (wrapped)
         run: build-wrapper-linux-x86-64 --out-dir build/sonarqube/bw-output python utils/test/harness.py cli coverage build
 
-      # The suites write the .gcda. A failing test fails this job, so no coverage of a broken build is reported.
+      # The suites write the .gcda. A failing test still lets the scan report, and fails this job at its last step.
       - name: Test
+        id: suites
+        continue-on-error: true
         run: python utils/test/harness.py cli coverage test
 
       - name: Coverage report
+        continue-on-error: true
         run: python utils/test/harness.py cli coverage report
 
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@4d1dc0c91ee400dcf8a6dddf2f705ac36542e304 # v8
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Suites passed
+        if: steps.suites.outcome == 'failure'
+        run: exit 1
