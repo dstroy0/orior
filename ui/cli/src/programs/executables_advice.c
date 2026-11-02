@@ -369,7 +369,6 @@ void cli_executables_ran_advice(const CliExecutablesRootCfg *args)
 {
     const CliLines *lines = args->lines;
     static CliFullest s_fullest;
-    static CliLock s_lock = CLI_LOCK_INIT;
     char print_buf[CLI_PATH_MAX_LEN * 2u];
 #if defined(_WIN32)
     // the exit code read as the unsigned number Windows writes it as
@@ -405,7 +404,6 @@ void cli_executables_ran_advice(const CliExecutablesRootCfg *args)
     char folder[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_executables_name_out_folder_internal.join, CliExecutablesNameOutFolderCtx, .folder = args->root,
                .name = spec, .out = path);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     char *const warned = EMBED_CALL(cli_executables_spec_internal.pyinstaller_warn, CliExecutablesSpecCtx, .spec = path,
                                     .folder_out = folder);
     const char *const warn = (warned != NULL) ? warned : "";
@@ -480,5 +478,4 @@ void cli_executables_ran_advice(const CliExecutablesRootCfg *args)
         EMBED_CALL(cli_print, ExecutablesAdviceCtx, .sink = args->sink, .text = print_buf);
     }
     g_cli_cells->persistent_buf_release(warned, &g_cli_executables_cells);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }

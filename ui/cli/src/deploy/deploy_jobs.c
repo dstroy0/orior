@@ -10,7 +10,6 @@
 // the tree deploy.json is read into for the catalog, apart from a run's, given back once the jobs are listed, and its
 // lock
 static CliDeployTree s_tree;
-static CliLock s_lock = CLI_LOCK_INIT;
 
 int cli_deploy_act_get(const CliDeployCfg *args)
 {
@@ -51,7 +50,6 @@ EMBED_INLINE void jobs_choice(const DeployJobsCtx *args)
 void cli_deploy_jobs(const CliCatalogRootCfg *args)
 {
     const char *root = args->root;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     unsigned int count = 0u;
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea none = {why, sizeof(why), 0ull};
@@ -110,5 +108,4 @@ void cli_deploy_jobs(const CliCatalogRootCfg *args)
                    .a = "gone there", .b = NULL, .c = NULL, .d = NULL, .separated = 0);
     }
     EMBED_CALL(cli_deploy_root_internal.tree_free, CliDeployRootCtx, .tree = &s_tree);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }

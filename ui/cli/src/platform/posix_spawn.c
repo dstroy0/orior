@@ -225,13 +225,10 @@ EMBED_INLINE int cli_terminal_by_name(const PosixSpawnCtx *args)
 #if defined(__linux__)
     return ptsname_r(args->leader, args->name, args->room) == 0;
 #else
-    static CliLock s_named_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_named_lock);
     const char *const named = ptsname(args->leader);
     VerbaLinea line = {args->name, args->room, 0ull};
     mmgr_line_put(&line, (named != NULL) ? named : "");
     const int whole = (named != NULL) && (mmgr_line_finish(&line) != 0ull);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_named_lock);
     return whole;
 #endif
 }
@@ -390,13 +387,11 @@ int cli_spawn_poll(const CliSpawnedCtx *args)
 // go of at once
 #define CLI_SPAWN_LET_GO_MOST 256u
 static pid_t s_let_go[CLI_SPAWN_LET_GO_MOST];
-static CliLock s_let_go_lock = CLI_LOCK_INIT;
 
 // `child`, let go of before it ended, put among the children let go of where `child` is not 0, and every one of them
 // that has ended waited on and its place freed
 EMBED_INLINE void cli_spawn_let_go(const PosixSpawnCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_let_go_lock);
     int placed = (args->child == 0);
     for (unsigned int at = 0u; at < CLI_SPAWN_LET_GO_MOST; at += 1u)
     {
@@ -411,7 +406,6 @@ EMBED_INLINE void cli_spawn_let_go(const PosixSpawnCtx *args)
             placed = 1;
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_let_go_lock);
 }
 
 void cli_spawn_group_end(const CliGroupCtx *args)

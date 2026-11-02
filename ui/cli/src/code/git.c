@@ -298,10 +298,8 @@ void cli_git_change(const CliGitRootReposCfg *args)
     unsigned int count = args->count;
     static CliRepositories s_repositories;
     static const char *s_paths[CLI_GIT_REPOSITORIES];
-    static CliLock s_lock = CLI_LOCK_INIT;
     args->found_changed_list_pointer->count = 0u;
     EMBED_CALL(cli_git_text.text_begin, CliGitTextCfg, .text = &args->found_changed_list_pointer->text);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     if (!args->named)
     {
         EMBED_CALL(cli_git_root_found_repositories.repositories, CliGitRootFoundRepositoriesCfg, .root = args->root,
@@ -331,5 +329,4 @@ void cli_git_change(const CliGitRootReposCfg *args)
         }
     }
     EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_repositories.text);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }

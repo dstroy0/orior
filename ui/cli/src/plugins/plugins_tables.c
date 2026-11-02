@@ -44,24 +44,19 @@ typedef struct
 // the tree the tables are read from, as the window opens it
 static char s_tree[CLI_PATH_MAX_LEN];
 static int s_has_tree;
-static CliLock s_lock = CLI_LOCK_INIT;
 
 void cli_plugins_set_tree(const CliPluginsRootCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     memor.cpy(&(MemoriaCfg){.dst = s_tree,
                             .src = args->root,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL}) + 1u});
     s_has_tree = 1;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 int cli_plugins_tree(const CliPluginsTreeCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int has = s_has_tree;
     memor.cpy(&(MemoriaCfg){.dst = args->tree_out, .src = s_tree, .bytes = sizeof(s_tree)});
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return has;
 }
 

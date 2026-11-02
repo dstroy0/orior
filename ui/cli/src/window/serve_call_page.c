@@ -372,9 +372,7 @@ static int pages_save(const CliServeAnswerCfg *args)
         return 0;
     }
     // a paged file is written as every file of the tree is, one write at a time
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_serve_write_lock);
     const int saved = EMBED_CALL(cli_pages_path.save, CliPagesPathCfg, .key = key, .out = out, .err_msg = err_msg);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_serve_write_lock);
     return saved;
 }
 

@@ -146,16 +146,13 @@ int query_environment_read(const QueryNameValueCtx *args)
 
 int query_environment_write(const QueryNameOutCtx *args)
 {
-    static char s_value[QUERY_ENVIRONMENT_MAX_LEN];
-    static pthread_mutex_t s_lock = PTHREAD_MUTEX_INITIALIZER;
-    (void)pthread_mutex_lock(&s_lock);
+    char s_value[QUERY_ENVIRONMENT_MAX_LEN];
     const int read = EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = args->name,
                                 .value_out = s_value, .room = sizeof(s_value));
     if (read)
     {
         mmgr_line_put(args->out, s_value);
     }
-    (void)pthread_mutex_unlock(&s_lock);
     return read && mmgr_line_ok(args->out);
 }
 

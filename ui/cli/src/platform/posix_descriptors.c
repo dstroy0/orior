@@ -33,15 +33,12 @@ typedef struct
 EMBED_INLINE void descriptors_put(const PosixDescriptorsCtx *args)
 {
     (void)fcntl(args->fd, F_SETFD, FD_CLOEXEC);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->pending->lock);
     if (args->pending->count < CLI_DESCRIPTORS_PENDING_MAX)
     {
         args->pending->fd[(args->pending->start + args->pending->count) % CLI_DESCRIPTORS_PENDING_MAX] = args->fd;
         args->pending->count += 1u;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->pending->lock);
         return;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->pending->lock);
     close(args->fd);
 }
 
@@ -96,7 +93,6 @@ long long cli_socket_receive(const CliTransferSocketCfg *args)
 
 int cli_descriptor_take(const CliTransferSocketCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->pending->lock);
     int fd = -1;
     if (args->pending->count > 0u)
     {
@@ -104,7 +100,6 @@ int cli_descriptor_take(const CliTransferSocketCfg *args)
         args->pending->start = (args->pending->start + 1u) % CLI_DESCRIPTORS_PENDING_MAX;
         args->pending->count -= 1u;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->pending->lock);
     return fd;
 }
 

@@ -183,7 +183,6 @@ int cli_git_clone(const CliGitErrMsgCfg *args)
     VerbaLinea *err_msg = args->err_msg;
     static char s_run_path[CLI_GIT_RUN_PATH];
     static CliProgress s_progress;
-    static CliLock s_lock = CLI_LOCK_INIT;
     if (!EMBED_CALL(cli_net_address.reach, CliNetAddressCfg, .address = args->url, .purpose = "git clone",
                     .err_msg = err_msg))
     {
@@ -198,14 +197,12 @@ int cli_git_clone(const CliGitErrMsgCfg *args)
         mmgr_line_put(err_msg, " is there already and contains files");
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = s_run_path,
                .size = sizeof(s_run_path));
     char program[CLI_PATH_MAX_LEN];
     if (!EMBED_CALL(cli_toolchains_id_path.chosen_program, CliToolchainsIdPathCfg, .id = "git", .path = program) &&
         !EMBED_CALL(cli_git_on, GitCloneCtx, .path = s_run_path, .program = program))
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         mmgr_line_put(err_msg,
                       "git is not installed, or not on the PATH: File, Toolchains, or orior_cli file toolchains "
                       "install git, opens its install page");
@@ -221,7 +218,6 @@ int cli_git_clone(const CliGitErrMsgCfg *args)
                     .spawned = &spawned, .words = words, .folder = NULL, .settings = settings, .count = 2u,
                     .detached = 1, .err_msg = &unstarted))
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         mmgr_line_put(err_msg, "git did not start: ");
         mmgr_line_put_n(err_msg, why, unstarted.at);
         return 0;
@@ -279,6 +275,5 @@ int cli_git_clone(const CliGitErrMsgCfg *args)
             mmgr_line_put(err_msg, " failed");
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return code == 0ll;
 }

@@ -84,7 +84,6 @@ EMBED_INLINE void complete_names(const VersionCatalogCompleteCtx *args)
     const char *token = args->token;
     unsigned long long token_size = args->token_size;
     CliCompletions *items = args->items;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_versions_lock);
     // a description names texts of the catalog's, with a few bytes between them and two a string of a list
     const int read = EMBED_CALL(cli_version_catalog_text_internal.versions_parse, CliVersionCatalogTextCtx,
                                 .text = text, .size = size);
@@ -116,7 +115,6 @@ EMBED_INLINE void complete_names(const VersionCatalogCompleteCtx *args)
     }
     g_cli_cells->persistent_buf_release(about_text, &g_cli_versions_cells);
     cli_versions_release();
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_versions_lock);
 }
 
 void cli_versions_complete(const CliVersionCatalogTextSizeAtCtx *args)

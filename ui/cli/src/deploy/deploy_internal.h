@@ -132,7 +132,6 @@ typedef struct
 
 // the one run, the lock it is guarded by, and a line printed through its teller (deploy_run.c)
 extern CliDeployRun g_cli_deploy;
-extern CliLock g_cli_deploy_lock;
 void cli_deploy_print(const CliDeployCtx *args);
 // the lines of `new_text` that differ from `old`, each printed through the run's teller marked `-` for a line taken
 // out and `+` for a line put in, around the run of lines the two do not share at their heads and tails

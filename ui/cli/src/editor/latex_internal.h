@@ -75,7 +75,6 @@ typedef struct
 // the room, a cell taken with the lock makes are read under and given back with it; and the lock taken with the room:
 // 1, or 0 with the lock given back where the cells cannot meet it; and the room given back with the lock (latex.c)
 extern CliLatexRoom *g_cli_latex;
-extern CliLock g_cli_latex_lock;
 int cli_latex_lock(void);
 void cli_latex_release(void);
 

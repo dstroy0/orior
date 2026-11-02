@@ -60,19 +60,15 @@ static CliLsp *lsp_place_take(void)
     CliLsp *const lsp = g_cli_cells->persistent_buf_alloc(sizeof(*lsp), &g_cli_servers_cells);
     if (lsp != NULL)
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_lsps_lock);
         lsp->taken = 1;
         lsp->refs = 1u;
         lsp->number = s_started;
         s_started += 1u;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_lsps_lock);
     }
     if (lsp != NULL)
     {
         lsp->ended = 0;
         memor.set(&(MemoriaCfg){.dst = &lsp->spawned, .val = 0, .bytes = sizeof(lsp->spawned)});
-        lsp->input_lock = (CliLock)CLI_LOCK_INIT;
-        lsp->lock = (CliLock)CLI_LOCK_INIT;
         lsp->wake = (CliWake)CLI_WAKE_INIT;
         lsp->next = 1ull;
         memor.set(&(MemoriaCfg){.dst = lsp->waiters, .val = 0, .bytes = sizeof(lsp->waiters)});

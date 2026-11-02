@@ -20,16 +20,13 @@ typedef struct
 } CliCheckRoom;
 
 static CliCheckRoom *s_room;
-static CliLock s_lock = CLI_LOCK_INIT;
 
 // the lock taken and the room a cell under it: 1, or 0 with the lock given back where no cell is left
 static int checkers_lock(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     s_room = g_cli_cells->persistent_buf_alloc(sizeof(*s_room), &g_cli_toolchains_cells);
     if (s_room == NULL)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return 0;
     }
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &s_room->json,
@@ -43,7 +40,6 @@ static void checkers_release(void)
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &s_room->json);
     g_cli_cells->persistent_buf_release(s_room, &g_cli_toolchains_cells);
     s_room = NULL;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 // the manifest read into the room, the one read before given back: its array of toolchains

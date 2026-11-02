@@ -24,7 +24,6 @@ typedef struct
 } CliPick;
 #endif
 
-static CliLock s_lock = CLI_LOCK_INIT;
 static CliWake s_done = CLI_WAKE_INIT;
 
 typedef struct
@@ -75,10 +74,8 @@ static void picker_run(void *context)
         EMBED_CALL(picker_show, WindowsPickerCtx, .pick = pick);
         CoUninitialize();
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     pick->done = 1;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_done);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_done);
 }
 
 int cli_file_pick(const CliPathRoomCtx *args)
@@ -90,12 +87,10 @@ int cli_file_pick(const CliPathRoomCtx *args)
     {
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     while (!pick.done)
     {
-        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_done, .lock = &s_lock);
+        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_done);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return pick.chosen;
 }
 #endif

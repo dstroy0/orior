@@ -71,8 +71,6 @@ typedef struct
 // it stands (link.c)
 extern CliLink g_cli_link;
 extern char *g_cli_link_line;
-extern CliLock g_cli_link_lock;
-extern CliLock g_cli_link_writing;
 extern CliWake g_cli_link_changed;
 
 // the link's state reported and stored as how it stands, by the store's thread alone; the same as preparing the server

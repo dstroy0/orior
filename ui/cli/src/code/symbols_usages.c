@@ -366,9 +366,7 @@ EMBED_INLINE char *usages_text(const SymbolsUsagesCtx *args)
         return given;
     }
     char full[CLI_PATH_MAX_LEN];
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_walk_lock);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = g_cli_tree_root, .relative = path, .joined = full);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_walk_lock);
     // a text read mapped is read and never written
     return (char *)EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = full, .size_pointer = size,
                               .owner = &g_cli_code_cells);
@@ -453,7 +451,6 @@ EMBED_INLINE unsigned long long usages_name_at(const SymbolsUsagesCtx *args)
 EMBED_INLINE void usages_tree_paths(const SymbolsUsagesCtx *args)
 {
     const char *path = args->path;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_walk_lock);
     for (unsigned int at = 0u; at < g_cli_branch_count; at += 1u)
     {
         char one[CLI_PATH_MAX_LEN];
@@ -469,7 +466,6 @@ EMBED_INLINE void usages_tree_paths(const SymbolsUsagesCtx *args)
             mmgr_line_ch(args->paths, '\0');
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_walk_lock);
 }
 
 // the usages read across the tree's files but `path`, each holding the name walked, the notes whose definition is

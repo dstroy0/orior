@@ -15,12 +15,11 @@
 #include "../toolchains/toolchains.h"
 #include "serve_internal.h"
 
-CliServeState g_cli_serve = {CLI_LOCK_INIT};
+CliServeState g_cli_serve = {0};
 
 void cli_serve_begin(const CliServeRootCfg *args)
 {
     const char *root = args->root;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_serve.lock);
     g_cli_serve.has_root = 0;
     if (root != NULL)
     {
@@ -35,7 +34,6 @@ void cli_serve_begin(const CliServeRootCfg *args)
         mmgr_line_put(&line, args->detached_dir);
         g_cli_serve.has_detached_dir = (mmgr_line_finish(&line) != 0ull);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_serve.lock);
     if (root != NULL)
     {
         EMBED_CALL(cli_toolchains_root.set_tree, CliToolchainsRootCfg, .root = root);
@@ -46,10 +44,8 @@ void cli_serve_begin(const CliServeRootCfg *args)
 // a message the window receives on any channel handed to where what the server emits goes
 static int serve_window_recv(const CliCommsRecvCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_serve.lock);
     const CliServeEmit emit = g_cli_serve.emit;
     void *const emit_context = g_cli_serve.emit_context;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_serve.lock);
     if (emit != NULL)
     {
         emit(emit_context, args->channel, args->body, args->size);
@@ -61,11 +57,9 @@ void cli_serve_emit_set(const CliServeEmitCfg *args)
 {
     CliServeEmit emit = args->emit;
     void *context = args->context;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_serve.lock);
     g_cli_serve.emit = emit;
     g_cli_serve.emit_context = context;
     g_cli_serve.has_emit = 1;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_serve.lock);
     static const char *const s_every[1] = {"*"};
     char server[CLI_COMMS_KEY];
     char window[CLI_COMMS_KEY];
@@ -87,23 +81,19 @@ void cli_serve_emit_set(const CliServeEmitCfg *args)
     {
         return;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_serve.lock);
     memor.cpy(&(MemoriaCfg){.dst = g_cli_serve.sender, .src = server, .bytes = sizeof(server)});
     g_cli_serve.sending = 1;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_serve.lock);
 }
 
 void cli_serve_on_emit(const CliServeEventCtx *args)
 {
     const char *body = args->body;
     unsigned long long size = args->size;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_serve.lock);
     const int sending = g_cli_serve.sending;
     char sender[CLI_COMMS_KEY];
     memor.cpy(&(MemoriaCfg){.dst = sender, .src = g_cli_serve.sender, .bytes = sizeof(sender)});
     const CliServeEmit emit = g_cli_serve.emit;
     void *const emit_context = g_cli_serve.emit_context;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_serve.lock);
     if (sending)
     {
         char quiet[256];
@@ -141,7 +131,6 @@ int cli_serve_open_door(const CliServeErrMsgAddressCfg *args)
 {
     char *address = args->address;
     VerbaLinea *err_msg = args->err_msg;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_serve.lock);
     int open = g_cli_serve.has_door;
     if (!open)
     {
@@ -152,7 +141,6 @@ int cli_serve_open_door(const CliServeErrMsgAddressCfg *args)
     {
         memor.cpy(&(MemoriaCfg){.dst = address, .src = g_cli_serve.door, .bytes = CLI_PATH_MAX_LEN});
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_serve.lock);
     return open;
 }
 
@@ -165,7 +153,6 @@ int cli_serve_open_to_command_line(const CliServeErrMsgAddressCfg *args)
     {
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_serve.lock);
     if (!g_cli_serve.has_command_line)
     {
         static const char *const s_listen[1] = {"answer/*"};
@@ -181,7 +168,6 @@ int cli_serve_open_to_command_line(const CliServeErrMsgAddressCfg *args)
     char root[CLI_PATH_MAX_LEN];
     const int has_root = g_cli_serve.has_root;
     memor.cpy(&(MemoriaCfg){.dst = root, .src = g_cli_serve.root, .bytes = sizeof(root)});
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_serve.lock);
     return registered && EMBED_CALL(cli_reach.store, CliReachCfg, .root = has_root ? root : NULL, .address = address,
                                     .key = key, .err_msg = err_msg);
 }
@@ -189,11 +175,9 @@ int cli_serve_open_to_command_line(const CliServeErrMsgAddressCfg *args)
 int cli_serve_command_answer(const CliServeIdCtx *args)
 {
     VerbaLinea *err_msg = args->err_msg;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_serve.lock);
     const int sending = g_cli_serve.sending;
     char sender[CLI_COMMS_KEY];
     memor.cpy(&(MemoriaCfg){.dst = sender, .src = g_cli_serve.sender, .bytes = sizeof(sender)});
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_serve.lock);
     if (!sending)
     {
         mmgr_line_put(err_msg, "the server sends on no channel yet");
@@ -205,8 +189,6 @@ int cli_serve_command_answer(const CliServeIdCtx *args)
     mmgr_line_put(&named, args->id);
     (void)mmgr_line_finish(&named);
     static char s_body[1u << 16u];
-    static CliLock s_body_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_body_lock);
     VerbaLinea body = {s_body, sizeof(s_body), 0ull};
     mmgr_line_put(&body, args->done ? "{\"done\":true,\"message\":" : "{\"done\":false,\"message\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &body, .text = args->answer_text,
@@ -216,7 +198,6 @@ int cli_serve_command_answer(const CliServeIdCtx *args)
     const int sent =
         EMBED_CALL(cli_comms_channel_err_msg.send, CliCommsChannelErrMsgCfg, .key = sender, .channel = channel,
                    .body = s_body, .size = body.at, .delivered = &delivered, .err_msg = err_msg);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_body_lock);
     return sent;
 }
 
@@ -232,10 +213,8 @@ int cli_serve_root(const CliServeErrMsgRootCfg *args)
 
 int cli_serve_root_now(const CliServeErrMsgRootCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_serve.lock);
     const int has = g_cli_serve.has_root;
     memor.cpy(&(MemoriaCfg){.dst = args->root_out, .src = g_cli_serve.root, .bytes = CLI_PATH_MAX_LEN});
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_serve.lock);
     return has;
 }
 
@@ -257,13 +236,11 @@ int cli_serve_root_set(const CliServeErrMsgPathOutCtx *args)
     {
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_serve.lock);
     const int moved = !g_cli_serve.has_root ||
                       (!cellul.eq(&(CatenaFinitaCfg){.src = g_cli_serve.root, .other = full, .cap = CLI_CELLS_POOL}));
     memor.cpy(&(MemoriaCfg){.dst = g_cli_serve.root, .src = full, .bytes = sizeof(full)});
     g_cli_serve.has_root = 1;
     const int command_line = g_cli_serve.has_command_line;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_serve.lock);
     EMBED_CALL(cli_toolchains_root.set_tree, CliToolchainsRootCfg, .root = full);
     EMBED_CALL(cli_plugins_root.set_tree, CliPluginsRootCfg, .root = full);
     // the folders mounted beside one tree are its own; another tree mounts its own; a server answers for the tree it

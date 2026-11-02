@@ -13,7 +13,6 @@
 #include <stdlib.h>
 
 CliGradleScript g_cli_gradle;
-CliLock g_cli_gradle_lock = CLI_LOCK_INIT;
 
 const char *const g_cli_gradle_configurations[30] = {"implementation",
                                                      "api",

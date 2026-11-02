@@ -112,20 +112,16 @@ static void read_errors(void *context)
                          .size = 0ull, .fresh = 1);
     }
     CliTestRun *const run = worker->run;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &run->lock);
     worker->errors_read = 1;
     run->going -= 1u;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &run->wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &run->lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &run->wake);
 }
 
 void cli_test_errors_start(const CliTestRunsWorkerLineCtx *args)
 {
     CliTestRun *const run = args->worker->run;
     args->worker->errors_read = 0;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &run->lock);
     run->going += 1u;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &run->lock);
     args->worker->error_thread = (CliThread){read_errors, args->worker};
     if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &args->worker->error_thread))
     {
@@ -136,12 +132,10 @@ void cli_test_errors_start(const CliTestRunsWorkerLineCtx *args)
 void cli_test_errors_wait(const CliTestRunsWorkerLineCtx *args)
 {
     CliTestRun *const run = args->worker->run;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &run->lock);
     while (!args->worker->errors_read)
     {
-        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &run->wake, .lock = &run->lock);
+        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &run->wake);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &run->lock);
 }
 
 const char *cli_test_file_read(const CliTestRunsPathCtx *args)

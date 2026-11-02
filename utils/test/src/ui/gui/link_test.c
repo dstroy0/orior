@@ -42,7 +42,6 @@ static void each(const GuiLinkEachCfg *args)
 // the wake the link gives the window's thread, counted
 typedef struct
 {
-    CliLock lock;
     CliWake wake;
     unsigned int woken;
 } Woken;
@@ -50,32 +49,28 @@ typedef struct
 static void woken(void *context)
 {
     Woken *const count = (Woken *)context;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &count->lock);
     count->woken += 1u;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &count->wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &count->lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &count->wake);
 }
 
 // the window's thread waiting up to two seconds for `wanted` wakes
 static int waited(Woken *count, unsigned int wanted)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &count->lock);
     unsigned int left = 200u;
     while ((count->woken < wanted) && (left > 0u))
     {
-        (void)EMBED_CALL(cli_lock_internal.wake_wait_for, CliLockCtx, .wake = &count->wake, .lock = &count->lock, .milliseconds_u64 = 10ull);
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &count->wake, .milliseconds_u64 = 10ull);
         left -= 1u;
     }
     const int came = count->woken >= wanted;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &count->lock);
     return came;
 }
 
 int main(void)
 {
     (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
-    Woken count = {CLI_LOCK_INIT, CLI_WAKE_INIT, 0u};
-    GuiLink link;
+    Woken count = {CLI_WAKE_INIT, 0u};
+    static GuiLink link;
     cli_check(EMBED_CALL(cli_link.begin, GuiLinkCfg, .link = &link, .woken = woken, .context = &count), "the link begins with its workers");
     Drained drained = {0ull, "", 0, "", 0u, 1};
     cli_check(EMBED_CALL(gui_link_context.drain, GuiLinkContextCfg, .link = &link, .each = each, .context = &drained) == 0u, "a link begun has nothing to drain");
@@ -143,7 +138,7 @@ int main(void)
     cli_check(EMBED_CALL(gui_link_own.call, GuiLinkOwnCfg, .link = &link, .own = 1, .name = "state_write", .request = s_saved, .size = sizeof(s_saved) - 1ull) != 0ull, "a save queues behind them");
 
     EMBED_CALL(cli_link.end, GuiLinkCfg, .link = &link);
-    cli_check(link.workers == 0u, "the link ended has no workers");
+    cli_check(EMBED_ATOMIC_LOAD(&link.workers) == 0u, "the link ended has no workers");
     char folder[CLI_PATH_MAX_LEN];
     static char state_text[1u << 16u];
     VerbaLinea state = {state_text, sizeof(state_text), 0ull};

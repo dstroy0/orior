@@ -30,7 +30,6 @@ static CliWatched *s_waiting;
 static unsigned int s_waiting_files;
 static char s_tree[CLI_PATH_MAX_LEN];
 static int s_started;
-static CliLock s_lock = CLI_LOCK_INIT;
 static CliWake s_wake = CLI_WAKE_INIT;
 static CliThread s_thread;
 
@@ -65,17 +64,15 @@ static void watch_taker(void *context)
     char root[CLI_PATH_MAX_LEN];
     for (;;)
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
         while (s_waiting == NULL)
         {
-            EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_wake, .lock = &s_lock);
+            EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_wake);
         }
         CliWatched *const taken = s_waiting;
         const unsigned int files = s_waiting_files;
         s_waiting = NULL;
         s_waiting_files = 0u;
         memor.cpy(&(MemoriaCfg){.dst = root, .src = s_tree, .bytes = sizeof(root)});
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         const char **const paths =
             g_cli_cells->temporary_buf_alloc((files + 1ull) * sizeof(const char *), &g_cli_window_cells);
         unsigned int count = 0u;
@@ -185,12 +182,10 @@ static void watch_took(const CliEachBatchSizeCfg *args)
         return;
     }
     watched->files = count;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     watched->next = s_waiting;
     s_waiting = watched;
     s_waiting_files += count;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_wake);
 }
 
 void cli_serve_watch(void)
@@ -200,14 +195,12 @@ void cli_serve_watch(void)
     {
         return;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     memor.cpy(&(MemoriaCfg){.dst = s_tree, .src = root, .bytes = sizeof(s_tree)});
     CliWatched *const pending = s_waiting;
     s_waiting = NULL;
     s_waiting_files = 0u;
     const int started = s_started;
     s_started = 1;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     EMBED_CALL(watch_batches_free, ServeWatchCtx, .batch = pending);
     if (!started)
     {

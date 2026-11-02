@@ -22,7 +22,7 @@ typedef struct GuiBusySinceCfg GuiBusySinceCfg;
 // ask stands before the circle comes, and the least the circle stands once it has come; a swirl's stages, a power of
 // two, and the shift from milliseconds to a stage; and the sizes in the page's pixels: the circle's side, how far the
 // ring's middle reaches from its center, and how far the circle saves from the editor's corner
-#define GUI_BUSY_ASKS 2048u
+#define GUI_BUSY_ASKS 8192u
 #define GUI_BUSY_SHOW_DELAY_MS 200ull
 #define GUI_BUSY_MIN_VISIBLE_MS 256ull
 #define GUI_BUSY_STAGES 64u
@@ -63,25 +63,25 @@ typedef struct
 // a circle with nothing asked; and its cell given back
 void gui_busy_init(const GuiBusyStillCfg *args);
 void gui_busy_free(const GuiBusyStillCfg *args);
-// an ask made at `now` under `ticket`, and the ask of `ticket` answered; whether work the CLI reports on past its
+// an ask made under `ticket`, and the ask of `ticket` answered; whether work the CLI reports on past its
 // answer runs as of `now`, standing as an ask does from when it began until it ends; and when the oldest ask unanswered
 // or work running began, in `*since`: 1, or 0 where none stands
 void gui_busy_request(const GuiBusyTicketCfg *args);
 void gui_busy_answer(const GuiBusyTicketCfg *args);
 void gui_busy_work(const GuiBusyRunningCfg *args);
 int gui_busy_waiting(const GuiBusySinceCfg *args);
-// the tick come at `now`: the circle come where an ask has stood past the wait, gone where none has and it has stood
+// the tick come: the circle come where an ask has stood past the wait, gone where none has and it has stood
 // its least: 1 where it came or went; and the milliseconds from `now` until a tick is wanted, 0 where none is
 int gui_busy_tick(const GuiBusyTicketCfg *args);
 unsigned long long gui_busy_next_deadline_ms(const GuiBusyCfg *args);
-// the stage standing at `now`, the first while it stands still; and whether it stands still, its pictures made again
+// the stage standing, the first while it stands still; and whether it stands still, its pictures made again
 // for it
 unsigned int gui_busy_stage_at(const GuiBusyCfg *args);
 void gui_busy_still(const GuiBusyStillCfg *args);
 // the circle's rectangle in `frame`, at the editor's foot on its right
 GuiRect gui_busy_rect(const GuiBusyFrameCfg *args);
 // the circle laid at the end of a whole frame, its pictures made where they are wanted, the pixels under it saved
-// first; and a step of its stage alone: the pixels saved restored and the stage at `now` blitted over them: the
+// first; and a step of its stage alone: the pixels saved restored and the stage blitted over them: the
 // rectangle to show again, empty where none is saved
 void gui_busy_draw(const GuiBusyFrameCfg *args);
 GuiRect gui_busy_redrawn(const GuiBusyFrameCfg *args);

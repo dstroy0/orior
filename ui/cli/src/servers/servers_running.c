@@ -11,7 +11,6 @@
 
 // the servers taken out of the running ones, under the servers' lock and then their own
 static CliLsp *s_taken[CLI_SERVERS_MOST];
-static CliLock s_taken_lock = CLI_LOCK_INIT;
 
 // A server to stop
 typedef struct
@@ -45,7 +44,6 @@ void cli_servers_stop_later(const CliServersPathLspCtx *args)
 static unsigned int running_take_all(void)
 {
     unsigned int count = 0u;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers.lock);
     g_cli_servers.failed = 0u;
     g_cli_servers.restarted = 0u;
     for (unsigned int at = 0u; at < CLI_SERVERS_MOST; at += 1u)
@@ -57,7 +55,6 @@ static unsigned int running_take_all(void)
             count += 1u;
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers.lock);
     return count;
 }
 
@@ -81,7 +78,6 @@ static void running_file_write(const CliEachPathTextLengthCfg *args)
 unsigned int cli_servers_list(const CliServersCfg *args)
 {
     unsigned int count = 0u;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers.lock);
     for (unsigned int at = 0u; (at < CLI_SERVERS_MOST) && (count < args->room); at += 1u)
     {
         const CliServerRunning *const one = &g_cli_servers.running[at];
@@ -101,15 +97,12 @@ unsigned int cli_servers_list(const CliServersCfg *args)
             (unsigned int)EMBED_CALL(cli_lsp_size_kind.pid, CliLspSizeKindCfg, .lsp_read = one->lsp);
         count += 1u;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers.lock);
     return count;
 }
 
 unsigned int cli_servers_tools_for(const CliServersRoomCfg *args)
 {
     static CliServerSpec s_spec;
-    static CliLock s_spec_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_spec_lock);
     unsigned int found = 0u;
     for (unsigned int at = 0u; (at < args->count) && (found < args->room); at += 1u)
     {
@@ -122,15 +115,12 @@ unsigned int cli_servers_tools_for(const CliServersRoomCfg *args)
             found += 1u;
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_spec_lock);
     return found;
 }
 
 void cli_servers_stop(const CliServersOutCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_taken_lock);
     unsigned int taken = 0u;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers.lock);
     for (unsigned int tool = 0u; tool < args->count; tool += 1u)
     {
         for (unsigned int at = 0u; at < CLI_SERVERS_MOST; at += 1u)
@@ -145,7 +135,6 @@ void cli_servers_stop(const CliServersOutCfg *args)
             }
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers.lock);
     mmgr_line_ch(args->out, '[');
     for (unsigned int at = 0u; at < taken; at += 1u)
     {
@@ -157,49 +146,36 @@ void cli_servers_stop(const CliServersOutCfg *args)
     {
         EMBED_CALL(cli_servers_path_lsp_internal.stop_later, CliServersPathLspCtx, .lsp = s_taken[at]);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_taken_lock);
 }
 
 void cli_servers_stop_all(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_taken_lock);
     const unsigned int taken = running_take_all();
     for (unsigned int at = 0u; at < taken; at += 1u)
     {
         EMBED_CALL(cli_lsp_context.stop, CliLspContextCfg, .lsp = s_taken[at]);
         EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = s_taken[at]);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_taken_lock);
 }
 
 void cli_servers_let_go(void)
 {
     cli_servers_check_let_go();
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_published_lock);
     EMBED_CALL(cli_keyed_name.clear, CliKeyedNameCfg, .keyed_out = &g_cli_servers_published);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_published_lock);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_texts_lock);
     EMBED_CALL(cli_keyed_name.clear, CliKeyedNameCfg, .keyed_out = &g_cli_servers_texts);
     EMBED_CALL(cli_keyed_name.clear, CliKeyedNameCfg, .keyed_out = &g_cli_servers_parses);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_texts_lock);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_checks_lock);
     EMBED_CALL(cli_keyed_name.clear, CliKeyedNameCfg, .keyed_out = &g_cli_servers_inspected);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_checks_lock);
     cli_servers_inspect_let_go();
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_taken_lock);
     const unsigned int taken = running_take_all();
     for (unsigned int at = 0u; at < taken; at += 1u)
     {
         EMBED_CALL(cli_servers_path_lsp_internal.stop_later, CliServersPathLspCtx, .lsp = s_taken[at]);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_taken_lock);
 }
 
 void cli_servers_settings_change(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_taken_lock);
     unsigned int count = 0u;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers.lock);
     for (unsigned int at = 0u; at < CLI_SERVERS_MOST; at += 1u)
     {
         if (g_cli_servers.running[at].used)
@@ -209,7 +185,6 @@ void cli_servers_settings_change(void)
             count += 1u;
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers.lock);
     static const char s_settings[] = "{\"settings\":null}";
     for (unsigned int at = 0u; at < count; at += 1u)
     {
@@ -220,5 +195,4 @@ void cli_servers_settings_change(void)
                          .length = sizeof(s_settings) - 1u, .err_msg = &ignored);
         EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = s_taken[at]);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_taken_lock);
 }

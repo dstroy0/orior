@@ -356,7 +356,6 @@ typedef struct
 } CliToolLook;
 
 static CliToolLook s_look;
-static CliLock s_look_lock = CLI_LOCK_INIT;
 
 // a plugin looked at: a tool recorded by its id, or, as one is read again, the tool at the place sought read into the
 // room
@@ -422,7 +421,6 @@ static void tool_look(const CliEachPluginCfg *args)
 EMBED_INLINE void tool_looked_over(const ValidateToolCtx *args)
 {
     const char *language = args->language;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_look_lock);
     s_look.language = language;
     s_look.count = 0u;
     s_look.seen = 0u;
@@ -453,7 +451,6 @@ int cli_validate_tool_for(const CliValidateCfg *args)
                                 .src = least,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = least, .cap = CLI_CELLS_POOL}) + 1u});
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_look_lock);
     cli_validate_release();
     return least != NULL;
 }
@@ -476,6 +473,5 @@ int cli_validate_tool_read(const CliValidateIdCtx *args)
         EMBED_CALL(cli_plugins_each_table.each, CliPluginsEachCfg, .each = tool_look, .context = &s_look);
     }
     const int loaded = s_look.loaded;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_look_lock);
     return loaded;
 }

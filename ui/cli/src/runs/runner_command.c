@@ -602,9 +602,7 @@ int cli_runner_show(const CliRunnerErrMsgRootCfg *args)
     VerbaLinea *err_msg = args->err_msg;
     static CliCommand s_command;
     static char s_shown[CLI_COMMAND_TEXT];
-    static CliLock s_lock = CLI_LOCK_INIT;
     const CliJob *const job_at = &catalog->job[args->job];
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     for (unsigned int at = 0u; at < job_at->steps; at += 1u)
     {
         const CliStep *const step = &catalog->step[job_at->step_first + at];
@@ -617,12 +615,10 @@ int cli_runner_show(const CliRunnerErrMsgRootCfg *args)
         if (!EMBED_CALL(cli_runner_command_table.command, CliRunnerCommandCfg, .root = root, .catalog = catalog,
                         .step = step, .values = values, .command = &s_command, .shown = &shown, .err_msg = err_msg))
         {
-            EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
             return 0;
         }
         mmgr_line_finish(&shown);
         EMBED_CALL(args->each, CliEachShownCfg, .context = args->context, .shown = s_shown);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return 1;
 }

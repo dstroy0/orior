@@ -71,7 +71,6 @@ static unsigned long long tar_written(void)
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = dir, .relative = "stream.tar", .joined = tar);
     char why[512];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_deploy_lock);
     g_cli_deploy.root = dir;
     g_cli_deploy.deployment.from = ".";
     CliDeploySent sent[2] = {{"run.sh", 0755u, ""}, {s_long_name, 0644u, ""}};
@@ -80,7 +79,6 @@ static unsigned long long tar_written(void)
     const int written = EMBED_CALL(cli_deploy_err_msg_path_internal.tar, CliDeployErrMsgPathCtx, .path = tar, .preserved = NULL, .preserved_count = 0u, .time = 1000ull, .err_msg = &err_msg);
     g_cli_deploy.sent = NULL;
     g_cli_deploy.sents = 0u;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_deploy_lock);
     TEST_ASSERT_TRUE(written);
     const unsigned long long size = qry_member_file_read(tar, s_stream, sizeof(s_stream));
     TEST_ASSERT_NOT_EQUAL(QRY_MEMBER_UNREAD, size);
@@ -205,10 +203,8 @@ void test_a_tar_stream_is_whole_blocks(void)
 void test_a_difference_shows_the_removed_and_added_lines(void)
 {
     s_printed_line.at = 0ull;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_deploy_lock);
     g_cli_deploy.print = line_printed;
     g_cli_deploy.context = NULL;
     EMBED_CALL(cli_deploy_old_internal.difference, CliDeployOldCtx, .old = "a\nb\nc\n", .old_size = 6ull, .new_text = "a\nB\nc\n", .new_size = 6ull);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_deploy_lock);
     CLI_TEST_ASSERT_TEXT("  @@ line 2|  - b|  + B", s_printed, s_printed_line.at);
 }

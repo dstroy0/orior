@@ -382,18 +382,18 @@ int gui_minimap_press(const GuiMinimapPlaceScaleCfg *args)
                           .lines = args->editor->lines);
         return 1;
     }
-    unsigned long long top_before = args->editor->top;
+    unsigned long long top_line = args->editor->top;
     if ((local_y < at->slider_top) || (local_y > at->slider_top + at->slider_tall))
     {
         const unsigned long long row =
             at->start + (unsigned long long)(local_y / EMBED_CALL(map_row_tall, MinimapCtx, .scale = scale));
-        now_ms = EMBED_CALL(map_line_get, MinimapCtx, .value = (float)row - (args->on_screen / 2.0f),
-                         .lines = args->editor->lines);
+        top_line = EMBED_CALL(map_line_get, MinimapCtx, .value = (float)row - (args->on_screen / 2.0f),
+                              .lines = args->editor->lines);
     }
-    *top = now_ms;
+    *top = top_line;
     args->map->dragging = 1;
     args->map->drag_y = args->y;
-    args->map->drag_top = now_ms;
+    args->map->drag_top = top_line;
     return 1;
 }
 

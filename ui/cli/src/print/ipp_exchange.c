@@ -13,7 +13,6 @@
 
 // the answer read, a cell its body is put together in, in place, under the lock while one exchange runs
 static unsigned char *s_answer;
-static CliLock s_lock = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -425,7 +424,6 @@ EMBED_INLINE int cli_exchange(const IppExchangeCtx *args)
 
 int cli_ipp_exchange(const CliIppSizeCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int done =
         EMBED_CALL(cli_exchange, IppExchangeCtx, .uri = args->uri, .request = args->request, .document = args->document,
                    .size = args->size, .answer = args->answer, .err_msg = args->err_msg);
@@ -434,6 +432,5 @@ int cli_ipp_exchange(const CliIppSizeCfg *args)
     args->answer->data_length = 0ull;
     g_cli_cells->persistent_buf_release(s_answer, &g_cli_print_cells);
     s_answer = NULL;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return done;
 }

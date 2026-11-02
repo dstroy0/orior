@@ -291,7 +291,6 @@ void test_a_movable_cell_moves_at_a_quiet_time_with_its_bytes(void)
     };
     static unsigned char s_written[CELL_BYTES];
     static unsigned char s_read[CELL_BYTES];
-    static CliLock s_lock = CLI_LOCK_INIT;
     static CliWake s_wake = CLI_WAKE_INIT;
     cli_cells_movable_ready();
     void *const hole = g_cli_cells->persistent_buf_alloc(HOLE_BYTES, &s_checked);
@@ -310,9 +309,7 @@ void test_a_movable_cell_moves_at_a_quiet_time_with_its_bytes(void)
     const unsigned long long began = cli_clock_milliseconds();
     while ((g_cli_cells->buf_available() <= gap) && ((cli_clock_milliseconds() - began) < PATIENCE_MS))
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
-        (void)EMBED_CALL(cli_lock_internal.wake_wait_for, CliLockCtx, .wake = &s_wake, .lock = &s_lock, .milliseconds_u64 = 50ull);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &s_wake, .milliseconds_u64 = 50ull);
     }
     TEST_ASSERT_GREATER_THAN_UINT64(gap, g_cli_cells->buf_available());
     TEST_ASSERT_TRUE(g_cli_cells->movable_buf_read(&(CarcerMovableCfg){.cell = cell, .dst = s_read, .bytes = CELL_BYTES}));

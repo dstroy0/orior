@@ -24,18 +24,7 @@
 
 // the first of the texts stored, the lock they are read and written under, and the last serial a text took
 static CliStoredText *s_stored;
-static CliLock s_lock = CLI_LOCK_INIT;
 static unsigned long long s_serial;
-
-void cli_document_lock_take(void)
-{
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
-}
-
-void cli_document_lock_give(void)
-{
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
-}
 
 CliStoredText *cli_document_texts(void)
 {
@@ -330,7 +319,6 @@ int cli_document_page(const CliDocumentKeyFromCfg *args)
     {
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     CliStoredText *const one = EMBED_CALL(cli_stored_init, DocumentStoreCtx, .key = args->key);
     if (one != NULL)
     {
@@ -351,7 +339,6 @@ int cli_document_page(const CliDocumentKeyFromCfg *args)
     {
         EMBED_CALL(cli_stored_let_go, DocumentStoreCtx, .one = one);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return grown;
 }
 
@@ -420,7 +407,6 @@ EMBED_INLINE int stored_states_edit(const DocumentStoreCtx *args)
 int cli_document_paged_edit(const CliDocumentOutCfg *args)
 {
     const CliEdit *const *changes = args->changes;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
     CliStoredText *const branch = ((one != NULL) && one->paged) ? one : NULL;
     // the states counted as far as the pages are before the edits, which are placed against those lines
@@ -444,41 +430,34 @@ int cli_document_paged_edit(const CliDocumentOutCfg *args)
         branch->refused = branch->refused || !carried;
         EMBED_CALL(cli_document_internal.wake, CliDocumentCtx, .one = branch);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return written;
 }
 
 int cli_document_store(const CliDocumentTextCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     CliStoredText *const one = EMBED_CALL(cli_stored_init, DocumentStoreCtx, .key = args->key);
     const int stored_ok = (one != NULL) && EMBED_CALL(stored_lines_init, DocumentStoreCtx, .one = one,
                                                       .text = args->text, .size = args->size, .shape = args->shape);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return stored_ok;
 }
 
 void cli_document_release(const CliDocumentCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
     if (one != NULL)
     {
         EMBED_CALL(cli_stored_let_go, DocumentStoreCtx, .one = one);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 int cli_document_shape(const CliDocumentTextCfg *args)
 {
     CliShape *shape = args->shape;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const CliStoredText *const one = EMBED_CALL(stored_whole_get, DocumentStoreCtx, .key = args->key);
     if (one != NULL)
     {
         *shape = EMBED_CALL(cli_document_lines_out.shape_get, CliDocumentLinesOutCfg, .lines = &one->lines);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return one != NULL;
 }
 
@@ -796,13 +775,11 @@ int cli_document_edit(const CliDocumentErrMsgCfg *args)
 {
     const CliEdit *const *changes = args->changes;
     CliShape *shape = args->shape;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     CliStoredText *const one = EMBED_CALL(stored_whole_get, DocumentStoreCtx, .key = args->key);
     if (one == NULL)
     {
         mmgr_line_put(args->err_msg, "no text is stored under ");
         mmgr_line_put(args->err_msg, args->key);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return 0;
     }
     int fits = 1;
@@ -838,7 +815,6 @@ int cli_document_edit(const CliDocumentErrMsgCfg *args)
         mmgr_line_put(args->err_msg, fits ? "the lines an edit writes could not be taken for "
                                           : "an edit does not fit the text stored under ");
         mmgr_line_put(args->err_msg, args->key);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return 0;
     }
     *shape = EMBED_CALL(cli_document_lines_out.shape_get, CliDocumentLinesOutCfg, .lines = &one->lines);
@@ -846,30 +822,25 @@ int cli_document_edit(const CliDocumentErrMsgCfg *args)
     one->changes += args->count_u32;
     one->regions_moved = 1;
     EMBED_CALL(cli_document_internal.wake, CliDocumentCtx, .one = one);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return 1;
 }
 
 int cli_document_census(const CliDocumentCfg *args)
 {
     CliCensus *census = args->census;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     CliStoredText *const one = EMBED_CALL(stored_whole_get, DocumentStoreCtx, .key = args->key);
     if (one != NULL)
     {
         *census = one->lines.census;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return one != NULL;
 }
 
 int cli_document_marks(const CliDocumentOutKeyHeadGivenCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     CliStoredText *const one = EMBED_CALL(stored_whole_get, DocumentStoreCtx, .key = args->key);
     if (one == NULL)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return 0;
     }
     if (args->head_free)
@@ -894,13 +865,11 @@ int cli_document_marks(const CliDocumentOutKeyHeadGivenCfg *args)
     }
     if (!one->head_known)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return 0;
     }
     if (!one->head_has)
     {
         mmgr_line_put(args->out, "{\"head\":false,\"changes\":null}");
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return 1;
     }
     mmgr_line_put(args->out, "{\"head\":true,\"changes\":");
@@ -910,33 +879,27 @@ int cli_document_marks(const CliDocumentOutKeyHeadGivenCfg *args)
         mmgr_line_put(args->out, "null");
     }
     mmgr_line_ch(args->out, '}');
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return 1;
 }
 
 int cli_document_has_head(const CliDocumentCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const CliStoredText *const one = EMBED_CALL(stored_whole_get, DocumentStoreCtx, .key = args->key);
     const int has = (one != NULL) && one->head_known;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return has;
 }
 
 int cli_document_find(const CliDocumentOutSoughtCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const CliStoredText *const one = EMBED_CALL(stored_whole_get, DocumentStoreCtx, .key = args->key);
     if (one == NULL)
     {
         mmgr_line_put(args->err_msg, "no text is stored under ");
         mmgr_line_put(args->err_msg, args->key);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return 0;
     }
     const int found =
         EMBED_CALL(cli_document_lines_out.find_in, CliDocumentLinesOutCfg, .lines = &one->lines, .sought = args->sought,
                    .most = args->most, .out = args->out, .err_msg = args->err_msg);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return found;
 }

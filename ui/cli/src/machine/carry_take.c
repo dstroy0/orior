@@ -20,7 +20,6 @@ typedef struct
 } CliTakeRoom;
 
 static CliTakeRoom s_take;
-static CliLock s_lock = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -162,13 +161,11 @@ EMBED_INLINE int cli_settings_differ(const CarryTakeCtx *args)
 
 void cli_carry_differences(const CliCarryHomeCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     char *const settings_cell = g_cli_cells->temporary_buf_alloc(CLI_CARRY_WRITTEN_ROOM, &g_cli_machine_cells);
     VerbaLinea settings = mmgr_line_over(settings_cell, CLI_CARRY_WRITTEN_ROOM);
     if (settings.out == NULL)
     {
         mmgr_line_put(args->out, "[]");
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return;
     }
     EMBED_CALL(cli_carry_room_object_internal.room_begin, CliCarryRoomObjectCtx, .room = &s_take.room);
@@ -248,7 +245,6 @@ void cli_carry_differences(const CliCarryHomeCfg *args)
     EMBED_CALL(cli_carry_carried_place_internal.carried_clear, CliCarryCarriedPlaceCtx, .carried_out = &s_take.here);
     EMBED_CALL(cli_carry_room_object_internal.room_free, CliCarryRoomObjectCtx, .room = &s_take.room);
     g_cli_cells->persistent_buf_release(settings.out, &g_cli_machine_cells);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 // the text of the file at `path` written whole at `to`, the folder above it made: 1, or 0 with why given
@@ -394,7 +390,6 @@ int cli_carry_take(const CliCarryHomeCfg *args)
         mmgr_line_put(args->err_msg, "a taking written could not be given a cell");
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     EMBED_CALL(cli_carry_room_object_internal.room_begin, CliCarryRoomObjectCtx, .room = &s_take.room);
     CliTaking *const taking = &s_take.taking;
     taking->at = cli_wall_milliseconds();
@@ -432,7 +427,6 @@ int cli_carry_take(const CliCarryHomeCfg *args)
                    .out = args->out);
     }
     EMBED_CALL(cli_carry_room_object_internal.room_free, CliCarryRoomObjectCtx, .room = &s_take.room);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     g_cli_cells->persistent_buf_release(written.out, &g_cli_machine_cells);
     return taken;
 }

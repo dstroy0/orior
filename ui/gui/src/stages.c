@@ -50,7 +50,8 @@ EMBED_INLINE void stages_slats_put(const StagesCtx *args)
 // the moment the stage `at` of `count` stands: `now` and a stage's time on from it, the last when the slides rest
 EMBED_INLINE unsigned long long stages_moment(const StagesCtx *args)
 {
-    return (args->at + 1u == args->count) ? args->end_ms : args->time_ms + ((unsigned long long)args->at * GUI_STAGE_MS);
+    return (args->at + 1u == args->count) ? args->end_ms
+                                          : args->time_ms + ((unsigned long long)args->at * GUI_STAGE_MS);
 }
 
 // `laid` at the claim's numbers at `moment`, and the base and the menu bar laid for it
@@ -75,8 +76,9 @@ int gui_stages_init(const GuiStagesClaimCfg *args)
     GuiClaim *claim = args->claim;
     const GuiFrame *frame = args->frame;
     gui_stages_claim.free(args);
-    const unsigned long long end_ms = EMBED_CALL(gui_claim.animation_end_ms, GuiClaimCfg, .claim_read = claim, .time_ms = args->time_ms);
-    // the stages are the slide's time over a stage's, and one for where it end_ms: far fewer than an int counts
+    const unsigned long long end_ms =
+        EMBED_CALL(gui_claim.animation_end_ms, GuiClaimCfg, .claim_read = claim, .time_ms = args->time_ms);
+    // the stages are the slide's time over a stage's, and one for the end: far fewer than an int counts
     const unsigned int count = (unsigned int)((end_ms - args->time_ms + GUI_STAGE_MS - 1ull) / GUI_STAGE_MS) + 1u;
     const StagesSlats from = EMBED_CALL(stages_slats_read, StagesCtx, .claim_read = claim);
     GuiFrame laid = *frame;
@@ -87,8 +89,8 @@ int gui_stages_init(const GuiStagesClaimCfg *args)
     {
         EMBED_CALL(stages_one_layout, StagesCtx, .laid = &laid, .claim = claim, .base = args->base,
                    .palette = args->palette, .menubar = args->menubar, .glyphs = args->glyphs,
-                   .moment =
-                       EMBED_CALL(stages_moment, StagesCtx, .at = at, .count = count, .time_ms = args->time_ms, .end_ms = end_ms));
+                   .moment = EMBED_CALL(stages_moment, StagesCtx, .at = at, .count = count, .time_ms = args->time_ms,
+                                        .end_ms = end_ms));
         words += (2ull * (unsigned long long)args->base->bands) + 2ull;
         runs += args->base->run_first[args->base->bands];
         titles += args->menubar->titles;
@@ -115,8 +117,8 @@ int gui_stages_init(const GuiStagesClaimCfg *args)
     {
         EMBED_CALL(stages_one_layout, StagesCtx, .laid = &laid, .claim = claim, .base = args->base,
                    .palette = args->palette, .menubar = args->menubar, .glyphs = args->glyphs,
-                   .moment =
-                       EMBED_CALL(stages_moment, StagesCtx, .at = at, .count = count, .time_ms = args->time_ms, .end_ms = end_ms));
+                   .moment = EMBED_CALL(stages_moment, StagesCtx, .at = at, .count = count, .time_ms = args->time_ms,
+                                        .end_ms = end_ms));
         GuiStage *const one = &stage[at];
         one->frame = laid;
         one->hole_count = EMBED_CALL(cli_frame_holes.holes, GuiFrameHolesCfg, .frame_read = &laid, .holes = one->holes);

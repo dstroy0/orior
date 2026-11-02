@@ -116,7 +116,6 @@ typedef struct CliServersRootKindCtx CliServersRootKindCtx;
 // read and as the lock is
 typedef struct
 {
-    CliLock lock;
     CliJson json;
 } CliServersReading;
 
@@ -175,7 +174,6 @@ typedef struct
 // each ended, the checkers named, the tree they check, and where what is reported goes
 typedef struct
 {
-    CliLock lock;
     char root[CLI_PATH_MAX_LEN];
     CliServerRunning running[CLI_SERVERS_MOST];
     char failed_tool[CLI_SERVERS_FAILED][CLI_NAME_MAX_LEN];
@@ -251,7 +249,6 @@ void cli_servers_check_files_put(const CliServersQueueFilesCtx *args);
 // keys with their texts' hashes, under the texts' lock (servers_files.c)
 extern CliKeyed g_cli_servers_texts;
 extern CliKeyed g_cli_servers_parses;
-extern CliLock g_cli_servers_texts_lock;
 
 // each file's diagnostics as its server last gave them, a JSON array by its key with its URI, under their own lock;
 // and, by the file's key under the checks' lock, the inspections' findings, a JSON array with the file's URI; the
@@ -259,12 +256,10 @@ extern CliLock g_cli_servers_texts_lock;
 // gives the file, one to a line; and what each Python class's family sets, `class attribute` one to a line
 // (servers_emit.c)
 extern CliKeyed g_cli_servers_published;
-extern CliLock g_cli_servers_published_lock;
 extern CliKeyed g_cli_servers_inspected;
 extern CliKeyed g_cli_servers_checked;
 extern CliKeyed g_cli_servers_given;
 extern CliKeyed g_cli_servers_supplied;
-extern CliLock g_cli_servers_checks_lock;
 
 // the most bytes of a job of the servers: a file's text and what is reported of it
 #define CLI_SERVERS_JOB_ROOM (CLI_SERVERS_LARGEST + (64ull << 10u))
@@ -494,7 +489,6 @@ int cli_servers_check_takes(const CliServersPathLspCtx *args);
 // the lock a server is written to about a file under, by the check or by the editor, which the check's taken files are
 // guarded by; whether a file is taken for the check and not for the editor; and a file taken, or let go; each with the
 // lock acquired
-extern CliLock g_cli_servers_check_open_lock;
 int cli_servers_check_open(const CliServersUriCtx *args);
 void cli_servers_check_open_set(const CliServersUriCtx *args);
 // every file the check took let go of it; and each file `server` has open and the check does not take given to it

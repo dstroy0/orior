@@ -18,8 +18,6 @@
 
 // the bytes places.json is written in, begun at and
 
-static CliLock s_lock = CLI_LOCK_INIT;
-
 typedef struct
 {
     const CliWindowPlace *place;
@@ -138,7 +136,6 @@ int cli_window_place_kept(const CliWindowArea *areas, unsigned int count, CliWin
     {
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     CliJson json;
     const unsigned int places =
         EMBED_CALL(cli_json_tree_err_msg.json_file_take, CliJsonTreeErrMsgCfg, .json = &json, .path = path,
@@ -164,7 +161,6 @@ int cli_window_place_kept(const CliWindowArea *areas, unsigned int count, CliWin
                      EMBED_CALL(cli_serve_err_msg_internal.serve_bool, CliServeErrMsgCtx, .request = &saved,
                                 .key = "maximized", .value_i32s = &maximized, .err_msg = &err_msg);
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     // a place saved is one the window stood in, each of its numbers within the 32 bits the system gives it
     *place = (CliWindowPlace){(int)x, (int)y, (unsigned int)width, (unsigned int)height, maximized};
     return read && (place->width >= CLI_PLACE_LEAST_WIDTH) && (place->height >= CLI_PLACE_LEAST_HEIGHT) &&
@@ -260,7 +256,6 @@ void cli_window_place_keep(const CliWindowPlace *place)
     VerbaLinea line = {s_line, sizeof(s_line), 0ull};
     mmgr_line_put(&line, "orior: the window's place: ");
     VerbaLinea err_msg = {s_line + line.at, sizeof(s_line) - line.at - 1u, 0ull};
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     if (EMBED_CALL(place_paths, WindowPlaceCtx, .key = key, .path = path, .err_msg = &err_msg) &&
         !EMBED_CALL(place_write, WindowPlaceCtx, .key_read = key, .path_read = path, .place = place,
                     .err_msg = &err_msg))
@@ -270,5 +265,4 @@ void cli_window_place_keep(const CliWindowPlace *place)
         EMBED_CALL(query_errors_internal.terminal_write, QueryErrorsCtx, .errors = 1, .text = s_line,
                    .length = mmgr_line_ok(&line) ? line.at : 0ull);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }

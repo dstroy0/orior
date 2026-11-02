@@ -104,8 +104,7 @@ unsigned long long gui_ground_next_deadline_ms(const GuiGroundClockCfg *args)
     {
         return 0ull;
     }
-    const unsigned long long elapsed = gui_ground_clock.elapsed_ms(args);
-    return (args->ground->next_draw_ms > elapsed) ? args->ground->next_draw_ms - elapsed : 1ull;
+    return args->ground->start_ms + args->ground->next_draw_ms;
 }
 
 int gui_ground_layout(const GuiGroundRasterCfg *args)
@@ -116,8 +115,9 @@ int gui_ground_layout(const GuiGroundRasterCfg *args)
     args->ground->height = args->height;
     args->ground->scale = args->scale;
     EMBED_CALL(ground_shade, GroundCtx, .ground = args->ground, .palette = args->palette);
-    args->ground->laid = lattice_lay(args->ground->lattice_index, ((double)args->width * GUI_SCALE_WHOLE) / (double)args->scale,
-                                     ((double)args->height * GUI_SCALE_WHOLE) / (double)args->scale) != 0u;
+    args->ground->laid =
+        lattice_lay(args->ground->lattice_index, ((double)args->width * GUI_SCALE_WHOLE) / (double)args->scale,
+                    ((double)args->height * GUI_SCALE_WHOLE) / (double)args->scale) != 0u;
     gui_ground_raster.draw(args);
     return args->ground->laid;
 }
@@ -166,8 +166,7 @@ int gui_ground_tick(const GuiGroundRasterCfg *args)
     {
         return 0;
     }
-    if (EMBED_CALL(gui_ground_clock.elapsed_ms, GuiGroundClockCfg, .ground = args->ground) <
-        args->ground->next_draw_ms)
+    if (EMBED_CALL(gui_ground_clock.elapsed_ms, GuiGroundClockCfg, .ground = args->ground) < args->ground->next_draw_ms)
     {
         return 0;
     }

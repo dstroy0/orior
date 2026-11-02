@@ -346,11 +346,9 @@ void cli_versions_check(const CliVersionCatalogTextCtx *args)
     const CliBuildLines *lines = args->lines;
     CliBuildFindings *found = args->found;
     static CliVersionsCheck s_check;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_versions_lock);
     if (!cli_version_catalog_text_internal.versions_parse(args))
     {
         cli_versions_release();
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_versions_lock);
         return;
     }
     s_check.lines = lines;
@@ -435,5 +433,4 @@ void cli_versions_check(const CliVersionCatalogTextCtx *args)
     s_check.coordinates = NULL;
     s_check.full = NULL;
     cli_versions_release();
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_versions_lock);
 }

@@ -1,13 +1,18 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// link.c: the CLI in the window's process. Each queue is a ring; a queueing into a full ring of items waits for the
-// window's thread to drain one, and a call into a full ring of calls is refused with no ticket. The pool's workers
-// take the tree's calls from their ring as they come; the own lane's worker takes the window's own from theirs, so
-// each runs after the one before it
+// link.c: the CLI in the window's process. A worker that finds its ring empty sets its idle bit and tests the ring
+// again before it sleeps; the window's thread writes the call and then reads that bit, each with a full fence between,
+// so whichever runs second sees the other's write and no wake is lost. A worker that is running is never woken.
 #include "link.h"
 #include "../../cli/src/command_line/callback_cfg.h"
 
 #include "../../cli/src/command_line/cells.h"
+
+// the item ring this thread writes as its own, one past its index, 0 on a thread that is no worker; and the emitters'
+// ring this thread tries first, one past its index, 0 until it first emits. An emitting thread returns to one ring, and
+// its items keep their order unless another thread stands in that ring as it writes
+static _Thread_local unsigned int t_own_items;
+static _Thread_local unsigned int t_emitter;
 
 typedef struct
 {
@@ -18,8 +23,16 @@ typedef struct
     const GuiLinkItem *item;
     GuiLink *link;
     const GuiLinkItem *put;
-    GuiLinkRing *ring;
+    unsigned int ring;
+    int own;
+    int *woken;
 } GuiLinkCtx;
+
+// the mask bit of ring or worker `index`
+EMBED_INLINE embed_u64 link_bit(unsigned int index)
+{
+    return (embed_u64)1u << index;
+}
 
 // `name` and `size` bytes of `text` copied into one cell, each ended by a NUL, `*text_at` the text's start: the cell,
 // or NULL where it could not be taken
@@ -40,7 +53,7 @@ EMBED_INLINE char *link_copy(const GuiLinkCtx *args)
     return cell;
 }
 
-// an item given back: its room, where it has one, and its name's cell
+// an item released: its room, where it has one, and its name's cell
 EMBED_INLINE void link_item_free(const GuiLinkCtx *args)
 {
     if (args->item->room < CLI_WINDOW_ROOMS)
@@ -50,126 +63,176 @@ EMBED_INLINE void link_item_free(const GuiLinkCtx *args)
     g_cli_cells->persistent_buf_release(args->item->name, &g_gui_link_cells);
 }
 
-// an item put at the ring's tail, under the lock, waiting for room where the ring is full, and the window woken; an
-// item coming once the link ends, as the CLI's threads still emit, is given back at once
-EMBED_INLINE void link_done_put(const GuiLinkCtx *args)
+// `put` written to item ring `ring`, which this thread alone writes as it stands here, sleeping a millisecond at a time
+// while the ring is full: 1, or 0 where the link ended first
+EMBED_INLINE int link_items_write(const GuiLinkCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->link->lock);
-    while ((args->link->done_count == GUI_LINK_DONE) && !args->link->ending)
+    mmgr_ring *const ring = &args->link->items[args->ring].ring;
+    size_t at = 0u;
+    while (!anularis.seg_next(&(AnularisCfg){.ring = ring, .out_index = &at}))
     {
-        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &args->link->room, .lock = &args->link->lock);
+        if (EMBED_ATOMIC_LOAD(&args->link->ending) != 0u)
+        {
+            return 0;
+        }
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &args->link->full,
+                         .milliseconds_u64 = 1ull);
     }
-    if (args->link->ending || (args->link->done == NULL))
+    *(GuiLinkItem *)(void *)anularis.seg_at(&(AnularisCfg){.ring = ring, .index = at}) = *args->put;
+    anularis.seg_publish(&(AnularisCfg){.ring = ring});
+    return 1;
+}
+
+// `put` written and the window's thread woken: to this worker's own ring, or to an emitters' ring this thread claims
+// for the one write, passing over any another thread stands in. An item coming once the link ends, as the CLI's threads
+// still emit, is released at once
+EMBED_INLINE void link_item_put(const GuiLinkCtx *args)
+{
+    GuiLink *const link = args->link;
+    if (EMBED_ATOMIC_LOAD(&link->ending) != 0u)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->link->lock);
         EMBED_CALL(link_item_free, GuiLinkCtx, .item = args->put);
         return;
     }
-    args->link->done[(args->link->done_head + args->link->done_count) % GUI_LINK_DONE] = *args->put;
-    args->link->done_count += 1u;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->link->lock);
-    args->link->woken(args->link->context);
+    int written = 0;
+    unsigned int ring = 0u;
+    if (t_own_items != 0u)
+    {
+        ring = t_own_items - 1u;
+        written = EMBED_CALL(link_items_write, GuiLinkCtx, .link = link, .ring = ring, .put = args->put);
+    }
+    else
+    {
+        if (t_emitter == 0u)
+        {
+            t_emitter = (EMBED_ATOMIC_ADD_32(&link->emitter_next, 1u) % GUI_LINK_EMITTERS) + 1u;
+        }
+        unsigned int at = t_emitter - 1u;
+        while ((EMBED_ATOMIC_OR_64(&link->emitters_taken, link_bit(at)) & link_bit(at)) != 0ull)
+        {
+            at = (at + 1u) % GUI_LINK_EMITTERS;
+        }
+        t_emitter = at + 1u;
+        ring = GUI_LINK_WORKERS + at;
+        written = EMBED_CALL(link_items_write, GuiLinkCtx, .link = link, .ring = ring, .put = args->put);
+        (void)EMBED_ATOMIC_AND_64(&link->emitters_taken, ~link_bit(at));
+    }
+    if (!written)
+    {
+        EMBED_CALL(link_item_free, GuiLinkCtx, .item = args->put);
+        return;
+    }
+    (void)EMBED_ATOMIC_OR_64(&link->pending, link_bit(ring));
+    link->woken(link->context);
 }
 
-// what a worker runs over `ring`: each call taken from the ring's head in turn, run through the CLI, its answer queued,
-// until the link ends. The window's own lane runs what stands queued first, a save among it, its answers given back as
-// no one reads them; a call of the tree's left queued is asked of no one
-EMBED_INLINE void link_ring_work(const GuiLinkCtx *args)
+// what a worker runs: each call taken from its ring in turn, run through the CLI, its answer written, until the link
+// ends. The own lane runs what stands queued first, a save among it, its answers released as no one reads them; a pool
+// worker's queued calls are asked of no one
+static void link_work(void *context)
 {
-    const int finishes = args->ring == &args->link->own;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->link->lock);
+    GuiLinkWorker *const worker = (GuiLinkWorker *)context;
+    GuiLink *const link = worker->link;
+    const embed_u64 bit = link_bit(worker->index);
+    const int finishes = worker->index == GUI_LINK_POOL;
+    int marked = 0;
+    t_own_items = worker->index + 1u;
     for (;;)
     {
-        while (!args->link->ending && (args->ring->count == 0u))
-        {
-            EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &args->link->wake, .lock = &args->link->lock);
-        }
-        if (args->link->ending && (!finishes || (args->ring->count == 0u)))
+        const unsigned int seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &worker->wake);
+        const int ending = EMBED_ATOMIC_LOAD(&link->ending) != 0u;
+        if (ending && !finishes)
         {
             break;
         }
-        const GuiLinkCall call = args->ring->call[args->ring->head];
-        args->ring->head = (args->ring->head + 1u) % GUI_LINK_PENDING;
-        args->ring->count -= 1u;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->link->lock);
-        // the answer stays in the call's room, read where it lies by the window's thread, which gives the room back
-        // with the call's cell once it has read it
+        size_t at = 0u;
+        if (!anularis.seg_front(&(AnularisCfg){.ring = &worker->calls_ring, .out_index = &at}))
+        {
+            if (ending)
+            {
+                break;
+            }
+            if (!marked)
+            {
+                (void)EMBED_ATOMIC_OR_64(&link->idle, bit);
+                EMBED_ATOMIC_ORDERED();
+                marked = 1;
+                continue;
+            }
+            EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &worker->wake, .seen = seen);
+            marked = 0;
+            continue;
+        }
+        (void)EMBED_ATOMIC_AND_64(&link->idle, ~bit);
+        marked = 0;
+        const GuiLinkCall call = *(const GuiLinkCall *)(const void *)anularis.seg_at(
+            &(AnularisCfg){.ring = &worker->calls_ring, .index = at});
+        anularis.seg_release(&(AnularisCfg){.ring = &worker->calls_ring});
+        // the answer stays in the call's room, read where it lies by the window's thread, which releases the room with
+        // the call's cell once it has read it
         const unsigned int room = cli_window_called(call.own, call.name, call.args, call.size);
         const char *text = NULL;
         unsigned long long size = 0ull;
         const int ok = cli_window_answer(room, &text, &size);
         const GuiLinkItem put = {call.ticket, ok, call.name, (text != NULL) ? text : "", (text != NULL) ? size : 0ull,
                                  room};
-        EMBED_CALL(link_done_put, GuiLinkCtx, .link = args->link, .put = &put);
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->link->lock);
+        EMBED_CALL(link_item_put, GuiLinkCtx, .link = link, .put = &put);
     }
-    args->link->workers -= 1u;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &args->link->wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->link->lock);
+    (void)EMBED_ATOMIC_ADD_32(&link->workers, (embed_u32)-1);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &link->ended);
 }
 
-// what a worker of the pool runs, and what the own lane's runs
-static void link_pool_work(void *context)
+// every item waiting in every ring released, from the window's thread as the link ends
+EMBED_INLINE void link_items_free(const GuiLinkCtx *args)
 {
-    GuiLink *const link = (GuiLink *)context;
-    EMBED_CALL(link_ring_work, GuiLinkCtx, .link = link, .ring = &link->tree);
-}
-
-static void link_own_work(void *context)
-{
-    GuiLink *const link = (GuiLink *)context;
-    EMBED_CALL(link_ring_work, GuiLinkCtx, .link = link, .ring = &link->own);
-}
-
-// every call waiting in `ring` given back
-EMBED_INLINE void link_ring_free(const GuiLinkCtx *args)
-{
-    if (args->ring->call != NULL)
+    for (unsigned int ring = 0u; ring < GUI_LINK_RINGS; ring += 1u)
     {
-        for (unsigned int at = 0u; at < args->ring->count; at += 1u)
+        mmgr_ring *const items = &args->link->items[ring].ring;
+        size_t at = 0u;
+        while (anularis.seg_front(&(AnularisCfg){.ring = items, .out_index = &at}))
         {
-            g_cli_cells->persistent_buf_release(args->ring->call[(args->ring->head + at) % GUI_LINK_PENDING].name,
-                                                &g_gui_link_cells);
+            const GuiLinkItem item =
+                *(const GuiLinkItem *)(const void *)anularis.seg_at(&(AnularisCfg){.ring = items, .index = at});
+            anularis.seg_release(&(AnularisCfg){.ring = items});
+            EMBED_CALL(link_item_free, GuiLinkCtx, .item = &item);
         }
     }
-    g_cli_cells->persistent_buf_release(args->ring->call, &g_gui_link_cells);
-    args->ring->call = NULL;
-    args->ring->count = 0u;
 }
 
 int gui_link_begin(const GuiLinkCfg *args)
 {
-    GuiLinkWoken woken = args->woken;
-    void *context = args->context;
-    memor.set(&(MemoriaCfg){.dst = args->link, .val = 0, .bytes = sizeof(*args->link)});
-    args->link->lock = (CliLock)CLI_LOCK_INIT;
-    args->link->wake = (CliWake)CLI_WAKE_INIT;
-    args->link->room = (CliWake)CLI_WAKE_INIT;
-    args->link->woken = woken;
-    args->link->context = context;
-    args->link->own.call =
-        g_cli_cells->persistent_buf_alloc(GUI_LINK_PENDING * sizeof(*args->link->own.call), &g_gui_link_cells);
-    args->link->tree.call =
-        g_cli_cells->persistent_buf_alloc(GUI_LINK_PENDING * sizeof(*args->link->tree.call), &g_gui_link_cells);
-    args->link->done = g_cli_cells->persistent_buf_alloc(GUI_LINK_DONE * sizeof(*args->link->done), &g_gui_link_cells);
-    if ((args->link->own.call == NULL) || (args->link->tree.call == NULL) || (args->link->done == NULL))
+    GuiLink *const link = args->link;
+    memor.set(&(MemoriaCfg){.dst = link, .val = 0, .bytes = sizeof(*link)});
+    link->woken = args->woken;
+    link->context = args->context;
+    for (unsigned int at = 0u; at < GUI_LINK_RINGS; at += 1u)
     {
-        cli_link.end(args);
-        return 0;
+        (void)anularis.init(&(AnularisCfg){.ring = &link->items[at].ring,
+                                           .buf = (uint8_t *)(void *)link->items[at].items,
+                                           .capacity = sizeof(link->items[at].items),
+                                           .segment_count = GUI_LINK_ITEMS,
+                                           .segment_bytes = sizeof(GuiLinkItem)});
     }
     for (unsigned int at = 0u; at < GUI_LINK_WORKERS; at += 1u)
     {
-        args->link->thread[at].run = (at < GUI_LINK_POOL) ? link_pool_work : link_own_work;
-        args->link->thread[at].context = args->link;
-        args->link->thread[at].priority = CLI_PRIORITY_WORK;
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->link->lock);
-        args->link->workers += 1u;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->link->lock);
-        if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &args->link->thread[at]))
+        GuiLinkWorker *const worker = &link->worker[at];
+        (void)anularis.init(&(AnularisCfg){.ring = &worker->calls_ring,
+                                           .buf = (uint8_t *)(void *)worker->calls,
+                                           .capacity = sizeof(worker->calls),
+                                           .segment_count = GUI_LINK_CALLS,
+                                           .segment_bytes = sizeof(GuiLinkCall)});
+        worker->index = at;
+        worker->link = link;
+        worker->thread.run = link_work;
+        worker->thread.context = worker;
+        worker->thread.priority = CLI_PRIORITY_WORK;
+    }
+    for (unsigned int at = 0u; at < GUI_LINK_WORKERS; at += 1u)
+    {
+        (void)EMBED_ATOMIC_ADD_32(&link->workers, 1u);
+        if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &link->worker[at].thread))
         {
-            EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->link->lock);
-            args->link->workers -= 1u;
-            EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->link->lock);
+            (void)EMBED_ATOMIC_ADD_32(&link->workers, (embed_u32)-1);
             cli_link.end(args);
             return 0;
         }
@@ -179,64 +242,92 @@ int gui_link_begin(const GuiLinkCfg *args)
 
 void gui_link_end(const GuiLinkCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->link->lock);
-    args->link->ending = 1;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &args->link->wake);
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &args->link->room);
-    // the answers waiting hold their rooms, and a worker at a call waits for a room: given back ahead of the workers'
-    // end
-    if (args->link->done != NULL)
+    GuiLink *const link = args->link;
+    EMBED_ATOMIC_STORE(&link->ending, 1u);
+    EMBED_ATOMIC_ORDERED();
+    for (unsigned int at = 0u; at < GUI_LINK_WORKERS; at += 1u)
     {
-        for (unsigned int at = 0u; at < args->link->done_count; at += 1u)
+        EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &link->worker[at].wake);
+    }
+    // the answers waiting stand in their rooms, and a worker at a call waits for a room: released ahead of the workers'
+    // end
+    while (EMBED_ATOMIC_LOAD(&link->workers) != 0u)
+    {
+        EMBED_CALL(link_items_free, GuiLinkCtx, .link = link);
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &link->ended, .milliseconds_u64 = 1ull);
+    }
+    EMBED_CALL(link_items_free, GuiLinkCtx, .link = link);
+    for (unsigned int at = 0u; at < GUI_LINK_WORKERS; at += 1u)
+    {
+        mmgr_ring *const calls = &link->worker[at].calls_ring;
+        size_t front = 0u;
+        while (anularis.seg_front(&(AnularisCfg){.ring = calls, .out_index = &front}))
         {
-            EMBED_CALL(link_item_free, GuiLinkCtx,
-                       .item = &args->link->done[(args->link->done_head + at) % GUI_LINK_DONE]);
+            const GuiLinkCall *const call =
+                (const GuiLinkCall *)(const void *)anularis.seg_at(&(AnularisCfg){.ring = calls, .index = front});
+            g_cli_cells->persistent_buf_release(call->name, &g_gui_link_cells);
+            anularis.seg_release(&(AnularisCfg){.ring = calls});
         }
     }
-    args->link->done_count = 0u;
-    while (args->link->workers > 0u)
+}
+
+// the worker a call goes to: the own lane for the window's own; an idle pool worker where one is, its bit cleared here
+// so that the next call goes to another; else the pool in turn. `*woken` 1 where the worker chosen was idle
+EMBED_INLINE GuiLinkWorker *link_worker_pick(const GuiLinkCtx *args)
+{
+    GuiLink *const link = args->link;
+    *args->woken = 0;
+    if (args->own)
     {
-        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &args->link->wake, .lock = &args->link->lock);
+        return &link->worker[GUI_LINK_POOL];
     }
-    EMBED_CALL(link_ring_free, GuiLinkCtx, .ring = &args->link->own);
-    EMBED_CALL(link_ring_free, GuiLinkCtx, .ring = &args->link->tree);
-    g_cli_cells->persistent_buf_release(args->link->done, &g_gui_link_cells);
-    args->link->done = NULL;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->link->lock);
+    const embed_u64 idle = EMBED_ATOMIC_LOAD(&link->idle) & (link_bit(GUI_LINK_POOL) - 1ull);
+    if (idle != 0ull)
+    {
+        // a set bit of a mask of at most GUI_LINK_POOL bits names a worker
+        const unsigned int at = (unsigned int)anularis.loculus_next(&(AnularisCfg){.mask = (embed_word)idle});
+        (void)EMBED_ATOMIC_AND_64(&link->idle, ~link_bit(at));
+        *args->woken = 1;
+        return &link->worker[at];
+    }
+    const unsigned int at = link->pool_next;
+    link->pool_next = (at + 1u) % GUI_LINK_POOL;
+    return &link->worker[at];
 }
 
 unsigned long long gui_link_call(const GuiLinkOwnCfg *args)
 {
-    int own = args->own;
-    const char *name = args->name;
-    const char *arguments = args->request;
-    unsigned long long size = args->size;
+    GuiLink *const link = args->link;
+    if (EMBED_ATOMIC_LOAD(&link->ending) != 0u)
+    {
+        return 0ull;
+    }
     char *args_at = NULL;
-    char *const cell =
-        EMBED_CALL(link_copy, GuiLinkCtx, .name = name, .text = arguments, .size = size, .text_at = &args_at);
+    char *const cell = EMBED_CALL(link_copy, GuiLinkCtx, .name = args->name, .text = args->request, .size = args->size,
+                                  .text_at = &args_at);
     if (cell == NULL)
     {
         return 0ull;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->link->lock);
-    GuiLinkRing *const ring = own ? &args->link->own : &args->link->tree;
-    if ((ring->count == GUI_LINK_PENDING) || args->link->ending)
+    int woken = 0;
+    GuiLinkWorker *const worker =
+        EMBED_CALL(link_worker_pick, GuiLinkCtx, .link = link, .own = args->own, .woken = &woken);
+    size_t at = 0u;
+    if (!anularis.seg_next(&(AnularisCfg){.ring = &worker->calls_ring, .out_index = &at}))
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->link->lock);
         g_cli_cells->persistent_buf_release(cell, &g_gui_link_cells);
         return 0ull;
     }
-    args->link->tickets += 1ull;
-    GuiLinkCall *const call = &ring->call[(ring->head + ring->count) % GUI_LINK_PENDING];
-    call->ticket = args->link->tickets;
-    call->own = own;
-    call->name = cell;
-    call->args = args_at;
-    call->size = size;
-    ring->count += 1u;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &args->link->wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->link->lock);
-    return call->ticket;
+    link->tickets += 1ull;
+    *(GuiLinkCall *)(void *)anularis.seg_at(&(AnularisCfg){.ring = &worker->calls_ring, .index = at}) =
+        (GuiLinkCall){link->tickets, args->own, cell, args_at, args->size};
+    anularis.seg_publish(&(AnularisCfg){.ring = &worker->calls_ring});
+    EMBED_ATOMIC_ORDERED();
+    if (woken || ((EMBED_ATOMIC_LOAD(&link->idle) & link_bit(worker->index)) != 0ull))
+    {
+        EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &worker->wake);
+    }
+    return link->tickets;
 }
 
 void gui_link_emit(void *context, const char *event, const char *body, unsigned long long size)
@@ -249,28 +340,34 @@ void gui_link_emit(void *context, const char *event, const char *body, unsigned 
         return;
     }
     const GuiLinkItem put = {0ull, 1, cell, text_at, size, CLI_WINDOW_ROOMS};
-    EMBED_CALL(link_done_put, GuiLinkCtx, .link = (GuiLink *)context, .put = &put);
+    EMBED_CALL(link_item_put, GuiLinkCtx, .link = (GuiLink *)context, .put = &put);
 }
 
 unsigned int gui_link_drain(const GuiLinkContextCfg *args)
 {
+    GuiLink *const link = args->link;
     unsigned int count = 0u;
-    for (;;)
+    for (embed_u64 rings = EMBED_ATOMIC_EXCHANGE_64(&link->pending, 0ull); rings != 0ull;
+         rings = EMBED_ATOMIC_EXCHANGE_64(&link->pending, 0ull))
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->link->lock);
-        if (args->link->done_count == 0u)
+        while (rings != 0ull)
         {
-            EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->link->lock);
-            return count;
+            // a set bit of a mask of at most GUI_LINK_RINGS bits names a ring
+            mmgr_ring *const ring =
+                &link->items[(unsigned int)anularis.loculus_next(&(AnularisCfg){.mask = (embed_word)rings})].ring;
+            rings &= rings - 1ull;
+            size_t at = 0u;
+            while (anularis.seg_front(&(AnularisCfg){.ring = ring, .out_index = &at}))
+            {
+                const GuiLinkItem item =
+                    *(const GuiLinkItem *)(const void *)anularis.seg_at(&(AnularisCfg){.ring = ring, .index = at});
+                anularis.seg_release(&(AnularisCfg){.ring = ring});
+                EMBED_CALL(args->each, GuiLinkEachCfg, .context = args->context, .ticket = item.ticket,
+                           .name = item.name, .ok = item.ok, .text = item.text, .size = item.size);
+                EMBED_CALL(link_item_free, GuiLinkCtx, .item = &item);
+                count += 1u;
+            }
         }
-        const GuiLinkItem item = args->link->done[args->link->done_head];
-        args->link->done_head = (args->link->done_head + 1u) % GUI_LINK_DONE;
-        args->link->done_count -= 1u;
-        EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &args->link->room);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->link->lock);
-        EMBED_CALL(args->each, GuiLinkEachCfg, .context = args->context, .ticket = item.ticket, .name = item.name,
-                   .ok = item.ok, .text = item.text, .size = item.size);
-        EMBED_CALL(link_item_free, GuiLinkCtx, .item = &item);
-        count += 1u;
     }
+    return count;
 }

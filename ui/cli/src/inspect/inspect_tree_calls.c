@@ -267,7 +267,6 @@ EMBED_INLINE void calls_callees_dispatch(const InspectTreeCallsCtx *args)
 
 void cli_inspect_tree_callees(const CliInspectTreePathCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_tree_lock);
     const unsigned int file =
         EMBED_CALL(cli_inspect_tree_path_internal.tree_find, CliInspectTreePathCtx, .path = args->path,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}));
@@ -294,7 +293,6 @@ void cli_inspect_tree_callees(const CliInspectTreePathCfg *args)
                    .each = args->each, .context = args->context);
     }
     g_cli_cells->persistent_buf_release(reached, &g_cli_inspect_cells);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_tree_lock);
 }
 
 // whether a call of `size` bytes of `name` in the file at `other` reaches the file at `file`: in its own file where
@@ -310,13 +308,11 @@ EMBED_INLINE int calls_reaches(const InspectTreeCallsCtx *args)
 
 void cli_inspect_tree_callers(const CliInspectTreePathCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_tree_lock);
     const unsigned int file =
         EMBED_CALL(cli_inspect_tree_path_internal.tree_find, CliInspectTreePathCtx, .path = args->path,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}));
     if ((file == CLI_TREE_NONE) || (args->at >= CLI_TREE_FILE(file).facts.functions))
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_tree_lock);
         return;
     }
     // the files in the order of their paths, and the calls of one caller, a cell sized to the files and the most calls
@@ -329,7 +325,6 @@ void cli_inspect_tree_callers(const CliInspectTreePathCfg *args)
         numbers + ((calls_most + 1ull) * sizeof(CliInspectSpan)), &g_cli_inspect_cells);
     if (cell == NULL)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_tree_lock);
         return;
     }
     unsigned int *const sorted_files = (unsigned int *)(void *)cell;
@@ -379,5 +374,4 @@ void cli_inspect_tree_callers(const CliInspectTreePathCfg *args)
         }
     }
     g_cli_cells->persistent_buf_release(cell, &g_cli_inspect_cells);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_tree_lock);
 }

@@ -517,8 +517,6 @@ int cli_compile_db_program_get(const CliCompileDbRootFileCfg *args)
     CliProgram *program = args->program;
     static const char *const s_reply[4] = {".cmake", "api", "v1", "reply"};
     static const char *const s_info[1] = {"meson-info"};
-    static CliLock s_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     EMBED_CALL(cli_same, CompileDbProgramCtx, .path = args->file, .out = s_search.wanted);
     s_search.found = 0;
     EMBED_CALL(cli_compile_db_found_top_internal.compile_found_take, CliCompileDbFoundTopCtx,
@@ -545,6 +543,5 @@ int cli_compile_db_program_get(const CliCompileDbRootFileCfg *args)
     }
     EMBED_CALL(cli_compile_db_found_top_internal.compile_found_free, CliCompileDbFoundTopCtx,
                .found = &s_search.folders);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return found;
 }

@@ -37,7 +37,6 @@ typedef struct
 
 static CliTestsRoom s_room_storage;
 static CliTestsRoom *s_room;
-static CliLock s_tests_lock = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -479,7 +478,6 @@ EMBED_INLINE void found_python(const TestingFoundCtx *args)
 // the tests' lock taken and the retained room set under it: 1
 static int found_room_lock(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_tests_lock);
     s_room = &s_room_storage;
     return 1;
 }
@@ -488,7 +486,6 @@ static int found_room_lock(void)
 static void found_release(void)
 {
     s_room = NULL;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_tests_lock);
 }
 
 void cli_tests_in(const CliTestingRulesTextCfg *args)

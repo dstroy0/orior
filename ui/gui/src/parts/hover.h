@@ -15,7 +15,7 @@ typedef struct GuiHoverCfg GuiHoverCfg;
 #include "embed_dispatch_layout.h"
 #include "panel.h"
 
-// the milliseconds a rest takes before the word is asked about and the box lingers after the pointer leaves; the box's
+// the delay before the word is asked about and the delay before the box hides after the pointer leaves; the box's
 // most width and height in the page's pixels, 36rem by 18rem, and its padding down and across; the cells either side of
 // the word the pointer may stand on and save the box; and the bytes the parts are joined in
 #define GUI_HOVER_SHOW_DELAY_MS 380ull
@@ -58,13 +58,14 @@ typedef struct
 void gui_hover_init(const GuiHoverStateCfg *args);
 void gui_hover_free(const GuiHoverStateCfg *args);
 void gui_hover_hide(const GuiHoverStateCfg *args);
-// the pointer moved to x, y at `now`: `in_text` 1 where it stands in the editor's text at `row` and `column`; a new
-// cell begins a rest, and a pointer off the word and the box begins the linger
+// the pointer moved to x, y: `in_text` 1 where it stands in the editor's text at `row` and `column`; a new cell arms
+// the show deadline, and a pointer off the word and the box arms the hide deadline
 void gui_hover_move(const GuiHoverInCfg *args);
-// the milliseconds until the hover next wants the clock, 0 for never
+// the earlier of the show and hide deadlines, 0 for none
 unsigned long long gui_hover_next_deadline_ms(const GuiHoverCfg *args);
-// the clock come at `now`: the box hidden where the linger is up, and `ask` set 1 where the rest is up and the cell
-// the pointer stands on is to be asked about, its row and cell into the hover's asked place: 1 where a frame is owed
+// expired deadlines run: the box hidden where the hide deadline passed, and `ask` set 1 where the show deadline passed
+// and the cell the pointer stands on is to be asked about, its row and cell into the hover's asked place: 1 where a
+// frame is owed
 int gui_hover_tick(const GuiHoverStateCfg *args);
 // the answer `root` of `json` taken: `{"from", "to", "parts"}` shown as its parts joined, or null, which hides the box
 // where the pointer stands off it: 1, or 0 where a cell could not be taken

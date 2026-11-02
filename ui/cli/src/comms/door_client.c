@@ -15,8 +15,6 @@ struct CliDoorClient
     int taken;
     CliDoorEnd end;
     char name[CLI_NAME_MAX_LEN];
-    CliLock output;
-    CliLock lock;
     CliWake wake;
     int reading;
     char answer[CLI_DOOR_ANSWER];
@@ -32,7 +30,6 @@ struct CliDoorClient
 #define CLI_DOOR_CLIENTS 2u
 
 static CliDoorClient s_clients[CLI_DOOR_CLIENTS];
-static CliLock s_clients_lock = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -72,9 +69,7 @@ EMBED_INLINE void client_string(const DoorClientCtx *args)
 EMBED_INLINE void client_recv(const DoorClientCtx *args)
 {
     unsigned long long size = args->size;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->client->lock);
     const int room = (args->client->queued < CLI_DOOR_RECV_QUEUE);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->client->lock);
     if (!room)
     {
         return;
@@ -134,10 +129,8 @@ EMBED_INLINE void client_recv(const DoorClientCtx *args)
         }
         entry->size = body_size;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->client->lock);
     args->client->queued += 1u;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &args->client->wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->client->lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &args->client->wake);
 }
 
 // what comes read until the end breaks: each message queued, and each other frame stored as the answer waited on
@@ -168,18 +161,14 @@ static void client_read(void *context)
             EMBED_CALL(client_recv, DoorClientCtx, .client = client, .message = client->frame + start, .size = length);
             continue;
         }
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &client->lock);
         const unsigned long long pending = (size < sizeof(client->answer)) ? size : 0ull;
         memor.cpy(&(MemoriaCfg){.dst = client->answer, .src = client->frame, .bytes = (size_t)pending});
         client->answer_size = pending;
         client->answered = 1;
-        EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &client->wake);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &client->lock);
+        EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &client->wake);
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &client->lock);
     client->reading = 0;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &client->wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &client->lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &client->wake);
 }
 
 // `size` bytes of `request` written, the region handed over with it where one is given, and the answer waited for: ten
@@ -191,30 +180,23 @@ static int client_request(const DoorClientCtx *args)
     unsigned long long size = args->size;
     const CliRegion *region = args->region;
     unsigned long long *delivered = args->delivered;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->client->output);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->client->lock);
     args->client->answered = 0;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->client->lock);
     if (!EMBED_CALL(cli_door_end_internal.frame_write, CliDoorEndCtx, .end = &args->client->end, .json = args->request,
                     .size = size, .region = region))
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->client->output);
         mmgr_line_put(args->err_msg, "the door's end closed");
         return 0;
     }
     const unsigned long long wait = 10000ull + (2000ull * ((region != NULL) ? (region->length >> 20u) : 0ull));
     const unsigned long long until = cli_clock_milliseconds() + wait;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->client->lock);
     while (!args->client->answered && args->client->reading && (cli_clock_milliseconds() < until))
     {
-        (void)EMBED_CALL(cli_lock_internal.wake_wait_for, CliLockCtx, .wake = &args->client->wake,
-                         .lock = &args->client->lock, .milliseconds_u64 = until - cli_clock_milliseconds());
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &args->client->wake,
+                         .milliseconds_u64 = until - cli_clock_milliseconds());
     }
     const int answered = args->client->answered;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->client->lock);
     if (!answered)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->client->output);
         mmgr_line_put(args->err_msg, "the container gave no answer");
         return 0;
     }
@@ -227,7 +209,6 @@ static int client_request(const DoorClientCtx *args)
         EMBED_CALL(cli_lsp_room.string, CliLspRoomCfg, .text = args->client->answer + start, .length = length,
                    .out_room = why, .room = sizeof(why)))
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->client->output);
         mmgr_line_put(args->err_msg, why);
         return 0;
     }
@@ -239,14 +220,12 @@ static int client_request(const DoorClientCtx *args)
         *delivered = EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = args->client->answer, .at = start,
                                 .size = start + length, .end = NULL);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->client->output);
     return 1;
 }
 
 CliDoorClient *cli_door_join(const CliDoorErrMsgAddressCfg *args)
 {
     CliDoorClient *client = NULL;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_clients_lock);
     for (unsigned int at = 0u; (at < CLI_DOOR_CLIENTS) && (client == NULL); at += 1u)
     {
         client = s_clients[at].taken ? NULL : &s_clients[at];
@@ -255,14 +234,11 @@ CliDoorClient *cli_door_join(const CliDoorErrMsgAddressCfg *args)
     {
         client->taken = 1;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_clients_lock);
     if (client == NULL)
     {
         mmgr_line_put(args->err_msg, "this process has as many ends of the door as it can");
         return NULL;
     }
-    client->output = (CliLock)CLI_LOCK_INIT;
-    client->lock = (CliLock)CLI_LOCK_INIT;
     client->wake = (CliWake)CLI_WAKE_INIT;
     client->first = 0u;
     client->queued = 0u;
@@ -299,9 +275,7 @@ CliDoorClient *cli_door_join(const CliDoorErrMsgAddressCfg *args)
     if (!joined || !EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &client->reader))
     {
         EMBED_CALL(cli_door_internal.close, CliDoorCtx, .end = &client->end);
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_clients_lock);
         client->taken = 0;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_clients_lock);
         return NULL;
     }
     return client;
@@ -332,12 +306,10 @@ const char *cli_door_name(const CliDoorCfg *args)
 void cli_door_leave(const CliDoorClientCfg *args)
 {
     EMBED_CALL(cli_door_internal.shut, CliDoorCtx, .end = &args->client->end);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->client->lock);
     while (args->client->reading)
     {
-        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &args->client->wake, .lock = &args->client->lock);
+        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &args->client->wake);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->client->lock);
     for (unsigned int at = 0u; at < args->client->queued; at += 1u)
     {
         CliDoorEntry *const entry = &args->client->recv_queue[(args->client->first + at) % CLI_DOOR_RECV_QUEUE];
@@ -347,9 +319,7 @@ void cli_door_leave(const CliDoorClientCfg *args)
         }
     }
     EMBED_CALL(cli_door_internal.close, CliDoorCtx, .end = &args->client->end);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_clients_lock);
     args->client->taken = 0;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_clients_lock);
 }
 
 int cli_door_listen(const CliDoorErrMsgCfg *args)
@@ -369,7 +339,6 @@ int cli_door_send(const CliDoorErrMsgCfg *args)
 {
     unsigned long long *delivered = args->delivered;
     static char s_request[CLI_TRANSFER_SMALL + CLI_NAME_MAX_LEN * 2u + 64u];
-    static CliLock s_request_lock = CLI_LOCK_INIT;
     CliRegion region;
     const int long_body = (args->size > CLI_TRANSFER_SMALL);
     if (long_body && !EMBED_CALL(cli_transfer_region_bytes.region_with, CliTransferRegionBytesCfg, .region = &region,
@@ -377,7 +346,6 @@ int cli_door_send(const CliDoorErrMsgCfg *args)
     {
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_request_lock);
     VerbaLinea out = {s_request, sizeof(s_request), 0ull};
     mmgr_line_put(&out, "{\"send\":");
     EMBED_CALL(cli_json_tree_length_out.json_quoted_lossy, CliJsonTreeLengthOutCfg, .out = &out,
@@ -399,7 +367,6 @@ int cli_door_send(const CliDoorErrMsgCfg *args)
     request =
         request && EMBED_CALL(client_request, DoorClientCtx, .client = args->client, .request = out.out, .size = out.at,
                               .region = long_body ? &region : NULL, .delivered = delivered, .err_msg = args->err_msg);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_request_lock);
     if (long_body)
     {
         EMBED_CALL(cli_transfer_region_bytes.region_close, CliTransferRegionBytesCfg, .region = &region);
@@ -410,15 +377,13 @@ int cli_door_send(const CliDoorErrMsgCfg *args)
 int cli_door_next(const CliDoorClientCfg *args)
 {
     const unsigned long long until = cli_clock_milliseconds() + args->wait;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->client->lock);
     while ((args->client->queued == 0u) && args->client->reading && (cli_clock_milliseconds() < until))
     {
-        (void)EMBED_CALL(cli_lock_internal.wake_wait_for, CliLockCtx, .wake = &args->client->wake,
-                         .lock = &args->client->lock, .milliseconds_u64 = until - cli_clock_milliseconds());
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &args->client->wake,
+                         .milliseconds_u64 = until - cli_clock_milliseconds());
     }
     const int has = (args->client->queued > 0u);
     CliDoorEntry *const entry = &args->client->recv_queue[args->client->first];
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->client->lock);
     if (!has)
     {
         return 0;
@@ -436,9 +401,7 @@ int cli_door_next(const CliDoorClientCfg *args)
     {
         EMBED_CALL(cli_transfer_region_bytes.region_close, CliTransferRegionBytesCfg, .region = &entry->region);
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->client->lock);
     args->client->first = (args->client->first + 1u) % CLI_DOOR_RECV_QUEUE;
     args->client->queued -= 1u;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->client->lock);
     return 1;
 }

@@ -10,8 +10,6 @@
 // the most paths one call names
 #define CLI_WINDOW_PATHS 4096u
 
-static CliLock s_lock = CLI_LOCK_INIT;
-
 // the tree open here, or null where none is
 static int tree_root_now(const CliServeAnswerCfg *args)
 {
@@ -196,7 +194,6 @@ static int tree_window_open(const CliServeAnswerCfg *args)
         EMBED_CALL(cli_serve_items_internal.strings_free, CliServeItemsCtx, .items = words);
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     int opened = EMBED_CALL(cli_path_room_internal.program_own, CliPathRoomCtx, .path_out = s_program,
                             .room_size = sizeof(s_program));
     if (!opened)
@@ -222,7 +219,6 @@ static int tree_window_open(const CliServeAnswerCfg *args)
         mmgr_line_put(err_msg, ": it could not be started");
         opened = 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     EMBED_CALL(cli_serve_items_internal.strings_free, CliServeItemsCtx, .items = words);
     return opened;
 }

@@ -131,8 +131,6 @@ int cli_page_block_read(const CliPagesLinesCtx *args);
 // the first of the paged texts stored and the lock they and their pieces are read and written under; and the lock every
 // index is read and written under, and its wake
 extern CliPaged *g_cli_paged;
-extern CliLock g_cli_pages_lock;
-extern CliLock g_cli_index_lock;
 extern CliWake g_cli_index_wake;
 
 // the paged text stored under `key`, or NULL with why given; how many lines the index has read; how many lines a piece

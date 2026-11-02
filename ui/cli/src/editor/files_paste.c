@@ -239,12 +239,9 @@ EMBED_INLINE int cli_pending_entries(const FilesPasteCtx *args)
 
 int cli_paste_walk(const CliFilesContextErrMsgCtx *args)
 {
-    static CliLock s_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     s_pending = g_cli_cells->persistent_buf_alloc(sizeof(*s_pending), &g_cli_editor_cells);
     if (s_pending == NULL)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         mmgr_line_put(args->err_msg, "a paste's walk could not be taken");
         return 0;
     }
@@ -277,7 +274,6 @@ int cli_paste_walk(const CliFilesContextErrMsgCtx *args)
     }
     g_cli_cells->persistent_buf_release(s_pending, &g_cli_editor_cells);
     s_pending = NULL;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return walked;
 }
 

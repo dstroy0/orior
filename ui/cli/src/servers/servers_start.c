@@ -14,7 +14,7 @@
 
 #include "../text/text.h"
 
-CliServersState g_cli_servers = {CLI_LOCK_INIT};
+CliServersState g_cli_servers = {0};
 
 // the files a server that ended or is started again had open, to be given back to the one started after it
 static CliKeyed s_reopen;
@@ -232,7 +232,6 @@ void cli_servers_id_get(const CliServersPathLanguageCtx *args)
 CliLsp *cli_servers_owner_get(const CliServersPathLspCtx *args)
 {
     const char *path = args->path;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers.lock);
     CliLsp *found = NULL;
     for (unsigned int at = 0u; (found == NULL) && (at < CLI_SERVERS_MOST); at += 1u)
     {
@@ -243,20 +242,17 @@ CliLsp *cli_servers_owner_get(const CliServersPathLspCtx *args)
             EMBED_CALL(cli_lsp_context.ref, CliLspContextCfg, .lsp = found);
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers.lock);
     return found;
 }
 
 int cli_servers_slicing(const CliServersCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers.lock);
     int slicing = 0;
     for (unsigned int at = 0u; at < CLI_SERVERS_MOST; at += 1u)
     {
         const CliServerRunning *const one = &g_cli_servers.running[at];
         slicing |= one->used && (one->lsp == args->server_read) && one->spec.slices;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers.lock);
     return slicing;
 }
 
@@ -358,12 +354,9 @@ CliLsp *cli_servers_server(const CliServersLanguageCtx *args)
     {
         return NULL;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers.lock);
     if (!cellul.eq(&(CatenaFinitaCfg){.src = g_cli_servers.root, .other = root, .cap = CLI_CELLS_POOL}))
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers.lock);
         cli_servers_stop_all();
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers.lock);
         VerbaLinea line = {g_cli_servers.root, CLI_PATH_MAX_LEN, 0ull};
         mmgr_line_put(&line, root);
         (void)mmgr_line_finish(&line);
@@ -391,7 +384,6 @@ CliLsp *cli_servers_server(const CliServersLanguageCtx *args)
         if (EMBED_CALL(cli_lsp_context.alive, CliLspContextCfg, .lsp = server))
         {
             EMBED_CALL(cli_lsp_context.ref, CliLspContextCfg, .lsp = server);
-            EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers.lock);
             return server;
         }
         g_cli_servers.running[at].used = 0;
@@ -414,7 +406,6 @@ CliLsp *cli_servers_server(const CliServersLanguageCtx *args)
             (void)mmgr_line_finish(err_msg);
             EMBED_CALL(start_failure, ServersStartCtx, .tool = spec->tool, .err_msg = err_msg->out);
             EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = server);
-            EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers.lock);
             return NULL;
         }
         EMBED_CALL(cli_lsp_context.open_each, CliLspContextCfg, .lsp = server, .each = start_reopen_store,
@@ -425,7 +416,6 @@ CliLsp *cli_servers_server(const CliServersLanguageCtx *args)
     if (failed != NULL)
     {
         mmgr_line_put(err_msg, failed);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers.lock);
         return NULL;
     }
     CliLsp *const server = EMBED_CALL(cli_servers_root_internal.launch, CliServersRootCtx, .root = root,
@@ -434,7 +424,6 @@ CliLsp *cli_servers_server(const CliServersLanguageCtx *args)
     {
         (void)mmgr_line_finish(err_msg);
         EMBED_CALL(start_failure, ServersStartCtx, .tool = spec->tool, .err_msg = err_msg->out);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers.lock);
         return NULL;
     }
     for (unsigned int one = 0u; one < s_reopen.entries; one += 1u)
@@ -470,6 +459,5 @@ CliLsp *cli_servers_server(const CliServersLanguageCtx *args)
         }
     }
     EMBED_CALL(cli_lsp_context.ref, CliLspContextCfg, .lsp = server);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers.lock);
     return server;
 }

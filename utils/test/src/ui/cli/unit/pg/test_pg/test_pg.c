@@ -16,7 +16,6 @@
 typedef struct
 {
     CliPgCancel cancel;
-    CliLock lock;
     int sent;
 } PgStopper;
 
@@ -32,7 +31,7 @@ static char s_client_final[CLI_PG_SIGN_TEXT];
 static char s_signature[CLI_PG_SIGN_TEXT];
 static int s_done;
 static char s_tag[CLI_DB_TAG];
-static PgStopper s_stopper = {{"", 0u, 0u, {0u}, 0u}, CLI_LOCK_INIT, 0};
+static PgStopper s_stopper = {{"", 0u, 0u, {0u}, 0u}, 0};
 
 // SCRAM's final message made from RFC 7677's values
 static void scram_final_made(void)
@@ -103,9 +102,7 @@ static void cancel_sent(void *context)
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     const int sent = EMBED_CALL(cli_pg.cancel_send, CliPgCfg, .cancel_read = &stopper->cancel, .err_msg = &err_msg);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &stopper->lock);
     stopper->sent = sent ? 1 : -1;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &stopper->lock);
 }
 
 // the roles orior_md5 and orior_plain made on the server, and its connection closed
@@ -267,9 +264,7 @@ void test_a_cancel_stops_a_statement_and_the_connection_answers_after_it(void)
     while ((sent == 0) && (cli_clock_milliseconds() < until))
     {
         EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 20u);
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_stopper.lock);
         sent = s_stopper.sent;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_stopper.lock);
     }
     TEST_ASSERT_TRUE(stopped);
     TEST_ASSERT_EQUAL_INT(1, sent);

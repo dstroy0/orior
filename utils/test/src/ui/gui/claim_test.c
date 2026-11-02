@@ -6,6 +6,7 @@
 // shows as the pointer slows in their corner, and the slats grow from the point of rest
 #include "../../../../../ui/gui/src/claim.h"
 #include "../cli/cli_check.h"
+#include "test_clock.h"
 
 static int near(int one, int other)
 {
@@ -17,18 +18,18 @@ int main(void)
 {
     cli_check((EMBED_CALL(gui_claim_share.ease, GuiClaimShareCfg, .share = 0) == 0) && (EMBED_CALL(gui_claim_share.ease, GuiClaimShareCfg, .share = GUI_WHOLE) == GUI_WHOLE), "the ease curve runs from 0 to 1");
     cli_check((EMBED_CALL(gui_claim_share.ease, GuiClaimShareCfg, .share = GUI_WHOLE / 2) > (7 * GUI_WHOLE / 10)) && (EMBED_CALL(gui_claim_share.ease, GuiClaimShareCfg, .share = GUI_WHOLE / 2) < (9 * GUI_WHOLE / 10)), "the ease curve is past the middle halfway along");
-    GuiSlide slide = {0, 0, 0ull, 0ull};
+    GuiSlide slide = {0, 0, 0ull};
     g_test_clock_ms = 1000ull;
-    EMBED_CALL(gui_claim_target.slide_to, GuiClaimTargetCfg, .slide_out = &slide, .to = GUI_WHOLE, .delay = 0ull);
+    EMBED_CALL(gui_claim_target.slide_to, GuiClaimTargetCfg, .slide_out = &slide, .to = GUI_WHOLE, .delay_ms = 0ull);
     cli_check(near(EMBED_CALL(gui_claim_slide.slide_at, GuiClaimSlideCfg, .slide = &slide, .time_ms = 1000ull), 0), "a slide begun stands at its start");
     cli_check(EMBED_CALL(gui_claim_slide.slide_running, GuiClaimSlideCfg, .slide = &slide, .time_ms = 1100ull) && (EMBED_CALL(gui_claim_slide.slide_at, GuiClaimSlideCfg, .slide = &slide, .time_ms = 1100ull) > (GUI_WHOLE / 5)) && (EMBED_CALL(gui_claim_slide.slide_at, GuiClaimSlideCfg, .slide = &slide, .time_ms = 1100ull) < (4 * GUI_WHOLE / 5)),
               "a third of the way through, a slide stands between its ends");
     cli_check(near(EMBED_CALL(gui_claim_slide.slide_at, GuiClaimSlideCfg, .slide = &slide, .time_ms = 1300ull), GUI_WHOLE) && !EMBED_CALL(gui_claim_slide.slide_running, GuiClaimSlideCfg, .slide = &slide, .time_ms = 1300ull), "a slide ends at its end");
     g_test_clock_ms = 1150ull;
-    EMBED_CALL(gui_claim_target.slide_to, GuiClaimTargetCfg, .slide_out = &slide, .to = 0, .delay = 0ull);
+    EMBED_CALL(gui_claim_target.slide_to, GuiClaimTargetCfg, .slide_out = &slide, .to = 0, .delay_ms = 0ull);
     cli_check(EMBED_CALL(gui_claim_slide.slide_at, GuiClaimSlideCfg, .slide = &slide, .time_ms = 1150ull) > (3 * GUI_WHOLE / 10), "a slide sent back begins where it stands");
     g_test_clock_ms = 2000ull;
-    EMBED_CALL(gui_claim_target.slide_to, GuiClaimTargetCfg, .slide_out = &slide, .to = GUI_WHOLE, .delay = GUI_CLAIM_ANIMATION_MS);
+    EMBED_CALL(gui_claim_target.slide_to, GuiClaimTargetCfg, .slide_out = &slide, .to = GUI_WHOLE, .delay_ms = GUI_CLAIM_ANIMATION_MS);
     cli_check(near(EMBED_CALL(gui_claim_slide.slide_at, GuiClaimSlideCfg, .slide = &slide, .time_ms = 2200ull), 0) && EMBED_CALL(gui_claim_slide.slide_running, GuiClaimSlideCfg, .slide = &slide, .time_ms = 2200ull), "a slide delayed waits before it runs");
     cli_check(near(EMBED_CALL(gui_claim_slide.slide_at, GuiClaimSlideCfg, .slide = &slide, .time_ms = 2600ull), GUI_WHOLE), "a slide delayed ends a delay and a slide after it begins");
 

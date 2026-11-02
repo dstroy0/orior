@@ -11,7 +11,6 @@
 #include "db_internal.h"
 
 static CliDbLite *s_lites[CLI_DB_LITES];
-static CliLock s_lites_lock = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -36,12 +35,10 @@ EMBED_INLINE int lite_write(const DbLiteCtx *args)
 {
     unsigned long long size = args->size;
     CliDbFailure *failure = args->failure;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->lite->input_lock);
     const int written = EMBED_CALL(cli_pipe_handle_internal.spawn_write, CliPipeHandleCtx,
                                    .pipe_handle = args->lite->child.in, .bytes = args->line, .size = size) &&
                         EMBED_CALL(cli_pipe_handle_internal.spawn_write, CliPipeHandleCtx,
                                    .pipe_handle = args->lite->child.in, .bytes = "\n", .size = 1ull);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->lite->input_lock);
     if (!written)
     {
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure,
@@ -159,13 +156,11 @@ EMBED_INLINE int lite_shim(const DbLiteCtx *args)
 {
     char *path = args->path;
     static int s_written;
-    static CliLock s_lock = CLI_LOCK_INIT;
     char temporary[CLI_PATH_MAX_LEN];
     char folder[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_folder_internal.temp_folder, CliFolderCtx, .folder_out = temporary);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = temporary, .relative = "orior-sqlite", .joined = folder);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = "orior_sqlite.py", .joined = path);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     if (!s_written)
     {
         s_written =
@@ -175,7 +170,6 @@ EMBED_INLINE int lite_shim(const DbLiteCtx *args)
                        .size = cellul.len(&(CatenaFinitaCfg){.src = g_cli_db_lite_shim, .cap = CLI_CELLS_POOL}));
     }
     const int written = s_written;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return written;
 }
 
@@ -202,7 +196,6 @@ CliDbLite *cli_db_lite_open(const CliDbFailureFileCtx *args)
         return NULL;
     }
     CliDbLite *lite = NULL;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lites_lock);
     unsigned int entry_at = 0u;
     while ((entry_at < CLI_DB_LITES) && (s_lites[entry_at] != NULL))
     {
@@ -213,7 +206,6 @@ CliDbLite *cli_db_lite_open(const CliDbFailureFileCtx *args)
         lite = g_cli_cells->persistent_buf_alloc(sizeof(CliDbLite), &g_cli_db_cells);
         s_lites[entry_at] = lite;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lites_lock);
     if (lite == NULL)
     {
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = args->failure,
@@ -226,7 +218,6 @@ CliDbLite *cli_db_lite_open(const CliDbFailureFileCtx *args)
     lite->in_transaction = 0;
     lite->reading = 0;
     lite->count = 0ull;
-    lite->input_lock = (CliLock)CLI_LOCK_INIT;
     EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = lite->path_text,
                .size = sizeof(lite->path_text));
     const CliSetting settings[2] = {{"PATH", lite->path_text}, {"PYTHONIOENCODING", "utf-8"}};
@@ -242,9 +233,7 @@ CliDbLite *cli_db_lite_open(const CliDbFailureFileCtx *args)
         mmgr_line_put_n(&line, err_msg.out, err_msg.at);
         mmgr_line_finish(&line);
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = args->failure, .message = message);
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lites_lock);
         s_lites[entry_at] = NULL;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lites_lock);
         g_cli_cells->persistent_buf_release(lite, &g_cli_db_cells);
         return NULL;
     }
@@ -278,23 +267,19 @@ void cli_db_lite_close(const CliDbErrMsgCtx *args)
     EMBED_CALL(cli_cols_internal.spawn_kill, CliColsCtx, .spawned_read = &args->lite->child);
     (void)EMBED_CALL(cli_spawned_internal.spawn_wait, CliSpawnedCtx, .spawned = &args->lite->child);
     EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &args->lite->child);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lites_lock);
     for (unsigned int entry_at = 0u; entry_at < CLI_DB_LITES; entry_at += 1u)
     {
         s_lites[entry_at] = (s_lites[entry_at] == args->lite) ? NULL : s_lites[entry_at];
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lites_lock);
     g_cli_cells->persistent_buf_release(args->lite, &g_cli_db_cells);
 }
 
 int cli_db_lite_interrupt(const CliDbErrMsgCtx *args)
 {
     static const char s_interrupt[] = "{\"interrupt\":true}\n";
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->lite->input_lock);
     const int written =
         EMBED_CALL(cli_pipe_handle_internal.spawn_write, CliPipeHandleCtx, .pipe_handle = args->lite->child.in,
                    .bytes = s_interrupt, .size = sizeof(s_interrupt) - 1u);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->lite->input_lock);
     if (!written)
     {
         mmgr_line_put(args->err_msg, "SQLite's process takes no more");

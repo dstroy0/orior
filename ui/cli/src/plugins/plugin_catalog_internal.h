@@ -70,7 +70,7 @@ typedef struct
 } CliPluginCatalogNsTable;
 EMBED_TABLE_LAYOUT(CliPluginCatalogNsTable, lock, tree);
 EMBED_TABLE_STORAGE CliPluginCatalogNsTable cli_plugin_catalog_internal EMBED_UNUSED = {
-    .lock = cli_plugin_catalog_lock,
+
     .tree = cli_plugin_catalog_tree,
 };
 

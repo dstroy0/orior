@@ -88,7 +88,6 @@ typedef struct
 } CliLevels;
 
 extern CliLevels *g_cli_archive_levels;
-extern CliLock g_cli_archive_lock;
 
 // the lock taken and the levels with it: 1, or 0 with why given and the lock given back where the cells cannot meet
 // them; and the levels given back with the lock (archive_path.c)
@@ -346,7 +345,7 @@ typedef struct
 } CliArchiveErrMsgPartsNs;
 EMBED_TABLE_LAYOUT(CliArchiveErrMsgPartsNs, lock, descend);
 EMBED_TABLE_STORAGE CliArchiveErrMsgPartsNs cli_archive_err_msg_parts_internal EMBED_UNUSED = {
-    .lock = cli_archive_lock,
+
     .descend = cli_archive_descend,
 };
 

@@ -26,7 +26,6 @@ typedef struct
 static CliServersPlace s_place[CLI_SERVERS_PLACES];
 static unsigned int s_order[CLI_SERVERS_PLACES];
 static unsigned int s_waiting;
-static CliLock s_lock = CLI_LOCK_INIT;
 static CliWake s_wake = CLI_WAKE_INIT;
 static CliThread s_thread[CLI_SERVERS_WORKERS];
 static unsigned int s_index[CLI_SERVERS_WORKERS];
@@ -40,11 +39,10 @@ static void jobs_worker(void *context)
     (void)context;
     for (;;)
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
         s_idle += 1u;
         while (s_waiting == 0u)
         {
-            EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_wake, .lock = &s_lock);
+            EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_wake);
         }
         s_idle -= 1u;
         CliServersPlace *const place = &s_place[s_order[0]];
@@ -55,8 +53,7 @@ static void jobs_worker(void *context)
         char *const bytes = place->bytes;
         place->bytes = NULL;
         place->used = 0;
-        EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_wake);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
+        EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_wake);
         EMBED_CALL(run, CliServersJobCfg, .job = bytes, .size = size);
         g_cli_cells->persistent_buf_release(bytes, &g_cli_servers_cells);
     }
@@ -83,7 +80,6 @@ int cli_servers_later_dispatch(const CliServersRunSizeCtx *args)
     {
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     for (;;)
     {
         unsigned int free = 0u;
@@ -102,7 +98,7 @@ int cli_servers_later_dispatch(const CliServersRunSizeCtx *args)
             s_waiting += 1u;
             break;
         }
-        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_wake, .lock = &s_lock);
+        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_wake);
     }
     if ((s_idle < s_waiting) && (s_started < CLI_SERVERS_WORKERS))
     {
@@ -111,7 +107,6 @@ int cli_servers_later_dispatch(const CliServersRunSizeCtx *args)
         s_started +=
             EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_thread[s_started]) ? 1u : 0u;
     }
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_wake);
     return 1;
 }

@@ -88,9 +88,7 @@ static void cli_bin_each(const CliEachNameIsFolderCfg *args)
 void cli_cargo_bins(const CliExecutablesNamesCtx *args)
 {
     static CliBins s_bins;
-    static CliLock s_lock = CLI_LOCK_INIT;
     args->names->count = 0u;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     CliBins *const bins = &s_bins;
     bins->count = 0u;
     bins->takens = 0u;
@@ -173,7 +171,6 @@ void cli_cargo_bins(const CliExecutablesNamesCtx *args)
     }
     if (!has_package)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return;
     }
     char folder[CLI_PATH_MAX_LEN];
@@ -320,5 +317,4 @@ void cli_cargo_bins(const CliExecutablesNamesCtx *args)
             }
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }

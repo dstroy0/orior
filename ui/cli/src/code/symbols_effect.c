@@ -418,7 +418,6 @@ EMBED_INLINE int cli_effect_include(const SymbolsEffectCtx *args)
     const char *const slash =
         EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = path,
                    .length_value = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), .byte = '/');
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_walk_lock);
     // the branch's folder runs to its last slash, at or past its start
     int found =
         !args->angled && EMBED_CALL(cli_effect_tree_file, SymbolsEffectCtx, .folder = path,
@@ -455,7 +454,6 @@ EMBED_INLINE int cli_effect_include(const SymbolsEffectCtx *args)
             found = 1;
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_walk_lock);
     return found;
 }
 
@@ -508,7 +506,6 @@ EMBED_INLINE void cli_effect_find(const SymbolsEffectCtx *args)
     {
         return;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_walk_lock);
     const unsigned int file = EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = path);
     const CliTreeBranch *const stored = (file != CLI_BRANCHES_MOST) ? &g_cli_branches[file] : NULL;
     char *const scratch = (stored != NULL) ? cli_branch_copy_take() : NULL;
@@ -530,7 +527,6 @@ EMBED_INLINE void cli_effect_find(const SymbolsEffectCtx *args)
         }
     }
     EMBED_CALL(cli_symbols_tree_branch.branch_copy_free, CliSymbolsTreeBranchCfg, .scratch = scratch);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_walk_lock);
 }
 
 // a declaration the leaves of a branch a slice's walk or a noting walk reads name, as the leaves are read: a branch's
@@ -1024,9 +1020,7 @@ CliEffect *cli_effect_init(const CliSymbolsPathNameCtx *args)
     }
     effect->text = (VerbaLinea){cell + list_bytes, CLI_EFFECT_TEXT_ROOM, 0ull};
     effect->languages = languages;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_walk_lock);
     memor.cpy(&(MemoriaCfg){.dst = effect->root, .src = g_cli_tree_root, .bytes = CLI_PATH_MAX_LEN});
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_walk_lock);
     effect->start = args->path;
     effect->start_text = NULL;
     effect->start_size = 0ull;

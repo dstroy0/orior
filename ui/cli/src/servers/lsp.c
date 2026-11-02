@@ -8,8 +8,6 @@
 #include "../text/text.h"
 #include "lsp_internal.h"
 
-CliLock g_cli_lsps_lock = CLI_LOCK_INIT;
-
 // the id of the request the reading thread hands to its receiver, as its JSON, and whether its receiver answers later
 static _Thread_local const char *t_request_id;
 static _Thread_local unsigned long long t_request_id_size;
@@ -64,7 +62,6 @@ EMBED_INLINE int lsp_id(const LspCtx *args)
 EMBED_INLINE int lsp_answer(const LspCtx *args)
 {
     int handed = 0;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->lsp->lock);
     for (unsigned int at = 0u; at < CLI_LSP_WAITERS; at += 1u)
     {
         CliLspWaiter *const waiter = &args->lsp->waiters[at];
@@ -84,11 +81,10 @@ EMBED_INLINE int lsp_answer(const LspCtx *args)
             }
             waiter->answered = 1;
             waiter->waiting = 0;
-            EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &args->lsp->wake);
+            EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &args->lsp->wake);
             break;
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->lsp->lock);
     return handed;
 }
 
@@ -132,7 +128,7 @@ EMBED_INLINE void lsp_server_message(const LspCtx *args)
         char why[CLI_ERR_MSG_MAX_LEN];
         VerbaLinea unsent = {why, sizeof(why), 0ull};
         (void)EMBED_CALL(cli_lsp_writer_lock.send_parts, CliLspWriterLockCfg, .writer = &args->lsp->input,
-                         .lock = &args->lsp->input_lock, .parts = parts, .count = 5u, .err_msg = &unsent);
+                         .parts = parts, .count = 5u, .err_msg = &unsent);
     }
     g_cli_cells->persistent_buf_release(answer_text, &g_cli_servers_cells);
 }
@@ -210,7 +206,6 @@ static void lsp_read(void *context)
             g_cli_cells->persistent_buf_release(body, &g_cli_servers_cells);
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &lsp->lock);
     for (unsigned int at = 0u; at < CLI_LSP_WAITERS; at += 1u)
     {
         if (lsp->waiters[at].waiting)
@@ -224,8 +219,7 @@ static void lsp_read(void *context)
         }
     }
     lsp->reading -= 1u;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &lsp->wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &lsp->lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &lsp->wake);
 }
 
 // a line the server wrote to its errors retained, trimmed with "\n" after it, the retained text cut to its last
@@ -246,7 +240,6 @@ static void lsp_complaint_line(const LspCtx *args)
         size -= 1ull;
     }
     const unsigned long long length = (size - start > CLI_LSP_COMPLAINT) ? CLI_LSP_COMPLAINT : size - start;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->lsp->lock);
     if (args->lsp->complaint_size + length + 1ull > sizeof(args->lsp->complaint))
     {
         unsigned long long cut = args->lsp->complaint_size + length + 1ull - CLI_LSP_COMPLAINT;
@@ -274,7 +267,6 @@ static void lsp_complaint_line(const LspCtx *args)
             .dst = args->lsp->complaint, .src = args->lsp->complaint + cut, .bytes = args->lsp->complaint_size - cut});
         args->lsp->complaint_size -= cut;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->lsp->lock);
 }
 
 // what the server writes to its errors read until it ends, line by line
@@ -311,10 +303,8 @@ static void lsp_complaints_read(void *context)
     {
         EMBED_CALL(lsp_complaint_line, LspCtx, .lsp = lsp, .line = line, .size = used);
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &lsp->lock);
     lsp->reading -= 1u;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &lsp->wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &lsp->lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &lsp->wake);
 }
 
 void cli_lsp_readers_start(const CliLspCtx *args)
@@ -327,9 +317,7 @@ void cli_lsp_readers_start(const CliLspCtx *args)
     void (*const runs[2])(void *context) = {lsp_read, lsp_complaints_read};
     for (unsigned int at = 0u; at < 2u; at += 1u)
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->lsp->lock);
         args->lsp->reading += 1u;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->lsp->lock);
         *threads[at] = (CliThread){runs[at], args->lsp};
         if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = threads[at]))
         {
@@ -346,15 +334,14 @@ int cli_lsp_notify(const CliLspErrMsgLengthCfg *args)
         CLI_LSP_RAW("\",\"params\":"),
         {args->params, args->length, 0},
         CLI_LSP_RAW("}")};
-    return EMBED_CALL(cli_lsp_writer_lock.send_parts, CliLspWriterLockCfg, .writer = &args->lsp->input,
-                      .lock = &args->lsp->input_lock, .parts = parts, .count = 5u, .err_msg = args->err_msg);
+    return EMBED_CALL(cli_lsp_writer_lock.send_parts, CliLspWriterLockCfg, .writer = &args->lsp->input, .parts = parts,
+                      .count = 5u, .err_msg = args->err_msg);
 }
 
 int cli_lsp_request(const CliLspErrMsgLengthCfg *args)
 {
     CliLspAnswer *answer = args->answer;
     *answer = (CliLspAnswer){NULL, NULL, 0ull};
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->lsp->lock);
     const unsigned long long id = args->lsp->next;
     args->lsp->next += 1ull;
     CliLspWaiter *waiter = NULL;
@@ -366,7 +353,6 @@ int cli_lsp_request(const CliLspErrMsgLengthCfg *args)
     {
         *waiter = (CliLspWaiter){1, id, answer, 0, ""};
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->lsp->lock);
     if (waiter == NULL)
     {
         mmgr_line_put(args->err_msg, "no more requests wait on the server at once");
@@ -384,19 +370,17 @@ int cli_lsp_request(const CliLspErrMsgLengthCfg *args)
         {args->params, args->length, 0},
         CLI_LSP_RAW("}")};
     const int sent = EMBED_CALL(cli_lsp_writer_lock.send_parts, CliLspWriterLockCfg, .writer = &args->lsp->input,
-                                .lock = &args->lsp->input_lock, .parts = parts, .count = 7u, .err_msg = args->err_msg);
+                                .parts = parts, .count = 7u, .err_msg = args->err_msg);
     const unsigned long long until = cli_clock_milliseconds() + args->wait;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->lsp->lock);
     while (sent && !waiter->answered && (cli_clock_milliseconds() < until))
     {
-        (void)EMBED_CALL(cli_lock_internal.wake_wait_for, CliLockCtx, .wake = &args->lsp->wake,
-                         .lock = &args->lsp->lock, .milliseconds_u64 = until - cli_clock_milliseconds());
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &args->lsp->wake,
+                         .milliseconds_u64 = until - cli_clock_milliseconds());
     }
     const int answered = waiter->answered;
     char error[1024];
     memor.cpy(&(MemoriaCfg){.dst = error, .src = waiter->error, .bytes = sizeof(error)});
     waiter->waiting = 0;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->lsp->lock);
     if (!sent)
     {
         return 0;
@@ -446,8 +430,8 @@ int cli_lsp_answer(const CliLspSizeErrMsgCfg *args)
         CLI_LSP_RAW(",\"result\":"),
         {args->result, args->size_value, 0},
         CLI_LSP_RAW("}")};
-    return EMBED_CALL(cli_lsp_writer_lock.send_parts, CliLspWriterLockCfg, .writer = &args->lsp->input,
-                      .lock = &args->lsp->input_lock, .parts = parts, .count = 5u, .err_msg = args->err_msg);
+    return EMBED_CALL(cli_lsp_writer_lock.send_parts, CliLspWriterLockCfg, .writer = &args->lsp->input, .parts = parts,
+                      .count = 5u, .err_msg = args->err_msg);
 }
 
 const char *cli_lsp_capabilities(const CliLspSizeKindCfg *args)
@@ -464,7 +448,6 @@ unsigned long long cli_lsp_pid(const CliLspSizeKindCfg *args)
 
 int cli_lsp_alive(const CliLspContextCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->lsp->lock);
     long long code = 0ll;
     if (!args->lsp->ended &&
         EMBED_CALL(cli_spawned_internal.spawn_poll, CliSpawnedCtx, .spawned = &args->lsp->spawned, .code = &code))
@@ -472,13 +455,11 @@ int cli_lsp_alive(const CliLspContextCfg *args)
         args->lsp->ended = 1;
     }
     const int alive = !args->lsp->ended;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->lsp->lock);
     return alive;
 }
 
 void cli_lsp_complaint(const CliLspPathOutCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->lsp->lock);
     unsigned long long end = args->lsp->complaint_size;
     while ((end > 0ull) &&
            (cellul.chr(&(CatenaFinitaCfg){
@@ -490,19 +471,16 @@ void cli_lsp_complaint(const CliLspPathOutCfg *args)
     start = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->lsp->complaint,
                        .at = start, .set = "\n");
     mmgr_line_put_n(args->out, args->lsp->complaint + start, end - start);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->lsp->lock);
 }
 
 void cli_lsp_end(const CliLspCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->lsp->lock);
     if (!args->lsp->ended && (args->lsp->spawned.process != 0ull))
     {
         EMBED_CALL(cli_cols_internal.spawn_kill, CliColsCtx, .spawned_read = &args->lsp->spawned);
         (void)EMBED_CALL(cli_spawned_internal.spawn_wait, CliSpawnedCtx, .spawned = &args->lsp->spawned);
         args->lsp->ended = 1;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->lsp->lock);
 }
 
 void cli_lsp_stop(const CliLspContextCfg *args)
@@ -521,17 +499,13 @@ void cli_lsp_stop(const CliLspContextCfg *args)
 
 void cli_lsp_ref(const CliLspContextCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_lsps_lock);
     args->lsp->refs += 1u;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_lsps_lock);
 }
 
 void cli_lsp_unref(const CliLspContextCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_lsps_lock);
     args->lsp->refs -= 1u;
     const int last = (args->lsp->refs == 0u);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_lsps_lock);
     if (!last)
     {
         return;
@@ -540,14 +514,12 @@ void cli_lsp_unref(const CliLspContextCfg *args)
     EMBED_CALL(cli_lsp_internal.end, CliLspCtx, .lsp = args->lsp);
     EMBED_CALL(cli_spawned_internal.spawn_input_close, CliSpawnedCtx, .spawned = &args->lsp->spawned);
     const unsigned long long until = cli_clock_milliseconds() + 5000ull;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->lsp->lock);
     while ((args->lsp->reading > 0u) && (cli_clock_milliseconds() < until))
     {
-        (void)EMBED_CALL(cli_lock_internal.wake_wait_for, CliLockCtx, .wake = &args->lsp->wake,
-                         .lock = &args->lsp->lock, .milliseconds_u64 = until - cli_clock_milliseconds());
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &args->lsp->wake,
+                         .milliseconds_u64 = until - cli_clock_milliseconds());
     }
     const int read = (args->lsp->reading == 0u);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->lsp->lock);
     EMBED_CALL(cli_lsp_kind_internal.files_let_go, CliLspKindCtx, .lsp_read = args->lsp);
     if (!read)
     {

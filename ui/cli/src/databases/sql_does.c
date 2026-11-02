@@ -19,7 +19,6 @@ typedef struct
 // the words of a statement and its tokens past spaces and comments, guarded by the lock while one is read
 static CliSqlWord s_words[CLI_SQL_WORDS];
 static CliSqlToken s_tokens[CLI_SQL_WORDS];
-static CliLock s_lock = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -197,10 +196,8 @@ EMBED_INLINE unsigned int cli_does_lock(const SqlDoesCtx *args)
 
 unsigned int cli_sql_does(const CliSqlLengthCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const unsigned int does = EMBED_CALL(cli_does_lock, SqlDoesCtx, .statement = args->statement,
                                          .length = args->length, .dialect = args->dialect);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return does;
 }
 
@@ -370,10 +367,8 @@ EMBED_INLINE int cli_unbounded_lock(const SqlDoesCtx *args)
 
 int cli_sql_unbounded(const CliSqlLengthDialectCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int found = EMBED_CALL(cli_unbounded_lock, SqlDoesCtx, .statement = args->statement, .length = args->length,
                                  .dialect = args->dialect, .out = args->out);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return found;
 }
 
@@ -523,9 +518,7 @@ EMBED_INLINE int cli_shaped_lock(const SqlDoesCtx *args)
 
 int cli_sql_shape(const CliSqlLengthCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int found = EMBED_CALL(cli_shaped_lock, SqlDoesCtx, .statement = args->statement, .length = args->length,
                                  .dialect = args->dialect, .shaped = args->shaped);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return found;
 }

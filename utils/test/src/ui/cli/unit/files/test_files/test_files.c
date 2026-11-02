@@ -23,7 +23,6 @@ typedef struct
 static const char *const s_init[2] = {"init", "-q"};
 
 static FilesProgress s_progress;
-static CliLock s_lock = CLI_LOCK_INIT;
 static unsigned char s_big[3u << 20u];
 static unsigned char s_read[(3u << 20u) + 1u];
 static unsigned char s_part[2u << 20u];
@@ -163,7 +162,6 @@ static void paste_tree_written(void)
 // what a bringing reports recorded
 static void progress_recorded(const CliProgressCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     if (s_progress.count < 64u)
     {
         memor.cpy(&(MemoriaCfg){.dst = s_progress.path[s_progress.count], .src = args->path, .bytes = CLI_UNITY_LENGTH(args->path) + 1u});
@@ -171,7 +169,6 @@ static void progress_recorded(const CliProgressCfg *args)
         s_progress.size[s_progress.count] = args->size;
         s_progress.count += 1u;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 // how many times `path` was reported, and whether it was reported with `done` of `size`

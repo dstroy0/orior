@@ -61,7 +61,6 @@ typedef struct
 
 static CliTerminal s_terminal[CLI_TERMINALS];
 static unsigned long long s_next_id;
-static CliLock s_lock = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -159,10 +158,8 @@ static void terminal_read(void *context)
         }
         pending = size - whole;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     terminal->reading = 0;
     EMBED_CALL(terminal_release, WindowCallTerminalCtx, .terminal = terminal);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 // a terminal's shell waited on to its end: its part of the comms layer let go, the pseudo-terminal let go so that its
@@ -176,9 +173,7 @@ static void terminal_wait(void *context)
     {
         EMBED_CALL(cli_window_key_internal.terminal_leave, CliWindowKeyCtx, .key = terminal->key);
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     EMBED_CALL(cli_spawned_internal.spawn_terminal_close, CliSpawnedCtx, .spawned = &terminal->spawned);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     char text[96];
     VerbaLinea body = {text, sizeof(text), 0ull};
     mmgr_line_put(&body, "{\"id\":");
@@ -196,10 +191,8 @@ static void terminal_wait(void *context)
     mmgr_line_ch(&body, '}');
     EMBED_CALL(cli_serve_event_internal.emit, CliServeEventCtx, .event = "term-exit", .body = text,
                .size = mmgr_line_ok(&body) ? body.at : 0ull);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     terminal->waiting = 0;
     EMBED_CALL(terminal_release, WindowCallTerminalCtx, .terminal = terminal);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 // the value of the hexadecimal digit `digit`, or 16 where it is none
@@ -429,7 +422,6 @@ static int terminal_open(const CliServeAnswerCfg *args)
                                                .request = arguments, .key = "rows", .otherwise_u64 = 24ull);
     const char *const at = EMBED_CALL(cli_serve_err_msg_internal.string_or, CliServeErrMsgCtx, .request = arguments,
                                       .key = "at", .otherwise = NULL);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     CliTerminal *terminal = NULL;
     for (unsigned int place = 0u; (terminal == NULL) && (place < CLI_TERMINALS); place += 1u)
     {
@@ -475,7 +467,6 @@ static int terminal_open(const CliServeAnswerCfg *args)
             mmgr_line_decimal(args->out, terminal->id, 1u);
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return started;
 }
 
@@ -499,12 +490,10 @@ static int terminal_write(const CliServeAnswerCfg *args)
         mmgr_line_put(err_msg, (err_msg->at == 0ull) ? "text: a terminal is written text" : "");
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const CliTerminal *const terminal = EMBED_CALL(terminal_get, WindowCallTerminalCtx, .id = id);
     const int written =
         (terminal != NULL) && EMBED_CALL(cli_pipe_handle_internal.spawn_write, CliPipeHandleCtx,
                                          .pipe_handle = terminal->spawned.in, .bytes = text, .size = length);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     if (!written)
     {
         mmgr_line_put(err_msg, "no terminal ");
@@ -530,14 +519,12 @@ static int terminal_resize(const CliServeAnswerCfg *args)
     {
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const CliTerminal *const terminal = EMBED_CALL(terminal_get, WindowCallTerminalCtx, .id = id);
     // a terminal's size is far below what an unsigned int counts
     const int sized = (terminal != NULL) && EMBED_CALL(cli_cols_internal.spawn_terminal_resize, CliColsCtx,
                                                        .spawned_read = &terminal->spawned,
                                                        .cols = (cols < 0xffffull) ? (unsigned int)cols : 0xffffu,
                                                        .rows = (rows < 0xffffull) ? (unsigned int)rows : 0xffffu);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     if (terminal == NULL)
     {
         mmgr_line_put(err_msg, "no terminal ");
@@ -561,13 +548,11 @@ static int terminal_close(const CliServeAnswerCfg *args)
     {
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const CliTerminal *const terminal = EMBED_CALL(terminal_get, WindowCallTerminalCtx, .id = id);
     if ((terminal != NULL) && terminal->waiting)
     {
         EMBED_CALL(cli_cols_internal.spawn_terminal_hung_up, CliColsCtx, .spawned_read = &terminal->spawned);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return 1;
 }
 

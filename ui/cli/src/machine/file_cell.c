@@ -112,8 +112,6 @@ static void tree_bytes_each(const CliEachNameIsFolderCfg *args)
 unsigned long long cli_tree_bytes(const CliPathRootCtx *args)
 {
     static CliTreeBytes s_walk;
-    static CliLock s_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     VerbaLinea line = {s_walk.path, sizeof(s_walk.path), 0ull};
     mmgr_line_put(&line, args->root);
     s_walk.bytes = 0ull;
@@ -123,6 +121,5 @@ unsigned long long cli_tree_bytes(const CliPathRootCtx *args)
                    .each = tree_bytes_each, .context_bytess = &s_walk);
     }
     const unsigned long long bytes = s_walk.bytes;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return bytes;
 }

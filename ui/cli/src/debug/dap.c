@@ -8,7 +8,6 @@
 #include "dap_internal.h"
 
 CliDap g_cli_daps[CLI_DAPS_MOST];
-CliLock g_cli_daps_lock = CLI_LOCK_INIT;
 
 // the sequence number the adapter's own requests are refused from, past any the client sends
 #define CLI_DAP_REFUSED 1000000ull
@@ -16,7 +15,6 @@ CliLock g_cli_daps_lock = CLI_LOCK_INIT;
 CliDap *cli_dap_place_take(void)
 {
     CliDap *dap = NULL;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_daps_lock);
     for (unsigned int at = 0u; (at < CLI_DAPS_MOST) && (dap == NULL); at += 1u)
     {
         if (!g_cli_daps[at].taken)
@@ -26,14 +24,11 @@ CliDap *cli_dap_place_take(void)
             dap->refs = 1u;
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_daps_lock);
     if (dap != NULL)
     {
         dap->ended = 0;
         memor.set(&(MemoriaCfg){.dst = &dap->spawned, .val = 0, .bytes = sizeof(dap->spawned)});
         dap->socket.handle = 0ull;
-        dap->input_lock = (CliLock)CLI_LOCK_INIT;
-        dap->lock = (CliLock)CLI_LOCK_INIT;
         dap->wake = (CliWake)CLI_WAKE_INIT;
         dap->next = 1ull;
         memor.set(&(MemoriaCfg){.dst = dap->waiters, .val = 0, .bytes = sizeof(dap->waiters)});
@@ -80,7 +75,6 @@ EMBED_INLINE int dap_member_string(const DapCtx *args)
 EMBED_INLINE int dap_answer(const DapCtx *args)
 {
     int handed = 0;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->dap->lock);
     for (unsigned int at = 0u; at < CLI_DAP_WAITERS; at += 1u)
     {
         CliDapWaiter *const waiter = &args->dap->waiters[at];
@@ -99,11 +93,10 @@ EMBED_INLINE int dap_answer(const DapCtx *args)
                 handed = 1;
             }
             waiter->answered = 1;
-            EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &args->dap->wake);
+            EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &args->dap->wake);
             break;
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->dap->lock);
     return handed;
 }
 
@@ -195,8 +188,8 @@ EMBED_INLINE void dap_reject(const DapCtx *args)
     };
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea unsent = {why, sizeof(why), 0ull};
-    (void)EMBED_CALL(cli_lsp_writer_lock.send_parts, CliLspWriterLockCfg, .writer = &args->dap->input,
-                     .lock = &args->dap->input_lock, .parts = sent, .count = 7u, .err_msg = &unsent);
+    (void)EMBED_CALL(cli_lsp_writer_lock.send_parts, CliLspWriterLockCfg, .writer = &args->dap->input, .parts = sent,
+                     .count = 7u, .err_msg = &unsent);
 }
 
 // what the adapter writes read until it ends: each event received, each response handed to its request, each request of
@@ -246,7 +239,6 @@ static void dap_read(void *context)
             g_cli_cells->persistent_buf_release(message, &g_cli_debug_cells);
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &dap->lock);
     for (unsigned int at = 0u; at < CLI_DAP_WAITERS; at += 1u)
     {
         if (dap->waiters[at].waiting && !dap->waiters[at].answered)
@@ -258,13 +250,10 @@ static void dap_read(void *context)
             dap->waiters[at].answered = 1;
         }
     }
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &dap->wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &dap->lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &dap->wake);
     dap->emit(dap->context, "adapterStopped", "null", 4ull);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &dap->lock);
     dap->reading -= 1u;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &dap->wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &dap->lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &dap->wake);
 }
 
 // a line the program adapter wrote to its errors stored, trimmed with "\n" after it, the stored text cut to its last
@@ -283,7 +272,6 @@ EMBED_INLINE void dap_complaint_store(const DapCtx *args)
     {
         end -= 1ull;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->dap->lock);
     memor.cpy(&(MemoriaCfg){
         .dst = args->dap->complaint + args->dap->complaint_size, .src = args->line + start, .bytes = end - start});
     args->dap->complaint_size += end - start;
@@ -300,7 +288,6 @@ EMBED_INLINE void dap_complaint_store(const DapCtx *args)
             .dst = args->dap->complaint, .src = args->dap->complaint + cut, .bytes = args->dap->complaint_size - cut});
         args->dap->complaint_size -= cut;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->dap->lock);
 }
 
 // what the program adapter writes to its errors read until it ends, line by line, a line longer than the room stored in
@@ -338,10 +325,8 @@ static void dap_complaints_read(void *context)
     {
         EMBED_CALL(dap_complaint_store, DapCtx, .dap = dap, .line = line, .used = used);
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &dap->lock);
     dap->reading -= 1u;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &dap->wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &dap->lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &dap->wake);
 }
 
 void cli_dap_readers_start(const CliDapCtx *args)
@@ -350,9 +335,7 @@ void cli_dap_readers_start(const CliDapCtx *args)
     void (*const runs[2])(void *context) = {dap_read, dap_complaints_read};
     for (unsigned int at = 0u; at < (args->complaints ? 2u : 1u); at += 1u)
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->dap->lock);
         args->dap->reading += 1u;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->dap->lock);
         *threads[at] = (CliThread){runs[at], args->dap};
         if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = threads[at]))
         {
@@ -368,7 +351,6 @@ int cli_dap_on_send(const CliDapErrMsgCommandCfg *args)
     const int none = (args->length == 0ull) ||
                      ((args->length == 4ull) &&
                       (memor.cmp(&(MemoriaCfg){.src = args->arguments, .other = "null", .bytes = 4u}) == 0));
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->dap->lock);
     *seq = args->dap->next;
     args->dap->next += 1ull;
     CliDapWaiter *waiter = NULL;
@@ -384,7 +366,6 @@ int cli_dap_on_send(const CliDapErrMsgCommandCfg *args)
         waiter->error[0] = '\0';
         waiter->answer = (CliLspAnswer){NULL, NULL, 0ull};
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->dap->lock);
     if (waiter == NULL)
     {
         mmgr_line_put(args->err_msg, "no more requests wait on the adapter at once");
@@ -401,12 +382,10 @@ int cli_dap_on_send(const CliDapErrMsgCommandCfg *args)
         CLI_LSP_RAW("\",\"arguments\":"),
         {none ? "{}" : args->arguments, none ? 2ull : args->length, 0},
         CLI_LSP_RAW("}")};
-    if (!EMBED_CALL(cli_lsp_writer_lock.send_parts, CliLspWriterLockCfg, .writer = &args->dap->input,
-                    .lock = &args->dap->input_lock, .parts = parts, .count = 7u, .err_msg = args->err_msg))
+    if (!EMBED_CALL(cli_lsp_writer_lock.send_parts, CliLspWriterLockCfg, .writer = &args->dap->input, .parts = parts,
+                    .count = 7u, .err_msg = args->err_msg))
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->dap->lock);
         waiter->waiting = 0;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->dap->lock);
         return 0;
     }
     return 1;
@@ -417,7 +396,6 @@ int cli_dap_wait(const CliDapErrMsgCommandSeqCfg *args)
     CliLspAnswer *answer = args->answer;
     *answer = (CliLspAnswer){NULL, NULL, 0ull};
     const unsigned long long until = cli_clock_milliseconds() + args->wait;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->dap->lock);
     CliDapWaiter *waiter = NULL;
     for (unsigned int at = 0u; (at < CLI_DAP_WAITERS) && (waiter == NULL); at += 1u)
     {
@@ -426,8 +404,8 @@ int cli_dap_wait(const CliDapErrMsgCommandSeqCfg *args)
     }
     while ((waiter != NULL) && !waiter->answered && (cli_clock_milliseconds() < until))
     {
-        (void)EMBED_CALL(cli_lock_internal.wake_wait_for, CliLockCtx, .wake = &args->dap->wake,
-                         .lock = &args->dap->lock, .milliseconds_u64 = until - cli_clock_milliseconds());
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &args->dap->wake,
+                         .milliseconds_u64 = until - cli_clock_milliseconds());
     }
     const int answered = (waiter != NULL) && waiter->answered;
     const int failed = answered && (waiter->error[0] != '\0');
@@ -444,7 +422,6 @@ int cli_dap_wait(const CliDapErrMsgCommandSeqCfg *args)
     {
         waiter->waiting = 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->dap->lock);
     if (!answered)
     {
         mmgr_line_put(args->err_msg, args->command);
@@ -470,7 +447,6 @@ int cli_dap_request(const CliDapErrMsgCfg *args)
 
 void cli_dap_complaint(const CliDapCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->dap->lock);
     unsigned long long end = args->dap->complaint_size;
     while ((end > 0ull) &&
            (cellul.chr(&(CatenaFinitaCfg){
@@ -482,7 +458,6 @@ void cli_dap_complaint(const CliDapCfg *args)
     start = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->dap->complaint,
                        .at = start, .set = "\n");
     mmgr_line_put_n(args->out, args->dap->complaint + start, end - start);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->dap->lock);
 }
 
 void cli_dap_end(const CliDapCtx *args)
@@ -491,14 +466,12 @@ void cli_dap_end(const CliDapCtx *args)
     {
         EMBED_CALL(cli_sock_internal.socket_end, CliSockCtx, .sock = &args->dap->socket);
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->dap->lock);
     if ((args->dap->kind == CLI_DAP_PROGRAM) && !args->dap->ended && (args->dap->spawned.process != 0ull))
     {
         EMBED_CALL(cli_cols_internal.spawn_kill, CliColsCtx, .spawned_read = &args->dap->spawned);
         (void)EMBED_CALL(cli_spawned_internal.spawn_wait, CliSpawnedCtx, .spawned = &args->dap->spawned);
         args->dap->ended = 1;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->dap->lock);
     if (args->dap->kind == CLI_DAP_WITHIN)
     {
         cli_dap_internal.within_let_go(args);
@@ -523,31 +496,25 @@ void cli_dap_stop(const CliDapCfg *args)
 
 void cli_dap_ref(const CliDapCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_daps_lock);
     args->dap->refs += 1u;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_daps_lock);
 }
 
 void cli_dap_unref(const CliDapCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_daps_lock);
     args->dap->refs -= 1u;
     const int last = (args->dap->refs == 0u);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_daps_lock);
     if (!last)
     {
         return;
     }
     EMBED_CALL(cli_dap_internal.end, CliDapCtx, .dap = args->dap);
     const unsigned long long until = cli_clock_milliseconds() + 5000ull;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->dap->lock);
     while ((args->dap->reading > 0u) && (cli_clock_milliseconds() < until))
     {
-        (void)EMBED_CALL(cli_lock_internal.wake_wait_for, CliLockCtx, .wake = &args->dap->wake,
-                         .lock = &args->dap->lock, .milliseconds_u64 = until - cli_clock_milliseconds());
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &args->dap->wake,
+                         .milliseconds_u64 = until - cli_clock_milliseconds());
     }
     const int read = (args->dap->reading == 0u);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->dap->lock);
     if (!read)
     {
         return;
@@ -563,7 +530,5 @@ void cli_dap_unref(const CliDapCfg *args)
     {
         EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &args->dap->spawned);
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_daps_lock);
     args->dap->taken = 0;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_daps_lock);
 }

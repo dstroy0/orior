@@ -11,7 +11,6 @@
 #include "memoria_operor/memoria_operor.h"
 
 CliDeployRun g_cli_deploy;
-CliLock g_cli_deploy_lock = CLI_LOCK_INIT;
 
 // A place's send: its thread, the place's index, whether it sent, and why where it did not
 typedef struct
@@ -28,7 +27,6 @@ typedef struct
 static CliDeployTree s_tree;
 static CliDeploySending *s_sending;
 static unsigned int s_going;
-static CliLock s_send_lock = CLI_LOCK_INIT;
 static CliWake s_send_wake = CLI_WAKE_INIT;
 // what each place's send is given
 static const char *s_release;
@@ -82,12 +80,10 @@ static void run_send(void *context)
         EMBED_CALL(cli_deploy_err_msg_internal.send_to, CliDeployErrMsgCtx, .index = sending->index,
                    .releases = EMBED_CALL(run_in_release, DeployRunCtx, .index = sending->index), .release = s_release,
                    .time = s_time, .replace = s_replace, .remove = s_remove, .err_msg = &why);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_send_lock);
     sending->sent = sent;
     sending->why_size = why.at;
     s_going -= 1u;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_send_wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_send_lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_send_wake);
 }
 
 // the deployment's places read, each place's lists and send placed in the run's pool at the count of the places, and
@@ -230,9 +226,7 @@ EMBED_INLINE int run_show(const DeployRunCtx *args)
 static int run_sends(void)
 {
     const CliDeployRun *const run = &g_cli_deploy;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_send_lock);
     s_going = run->places;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_send_lock);
     for (unsigned int index = 0u; index < run->places; index += 1u)
     {
         s_sending[index].index = index;
@@ -242,17 +236,15 @@ static int run_sends(void)
             run_send(&s_sending[index]);
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_send_lock);
     while (s_going > 0u)
     {
-        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_send_wake, .lock = &s_send_lock);
+        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_send_wake);
     }
     int every = 1;
     for (unsigned int index = 0u; index < run->places; index += 1u)
     {
         every = every && s_sending[index].sent;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_send_lock);
     return every;
 }
 
@@ -391,7 +383,6 @@ int cli_deploy_run(const CliDeployRootCfg *args)
     const char *root = args->root;
     CliDeployPrintFn print = args->print;
     void *context = args->context;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_deploy_lock);
     CliDeployRun *const run = &g_cli_deploy;
     run_free();
     run->root = root;
@@ -452,6 +443,5 @@ int cli_deploy_run(const CliDeployRootCfg *args)
         }
     }
     run_free();
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_deploy_lock);
     return done;
 }

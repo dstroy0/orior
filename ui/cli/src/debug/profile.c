@@ -43,7 +43,6 @@ typedef struct
 
 static CliProfile s_profiles[CLI_PROFILES];
 static CliProfile *s_running;
-static CliLock s_lock = CLI_LOCK_INIT;
 static CliWake s_wake = CLI_WAKE_INIT;
 
 typedef struct
@@ -69,7 +68,6 @@ EMBED_INLINE void profile_cells_free(const ProfileCtx *args)
 
 void cli_profile_stop(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     CliProfile *const profile = s_running;
     if ((profile != NULL) && profile->running)
     {
@@ -78,7 +76,6 @@ void cli_profile_stop(void)
         profile->running = 0;
     }
     s_running = NULL;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 // a line the program wrote reported as output, to its errors where `error`, in a cell of the most its quoting takes,
@@ -151,10 +148,8 @@ static void profile_line(const CliProfileLineSizeCfg *args)
             whole = (json[letter] >= '0') && (json[letter] <= '9') && (code < 922337203685477580ll);
             code = (code * 10ll) + (long long)(json[letter] - '0');
         }
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
         profile->has_code = whole;
         profile->code = negative ? -code : code;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     }
     if (mmgr_line_ok(&out))
     {
@@ -225,16 +220,14 @@ static void profile_error_line(const CliProfileLineSizeCfg *args)
 // a reader's end: reported to the profile, and its place given back with the last
 EMBED_INLINE void profile_reader_end(const ProfileCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     args->profile->going -= 1u;
     if (args->profile->going == 0u)
     {
         EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &args->profile->spawned);
         profile_cells_free(args);
         args->profile->taken = 0;
-        EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_wake);
+        EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_wake);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 // what the program writes to its errors read until it ends
@@ -252,10 +245,9 @@ static void profile_output_read(void *context)
 {
     CliProfile *const profile = (CliProfile *)context;
     EMBED_CALL(profile_lines, ProfileCtx, .profile = profile, .pipe = profile->spawned.out, .each_line = profile_line);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     while (profile->going > 1u)
     {
-        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_wake, .lock = &s_lock);
+        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_wake);
     }
     long long status = 0ll;
     int has_status = 0;
@@ -267,7 +259,6 @@ static void profile_output_read(void *context)
     }
     const int has_code = profile->has_code || has_status;
     const long long code = profile->has_code ? profile->code : status;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     char done[256];
     VerbaLinea out = {done, sizeof(done), 0ull};
     mmgr_line_put(&out, "{\"kind\":\"done\",\"code\":");
@@ -304,7 +295,6 @@ static void profile_output_read(void *context)
 EMBED_INLINE CliProfile *profile_take(const ProfileCtx *args)
 {
     CliJsonSink sink = args->sink;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     CliProfile *profile = NULL;
     while (profile == NULL)
     {
@@ -314,7 +304,7 @@ EMBED_INLINE CliProfile *profile_take(const ProfileCtx *args)
         }
         if (profile == NULL)
         {
-            EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_wake, .lock = &s_lock);
+            EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_wake);
         }
     }
     profile->taken = 1;
@@ -326,7 +316,6 @@ EMBED_INLINE CliProfile *profile_take(const ProfileCtx *args)
     memor.set(&(MemoriaCfg){.dst = &profile->spawned, .val = 0, .bytes = sizeof(profile->spawned)});
     profile->words = g_cli_cells->persistent_buf_alloc(sizeof(*profile->words), &g_cli_profile_cells);
     profile->path = NULL;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     if (profile->words != NULL)
     {
         profile->words->count = 0u;
@@ -339,11 +328,9 @@ EMBED_INLINE CliProfile *profile_take(const ProfileCtx *args)
 // a profile's place given back where its process did not start
 EMBED_INLINE void profile_let_go(const ProfileCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     profile_cells_free(args);
     args->profile->taken = 0;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_wake);
 }
 
 // a text written as one word of a shell, in single quotes, each quote of it closed, escaped and opened again
@@ -436,11 +423,9 @@ int cli_profile_start(const CliProfileCfg *args)
                    .bytes = g_cli_profile_shim,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = g_cli_profile_shim, .cap = CLI_CELLS_POOL}));
     EMBED_CALL(cli_spawned_internal.spawn_input_close, CliSpawnedCtx, .spawned = &profile->spawned);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     profile->running = 1;
     profile->going = 2u;
     s_running = profile;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     if (!given)
     {
         mmgr_line_put(args->err_msg, "the shim could not be given to Python");

@@ -61,8 +61,6 @@ typedef struct
 static CliPicks s_picks;
 static unsigned long long s_next = 1ull;
 static CliWake s_wake = CLI_WAKE_INIT;
-static CliLock s_lock = CLI_LOCK_INIT;
-static CliLock s_ending = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -121,25 +119,21 @@ unsigned long long cli_picks_store(const CliPicksCfg *args)
     {
         rows += (args->texts[at] == '\n') ? 1ull : 0ull;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     // a row's start is an unsigned int's, and a text past one's reach is not stored
     if ((s_picks.lists >= CLI_PICKS_LISTS) || (args->length >= 0xffffffffull))
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return 0ull;
     }
     unsigned char *const cell = g_cli_cells->persistent_buf_alloc(
         (rows * sizeof(unsigned int)) + args->length + 1ull + 8ull, &g_cli_editor_cells);
     if (cell == NULL)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return 0ull;
     }
     if (((s_picks.room == NULL) || (rows > s_picks.room_rows)) &&
         !EMBED_CALL(picks_room_take, PicksCtx, .rows = (unsigned int)rows))
     {
         g_cli_cells->persistent_buf_release(cell, &g_cli_editor_cells);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return 0ull;
     }
     CliPickList *const list = &s_picks.list[s_picks.lists];
@@ -169,13 +163,11 @@ unsigned long long cli_picks_store(const CliPicksCfg *args)
     s_picks.lists += 1u;
     const unsigned long long id = s_next;
     s_next += 1ull;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return id;
 }
 
 void cli_picks_forget(const CliPicksIdCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     unsigned int at = 0u;
     while ((at < s_picks.lists) && (s_picks.list[at].id != args->id))
     {
@@ -183,7 +175,6 @@ void cli_picks_forget(const CliPicksIdCfg *args)
     }
     if (at == s_picks.lists)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return;
     }
     g_cli_cells->persistent_buf_release(s_picks.list[at].cell, &g_cli_editor_cells);
@@ -198,7 +189,6 @@ void cli_picks_forget(const CliPicksIdCfg *args)
         s_picks.room = NULL;
         s_picks.room_rows = 0u;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 // the row `index` of the list being matched matched against the query by the part: 1 with its score, or 0
@@ -231,10 +221,8 @@ EMBED_INLINE void cli_part_match(const PicksCtx *args)
 static void cli_part_thread(void *context)
 {
     EMBED_CALL(cli_part_match, PicksCtx, .part = (CliPickPart *)context);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_ending);
     s_picks.ended += 1u;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_ending);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_wake);
 }
 
 // the list's rows matched, over the cores where it is long
@@ -266,12 +254,10 @@ EMBED_INLINE void cli_picks_match(const PicksCtx *args)
         }
     }
     EMBED_CALL(cli_part_match, PicksCtx, .part = &s_picks.part[0]);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_ending);
     while (s_picks.ended < started)
     {
-        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_wake, .lock = &s_ending);
+        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_wake);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_ending);
 }
 
 // the rows that answered sorted by score, the highest first, those that score alike in the list's order: their count
@@ -316,7 +302,6 @@ EMBED_INLINE unsigned int cli_picks_sort(const PicksCtx *args)
 int cli_picks_find(const CliPicksIdCfg *args)
 {
     const char *query = args->query;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     unsigned int at = 0u;
     while ((at < s_picks.lists) && (s_picks.list[at].id != args->id))
     {
@@ -324,7 +309,6 @@ int cli_picks_find(const CliPicksIdCfg *args)
     }
     if (at == s_picks.lists)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         mmgr_line_put(args->err_msg, "no list is stored under ");
         mmgr_line_decimal(args->err_msg, args->id, 0u);
         return 0;
@@ -374,6 +358,5 @@ int cli_picks_find(const CliPicksIdCfg *args)
         mmgr_line_put(args->out, "]}");
     }
     mmgr_line_ch(args->out, ']');
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return 1;
 }

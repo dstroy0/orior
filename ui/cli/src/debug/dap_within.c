@@ -32,7 +32,6 @@ typedef struct
 static CliDap *s_within;
 static CliDapQueue s_incoming;
 static CliDapQueue s_outgoing;
-static CliLock s_queue_lock = CLI_LOCK_INIT;
 static CliWake s_queue_wake = CLI_WAKE_INIT;
 static char s_head[1024];
 static unsigned long long s_head_size;
@@ -72,10 +71,8 @@ EMBED_INLINE CliDapQueued *within_message_take(const DapWithinCtx *args)
 // a message put on a queue: 1, or 0 where no more come, the message given back
 EMBED_INLINE int within_queue(const DapWithinCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_queue_lock);
     if (args->queue->closed)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_queue_lock);
         g_cli_cells->persistent_buf_release(args->message, &g_cli_debug_cells);
         return 0;
     }
@@ -88,8 +85,7 @@ EMBED_INLINE int within_queue(const DapWithinCtx *args)
         args->queue->first = args->message;
     }
     args->queue->last = args->message;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_queue_wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_queue_lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_queue_wake);
     return 1;
 }
 
@@ -112,10 +108,9 @@ EMBED_INLINE int within_push(const DapWithinCtx *args)
 // more come
 EMBED_INLINE CliDapQueued *within_pop(const DapWithinCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_queue_lock);
     while ((args->queue->first == NULL) && !args->queue->closed)
     {
-        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_queue_wake, .lock = &s_queue_lock);
+        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_queue_wake);
     }
     CliDapQueued *const message = args->queue->first;
     if (message != NULL)
@@ -123,17 +118,14 @@ EMBED_INLINE CliDapQueued *within_pop(const DapWithinCtx *args)
         args->queue->first = message->next;
         args->queue->last = (args->queue->first != NULL) ? args->queue->last : NULL;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_queue_lock);
     return message;
 }
 
 // a queue notified no more comes
 EMBED_INLINE void within_close(const DapWithinCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_queue_lock);
     args->queue->closed = 1;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_queue_wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_queue_lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_queue_wake);
 }
 
 // a queue's messages given back and the queue made open again
@@ -319,10 +311,8 @@ static void within_serve(void *context)
     }
     EMBED_CALL(within_close, DapWithinCtx, .queue = &s_incoming);
     EMBED_CALL(within_close, DapWithinCtx, .queue = &s_outgoing);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_queue_lock);
     s_serving = 0;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_queue_wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_queue_lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_queue_wake);
 }
 
 void cli_dap_within_let_go(const CliDapCtx *args)
@@ -336,12 +326,10 @@ CliDap *cli_dap_within(const CliDapEmitCfg *args)
 {
     CliDapEventFn emit = args->emit;
     void *context = args->context;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_queue_lock);
     while (s_serving)
     {
-        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_queue_wake, .lock = &s_queue_lock);
+        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_queue_wake);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_queue_lock);
     CliDap *const dap = cli_dap_place_take();
     if (dap == NULL)
     {
@@ -375,9 +363,7 @@ CliDap *cli_dap_within(const CliDapEmitCfg *args)
     if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_serve_thread))
     {
         s_serving = 0;
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_daps_lock);
         dap->taken = 0;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_daps_lock);
         mmgr_line_put(args->err_msg, "the adapter's thread did not start");
         return NULL;
     }

@@ -36,7 +36,6 @@ int cli_toolchains_own(const CliToolchainsErrMsgFolderOnPathCfg *args)
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_CELLS_POOL}) + 1u});
     char key[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_toolchains_dir_key.key_get, CliToolchainsDirKeyCfg, .dir = args->folder, .key = key);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_toolchains_find_lock);
     const unsigned int count = cli_toolchains_find_path();
     *on_path = 0;
     for (unsigned int at = 0u; !*on_path && (at < count); at += 1u)
@@ -173,7 +172,6 @@ int cli_toolchains_add_to_path(const CliToolchainsErrMsgFolderCfg *args)
     {
         CliJson json;
         CliFound found;
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_toolchains_find_lock);
         const unsigned int tool =
             EMBED_CALL(cli_toolchains_json_manifest.tool, CliToolchainsJsonManifestCfg, .json_out = &json,
                        .manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,

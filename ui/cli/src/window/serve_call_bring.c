@@ -27,7 +27,6 @@ typedef struct
 } CliServeBring;
 
 static CliServeBring s_bring;
-static CliLock s_bring_lock = CLI_LOCK_INIT;
 static CliWake s_bring_wake = CLI_WAKE_INIT;
 
 // how far a file is copied reported as bring-progress
@@ -105,13 +104,11 @@ static void bring_run(void *context)
                .size = mmgr_line_ok(&line) ? line.at : 0ull);
     g_cli_cells->persistent_buf_release(line.out, &g_cli_serve_strings_cells);
     g_cli_cells->persistent_buf_release(brought.out, &g_cli_serve_strings_cells);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_bring_lock);
     g_cli_cells->persistent_buf_release(bring->from, &g_cli_serve_strings_cells);
     bring->from = NULL;
     bring->count = 0u;
     bring->busy = 0;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_bring_wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_bring_lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_bring_wake);
 }
 
 typedef struct
@@ -160,10 +157,9 @@ static int bring_start(const ServeCallBringCtx *args)
         return 0;
     }
     char *const paths = (char *)(void *)(from + count + 1u);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_bring_lock);
     while (s_bring.busy)
     {
-        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_bring_wake, .lock = &s_bring_lock);
+        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_bring_wake);
     }
     s_bring.busy = 1;
     s_bring.linked = linked;
@@ -189,7 +185,6 @@ static int bring_start(const ServeCallBringCtx *args)
     s_bring.thread = (CliThread){bring_run, &s_bring};
     const int started = EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_bring.thread);
     s_bring.busy = started;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_bring_lock);
     if (!started)
     {
         bring_run(&s_bring);

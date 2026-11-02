@@ -26,9 +26,7 @@ typedef struct
 
 static CliServeCaller s_caller[CLI_SERVE_CALLERS];
 static unsigned int s_started;
-static CliLock s_lock = CLI_LOCK_INIT;
 static CliWake s_wake = CLI_WAKE_INIT;
-static CliLock s_output = CLI_LOCK_INIT;
 
 static CliServeLink s_link;
 
@@ -43,10 +41,8 @@ typedef struct
 // `size` bytes of a line written whole to the link with its end
 EMBED_INLINE void lines_send(const ServeLinesCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_output);
     EMBED_CALL(s_link.write, CliEachBytesSizeCfg, .context = s_link.context, .bytes = args->line, .size = args->size);
     EMBED_CALL(s_link.write, CliEachBytesSizeCfg, .context = s_link.context, .bytes = "\n", .size = 1ull);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_output);
 }
 
 // `size` bytes of a line handed to the link as the line fills
@@ -63,7 +59,6 @@ static void lines_event_send(void *context, const char *event, const char *body,
 {
     (void)context;
     char piece[4096];
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_output);
     VerbaLinea line = {piece, sizeof(piece), 0ull, lines_link_put, NULL, 0ull};
     mmgr_line_put(&line, "{\"event\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &line, .text = event,
@@ -72,7 +67,6 @@ static void lines_event_send(void *context, const char *event, const char *body,
     mmgr_line_put_n(&line, body, size);
     mmgr_line_put(&line, "}\n");
     (void)mmgr_line_flush(&line);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_output);
 }
 
 // the call a caller has answered, by the line `{id, ok}` or `{id, error}`, made in `answer` and with why it failed in
@@ -141,12 +135,10 @@ static void lines_caller(void *context)
     CliServeCaller *const caller = context;
     for (;;)
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
         while (caller->size == 0ull)
         {
-            EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_wake, .lock = &s_lock);
+            EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_wake);
         }
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         char *const answer = g_cli_cells->temporary_buf_alloc(CLI_SERVE_ANSWER, &g_cli_window_cells);
         char *const why = g_cli_cells->temporary_buf_alloc(CLI_SERVE_ERR_MSG_MAX_LEN, &g_cli_window_cells);
         EMBED_CALL(lines_answer, ServeLinesCtx, .caller = caller, .answer = answer, .why = why);
@@ -155,11 +147,9 @@ static void lines_caller(void *context)
         // a call's line may carry a secret, and the pool leaves a cell as it is
         mmgr_zero_buf(caller->line, caller->size);
         g_cli_cells->persistent_buf_release(caller->line, &g_cli_window_cells);
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
         caller->size = 0ull;
         caller->busy = 0;
-        EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_wake);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
+        EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_wake);
     }
 }
 
@@ -169,7 +159,6 @@ EMBED_INLINE void lines_dispatch(const ServeLinesCtx *args)
 {
     const char *line = args->line;
     unsigned long long size = args->size;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     for (;;)
     {
         unsigned int at = 0u;
@@ -195,12 +184,11 @@ EMBED_INLINE void lines_dispatch(const ServeLinesCtx *args)
             caller->busy = 1;
             memor.cpy(&(MemoriaCfg){.dst = caller->line, .src = line, .bytes = (size_t)size});
             caller->size = size;
-            EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_wake);
+            EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_wake);
             break;
         }
-        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_wake, .lock = &s_lock);
+        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_wake);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 // a line of the standard input read into `line`, sized for `room`: its size, QRY_MEMBER_UNREAD once the input ends
@@ -292,14 +280,12 @@ void cli_serve_over(const CliServeRootLinkCfg *args)
     }
     g_cli_cells->persistent_buf_release(input, &g_cli_window_cells);
     // the calls made before the input ended are answered before the server ends
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     for (unsigned int at = 0u; at < s_started; at += 1u)
     {
         while (s_caller[at].busy)
         {
-            EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_wake, .lock = &s_lock);
+            EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_wake);
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     cli_serve_stop_all();
 }

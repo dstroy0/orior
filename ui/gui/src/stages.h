@@ -40,12 +40,12 @@ typedef struct
     unsigned int made_for;
 } GuiStages;
 
-// every stage laid from `now` until the claim's slides rest, each stage's frame `frame` as the claim's numbers lay it
-// at that stage's moment, in `palette`'s colors, the cell taken exact: 1, or 0 with none where the cell could not be
+// every stage laid from `time_ms` until the claim's slides end, each stage's frame `frame` as the claim's numbers lay
+// it at that stage's moment, in `palette`'s colors, the cell taken exact: 1, or 0 with none where the cell could not be
 // taken. The claim's slats' shares come out as they stand at the last stage, and `base` and `menubar` as they were laid
 // last; taking the first stage puts the menu bar back
 int gui_stages_init(const GuiStagesClaimCfg *args);
-// the stage standing at `now`, the last from when the slides rest on, NULL where none is made; and the cell given back
+// the stage standing at `time_ms`, the last from when the slides end, NULL where none is made; and the cell given back
 const GuiStage *gui_stages_at(const GuiStagesReadCfg *args);
 void gui_stages_free(const GuiStagesClaimCfg *args);
 // the claim's slats' shares put back to where `stage` stands, as a slide is sent again from there

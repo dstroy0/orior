@@ -14,10 +14,8 @@
 
 CliKeyed g_cli_servers_texts = {"editor texts", {NULL}, 0u, CLI_SERVERS_TEXTS};
 CliKeyed g_cli_servers_parses = {"parses", {NULL}, 0u, CLI_SERVERS_TEXTS};
-CliLock g_cli_servers_texts_lock = CLI_LOCK_INIT;
 
 // the files closed, one at a time, each read where it lies on the disk as the editor closes it
-static CliLock s_disk_lock = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -35,24 +33,20 @@ EMBED_INLINE void files_text_store(const ServersFilesCtx *args)
     unsigned long long size = args->size;
     char key[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = path, .key_out = key);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_texts_lock);
     (void)EMBED_CALL(cli_keyed_key_beside.put, CliKeyedKeyBesideCfg, .keyed_out = &g_cli_servers_texts, .key = key,
                      .beside_value = path, .text = text, .size_value = size);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_texts_lock);
 }
 
 // the tree the checkers check and where what is reported goes, where a file was opened: 1, or 0 where none was
 EMBED_INLINE int files_checked_sink(const ServersFilesCtx *args)
 {
     CliServersSink *sink = args->sink;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers.lock);
     const int has = g_cli_servers.has_sink && (g_cli_servers.checked_root[0] != '\0');
     if (has)
     {
         memor.cpy(&(MemoriaCfg){.dst = args->root, .src = g_cli_servers.checked_root, .bytes = CLI_PATH_MAX_LEN});
         *sink = g_cli_servers.sink;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers.lock);
     return has;
 }
 
@@ -65,13 +59,11 @@ int cli_servers_open(const CliServersRootCfg *args)
     EMBED_CALL(cli_servers_path_size_root_sink_internal.inspect, CliServersPathSizeRootSinkCtx, .root = args->root,
                .path = path, .text = text, .size = args->size, .sink = sink);
     EMBED_CALL(files_text_store, ServersFilesCtx, .path = path, .text = text, .size = args->size);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers.lock);
     g_cli_servers.sink = *sink;
     g_cli_servers.has_sink = 1;
     VerbaLinea checked = {g_cli_servers.checked_root, CLI_PATH_MAX_LEN, 0ull};
     mmgr_line_put(&checked, args->root);
     (void)mmgr_line_finish(&checked);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers.lock);
     EMBED_CALL(cli_servers_path_size_root_sink_internal.run_checkers, CliServersPathSizeRootSinkCtx, .root = args->root,
                .path = path, .text = text, .size = args->size, .disk = 1, .sink = sink);
     EMBED_CALL(cli_servers_path_size_root_sink_internal.check_own, CliServersPathSizeRootSinkCtx, .root = args->root,
@@ -103,7 +95,6 @@ int cli_servers_open(const CliServersRootCfg *args)
     EMBED_CALL(cli_servers_path_uri_internal.uri_get, CliServersPathUriCtx, .path = path, .uri_out = uri);
     EMBED_CALL(cli_lsp_length.key_get, CliLspLengthCfg, .uri = uri,
                .length = cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}), .key = key);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_check_open_lock);
     const int check_had = EMBED_CALL(cli_servers_uri_internal.check_open, CliServersUriCtx, .uri = uri);
     EMBED_CALL(cli_servers_uri_internal.check_open_set, CliServersUriCtx, .uri = uri, .open = 0);
     EMBED_CALL(cli_servers_key_checker_internal.let_go_clear, CliServersKeyCheckerCtx, .key = key);
@@ -141,7 +132,6 @@ int cli_servers_open(const CliServersRootCfg *args)
         EMBED_CALL(cli_servers_path_language_internal.language_note, CliServersPathLanguageCtx, .path = path,
                    .language = args->language);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_check_open_lock);
     EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = server);
     if (done)
     {
@@ -160,8 +150,6 @@ int cli_servers_change(const CliServersRootCfg *args)
     EMBED_CALL(files_text_store, ServersFilesCtx, .path = path, .text = text, .size = args->size);
     char root[CLI_PATH_MAX_LEN];
     static CliServersSink s_sink;
-    static CliLock s_sink_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_sink_lock);
     if (EMBED_CALL(files_checked_sink, ServersFilesCtx, .root = root, .sink = &s_sink))
     {
         EMBED_CALL(cli_servers_path_size_root_sink_internal.run_checkers, CliServersPathSizeRootSinkCtx, .root = root,
@@ -169,10 +157,8 @@ int cli_servers_change(const CliServersRootCfg *args)
         EMBED_CALL(cli_servers_path_size_root_sink_internal.check_own, CliServersPathSizeRootSinkCtx, .root = root,
                    .path = path, .text = text, .size = args->size, .sink = &s_sink);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_sink_lock);
     EMBED_CALL(cli_servers_path_size_language_internal.plugins_change, CliServersPathSizeLanguageCtx, .path = path,
                .text = text, .size = args->size);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_check_open_lock);
     CliLsp *const server = EMBED_CALL(cli_servers_path_lsp_internal.owner_start, CliServersPathLspCtx, .path = path);
     const int done =
         (server == NULL) ||
@@ -181,7 +167,6 @@ int cli_servers_change(const CliServersRootCfg *args)
                           .root = NULL, .path = path, .id = NULL, .text = text, .size = args->size, .err_msg = err_msg)
              : EMBED_CALL(cli_lsp_err_msg_text.change, CliLspErrMsgTextCfg, .lsp = server, .path = path, .text = text,
                           .length = args->size, .err_msg = err_msg));
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_check_open_lock);
     if (server != NULL)
     {
         EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = server);
@@ -195,11 +180,8 @@ int cli_servers_close(const CliServersPathOutErrMsgFromToCfg *args)
     VerbaLinea *err_msg = args->err_msg;
     char key[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = path, .key_out = key);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_texts_lock);
     EMBED_CALL(cli_keyed_key_beside.remove, CliKeyedKeyBesideCfg, .keyed_out = &g_cli_servers_texts, .key = key);
     EMBED_CALL(cli_keyed_key_beside.remove, CliKeyedKeyBesideCfg, .keyed_out = &g_cli_servers_parses, .key = key);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_texts_lock);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_disk_lock);
     unsigned long long read = 0ull;
     const unsigned char *const mapped = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = path,
                                                    .size_pointer = &read, .owner = &g_cli_servers_cells);
@@ -216,7 +198,6 @@ int cli_servers_close(const CliServersPathOutErrMsgFromToCfg *args)
                    .path = path, .text = disk, .size = read, .sink = &s_sink);
     }
     EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = mapped, .owner = &g_cli_servers_cells);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_disk_lock);
     EMBED_CALL(cli_servers_path_lsp_internal.plugins_close, CliServersPathLspCtx, .path = path);
     // a file the editor closes is the check's to give its server, in slices of the disk's text where it slices; a
     // server let go is not started again to close it
@@ -227,11 +208,9 @@ int cli_servers_close(const CliServersPathOutErrMsgFromToCfg *args)
     {
         return 1;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_check_open_lock);
     const int done =
         EMBED_CALL(cli_servers_path_lsp_internal.check_takes, CliServersPathLspCtx, .path = path, .lsp = server) ||
         EMBED_CALL(cli_lsp_err_msg_text.close, CliLspErrMsgTextCfg, .lsp = server, .path = path, .err_msg = err_msg);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_check_open_lock);
     EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = server);
     return done;
 }
@@ -240,7 +219,6 @@ int cli_servers_text_get(const CliServersPathOutErrMsgFromToCfg *args)
 {
     char key[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = args->path, .key_out = key);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_texts_lock);
     const char *beside = NULL;
     unsigned long long size = 0ull;
     const char *const text = EMBED_CALL(cli_keyed_key_beside.get, CliKeyedKeyBesideCfg, .keyed = &g_cli_servers_texts,
@@ -249,7 +227,6 @@ int cli_servers_text_get(const CliServersPathOutErrMsgFromToCfg *args)
     {
         mmgr_line_put_n(args->out, text, size);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_texts_lock);
     return text != NULL;
 }
 
@@ -257,7 +234,6 @@ char *cli_servers_text_take(const CliServersPathSizeKindCfg *args)
 {
     char key[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = args->path, .key_out = key);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_texts_lock);
     const char *beside = NULL;
     const char *const text = EMBED_CALL(cli_keyed_key_beside.get, CliKeyedKeyBesideCfg, .keyed = &g_cli_servers_texts,
                                         .key = key, .beside = &beside, .size = args->size_pointer);
@@ -269,6 +245,5 @@ char *cli_servers_text_take(const CliServersPathSizeKindCfg *args)
         memor.cpy(&(MemoriaCfg){.dst = taken, .src = text, .bytes = (size_t)*args->size_pointer});
         taken[*args->size_pointer] = '\0';
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_texts_lock);
     return taken;
 }

@@ -6,6 +6,7 @@
 // pixel for pixel, and one stage while it stands still
 #include "../../../../../ui/gui/src/parts/busy.h"
 #include "../cli/cli_check.h"
+#include "test_clock.h"
 
 #include <math.h>
 

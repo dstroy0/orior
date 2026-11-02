@@ -130,8 +130,6 @@ typedef struct
     unsigned int from;
     unsigned int to;
     GuiRect caret;
-    unsigned long long one;
-    unsigned long long other;
     const char *text;
     unsigned long long size;
     const char *command;
@@ -244,7 +242,7 @@ EMBED_INLINE unsigned long long window_call(const GuiWindowCtx *args)
     return ticket;
 }
 
-_Static_assert(GUI_BUSY_ASKS > ((2u * GUI_LINK_PENDING) + GUI_LINK_WORKERS + GUI_LINK_DONE),
+_Static_assert(GUI_BUSY_ASKS > (GUI_LINK_WORKERS * (GUI_LINK_CALLS + 1u + GUI_LINK_ITEMS)),
                "the circle keeps every ask the link can stand unanswered");
 
 // an input of the view's sent, `{"key", "kind", ...}` with `more` after the kind, its own members written already
@@ -424,7 +422,7 @@ EMBED_INLINE void window_view_move(const GuiWindowCtx *args)
     if (!args->window->view_told || (args->window->view_told_top != args->window->editor.top) ||
         (args->window->view_told_rows != EMBED_CALL(window_rows, GuiWindowCtx, .window_read = args->window)))
     {
-        args->window->viewport_notify_deadline_ms = cli_clock_milliseconds();
+        args->window->viewport_notify_deadline_ms = cli_clock_milliseconds() + GUI_VIEWPORT_DEBOUNCE_MS;
     }
 }
 
@@ -617,8 +615,8 @@ void gui_window_claim_layout(const GuiWindowClaimCfg *args)
                              .palette = args->window->palette, .menubar = &args->window->menubar,
                              .glyphs = &args->window->glyphs, .time_ms = args->time_ms);
         }
-        const GuiStage *const stage =
-            EMBED_CALL(gui_stages_read.at, GuiStagesReadCfg, .stages_read = &args->window->stages, .time_ms = args->time_ms);
+        const GuiStage *const stage = EMBED_CALL(gui_stages_read.at, GuiStagesReadCfg,
+                                                 .stages_read = &args->window->stages, .time_ms = args->time_ms);
         if (stage != NULL)
         {
             args->window->stage = stage;
@@ -634,7 +632,8 @@ void gui_window_claim_layout(const GuiWindowClaimCfg *args)
     args->window->stages_stale = 0;
     EMBED_CALL(gui_stages_claim.free, GuiStagesClaimCfg, .stages = &args->window->stages);
     GuiClaimNumbers numbers;
-    EMBED_CALL(gui_claim_state.numbers, GuiClaimStateCfg, .claim = &args->window->claim, .time_ms = args->time_ms, .numbers = &numbers);
+    EMBED_CALL(gui_claim_state.numbers, GuiClaimStateCfg, .claim = &args->window->claim, .time_ms = args->time_ms,
+               .numbers = &numbers);
     EMBED_CALL(gui_frame.claim, GuiFrameCfg, .frame = &args->window->frame, .numbers = &numbers);
     EMBED_CALL(gui_menubar_json.titles_layout, GuiMenubarJsonCfg, .menubar = &args->window->menubar,
                .glyphs = &args->window->glyphs, .frame = &args->window->frame);
@@ -971,10 +970,9 @@ int gui_window_resize(const GuiWindowWidthCfg *args)
     args->window->shown = NULL;
     EMBED_CALL(gui_base_width.resize, GuiBaseWidthCfg, .base = &args->window->base,
                .width = EMBED_CALL(gui_raster_width.pitch, GuiRasterWidthCfg, .width = width), .height = height);
-    const int laid =
-        EMBED_CALL(gui_ground_raster.layout, GuiGroundRasterCfg, .ground = &args->window->ground,
-                   .raster = &args->window->framebuffer.raster[GUI_FRAMEBUFFER_GROUND], .width = width,
-                   .height = height, .scale = scale, .palette = args->window->palette);
+    const int laid = EMBED_CALL(gui_ground_raster.layout, GuiGroundRasterCfg, .ground = &args->window->ground,
+                                .raster = &args->window->framebuffer.raster[GUI_FRAMEBUFFER_GROUND], .width = width,
+                                .height = height, .scale = scale, .palette = args->window->palette);
     EMBED_CALL(gui_frame_scale.layout, GuiFrameScaleCfg, .frame = &args->window->frame, .width = width,
                .height = height, .scale = scale);
     EMBED_CALL(gui_frame_shown.side, GuiFrameShownCfg, .frame = &args->window->frame,
@@ -1044,7 +1042,8 @@ void gui_window_show(const GuiWindowShownCfg *args)
 EMBED_INLINE unsigned int window_caret_slid(const GuiWindowCtx *args)
 {
     // the share of the slide passed, 0 to 1, is a double's
-    const double eased = (1.0 - cos(3.14159265358979323846 * ((double)args->through / (double)GUI_CARET_FADE_MS))) / 2.0;
+    const double eased =
+        (1.0 - cos(3.14159265358979323846 * ((double)args->through / (double)GUI_CARET_FADE_MS))) / 2.0;
     // an ink between two bytes, rounded, is a byte
     return (unsigned int)((double)args->from + (((double)args->to - (double)args->from) * eased) + 0.5);
 }
@@ -1066,14 +1065,16 @@ static void window_caret_init(void)
             ink = EMBED_CALL(window_caret_slid, GuiWindowCtx, .through = at - GUI_CARET_STEADY_MS, .from = 255u,
                              .to = GUI_CARET_DIM);
         }
-        else if ((at >= GUI_CARET_STEADY_MS + GUI_CARET_FADE_MS) && (at < (2ull * GUI_CARET_STEADY_MS) + GUI_CARET_FADE_MS))
+        else if ((at >= GUI_CARET_STEADY_MS + GUI_CARET_FADE_MS) &&
+                 (at < (2ull * GUI_CARET_STEADY_MS) + GUI_CARET_FADE_MS))
         {
             ink = GUI_CARET_DIM;
         }
         else if (at >= (2ull * GUI_CARET_STEADY_MS) + GUI_CARET_FADE_MS)
         {
-            ink = EMBED_CALL(window_caret_slid, GuiWindowCtx, .through = at - (2ull * GUI_CARET_STEADY_MS) - GUI_CARET_FADE_MS,
-                             .from = GUI_CARET_DIM, .to = 255u);
+            ink = EMBED_CALL(window_caret_slid, GuiWindowCtx,
+                             .through = at - (2ull * GUI_CARET_STEADY_MS) - GUI_CARET_FADE_MS, .from = GUI_CARET_DIM,
+                             .to = 255u);
         }
         // an ink is a byte
         s_caret_ink[stage] = (unsigned char)ink;
@@ -1081,7 +1082,7 @@ static void window_caret_init(void)
     s_caret_ink_made = 1;
 }
 
-// the caret's ink at `now`, 0 to 255, where its breath stands since it began; full while no cursor stands or less
+// the caret's ink, 0 to 255, where its breath stands since it began; full while no cursor stands or less
 // motion is asked for
 EMBED_INLINE unsigned int window_caret_ink(const GuiWindowCtx *args)
 {
@@ -1094,11 +1095,12 @@ EMBED_INLINE unsigned int window_caret_ink(const GuiWindowCtx *args)
     {
         window_caret_init();
     }
-    return s_caret_ink[((now_ms - args->window_read->caret_blink_start_ms) % GUI_CARET_BLINK_PERIOD_MS) / GUI_CARET_BLINK_STEP_MS];
+    return s_caret_ink[((now_ms - args->window_read->caret_blink_start_ms) % GUI_CARET_BLINK_PERIOD_MS) /
+                       GUI_CARET_BLINK_STEP_MS];
 }
 
-// the milliseconds until the caret's ink next changes: the rest's end while it rests, else 1, which the system holds
-// to the display's refresh; 0 where no cursor stands
+// the deadline the caret's ink next changes at: the steady time's end while it is steady, else the next millisecond,
+// which the system holds to the display's refresh; 0 where no cursor stands
 EMBED_INLINE unsigned long long window_caret_deadline_ms(const GuiWindowCtx *args)
 {
     const unsigned long long now_ms = cli_clock_milliseconds();
@@ -1106,17 +1108,17 @@ EMBED_INLINE unsigned long long window_caret_deadline_ms(const GuiWindowCtx *arg
     {
         return 0ull;
     }
-    const unsigned long long at = (now_ms - args->window_read->caret_blink_start_ms) % GUI_CARET_BLINK_PERIOD_MS;
-    if (at < GUI_CARET_STEADY_MS)
+    const unsigned long long phase_ms = (now_ms - args->window_read->caret_blink_start_ms) % GUI_CARET_BLINK_PERIOD_MS;
+    if (phase_ms < GUI_CARET_STEADY_MS)
     {
-        return GUI_CARET_STEADY_MS - at;
+        return now_ms + GUI_CARET_STEADY_MS - phase_ms;
     }
-    const unsigned long long dim_rest_ends = (2ull * GUI_CARET_STEADY_MS) + GUI_CARET_FADE_MS;
-    if ((at >= GUI_CARET_STEADY_MS + GUI_CARET_FADE_MS) && (at < dim_rest_ends))
+    const unsigned long long dim_end_ms = (2ull * GUI_CARET_STEADY_MS) + GUI_CARET_FADE_MS;
+    if ((phase_ms >= GUI_CARET_STEADY_MS + GUI_CARET_FADE_MS) && (phase_ms < dim_end_ms))
     {
-        return dim_rest_ends - at;
+        return now_ms + dim_end_ms - phase_ms;
     }
-    return 1ull;
+    return now_ms + 1ull;
 }
 
 void gui_window_tick(const GuiWindowCfg *args)
@@ -1137,11 +1139,10 @@ void gui_window_tick(const GuiWindowCfg *args)
         EMBED_CALL(window_map_request, GuiWindowCtx, .window = args->window);
     }
     args->window->claim_moving = moving;
-    args->window->owed =
-        EMBED_CALL(gui_wordmark_frame.tick, GuiWordmarkFrameCfg, .wordmark = &args->window->wordmark,
-                   .glyphs = &args->window->glyphs, .icons = &args->window->icons, .palette = args->window->palette,
-                   .frame = &args->window->frame) ||
-        args->window->owed;
+    args->window->owed = EMBED_CALL(gui_wordmark_frame.tick, GuiWordmarkFrameCfg, .wordmark = &args->window->wordmark,
+                                    .glyphs = &args->window->glyphs, .icons = &args->window->icons,
+                                    .palette = args->window->palette, .frame = &args->window->frame) ||
+                         args->window->owed;
     // the ground where its loop shows a change, and the menus where a rest has ended
     args->window->owed = EMBED_CALL(gui_ground_raster.tick, GuiGroundRasterCfg, .ground = &args->window->ground,
                                     .palette = args->window->palette) ||
@@ -1164,22 +1165,22 @@ void gui_window_tick(const GuiWindowCfg *args)
     {
         EMBED_CALL(window_signature_request, GuiWindowCtx, .window = args->window, .server = 0);
     }
-    if ((args->window->viewport_notify_deadline_ms != 0ull) && (now_ms - args->window->viewport_notify_deadline_ms >= GUI_VIEWPORT_DEBOUNCE_MS))
+    if ((args->window->viewport_notify_deadline_ms != 0ull) && (now_ms >= args->window->viewport_notify_deadline_ms))
     {
         EMBED_CALL(window_view_tell, GuiWindowCtx, .window = args->window);
     }
     // the busy circle coming or going owes a frame whole
-    args->window->owed = EMBED_CALL(gui_busy_ticket.tick, GuiBusyTicketCfg, .busy = &args->window->busy) ||
-                         args->window->owed;
+    args->window->owed =
+        EMBED_CALL(gui_busy_ticket.tick, GuiBusyTicketCfg, .busy = &args->window->busy) || args->window->owed;
     // the caret where its ink has changed and the circle where its stage has: where nothing else owes a frame, each
     // drawn again pays it alone, and a frame owed after this tick is still paid whole; no caret stands while the view
     // is not drawn, and a caret under the circle owes the frame whole, neither knowing what the other has laid
-    const int caret_changed = !args->window->wordmark.stands &&
-                              (EMBED_CALL(window_caret_ink, GuiWindowCtx, .window_read = args->window) !=
-                               args->window->caret_ink);
-    const int busy_stepped = args->window->busy.under_saved && !args->window->off_screen &&
-                             (EMBED_CALL(gui_busy.stage_at, GuiBusyCfg, .busy_read = &args->window->busy) !=
-                              args->window->busy.stage_drawn);
+    const int caret_changed =
+        !args->window->wordmark.stands &&
+        (EMBED_CALL(window_caret_ink, GuiWindowCtx, .window_read = args->window) != args->window->caret_ink);
+    const int busy_stepped =
+        args->window->busy.under_saved && !args->window->off_screen &&
+        (EMBED_CALL(gui_busy.stage_at, GuiBusyCfg, .busy_read = &args->window->busy) != args->window->busy.stage_drawn);
     const int crossed =
         args->window->busy.under_saved && args->window->editor.caret_saved &&
         !EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg,
@@ -1237,8 +1238,7 @@ void gui_window_flip(const GuiWindowCfg *args)
 GuiRect gui_window_caret_draw(const GuiWindowCfg *args)
 {
     args->window->caret_alone = 0;
-    args->window->caret_ink =
-        EMBED_CALL(window_caret_ink, GuiWindowCtx, .window_read = args->window);
+    args->window->caret_ink = EMBED_CALL(window_caret_ink, GuiWindowCtx, .window_read = args->window);
     args->window->editor.caret_ink = args->window->caret_ink;
     return EMBED_CALL(gui_editor_raster.caret_redrawn, GuiEditorRasterCfg, .editor = &args->window->editor,
                       .raster = (args->window->shown != NULL) ? args->window->shown : args->window->raster,
@@ -1252,57 +1252,35 @@ GuiRect gui_window_busy_draw(const GuiWindowCfg *args)
                       .raster = (args->window->shown != NULL) ? args->window->shown : args->window->raster);
 }
 
-// the milliseconds until the view's rest is told, 0 where no telling waits
-EMBED_INLINE unsigned long long window_view_due(const GuiWindowCtx *args)
+unsigned long long gui_window_timeout_ms(const GuiWindowInputCfg *args)
 {
-    const unsigned long long now_ms = cli_clock_milliseconds();
-    if (args->window_read->viewport_notify_deadline_ms == 0ull)
+    const GuiWindow *const window = args->window_read;
+    const unsigned long long deadlines[] = {
+        EMBED_CALL(gui_claim.next_deadline_ms, GuiClaimCfg, .claim_read = &window->claim),
+        EMBED_CALL(gui_hover.next_deadline_ms, GuiHoverCfg, .hover_read = &window->hover),
+        EMBED_CALL(gui_signature.next_deadline_ms, GuiSignatureCfg, .signature_read = &window->signature),
+        EMBED_CALL(gui_ground_clock.next_deadline_ms, GuiGroundClockCfg, .ground = &window->ground),
+        EMBED_CALL(gui_wordmark_read.next_deadline_ms, GuiWordmarkReadCfg, .wordmark_read = &window->wordmark),
+        EMBED_CALL(gui_menubar.next_deadline_ms, GuiMenubarCfg, .menubar_read = &window->menubar),
+        EMBED_CALL(window_caret_deadline_ms, GuiWindowCtx, .window_read = window),
+        // the circle's clock stops while the window is off screen, an answer waking it as any does
+        window->off_screen ? 0ull : EMBED_CALL(gui_busy.next_deadline_ms, GuiBusyCfg, .busy_read = &window->busy),
+        window->viewport_notify_deadline_ms,
+    };
+    unsigned long long earliest = 0ull;
+    for (unsigned int index = 0u; index < (sizeof(deadlines) / sizeof(deadlines[0])); index += 1u)
+    {
+        if ((deadlines[index] != 0ull) && ((earliest == 0ull) || (deadlines[index] < earliest)))
+        {
+            earliest = deadlines[index];
+        }
+    }
+    if (earliest == 0ull)
     {
         return 0ull;
     }
-    const unsigned long long passed = now_ms - args->window_read->viewport_notify_deadline_ms;
-    return (passed < GUI_VIEWPORT_DEBOUNCE_MS) ? GUI_VIEWPORT_DEBOUNCE_MS - passed : 1ull;
-}
-
-// the lesser of two waits, 0 standing for never
-EMBED_INLINE unsigned long long window_sooner(const GuiWindowCtx *args)
-{
-    if (args->one == 0ull)
-    {
-        return args->other;
-    }
-    return ((args->other != 0ull) && (args->other < args->one)) ? args->other : args->one;
-}
-
-unsigned long long gui_window_timeout_ms(const GuiWindowInputCfg *args)
-{
-    unsigned long long due =
-        EMBED_CALL(gui_claim.next_deadline_ms, GuiClaimCfg, .claim_read = &args->window_read->claim);
-    due = EMBED_CALL(window_sooner, GuiWindowCtx, .one = due,
-                     .other =
-                         EMBED_CALL(gui_hover.next_deadline_ms, GuiHoverCfg, .hover_read = &args->window_read->hover));
-    due = EMBED_CALL(window_sooner, GuiWindowCtx, .one = due,
-                     .other = EMBED_CALL(gui_signature.next_deadline_ms, GuiSignatureCfg,
-                                         .signature_read = &args->window_read->signature));
-    due = EMBED_CALL(
-        window_sooner, GuiWindowCtx, .one = due,
-        .other = EMBED_CALL(gui_ground_clock.next_deadline_ms, GuiGroundClockCfg, .ground = &args->window_read->ground));
-    due = EMBED_CALL(window_sooner, GuiWindowCtx, .one = due,
-                     .other = EMBED_CALL(gui_wordmark_read.next_deadline_ms, GuiWordmarkReadCfg,
-                                         .wordmark_read = &args->window_read->wordmark));
-    due = EMBED_CALL(
-        window_sooner, GuiWindowCtx, .one = due,
-        .other = EMBED_CALL(gui_menubar.next_deadline_ms, GuiMenubarCfg, .menubar_read = &args->window_read->menubar));
-    due = EMBED_CALL(window_sooner, GuiWindowCtx, .one = due,
-                     .other = EMBED_CALL(window_caret_deadline_ms, GuiWindowCtx, .window_read = args->window_read));
-    // the circle's clock stands while the window is off screen, an answer waking it as any does
-    due = EMBED_CALL(window_sooner, GuiWindowCtx, .one = due,
-                     .other =
-                         args->window_read->off_screen
-                             ? 0ull
-                             : EMBED_CALL(gui_busy.next_deadline_ms, GuiBusyCfg, .busy_read = &args->window_read->busy));
-    return EMBED_CALL(window_sooner, GuiWindowCtx, .one = due,
-                      .other = EMBED_CALL(window_view_due, GuiWindowCtx, .window_read = args->window_read));
+    const unsigned long long now_ms = cli_clock_milliseconds();
+    return (earliest > now_ms) ? earliest - now_ms : 1ull;
 }
 
 void gui_window_start(const GuiWindowCfg *args)
@@ -2347,7 +2325,7 @@ EMBED_INLINE void window_mark_session_by_name(const GuiWindowCtx *args)
     (void)EMBED_CALL(gui_wordmark_text.session_read, GuiWordmarkTextCfg, .text = args->named, .size = size,
                      .session = &session);
     const int first = EMBED_CALL(gui_wordmark.first_in, GuiWordmarkCfg, .saved = &args->window->wordmark.saved,
-                                 .now_wordmark_session_pointer = &session);
+                                 .current_session = &session);
     if (args->named != NULL)
     {
         char text[2048];
@@ -2546,7 +2524,8 @@ static void window_take(const GuiLinkEachCfg *args)
         window->asked_hover = 0ull;
         if (args->ok && (root != CLI_JSON_NONE))
         {
-            (void)EMBED_CALL(gui_hover_state.put, GuiHoverStateCfg, .hover = &window->hover, .json = &json, .root = root);
+            (void)EMBED_CALL(gui_hover_state.put, GuiHoverStateCfg, .hover = &window->hover, .json = &json,
+                             .root = root);
         }
         // the answer without the server shown, the server is asked where the pointer still rests on the cell
         if (window->hover_again && window->hover.asked && (window->hover.row == window->hover.asked_row) &&
@@ -2772,15 +2751,14 @@ static void window_take(const GuiLinkEachCfg *args)
 EMBED_INLINE void window_memory_request(const GuiWindowCtx *args)
 {
     const unsigned long long now_ms = cli_clock_milliseconds();
-    if ((args->window->asked_memory != 0ull) ||
-        ((args->window->memory_poll_deadline_ms != 0ull) && (now_ms - args->window->memory_poll_deadline_ms < GUI_MEMORY_POLL_MS)))
+    if ((args->window->asked_memory != 0ull) || (now_ms < args->window->memory_poll_deadline_ms))
     {
         return;
     }
     char text[8];
     VerbaLinea arguments = {text, sizeof(text), 0ull};
     mmgr_line_put(&arguments, "{}");
-    args->window->memory_poll_deadline_ms = now_ms;
+    args->window->memory_poll_deadline_ms = now_ms + GUI_MEMORY_POLL_MS;
     args->window->asked_memory = EMBED_CALL(window_call, GuiWindowCtx, .window = args->window, .own = 1,
                                             .name = "memory_usage", .request = &arguments);
 }
@@ -3021,9 +2999,8 @@ void gui_window_draw(const GuiWindowCfg *args)
                .icons = &args->window->icons, .palette = palette, .frame = frame, .status = &status);
     // the large name as it stands or goes, the funnel over the whole window, and the eye over the bar and the strip
     const unsigned long long drawn_ms = cli_clock_milliseconds();
-    EMBED_CALL(gui_wordmark_frame.draw, GuiWordmarkFrameCfg, .wordmark = &args->window->wordmark,
-               .raster = raster, .glyphs = &args->window->glyphs, .icons = &args->window->icons, .palette = palette,
-               .frame = frame);
+    EMBED_CALL(gui_wordmark_frame.draw, GuiWordmarkFrameCfg, .wordmark = &args->window->wordmark, .raster = raster,
+               .glyphs = &args->window->glyphs, .icons = &args->window->icons, .palette = palette, .frame = frame);
     EMBED_CALL(gui_wordmark_frame.eye_draw, GuiWordmarkFrameCfg, .wordmark_read = &args->window->wordmark,
                .raster = raster, .icons = &args->window->icons, .palette = palette, .frame = frame);
     // the menus open go over every part
@@ -3047,8 +3024,8 @@ void gui_window_draw(const GuiWindowCfg *args)
         args->window->editor.caret_saved = 0;
     }
     // the busy circle over all of it, the pixels under it saved for its stages' steps
-    EMBED_CALL(gui_busy_frame.draw, GuiBusyFrameCfg, .busy = &args->window->busy, .raster = raster,
-               .palette = palette, .frame = frame);
+    EMBED_CALL(gui_busy_frame.draw, GuiBusyFrameCfg, .busy = &args->window->busy, .raster = raster, .palette = palette,
+               .frame = frame);
 }
 
 unsigned int gui_window_hit(const GuiWindowInputCfg *args)
@@ -3126,7 +3103,8 @@ EMBED_INLINE void window_scrolled_to(const GuiWindowCtx *args)
     const unsigned long long top_before = args->window->editor.top;
     // the lines between the tops are far inside what a long long represents
     EMBED_CALL(window_scroll, GuiWindowCtx, .window = args->window,
-               .delta = (args->top >= top_before) ? (long long)(args->top - top_before) : -(long long)(top_before - args->top));
+               .delta = (args->top >= top_before) ? (long long)(args->top - top_before)
+                                                  : -(long long)(top_before - args->top));
 }
 
 static void window_wheel(const GuiInputHandlerCfg *args)
@@ -3362,8 +3340,8 @@ static void window_press(const GuiInputHandlerCfg *args)
     const int near =
         ((input->x - window->clicked_x) <= GUI_CLICK_NEAR) && ((window->clicked_x - input->x) <= GUI_CLICK_NEAR) &&
         ((input->y - window->clicked_y) <= GUI_CLICK_NEAR) && ((window->clicked_y - input->y) <= GUI_CLICK_NEAR);
-    window->clicks = ((now_ms - window->double_click_deadline_ms) <= GUI_DOUBLE_CLICK_MS) && near ? window->clicks + 1u : 1u;
-    window->double_click_deadline_ms = now_ms;
+    window->clicks = (now_ms <= window->double_click_deadline_ms) && near ? window->clicks + 1u : 1u;
+    window->double_click_deadline_ms = now_ms + GUI_DOUBLE_CLICK_MS;
     window->clicked_x = input->x;
     window->clicked_y = input->y;
     window->dragging =

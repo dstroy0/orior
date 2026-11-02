@@ -7,6 +7,7 @@
 // the panes' contents and corners and the work's outline; and a blend of the whole raster at half alpha, timed alone, the one blend
 // every drawing goes through
 #include "../../../../../ui/gui/src/parts/chrome.h"
+#include "test_clock.h"
 #include "../../../../../ui/gui/src/parts/glass.h"
 #include "../../../../../ui/gui/src/window.h"
 

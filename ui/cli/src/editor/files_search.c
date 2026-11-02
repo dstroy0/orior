@@ -34,7 +34,6 @@ typedef struct
 } CliSearch;
 
 static CliSearch s_search = {.wake = CLI_WAKE_INIT};
-static CliLock s_lock = CLI_LOCK_INIT;
 
 // A file's hits as a worker finds them: the file and the hits it has given
 typedef struct
@@ -47,7 +46,6 @@ typedef struct
 static void cli_hit_put(const CliHitPutCfg *args)
 {
     CliFileHits *const file = (CliFileHits *)args->context;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     CliSearchHit *const hit =
         EMBED_CALL(cli_files_search_hits.hits_take, CliFilesSearchHitsCfg, .hits = &s_search.hits);
     if (hit != NULL)
@@ -58,7 +56,6 @@ static void cli_hit_put(const CliHitPutCfg *args)
         memor.cpy(&(MemoriaCfg){.dst = hit->text, .src = args->text, .bytes = copied_len});
     }
     file->order += 1u;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 typedef struct
@@ -91,10 +88,8 @@ static void cli_worker(void *context)
     (void)context;
     for (;;)
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
         const unsigned int index = s_search.next;
         s_search.next += (index < s_search.paths.count) ? 1u : 0u;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         if (index >= s_search.paths.count)
         {
             break;
@@ -122,10 +117,8 @@ static void cli_worker(void *context)
             }
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     s_search.workers -= 1u;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_search.wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_search.wake);
 }
 
 // The patterns a search's files are picked against: the search's own and the set it was given
@@ -173,16 +166,12 @@ EMBED_INLINE void cli_search_run(const FilesSearchCtx *args)
     unsigned int started = 0u;
     for (unsigned int at = 0u; at < workers; at += 1u)
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
         s_search.workers += 1u;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         s_search.worker_thread[started] = (CliThread){cli_worker, NULL, CLI_PRIORITY_WORK};
         const int one =
             EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_search.worker_thread[started]);
         started += one ? 1u : 0u;
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
         s_search.workers -= one ? 0u : 1u;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     }
     if (started == 0u)
     {
@@ -190,12 +179,10 @@ EMBED_INLINE void cli_search_run(const FilesSearchCtx *args)
         s_search.workers = 1u;
         cli_worker(NULL);
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     while (s_search.workers > 0u)
     {
-        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_search.wake, .lock = &s_lock);
+        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_search.wake);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     CliSearchHits *const hits = &s_search.hits;
     EMBED_CALL(cli_files_search_hits.hits_sort, CliFilesSearchHitsCfg, .hits = hits);
     const unsigned int shown = (hits->lives < CLI_HITS_MOST) ? hits->lives : CLI_HITS_MOST;
@@ -216,13 +203,11 @@ int cli_files_search(const CliFilesRootOutErrMsgCfg *args)
     const char *root = args->root;
     static CliPatterns s_patterns;
     static CliWords s_specs;
-    static CliLock s_turn = CLI_LOCK_INIT;
     if (args->query[0] == '\0')
     {
         mmgr_line_put(args->out, "[]");
         return 1;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_turn);
     EMBED_CALL(cli_patterns_part.get, CliPatternsPartCfg, .part = CLI_PART_SEARCH, .patterns_out = &s_patterns);
     s_specs.count = 0u;
     s_specs.used = 0u;
@@ -245,7 +230,6 @@ int cli_files_search(const CliFilesRootOutErrMsgCfg *args)
                                     .set = args->set, .out = args->out, .err_msg = args->err_msg);
         if (came != CLI_GIT_SEARCH_NONE)
         {
-            EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_turn);
             return came == CLI_GIT_SEARCH_FOUND;
         }
     }
@@ -269,10 +253,9 @@ int cli_files_search(const CliFilesRootOutErrMsgCfg *args)
                     letters,     args->how};
     s_search.next = 0u;
     s_search.workers = 0u;
-    EMBED_CALL(cli_files_search_hits.hits_take, CliFilesSearchHitsCfg, .hits = &s_search.hits);
+    EMBED_CALL(cli_files_search_hits.hits_init, CliFilesSearchHitsCfg, .hits = &s_search.hits);
     EMBED_CALL(cli_search_run, FilesSearchCtx, .out = args->out);
     EMBED_CALL(cli_files_search_hits.hits_free, CliFilesSearchHitsCfg, .hits = &s_search.hits);
     EMBED_CALL(cli_files_picked_internal.picked_let, CliFilesPickedCtx, .picked = &s_search.paths);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_turn);
     return 1;
 }

@@ -33,7 +33,6 @@ typedef struct
 } CliServeDetachedListRoom;
 
 static CliServeDetachedListRoom *s_list_room;
-static CliLock s_list_lock = CLI_LOCK_INIT;
 
 // an entry of the runs folder taken where it is a detached run's job file: let go where the run is older than a week,
 // retained where the run is of the tree open
@@ -92,22 +91,18 @@ int cli_serve_runs_detach(const CliServeAnswerCfg *args)
     VerbaLinea *err_msg = args->err_msg;
     char detached_dir[CLI_PATH_MAX_LEN];
     char root[CLI_PATH_MAX_LEN];
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_serve.lock);
     const int has_detached_dir = g_cli_serve.has_detached_dir && g_cli_serve.has_root;
     memor.cpy(&(MemoriaCfg){.dst = detached_dir, .src = g_cli_serve.detached_dir, .bytes = sizeof(detached_dir)});
     memor.cpy(&(MemoriaCfg){.dst = root, .src = g_cli_serve.root, .bytes = sizeof(root)});
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_serve.lock);
     if (!has_detached_dir)
     {
         mmgr_line_put(out, "[]");
         return 1;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_list_lock);
     s_list_room = EMBED_CALL(cli_serve_size_err_msg_internal.cell, CliServeSizeErrMsgCtx, .size = sizeof(*s_list_room),
                              .what = "the detached runs' listing", .err_msg = err_msg);
     if (s_list_room == NULL)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_list_lock);
         return 0;
     }
     mmgr_line_ch(out, '[');
@@ -182,7 +177,6 @@ int cli_serve_runs_detach(const CliServeAnswerCfg *args)
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &s_list_room->json);
     g_cli_cells->persistent_buf_release(s_list_room, &g_cli_window_cells);
     s_list_room = NULL;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_list_lock);
     mmgr_line_ch(out, ']');
     return 1;
 }

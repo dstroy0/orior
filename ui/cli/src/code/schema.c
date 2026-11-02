@@ -13,11 +13,9 @@
 
 CliSchemaRead *g_cli_schema_read;
 CliSchemaStore *g_cli_schema_store;
-CliLock g_cli_schema_lock = CLI_LOCK_INIT;
 
 int cli_schema_lock(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_schema_lock);
     g_cli_schema_read = g_cli_cells->persistent_buf_alloc(sizeof(*g_cli_schema_read), &g_cli_code_cells);
     g_cli_schema_store = g_cli_cells->persistent_buf_alloc(sizeof(*g_cli_schema_store), &g_cli_code_cells);
     if (g_cli_schema_read != NULL)
@@ -67,7 +65,6 @@ void cli_schema_release(void)
     g_cli_cells->persistent_buf_release(g_cli_schema_read, &g_cli_code_cells);
     g_cli_schema_store = NULL;
     g_cli_schema_read = NULL;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_schema_lock);
 }
 
 static CliBuildFindings s_found;

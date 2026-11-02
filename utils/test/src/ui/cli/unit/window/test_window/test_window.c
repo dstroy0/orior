@@ -22,7 +22,6 @@ typedef struct
 // comes and the waiter woken
 typedef struct
 {
-    CliLock lock;
     CliWake wake;
     char output[1u << 16u];
     unsigned long long size;
@@ -32,7 +31,7 @@ typedef struct
 static const CliWindowArea s_main_monitor[1] = {{0, 0, 1920u, 1080u}};
 static const CliWindowArea s_both_monitors[2] = {{0, 0, 1920u, 1080u}, {1920, 0, 2560u, 1440u}};
 
-static TerminalOutput s_terminal = {CLI_LOCK_INIT, CLI_WAKE_INIT, {0}, 0ull, 0u};
+static TerminalOutput s_terminal = {CLI_WAKE_INIT, {0}, 0ull, 0u};
 static char s_tree[CLI_PATH_MAX_LEN];
 static char s_call_args[1u << 16u];
 static int s_window_opened;
@@ -191,7 +190,6 @@ static void event_recorded(void *context, const char *event, const char *body, u
 {
     static const char s_text[] = "\"text\":\"";
     (void)context;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_terminal.lock);
     if (cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "term-out", .cap = 64u}))
     {
         const char *const text = cellul.find(&(CatenaFinitaCfg){.src = body, .cap = size, .other = s_text, .other_cap = sizeof(s_text)});
@@ -207,14 +205,12 @@ static void event_recorded(void *context, const char *event, const char *body, u
     {
         s_terminal.ended += 1u;
     }
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_terminal.wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_terminal.lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_terminal.wake);
 }
 
 // whether the terminals' output contains `wanted` within `milliseconds`, woken as each event comes
 static int output_contains(const char *wanted, unsigned long long milliseconds)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_terminal.lock);
     unsigned long long waited = 0ull;
     int found = 0;
     while (!found && (waited < milliseconds))
@@ -222,26 +218,23 @@ static int output_contains(const char *wanted, unsigned long long milliseconds)
         found = cellul.find(&(CatenaFinitaCfg){.src = s_terminal.output, .cap = sizeof(s_terminal.output), .other = wanted, .other_cap = 64u}) != NULL;
         if (!found)
         {
-            (void)EMBED_CALL(cli_lock_internal.wake_wait_for, CliLockCtx, .wake = &s_terminal.wake, .lock = &s_terminal.lock, .milliseconds_u64 = 250ull);
+            (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &s_terminal.wake, .milliseconds_u64 = 250ull);
             waited += 250ull;
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_terminal.lock);
     return found;
 }
 
 // whether `count` terminals have ended within `milliseconds`, woken as each event comes
 static int terminals_ended(unsigned int count, unsigned long long milliseconds)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_terminal.lock);
     unsigned long long waited = 0ull;
     while ((s_terminal.ended < count) && (waited < milliseconds))
     {
-        (void)EMBED_CALL(cli_lock_internal.wake_wait_for, CliLockCtx, .wake = &s_terminal.wake, .lock = &s_terminal.lock, .milliseconds_u64 = 250ull);
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &s_terminal.wake, .milliseconds_u64 = 250ull);
         waited += 250ull;
     }
     const int ended = s_terminal.ended >= count;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_terminal.lock);
     return ended;
 }
 

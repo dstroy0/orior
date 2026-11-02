@@ -133,7 +133,6 @@ typedef struct
 
 // the inspections' lock, the tokens of the reading and their count, its comments' spans and their count, and 1 in
 // `g_cli_inspect_over` where a token or a comment did not fit (inspect_scan.c)
-extern CliLock g_cli_inspect_lock;
 extern CliInspectTok *g_cli_inspect_tok;
 extern unsigned int g_cli_inspect_toks;
 extern CliInspectSpan *g_cli_inspect_comment;

@@ -9,7 +9,6 @@
 
 // the files stored, one save at a time; each tree and text a save reads and writes is a cell of its own, sized to
 // it
-static CliLock s_lock = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -308,7 +307,6 @@ EMBED_INLINE int cli_themes_save(const StateSaveCtx *args)
 
 int cli_state_save(const CliStateFolderCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     CliJson given;
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &given,
                .node_json_node_pointer = NULL, .nodes_most = 0u, .text_out = NULL, .text_most = 0ull);
@@ -320,7 +318,6 @@ int cli_state_save(const CliStateFolderCfg *args)
                     .kind = CFG_JSON_OBJECT))
     {
         EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &given);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return 0;
     }
     // what the changes put in the settings or the state: each a key and an entry's text, read as JSON or as a string:
@@ -461,6 +458,5 @@ int cli_state_save(const CliStateFolderCfg *args)
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &state);
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &settings);
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &given);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return done;
 }

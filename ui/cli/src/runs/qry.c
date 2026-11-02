@@ -32,7 +32,6 @@ static int s_membered;
 static char s_window[CLI_PATH_MAX_LEN];
 static int s_windowed;
 static int s_window_read;
-static CliLock s_lock = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -176,11 +175,9 @@ int cli_qry_read_file_from(const CliQryPathFromCfg *args)
 
 int cli_qry_read(const CliQryPathFromCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     QryShared *const run = EMBED_CALL(cli_view, QryCtx, .path = args->path);
     if (run == NULL)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return cli_qry_path_from.read_file_from(args);
     }
     mmgr_line_put(args->out, "{\"live\":true,\"blobs\":[");
@@ -198,7 +195,6 @@ int cli_qry_read(const CliQryPathFromCfg *args)
     mmgr_line_put(args->out, ",\"stepped\":0,\"table\":false,\"panicked\":");
     mmgr_line_decimal(args->out, qry_member_viewed_panicked(run), 1u);
     mmgr_line_ch(args->out, '}');
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return 1;
 }
 
@@ -212,7 +208,6 @@ EMBED_INLINE int cli_by_name(const QryCtx *args)
 
 int cli_qry_joined_bytes(const CliQryPathOutCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     QryShared *const run = EMBED_CALL(cli_view, QryCtx, .path = args->path);
     const QryRecord *record = NULL;
     if (run != NULL)
@@ -224,10 +219,8 @@ int cli_qry_joined_bytes(const CliQryPathOutCfg *args)
                             EMBED_CALL(cli_by_name, QryCtx, .record = record, .name = args->name) ? record->blob_length
                                                                                                   : 0ull);
         }
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return 1;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     unsigned long long size = 0ull;
     const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = args->path,
                                                   .size_pointer = &size, .owner = &g_cli_runs_cells);
@@ -308,7 +301,6 @@ int cli_qry_append(const CliQryPathCfg *args)
         mmgr_line_put(args->err_msg, " is not a priority: 0 a panic, 1 critical, 2 ordinary");
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     if (!s_membered || (!cellul.eq(&(CatenaFinitaCfg){.src = s_member, .other = args->path, .cap = CLI_CELLS_POOL})))
     {
         if (s_membered)
@@ -319,7 +311,6 @@ int cli_qry_append(const CliQryPathCfg *args)
         if ((cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) >= CLI_PATH_MAX_LEN) ||
             (qry_member_joined(args->path) == NULL))
         {
-            EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
             mmgr_line_put(args->err_msg, "no writer runs for this run: ");
             mmgr_line_put(args->err_msg, args->path);
             return 0;
@@ -331,7 +322,6 @@ int cli_qry_append(const CliQryPathCfg *args)
         s_membered = 1;
     }
     const int appended = qry_member_append(args->name, bytes, args->size, args->priority) != 0ull;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     if (!appended)
     {
         mmgr_line_put(args->err_msg, args->name);
@@ -344,9 +334,7 @@ int cli_qry_ready(const CliQryPathPanickedCfg *args)
 {
     for (unsigned int tried = 0u; tried < 3000u; tried += 1u)
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
         const int viewed = EMBED_CALL(cli_view, QryCtx, .path = args->path) != NULL;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         if (viewed)
         {
             return 1;
@@ -358,7 +346,6 @@ int cli_qry_ready(const CliQryPathPanickedCfg *args)
 
 int cli_qry_stop(const CliQryPathOutCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     if (s_membered)
     {
         qry_member_parted();
@@ -366,14 +353,12 @@ int cli_qry_stop(const CliQryPathOutCfg *args)
     }
     if (qry_member_joined(args->path) == NULL)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         mmgr_line_put(args->err_msg, "no writer runs for this run: ");
         mmgr_line_put(args->err_msg, args->path);
         return 0;
     }
     qry_member_stopped();
     qry_member_parted();
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return 1;
 }
 
@@ -391,20 +376,17 @@ static void cli_window_read(void)
 
 int cli_qry_join(const CliQryCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     cli_window_read();
     const int joined = s_windowed;
     memor.cpy(&(MemoriaCfg){
         .dst = args->path_out,
         .src = joined ? s_window : "",
         .bytes = cellul.len(&(CatenaFinitaCfg){.src = joined ? s_window : "", .cap = CLI_CELLS_POOL}) + 1u});
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return joined;
 }
 
 void cli_qry_join_window(const CliQryPathPanickedCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     s_window_read = 1;
     s_windowed = (args->path != NULL) &&
                  (cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) < CLI_PATH_MAX_LEN);
@@ -412,15 +394,12 @@ void cli_qry_join_window(const CliQryPathPanickedCfg *args)
         .dst = s_window,
         .src = s_windowed ? args->path : "",
         .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_windowed ? args->path : "", .cap = CLI_CELLS_POOL}) + 1u});
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 int cli_qry_standing(const CliQryPathPanickedCfg *args)
 {
     unsigned long long *panicked = args->panicked;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     QryShared *const run = EMBED_CALL(cli_view, QryCtx, .path = args->path);
     *panicked = (run != NULL) ? qry_member_viewed_panicked(run) : 0ull;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return run != NULL;
 }

@@ -8,14 +8,12 @@
 static CliIppMessage s_request;
 static CliIppMessage s_answer;
 static unsigned int s_next = 1u;
-static CliLock s_lock = CLI_LOCK_INIT;
 
 // the request and the answer given back once the answer is read, and the lock given with them
 static void cli_jobs_let_go(void)
 {
     EMBED_CALL(cli_ipp_message_code.free, CliIppMessageCodeCfg, .message = &s_request);
     EMBED_CALL(cli_ipp_message_code.free, CliIppMessageCodeCfg, .message = &s_answer);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 int cli_ipp_status(const CliIppCodeCfg *args)
@@ -178,7 +176,6 @@ int cli_ipp_printer(const CliIppErrMsgUriPrinterCfg *args)
     static const char *const s_wanted[7] = {
         "printer-name",  "printer-make-and-model", "document-format-supported", "color-supported",
         "printer-state", "printer-state-reasons",  "printer-is-accepting-jobs"};
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     EMBED_CALL(cli_operation, IppJobsCtx, .request = &s_request, .code = 0x000bu, .uri = args->uri, .with_uri = 1);
     EMBED_CALL(cli_ipp_table.attribute, CliIppCfg, .message = &s_request, .name = "requested-attributes");
     for (unsigned int at = 0u; at < 7u; at += 1u)
@@ -214,7 +211,6 @@ int cli_ipp_printer(const CliIppErrMsgUriPrinterCfg *args)
 
 int cli_ipp_print(const CliIppSizeErrMsgCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     EMBED_CALL(cli_operation, IppJobsCtx, .request = &s_request, .code = 0x0002u, .uri = args->uri, .with_uri = 1);
     EMBED_CALL(cli_ipp_table.attribute, CliIppCfg, .message = &s_request, .name = "job-name");
     EMBED_CALL(cli_ipp_message_tag.text, CliIppMessageTagCfg, .message = &s_request, .tag = CLI_IPP_NAME,
@@ -260,7 +256,6 @@ int cli_ipp_print(const CliIppSizeErrMsgCfg *args)
 int cli_ipp_job_state(const CliIppErrMsgUriCfg *args)
 {
     int *state = args->state;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     EMBED_CALL(cli_operation, IppJobsCtx, .request = &s_request, .code = 0x0009u, .uri = args->uri, .with_uri = 1);
     EMBED_CALL(cli_ipp_table.attribute, CliIppCfg, .message = &s_request, .name = "job-id");
     EMBED_CALL(cli_ipp_message_kind.number, CliIppMessageKindCfg, .message = &s_request, .kind = CLI_IPP_INTEGER,
@@ -294,7 +289,6 @@ int cli_ipp_job_state(const CliIppErrMsgUriCfg *args)
 
 int cli_ipp_cancel(const CliIppErrMsgUriCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     EMBED_CALL(cli_operation, IppJobsCtx, .request = &s_request, .code = 0x0008u, .uri = args->uri, .with_uri = 1);
     EMBED_CALL(cli_ipp_table.attribute, CliIppCfg, .message = &s_request, .name = "job-id");
     EMBED_CALL(cli_ipp_message_kind.number, CliIppMessageKindCfg, .message = &s_request, .kind = CLI_IPP_INTEGER,
@@ -317,7 +311,6 @@ int cli_ipp_cups_printers(const CliIppErrMsgHostCfg *args)
     mmgr_line_decimal(&line, args->port_value, 1u);
     mmgr_line_ch(&line, '/');
     mmgr_line_finish(&line);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     EMBED_CALL(cli_operation, IppJobsCtx, .request = &s_request, .code = 0x4002u, .uri = uri, .with_uri = 0);
     EMBED_CALL(cli_ipp_table.attribute, CliIppCfg, .message = &s_request, .name = "requested-attributes");
     for (unsigned int at = 0u; at < 4u; at += 1u)

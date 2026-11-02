@@ -1,9 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// claim.c: the claim's timers and slides. A timer is a time it is due, 0 for none; each is run as the clock passes
-// it. A slide is sent to a number from wherever it stands, as a style transition is, and a room's slide waits one
-// slide before it runs where its edge's part is coming in, so the work takes the part's room once the part spans its
-// edge
+// claim.c: the claim's timers and slides. A timer is a deadline, 0 while disarmed, run once the clock passes it. A
+// slide is sent to a number from wherever it stands, as a style transition is, and a room's slide waits one slide
+// before it runs where its edge's part is coming in, so the work takes the part's room once the part spans its edge
 #include "claim.h"
 
 #include "../../cli/src/command_line/cli_internal.h"
@@ -30,14 +29,14 @@ typedef struct
     GuiSlide *slide;
     int to;
     unsigned long long time_ms;
-    unsigned long long delay;
+    unsigned long long delay_ms;
     unsigned int zone;
     int x;
     int y;
-    unsigned long long when;
+    unsigned long long end_ms;
     const GuiSlide *slide_read;
-    unsigned long long one_u64;
-    unsigned long long other_u64;
+    unsigned long long first_ms;
+    unsigned long long second_ms;
     int claim_i32;
     int reveal;
     int *last;
@@ -108,7 +107,7 @@ int gui_ease(const GuiClaimShareCfg *args)
 
 int gui_slide_at(const GuiClaimSlideCfg *args)
 {
-    const unsigned long long start = args->slide->start_ms + args->slide->delay;
+    const unsigned long long start = args->slide->start_ms;
     if (args->time_ms <= start)
     {
         return args->slide->from;
@@ -127,24 +126,20 @@ int gui_slide_at(const GuiClaimSlideCfg *args)
 
 void gui_slide_to(const GuiClaimTargetCfg *args)
 {
-    const unsigned long long now_ms = cli_clock_milliseconds();
-    int to = args->to;
-    unsigned long long delay = args->delay;
-    if (args->slide_out->to == to)
+    if (args->slide_out->to == args->to)
     {
         return;
     }
+    const unsigned long long now_ms = cli_clock_milliseconds();
     args->slide_out->from =
         EMBED_CALL(gui_claim_slide.slide_at, GuiClaimSlideCfg, .slide = args->slide_out, .time_ms = now_ms);
-    args->slide_out->to = to;
-    args->slide_out->start_ms = now_ms;
-    args->slide_out->delay = delay;
+    args->slide_out->to = args->to;
+    args->slide_out->start_ms = now_ms + args->delay_ms;
 }
 
 int gui_slide_running(const GuiClaimSlideCfg *args)
 {
-    return (args->slide->from != args->slide->to) &&
-           (args->time_ms < args->slide->start_ms + args->slide->delay + GUI_CLAIM_ANIMATION_MS);
+    return (args->slide->from != args->slide->to) && (args->time_ms < args->slide->start_ms + GUI_CLAIM_ANIMATION_MS);
 }
 
 void gui_claim_init(const GuiClaimStillCfg *args)
@@ -171,51 +166,46 @@ EMBED_INLINE int claim_together(const ClaimCtx *args)
 // asked for
 EMBED_INLINE void claim_send(const ClaimCtx *args)
 {
-    const unsigned long long now_ms = cli_clock_milliseconds();
-    GuiSlide *slide = args->slide;
-    int to = args->to;
-    unsigned long long delay = args->delay;
-    if (slide->to == to)
+    if (args->slide->to == args->to)
     {
         return;
     }
-    EMBED_CALL(gui_claim_target.slide_to, GuiClaimTargetCfg, .slide_out = slide, .to = to,
-               .delay = delay);
-    slide->from = args->claim->still ? to : slide->from;
+    EMBED_CALL(gui_claim_target.slide_to, GuiClaimTargetCfg, .slide_out = args->slide, .to = args->to,
+               .delay_ms = args->delay_ms);
+    args->slide->from = args->claim->still ? args->to : args->slide->from;
     args->claim->sent += 1u;
 }
 
-// every slide sent where the state says, at `now`
+// every slide sent where the state says
 EMBED_INLINE void claim_targets(const ClaimCtx *args)
 {
     const int on = args->claim->claimed;
     const unsigned int shown = on ? args->claim->shown : GUI_CLAIM_NONE;
     const int head = (shown == GUI_CLAIM_TOP) || (shown == GUI_CLAIM_CONTROLS);
-    EMBED_CALL(claim_send, ClaimCtx, .claim = args->claim, .slide = &args->claim->claim, .to = on ? GUI_WHOLE : 0, .delay = 0ull);
+    EMBED_CALL(claim_send, ClaimCtx, .claim = args->claim, .slide = &args->claim->claim, .to = on ? GUI_WHOLE : 0,
+               .delay_ms = 0ull);
     EMBED_CALL(claim_send, ClaimCtx, .claim = args->claim, .slide = &args->claim->reveal_top,
-               .to = (shown == GUI_CLAIM_TOP) ? GUI_WHOLE : 0, .delay = 0ull);
+               .to = (shown == GUI_CLAIM_TOP) ? GUI_WHOLE : 0, .delay_ms = 0ull);
     EMBED_CALL(claim_send, ClaimCtx, .claim = args->claim, .slide = &args->claim->reveal_bottom,
-               .to = (shown == GUI_CLAIM_BOTTOM) ? GUI_WHOLE : 0, .delay = 0ull);
+               .to = (shown == GUI_CLAIM_BOTTOM) ? GUI_WHOLE : 0, .delay_ms = 0ull);
     EMBED_CALL(claim_send, ClaimCtx, .claim = args->claim, .slide = &args->claim->reveal_left,
-               .to = (shown == GUI_CLAIM_LEFT) ? GUI_WHOLE : 0, .delay = 0ull);
+               .to = (shown == GUI_CLAIM_LEFT) ? GUI_WHOLE : 0, .delay_ms = 0ull);
     EMBED_CALL(claim_send, ClaimCtx, .claim = args->claim, .slide = &args->claim->reveal_right,
-               .to = (shown == GUI_CLAIM_RIGHT) ? GUI_WHOLE : 0, .delay = 0ull);
+               .to = (shown == GUI_CLAIM_RIGHT) ? GUI_WHOLE : 0, .delay_ms = 0ull);
     EMBED_CALL(claim_send, ClaimCtx, .claim = args->claim, .slide = &args->claim->reveal_down,
-               .to = head ? GUI_WHOLE : ((on && args->claim->near) ? GUI_CLAIM_GHOST_DOWN : 0),
-               .delay = 0ull);
+               .to = head ? GUI_WHOLE : ((on && args->claim->near) ? GUI_CLAIM_GHOST_DOWN : 0), .delay_ms = 0ull);
     // a room comes a slide after its reveal and goes with it
     EMBED_CALL(claim_send, ClaimCtx, .claim = args->claim, .slide = &args->claim->room_top,
                .to = (shown == GUI_CLAIM_TOP) ? GUI_WHOLE : 0,
-               .delay = (shown == GUI_CLAIM_TOP) ? GUI_CLAIM_ANIMATION_MS : 0ull);
+               .delay_ms = (shown == GUI_CLAIM_TOP) ? GUI_CLAIM_ANIMATION_MS : 0ull);
     EMBED_CALL(claim_send, ClaimCtx, .claim = args->claim, .slide = &args->claim->room_left,
                .to = (shown == GUI_CLAIM_LEFT) ? GUI_WHOLE : 0,
-               .delay = (shown == GUI_CLAIM_LEFT) ? GUI_CLAIM_ANIMATION_MS : 0ull);
+               .delay_ms = (shown == GUI_CLAIM_LEFT) ? GUI_CLAIM_ANIMATION_MS : 0ull);
     EMBED_CALL(claim_send, ClaimCtx, .claim = args->claim, .slide = &args->claim->room_bottom,
                .to = (shown == GUI_CLAIM_BOTTOM) ? GUI_WHOLE : 0,
-               .delay = (shown == GUI_CLAIM_BOTTOM) ? GUI_CLAIM_ANIMATION_MS : 0ull);
+               .delay_ms = (shown == GUI_CLAIM_BOTTOM) ? GUI_CLAIM_ANIMATION_MS : 0ull);
     EMBED_CALL(claim_send, ClaimCtx, .claim = args->claim, .slide = &args->claim->controls_alpha,
-               .to = (on && args->claim->near && !head) ? GUI_CLAIM_GHOST_ALPHA : GUI_WHOLE,
-               .delay = 0ull);
+               .to = (on && args->claim->near && !head) ? GUI_CLAIM_GHOST_ALPHA : GUI_WHOLE, .delay_ms = 0ull);
 }
 
 // `zone`'s part shown, its slat pulled from where the pointer stands, or none
@@ -252,7 +242,7 @@ EMBED_INLINE void claim_reveal(const ClaimCtx *args)
     {
         EMBED_CALL(claim_show, ClaimCtx, .claim = args->claim, .zone = GUI_CLAIM_NONE);
         args->claim->waiting = args->zone;
-        // the part shown goes over a slide, or at once with less motion asked for; a due time of 0 stands for none
+        // the part shown goes over a slide, or at once with less motion asked for
         args->claim->pending_show_deadline_ms = now_ms + (args->claim->still ? 1ull : GUI_CLAIM_ANIMATION_MS);
         return;
     }
@@ -309,8 +299,7 @@ unsigned int gui_claim_zone(const GuiClaimWidthCfg *args)
     return GUI_CLAIM_NONE;
 }
 
-// the pointer's pace over the last span of its path, with the point x, y at `now` its latest, in pixels a
-// millisecond
+// the pointer's speed over the last window of its path, with the point x, y its latest, in pixels a millisecond
 EMBED_INLINE float claim_pace(const ClaimCtx *args)
 {
     const unsigned long long now_ms = cli_clock_milliseconds();
@@ -325,7 +314,8 @@ EMBED_INLINE float claim_pace(const ClaimCtx *args)
     args->claim->trail[args->claim->trail_count] = (GuiTrailPoint){args->x, args->y, now_ms};
     args->claim->trail_count += 1u;
     unsigned int first = 0u;
-    while ((args->claim->trail_count - first > 2u) && (now_ms - args->claim->trail[first].at > GUI_CLAIM_TRAIL_WINDOW_MS))
+    while ((args->claim->trail_count - first > 2u) &&
+           (now_ms - args->claim->trail[first].time_ms > GUI_CLAIM_TRAIL_WINDOW_MS))
     {
         first += 1u;
     }
@@ -338,7 +328,7 @@ EMBED_INLINE float claim_pace(const ClaimCtx *args)
         args->claim->trail_count -= first;
     }
     const GuiTrailPoint *const oldest = &args->claim->trail[0];
-    const unsigned long long lapse = now_ms - oldest->at;
+    const unsigned long long lapse = now_ms - oldest->time_ms;
     if (lapse == 0ull)
     {
         return 0.0f;
@@ -357,7 +347,8 @@ void gui_claim_move(const GuiClaimPointerCfg *args)
     }
     args->claim->pointer_x = args->x;
     args->claim->pointer_y = args->y;
-    const int passing = EMBED_CALL(claim_pace, ClaimCtx, .claim = args->claim, .x = args->x, .y = args->y) > GUI_CLAIM_SPEED_THRESHOLD;
+    const int passing =
+        EMBED_CALL(claim_pace, ClaimCtx, .claim = args->claim, .x = args->x, .y = args->y) > GUI_CLAIM_SPEED_THRESHOLD;
     // the controls' ghost: shown as the pointer slows in their corner, saved while it stays there, and gone as it
     // leaves the corner or as a part comes
     const int near = (args->claim->shown == GUI_CLAIM_NONE) && (args->zone == GUI_CLAIM_CONTROLS);
@@ -467,50 +458,51 @@ void gui_claim_still(const GuiClaimStillCfg *args)
     }
 }
 
-// the later of `when` and the moment `slide` comes to rest, where it runs at `now`
+// the later of `end_ms` and the moment `slide` ends, where it runs at `time_ms`
 EMBED_INLINE unsigned long long claim_later(const ClaimCtx *args)
 {
     const GuiSlide *slide = args->slide_read;
     if (!EMBED_CALL(gui_claim_slide.slide_running, GuiClaimSlideCfg, .slide = slide, .time_ms = args->time_ms))
     {
-        return args->when;
+        return args->end_ms;
     }
-    const unsigned long long rests = slide->start_ms + slide->delay + GUI_CLAIM_ANIMATION_MS;
-    return (rests > args->when) ? rests : args->when;
+    const unsigned long long slide_end_ms = slide->start_ms + GUI_CLAIM_ANIMATION_MS;
+    return (slide_end_ms > args->end_ms) ? slide_end_ms : args->end_ms;
 }
 
 unsigned long long gui_claim_animation_end_ms(const GuiClaimCfg *args)
 {
-    unsigned long long rests = args->time_ms;
-    rests = EMBED_CALL(claim_later, ClaimCtx, .when = rests, .slide_read = &args->claim_read->claim, .time_ms = args->time_ms);
-    rests =
-        EMBED_CALL(claim_later, ClaimCtx, .when = rests, .slide_read = &args->claim_read->reveal_top, .time_ms = args->time_ms);
-    rests = EMBED_CALL(claim_later, ClaimCtx, .when = rests, .slide_read = &args->claim_read->reveal_bottom,
-                       .time_ms = args->time_ms);
-    rests = EMBED_CALL(claim_later, ClaimCtx, .when = rests, .slide_read = &args->claim_read->reveal_left,
-                       .time_ms = args->time_ms);
-    rests = EMBED_CALL(claim_later, ClaimCtx, .when = rests, .slide_read = &args->claim_read->reveal_right,
-                       .time_ms = args->time_ms);
-    rests = EMBED_CALL(claim_later, ClaimCtx, .when = rests, .slide_read = &args->claim_read->reveal_down,
-                       .time_ms = args->time_ms);
-    rests =
-        EMBED_CALL(claim_later, ClaimCtx, .when = rests, .slide_read = &args->claim_read->room_top, .time_ms = args->time_ms);
-    rests =
-        EMBED_CALL(claim_later, ClaimCtx, .when = rests, .slide_read = &args->claim_read->room_left, .time_ms = args->time_ms);
-    rests = EMBED_CALL(claim_later, ClaimCtx, .when = rests, .slide_read = &args->claim_read->room_bottom,
-                       .time_ms = args->time_ms);
-    return EMBED_CALL(claim_later, ClaimCtx, .when = rests, .slide_read = &args->claim_read->controls_alpha,
+    unsigned long long end_ms = args->time_ms;
+    end_ms = EMBED_CALL(claim_later, ClaimCtx, .end_ms = end_ms, .slide_read = &args->claim_read->claim,
+                        .time_ms = args->time_ms);
+    end_ms = EMBED_CALL(claim_later, ClaimCtx, .end_ms = end_ms, .slide_read = &args->claim_read->reveal_top,
+                        .time_ms = args->time_ms);
+    end_ms = EMBED_CALL(claim_later, ClaimCtx, .end_ms = end_ms, .slide_read = &args->claim_read->reveal_bottom,
+                        .time_ms = args->time_ms);
+    end_ms = EMBED_CALL(claim_later, ClaimCtx, .end_ms = end_ms, .slide_read = &args->claim_read->reveal_left,
+                        .time_ms = args->time_ms);
+    end_ms = EMBED_CALL(claim_later, ClaimCtx, .end_ms = end_ms, .slide_read = &args->claim_read->reveal_right,
+                        .time_ms = args->time_ms);
+    end_ms = EMBED_CALL(claim_later, ClaimCtx, .end_ms = end_ms, .slide_read = &args->claim_read->reveal_down,
+                        .time_ms = args->time_ms);
+    end_ms = EMBED_CALL(claim_later, ClaimCtx, .end_ms = end_ms, .slide_read = &args->claim_read->room_top,
+                        .time_ms = args->time_ms);
+    end_ms = EMBED_CALL(claim_later, ClaimCtx, .end_ms = end_ms, .slide_read = &args->claim_read->room_left,
+                        .time_ms = args->time_ms);
+    end_ms = EMBED_CALL(claim_later, ClaimCtx, .end_ms = end_ms, .slide_read = &args->claim_read->room_bottom,
+                        .time_ms = args->time_ms);
+    return EMBED_CALL(claim_later, ClaimCtx, .end_ms = end_ms, .slide_read = &args->claim_read->controls_alpha,
                       .time_ms = args->time_ms);
 }
 
-// the earlier of two due times, 0 standing for none
-EMBED_INLINE unsigned long long claim_sooner(const ClaimCtx *args)
+// the earlier of two deadlines, 0 while disarmed
+EMBED_INLINE unsigned long long claim_deadline_min(const ClaimCtx *args)
 {
-    if (args->one_u64 == 0ull)
+    if (args->first_ms == 0ull)
     {
-        return args->other_u64;
+        return args->second_ms;
     }
-    return ((args->other_u64 == 0ull) || (args->one_u64 < args->other_u64)) ? args->one_u64 : args->other_u64;
+    return ((args->second_ms == 0ull) || (args->first_ms < args->second_ms)) ? args->first_ms : args->second_ms;
 }
 
 int gui_claim_moving(const GuiClaimCfg *args)
@@ -540,21 +532,16 @@ int gui_claim_moving(const GuiClaimCfg *args)
 unsigned long long gui_claim_next_deadline_ms(const GuiClaimCfg *args)
 {
     const unsigned long long now_ms = cli_clock_milliseconds();
-    if (gui_claim.moving(args))
+    if (EMBED_CALL(gui_claim.moving, GuiClaimCfg, .claim_read = args->claim_read, .time_ms = now_ms))
     {
-        return CLAIM_FRAME_MS;
+        return now_ms + CLAIM_FRAME_MS;
     }
-    const unsigned long long due =
-        EMBED_CALL(claim_sooner, ClaimCtx,
-                   .one_u64 = EMBED_CALL(claim_sooner, ClaimCtx, .one_u64 = args->claim_read->pending_show_deadline_ms,
-                                         .other_u64 = args->claim_read->show_deadline_ms),
-                   .other_u64 = EMBED_CALL(claim_sooner, ClaimCtx, .one_u64 = args->claim_read->hide_deadline_ms,
-                                           .other_u64 = args->claim_read->preview_deadline_ms));
-    if (due == 0ull)
-    {
-        return 0ull;
-    }
-    return (due > now_ms) ? due - now_ms : 1ull;
+    return EMBED_CALL(
+        claim_deadline_min, ClaimCtx,
+        .first_ms = EMBED_CALL(claim_deadline_min, ClaimCtx, .first_ms = args->claim_read->pending_show_deadline_ms,
+                               .second_ms = args->claim_read->show_deadline_ms),
+        .second_ms = EMBED_CALL(claim_deadline_min, ClaimCtx, .first_ms = args->claim_read->hide_deadline_ms,
+                                .second_ms = args->claim_read->preview_deadline_ms));
 }
 
 // a slat's grown share: coming in, it grows with its reveal; going, it stands as long as it grew; outside the claim it
@@ -586,8 +573,8 @@ void gui_claim_numbers(const GuiClaimStateCfg *args)
         EMBED_CALL(gui_claim_slide.slide_at, GuiClaimSlideCfg, .slide = &claim->claim, .time_ms = args->time_ms);
     args->numbers->reveal_top =
         EMBED_CALL(gui_claim_slide.slide_at, GuiClaimSlideCfg, .slide = &claim->reveal_top, .time_ms = args->time_ms);
-    args->numbers->reveal_bottom =
-        EMBED_CALL(gui_claim_slide.slide_at, GuiClaimSlideCfg, .slide = &claim->reveal_bottom, .time_ms = args->time_ms);
+    args->numbers->reveal_bottom = EMBED_CALL(gui_claim_slide.slide_at, GuiClaimSlideCfg,
+                                              .slide = &claim->reveal_bottom, .time_ms = args->time_ms);
     args->numbers->reveal_left =
         EMBED_CALL(gui_claim_slide.slide_at, GuiClaimSlideCfg, .slide = &claim->reveal_left, .time_ms = args->time_ms);
     args->numbers->reveal_right =
@@ -600,8 +587,8 @@ void gui_claim_numbers(const GuiClaimStateCfg *args)
         EMBED_CALL(gui_claim_slide.slide_at, GuiClaimSlideCfg, .slide = &claim->room_left, .time_ms = args->time_ms);
     args->numbers->room_bottom =
         EMBED_CALL(gui_claim_slide.slide_at, GuiClaimSlideCfg, .slide = &claim->room_bottom, .time_ms = args->time_ms);
-    args->numbers->controls_alpha =
-        EMBED_CALL(gui_claim_slide.slide_at, GuiClaimSlideCfg, .slide = &claim->controls_alpha, .time_ms = args->time_ms);
+    args->numbers->controls_alpha = EMBED_CALL(gui_claim_slide.slide_at, GuiClaimSlideCfg,
+                                               .slide = &claim->controls_alpha, .time_ms = args->time_ms);
     claim->grown_top =
         EMBED_CALL(claim_grow, ClaimCtx, .claim_i32 = args->numbers->claim, .reveal = args->numbers->reveal_top,
                    .last = &claim->last_top, .grown = claim->grown_top);

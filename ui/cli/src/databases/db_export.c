@@ -289,10 +289,8 @@ int cli_db_export(const CliDbOutCfg *args)
     VerbaLinea *out = args->out;
     CliDbFailure *failure = args->failure;
     CliDbResults *const results = &args->open->results;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->open->results_lock);
     if (!results->has_columns)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->open->results_lock);
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure,
                    .message = "no statement has given rows to export");
         return 0;
@@ -305,7 +303,6 @@ int cli_db_export(const CliDbOutCfg *args)
         g_cli_cells->temporary_buf_alloc(values_bytes + order_bytes + CLI_DB_EXPORT_ROOM, &g_cli_db_cells);
     if (cell == NULL)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->open->results_lock);
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure,
                    .message = "the cells cannot meet an export");
         return 0;
@@ -360,7 +357,6 @@ int cli_db_export(const CliDbOutCfg *args)
     const int broke = export->broke;
     const unsigned long long written = export->written;
     g_cli_cells->persistent_buf_release(cell, &g_cli_db_cells);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->open->results_lock);
     if (!read)
     {
         return 0;

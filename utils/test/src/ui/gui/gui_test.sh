@@ -21,7 +21,7 @@ CC="${CC:-clang}"
 # the system's body for this machine joins the modules, with the libraries it links: the body is checked too
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*) HOST="x86_64-pc-windows-msvc"; SUFFIX=".exe"; BODY="system_windows.c"
-                          LIBRARIES=(-lws2_32 -lsecur32 -lcrypt32 -lshell32 -ladvapi32 -luser32 -lole32 -luuid -lgdi32 -ldwmapi -ld3d12 -ldxgi -ldxguid) ;;
+                          LIBRARIES=(-lws2_32 -lsynchronization -lsecur32 -lcrypt32 -lshell32 -ladvapi32 -luser32 -lole32 -luuid -lgdi32 -ldwmapi -ld3d12 -ldxgi -ldxguid) ;;
     Darwin) HOST="$(uname -m)-apple-darwin"; SUFFIX=""; BODY=""; LIBRARIES=(-lpthread -lm) ;;
     *) HOST="$(uname -m)-unknown-linux-gnu"; SUFFIX=""; BODY="system_x11.c"; LIBRARIES=(-lpthread -ldl -lm -lrt -lX11) ;;
 esac
@@ -83,7 +83,7 @@ for test in "${TESTS[@]}"; do
         *_test.c) OPTIMIZED=-O1 ;;
         *) OPTIMIZED=-O2 ;;
     esac
-    if ! "$CC" "--target=$HOST" -std=c11 "$OPTIMIZED" -g "${LTO_WORDS[@]}" "${LINK_WORDS[@]}" "${SANITIZE_WORDS[@]}" "${MMGR_WORDS[@]}" -o "$RUN/$name$SUFFIX" "$test" "$CLI_CHECKS/cli_check.c" \
+    if ! "$CC" "--target=$HOST" -std=c11 "$OPTIMIZED" -g "${LTO_WORDS[@]}" "${LINK_WORDS[@]}" "${SANITIZE_WORDS[@]}" "${MMGR_WORDS[@]}" -Dcli_clock_milliseconds=test_clock_milliseconds -o "$RUN/$name$SUFFIX" "$test" "$CLI_CHECKS/cli_check.c" "$HERE/test_clock.c" \
         "${MODULES[@]}" "$LIBRARY" "${LIBRARIES[@]}" > "$RUN/$name.log" 2>&1; then
         echo "  build failed: $name did not compile"
         tail -20 "$RUN/$name.log"

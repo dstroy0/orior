@@ -123,14 +123,12 @@ EMBED_INLINE void cli_under_folder(const ExecutablesStepsCtx *args)
 int cli_executables_job_begin(const CliExecutablesRootCtx *args)
 {
     static char s_about[CLI_PATH_MAX_LEN * 4u];
-    static CliLock s_lock = CLI_LOCK_INIT;
     char script[CLI_PATH_MAX_LEN];
     char folder[CLI_PATH_MAX_LEN];
     char build[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_script_get, ExecutablesStepsCtx, .root = args->root, .exe = args->exe, .out = script);
     EMBED_CALL(cli_executables_out_internal.folder_get, CliExecutablesOutCtx, .root = args->root,
                .script = args->exe->script, .out = folder);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     VerbaLinea about = {s_about, sizeof(s_about), 0ull};
     if (args->exe->kind == CLI_KIND_CARGO)
     {
@@ -210,7 +208,6 @@ int cli_executables_job_begin(const CliExecutablesRootCtx *args)
     const unsigned int job =
         EMBED_CALL(cli_catalog_id_group.job, CliCatalogIdGroupCfg, .catalog = args->catalog, .id = id,
                    .group = "executable", .title = args->title, .file = script, .about = s_about, .opens = "program");
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return job != CLI_CATALOG_NONE;
 }
 

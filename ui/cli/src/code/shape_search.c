@@ -32,7 +32,6 @@ typedef struct
     CliShapeMatcher matcher;
 } CliShapeSearchRoom;
 
-static CliLock s_search_lock = CLI_LOCK_INIT;
 static CliShapeSearchRoom *s_room;
 
 typedef struct
@@ -157,7 +156,6 @@ static void search_release(void)
     EMBED_CALL(cli_shape_matcher_internal.ends_free, CliShapeMatcherCtx, .matcher = &s_room->matcher);
     g_cli_cells->persistent_buf_release(s_room, &g_cli_shape_cells);
     s_room = NULL;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_search_lock);
 }
 
 // the search's room taken for `code_room` tokens of the code and `part_room` of the pattern, the lock taken with it:
@@ -167,12 +165,10 @@ EMBED_INLINE int search_room_take(const ShapeSearchCtx *args)
     // the starts and ends of both and each part's hole, then the kinds of both, then their roles
     const unsigned long long words = (2ull * args->code_room) + (3ull * args->part_room);
     const unsigned long long bytes = 2ull * ((unsigned long long)args->code_room + args->part_room);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_search_lock);
     s_room =
         g_cli_cells->persistent_buf_alloc(sizeof(*s_room) + (words * sizeof(unsigned int)) + bytes, &g_cli_shape_cells);
     if (s_room == NULL)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_search_lock);
         return 0;
     }
     // the lists start past the room, on a boundary of the room's pointers, the kinds past the words and the roles past

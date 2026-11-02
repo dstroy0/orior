@@ -18,11 +18,8 @@
 // the languages the sliced files opened as, by their keys, under their lock; the lock a server is started again and a
 // file opened in it under; and the watcher, whether it was started, and the lock it is started under
 static CliKeyed s_languages = {"sliced languages", {NULL}, 0u, CLI_SERVERS_SAVE_FILES};
-static CliLock s_languages_lock = CLI_LOCK_INIT;
-static CliLock s_starting_lock = CLI_LOCK_INIT;
 static CliThread s_watcher;
 static int s_watching;
-static CliLock s_watching_lock = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -83,7 +80,6 @@ static void save_watch(void *context)
         }
         CliLsp *going[CLI_SERVERS_MOST];
         unsigned int goes = 0u;
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers.lock);
         const unsigned long long now = cli_clock_milliseconds();
         for (unsigned int at = 0u; at < CLI_SERVERS_MOST; at += 1u)
         {
@@ -96,7 +92,6 @@ static void save_watch(void *context)
                 goes += 1u;
             }
         }
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers.lock);
         for (unsigned int at = 0u; at < goes; at += 1u)
         {
             EMBED_CALL(cli_servers_path_lsp_internal.stop_later, CliServersPathLspCtx, .lsp = going[at]);
@@ -107,20 +102,17 @@ static void save_watch(void *context)
 // the watcher started, once
 static void save_watcher_start(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_watching_lock);
     if (!s_watching)
     {
         s_watcher = (CliThread){save_watch, NULL};
         s_watching = EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_watcher);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_watching_lock);
 }
 
 // an ask of `server` counted: its time put in its ring and its quiet begun again, and the waits on it moved by `waits`
 EMBED_INLINE void save_request(const ServersSaveCtx *args)
 {
     int waits = args->waits;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers.lock);
     const unsigned int at = save_place(args);
     if (at < CLI_SERVERS_MOST)
     {
@@ -135,7 +127,6 @@ EMBED_INLINE void save_request(const ServersSaveCtx *args)
             (waits > 0) ? (one->waits + 1u) : (((waits < 0) && (one->waits > 0u)) ? (one->waits - 1u) : one->waits);
         one->quiet_from = now;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers.lock);
     if (at < CLI_SERVERS_MOST)
     {
         save_watcher_start();
@@ -161,19 +152,15 @@ void cli_servers_language_note(const CliServersPathLanguageCtx *args)
 {
     char key[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = args->path, .key_out = key);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_languages_lock);
     (void)EMBED_CALL(cli_keyed_key_beside.put, CliKeyedKeyBesideCfg, .keyed_out = &s_languages, .key = key,
                      .beside_value = args->language, .text = "", .size_value = 0ull);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_languages_lock);
 }
 
 void cli_servers_language_forgotten(const CliServersPathLspCtx *args)
 {
     char key[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = args->path, .key_out = key);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_languages_lock);
     EMBED_CALL(cli_keyed_key_beside.remove, CliKeyedKeyBesideCfg, .keyed_out = &s_languages, .key = key);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_languages_lock);
 }
 
 // the language the sliced file at `path` opened as into `language`, sized for CLI_NAME_MAX_LEN: 1, or 0 where none is
@@ -183,7 +170,6 @@ EMBED_INLINE int save_language_get(const ServersSaveCtx *args)
     const char *path = args->path;
     char key[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = path, .key_out = key);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_languages_lock);
     const char *named = NULL;
     unsigned long long size = 0ull;
     const int found = (EMBED_CALL(cli_keyed_key_beside.get, CliKeyedKeyBesideCfg, .keyed = &s_languages, .key = key,
@@ -192,7 +178,6 @@ EMBED_INLINE int save_language_get(const ServersSaveCtx *args)
     VerbaLinea line = {args->language, CLI_NAME_MAX_LEN, 0ull};
     mmgr_line_put(&line, found ? named : "");
     const int whole = mmgr_line_finish(&line) != 0ull;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_languages_lock);
     return found && whole;
 }
 
@@ -210,17 +195,14 @@ CliLsp *cli_servers_owner_start(const CliServersPathLspCtx *args)
         return NULL;
     }
     // two asks of the file at once start it and open it once
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_starting_lock);
     CliLsp *server = EMBED_CALL(cli_servers_path_lsp_internal.owner_get, CliServersPathLspCtx, .path = path);
     if (server == NULL)
     {
         char root[CLI_PATH_MAX_LEN];
         CliServersSink sink;
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers.lock);
         memor.cpy(&(MemoriaCfg){.dst = root, .src = g_cli_servers.root, .bytes = sizeof(root)});
         const int has_sink = g_cli_servers.has_sink;
         sink = g_cli_servers.sink;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers.lock);
         CliServerSpec *const spec =
             has_sink ? g_cli_cells->temporary_buf_alloc(sizeof(CliServerSpec), &g_cli_servers_cells) : NULL;
         char why[1024];
@@ -250,7 +232,6 @@ CliLsp *cli_servers_owner_start(const CliServersPathLspCtx *args)
         g_cli_cells->persistent_buf_release(text, &g_cli_servers_cells);
         g_cli_cells->persistent_buf_release(spec, &g_cli_servers_cells);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_starting_lock);
     return server;
 }
 

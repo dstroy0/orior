@@ -21,10 +21,8 @@
 static char *s_errors[CLI_REPORT_RETAIN_MAX];
 static unsigned int s_first;
 static unsigned int s_count;
-static CliLock s_errors_lock = CLI_LOCK_INIT;
 
 // settings.json read and written whole under its lock
-static CliLock s_settings_lock = CLI_LOCK_INIT;
 
 int cli_report_category_know(const CliReportCategoryTextCfg *args)
 {
@@ -114,7 +112,6 @@ EMBED_INLINE unsigned int cli_settings(const ReportCtx *args)
 EMBED_INLINE int cli_answer(const ReportCtx *args)
 {
     int *on = args->on;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_settings_lock);
     CliJson json;
     const unsigned int root = EMBED_CALL(cli_settings, ReportCtx, .json = &json, .copied = 0);
     const unsigned int answer = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
@@ -126,7 +123,6 @@ EMBED_INLINE int cli_answer(const ReportCtx *args)
     *on = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json, .node = answer,
                      .kind = CFG_JSON_TRUE);
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_settings_lock);
     return answered;
 }
 
@@ -196,7 +192,6 @@ int cli_report_set_auto(const CliReportOnCfg *args)
         mmgr_line_put(args->err_msg, ": it could not be made");
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_settings_lock);
     CliJson json;
     const unsigned int settings_node = EMBED_CALL(cli_settings, ReportCtx, .json = &json, .copied = 1);
     // the answer first, then the window's own settings as they are
@@ -229,7 +224,6 @@ int cli_report_set_auto(const CliReportOnCfg *args)
                                    .bytes = out.out, .size = out.at);
     g_cli_cells->persistent_buf_release(out.out, &g_cli_machine_cells);
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_settings_lock);
     if (!written)
     {
         mmgr_line_put(args->err_msg, path);
@@ -396,7 +390,6 @@ void cli_report_save(const CliReportTextCfg *args)
     // an error stored is its first CLI_REPORT_ERROR bytes at the most
     line.at = (line.at < CLI_REPORT_ERROR) ? line.at : (CLI_REPORT_ERROR - 1u);
     line.out[(line.at < line.capacity) ? line.at : (line.capacity - 1u)] = '\0';
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_errors_lock);
     const unsigned int place = (s_first + s_count) % CLI_REPORT_RETAIN_MAX;
     g_cli_cells->persistent_buf_release(s_errors[place], &g_cli_machine_cells);
     s_errors[place] = line.out;
@@ -408,18 +401,15 @@ void cli_report_save(const CliReportTextCfg *args)
     {
         s_first = (s_first + 1u) % CLI_REPORT_RETAIN_MAX;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_errors_lock);
 }
 
 void cli_report_recent(const CliReportRootOutCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_errors_lock);
     for (unsigned int at = 0u; at < s_count; at += 1u)
     {
         mmgr_line_put(args->out, (at != 0u) ? "\n\n" : "");
         mmgr_line_put(args->out, s_errors[(s_first + at) % CLI_REPORT_RETAIN_MAX]);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_errors_lock);
 }
 
 const char *cli_report_panic_category(const CliReportCfg *args)

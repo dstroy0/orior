@@ -27,28 +27,23 @@ static char s_shell_path[CLI_PATH_TEXT];
 static int s_shell_queried;
 static int s_shell_read;
 static CliThread s_shell_thread;
-static CliLock s_lock = CLI_LOCK_INIT;
 
 void cli_toolchains_set_tree(const CliToolchainsRootCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     memor.cpy(&(MemoriaCfg){.dst = s_tree,
                             .src = args->root,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL}) + 1u});
     s_has_tree = 1;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 unsigned int cli_toolchains_tree_tools(const CliToolchainsCountCfg *args)
 {
     static const char *const s_folders[CLI_TREE_TOOLS] = {"/node_modules/.bin", "/vendor/bin"};
     char root[CLI_PATH_MAX_LEN];
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int has = s_has_tree;
     memor.cpy(&(MemoriaCfg){.dst = root,
                             .src = s_tree,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_tree, .cap = CLI_CELLS_POOL}) + 1u});
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     unsigned int count = 0u;
     for (unsigned int at = 0u; has && (at < CLI_TREE_TOOLS) && (count < args->room); at += 1u)
     {
@@ -65,25 +60,21 @@ unsigned int cli_toolchains_tree_tools(const CliToolchainsCountCfg *args)
 
 void cli_toolchains_set_environment(const CliToolchainsEnvironmentCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     s_has_environment = args->environment != NULL;
     if (args->environment != NULL)
     {
         s_environment = *args->environment;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 int cli_toolchains_environment(const CliToolchainsCfg *args)
 {
     CliTreeEnvironment *environment = args->environment_out;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int has = s_has_environment;
     if (has)
     {
         *environment = s_environment;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return has;
 }
 
@@ -137,7 +128,6 @@ static void cli_shell_reading(void *context)
     char *const text = g_cli_cells->temporary_buf_alloc(CLI_PATH_TEXT, &g_cli_toolchains_cells);
     const int read = (text != NULL) && EMBED_CALL(cli_toolchains_shell_internal.path_of_shell, CliToolchainsShellCtx,
                                                   .shell = shell, .path = text, .size = CLI_PATH_TEXT);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     if (read)
     {
         memor.cpy(&(MemoriaCfg){.dst = s_shell_path,
@@ -145,7 +135,6 @@ static void cli_shell_reading(void *context)
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}) + 1u});
         s_shell_read = 1;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     g_cli_cells->persistent_buf_release(text, &g_cli_toolchains_cells);
 }
 
@@ -167,7 +156,6 @@ EMBED_INLINE int cli_shell_path(const ToolchainsPathCtx *args)
     return 0;
 #else
     static char s_shell[CLI_PATH_MAX_LEN];
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int query = !s_shell_queried;
     s_shell_queried = 1;
     const int read = s_shell_read;
@@ -178,7 +166,6 @@ EMBED_INLINE int cli_shell_path(const ToolchainsPathCtx *args)
                           .src = s_shell_path,
                           .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_shell_path, .cap = CLI_CELLS_POOL}) + 1u});
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     if (query && EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = "SHELL",
                             .value_out = s_shell, .room = sizeof(s_shell)))
     {

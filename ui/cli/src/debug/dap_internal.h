@@ -46,9 +46,7 @@ struct CliDap
     CliSpawned spawned;
     int ended;
     CliSocket socket;
-    CliLock input_lock;
     CliLspWriter input;
-    CliLock lock;
     CliWake wake;
     unsigned long long next;
     CliDapWaiter waiters[CLI_DAP_WAITERS];
@@ -63,7 +61,6 @@ struct CliDap
 };
 
 extern CliDap g_cli_daps[CLI_DAPS_MOST];
-extern CliLock g_cli_daps_lock;
 
 // a place for an adapter taken, referenced once and made empty, NULL where every place is taken; and its readers
 // started: what it writes read on a thread of its own, each response handed to the request waiting on it, each event

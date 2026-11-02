@@ -80,11 +80,9 @@ static int maven_settings(const CliServeAnswerCfg *args)
     const CliServeArgs *arguments = args->request;
     VerbaLinea *out = args->out;
     VerbaLinea *err_msg = args->err_msg;
-    static CliLock s_lock = CLI_LOCK_INIT;
     char root[CLI_PATH_MAX_LEN];
     char pom[CLI_PATH_MAX_LEN];
     CliServePom read;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int done = EMBED_CALL(tool_pom_get, ServeCallBuildCtx, .request = arguments, .root = root, .pom = pom,
                                 .read_out = &read, .err_msg = err_msg);
     if (done)
@@ -93,7 +91,6 @@ static int maven_settings(const CliServeAnswerCfg *args)
                    .out = out);
     }
     EMBED_CALL(tool_pom_let_go, ServeCallBuildCtx, .read = &read);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return done;
 }
 
@@ -102,7 +99,6 @@ static int maven_set(const CliServeAnswerCfg *args)
     const CliServeArgs *arguments = args->request;
     VerbaLinea *out = args->out;
     VerbaLinea *err_msg = args->err_msg;
-    static CliLock s_lock = CLI_LOCK_INIT;
     char root[CLI_PATH_MAX_LEN];
     char pom[CLI_PATH_MAX_LEN];
     CliServePom read;
@@ -116,7 +112,6 @@ static int maven_set(const CliServeAnswerCfg *args)
         return 0;
     }
     static char s_head[CLI_PATH_MAX_LEN * 2u];
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     char *const set_cell = g_cli_cells->temporary_buf_alloc(CLI_SERVE_SET_ROOM, &g_cli_window_cells);
     VerbaLinea set = mmgr_line_over(set_cell, CLI_SERVE_SET_ROOM);
     const int begun = set.out != NULL;
@@ -156,7 +151,6 @@ static int maven_set(const CliServeAnswerCfg *args)
         EMBED_CALL(tool_pom_let_go, ServeCallBuildCtx, .read = &read);
     }
     g_cli_cells->persistent_buf_release(set.out, &g_cli_window_cells);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return done;
 }
 

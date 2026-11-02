@@ -138,7 +138,6 @@ static CliDocColored s_colored;
 static int s_threaded;
 static unsigned int s_walkers_most;
 static CliBranchWalker s_walkers[CLI_DOC_WALKERS + 1u];
-static CliLock s_handing = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -1213,7 +1212,6 @@ EMBED_INLINE unsigned int branch_batch_color(const DocumentBranchCtx *args)
     }
     const unsigned int claim =
         EMBED_CALL(branch_claim_put, DocumentBranchCtx, .one = args->one, .first = args->first, .end = end);
-    cli_document_lock_give();
     char *taken = NULL;
     if (paged && (cell != NULL))
     {
@@ -1268,7 +1266,6 @@ EMBED_INLINE unsigned int branch_batch_color(const DocumentBranchCtx *args)
                        .each = branch_find, .context = &finding, .ended = &last, .err_msg = &err_msg);
     }
     g_cli_cells->persistent_buf_release(taken, &g_cli_editor_cells);
-    cli_document_lock_take();
     EMBED_CALL(branch_claim_drop, DocumentBranchCtx, .one = args->one, .at = claim);
     unsigned int put = args->first;
     if (args->one->let_go || (args->one->serial != serial))
@@ -1620,20 +1617,17 @@ EMBED_INLINE void branch_folds_write(const DocumentBranchCtx *args)
 
 int cli_document_folds_each(const CliDocumentContextCfg *args)
 {
-    cli_document_lock_take();
     const CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
     if (one != NULL)
     {
         EMBED_CALL(branch_folds_each, DocumentBranchCtx, .one_read = one, .each = args->each_fold_each,
                    .context = args->context);
     }
-    cli_document_lock_give();
     return one != NULL;
 }
 
 unsigned int cli_document_openers(const CliDocumentKeyLineCfg *args)
 {
-    cli_document_lock_take();
     const CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
     const unsigned int end = (one != NULL) ? ((args->line < one->lines.lines) ? args->line : one->lines.lines) : 0u;
     // the regions open above the line, no more than those the lines above it open
@@ -1663,7 +1657,6 @@ unsigned int cli_document_openers(const CliDocumentKeyLineCfg *args)
         args->opener[at] = opened_on[open - count + at];
     }
     g_cli_cells->persistent_buf_release(opened_on, &g_cli_editor_cells);
-    cli_document_lock_give();
     return count;
 }
 
@@ -1685,13 +1678,10 @@ EMBED_INLINE void branch_handed_out(const DocumentBranchCtx *args)
     const int handing = args->any && (colored != NULL) && mmgr_line_ok(args->colors);
     if (handing)
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_handing);
     }
-    cli_document_lock_give();
     if (handing)
     {
         EMBED_CALL(colored, CliDocColoredCfg, .body = args->colors->out, .size = args->colors->at);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_handing);
     }
 }
 
@@ -1711,7 +1701,6 @@ static void branch_walk(const DocumentBranchCtx *args)
         }
         const int made = args->walker->step.out != NULL;
         args->walker->step.at = 0u;
-        cli_document_lock_take();
         CliStoredText *one = made ? cli_document_texts() : NULL;
         while ((one != NULL) && (one->walked || one->resting))
         {
@@ -1741,7 +1730,6 @@ static void branch_walk(const DocumentBranchCtx *args)
             g_cli_cells->persistent_buf_release(args->walker->step.out, &g_cli_editor_cells);
             args->walker->step.out = NULL;
             args->walker->walking = args->own ? 0 : args->walker->walking;
-            cli_document_lock_give();
             return;
         }
         EMBED_CALL(branch_handed_out, DocumentBranchCtx, .any = handed, .colors = &args->walker->step);
@@ -1788,11 +1776,9 @@ void cli_document_wake(const CliDocumentCtx *args)
 void cli_document_colors_to(const CliDocumentColoredCfg *args)
 {
     const unsigned int spare = cli_processors() - 1u;
-    cli_document_lock_take();
     s_colored = args->colored;
     s_threaded = args->threaded;
     s_walkers_most = (spare == 0u) ? 1u : ((spare < CLI_DOC_WALKERS) ? spare : CLI_DOC_WALKERS);
-    cli_document_lock_give();
 }
 
 int cli_document_colored_by(const CliDocumentKeyGrammarCfg *args)
@@ -1804,7 +1790,6 @@ int cli_document_colored_by(const CliDocumentKeyGrammarCfg *args)
             ? EMBED_CALL(cli_highlight_key_context.names_each, CliHighlightKeyContextCfg, .key = args->grammar,
                          .each_name_each = branch_name_pass, .context = NULL)
             : 0u;
-    cli_document_lock_take();
     CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->grammar, .cap = CLI_CELLS_POOL});
     if ((one != NULL) && (length < CLI_NAME_MAX_LEN))
@@ -1835,7 +1820,6 @@ int cli_document_colored_by(const CliDocumentKeyGrammarCfg *args)
         one->regions_moved = 1;
         EMBED_CALL(cli_document_internal.wake, CliDocumentCtx, .one = one);
     }
-    cli_document_lock_give();
     return one != NULL;
 }
 
@@ -1846,7 +1830,6 @@ int cli_document_view(const CliDocumentOutKeyFirstCfg *args)
     VerbaLinea colors = mmgr_line_over(colors_cell, CLI_DOC_COLORS_ROOM);
     const int made = colors_cell != NULL;
     VerbaLinea *const into = (args->out != NULL) ? args->out : &colors;
-    cli_document_lock_take();
     CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
     const int found = one != NULL;
     int any = 0;
@@ -1967,7 +1950,6 @@ int cli_document_cache(const CliDocumentKeyFromCfg *args)
     char *const colors_cell = g_cli_cells->temporary_buf_alloc(CLI_DOC_COLORS_ROOM, &g_cli_editor_cells);
     VerbaLinea colors = mmgr_line_over(colors_cell, CLI_DOC_COLORS_ROOM);
     const int made = colors.out != NULL;
-    cli_document_lock_take();
     CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
     int any = 0;
     if (one != NULL)
@@ -2006,7 +1988,6 @@ int cli_document_columns(const CliDocumentKeyColumnsCfg *args)
     char *const colors_cell = g_cli_cells->temporary_buf_alloc(CLI_DOC_COLORS_ROOM, &g_cli_editor_cells);
     VerbaLinea colors = mmgr_line_over(colors_cell, CLI_DOC_COLORS_ROOM);
     const int made = colors.out != NULL;
-    cli_document_lock_take();
     CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
     int any = 0;
     if (one != NULL)
@@ -2029,7 +2010,6 @@ int cli_document_columns(const CliDocumentKeyColumnsCfg *args)
 
 int cli_document_runs_write(const CliDocumentOutKeyFirstCfg *args)
 {
-    cli_document_lock_take();
     CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
     const int found = one != NULL;
     int any = 0;
@@ -2083,7 +2063,6 @@ int cli_document_runs_write(const CliDocumentOutKeyFirstCfg *args)
         EMBED_CALL(cli_document_internal.holder_end, CliDocumentCtx, .one = one);
     }
     mmgr_line_ch(args->out, ']');
-    cli_document_lock_give();
     return found;
 }
 
@@ -2094,20 +2073,17 @@ void cli_document_walk(void)
 
 unsigned int cli_document_walkers(void)
 {
-    cli_document_lock_take();
     unsigned int walking = 0u;
     for (unsigned int at = 0u; at < CLI_DOC_WALKERS; at += 1u)
     {
         walking += s_walkers[at].walking ? 1u : 0u;
     }
-    cli_document_lock_give();
     return walking;
 }
 
 char *cli_document_text_take(const CliDocumentKeyCfg *args)
 {
     unsigned long long *size = args->size_pointer;
-    cli_document_lock_take();
     const CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
     char *taken = NULL;
     if ((one != NULL) && !one->paged)
@@ -2132,7 +2108,6 @@ char *cli_document_text_take(const CliDocumentKeyCfg *args)
             *size = text.at;
         }
     }
-    cli_document_lock_give();
     return taken;
 }
 
@@ -2143,7 +2118,6 @@ char *cli_document_lines_take(const CliDocumentKeyCfg *args)
     VerbaLinea written = mmgr_line_over(written_cell, CLI_DOC_COLORS_ROOM);
     const int made = written.out != NULL;
     VerbaLinea *const text = &written;
-    cli_document_lock_take();
     const CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
     const int found = one != NULL;
     VerbaLinea entered = {args->state, args->room, 0ull};
@@ -2177,7 +2151,6 @@ char *cli_document_lines_take(const CliDocumentKeyCfg *args)
             mmgr_line_put(text, (at < to) ? "\n" : "");
         }
     }
-    cli_document_lock_give();
     if (paged[0] != '\0')
     {
         const unsigned long long wanted = (unsigned long long)(to + 1u - from);
@@ -2213,7 +2186,6 @@ int cli_document_bounds(const CliDocumentKeyLowCfg *args)
 {
     unsigned long long *low = args->low;
     unsigned long long *high = args->high;
-    cli_document_lock_take();
     const CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
     unsigned int from = 0u;
     unsigned int to = 0u;
@@ -2221,7 +2193,6 @@ int cli_document_bounds(const CliDocumentKeyLowCfg *args)
     {
         EMBED_CALL(branch_bounds, DocumentBranchCtx, .one_read = one, .low_pointer = &from, .high_pointer = &to);
     }
-    cli_document_lock_give();
     *low = from;
     *high = to;
     return one != NULL;

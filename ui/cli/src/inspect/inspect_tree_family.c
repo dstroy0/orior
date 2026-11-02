@@ -528,7 +528,6 @@ EMBED_INLINE int family_supplied_put(const InspectTreeFamilyCtx *args)
 
 void cli_inspect_tree_supplied(const CliInspectTreeContextEachSuppliedCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_tree_lock);
     cli_tree_families();
     // the table's buckets twice the most names one family sets, rounded up to a power of two
     unsigned long long most = 0ull;
@@ -583,5 +582,4 @@ void cli_inspect_tree_supplied(const CliInspectTreeContextEachSuppliedCfg *args)
         }
     }
     g_cli_cells->persistent_buf_release(table, &g_cli_inspect_cells);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_tree_lock);
 }

@@ -20,7 +20,6 @@ typedef struct
 } CliScriptsRoom;
 
 static CliScriptsRoom *s_scripts;
-static CliLock s_lock = CLI_LOCK_INIT;
 
 unsigned int cli_executables_kind_get(const CliExecutablesNameOutFolderCtx *args)
 {
@@ -477,11 +476,9 @@ void cli_executables_read(const CliExecutablesFoundCtx *args)
     args->found->item = g_cli_cells->persistent_buf_alloc(
         (unsigned long long)CLI_EXECUTABLES_MOST * sizeof(*args->found->item), &g_cli_executables_cells);
     args->found->room = (args->found->item != NULL) ? CLI_EXECUTABLES_MOST : 0u;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     s_scripts = g_cli_cells->persistent_buf_alloc(sizeof(*s_scripts), &g_cli_executables_cells);
     if (s_scripts == NULL)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return;
     }
     CliWalk *const walk = &s_scripts->walk;
@@ -507,6 +504,5 @@ void cli_executables_read(const CliExecutablesFoundCtx *args)
     EMBED_CALL(cli_executables_walk_internal.walk_free, CliExecutablesWalkCtx, .walk = walk);
     g_cli_cells->persistent_buf_release(s_scripts, &g_cli_executables_cells);
     s_scripts = NULL;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     cli_executables_found_internal.order(args);
 }

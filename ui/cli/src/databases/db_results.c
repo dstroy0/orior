@@ -317,7 +317,6 @@ static void results_show(const CliEachLineSizeCfg *args)
 int cli_db_rows(const CliDbOutFailureOpenCfg *args)
 {
     CliDbResults *const results = &args->open->results;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->open->results_lock);
     while ((results->rows < args->from + args->count_u64) && results->has_columns && !results->has_done)
     {
         const unsigned long long short_of = args->from + args->count_u64 - results->rows;
@@ -326,7 +325,6 @@ int cli_db_rows(const CliDbOutFailureOpenCfg *args)
                         .work = results_read_on, .context = &reading, .failure = args->failure))
         {
             (void)EMBED_CALL(results_flush, DbResultsCtx, .results = results);
-            EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->open->results_lock);
             return 0;
         }
         (void)EMBED_CALL(results_flush, DbResultsCtx, .results = results);
@@ -361,6 +359,5 @@ int cli_db_rows(const CliDbOutFailureOpenCfg *args)
     mmgr_line_put(args->out, ",\"beyond\":");
     mmgr_line_decimal(args->out, results->beyond, 1u);
     mmgr_line_ch(args->out, '}');
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->open->results_lock);
     return 1;
 }

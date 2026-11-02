@@ -275,7 +275,6 @@ EMBED_INLINE int cli_edit_write(const PagesEditCtx *args)
 
 int cli_pages_edit(const CliPagesOutErrMsgCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_pages_lock);
     CliPaged *const one =
         EMBED_CALL(cli_pages_err_msg_internal.paged_get, CliPagesErrMsgCtx, .key = args->key, .err_msg = args->err_msg);
     CliPageLines lines = {0};
@@ -297,13 +296,11 @@ int cli_pages_edit(const CliPagesOutErrMsgCfg *args)
     {
         EMBED_CALL(cli_pages_lines_lines_first_internal.page_lines_free, CliPagesLinesLinesFirstCtx, .lines = &lines);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_pages_lock);
     return written;
 }
 
 int cli_pages_change(const CliPagesPathCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_pages_lock);
     CliPaged *const one =
         EMBED_CALL(cli_pages_err_msg_internal.paged_get, CliPagesErrMsgCtx, .key = args->key, .err_msg = args->err_msg);
     if (one != NULL)
@@ -329,7 +326,6 @@ int cli_pages_change(const CliPagesPathCfg *args)
         }
         mmgr_line_ch(args->out, ']');
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_pages_lock);
     return one != NULL;
 }
 
@@ -422,7 +418,6 @@ int cli_pages_find(const CliPagesOutErrMsgSoughtCfg *args)
     const CliDocSought *sought = args->sought;
     unsigned long long most = args->most;
     VerbaLinea *err_msg = args->err_msg;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_pages_lock);
     CliPaged *const one =
         EMBED_CALL(cli_pages_err_msg_internal.paged_get, CliPagesErrMsgCtx, .key = args->key, .err_msg = err_msg);
     char *const found_text =
@@ -487,28 +482,22 @@ int cli_pages_find(const CliPagesOutErrMsgSoughtCfg *args)
         EMBED_CALL(cli_pages_lines_lines_first_internal.page_lines_free, CliPagesLinesLinesFirstCtx, .lines = &lines);
     }
     g_cli_cells->persistent_buf_release(found_text, &g_cli_editor_cells);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_pages_lock);
     return read;
 }
 
 int cli_pages_save(const CliPagesPathCfg *args)
 {
     VerbaLinea *err_msg = args->err_msg;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_pages_lock);
     CliPaged *const one =
         EMBED_CALL(cli_pages_err_msg_internal.paged_get, CliPagesErrMsgCtx, .key = args->key, .err_msg = err_msg);
     if (one == NULL)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_pages_lock);
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_index_lock);
     const int done = one->index.done;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_index_lock);
     if (!done)
     {
         mmgr_line_put(err_msg, "the file is still being read: it saves once it is read whole");
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_pages_lock);
         return 0;
     }
     CliPageLines lines = {0};
@@ -519,7 +508,6 @@ int cli_pages_save(const CliPagesPathCfg *args)
                     .beside = beside, .err_msg = err_msg))
     {
         EMBED_CALL(cli_pages_lines_lines_first_internal.page_lines_free, CliPagesLinesLinesFirstCtx, .lines = &lines);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_pages_lock);
         return 0;
     }
     // the lines go to the file through a stage of CLI_PAGE_SAVE_STAGE bytes, written whenever the next line would
@@ -574,13 +562,11 @@ int cli_pages_save(const CliPagesPathCfg *args)
             mmgr_line_put(err_msg, beside);
             mmgr_line_put(err_msg, ": it could not be written");
         }
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_pages_lock);
         return 0;
     }
     if (!EMBED_CALL(cli_files_path.save, CliFilesPathCfg, .beside_read = beside, .path = one->path, .file = one->path,
                     .err_msg = err_msg))
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_pages_lock);
         return 0;
     }
     char path[CLI_PATH_MAX_LEN];
@@ -589,6 +575,5 @@ int cli_pages_save(const CliPagesPathCfg *args)
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = one->path, .cap = CLI_CELLS_POOL}) + 1u});
     const int opened = EMBED_CALL(cli_pages_err_msg_internal.page_open_reading, CliPagesErrMsgCtx, .key = args->key,
                                   .path = path, .behind = 0, .out = args->out, .err_msg = err_msg);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_pages_lock);
     return opened;
 }

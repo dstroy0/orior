@@ -147,7 +147,6 @@ EMBED_INLINE void findings_dispatch(const InspectTreeFindingsCtx *args)
 
 void cli_inspect_tree_findings(const CliInspectTreeCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_tree_lock);
     void *const cell = findings_take();
     CliFacts tree = {0};
     tree.finding = s_findings.findings;
@@ -176,5 +175,4 @@ void cli_inspect_tree_findings(const CliInspectTreeCfg *args)
     }
     g_cli_cells->persistent_buf_release(cell, &g_cli_inspect_cells);
     s_findings = (CliTreeFindings){0, 0u, 0ull, NULL, NULL, NULL, NULL, NULL, NULL};
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_tree_lock);
 }

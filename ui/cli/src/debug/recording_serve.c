@@ -33,30 +33,25 @@ static CliRecordingReader s_errors;
 static CliWords s_words;
 static char s_path[CLI_PATH_MAX_LEN * 8u];
 static unsigned long long s_recordings;
-static CliLock s_lock = CLI_LOCK_INIT;
 static CliWake s_wake = CLI_WAKE_INIT;
 
 // the run ended where it goes on; and the same, then waited for until its readers end
 void cli_recording_run_kill(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     if (s_has_running)
     {
         EMBED_CALL(cli_cols_internal.spawn_kill, CliColsCtx, .spawned_read = &s_running);
         s_has_running = 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 void cli_recording_run_end(void)
 {
     cli_recording_run_kill();
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     while (s_going)
     {
-        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_wake, .lock = &s_lock);
+        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_wake);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 typedef struct
@@ -112,20 +107,16 @@ static void serve_read(void *context)
 {
     CliRecordingReader *const reader = (CliRecordingReader *)context;
     EMBED_CALL(serve_lines, RecordingServeCtx, .reader = reader);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     s_readers -= 1u;
     const int last = (s_readers == 0u);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     if (!last)
     {
         return;
     }
     const long long status = EMBED_CALL(cli_spawned_internal.spawn_wait, CliSpawnedCtx, .spawned = &s_running);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int has_code = s_has_running && (status >= 0ll);
     s_has_running = 0;
     EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &s_running);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     char recorded[CLI_PATH_MAX_LEN * 2u];
     VerbaLinea out = {recorded, sizeof(recorded), 0ull};
     mmgr_line_put(&out, "{\"type\":\"orior\",\"event\":\"recorded\",\"out\":");
@@ -145,10 +136,8 @@ static void serve_read(void *context)
     // the run is let go before the adapter is handed its recording, so that a record that waits on this end, on the
     // adapter's own thread, does not wait on the adapter taking the message
     CliDap *const dap = s_dap;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     s_going = 0;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_wake);
     (void)EMBED_CALL(cli_dap_message.itself, CliDapMessageCfg, .dap = dap, .message = out.out, .size = out.at);
     EMBED_CALL(cli_dap.unref, CliDapCfg, .dap = dap);
 }
@@ -219,12 +208,10 @@ int cli_recording_run(const CliRecordingDapCtx *args)
         return 0;
     }
     EMBED_CALL(cli_dap.ref, CliDapCfg, .dap = dap);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     s_dap = dap;
     s_has_running = 1;
     s_going = 1;
     s_readers = 2u;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     s_output.pipe = s_running.out;
     s_output.category = "stdout";
     s_output.thread = (CliThread){serve_read, &s_output};

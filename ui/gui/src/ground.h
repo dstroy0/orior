@@ -35,11 +35,11 @@ typedef struct
     unsigned int frames;
 } GuiGround;
 
-// Takes a lattice instance and starts the clock at `now`. Returns 0 when every instance is taken.
+// Takes a lattice instance and starts the clock. Returns 0 when every instance is taken.
 int gui_ground_init(const GuiGroundCfg *args);
 // Lets go of the raster, which the caller owns, and of the lattice instance.
 void gui_ground_free(const GuiGroundCfg *args);
-// Stops the clock at `now` when `paused` is 1, and restarts it where it stopped when 0.
+// Stops the clock when `paused` is 1, and restarts it where it stopped when 0.
 void gui_ground_pause(const GuiGroundCfg *args);
 // Lays the lattice over a `width` by `height` window at `scale` and draws into `raster`, which the caller owns. Returns
 // 0 when the lattice could not be laid; the raster then holds the deep color alone.
@@ -48,9 +48,9 @@ int gui_ground_layout(const GuiGroundRasterCfg *args);
 void gui_ground_draw(const GuiGroundRasterCfg *args);
 // Redraws when the clock has reached `next_draw_ms`. Returns 1 when it drew.
 int gui_ground_tick(const GuiGroundRasterCfg *args);
-// Milliseconds until the next draw, at least 1, or 0 for never while paused or not laid.
+// The next draw's deadline, or 0 for none while paused or not laid.
 unsigned long long gui_ground_next_deadline_ms(const GuiGroundClockCfg *args);
-// Milliseconds the clock has run at `now`.
+// Milliseconds the clock has run.
 unsigned long long gui_ground_elapsed_ms(const GuiGroundClockCfg *args);
 struct GuiGroundCfg
 {

@@ -268,7 +268,6 @@ int cli_format_margin(const CliFormatPathLanguageCfg *args)
     static const char *const s_rustfmt[2] = {"rustfmt.toml", ".rustfmt.toml"};
     static const char *const s_clang[2] = {".clang-format", "_clang-format"};
     static const char *const s_prettier[4] = {".prettierrc", ".prettierrc.json", ".prettierrc.yaml", ".prettierrc.yml"};
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_format_lock);
     char why[CLI_NAME_MAX_LEN * 4u];
     VerbaLinea unknown = {why, sizeof(why), 0ull};
     const unsigned int tool = EMBED_CALL(cli_format_language_internal.tool, CliFormatLanguageCtx,

@@ -196,8 +196,6 @@ EMBED_INLINE void gather_reserve(const CompileDbGatherCtx *args);
 
 void cli_compile_gather(const CliCompileDbRootCtx *args)
 {
-    static CliLock s_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     if (gather_cells_take())
     {
         EMBED_CALL(gather_reserve, CompileDbGatherCtx, .root = args->root, .inputs = args->inputs_read,
@@ -211,7 +209,6 @@ void cli_compile_gather(const CliCompileDbRootCtx *args)
         args->database->compilers = 0u;
         args->database->msvc = 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 EMBED_INLINE void gather_reserve(const CompileDbGatherCtx *args)

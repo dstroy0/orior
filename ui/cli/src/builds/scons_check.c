@@ -321,7 +321,6 @@ EMBED_INLINE void check_read_file(const SconsCheckCtx *args)
 
 void cli_scons_check(const CliSconsTextCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_scons_lock);
     unsigned char *const class_of = EMBED_CALL(check_read, SconsCheckCtx, .text = args->text, .size = args->size);
     if (class_of != NULL)
     {
@@ -329,7 +328,6 @@ void cli_scons_check(const CliSconsTextCtx *args)
                    .lines = args->lines, .found = args->found);
     }
     g_cli_cells->persistent_buf_release(class_of, &g_cli_scons_rooms_cells);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_scons_lock);
 }
 
 // The hand a name SCons gives is handed to
@@ -358,7 +356,6 @@ void cli_scons_free(const CliSconsTextSizeContextCtx *args)
         EMBED_CALL(each, CliEachNameSizeCfg, .context = context, .name = g_cli_scons_globals[at],
                    .size = cellul.len(&(CatenaFinitaCfg){.src = g_cli_scons_globals[at], .cap = CLI_CELLS_POOL}));
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_scons_lock);
     unsigned char *const class_of = EMBED_CALL(check_read, SconsCheckCtx, .text = text, .size = size);
     if (class_of != NULL)
     {
@@ -366,7 +363,6 @@ void cli_scons_free(const CliSconsTextSizeContextCtx *args)
         EMBED_CALL(cli_scons_name_internal.import, CliSconsNameCtx, .each = check_input_import, .context = &given);
     }
     g_cli_cells->persistent_buf_release(class_of, &g_cli_scons_rooms_cells);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_scons_lock);
 }
 
 // whether a letter goes in an environment's name and its method
@@ -490,12 +486,10 @@ EMBED_INLINE void check_complete(const SconsCheckCtx *args)
 
 void cli_scons_complete(const CliSconsTextSizeCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_scons_lock);
     unsigned char *const class_of = EMBED_CALL(check_read, SconsCheckCtx, .text = args->text, .size = args->at);
     if (class_of != NULL)
     {
         EMBED_CALL(check_complete, SconsCheckCtx, .text = args->text, .at = args->at, .items = args->items);
     }
     g_cli_cells->persistent_buf_release(class_of, &g_cli_scons_rooms_cells);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_scons_lock);
 }

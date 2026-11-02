@@ -139,7 +139,6 @@ typedef struct
 {
     CliDebugSession sessions[CLI_DEBUG_SESSIONS];
     unsigned long long next;
-    CliLock lock;
     CliWake wake;
 } CliDebugRoom;
 

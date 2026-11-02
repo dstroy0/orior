@@ -267,10 +267,8 @@ void cli_gradle_check(const CliGradleTextSizeCtx *args)
     CliBuildFindings *found = args->found;
     static CliGradleCheck s_check;
     static CliGradleCatalogs s_catalogs;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_gradle_lock);
     if (!cli_gradle_text_size_internal.read(args))
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_gradle_lock);
         return;
     }
     s_check.lines = lines;
@@ -350,5 +348,4 @@ void cli_gradle_check(const CliGradleTextSizeCtx *args)
                    CliVersionCatalogTextSizeAliasesCtx, .aliases = &aliases);
     }
     cli_gradle_release();
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_gradle_lock);
 }

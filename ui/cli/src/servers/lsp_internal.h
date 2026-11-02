@@ -36,9 +36,7 @@ struct CliLsp
     CliSetting settings[64];
     CliSpawned spawned;
     int ended;
-    CliLock input_lock;
     CliLspWriter input;
-    CliLock lock;
     CliWake wake;
     unsigned long long next;
     CliLspWaiter waiters[CLI_LSP_WAITERS];
@@ -56,7 +54,6 @@ struct CliLsp
 
 // the lock a server's number and references are counted under; each server is a cell of its own, taken as it starts and
 // given back once its readers end (lsp.c)
-extern CliLock g_cli_lsps_lock;
 
 // the server's readers started: what it writes read on a thread of its own, each answer handed to the request waiting
 // on it and what it sends unprompted to its receiver; and what it writes to its errors retained, its last

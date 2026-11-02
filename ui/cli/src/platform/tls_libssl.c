@@ -65,7 +65,6 @@ typedef struct
 } CliSsl;
 
 static CliTls s_sessions[CLI_TLS_MOST];
-static CliLock s_lock = CLI_LOCK_INIT;
 static CliSsl s_ssl;
 // 0 where the library was not looked for, 1 where it was found whole, -1 where it was not, and what was missing
 static int s_loaded;
@@ -166,7 +165,6 @@ EMBED_INLINE int cli_address(const TlsLibsslCtx *args)
 CliTls *cli_tls_connect(const CliTlsCfg *args)
 {
     CliSocket *socket = args->socket;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int loaded = cli_load();
     CliTls *tls = NULL;
     for (unsigned int at = 0u; loaded && (tls == NULL) && (at < CLI_TLS_MOST); at += 1u)
@@ -177,7 +175,6 @@ CliTls *cli_tls_connect(const CliTlsCfg *args)
     {
         tls->used = 1;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     if (!loaded)
     {
         mmgr_line_put(args->err_msg, (s_missing[0] != '\0')
@@ -326,8 +323,6 @@ void cli_tls_close(const CliTlsOutCfg *args)
     s_ssl.shutdown(args->tls->ssl);
     s_ssl.free_session(args->tls->ssl);
     s_ssl.context_free(args->tls->context);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     args->tls->used = 0;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 #endif

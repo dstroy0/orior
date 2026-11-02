@@ -17,7 +17,6 @@
 // given back before it is
 static CliJson s_json;
 static CliRequestsValues s_names;
-static CliLock s_lock = CLI_LOCK_INIT;
 
 // the environment files, the shared one first
 static const char *const s_files[2] = {CLI_REQUESTS_PUBLIC, CLI_REQUESTS_PRIVATE};
@@ -233,7 +232,6 @@ int cli_requests_environments(const CliRequestsTextCfg *args)
 {
     char relative[2][CLI_PATH_MAX_LEN];
     int has[2] = {0, 0};
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int listed = EMBED_CALL(values_list, RequestsValuesCtx, .root = args->root, .path = args->path,
                                   .relative = relative, .has = has, .err_msg = args->err_msg);
     if (listed)
@@ -264,7 +262,6 @@ int cli_requests_environments(const CliRequestsTextCfg *args)
     }
     EMBED_CALL(cli_requests_err_msg_root_internal.values_free, CliRequestsErrMsgRootCtx, .values = &s_names);
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &s_json);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return listed;
 }
 
@@ -304,7 +301,6 @@ int cli_requests_values(const CliRequestsErrMsgRootCtx *args)
     cli_requests_err_msg_root_internal.values_free(args);
     int read = 1;
     int fits = 1;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     for (unsigned int at = 0u; read && fits && (at < 2u); at += 1u)
     {
         char file[CLI_PATH_MAX_LEN];
@@ -331,7 +327,6 @@ int cli_requests_values(const CliRequestsErrMsgRootCtx *args)
         }
     }
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &s_json);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     if (!fits)
     {
         EMBED_CALL(values_full_err, RequestsValuesCtx, .err_msg = args->err_msg);
@@ -346,7 +341,6 @@ int cli_requests_verifies(const CliRequestsErrMsgRootCtx *args)
         return 1;
     }
     int verifies = 1;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     for (unsigned int at = 0u; verifies && (at < 2u); at += 1u)
     {
         char file[CLI_PATH_MAX_LEN];
@@ -367,7 +361,6 @@ int cli_requests_verifies(const CliRequestsErrMsgRootCtx *args)
                                .kind = CFG_JSON_FALSE);
     }
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &s_json);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return verifies;
 }
 
@@ -475,7 +468,6 @@ int cli_requests_private_init(const CliRequestsTextCfg *args)
         return 0;
     }
     int has[2] = {0, 0};
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     int done = EMBED_CALL(values_list, RequestsValuesCtx, .root = args->root, .path = args->path, .relative = relative,
                           .has = has, .err_msg = args->err_msg);
     int joined = 1;
@@ -497,7 +489,6 @@ int cli_requests_private_init(const CliRequestsTextCfg *args)
     }
     EMBED_CALL(cli_requests_err_msg_root_internal.values_free, CliRequestsErrMsgRootCtx, .values = &s_names);
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &s_json);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     if (failed != NULL)
     {
         mmgr_line_put(args->err_msg, failed);

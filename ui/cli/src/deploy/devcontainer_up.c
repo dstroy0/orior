@@ -7,7 +7,6 @@
 #include "devcontainer.h"
 
 // the lock acquired while docker's words and output are stored
-static CliLock s_lock = CLI_LOCK_INIT;
 
 // how a container is stays running, in place of the image's own command: a POSIX shell's line, ended at once by docker
 // stop
@@ -532,9 +531,7 @@ EMBED_INLINE int cli_up_lock(const DevcontainerUpCtx *args)
 
 int cli_devcontainer_up(const CliDevcontainerErrMsgCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int done = EMBED_CALL(cli_up_lock, DevcontainerUpCtx, .plan = args->plan, .sink = args->sink,
                                 .address = args->address, .err_msg = args->err_msg);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return done;
 }

@@ -21,7 +21,6 @@ static const char s_strings_args[] = "{\"paths\": [\"a\", \"b\", \"c\"], \"bad\"
 static unsigned long long s_read;
 static char s_written[1u << 20u];
 static unsigned long long s_written_at;
-static CliLock s_lock = CLI_LOCK_INIT;
 static char s_events[1u << 16u];
 static unsigned long long s_events_at;
 static int s_ended;
@@ -64,13 +63,11 @@ static unsigned long long input_line_read(const CliEachLineRoomCfg *args)
 static void output_recorded(const CliEachBytesSizeCfg *args)
 {
     const char *bytes = args->bytes;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     if (s_written_at + args->size < sizeof(s_written))
     {
         memor.cpy(&(MemoriaCfg){.dst = s_written + s_written_at, .src = bytes, .bytes = args->size});
         s_written_at += args->size;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 // the line the server wrote that answers `id`, or, where `id` is 0, the first line: its node in the shared tree, CLI_JSON_NONE where none does
@@ -124,7 +121,6 @@ static void lines_served(void)
 static void event_recorded(void *context, const char *event, const char *body, unsigned long long size)
 {
     (void)context;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     VerbaLinea line = {s_events + s_events_at, sizeof(s_events) - s_events_at, 0ull};
     mmgr_line_put(&line, event);
     mmgr_line_ch(&line, ' ');
@@ -132,7 +128,6 @@ static void event_recorded(void *context, const char *event, const char *body, u
     mmgr_line_ch(&line, '\n');
     s_events_at += mmgr_line_ok(&line) ? line.at : 0ull;
     s_ended |= cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "run-end", .cap = CLI_CELLS_POOL});
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 // where `text` first is among what the server sent, past the sent text's end where it never is
@@ -163,9 +158,7 @@ static void job_ran(void)
     for (unsigned int wait = 0u; s_job_started && !s_job_ended && (wait < 600u); wait += 1u)
     {
         EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 50u);
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
         s_job_ended = s_ended;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     }
     s_gathering_in_use = embed_atomic_usize_load(&g_cli_serve_gathering_cells.in_use);
 }
@@ -323,13 +316,11 @@ void test_a_job_started_here_ends(void)
 void test_a_jobs_start_comes_first_its_lines_in_order_and_its_end_last(void)
 {
     job_ran();
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const unsigned long long start = event_position("run-start ");
     const unsigned long long first = event_position("first_line");
     const unsigned long long second = event_position("second_line");
     const unsigned long long end = event_position("run-end ");
     const unsigned long long size = s_events_at;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     TEST_ASSERT_LESS_THAN_UINT64(first, start);
     TEST_ASSERT_LESS_THAN_UINT64(second, first);
     TEST_ASSERT_LESS_THAN_UINT64(end, second);

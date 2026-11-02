@@ -19,7 +19,6 @@
 #define CLI_EDITOR_ANSWER_ROOM (4ull << 20u)
 
 // a server taking a file and the view marked served, as one step against a server letting a file go
-static CliLock s_serving_lock = CLI_LOCK_INIT;
 #define CLI_EDITOR_HOVER_MOST 6u
 #define CLI_EDITOR_WORD 256u
 
@@ -201,7 +200,6 @@ static int editor_view_serve(const CliServeAnswerCfg *args)
         char why[CLI_ERR_MSG_MAX_LEN];
         VerbaLinea refused = {why, sizeof(why), 0ull};
         const CliServersSink sink = EMBED_CALL(cli_serve_internal.emitter, CliServeCtx, .tree = root);
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_serving_lock);
         served = EMBED_CALL(cli_servers_root.open, CliServersRootCfg, .root = root, .path = full, .language = id,
                             .text = text, .size = size, .sink = &sink, .out = &said, .err_msg = &refused) &&
                  mmgr_line_ok(&said) && (said.at == 4ull) &&
@@ -217,7 +215,6 @@ static int editor_view_serve(const CliServeAnswerCfg *args)
                                  .path = full, .err_msg = &refused);
             }
         }
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_serving_lock);
         g_cli_cells->persistent_buf_release(text, &g_cli_window_cells);
     }
     mmgr_line_put(out, served ? "{\"served\":true}" : "{\"served\":false}");
@@ -569,13 +566,11 @@ static int editor_server_close(const CliServeAnswerCfg *args)
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = path, .joined = full);
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea ignored = {why, sizeof(why), 0ull};
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_serving_lock);
     if (!EMBED_CALL(cli_view_full.serving, CliViewFullCfg, .full = full))
     {
         (void)EMBED_CALL(cli_servers_path_out_err_msg_from_to.close, CliServersPathOutErrMsgFromToCfg, .path = full,
                          .err_msg = &ignored);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_serving_lock);
     mmgr_line_put(args->out, "null");
     return 1;
 }

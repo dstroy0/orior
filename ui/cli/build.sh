@@ -143,7 +143,7 @@ vector_words_of() {
 words_of() {
     local target="$1"
     case "$target" in
-        *windows*) SUFFIX=".exe"; LIBRARIES=(-lws2_32 -lsecur32 -lcrypt32 -lshell32 -ladvapi32 -luser32 -lole32 -luuid) ;;
+        *windows*) SUFFIX=".exe"; LIBRARIES=(-lws2_32 -lsynchronization -lsecur32 -lcrypt32 -lshell32 -ladvapi32 -luser32 -lole32 -luuid) ;;
         *darwin*) SUFFIX=""; LIBRARIES=(-lpthread -lm) ;;
         *musl*) SUFFIX=""; LIBRARIES=(-static -lpthread -lm) ;;
         *) SUFFIX=""; LIBRARIES=(-lpthread -ldl -lm -lrt) ;;

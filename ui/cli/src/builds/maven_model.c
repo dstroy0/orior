@@ -22,8 +22,6 @@ typedef struct
 #define CLI_MAVEN_DEPTH 8u
 #define CLI_MAVEN_POM_TEXT (1ull << 20u)
 
-static CliLock s_model_lock = CLI_LOCK_INIT;
-
 typedef struct
 {
     const char *path;
@@ -132,8 +130,6 @@ EMBED_INLINE void model_set(const MavenModelCtx *args)
 void cli_maven_resolve(const CliMavenSizeOutCtx *args)
 {
     static char s_turn[2][1u << 16u];
-    static CliLock s_resolve_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_resolve_lock);
     VerbaLinea line = {s_turn[0], sizeof(s_turn[0]), 0ull};
     mmgr_line_put_n(&line, args->value, args->size);
     unsigned int turn_at = 0u;
@@ -165,7 +161,6 @@ void cli_maven_resolve(const CliMavenSizeOutCtx *args)
         turn_at = next;
     }
     mmgr_line_put_n(args->out, s_turn[turn_at], line.at);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_resolve_lock);
 }
 
 int cli_maven_free(const CliMavenSizeNameCtx *args)
@@ -488,13 +483,11 @@ static void model_read(const MavenModelCtx *args)
 
 void cli_maven_model_get(const CliMavenTextSizeModelCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_model_lock);
     cli_maven_text_size_model_internal.model_free(args);
     cli_maven_text_size_model_internal.model_take(args);
     args->model->whole = args->model->text != NULL;
     EMBED_CALL(model_read, MavenModelCtx, .path = args->path, .text = args->text, .size = args->size, .depth = 0u,
                .model = args->model);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_model_lock);
 }
 
 void cli_maven_program(const CliMavenOutCtx *args)

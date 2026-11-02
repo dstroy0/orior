@@ -14,7 +14,6 @@
 
 static CliCargoTests s_binary_tests;
 static char s_path[CLI_PATH_TEXT];
-static CliLock s_binary_lock = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -209,7 +208,6 @@ EMBED_INLINE int binary_build(const CargoBinaryCtx *args)
 
 int cli_cargo_binary(const CliCargoTestsIdCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_binary_lock);
     EMBED_CALL(cli_cargo_tests_table.cargo_find, CliCargoTestsCfg, .root = args->root, .tests = &s_binary_tests);
     const CliCargoFound *one = NULL;
     for (unsigned int at = 0u; (one == NULL) && (at < s_binary_tests.count); at += 1u)
@@ -244,6 +242,5 @@ int cli_cargo_binary(const CliCargoTestsIdCfg *args)
         }
     }
     EMBED_CALL(cli_cargo_tests_table.free, CliCargoTestsCfg, .tests = &s_binary_tests);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_binary_lock);
     return built;
 }

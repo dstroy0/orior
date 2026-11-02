@@ -46,22 +46,18 @@ typedef struct
 } CliServeCatalogRoom;
 
 static CliServeCatalogRoom *s_catalog;
-static CliLock s_catalog_lock = CLI_LOCK_INIT;
 
 static CliServeGathering *s_gathering[CLI_SERVE_GATHERING];
-static CliLock s_gathering_lock = CLI_LOCK_INIT;
 static CliThread s_flusher;
 static int s_flushing;
 
 CliCatalog *cli_serve_catalog_take(const CliServeErrMsgRootCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_catalog_lock);
     // the catalog outlives the call that reads it: its cell is the shared cellblock's, never a lane's
     s_catalog = g_cli_cells->persistent_buf_alloc(sizeof(*s_catalog), &g_cli_serve_gathering_cells);
     if (s_catalog == NULL)
     {
         mmgr_line_put(args->err_msg, "the tree's catalog: the cells cannot meet it");
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_catalog_lock);
         return NULL;
     }
     CliServeCatalogRoom *const room = s_catalog;
@@ -78,7 +74,6 @@ void cli_serve_catalog_free(void)
 {
     g_cli_cells->persistent_buf_release(s_catalog, &g_cli_serve_gathering_cells);
     s_catalog = NULL;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_catalog_lock);
 }
 
 CliValues *cli_serve_values_get(const CliServeErrMsgOutCtx *args)
@@ -139,7 +134,6 @@ static void jobs_flusher(void *context)
     for (;;)
     {
         EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = CLI_SERVE_FLUSH);
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_gathering_lock);
         for (unsigned int at = 0u; at < CLI_SERVE_GATHERING; at += 1u)
         {
             if (s_gathering[at] != NULL)
@@ -147,7 +141,6 @@ static void jobs_flusher(void *context)
                 EMBED_CALL(jobs_flush, ServeJobsCtx, .one = s_gathering[at]);
             }
         }
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_gathering_lock);
     }
 }
 
@@ -157,7 +150,6 @@ static void jobs_run_event(const CliEachEventCfg *args)
 {
     const CliRunEvent *event = args->event;
     CliServeGathering *const one = args->context;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_gathering_lock);
     if ((event->kind == CLI_RUN_EVENT_LINE) && (one != NULL))
     {
         if (one->lines.at > CLI_SERVE_GATHERED)
@@ -169,7 +161,6 @@ static void jobs_run_event(const CliEachEventCfg *args)
         mmgr_line_put(&one->lines, (mark > 1ull) ? "," : "");
         EMBED_CALL(cli_runner_event.run_event_write, CliRunnerEventCfg, .event = event, .out = &one->lines);
         one->lines.at = mmgr_line_ok(&one->lines) ? one->lines.at : mark;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_gathering_lock);
         return;
     }
     // the line printed written after an array's opening, which a line printed where it has no gathering goes in alone
@@ -204,7 +195,6 @@ static void jobs_run_event(const CliEachEventCfg *args)
         EMBED_CALL(cli_serve_event_internal.emit, CliServeEventCtx, .event = "run-end",
                    .body = fits ? line.out + 1u : "", .size = fits ? line.at - 1u : 0ull);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_gathering_lock);
     g_cli_cells->persistent_buf_release(line.out, &g_cli_serve_gathering_cells);
 }
 
@@ -213,9 +203,7 @@ EMBED_INLINE void jobs_gathering_free(const ServeJobsCtx *args)
 {
     if (args->one != NULL)
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_gathering_lock);
         s_gathering[args->one->place] = NULL;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_gathering_lock);
         g_cli_cells->persistent_buf_release(args->one->lines.out, &g_cli_serve_gathering_cells);
         g_cli_cells->persistent_buf_release(args->one, &g_cli_serve_gathering_cells);
     }
@@ -231,7 +219,6 @@ int cli_serve_job_start(const CliServeErrMsgOutCtx *args)
     {
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_gathering_lock);
     unsigned int place = 0u;
     while ((place < CLI_SERVE_GATHERING) && (s_gathering[place] != NULL))
     {
@@ -262,7 +249,6 @@ int cli_serve_job_start(const CliServeErrMsgOutCtx *args)
     }
     const int started = s_flushing;
     s_flushing = 1;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_gathering_lock);
     if (!started)
     {
         s_flusher = (CliThread){jobs_flusher, NULL};

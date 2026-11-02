@@ -26,7 +26,6 @@
 
 CliCatalogRoom *g_cli_catalog;
 static CliCatalogRoom s_catalog_room;
-static CliLock s_catalog_lock = CLI_LOCK_INIT;
 
 // an entry's fields that are texts, and those that are lists of texts, in the order serde writes them
 static const char *const s_texts[6] = {"id", "name", "version", "about", "package", "sha256"};
@@ -35,7 +34,6 @@ static const char *const s_lists[3] = {"reads", "writes", "reaches"};
 int cli_plugin_catalog_lock(const CliPluginCatalogCtx *args)
 {
     (void)args;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_catalog_lock);
     g_cli_catalog = &s_catalog_room;
     g_cli_catalog->bytes = NULL;
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &g_cli_catalog->json,
@@ -49,7 +47,6 @@ void cli_plugin_catalog_release(void)
     g_cli_cells->persistent_buf_release(g_cli_catalog->bytes, &g_cli_plugins_cells);
     g_cli_catalog->bytes = NULL;
     g_cli_catalog = NULL;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_catalog_lock);
 }
 
 unsigned int cli_plugin_catalog_tree(const CliPluginCatalogCtx *args)

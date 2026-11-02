@@ -13,8 +13,6 @@ CliLink g_cli_link;
 char *g_cli_link_line;
 static char s_state_json[CLI_LINK_STANDING];
 // the link's state, and the server's input, which a writer takes first
-CliLock g_cli_link_lock = CLI_LOCK_INIT;
-CliLock g_cli_link_writing = CLI_LOCK_INIT;
 CliWake g_cli_link_changed = CLI_WAKE_INIT;
 
 typedef struct
@@ -58,10 +56,8 @@ void cli_link_state_set(const CliLinkStateCtx *args)
     VerbaLinea state_json = {s_state_json, sizeof(s_state_json), 0ull};
     EMBED_CALL(link_stand, LinkCtx, .state = args->state, .detail = args->detail, .size = args->size,
                .out = &state_json);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_link_lock);
     memor.cpy(&(MemoriaCfg){.dst = g_cli_link.standing, .src = s_state_json, .bytes = (size_t)state_json.at});
     g_cli_link.standing_size = state_json.at;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_link_lock);
     g_cli_link.emit(g_cli_link.context, "link", s_state_json, state_json.at);
 }
 
@@ -88,7 +84,6 @@ void cli_link_errors_read(void *context)
         {
             break;
         }
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_link_lock);
         for (unsigned long long at = 0ull; at < count; at += 1ull)
         {
             if (g_cli_link.stderr_tail_size == CLI_LINK_STDERR_TAIL_LEN)
@@ -107,18 +102,14 @@ void cli_link_errors_read(void *context)
             g_cli_link.stderr_tail[g_cli_link.stderr_tail_size] = piece[at];
             g_cli_link.stderr_tail_size += 1ull;
         }
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_link_lock);
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_link_lock);
     g_cli_link.reading_errors = 0;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &g_cli_link_changed);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_link_lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &g_cli_link_changed);
 }
 
 // the end of what the transport printed, trimmed, into `out`
 void cli_link_stderr_write(const CliLinkCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_link_lock);
     unsigned long long start = 0ull;
     unsigned long long end = g_cli_link.stderr_tail_size;
     start = EMBED_CALL(cli_text_at_size_classes.past_any, CliTextAtSizeClassesCfg, .text = g_cli_link.stderr_tail,
@@ -127,7 +118,6 @@ void cli_link_stderr_write(const CliLinkCtx *args)
                              .text = g_cli_link.stderr_tail + start, .at = end - start, .set = CLI_TEXT_WHITE);
     EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = args->out,
                .text_bytes = (const unsigned char *)g_cli_link.stderr_tail + start, .length = end - start);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_link_lock);
 }
 
 // the next line the server wrote, its line's end taken off, into g_cli_link_line, `*size` bytes, `*whole` 0 where it
@@ -230,7 +220,7 @@ EMBED_INLINE void link_answer(const LinkCtx *args)
             mmgr_line_put(args->call->out, "null");
         }
     }
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &g_cli_link_changed);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &g_cli_link_changed);
 }
 
 // a line the server wrote handed on: an event to the link's teller, an answer to the call waiting on its id
@@ -262,7 +252,6 @@ void cli_link_recv(const CliLinkSizeCtx *args)
     {
         return;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_link_lock);
     for (unsigned int at = 0u; at < CLI_LINK_CALLS; at += 1u)
     {
         CliLinkCall *const call = &g_cli_link.calls[at];
@@ -273,7 +262,6 @@ void cli_link_recv(const CliLinkSizeCtx *args)
             break;
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_link_lock);
 }
 
 void cli_link_path_word(const CliLinkOutPathCfg *args)

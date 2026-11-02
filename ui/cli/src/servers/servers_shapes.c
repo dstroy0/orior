@@ -10,7 +10,6 @@
 
 void cli_servers_reading_lock(const CliServersReadingAnswerCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->reading->lock);
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &args->reading->json,
                .node_json_node_pointer = NULL, .nodes_most = 0u, .text_out = NULL, .text_most = 0ull);
 }
@@ -18,7 +17,6 @@ void cli_servers_reading_lock(const CliServersReadingAnswerCtx *args)
 void cli_servers_reading_release(const CliServersReadingAnswerCtx *args)
 {
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &args->reading->json);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->reading->lock);
 }
 
 unsigned int cli_servers_read(const CliServersReadingCtx *args)

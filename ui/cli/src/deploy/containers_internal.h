@@ -101,7 +101,7 @@ typedef struct
 } CliContainersNsTable;
 EMBED_TABLE_LAYOUT(CliContainersNsTable, lock);
 EMBED_TABLE_STORAGE CliContainersNsTable cli_containers_internal EMBED_UNUSED = {
-    .lock = cli_containers_lock,
+
 };
 
 typedef struct

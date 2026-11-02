@@ -15,7 +15,6 @@ typedef struct
     unsigned long long at;
 } CliVersionsReader;
 CliVersionsParsed g_cli_versions;
-CliLock g_cli_versions_lock = CLI_LOCK_INIT;
 
 // no letter, past the text's end
 #define CLI_VERSIONS_END 0xffffffffu

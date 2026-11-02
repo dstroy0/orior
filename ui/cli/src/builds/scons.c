@@ -10,7 +10,6 @@
 #include "scons_internal.h"
 
 CliSconsFile g_cli_scons;
-CliLock g_cli_scons_lock = CLI_LOCK_INIT;
 
 const char *const g_cli_scons_globals[76] = {"Environment",
                                              "DefaultEnvironment",

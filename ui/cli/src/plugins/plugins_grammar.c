@@ -24,7 +24,6 @@ typedef struct
 static CliPluginGrammar *s_grammars;
 static unsigned int s_grammar_room;
 static unsigned int s_grammar_count;
-static CliLock s_lock = CLI_LOCK_INIT;
 
 // the list of the plugins whose grammars are stored, taken once at CLI_PLUGIN_GRAMMARS_MOST: 1, or 0 where it stands
 // taken or the cells cannot meet it; under the lock
@@ -181,7 +180,6 @@ int cli_plugins_grammar_store(const CliPluginsIdKeyCfg *args)
     {
         tree[0] = '\0';
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     CliGrammarSought sought = {plugin_id, name, tree, 0, 0, &whole, args->err_msg};
     EMBED_CALL(cli_plugins_each_table.each, CliPluginsEachCfg, .each = cli_grammar_each, .context = &sought);
     const unsigned long long stamp =
@@ -211,7 +209,6 @@ int cli_plugins_grammar_store(const CliPluginsIdKeyCfg *args)
             s_grammars[at].stamp = stamp;
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     g_cli_cells->persistent_buf_release(whole.out, &g_cli_plugins_cells);
     if (!sought.found)
     {

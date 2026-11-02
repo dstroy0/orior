@@ -28,7 +28,6 @@ typedef struct
 static CliCargoTests s_tests;
 static CliCargoGroup s_groups[CLI_CARGO_GROUPS];
 static unsigned int s_order[CLI_CARGO_FOUND];
-static CliLock s_run_lock = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -134,10 +133,8 @@ static unsigned int run_group(const CargoRunCtx *args)
 
 unsigned int cli_cargo_targets_free(const CliCargoTestsGivenCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_run_lock);
     const unsigned int groups =
         EMBED_CALL(run_group, CargoRunCtx, .root = args->root, .given = args->given, .count = args->count);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_run_lock);
     return groups;
 }
 
@@ -309,10 +306,8 @@ static void run_worker(void *context)
     EMBED_CALL(cli_test_runs_text_worker_internal.test_file_let_go, CliTestRunsTextWorkerCtx, .text = seen,
                .size = seen_size);
     CliTestRun *const run = worker->run;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &run->lock);
     run->going -= 1u;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &run->wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &run->lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &run->wake);
 }
 
 // the words that request from Cargo a target alone, put after the words
@@ -435,21 +430,17 @@ EMBED_INLINE int run_target_start(const CargoRunCtx *args)
     mmgr_line_put(&name_line, ".out");
     mmgr_line_finish(&name_line);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = run->scratch, .relative = name, .joined = worker->seen);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_test_lock);
     const int started =
         EMBED_CALL(cli_words_err_msg_internal.spawn_as, CliWordsErrMsgCtx, .priority = CLI_PRIORITY_GUEST,
                    .spawned = &worker->spawned, .words = s_words.word, .folder = package, .settings = settings,
                    .count = 2u, .detached = 1, .err_msg = err_msg);
     run->worker_count += started ? 1u : 0u;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_test_lock);
     if (!started)
     {
         return 0;
     }
     EMBED_CALL(cli_test_runs_worker_line_internal.test_errors_start, CliTestRunsWorkerLineCtx, .worker = worker);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &run->lock);
     run->going += 1u;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &run->lock);
     worker->thread = (CliThread){run_worker, worker, CLI_PRIORITY_GUEST};
     if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &worker->thread))
     {
@@ -466,7 +457,6 @@ int cli_cargo_workers_start(const CliTestRunsRunGivenCtx *args)
     {
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_run_lock);
     const unsigned int groups =
         EMBED_CALL(run_group, CargoRunCtx, .root = args->run->root, .given = args->given, .count = args->count);
     int started = 1;
@@ -477,6 +467,5 @@ int cli_cargo_workers_start(const CliTestRunsRunGivenCtx *args)
     }
     // each worker took its tests' names into the run, so the tests found are given back once every one is started
     EMBED_CALL(cli_cargo_tests_table.free, CliCargoTestsCfg, .tests = &s_tests);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_run_lock);
     return started;
 }

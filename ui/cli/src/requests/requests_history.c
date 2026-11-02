@@ -14,8 +14,6 @@
 #define CLI_REQUESTS_PIECE (16u << 20u)
 #define CLI_REQUESTS_ROOM 16384u
 
-static CliLock s_history_lock = CLI_LOCK_INIT;
-
 // The file the answers are added to as their line fills: its path, and whether the next piece makes it anew
 typedef struct
 {
@@ -199,7 +197,6 @@ int cli_requests_history_save(const CliRequestsErrMsgCtx *args)
         mmgr_line_put(args->err_msg, ": its path is too long");
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_history_lock);
     const int made = EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = folder);
     const unsigned char *bytes = NULL;
     unsigned long long size = 0ull;
@@ -228,7 +225,6 @@ int cli_requests_history_save(const CliRequestsErrMsgCtx *args)
     mmgr_line_ch(&piece, ']');
     done = done && mmgr_line_flush(&piece) &&
            EMBED_CALL(cli_err_msg_from_internal.move, CliErrMsgFromCtx, .from_text = writing, .to = file);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_history_lock);
     if (!done)
     {
         mmgr_line_put(args->err_msg, made ? file : folder);
@@ -261,7 +257,6 @@ int cli_requests_answers(const CliRequestsTextCfg *args)
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out, .text = key,
                .length = key_line.at);
     mmgr_line_put(args->out, ",\"answers\":");
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_history_lock);
     const unsigned char *bytes = NULL;
     unsigned long long byte_count = 0ull;
     unsigned long long first = 0ull;
@@ -277,7 +272,6 @@ int cli_requests_answers(const CliRequestsTextCfg *args)
     {
         mmgr_line_put(args->out, "[]");
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_history_lock);
     mmgr_line_ch(args->out, '}');
     return 1;
 }

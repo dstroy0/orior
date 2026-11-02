@@ -42,7 +42,7 @@ typedef struct CliRoomPipeHandleCtx CliRoomPipeHandleCtx;
 typedef struct CliColsCtx CliColsCtx;
 typedef struct CliPipeHandleCtx CliPipeHandleCtx;
 typedef struct CliPathErrMsgFullCtx CliPathErrMsgFullCtx;
-typedef struct CliLockCtx CliLockCtx;
+typedef struct CliWakeCtx CliWakeCtx;
 typedef struct CliRootContextCtx CliRootContextCtx;
 typedef struct CliSizeTextCtx CliSizeTextCtx;
 typedef struct CliIdsCtx CliIdsCtx;
@@ -78,6 +78,7 @@ typedef struct CliTreeCtx CliTreeCtx;
 #include "../../../query/src/query_internal.h"
 #include "callback_cfg.h"
 #include "embed_dispatch_layout.h"
+#include <stdatomic.h>
 
 // the longest path and the longest line the command line handles, as the query's
 #define CLI_PATH_MAX_LEN QUERY_PATH_MAX_LEN
@@ -192,48 +193,14 @@ typedef struct
 // `word` put after the words so far (words.c)
 void cli_words_put(const CliWordsWordsCtx *args);
 
-// A lock one thread owns at a time: the system's slim reader-writer lock on Windows, its first and only word, and a
-// POSIX mutex elsewhere. CLI_LOCK_INIT makes one free as it is declared
-#if defined(_WIN32)
+// A wake threads wait on: a generation word cli_wake_all moves on, a wait sleeping on the word's address until it
+// moves or the wait's time is up. A wait is free to return early, so a waiter tests what it waits for in a loop
 typedef struct
 {
-    void *system_word;
-} CliLock;
-
-#define CLI_LOCK_INIT {NULL}
-#else
-#include <pthread.h>
-
-typedef struct
-{
-    pthread_mutex_t mutex;
-} CliLock;
-
-#define CLI_LOCK_INIT {PTHREAD_MUTEX_INITIALIZER}
-#endif
-
-// the lock taken, the calling thread waiting until it is free; and given back (platform/windows_threads.c,
-// platform/posix_threads.c)
-void cli_lock_take(const CliLockCtx *args);
-void cli_lock_give(const CliLockCtx *args);
-
-// A wake threads wait on under a lock until another thread wakes them: the system's condition variable, one word on
-// Windows. CLI_WAKE_INIT makes one as it is declared
-#if defined(_WIN32)
-typedef struct
-{
-    void *system_word;
+    _Atomic unsigned int generation;
 } CliWake;
 
-#define CLI_WAKE_INIT {NULL}
-#else
-typedef struct
-{
-    pthread_cond_t condition;
-} CliWake;
-
-#define CLI_WAKE_INIT {PTHREAD_COND_INITIALIZER}
-#endif
+#define CLI_WAKE_INIT {0u}
 
 // A setting of a started process's environment: `name` set to `value`, or taken out where `value` is NULL
 typedef struct
@@ -452,10 +419,14 @@ typedef struct
 
 // the lock, which the caller owns, given back while the thread waits on the wake, and taken again as it wakes; every
 // thread waiting woken; and a thread started on `thread`, let go to end on its own: 1, or 0 where it could not start
-void cli_wake_wait(const CliLockCtx *args);
-void cli_wake_all(const CliLockCtx *args);
+void cli_wake_wait(const CliWakeCtx *args);
+void cli_wake_all(const CliWakeCtx *args);
+// the wake's generation, read before a waiter tests its condition; and a sleep until the generation moves off `seen`,
+// which no wake landing after that read can be lost to
+unsigned int cli_wake_read(const CliWakeCtx *args);
+void cli_wake_wait_seen(const CliWakeCtx *args);
 // the same wait, given up once `milliseconds` have passed: 1 where it was woken, 0 where the time ran out
-int cli_wake_wait_for(const CliLockCtx *args);
+int cli_wake_wait_for(const CliWakeCtx *args);
 
 // what happened to a path the system reports: made or moved there, taken out or moved away, or written; and that the
 // system's record of changes ran over, and any file may have changed
@@ -884,9 +855,9 @@ struct CliPathErrMsgFullCtx
     char *full;
 };
 
-struct CliLockCtx
+struct CliWakeCtx
 {
-    CliLock *lock;
+    unsigned int seen;
     unsigned long long milliseconds_u64;
     CliWake *wake;
 };
@@ -1248,18 +1219,18 @@ EMBED_TABLE_STORAGE CliWordsWordsNs cli_words_words_internal EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*lock_take)(const CliLockCtx *args);
-    void (*lock_give)(const CliLockCtx *args);
-    void (*wake_wait)(const CliLockCtx *args);
-    void (*wake_all)(const CliLockCtx *args);
-    int (*wake_wait_for)(const CliLockCtx *args);
-} CliLockNs;
-EMBED_TABLE_LAYOUT(CliLockNs, lock_take, lock_give, wake_wait, wake_all, wake_wait_for);
-EMBED_TABLE_STORAGE CliLockNs cli_lock_internal EMBED_UNUSED = {
-    .lock_take = cli_lock_take,
-    .lock_give = cli_lock_give,
+    void (*wake_wait)(const CliWakeCtx *args);
+    void (*wake_all)(const CliWakeCtx *args);
+    unsigned int (*wake_read)(const CliWakeCtx *args);
+    void (*wake_wait_seen)(const CliWakeCtx *args);
+    int (*wake_wait_for)(const CliWakeCtx *args);
+} CliWakeNs;
+EMBED_TABLE_LAYOUT(CliWakeNs, wake_wait, wake_all, wake_read, wake_wait_seen, wake_wait_for);
+EMBED_TABLE_STORAGE CliWakeNs cli_wake_internal EMBED_UNUSED = {
     .wake_wait = cli_wake_wait,
     .wake_all = cli_wake_all,
+    .wake_read = cli_wake_read,
+    .wake_wait_seen = cli_wake_wait_seen,
     .wake_wait_for = cli_wake_wait_for,
 };
 

@@ -157,12 +157,10 @@ void cli_gradle_complete(const CliGradleTextCtx *args)
     {
         return;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_gradle_lock);
     // the bytes before the cursor classed in a cell of their own, given back once the last of them is read
     unsigned char *const before = g_cli_cells->temporary_buf_alloc(args->at + 1ull, &g_cli_gradle_cells);
     if (before == NULL)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_gradle_lock);
         return;
     }
     EMBED_CALL(cli_gradle_text_size_class_of_internal.classes, CliGradleTextSizeClassOfCtx, .text = text,
@@ -175,7 +173,6 @@ void cli_gradle_complete(const CliGradleTextCtx *args)
         memor.chr(&(MemoriaCfg){.src = text + token, .val = '.', .bytes = (size_t)(args->at - token)});
     if (open)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_gradle_lock);
         return;
     }
     if (dot != NULL)
@@ -183,7 +180,6 @@ void cli_gradle_complete(const CliGradleTextCtx *args)
         const unsigned long long first = (unsigned long long)(dot - text);
         EMBED_CALL(complete_catalog, GradleCompleteCtx, .root = args->root, .path = args->path, .first = text + token,
                    .first_size = first - token, .rest = dot + 1, .rest_size = args->at - first - 1u, .items = items);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_gradle_lock);
         return;
     }
     unsigned long long line_start = token;
@@ -196,12 +192,10 @@ void cli_gradle_complete(const CliGradleTextCtx *args)
     const char last = (to > from) ? text[line_start + to - 1u] : '\0';
     if ((to > from) && (last != '{') && (last != ';'))
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_gradle_lock);
         return;
     }
     if (!EMBED_CALL(cli_gradle_text_size_internal.read, CliGradleTextSizeCtx, .text = text, .size = size))
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_gradle_lock);
         return;
     }
     const unsigned int inner = cli_gradle_text_internal.block_at(args);
@@ -262,5 +256,4 @@ void cli_gradle_complete(const CliGradleTextCtx *args)
                    .count = count, .kind = "keyword", .detail = s_name);
     }
     cli_gradle_release();
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_gradle_lock);
 }

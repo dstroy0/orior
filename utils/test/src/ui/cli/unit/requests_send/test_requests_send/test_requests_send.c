@@ -31,7 +31,6 @@ static const char s_see[] = "HTTP/1.1 303 See Other\r\nLocation: /done\r\nConten
 static const char s_done[] = "HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\ndone";
 
 static RequestsServer s_server = {{0ull}, {NULL}, {0ull}, 0u, {{0}}, 0u, 1};
-static CliLock s_lock = CLI_LOCK_INIT;
 static CliRequestsSent s_sent;
 static char s_chunked[4096];
 static char s_url[256];
@@ -95,18 +94,14 @@ static void connections_served(void *context)
         {
             size += body;
         }
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
         memor.cpy(&(MemoriaCfg){.dst = s_server.heads[index], .src = head, .bytes = size});
         s_server.heads[index][size] = '\0';
         s_server.last_served = index + 1u;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         (void)EMBED_CALL(cli_bytes_size_internal.socket_write, CliBytesSizeCtx, .sock = &peer, .bytes = s_server.answer[index], .size = s_server.size[index]);
         EMBED_CALL(cli_err_msg_internal.socket_close, CliErrMsgCtx, .sock_out = &peer);
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     EMBED_CALL(cli_err_msg_internal.socket_close, CliErrMsgCtx, .sock_out = &s_server.listener);
     s_server.done = 1;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 // a server started that sends `count` answers, the last server waited for first: its port
@@ -118,13 +113,10 @@ static unsigned int server_started(const char *const *answers, const unsigned lo
     int done = 0;
     for (unsigned int tries = 0u; !done && (tries < 500u); tries += 1u)
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
         done = s_server.done;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = done ? 0u : 10u);
     }
     unsigned int port = 0u;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         s_server.answer[at] = answers[at];
@@ -134,7 +126,6 @@ static unsigned int server_started(const char *const *answers, const unsigned lo
     s_server.last_served = 0u;
     s_server.done = 0;
     const int listening = EMBED_CALL(cli_err_msg_port_internal.socket_listening, CliErrMsgPortCtx, .listener = &s_server.listener, .port_pointer = &port, .err_msg = &err_msg);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     TEST_ASSERT_TRUE(listening);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_thread));
     return port;
@@ -348,13 +339,11 @@ void test_the_request_is_sent_with_its_start_header_length_and_body(void)
     char wanted[64];
     CliRequestsRoom *const room = chunked_sent();
     EMBED_CALL(cli_requests_size_err_msg_internal.room_free, CliRequestsSizeErrMsgCtx, .room = room);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const char *const heads = s_server.heads[0];
     VerbaLinea start = {wanted, sizeof(wanted), 0ull};
     mmgr_line_put(&start, "POST /items?x=1 HTTP/1.1\r\nHost: 127.0.0.1:");
     const unsigned long long length = CLI_UNITY_LENGTH(heads);
     const int starts = EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = heads, .other_pointer = wanted, .size = start.at);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     TEST_ASSERT_TRUE(starts);
     CLI_TEST_ASSERT_CONTAINS("X-One: 1\r\n", heads);
     CLI_TEST_ASSERT_CONTAINS("Content-Length: 5\r\n", heads);
@@ -374,9 +363,7 @@ void test_a_redirect_is_followed(void)
 void test_a_303_is_followed_as_a_get(void)
 {
     EMBED_CALL(cli_requests_size_err_msg_internal.room_free, CliRequestsSizeErrMsgCtx, .room = see_other_followed());
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int as_get = cellul.starts(&(CatenaFinitaCfg){.src = s_server.heads[1], .other = "GET /done HTTP/1.1", .cap = CLI_CELLS_POOL});
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     TEST_ASSERT_TRUE(as_get);
 }
 

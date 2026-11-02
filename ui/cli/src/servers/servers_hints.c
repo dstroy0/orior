@@ -12,10 +12,9 @@
 
 // a server's capabilities read into a tree taken to their size, under their lock
 static CliJson s_capable;
-static CliLock s_capable_lock = CLI_LOCK_INIT;
 
 // what the server answers read, under the reading's lock
-static CliServersReading s_reading = {CLI_LOCK_INIT};
+static CliServersReading s_reading = {0};
 
 typedef struct
 {
@@ -38,7 +37,6 @@ EMBED_INLINE unsigned int hints_capability(const ServersHintsCtx *args)
     unsigned long long length = 0ull;
     const char *const capabilities =
         EMBED_CALL(cli_lsp_size_kind.capabilities, CliLspSizeKindCfg, .lsp_read = args->server, .size = &length);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_capable_lock);
     char quiet[256];
     VerbaLinea err_msg = {quiet, sizeof(quiet), 0ull};
     const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_take, CliJsonTreeTextSizeErrMsgCfg,
@@ -52,7 +50,6 @@ EMBED_INLINE unsigned int hints_capability(const ServersHintsCtx *args)
 static void hints_capability_free(void)
 {
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &s_capable);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_capable_lock);
 }
 
 int cli_servers_capable(const CliServersServerCtx *args)
@@ -230,9 +227,7 @@ EMBED_INLINE int hints_of_tree(const ServersHintsCtx *args)
     VerbaLinea *out = args->out;
     VerbaLinea *err_msg = args->err_msg;
     char tree[CLI_PATH_MAX_LEN];
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers.lock);
     memor.cpy(&(MemoriaCfg){.dst = tree, .src = g_cli_servers.checked_root, .bytes = sizeof(tree)});
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers.lock);
     char own[CLI_PATH_MAX_LEN];
     VerbaLinea own_line = {own, sizeof(own), 0ull};
     EMBED_CALL(cli_servers_path_err_msg_internal.tree_path, CliServersPathErrMsgCtx, .tree = tree, .path = path,

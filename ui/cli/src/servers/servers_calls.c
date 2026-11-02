@@ -26,8 +26,8 @@ typedef struct
 } CliServersCalls;
 
 // what the server answers, under the reading's lock
-static CliServersReading s_reading = {CLI_LOCK_INIT};
-static CliServersReading s_item = {CLI_LOCK_INIT};
+static CliServersReading s_reading = {0};
+static CliServersReading s_item = {0};
 
 typedef struct
 {

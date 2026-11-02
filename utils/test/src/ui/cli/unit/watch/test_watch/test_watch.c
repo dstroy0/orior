@@ -10,7 +10,6 @@ static const unsigned int s_kinds[5] = {CLI_CHANGE_ADDED, CLI_CHANGE_MODIFIED, C
 static const char *const s_paths[5] = {"src/b.rs", "src/a.rs", "src", "old.txt", ".git/objects/ab/cdef"};
 
 static char s_out[1u << 16u];
-static CliLock s_lock = CLI_LOCK_INIT;
 static char s_batches[1u << 16u];
 static unsigned long long s_batches_at;
 static char s_seen[1u << 14u];
@@ -41,7 +40,6 @@ static void batch_written(const char *const *paths, const unsigned int *kinds, u
 // a batch received, appended to the others, a line each
 static void batch_received(const CliEachBatchSizeCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     if (s_batches_at + args->size + 1ull < sizeof(s_batches))
     {
         memor.cpy(&(MemoriaCfg){.dst = s_batches + s_batches_at, .src = args->batch, .bytes = args->size});
@@ -49,15 +47,12 @@ static void batch_received(const CliEachBatchSizeCfg *args)
         s_batches_at += args->size + 1ull;
         s_batches[s_batches_at] = '\0';
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 // whether the batches received name `text`
 static int batches_name(const char *text)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int named = cellul.find(&(CatenaFinitaCfg){.src = s_batches, .cap = CLI_CELLS_POOL, .other = text, .other_cap = CLI_CELLS_POOL}) != NULL;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return named;
 }
 

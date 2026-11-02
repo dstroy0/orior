@@ -213,9 +213,7 @@ EMBED_INLINE int jupyter_debug_request(const JupyterDebugCtx *args)
 
 int cli_jupyter_debug_next(const CliJupyterErrMsgKernelFileCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->kernel->debug_lock);
     const int requested = EMBED_CALL(jupyter_debug_request, JupyterDebugCtx, .kernel = args->kernel, .file = args->file,
                                      .port = args->port, .err_msg = args->err_msg);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->kernel->debug_lock);
     return requested;
 }

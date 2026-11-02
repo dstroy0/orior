@@ -456,8 +456,6 @@ void cli_checkers_read(const CliCheckersNameCtx *args)
     const char *root = args->root;
     const char *path = args->path;
     CliFindings *findings = args->findings;
-    static CliLock s_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     s_read = &s_room;
     s_read->name = name;
     s_read->root = root;
@@ -491,5 +489,4 @@ void cli_checkers_read(const CliCheckersNameCtx *args)
     }
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &s_read->json);
     s_read = NULL;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }

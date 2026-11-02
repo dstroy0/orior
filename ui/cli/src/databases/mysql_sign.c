@@ -9,7 +9,6 @@
 #include "mysql_internal.h"
 
 static CliMysql *s_links[CLI_MYSQL_LINKS];
-static CliLock s_links_lock = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -360,7 +359,6 @@ CliMysql *cli_mysql_connect(const CliMysqlHostCfg *args)
         return NULL;
     }
     CliMysql *mysql = NULL;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_links_lock);
     unsigned int at = 0u;
     while ((at < CLI_MYSQL_LINKS) && (s_links[at] != NULL))
     {
@@ -372,7 +370,6 @@ CliMysql *cli_mysql_connect(const CliMysqlHostCfg *args)
         mysql->place = at;
         s_links[at] = mysql;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_links_lock);
     if (mysql == NULL)
     {
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure,
@@ -426,9 +423,7 @@ CliMysql *cli_mysql_connect(const CliMysqlHostCfg *args)
     }
     if (!connected)
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_links_lock);
         s_links[mysql->place] = NULL;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_links_lock);
         // the password lies in the link's cancel, which the pool leaves as it is
         mmgr_zero_buf(mysql, sizeof(*mysql));
         g_cli_cells->persistent_buf_release(mysql, &g_cli_db_cells);
@@ -445,9 +440,7 @@ void cli_mysql_close(const CliMysqlFailureSqlCfg *args)
     (void)EMBED_CALL(cli_mysql_failure_internal.send, CliMysqlFailureCtx, .mysql = args->mysql_out, .payload = quit,
                      .size = sizeof(quit), .failure = &failure);
     EMBED_CALL(cli_err_msg_internal.socket_close, CliErrMsgCtx, .sock_out = &args->mysql_out->socket);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_links_lock);
     s_links[args->mysql_out->place] = NULL;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_links_lock);
     // the password lies in the link's cancel, which the pool leaves as it is
     mmgr_zero_buf(args->mysql_out, sizeof(*args->mysql_out));
     g_cli_cells->persistent_buf_release(args->mysql_out, &g_cli_db_cells);

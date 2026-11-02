@@ -333,7 +333,6 @@ void cli_executables_run_command(const CliExecutablesValuesCfg *args)
     static char s_env[CLI_ENV_BYTES];
     static char s_folders[CLI_PATH_FOLDERS][CLI_PATH_MAX_LEN];
     static char s_path[CLI_PATH_FOLDERS * 64u];
-    static CliLock s_lock = CLI_LOCK_INIT;
     EMBED_CALL(cli_runner.command_begin, CliRunnerCfg, .command = command, .program = args->file);
     const char *const folder = EMBED_CALL(cli_executables_key_internal.first, CliExecutablesKeyCtx,
                                           .values = args->values, .key = "folder", .fallback = "");
@@ -356,7 +355,6 @@ void cli_executables_run_command(const CliExecutablesValuesCfg *args)
         mmgr_line_put(args->shown_verba_linea_pointer, folder);
         mmgr_line_put(args->shown_verba_linea_pointer, " &&");
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     char env[CLI_PATH_MAX_LEN];
     if (EMBED_CALL(cli_executables_name_out_folder_internal.join, CliExecutablesNameOutFolderCtx, .folder = args->root,
                    .name = ".env", .out = env) &&
@@ -425,7 +423,6 @@ void cli_executables_run_command(const CliExecutablesValuesCfg *args)
                        .name = "DOTNET_ROOT", .value = dotnet_folder);
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     char relative[CLI_PATH_MAX_LEN];
     const unsigned long long root_length = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL});
     const int under =

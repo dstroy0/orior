@@ -7,6 +7,7 @@
 // how it shrinks as the claim runs; and what a press on the name lands on
 #include "../../../../../ui/gui/src/parts/wordmark.h"
 #include "../cli/cli_check.h"
+#include "test_clock.h"
 
 #define GROUND GUI_RGB(0x80u, 0x80u, 0x80u)
 
@@ -57,21 +58,21 @@ static void session_checked(void)
     GuiWordmarkSession saved;
     cli_check(EMBED_CALL(gui_wordmark_text.session_read, GuiWordmarkTextCfg, .text = "{\"booted\":1000,\"logon\":\"alice\"}", .size = 31ull, .session = &now) && now.known && (now.booted == 1000ull),
               "a session as the CLI writes it reads");
-    cli_check(!EMBED_CALL(gui_wordmark_text.session_read, GuiWordmarkTextCfg, .text = NULL, .size = 0ull, .session = &saved) && EMBED_CALL(gui_wordmark.first_in, GuiWordmarkCfg, .saved = &saved, .now_wordmark_session_pointer = &now), "no session kept is the first start in the session");
+    cli_check(!EMBED_CALL(gui_wordmark_text.session_read, GuiWordmarkTextCfg, .text = NULL, .size = 0ull, .session = &saved) && EMBED_CALL(gui_wordmark.first_in, GuiWordmarkCfg, .saved = &saved, .current_session = &now), "no session kept is the first start in the session");
     (void)EMBED_CALL(gui_wordmark_text.session_read, GuiWordmarkTextCfg, .text = "{\"booted\":1000,\"logon\":\"alice\"}", .size = 31ull, .session = &saved);
     GuiWordmarkSession none;
     (void)EMBED_CALL(gui_wordmark_text.session_read, GuiWordmarkTextCfg, .text = NULL, .size = 0ull, .session = &none);
-    cli_check(EMBED_CALL(gui_wordmark.first_in, GuiWordmarkCfg, .saved = &saved, .now_wordmark_session_pointer = &none), "no session named by the system is taken as the first");
-    cli_check(!EMBED_CALL(gui_wordmark_text.session_read, GuiWordmarkTextCfg, .text = "not json", .size = 8ull, .session = &saved) && !saved.known && EMBED_CALL(gui_wordmark.first_in, GuiWordmarkCfg, .saved = &saved, .now_wordmark_session_pointer = &now), "a session kept that does not read is the first");
+    cli_check(EMBED_CALL(gui_wordmark.first_in, GuiWordmarkCfg, .saved = &saved, .current_session = &none), "no session named by the system is taken as the first");
+    cli_check(!EMBED_CALL(gui_wordmark_text.session_read, GuiWordmarkTextCfg, .text = "not json", .size = 8ull, .session = &saved) && !saved.known && EMBED_CALL(gui_wordmark.first_in, GuiWordmarkCfg, .saved = &saved, .current_session = &now), "a session kept that does not read is the first");
     cli_check(!EMBED_CALL(gui_wordmark_text.session_read, GuiWordmarkTextCfg, .text = "{\"booted\":1000,\"name\":\"alice\"}", .size = 30ull, .session = &saved), "another shape does not read");
     (void)EMBED_CALL(gui_wordmark_text.session_read, GuiWordmarkTextCfg, .text = "{\"booted\":1000,\"logon\":\"alice\"}", .size = 31ull, .session = &saved);
-    cli_check(!EMBED_CALL(gui_wordmark.first_in, GuiWordmarkCfg, .saved = &saved, .now_wordmark_session_pointer = &now), "the same session is not the first");
+    cli_check(!EMBED_CALL(gui_wordmark.first_in, GuiWordmarkCfg, .saved = &saved, .current_session = &now), "the same session is not the first");
     (void)EMBED_CALL(gui_wordmark_text.session_read, GuiWordmarkTextCfg, .text = "{\"booted\":1059,\"logon\":\"alice\"}", .size = 31ull, .session = &saved);
-    cli_check(!EMBED_CALL(gui_wordmark.first_in, GuiWordmarkCfg, .saved = &saved, .now_wordmark_session_pointer = &now), "a computer's start read 59 seconds off is the same");
+    cli_check(!EMBED_CALL(gui_wordmark.first_in, GuiWordmarkCfg, .saved = &saved, .current_session = &now), "a computer's start read 59 seconds off is the same");
     (void)EMBED_CALL(gui_wordmark_text.session_read, GuiWordmarkTextCfg, .text = "{\"booted\":1060,\"logon\":\"alice\"}", .size = 31ull, .session = &saved);
-    cli_check(EMBED_CALL(gui_wordmark.first_in, GuiWordmarkCfg, .saved = &saved, .now_wordmark_session_pointer = &now), "a computer's start a minute off is another");
+    cli_check(EMBED_CALL(gui_wordmark.first_in, GuiWordmarkCfg, .saved = &saved, .current_session = &now), "a computer's start a minute off is another");
     (void)EMBED_CALL(gui_wordmark_text.session_read, GuiWordmarkTextCfg, .text = "{\"booted\":1000,\"logon\":\"bob\"}", .size = 29ull, .session = &saved);
-    cli_check(EMBED_CALL(gui_wordmark.first_in, GuiWordmarkCfg, .saved = &saved, .now_wordmark_session_pointer = &now), "another log in is another session");
+    cli_check(EMBED_CALL(gui_wordmark.first_in, GuiWordmarkCfg, .saved = &saved, .current_session = &now), "another log in is another session");
 }
 
 // the name's place: its em clamped as clamp(3rem, 7vw, 5.5rem) is, its boxes laid as the column's rows are
@@ -369,7 +370,7 @@ static void flight_checked(GuiGlyphs *glyphs, GuiIcons *icons, const GuiPalette 
     cli_check(wordmark.stands, "with the tree not read the pane stands past its least");
     EMBED_CALL(cli_wordmark_still.tree_read, GuiWordmarkStillCfg, .wordmark = &wordmark);
     g_test_clock_ms = begun + 9000ull;
-    cli_check(EMBED_CALL(gui_wordmark_read.next_deadline_ms, GuiWordmarkReadCfg, .wordmark_read = &wordmark) == begun + 9000ull + 1ull, "the tree read, a tick is wanted at once");
+    cli_check(EMBED_CALL(gui_wordmark_read.next_deadline_ms, GuiWordmarkReadCfg, .wordmark_read = &wordmark) <= begun + 9000ull, "the tree read, a tick is wanted at once");
     g_test_clock_ms = begun + 9001ull;
     (void)EMBED_CALL(gui_wordmark_frame.tick, GuiWordmarkFrameCfg, .wordmark = &wordmark, .glyphs = glyphs, .icons = icons, .palette = palette, .frame = &frame);
     cli_check(!wordmark.stands && wordmark.pours, "and the pane leaves");

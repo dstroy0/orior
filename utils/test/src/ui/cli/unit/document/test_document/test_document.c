@@ -59,7 +59,6 @@ static char s_folds[1024];
 static int s_begun;
 
 // the colors walkers send from threads of their own counted, under a lock of the suite's own
-static CliLock s_counted_lock = CLI_LOCK_INIT;
 static unsigned int s_counted;
 static char s_at_once[4u * DOCUMENT_AT_ONCE_LINES];
 static char s_printed[DOCUMENT_AT_ONCE_TEXTS + 1u][1u << 16u];
@@ -394,9 +393,7 @@ static void brackets_walked(char *key)
 static void colors_counted(const CliDocColoredCfg *args)
 {
     (void)args;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_counted_lock);
     s_counted += 1u;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_counted_lock);
 }
 
 // the text written into s_at_once: its bytes
@@ -424,15 +421,12 @@ static int text_printed(const char *key, char *out, unsigned long long room)
 // the walkers waited for until none walks, ten seconds at the most: 1 where none walks
 static int walkers_ended(void)
 {
-    static CliLock s_lock = CLI_LOCK_INIT;
     static CliWake s_wake = CLI_WAKE_INIT;
     const unsigned long long until = cli_clock_milliseconds() + 10000ull;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     while ((cli_document_walkers() != 0u) && (cli_clock_milliseconds() < until))
     {
-        (void)EMBED_CALL(cli_lock_internal.wake_wait_for, CliLockCtx, .wake = &s_wake, .lock = &s_lock, .milliseconds_u64 = 5ull);
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &s_wake, .milliseconds_u64 = 5ull);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return cli_document_walkers() == 0u;
 }
 
@@ -491,9 +485,7 @@ static void at_once_ran(void)
     (void)EMBED_CALL(cli_document_err_msg.edit, CliDocumentErrMsgCfg, .key = s_at_once_keys[0], .changes = changes, .edits = counts, .count_u32 = 1u, .shape = &shape, .err_msg = &err_msg);
     s_at_once_during = alone && prints_match(0);
     s_at_once_ended = walkers_ended();
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_counted_lock);
     s_at_once_counted = s_counted;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_counted_lock);
     s_at_once_after = prints_match(1);
     EMBED_CALL(cli_document_colored.colors_to, CliDocumentColoredCfg, .colored = colors_recorded, .threaded = 0);
 }

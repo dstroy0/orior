@@ -27,7 +27,6 @@ typedef struct
 // What the window received of a run, under its lock: each message's channel, speaker and body, and whether the end came
 typedef struct
 {
-    CliLock lock;
     CliWake wake;
     char channel[RECORDED_MESSAGES][CLI_NAME_MAX_LEN];
     char from[RECORDED_MESSAGES][CLI_NAME_MAX_LEN];
@@ -40,7 +39,7 @@ static const char s_usage[] = "orior_cli file new-plugin <name> --ext <ext,...> 
                               "[--keywords <a,b>]";
 
 static WrappedLines s_lines;
-static RunMessages s_messages = {CLI_LOCK_INIT, CLI_WAKE_INIT};
+static RunMessages s_messages = {CLI_WAKE_INIT};
 static char s_help[1u << 18u];
 static CliItem s_items[CLI_ITEMS_MOST];
 static CliJob s_jobs[8];
@@ -86,7 +85,6 @@ static void help_written(void)
 // a message the window received recorded
 static int message_recorded(const CliCommsRecvCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_messages.lock);
     if ((s_messages.count < RECORDED_MESSAGES) && (args->size < 4096ull))
     {
         memor.cpy(&(MemoriaCfg){.dst = s_messages.channel[s_messages.count], .src = args->channel, .bytes = CLI_UNITY_LENGTH(args->channel) + 1u});
@@ -96,8 +94,7 @@ static int message_recorded(const CliCommsRecvCfg *args)
         s_messages.ended |= cellul.find(&(CatenaFinitaCfg){.src = s_messages.body[s_messages.count], .cap = CLI_CELLS_POOL, .other = "\"state\":\"ended\"", .other_cap = CLI_CELLS_POOL}) != NULL;
         s_messages.count += 1u;
     }
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_messages.wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_messages.lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_messages.wake);
     return 1;
 }
 
@@ -147,13 +144,11 @@ static void channel_ran(void)
     const unsigned int job = EMBED_CALL(cli_catalog_id_group.job, CliCatalogIdGroupCfg, .catalog = &s_run_catalog, .id = "test/print", .group = "test", .title = "print", .file = "print.py", .about = "", .opens = "");
     EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = &s_run_catalog, .program = CLI_PROGRAM_PYTHON, .text = "print.py", .tool_program = NULL, .system = 0);
     s_channel_code = EMBED_CALL(cli_command_line_root_internal.job_run, CliCommandLineRootCtx, .root = root, .catalog = &s_run_catalog, .job = job, .words = NULL, .count = 0u);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_messages.lock);
     const unsigned long long until = cli_clock_milliseconds() + 5000ull;
     while (!s_messages.ended && (cli_clock_milliseconds() < until))
     {
-        (void)EMBED_CALL(cli_lock_internal.wake_wait_for, CliLockCtx, .wake = &s_messages.wake, .lock = &s_messages.lock, .milliseconds_u64 = 100ull);
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &s_messages.wake, .milliseconds_u64 = 100ull);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_messages.lock);
     EMBED_CALL(cli_comms_listener.unlisten, CliCommsListenerCfg, .listener_value = listener);
 }
 

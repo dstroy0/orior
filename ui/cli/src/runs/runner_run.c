@@ -25,24 +25,19 @@ typedef struct
 CliRun g_cli_runs[CLI_RUNS_MOST];
 unsigned long long g_cli_next_run;
 static int s_attached;
-CliLock g_cli_runs_lock = CLI_LOCK_INIT;
 CliWake g_cli_runs_wake = CLI_WAKE_INIT;
 
 void cli_runs_take(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_runs_lock);
 }
 
 void cli_runs_give(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_runs_lock);
 }
 
 void cli_runs_attach(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_runs_lock);
     s_attached = 1;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_runs_lock);
 }
 
 double cli_run_since(const CliRunnerCtx *args)
@@ -75,9 +70,7 @@ typedef struct
 // whether a reader has stopped the run
 EMBED_INLINE int cli_stopping(const RunnerRunCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_runs_lock);
     const int stopped = args->run_read->stopped;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_runs_lock);
     return stopped;
 }
 
@@ -207,10 +200,8 @@ static int cli_step(const RunnerRunCtx *args)
     *step_began = EMBED_CALL(cli_runner_internal.run_since, CliRunnerCtx, .run_read = run);
     // the run is looked at last, and the process joined to it, under one acquisition of the lock: Stop, which marks the
     // run and then reads it, either finds the process there or prevents it from starting
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_runs_lock);
     if (run->stopped)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_runs_lock);
         return 0;
     }
     CliSpawned spawned;
@@ -226,7 +217,6 @@ static int cli_step(const RunnerRunCtx *args)
         run->group = spawned.group;
         run->has_first = 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_runs_lock);
     if (!started)
     {
         mmgr_line_finish(&err_msg);
@@ -241,10 +231,8 @@ static int cli_step(const RunnerRunCtx *args)
     }
     EMBED_CALL(cli_runner_run_spawned_internal.run_carry, CliRunnerRunSpawnedCtx, .run = run, .spawned = &spawned);
     const long long exit_code = EMBED_CALL(cli_spawned_internal.spawn_wait, CliSpawnedCtx, .spawned = &spawned);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_runs_lock);
     run->process = 0ull;
     run->group = 0ull;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_runs_lock);
     EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &spawned);
     *has_code = exit_code >= 0ll;
     *code = exit_code;
@@ -296,7 +284,6 @@ EMBED_INLINE int cli_after_step(const RunnerRunCtx *args)
 // the commands that sign the program, and the lock they are made under, one run signing at a time
 static CliCommand s_signing[4];
 static char s_signing_shown[4][CLI_PATH_MAX_LEN * 4u];
-static CliLock s_signing_lock = CLI_LOCK_INIT;
 
 // The program the build made signed: each signing command run as a step, then what signing it reported. 1 where the run
 // goes on
@@ -310,14 +297,12 @@ EMBED_INLINE int cli_sign(const RunnerRunCtx *args)
         *built = 0;
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_signing_lock);
     char why[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     const int steps = EMBED_CALL(cli_executables_err_msg.sign_steps, CliExecutablesErrMsgCfg, .file = args->made->file,
                                  .commands = s_signing, .shown = s_signing_shown, .room = 4u, .err_msg = &err_msg);
     if (steps < 0)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_signing_lock);
         mmgr_line_finish(&err_msg);
         EMBED_CALL(cli_run_print_text, RunnerRunCtx, .run = args->run, .text = why);
         *has_code = 0;
@@ -340,7 +325,6 @@ EMBED_INLINE int cli_sign(const RunnerRunCtx *args)
         goes = EMBED_CALL(cli_after_step, RunnerRunCtx, .run = args->run, .made_step = 0, .step_began_value = began,
                           .has_code_value = *has_code, .code_value = *args->code, .built = built);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_signing_lock);
     if (goes)
     {
         const QuerySink sink = {cli_run_print, args->run};
@@ -367,11 +351,9 @@ EMBED_INLINE void cli_run_end(const RunnerRunCtx *args)
                              args->made_text,
                              EMBED_CALL(cli_runner_internal.run_since, CliRunnerCtx, .run_read = run)};
     EMBED_CALL(run->sink.emit, CliEachEventCfg, .context = run->sink.context, .event = &end);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_runs_lock);
     EMBED_CALL(cli_runner_run_spawned_internal.run_cells_free, CliRunnerRunSpawnedCtx, .run = run);
     run->ended = 1;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &g_cli_runs_wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_runs_lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &g_cli_runs_wake);
 }
 
 // A run's steps taken in turn on its thread, its end reported after the last

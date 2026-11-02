@@ -301,11 +301,8 @@ int cli_templates_create(const CliTemplatesTemplateNameCfg *args)
         mmgr_line_put(args->err_msg, " is there already");
         return 0;
     }
-    static CliLock s_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int copied = EMBED_CALL(cli_copy, TemplatesCtx, .from = source, .to = args->made, .name = args->name,
                                   .err_msg = args->err_msg);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return copied;
 }
 

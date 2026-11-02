@@ -61,7 +61,6 @@ typedef struct
 } CliGradleScript;
 
 extern CliGradleScript g_cli_gradle;
-extern CliLock g_cli_gradle_lock;
 
 // what the scripts read occupy in the cellblock (gradle.c)
 extern CellOwner g_cli_gradle_cells;

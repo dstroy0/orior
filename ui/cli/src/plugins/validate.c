@@ -8,15 +8,12 @@
 #include "../text/text.h"
 
 CliValidateRoom *g_cli_validate;
-static CliLock s_validate_lock = CLI_LOCK_INIT;
 
 int cli_validate_lock(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_validate_lock);
     g_cli_validate = g_cli_cells->persistent_buf_alloc(sizeof(*g_cli_validate), &g_cli_plugins_cells);
     if (g_cli_validate == NULL)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_validate_lock);
         return 0;
     }
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &g_cli_validate->json,
@@ -35,7 +32,6 @@ void cli_validate_release(void)
     g_cli_cells->persistent_buf_release(g_cli_validate->output, &g_cli_plugins_cells);
     g_cli_cells->persistent_buf_release(g_cli_validate, &g_cli_plugins_cells);
     g_cli_validate = NULL;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_validate_lock);
 }
 
 unsigned int cli_validate_key_get(const CliValidateAtCtx *args)

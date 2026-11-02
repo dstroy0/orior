@@ -446,13 +446,11 @@ unsigned int cli_toolchains_folders_get(const CliToolchainsCountCfg *args)
     unsigned int count = args->count;
     static char s_found[2][64][CLI_PATH_MAX_LEN];
     static char s_names[64][CLI_NAME_MAX_LEN];
-    static CliLock s_walking = CLI_LOCK_INIT;
     char full[CLI_PATH_MAX_LEN];
     if (!EMBED_CALL(cli_expand, ToolchainsCtx, .text = args->pattern, .out = full))
     {
         return count;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_walking);
     unsigned int now = 0u;
     unsigned int found = 1u;
     s_found[now][0][0] = '\0';
@@ -514,7 +512,6 @@ unsigned int cli_toolchains_folders_get(const CliToolchainsCountCfg *args)
             count += 1u;
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_walking);
     return count;
 }
 

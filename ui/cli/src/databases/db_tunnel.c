@@ -11,7 +11,6 @@ int cli_db_tunnel_open(const CliDbHostCtx *args)
     unsigned int port = args->port;
     static CliWords s_words;
     static char s_path[CLI_PATH_TEXT];
-    static CliLock s_lock = CLI_LOCK_INIT;
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     unsigned int local = 0u;
@@ -42,7 +41,6 @@ int cli_db_tunnel_open(const CliDbHostCtx *args)
                                    "ServerAliveInterval=15",
                                    "-o",
                                    "ServerAliveCountMax=3"};
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     s_words.count = 0u;
     s_words.used = 0u;
     s_words.full = 0;
@@ -64,7 +62,6 @@ int cli_db_tunnel_open(const CliDbHostCtx *args)
     const int started = EMBED_CALL(cli_words_err_msg_internal.spawn, CliWordsErrMsgCtx, .spawned = &args->tunnel->child,
                                    .words = s_words.word, .folder = NULL, .settings = settings, .count = 1u,
                                    .detached = 1, .err_msg = &err_msg);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     if (!started)
     {
         char message[CLI_ERR_MSG_MAX_LEN + 64u];

@@ -16,7 +16,6 @@ static const char *const s_no_home = "orior_cli has no folder of its own here";
 
 // the stamps of a folder of snapshots, guarded by the lock while one is stored or listed
 static unsigned long long s_stamps[CLI_HISTORY_STAMPS];
-static CliLock s_lock = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -233,11 +232,9 @@ EMBED_INLINE int cli_snapshot_save(const HistoryCtx *args)
 
 int cli_history_save(const CliHistoryBeforeCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int saved =
         EMBED_CALL(cli_snapshot_save, HistoryCtx, .root = args->root, .path = args->path, .before = args->before,
                    .before_size = args->before_size, .text = args->text, .size = args->size, .err_msg = args->err_msg);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return saved;
 }
 
@@ -247,7 +244,6 @@ void cli_history_list(const CliHistoryCfg *args)
     char folder[CLI_PATH_MAX_LEN];
     char snapshot[CLI_PATH_MAX_LEN];
     mmgr_line_ch(args->out, '[');
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const unsigned int count = (EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = home) &&
                                 EMBED_CALL(cli_folder_get, HistoryCtx, .home = home, .root = args->root,
                                            .path = args->path, .folder_out = folder))
@@ -268,7 +264,6 @@ void cli_history_list(const CliHistoryCfg *args)
         mmgr_line_decimal(args->out, size, 1u);
         mmgr_line_ch(args->out, '}');
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     mmgr_line_ch(args->out, ']');
 }
 

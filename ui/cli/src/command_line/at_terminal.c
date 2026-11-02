@@ -349,8 +349,6 @@ int cli_at_terminal_run(const CliAtTerminalCommandCfg *args)
         (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "cover-tests", .cap = CLI_CELLS_POOL})))
     {
         static CliTerminalFiles s_found;
-        static CliLock s_found_lock = CLI_LOCK_INIT;
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_found_lock);
         const unsigned long long room = CLI_AT_TERMINAL_FILES_TEXT + 1ull;
         char *const found_text = g_cli_cells->temporary_buf_alloc(room, &g_cli_git_cells);
         s_found.line = mmgr_line_over(found_text, room);
@@ -361,7 +359,6 @@ int cli_at_terminal_run(const CliAtTerminalCommandCfg *args)
         const int good = EMBED_CALL(at_terminal_files_run, AtTerminalCtx, .root = root, .found = &s_found,
                                     .cover = cover, .out = out, .err_msg = err_msg);
         g_cli_cells->persistent_buf_release(found_text, &g_cli_git_cells);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_found_lock);
         return good;
     }
     if ((cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "test-run", .cap = CLI_CELLS_POOL})) ||

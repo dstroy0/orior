@@ -10,8 +10,6 @@
 // the bytes the recent errors a report takes are read in
 #define CLI_WINDOW_REPORT_ROOM (2ull << 20u)
 
-static CliLock s_lock = CLI_LOCK_INIT;
-
 typedef struct
 {
     const CliFiled *filed;
@@ -51,7 +49,6 @@ static int report_error(const CliServeAnswerCfg *args)
     char root[CLI_PATH_MAX_LEN];
     const int has_root = EMBED_CALL(cli_serve_err_msg_root.root_now, CliServeErrMsgRootCfg, .root_out = root);
     static CliFiled s_filed;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     if (EMBED_CALL(cli_report_category.error, CliReportCategoryCfg, .category = category, .message = message,
                    .detail = detail, .root = has_root ? root : NULL, .filed = &s_filed))
     {
@@ -61,7 +58,6 @@ static int report_error(const CliServeAnswerCfg *args)
     {
         mmgr_line_put(out, "null");
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return 1;
 }
 
@@ -77,7 +73,6 @@ void cli_window_panicked(const char *message, unsigned long long message_size, c
     static CliFiled s_panic_filed;
     char root[CLI_PATH_MAX_LEN];
     const int has_root = EMBED_CALL(cli_serve_err_msg_root.root_now, CliServeErrMsgRootCfg, .root_out = root);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     // each cut to its room, a 0 after it
     VerbaLinea message_line = {s_message, sizeof(s_message), 0ull};
     mmgr_line_put_n(&message_line, message,
@@ -89,7 +84,6 @@ void cli_window_panicked(const char *message, unsigned long long message_size, c
     (void)EMBED_CALL(cli_report_category.error, CliReportCategoryCfg,
                      .category = EMBED_CALL(cli_report.panic_category, CliReportCfg, .trace = s_detail),
                      .message = s_message, .detail = s_detail, .root = has_root ? root : NULL, .filed = &s_panic_filed);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 // a bug report the reader wrote filed, with the run's recent errors where they requested them: where it went
@@ -124,7 +118,6 @@ static int report_bug(const CliServeAnswerCfg *args)
     // the recent errors and the logs with them in lines of their own, given back once the report is filed
     VerbaLinea recent = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
     VerbaLinea logs = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     if (with_errors)
     {
         char *const recent_cell = g_cli_cells->temporary_buf_alloc(CLI_WINDOW_REPORT_ROOM, &g_cli_window_cells);
@@ -153,7 +146,6 @@ static int report_bug(const CliServeAnswerCfg *args)
     EMBED_CALL(cli_report_root.file, CliReportRootCfg, .report = &given, .root = has_root ? root : NULL,
                .filed = &s_filed);
     EMBED_CALL(report_filed_write, WindowCallReportCtx, .filed = &s_filed, .out = out);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     g_cli_cells->persistent_buf_release(logs.out, &g_cli_window_cells);
     g_cli_cells->persistent_buf_release(recent.out, &g_cli_window_cells);
     return 1;

@@ -409,22 +409,18 @@ int cli_mysql_rsa_seal(const CliMysqlSizeCtx *args)
     static CliBig s_exponent;
     static CliBig s_padded;
     static CliBig s_sealed;
-    static CliLock s_lock = CLI_LOCK_INIT;
     unsigned char padded[CLI_RSA_BYTES];
     unsigned char seed[20];
     unsigned long long length = 0ull;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     if (!EMBED_CALL(rsa_public_key, MysqlRsaCtx, .pem = args->pem, .size = args->pem_size, .modulus = &s_modulus,
                     .exponent = &s_exponent, .length = &length))
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         mmgr_line_put(args->err_msg, "the server's RSA key could not be read");
         return 0;
     }
     if ((args->size + 42u > length) ||
         !EMBED_CALL(cli_size_bytes_internal.random_bytes, CliSizeBytesCtx, .bytes_out = seed, .size = sizeof(seed)))
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         mmgr_line_put(args->err_msg, "the password is too long for the server's RSA key");
         return 0;
     }
@@ -440,7 +436,6 @@ int cli_mysql_rsa_seal(const CliMysqlSizeCtx *args)
                    .length = length);
         *out_size = length;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     if (!sealed)
     {
         mmgr_line_put(args->err_msg, "the server's RSA key is longer than orior_cli takes");

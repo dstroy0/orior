@@ -47,7 +47,6 @@ typedef struct
 } CliCurlRoom;
 
 static CliCurlRoom *s_curl;
-static CliLock s_lock = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -509,11 +508,9 @@ int cli_requests_from_curl(const CliRequestsCfg *args)
                .end = &end);
     const char *text = args->line_text + start;
     unsigned long long length = end - start;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     s_curl = g_cli_cells->persistent_buf_alloc(sizeof(*s_curl), &g_cli_requests_cells);
     if (s_curl == NULL)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         mmgr_line_put(args->err_msg, "a curl line's reading could not be taken");
         return 0;
     }
@@ -565,6 +562,5 @@ int cli_requests_from_curl(const CliRequestsCfg *args)
     mmgr_zero_buf(s_curl, sizeof(*s_curl));
     g_cli_cells->persistent_buf_release(s_curl, &g_cli_requests_cells);
     s_curl = NULL;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return read;
 }

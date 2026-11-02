@@ -1023,8 +1023,6 @@ typedef struct
 #define CLI_X11_OWNED_COPIED 2u
 
 static CliX11Owner s_owner;
-static CliLock s_lock = CLI_LOCK_INIT;
-static CliLock s_read_lock = CLI_LOCK_INIT;
 static CliWake s_started = CLI_WAKE_INIT;
 
 // the place of the content `target` asks for, or 3 where the clipboard holds none as it; under the lock
@@ -1171,12 +1169,10 @@ static void owner_run(void *context)
     (void)context;
     static unsigned char s_reply[CLI_X11_PIECE];
     CliX11 *const x11 = &s_owner.x11;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     s_owner.owning = EMBED_CALL(x11_connect, PosixClipboardCtx, .x11_out = x11) &&
                      EMBED_CALL(x11_owner_set, PosixClipboardCtx, .x11 = x11, .owner = x11->window);
     s_owner.starting = 0;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_started);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_started);
     for (int serving = s_owner.owning; serving;)
     {
         unsigned char packet[32];
@@ -1184,7 +1180,6 @@ static void owner_run(void *context)
         serving = EMBED_CALL(x11_packet, PosixClipboardCtx, .x11 = x11, .packet = packet, .extra = s_reply,
                              .room = sizeof(s_reply), .size_pointer = &size, .wait = -1);
         const unsigned int kind = packet[0] & 0x7fu;
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
         if (serving && (kind == CLI_X11_SELECTION_CLEAR))
         {
             // a clear that came before this window took the clipboard back is past
@@ -1199,13 +1194,10 @@ static void owner_run(void *context)
         {
             EMBED_CALL(owner_piece_send, PosixClipboardCtx, .event = packet);
         }
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     s_owner.owning = 0;
     owner_contents_free();
     EMBED_CALL(x11_close, PosixClipboardCtx, .x11_out = x11);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 // `size` bytes of `bytes` taken into a cell of their own as the content at `place`: 1, or 0 where no cell could be
@@ -1243,26 +1235,23 @@ static int owner_own(void)
     }
     while (s_owner.starting)
     {
-        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_started, .lock = &s_lock);
+        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_started);
     }
     return s_owner.owning;
 }
 
 int cli_clipboard_text_read(const CliCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int own = s_owner.owning && (s_owner.content[CLI_X11_OWNED_TEXT] != NULL);
     if (own)
     {
         mmgr_line_put_n(args->text_verba_linea_pointer, s_owner.content[CLI_X11_OWNED_TEXT],
                         s_owner.size[CLI_X11_OWNED_TEXT]);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     if (own)
     {
         return 1;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_read_lock);
     CliX11 x11;
     const int read = EMBED_CALL(x11_connect, PosixClipboardCtx, .x11_out = &x11) &&
                      (EMBED_CALL(x11_convert, PosixClipboardCtx, .x11 = &x11, .target = x11.atom[CLI_X11_UTF8],
@@ -1270,18 +1259,15 @@ int cli_clipboard_text_read(const CliCtx *args)
                       EMBED_CALL(x11_convert, PosixClipboardCtx, .x11 = &x11, .target = CLI_X11_ATOM_STRING,
                                  .out = args->text_verba_linea_pointer));
     EMBED_CALL(x11_close, PosixClipboardCtx, .x11_out = &x11);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_read_lock);
     return read;
 }
 
 int cli_clipboard_text_write(const CliSizeTextCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     owner_contents_free();
     const int owned = EMBED_CALL(owner_content_put, PosixClipboardCtx, .place = CLI_X11_OWNED_TEXT,
                                  .bytes_text = args->text, .size = args->size) &&
                       owner_own();
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return owned;
 }
 
@@ -1306,7 +1292,6 @@ int cli_clipboard_files_put(const CliCountCtx *args)
         mmgr_line_put(&text, (at > 0u) ? "\n" : "");
         mmgr_line_put(&text, args->paths[at]);
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     owner_contents_free();
     const int owned = mmgr_line_ok(&uris) && mmgr_line_ok(&copied) && mmgr_line_ok(&text) &&
                       EMBED_CALL(owner_content_put, PosixClipboardCtx, .place = CLI_X11_OWNED_URIS,
@@ -1316,7 +1301,6 @@ int cli_clipboard_files_put(const CliCountCtx *args)
                       EMBED_CALL(owner_content_put, PosixClipboardCtx, .place = CLI_X11_OWNED_TEXT,
                                  .bytes_text = text.out, .size = text.at) &&
                       owner_own();
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     g_cli_cells->persistent_buf_release(uris.out, &g_cli_platform_cells);
     g_cli_cells->persistent_buf_release(copied.out, &g_cli_platform_cells);
     g_cli_cells->persistent_buf_release(text.out, &g_cli_platform_cells);
@@ -1345,7 +1329,6 @@ unsigned int cli_clipboard_files_read(const CliEachCtx *args)
     int *cut = args->cut_pointer;
     *cut = -1;
     unsigned int count = 0u;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     // a clipboard this window owns holds the files it put, or none where it put text
     const int own = s_owner.owning;
     if (own && (s_owner.content[CLI_X11_OWNED_COPIED] != NULL))
@@ -1353,7 +1336,6 @@ unsigned int cli_clipboard_files_read(const CliEachCtx *args)
         count = EMBED_CALL(clipboard_copied_read, PosixClipboardCtx, .list = s_owner.content[CLI_X11_OWNED_COPIED],
                            .size = s_owner.size[CLI_X11_OWNED_COPIED], .each = each, .context = context, .cut = cut);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     if (own)
     {
         return count;
@@ -1365,7 +1347,6 @@ unsigned int cli_clipboard_files_read(const CliEachCtx *args)
     {
         return 0u;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_read_lock);
     CliX11 x11;
     if (EMBED_CALL(x11_connect, PosixClipboardCtx, .x11_out = &x11))
     {
@@ -1387,14 +1368,12 @@ unsigned int cli_clipboard_files_read(const CliEachCtx *args)
         }
     }
     EMBED_CALL(x11_close, PosixClipboardCtx, .x11_out = &x11);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_read_lock);
     g_cli_cells->persistent_buf_release(list.out, &g_cli_platform_cells);
     return count;
 }
 
 void cli_clipboard_clear(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int own = s_owner.owning;
     if (own)
     {
@@ -1402,7 +1381,6 @@ void cli_clipboard_clear(void)
         s_owner.reowned = 0;
         (void)EMBED_CALL(x11_owner_set, PosixClipboardCtx, .x11 = &s_owner.x11, .owner = 0u);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     if (!own)
     {
         CliX11 x11;

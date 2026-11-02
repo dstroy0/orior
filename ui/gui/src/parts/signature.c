@@ -43,7 +43,7 @@ int gui_signature_type(const GuiSignatureTextCfg *args)
     {
         if ((args->text[at] == '(') || (args->text[at] == ','))
         {
-            args->signature->request_deadline_ms = now_ms;
+            args->signature->request_deadline_ms = now_ms + GUI_SIGNATURE_DEBOUNCE_MS;
             return 1;
         }
     }
@@ -52,19 +52,13 @@ int gui_signature_type(const GuiSignatureTextCfg *args)
 
 unsigned long long gui_signature_next_deadline_ms(const GuiSignatureCfg *args)
 {
-    const unsigned long long now_ms = cli_clock_milliseconds();
-    if (args->signature_read->request_deadline_ms == 0ull)
-    {
-        return 0ull;
-    }
-    const unsigned long long passed = now_ms - args->signature_read->request_deadline_ms;
-    return (passed < GUI_SIGNATURE_DEBOUNCE_MS) ? GUI_SIGNATURE_DEBOUNCE_MS - passed : 1ull;
+    return args->signature_read->request_deadline_ms;
 }
 
 int gui_signature_tick(const GuiSignatureTextCfg *args)
 {
     const unsigned long long now_ms = cli_clock_milliseconds();
-    if ((args->signature->request_deadline_ms == 0ull) || (now_ms - args->signature->request_deadline_ms < GUI_SIGNATURE_DEBOUNCE_MS))
+    if ((args->signature->request_deadline_ms == 0ull) || (now_ms < args->signature->request_deadline_ms))
     {
         return 0;
     }

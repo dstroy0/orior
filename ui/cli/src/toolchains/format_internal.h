@@ -30,7 +30,6 @@ typedef struct
 } CliFormatRoom;
 
 extern CliFormatRoom g_cli_format;
-extern CliLock g_cli_format_lock;
 
 // the room's manifest and settings given back, and the formatting's lock with them (format.c)
 void cli_format_release(void);

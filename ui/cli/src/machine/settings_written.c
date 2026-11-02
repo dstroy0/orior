@@ -94,8 +94,6 @@ EMBED_INLINE void cli_list_write(const SettingsWrittenCtx *args)
 void cli_settings_layers_write(const CliSettingsOutCfg *args)
 {
     static unsigned int s_order[CLI_LAYERS_SOURCES];
-    static CliLock s_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     mmgr_line_put(args->out, "{\"own_file\":");
     if (args->layers_read->has_own_file)
     {
@@ -211,7 +209,6 @@ void cli_settings_layers_write(const CliSettingsOutCfg *args)
                .text = args->layers_read->system,
                .length = cellul.len(&(CatenaFinitaCfg){.src = args->layers_read->system, .cap = CLI_CELLS_POOL}));
     mmgr_line_ch(args->out, '}');
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 const char *cli_settings_layer(const CliSettingsKeyCfg *args)

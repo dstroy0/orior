@@ -60,7 +60,7 @@ void cli_hits_free(const CliFilesSearchHitsCfg *args)
     *hits = (CliSearchHits){NULL, NULL, 0u, NULL, NULL, 0u};
 }
 
-void cli_hits_on_take(const CliFilesSearchHitsCfg *args)
+void cli_hits_init(const CliFilesSearchHitsCfg *args)
 {
     CliSearchHits *hits = args->hits;
     const unsigned long long pool_bytes = (unsigned long long)CLI_POOL_MOST * sizeof(CliSearchHit);

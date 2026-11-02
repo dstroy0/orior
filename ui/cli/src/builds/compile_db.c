@@ -235,8 +235,6 @@ int cli_compile_white(const CliCompileDbCtx *args)
 void cli_compile_words_each(const CliCompileDbTextCtx *args)
 {
     static char s_word[1u << 16u];
-    static CliLock s_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     unsigned long long size = 0ull;
     int quoted = 0;
     int any = 0;
@@ -271,7 +269,6 @@ void cli_compile_words_each(const CliCompileDbTextCtx *args)
     {
         EMBED_CALL(args->each, CliEachWordSizeCfg, .context = args->context, .word = s_word, .size = size);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 // The first word of a command line as the words are read

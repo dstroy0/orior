@@ -66,7 +66,6 @@ void cli_comms_parts(const CliCommsCfg *args)
 {
     unsigned int order[CLI_COMMS_PARTS];
     unsigned int count = 0u;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_comms.lock);
     for (unsigned int at = 0u; at < g_cli_comms.parts_room; at += 1u)
     {
         if (g_cli_comms.parts[at].taken)
@@ -106,7 +105,6 @@ void cli_comms_parts(const CliCommsCfg *args)
         mmgr_line_ch(args->out, '}');
     }
     mmgr_line_ch(args->out, ']');
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_comms.lock);
 }
 
 // the names of the parts listening on the channel `name`, in the order they began to listen
@@ -136,7 +134,6 @@ EMBED_INLINE void view_listeners(const CommsViewCtx *args)
 void cli_comms_channels(const CliCommsCfg *args)
 {
     unsigned int order[CLI_COMMS_CHANNELS];
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_comms.lock);
     const unsigned int count = g_cli_comms.channels;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
@@ -180,5 +177,4 @@ void cli_comms_channels(const CliCommsCfg *args)
         mmgr_line_put(args->out, "]}");
     }
     mmgr_line_ch(args->out, ']');
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_comms.lock);
 }

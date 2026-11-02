@@ -8,8 +8,8 @@
 #include "servers_internal.h"
 
 // what is read, under the reading's lock
-static CliServersReading s_reading = {CLI_LOCK_INIT};
-static CliServersReading s_resolved = {CLI_LOCK_INIT};
+static CliServersReading s_reading = {0};
+static CliServersReading s_resolved = {0};
 
 typedef struct
 {

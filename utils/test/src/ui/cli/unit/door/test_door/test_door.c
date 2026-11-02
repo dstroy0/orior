@@ -14,7 +14,6 @@
 // what a part's listener received: the last channel, speaker and body, and the last body's size
 typedef struct
 {
-    CliLock lock;
     char channel[CLI_NAME_MAX_LEN];
     char from[CLI_NAME_MAX_LEN];
     char body[256];
@@ -23,7 +22,7 @@ typedef struct
 } DoorReceived;
 
 static char s_address[CLI_PATH_MAX_LEN];
-static DoorReceived s_received = {CLI_LOCK_INIT, "", "", "", 0ull, 0u};
+static DoorReceived s_received = {"", "", "", 0ull, 0u};
 static char s_big[CLI_DOOR_MOST + (CLI_DOOR_MOST / 5u) + 16u];
 static char s_next[CLI_DOOR_MOST + (CLI_DOOR_MOST / 5u) + 16u];
 static char s_view[1u << 16u];
@@ -92,7 +91,6 @@ static int message_recorded(const CliCommsRecvCfg *args)
 {
     unsigned long long size = args->size;
     DoorReceived *const received = args->context;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &received->lock);
     memor.cpy(&(MemoriaCfg){.dst = received->channel, .src = args->channel, .bytes = CLI_UNITY_LENGTH(args->channel) + 1u});
     memor.cpy(&(MemoriaCfg){.dst = received->from, .src = args->from, .bytes = CLI_UNITY_LENGTH(args->from) + 1u});
     const unsigned long long copy_len = (size < sizeof(received->body) - 1u) ? size : sizeof(received->body) - 1u;
@@ -100,7 +98,6 @@ static int message_recorded(const CliCommsRecvCfg *args)
     received->body[copy_len] = '\0';
     received->size = size;
     received->count += 1u;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &received->lock);
     return 1;
 }
 
@@ -110,9 +107,7 @@ static unsigned int received_past(unsigned int count, unsigned long long wait)
     const unsigned long long until = cli_clock_milliseconds() + wait;
     for (;;)
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_received.lock);
         const unsigned int now = s_received.count;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_received.lock);
         if ((now > count) || (cli_clock_milliseconds() > until))
         {
             return now;
@@ -124,9 +119,7 @@ static unsigned int received_past(unsigned int count, unsigned long long wait)
 // the count of messages received
 static unsigned int received_count(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_received.lock);
     const unsigned int count = s_received.count;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_received.lock);
     return count;
 }
 

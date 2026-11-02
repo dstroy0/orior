@@ -18,7 +18,6 @@ typedef struct
     unsigned int groups;
     unsigned int added_tools;
 } CliAdded;
-CliLock g_cli_toolchains_lock = CLI_LOCK_INIT;
 
 // the file `name` in orior's own folder into `path`: 1, or 0 where orior_cli has no folder of its own
 int cli_toolchains_file(const CliToolchainsCtx *args)
@@ -225,7 +224,6 @@ void cli_toolchains_groups(const CliToolchainsEachCfg *args)
     CliJson bundled;
     CliJson json;
     char path[CLI_PATH_MAX_LEN];
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_toolchains_lock);
     const unsigned int tools = EMBED_CALL(cli_on_bundle, ToolchainsAddedCtx, .json = &bundled);
     // the two lists made where the file has none take two nodes and their keys
     const unsigned int added = EMBED_CALL(cli_toolchains_json_internal.file_read, CliToolchainsJsonCtx, .json = &json,
@@ -242,7 +240,6 @@ void cli_toolchains_groups(const CliToolchainsEachCfg *args)
                .added_tools = added_tools, .added_groups = groups, .each = each, .context = context);
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &bundled);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_toolchains_lock);
 }
 
 // whether a group is among those listed: retained while each is handed
@@ -375,7 +372,6 @@ int cli_toolchains_add(const CliToolchainsErrMsgCfg *args)
         mmgr_line_put(args->err_msg, " needs a group");
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_toolchains_lock);
     CliJson bundled;
     CliJson json;
     const unsigned int tools = EMBED_CALL(cli_on_bundle, ToolchainsAddedCtx, .json = &bundled);
@@ -434,7 +430,6 @@ int cli_toolchains_add(const CliToolchainsErrMsgCfg *args)
     {
         EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
         EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &bundled);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_toolchains_lock);
         mmgr_line_put(args->err_msg, (refused[0] == '\0') ? "there is a toolchain " : name);
         mmgr_line_put(args->err_msg, (refused[0] == '\0') ? args->id_out : refused);
         mmgr_line_put(args->err_msg, (refused[0] == '\0') ? " already" : "");
@@ -499,7 +494,6 @@ int cli_toolchains_add(const CliToolchainsErrMsgCfg *args)
                                  .node = added, .path_read = path, .sorted = 0, .err_msg = args->err_msg);
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &bundled);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_toolchains_lock);
     return saved;
 }
 
@@ -530,7 +524,6 @@ EMBED_INLINE void cli_added_release(const ToolchainsAddedCtx *args)
 {
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &args->read->json);
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &args->read->bundled);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_toolchains_lock);
 }
 
 // each item of a list that is `text`, or whose `key` is, taken out: how many were
@@ -583,7 +576,6 @@ int cli_toolchains_add_group(const CliToolchainsErrMsgNameCfg *args)
         mmgr_line_put(args->err_msg, "a group needs a name");
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_toolchains_lock);
     int done = EMBED_CALL(cli_added_read, ToolchainsAddedCtx, .read = &s_read, .err_msg = args->err_msg);
     CliGroupFound found = {group, 0};
     if (done)
@@ -615,7 +607,6 @@ int cli_toolchains_add_group(const CliToolchainsErrMsgNameCfg *args)
 int cli_toolchains_remove(const CliToolchainsIdErrMsgCfg *args)
 {
     static CliAdded s_read;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_toolchains_lock);
     int done = EMBED_CALL(cli_added_read, ToolchainsAddedCtx, .read = &s_read, .err_msg = args->err_msg);
     if (done && (EMBED_CALL(cli_take_out, ToolchainsAddedCtx, .json = &s_read.json, .list = s_read.added_tools,
                             .key = "id", .text = args->id) == 0u))
@@ -638,7 +629,6 @@ int cli_toolchains_remove(const CliToolchainsIdErrMsgCfg *args)
 int cli_toolchains_remove_group(const CliToolchainsErrMsgNameCfg *args)
 {
     static CliAdded s_read;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_toolchains_lock);
     int done = EMBED_CALL(cli_added_read, ToolchainsAddedCtx, .read = &s_read, .err_msg = args->err_msg);
     if (done && (EMBED_CALL(cli_list_contains, ToolchainsAddedCtx, .json_read = &s_read.bundled, .list = s_read.tools,
                             .key = "group", .text = args->name) ||
@@ -670,7 +660,6 @@ int cli_toolchains_on_add(const CliToolchainsIdFolderCfg *args)
     static CliAdded s_read;
     char err_buf[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ull};
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_toolchains_lock);
     const int added = EMBED_CALL(cli_added_read, ToolchainsAddedCtx, .read = &s_read, .err_msg = &err_msg) &&
                       EMBED_CALL(cli_list_contains, ToolchainsAddedCtx, .json_read = &s_read.json,
                                  .list = s_read.added_tools, .key = "id", .text = args->id);

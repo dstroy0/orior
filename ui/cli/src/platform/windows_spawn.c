@@ -163,13 +163,11 @@ static char s_line[CLI_LINE_BYTES];
 static wchar_t s_wide[CLI_LINE_BYTES];
 static wchar_t s_folder[CLI_PATH_MAX_LEN];
 static wchar_t s_block[CLI_ENVIRONMENT_UNITS];
-static CliLock s_lock = CLI_LOCK_INIT;
 
 // the command line, the folder and the environment block made, the lock taken: 1, or 0 with why given and the lock
 // given back
 EMBED_INLINE int cli_spawn_prepare(const WindowsSpawnCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     VerbaLinea line = {s_line, sizeof(s_line), 0ull};
     for (unsigned int at = 0u; args->words[at] != NULL; at += 1u)
     {
@@ -183,7 +181,6 @@ EMBED_INLINE int cli_spawn_prepare(const WindowsSpawnCtx *args)
         !EMBED_CALL(cli_environment, WindowsSpawnCtx, .settings = args->settings, .count = args->count,
                     .block = s_block, .room = CLI_ENVIRONMENT_UNITS))
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         mmgr_line_put(args->err_msg, "the command is longer than Windows starts");
         return 0;
     }
@@ -210,7 +207,6 @@ int cli_spawn_share(const CliWordsErrMsgSettingsCtx *args)
     const BOOL made =
         CreateProcessW(NULL, s_wide, NULL, NULL, TRUE, CREATE_UNICODE_ENVIRONMENT, s_block, NULL, &startup, &process);
     const DWORD error = GetLastError();
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     if (!made)
     {
         mmgr_line_put(args->err_msg, "Windows reported ");
@@ -280,7 +276,6 @@ static int cli_spawn_with(const WindowsSpawnCtx *args)
     const BOOL made = piped && CreateProcessW(NULL, s_wide, NULL, NULL, TRUE, flags, s_block,
                                               (args->folder != NULL) ? s_folder : NULL, &startup, &process);
     const DWORD error = GetLastError();
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
         const HANDLE closed = (at == 0u) ? input : (at == 1u) ? out_write : err_write;
@@ -419,7 +414,6 @@ int cli_spawn_terminal(const CliWordsErrMsgSpawnedCtx *args)
     {
         DeleteProcThreadAttributeList(attributes);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     // the ends the pseudo-console reads and writes are its own once it is made
     const HANDLE console_ends[2] = {in_read, out_write};
     for (unsigned int at = 0u; at < 2u; at += 1u)

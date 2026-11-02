@@ -64,7 +64,6 @@ unsigned int cli_run_pages(const CliRunnerRootCtx *args);
 // the runs open, the next run's number, and the lock and wake over them (runner_run.c)
 extern CliRun g_cli_runs[CLI_RUNS_MOST];
 extern unsigned long long g_cli_next_run;
-extern CliLock g_cli_runs_lock;
 extern CliWake g_cli_runs_wake;
 // a run's steps taken in turn, its end reported after the last: the function its thread runs
 void cli_run_steps(void *context);

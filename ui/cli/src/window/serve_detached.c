@@ -35,17 +35,14 @@ typedef struct
 } CliServeFollower;
 
 static CliServeFollower *s_follower[CLI_SERVE_FOLLOWERS];
-static CliLock s_lock = CLI_LOCK_INIT;
 static unsigned long long s_last;
 
 // a detached run's number: the milliseconds since 1970 it started at, each after the last
 static unsigned long long detached_number(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const unsigned long long now = cli_wall_milliseconds();
     s_last = (now > s_last) ? now : s_last + 1ull;
     const unsigned long long number = s_last;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return number;
 }
 
@@ -205,9 +202,7 @@ static void detached_follower(void *context)
         }
         EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = CLI_SERVE_FOLLOW_EVERY);
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     s_follower[one->place] = NULL;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     g_cli_cells->persistent_buf_release(one, &g_cli_window_cells);
 }
 
@@ -220,7 +215,6 @@ EMBED_INLINE int detached_follow(const ServeDetachedCtx *args)
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->base,
                    .at = cellul.len(&(CatenaFinitaCfg){.src = args->base, .cap = CLI_CELLS_POOL}), .set = "/\\");
     name = (name_past != 0ull) ? (args->base + name_past) : name;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     unsigned int at = 0u;
     while ((at < CLI_SERVE_FOLLOWERS) && (s_follower[at] != NULL))
     {
@@ -244,7 +238,6 @@ EMBED_INLINE int detached_follow(const ServeDetachedCtx *args)
             g_cli_cells->persistent_buf_release(one, &g_cli_window_cells);
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return one != NULL;
 }
 
@@ -297,8 +290,6 @@ int cli_serve_detached_start(const CliServeErrMsgOutCtx *args)
     EMBED_CALL(cli_serve_base_internal.detached_file, CliServeBaseCtx, .base = base, .kind = "job",
                .path_out = job_file);
     static char s_spec[1u << 20u];
-    static CliLock s_spec_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_spec_lock);
     VerbaLinea spec = {s_spec, sizeof(s_spec), 0ull};
     mmgr_line_put(&spec, "{\"job\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &spec, .text = job,
@@ -323,7 +314,6 @@ int cli_serve_detached_start(const CliServeErrMsgOutCtx *args)
     const int written =
         mmgr_line_ok(&spec) && EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx,
                                           .path = job_file, .bytes = s_spec, .size = spec.at);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_spec_lock);
     if (!written)
     {
         mmgr_line_put(err_msg, job_file);
@@ -355,10 +345,8 @@ int cli_serve_run_follow(const CliServeAnswerCfg *args)
     VerbaLinea *err_msg = args->err_msg;
     unsigned long long run = 0ull;
     char detached_dir[CLI_PATH_MAX_LEN];
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_serve.lock);
     const int has_detached_dir = g_cli_serve.has_detached_dir;
     memor.cpy(&(MemoriaCfg){.dst = detached_dir, .src = g_cli_serve.detached_dir, .bytes = sizeof(detached_dir)});
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_serve.lock);
     if (!has_detached_dir)
     {
         mmgr_line_put(err_msg, "this tree stores no runs");
@@ -391,10 +379,8 @@ int cli_serve_job_stop(const CliServeAnswerCfg *args)
         return 0;
     }
     char detached_dir[CLI_PATH_MAX_LEN];
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_serve.lock);
     const int has_detached_dir = g_cli_serve.has_detached_dir;
     memor.cpy(&(MemoriaCfg){.dst = detached_dir, .src = g_cli_serve.detached_dir, .bytes = sizeof(detached_dir)});
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_serve.lock);
     if (has_detached_dir)
     {
         char number[32];

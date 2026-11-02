@@ -24,7 +24,6 @@ typedef struct
 
 // the lock a call on orior's folder answers under, one at a time, and the cells it occupies while it answers, each
 // sized to what it contains
-static CliLock s_lock = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -107,7 +106,6 @@ static int home_state_write(const CliServeAnswerCfg *args)
     {
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     mmgr_line_ch(&state_line, '{');
     const unsigned int first = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
                                           .json_read = arguments->json, .node = changes, .kind = CFG_JSON_OBJECT)
@@ -130,7 +128,6 @@ static int home_state_write(const CliServeAnswerCfg *args)
     const int done =
         mmgr_line_ok(&state_line) && EMBED_CALL(cli_state_folder.save, CliStateFolderCfg, .folder = folder,
                                                 .changes = state_line.out, .length = state_line.at, .err_msg = err_msg);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     g_cli_cells->persistent_buf_release(state_line.out, &g_cli_window_home_cells);
     return done;
 }
@@ -170,12 +167,10 @@ static int home_state_read(const CliServeAnswerCfg *args)
 {
     VerbaLinea *out = args->out;
     CliJson json;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const unsigned int tree = EMBED_CALL(home_state_tree, WindowCallHomeCtx, .json = &json);
     if (tree == CLI_JSON_NONE)
     {
         EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         mmgr_line_put(out, "null");
         return 1;
     }
@@ -193,7 +188,6 @@ static int home_state_read(const CliServeAnswerCfg *args)
     }
     mmgr_line_ch(out, '}');
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return 1;
 }
 
@@ -241,7 +235,6 @@ void cli_window_kept_script_given(void)
 int cli_window_title_bar_system(void)
 {
     CliJson json;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const unsigned int tree = EMBED_CALL(home_state_tree, WindowCallHomeCtx, .json = &json);
     const char *const title_bar =
         EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
@@ -251,7 +244,6 @@ int cli_window_title_bar_system(void)
     const int system = (title_bar != NULL) &&
                        cellul.eq(&(CatenaFinitaCfg){.src = title_bar, .other = "system", .cap = CLI_CELLS_POOL});
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return system;
 }
 
@@ -271,7 +263,6 @@ static int home_state_now(const CliServeAnswerCfg *args)
         return 0;
     }
     CliJson json;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const unsigned int tree = EMBED_CALL(home_state_tree, WindowCallHomeCtx, .json = &json);
     const unsigned int first = (tree != CLI_JSON_NONE) ? json.node[tree].first : CLI_JSON_NONE;
     mmgr_line_put(out, "{\"set\":{");
@@ -307,7 +298,6 @@ static int home_state_now(const CliServeAnswerCfg *args)
     }
     mmgr_line_put(out, "]}");
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     g_cli_cells->persistent_buf_release(keys, &g_cli_window_home_cells);
     return 1;
 }
@@ -332,7 +322,6 @@ static int home_settings_layers(const CliServeAnswerCfg *args)
         mmgr_line_put(err_msg, "the settings' chains and layers could not be given a cell");
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     EMBED_CALL(cli_window_out_request_internal.arg_write, CliWindowOutRequestCtx, .request = arguments, .key = "tree",
                .out = &tree);
     const int read =
@@ -348,7 +337,6 @@ static int home_settings_layers(const CliServeAnswerCfg *args)
         EMBED_CALL(cli_settings_path_table.chain_free, CliSettingsPathCfg, .chain = &settings->reader);
     }
     EMBED_CALL(cli_settings_path_table.chain_free, CliSettingsPathCfg, .chain = &settings->tree);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     g_cli_cells->persistent_buf_release(settings, &g_cli_window_home_cells);
     g_cli_cells->persistent_buf_release(tree.out, &g_cli_window_home_cells);
     return read;
@@ -421,7 +409,6 @@ static int home_carry_read(const CliServeAnswerCfg *args)
         return 0;
     }
     carried->count = 0u;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int read =
         EMBED_CALL(cli_carry_from.read, CliCarryFromCfg, .from = from, .there_out = carried, .err_msg = err_msg);
     if (read)
@@ -433,7 +420,6 @@ static int home_carry_read(const CliServeAnswerCfg *args)
         mmgr_line_ch(out, '}');
     }
     EMBED_CALL(cli_carry_carried_place_internal.carried_clear, CliCarryCarriedPlaceCtx, .carried_out = carried);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     g_cli_cells->persistent_buf_release(carried, &g_cli_window_home_cells);
     return read;
 }
@@ -472,7 +458,6 @@ static int home_carry_take(const CliServeAnswerCfg *args)
         return 0;
     }
     carried->count = 0u;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const unsigned int there =
         EMBED_CALL(cli_serve_err_msg_internal.arg, CliServeErrMsgCtx, .request = arguments, .key = "there");
     const unsigned int first = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
@@ -495,7 +480,6 @@ static int home_carry_take(const CliServeAnswerCfg *args)
                                  .places = place_of, .count = places, .keys = key_of, .key_count = keys, .out = out,
                                  .err_msg = err_msg);
     EMBED_CALL(cli_carry_carried_place_internal.carried_clear, CliCarryCarriedPlaceCtx, .carried_out = carried);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     g_cli_cells->persistent_buf_release(key_of, &g_cli_window_home_cells);
     g_cli_cells->persistent_buf_release(place_of, &g_cli_window_home_cells);
     g_cli_cells->persistent_buf_release(carried, &g_cli_window_home_cells);
@@ -567,7 +551,6 @@ static int home_plugin_settings_read(const CliServeAnswerCfg *args)
     {
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     unsigned long long size = 0ull;
     const unsigned char *const mapped = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = path,
                                                    .size_pointer = &size, .owner = &g_cli_window_home_cells);
@@ -580,7 +563,6 @@ static int home_plugin_settings_read(const CliServeAnswerCfg *args)
     }
     EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = mapped,
                .owner = &g_cli_window_home_cells);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return 1;
 }
 
@@ -623,14 +605,12 @@ static int home_plugin_settings_write(const CliServeAnswerCfg *args)
     {
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     EMBED_CALL(cli_json_tree_node_out.json_write, CliJsonTreeNodeOutCfg, .json_read = arguments->json, .node = values,
                .out = &text, .indent = 2u, .sorted = 0);
     mmgr_line_ch(&text, '\n');
     const int written =
         mmgr_line_ok(&text) && EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx,
                                           .path = path, .bytes = text.out, .size = text.at);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     g_cli_cells->persistent_buf_release(text.out, &g_cli_window_home_cells);
     if (!written)
     {

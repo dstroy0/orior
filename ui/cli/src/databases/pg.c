@@ -9,7 +9,6 @@
 #include "pg_internal.h"
 
 static CliPg *s_links[CLI_PG_LINKS];
-static CliLock s_links_lock = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -216,7 +215,6 @@ CliPg *cli_pg_connect(const CliPgHostCfg *args)
         return NULL;
     }
     CliPg *pg = NULL;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_links_lock);
     unsigned int at = 0u;
     while ((at < CLI_PG_LINKS) && (s_links[at] != NULL))
     {
@@ -228,7 +226,6 @@ CliPg *cli_pg_connect(const CliPgHostCfg *args)
         pg->place = at;
         s_links[at] = pg;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_links_lock);
     if (pg == NULL)
     {
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure,
@@ -250,9 +247,7 @@ CliPg *cli_pg_connect(const CliPgHostCfg *args)
     {
         mmgr_line_finish(&err_msg);
         EMBED_CALL(cli_db_wire.db_failure_set, CliDbWireCfg, .failure = failure, .message = why);
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_links_lock);
         s_links[pg->place] = NULL;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_links_lock);
         mmgr_zero_buf(pg, sizeof(*pg));
         g_cli_cells->persistent_buf_release(pg, &g_cli_db_cells);
         return NULL;
@@ -263,9 +258,7 @@ CliPg *cli_pg_connect(const CliPgHostCfg *args)
                     .failure = failure))
     {
         EMBED_CALL(cli_err_msg_internal.socket_close, CliErrMsgCtx, .sock_out = &pg->socket);
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_links_lock);
         s_links[pg->place] = NULL;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_links_lock);
         mmgr_zero_buf(pg, sizeof(*pg));
         g_cli_cells->persistent_buf_release(pg, &g_cli_db_cells);
         return NULL;
@@ -280,9 +273,7 @@ void cli_pg_close(const CliPgFailureSqlCfg *args)
     (void)EMBED_CALL(cli_pg_failure_kind_internal.send, CliPgFailureKindCtx, .pg = args->pg, .kind_value = 'X',
                      .parts = NULL, .sizes = NULL, .count = 0u, .failure = &failure);
     EMBED_CALL(cli_err_msg_internal.socket_close, CliErrMsgCtx, .sock_out = &args->pg->socket);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_links_lock);
     s_links[args->pg->place] = NULL;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_links_lock);
     mmgr_zero_buf(args->pg, sizeof(*args->pg));
     g_cli_cells->persistent_buf_release(args->pg, &g_cli_db_cells);
 }

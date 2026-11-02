@@ -36,7 +36,6 @@ typedef struct
 // the batch and how many languages it is of, under its lock, and the cells a batch is allocated in
 static CliServersBatch *s_batch;
 static unsigned int s_languages;
-static CliLock s_lock = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -89,7 +88,6 @@ unsigned int cli_servers_check_files(const CliServersFilesCtx *args)
         text_bytes +=
             root_length + cellul.len(&(CatenaFinitaCfg){.src = args->files[file], .cap = CLI_CELLS_POOL}) + 2ull;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     s_batch = g_cli_cells->persistent_buf_alloc(sizeof(*s_batch), &g_cli_servers_check_cells);
     char *const text = g_cli_cells->temporary_buf_alloc(text_bytes, &g_cli_servers_check_cells);
     const char **const paths = g_cli_cells->temporary_buf_alloc(((unsigned long long)most + 1ull) * sizeof(*paths),
@@ -103,7 +101,6 @@ unsigned int cli_servers_check_files(const CliServersFilesCtx *args)
         g_cli_cells->persistent_buf_release(text, &g_cli_servers_check_cells);
         g_cli_cells->persistent_buf_release(s_batch, &g_cli_servers_check_cells);
         s_batch = NULL;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return 0u;
     }
     EMBED_CALL(cli_plugins_table.languages, CliPluginsCfg, .languages = &s_batch->known);
@@ -175,6 +172,5 @@ unsigned int cli_servers_check_files(const CliServersFilesCtx *args)
     g_cli_cells->persistent_buf_release(text, &g_cli_servers_check_cells);
     g_cli_cells->persistent_buf_release(s_batch, &g_cli_servers_check_cells);
     s_batch = NULL;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return queued;
 }

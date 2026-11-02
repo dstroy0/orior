@@ -85,9 +85,7 @@ unsigned long long cli_deflate(const CliArchiveSizeCfg *args)
     };
     static unsigned long long s_head[1u << 15u];
     static unsigned long long s_previous[CLI_WINDOW];
-    static CliLock s_lock = CLI_LOCK_INIT;
     const unsigned long long none = ~0ull;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     for (unsigned int at = 0u; at < (1u << 15u); at += 1u)
     {
         s_head[at] = none;
@@ -179,6 +177,5 @@ unsigned long long cli_deflate(const CliArchiveSizeCfg *args)
     {
         EMBED_CALL(cli_put, ArchivePackCtx, .writer = &writer, .value = 0u, .bits = 8u - writer.count);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return writer.full ? 0ull : writer.size;
 }

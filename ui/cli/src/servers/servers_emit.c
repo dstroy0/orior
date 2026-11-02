@@ -17,15 +17,13 @@
 #define CLI_SERVERS_EMIT_WIDER 64ull
 
 CliKeyed g_cli_servers_published = {"published diagnostics", {NULL}, 0u, CLI_SERVERS_PUBLISHED_MAX};
-CliLock g_cli_servers_published_lock = CLI_LOCK_INIT;
 CliKeyed g_cli_servers_inspected = {"inspections' findings", {NULL}, 0u, CLI_SERVERS_PUBLISHED_MAX};
 CliKeyed g_cli_servers_checked = {"checkers' findings", {NULL}, 0u, CLI_SERVERS_PUBLISHED_MAX};
 CliKeyed g_cli_servers_given = {"names build tools give", {NULL}, 0u, 4096u};
 CliKeyed g_cli_servers_supplied = {"names supplied", {NULL}, 0u, CLI_SERVERS_PUBLISHED_MAX};
-CliLock g_cli_servers_checks_lock = CLI_LOCK_INIT;
 
 // what is read to pass a file's diagnostics on
-static CliServersReading s_reading = {CLI_LOCK_INIT};
+static CliServersReading s_reading = {0};
 
 void cli_servers_uri_get(const CliServersPathUriCtx *args)
 {
@@ -105,7 +103,6 @@ typedef struct
     const CliKeyed *keyed;
     unsigned int hash;
     CliKeyed *keyed_out;
-    CliLock *lock;
     unsigned int array;
     int filtered;
     int *written;
@@ -333,10 +330,8 @@ EMBED_INLINE unsigned long long emit_stored_size(const ServersEmitCtx *args)
 EMBED_INLINE unsigned int emit_stored_read(const ServersEmitCtx *args)
 {
     CliKeyed *keyed = args->keyed_out;
-    CliLock *lock = args->lock;
     const char *key = args->key;
     unsigned int hash = args->hash;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = lock);
     const char *beside = NULL;
     unsigned long long size = 0ull;
     const char *const text = EMBED_CALL(cli_keyed_key.get_hash, CliKeyedKeyCfg, .keyed = keyed, .key = key,
@@ -345,7 +340,6 @@ EMBED_INLINE unsigned int emit_stored_read(const ServersEmitCtx *args)
                                   ? EMBED_CALL(cli_servers_reading_internal.read, CliServersReadingCtx,
                                                .reading = &s_reading, .text = text, .size = size)
                                   : CLI_JSON_NONE;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = lock);
     return root;
 }
 
@@ -365,7 +359,6 @@ EMBED_INLINE void emit_items_write(const ServersEmitCtx *args)
     {
         if (args->filtered)
         {
-            EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_checks_lock);
             const char *beside = NULL;
             unsigned long long size = 0ull;
             const char *const supplied =
@@ -378,7 +371,6 @@ EMBED_INLINE void emit_items_write(const ServersEmitCtx *args)
                       (EMBED_CALL(emit_input_names, ServersEmitCtx, .key = key, .uri = args->uri,
                                   .names_pointer = &names, .size_pointer = &size) &&
                        EMBED_CALL(emit_free, ServersEmitCtx, .json = json, .item = item, .names = names, .size = size));
-            EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_checks_lock);
             if (dropped)
             {
                 continue;
@@ -404,17 +396,13 @@ void cli_servers_emit_whole(const CliServersSinkKeyCtx *args)
     // what is stored of the file, each report of it writing at most CLI_SERVERS_EMIT_WIDER times its own bytes, and the
     // path escaped: at most what a file's findings hold. The key is hashed once for every lookup of it here
     const unsigned int hash = EMBED_CALL(cli_keyed_key_beside.hash, CliKeyedKeyBesideCfg, .key = args->key);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_checks_lock);
     const unsigned long long checked =
         EMBED_CALL(emit_stored_size, ServersEmitCtx, .keyed = &g_cli_servers_inspected, .key = args->key,
                    .hash = hash) +
         EMBED_CALL(emit_stored_size, ServersEmitCtx, .keyed = &g_cli_servers_checked, .key = args->key, .hash = hash);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_checks_lock);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_published_lock);
     const unsigned long long stored =
         checked +
         EMBED_CALL(emit_stored_size, ServersEmitCtx, .keyed = &g_cli_servers_published, .key = args->key, .hash = hash);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_published_lock);
     char shown[CLI_PATH_MAX_LEN];
     VerbaLinea where = {shown, sizeof(shown), 0ull};
     EMBED_CALL(cli_servers_path_err_msg_internal.tree_path, CliServersPathErrMsgCtx, .tree = args->sink->tree,
@@ -431,14 +419,14 @@ void cli_servers_emit_whole(const CliServersSinkKeyCtx *args)
     int written = 0;
     EMBED_CALL(emit_items_write, ServersEmitCtx,
                .array = EMBED_CALL(emit_stored_read, ServersEmitCtx, .keyed_out = &g_cli_servers_published,
-                                   .lock = &g_cli_servers_published_lock, .key = args->key, .hash = hash),
+                                   .key = args->key, .hash = hash),
                .filtered = 1, .key = args->key, .uri = uri, .written = &written, .out = &out);
     EMBED_CALL(emit_items_write, ServersEmitCtx,
                .array = EMBED_CALL(emit_stored_read, ServersEmitCtx, .keyed_out = &g_cli_servers_inspected,
-                                   .lock = &g_cli_servers_checks_lock, .key = args->key, .hash = hash),
+                                   .key = args->key, .hash = hash),
                .filtered = 0, .key = args->key, .uri = uri, .written = &written, .out = &out);
     const unsigned int by_checker = EMBED_CALL(emit_stored_read, ServersEmitCtx, .keyed_out = &g_cli_servers_checked,
-                                               .lock = &g_cli_servers_checks_lock, .key = args->key, .hash = hash);
+                                               .key = args->key, .hash = hash);
     const CliJson *const json = &s_reading.json;
     for (unsigned int id = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
                                       .node = by_checker, .kind = CFG_JSON_OBJECT)
@@ -480,14 +468,12 @@ static void emit_reporting(const CliEachKeyBesideTextSizeCfg *args)
 
 void cli_servers_emit_reporting_attributes(const CliServersSinkKeyCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_published_lock);
     const unsigned long long room =
         EMBED_CALL(cli_keyed_table.listed_size, CliKeyedCfg, .keyed = &g_cli_servers_published) + 1ull;
     char *const reporting = g_cli_cells->temporary_buf_alloc(room, &g_cli_servers_cells);
     VerbaLinea line = mmgr_line_over(reporting, room);
     EMBED_CALL(cli_keyed_each_table.each, CliKeyedEachCfg, .keyed = &g_cli_servers_published, .each = emit_reporting,
                .context = &line);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_published_lock);
     const unsigned long long size = mmgr_line_ok(&line) ? line.at : 0ull;
     for (unsigned long long at = 0ull; at < size;)
     {

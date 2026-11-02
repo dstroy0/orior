@@ -99,7 +99,6 @@ struct CliTestRun
     char root[CLI_PATH_MAX_LEN];
     char scratch[CLI_PATH_MAX_LEN];
     unsigned long long started;
-    CliLock lock;
     CliWake wake;
     unsigned int going;
     unsigned long long passed;
@@ -125,7 +124,6 @@ struct CliTestRun
 };
 
 // whether the run going was stopped, under the runs' lock (test_runs.c)
-extern CliLock g_cli_test_lock;
 extern int g_cli_test_stopped;
 
 // whether the run going was stopped; `length` bytes put in the run's texts, ended by a 0, "" where they do not fit;

@@ -18,7 +18,6 @@ static const char s_file_code[] = "import sys\nsys._getframe().f_code.co_filenam
 static CliKernel s_kernel;
 static CliKernelReader s_reader;
 static CliKernelSpec s_spec;
-static CliLock s_lock = CLI_LOCK_INIT;
 static CliWake s_wake = CLI_WAKE_INIT;
 static char s_messages[1u << 23u];
 static unsigned long long s_messages_at;
@@ -79,25 +78,21 @@ static void frames_signed(void)
 // a message a kernel sent recorded, a line each
 static void message_recorded(const CliKernelRecvCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     if (s_messages_at + args->size + 1ull < sizeof(s_messages))
     {
         memor.cpy(&(MemoriaCfg){.dst = s_messages + s_messages_at, .src = args->message, .bytes = args->size});
         s_messages[s_messages_at + args->size] = '\n';
         s_messages_at += args->size + 1ull;
     }
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_wake);
 }
 
 // the first message received whose parent is `id` and whose type is `kind` or `other`, and, where `member` is not NULL, whose content's `member`, or
 // its `inner` where that is not NULL, is `wanted`: its node in the shared tree, CLI_JSON_NONE where none is
 static unsigned int message_found(const char *id, const char *kind, const char *other, const char *member, const char *inner, const char *wanted)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const unsigned long long size = s_messages_at;
     memor.cpy(&(MemoriaCfg){.dst = s_seen, .src = s_messages, .bytes = size});
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     for (unsigned long long at = 0ull; at < size;)
     {
         const char *const end = memor.chr(&(MemoriaCfg){.src = s_seen + at, .val = '\n', .bytes = size - at});
@@ -130,9 +125,7 @@ static void idle_waited(const char *id)
     const unsigned long long until = cli_clock_milliseconds() + JUPYTER_PATIENCE;
     while ((message_found(id, "status", NULL, "execution_state", NULL, "idle") == CLI_JSON_NONE) && (cli_clock_milliseconds() < until))
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
-        (void)EMBED_CALL(cli_lock_internal.wake_wait_for, CliLockCtx, .wake = &s_wake, .lock = &s_lock, .milliseconds_u64 = 20ull);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &s_wake, .milliseconds_u64 = 20ull);
     }
 }
 
@@ -216,9 +209,7 @@ static const char *run_result(const char *id)
     unsigned int found = message_found(id, "execute_result", "error", NULL, NULL, NULL);
     while ((found == CLI_JSON_NONE) && (cli_clock_milliseconds() < until))
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
-        (void)EMBED_CALL(cli_lock_internal.wake_wait_for, CliLockCtx, .wake = &s_wake, .lock = &s_lock, .milliseconds_u64 = 20ull);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &s_wake, .milliseconds_u64 = 20ull);
         found = message_found(id, "execute_result", "error", NULL, NULL, NULL);
     }
     VerbaLinea result = {s_result, sizeof(s_result), 0ull};

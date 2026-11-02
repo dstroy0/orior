@@ -56,7 +56,6 @@ typedef struct
 extern char g_cli_tree_root[CLI_PATH_MAX_LEN];
 extern CliTreeBranch *g_cli_branches;
 extern unsigned int g_cli_branch_count;
-extern CliLock g_cli_walk_lock;
 extern int g_cli_tree_walking;
 
 // a cell for a reader to scan a file's cell in, sized for the largest stored, NULL where the cells cannot meet it; a

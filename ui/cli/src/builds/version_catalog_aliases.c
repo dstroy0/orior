@@ -207,13 +207,11 @@ int cli_versions_aliases(const CliVersionCatalogTextSizeAliasesCtx *args)
     args->aliases->count = 0u;
     args->aliases->used = 0u;
     args->aliases->room = 0u;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_versions_lock);
     if (!EMBED_CALL(cli_version_catalog_text_internal.versions_parse, CliVersionCatalogTextCtx, .text = text,
                     .size = args->size) ||
         !EMBED_CALL(aliases_take, VersionCatalogAliasesCtx, .aliases = args->aliases))
     {
         cli_versions_release();
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_versions_lock);
         return 0;
     }
     for (unsigned int at = 0u; at < g_cli_versions.sections; at += 1u)
@@ -247,6 +245,5 @@ int cli_versions_aliases(const CliVersionCatalogTextSizeAliasesCtx *args)
         }
     }
     cli_versions_release();
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_versions_lock);
     return 1;
 }

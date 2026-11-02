@@ -116,10 +116,8 @@ int cli_binary_print(const CliBinaryPathOriorPathCountCfg *args)
 {
     QuerySink sink = args->sink;
     static CliBinaryReport s_report;
-    static CliLock s_print_lock = CLI_LOCK_INIT;
     char err_buf[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ull};
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_print_lock);
     const int read =
         EMBED_CALL(cli_binary_path_orior_path.read, CliBinaryPathOriorPathCfg, .path = args->path,
                    .orior_path = args->orior_path, .count = args->count, .report = &s_report, .err_msg = &err_msg);
@@ -127,7 +125,6 @@ int cli_binary_print(const CliBinaryPathOriorPathCountCfg *args)
     {
         EMBED_CALL(cli_binary_report.report_print, CliBinaryReportCfg, .report_read = &s_report, .sink = sink);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_print_lock);
     return read;
 }
 

@@ -53,11 +53,10 @@ typedef struct
     CliThread thread;
     int running;
     int ended;
-    CliLock lock;
     CliWake wake;
 } CliInotify;
 
-static CliInotify s_watch = {.lock = CLI_LOCK_INIT, .wake = CLI_WAKE_INIT};
+static CliInotify s_watch = {.wake = CLI_WAKE_INIT};
 
 typedef struct
 {
@@ -379,10 +378,8 @@ static void inotify_read(void *context)
         s_watch.inotify = -1;
     }
     (void)close(s_watch.stopped);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_watch.lock);
     s_watch.ended = 1;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_watch.wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_watch.lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_watch.wake);
 }
 
 // the watch's cells given back
@@ -443,12 +440,10 @@ void cli_watch_system_stop(void)
     }
     const unsigned long long one = 1ull;
     (void)write(s_watch.stopped, &one, sizeof(one));
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_watch.lock);
     while (!s_watch.ended)
     {
-        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_watch.wake, .lock = &s_watch.lock);
+        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_watch.wake);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_watch.lock);
     inotify_free();
     s_watch.running = 0;
 }

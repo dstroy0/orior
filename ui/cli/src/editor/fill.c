@@ -12,8 +12,6 @@ const char **g_cli_fill_slice;
 unsigned long long *g_cli_fill_slice_size;
 unsigned int g_cli_fill_slices;
 
-static CliLock s_fill_lock = CLI_LOCK_INIT;
-
 // the marks a comment line starts with, the longest first
 static const char *const s_marks[6] = {"///", "//!", "//", "##", "#", "--"};
 
@@ -388,10 +386,8 @@ EMBED_INLINE int fill_plain(const FillCtx *args)
 
 int cli_fill(const CliFillCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_fill_lock);
     if (!EMBED_CALL(cli_fill_internal.comment_lock, CliFillCtx, .err_msg = args->err_msg))
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_fill_lock);
         return 0;
     }
     // a slice is a line of the text, and one place is left after the lines: its newlines and two fit them
@@ -407,7 +403,6 @@ int cli_fill(const CliFillCfg *args)
     if (g_cli_fill_slice == NULL)
     {
         cli_fill_comment_release();
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_fill_lock);
         mmgr_line_put(args->err_msg, "the texts a fill fills could not be taken");
         return 0;
     }
@@ -455,6 +450,5 @@ int cli_fill(const CliFillCfg *args)
     g_cli_fill_slice_size = NULL;
     g_cli_fill_slices = 0u;
     cli_fill_comment_release();
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_fill_lock);
     return done;
 }

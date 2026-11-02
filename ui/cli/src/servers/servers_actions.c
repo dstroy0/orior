@@ -10,7 +10,7 @@
 #include "servers_internal.h"
 
 // what is read, under the reading's lock
-static CliServersReading s_reading = {CLI_LOCK_INIT};
+static CliServersReading s_reading = {0};
 
 void cli_servers_member_write(const CliServersJsonNodeCtx *args)
 {
@@ -28,7 +28,6 @@ void cli_servers_member_write(const CliServersJsonNodeCtx *args)
 typedef struct
 {
     CliKeyed *keyed;
-    CliLock *lock;
     const char *key;
     unsigned int array;
     CliTextPlace from;
@@ -49,9 +48,7 @@ typedef struct
 EMBED_INLINE unsigned int actions_stored_read(const ServersActionsCtx *args)
 {
     CliKeyed *keyed = args->keyed;
-    CliLock *lock = args->lock;
     const char *key = args->key;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = lock);
     const char *beside = NULL;
     unsigned long long size = 0ull;
     const char *const text = EMBED_CALL(cli_keyed_key_beside.get, CliKeyedKeyBesideCfg, .keyed = keyed, .key = key,
@@ -60,7 +57,6 @@ EMBED_INLINE unsigned int actions_stored_read(const ServersActionsCtx *args)
                                   ? EMBED_CALL(cli_servers_reading_internal.read, CliServersReadingCtx,
                                                .reading = &s_reading, .text = text, .size = size)
                                   : CLI_JSON_NONE;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = lock);
     return root;
 }
 
@@ -340,11 +336,11 @@ int cli_servers_actions(const CliServersPathOutErrMsgFromCfg *args)
     mmgr_line_ch(args->out, '[');
     int written = 0;
     EMBED_CALL(actions_ours, ServersActionsCtx,
-               .array = EMBED_CALL(actions_stored_read, ServersActionsCtx, .keyed = &g_cli_servers_inspected,
-                                   .lock = &g_cli_servers_checks_lock, .key = key),
+               .array =
+                   EMBED_CALL(actions_stored_read, ServersActionsCtx, .keyed = &g_cli_servers_inspected, .key = key),
                .from = args->from, .to = args->to, .written = &written, .out = args->out);
-    const unsigned int by_checker = EMBED_CALL(actions_stored_read, ServersActionsCtx, .keyed = &g_cli_servers_checked,
-                                               .lock = &g_cli_servers_checks_lock, .key = key);
+    const unsigned int by_checker =
+        EMBED_CALL(actions_stored_read, ServersActionsCtx, .keyed = &g_cli_servers_checked, .key = key);
     const CliJson *const json = &s_reading.json;
     for (unsigned int id = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
                                       .node = by_checker, .kind = CFG_JSON_OBJECT)
@@ -363,8 +359,8 @@ int cli_servers_actions(const CliServersPathOutErrMsgFromCfg *args)
     VerbaLinea refusal = {refused, sizeof(refused), 0ull};
     if (server != NULL)
     {
-        const unsigned int all = EMBED_CALL(actions_stored_read, ServersActionsCtx, .keyed = &g_cli_servers_published,
-                                            .lock = &g_cli_servers_published_lock, .key = key);
+        const unsigned int all =
+            EMBED_CALL(actions_stored_read, ServersActionsCtx, .keyed = &g_cli_servers_published, .key = key);
         requested = EMBED_CALL(actions_request, ServersActionsCtx, .server = server, .plugin = NULL, .all = all,
                                .path = args->path, .uri = uri, .from = args->from, .to = args->to, .written = &written,
                                .out = args->out, .err_msg = &refusal);

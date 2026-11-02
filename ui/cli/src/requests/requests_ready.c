@@ -198,7 +198,6 @@ EMBED_INLINE int ready_init(const RequestsReadyCtx *args)
 
 int cli_requests_ready(const CliRequestsTextCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_requests_lock);
     const CliRequestsParsed *const parsed = &g_cli_requests_parsed;
     const int whole = EMBED_CALL(cli_requests_text_size_parsed_internal.parse, CliRequestsTextSizeParsedCtx,
                                  .text = args->text, .size = args->size, .parsed = &g_cli_requests_parsed);
@@ -229,6 +228,5 @@ int cli_requests_ready(const CliRequestsTextCtx *args)
     // what is sent was copied out of the file read, so the file read is given back here
     EMBED_CALL(cli_requests_text_size_parsed_internal.parsed_free, CliRequestsTextSizeParsedCtx,
                .parsed = &g_cli_requests_parsed);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_requests_lock);
     return ready;
 }

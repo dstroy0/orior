@@ -144,7 +144,6 @@ typedef struct
 } CliPrints;
 
 static CliPrints *s_prints;
-static CliLock s_lock = CLI_LOCK_INIT;
 
 // `length` bytes put in the texts, a 0 after them: their place, or the texts' end where they do not fit
 EMBED_INLINE unsigned int cli_text_store(const PrintsCtx *args)
@@ -356,11 +355,9 @@ EMBED_INLINE void cli_prints_write(const PrintsCtx *args)
 // the lock taken and the prints' room a cell under it: 1, or 0 with why given and the lock given back
 EMBED_INLINE int prints_lock(const PrintsCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     s_prints = g_cli_cells->persistent_buf_alloc(sizeof(*s_prints), &g_cli_code_cells);
     if (s_prints == NULL)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         mmgr_line_put(args->err_msg, "a search for prints could not be taken");
         return 0;
     }
@@ -377,7 +374,6 @@ EMBED_INLINE void prints_release(const PrintsCtx *args)
     EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_prints->repositories.text);
     g_cli_cells->persistent_buf_release(s_prints, &g_cli_code_cells);
     s_prints = NULL;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 int cli_prints_add(const CliPrintsCfg *args)

@@ -50,7 +50,6 @@ EMBED_INLINE int history_file(const DbHistoryCtx *args)
 void cli_db_remembered(const CliDbStatementCtx *args)
 {
     static char s_entry[1u << 20u];
-    static CliLock s_lock = CLI_LOCK_INIT;
     char path[CLI_PATH_MAX_LEN];
     char next[CLI_PATH_MAX_LEN + 8u];
     if (!EMBED_CALL(history_file, DbHistoryCtx, .open = args->open, .path = path))
@@ -61,7 +60,6 @@ void cli_db_remembered(const CliDbStatementCtx *args)
     mmgr_line_put(&next_line, path);
     mmgr_line_put(&next_line, ".next");
     mmgr_line_finish(&next_line);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     VerbaLinea entry = {s_entry, sizeof(s_entry), 0ull};
     mmgr_line_put(&entry, "{\"at\":");
     mmgr_line_decimal(&entry, cli_wall_milliseconds(), 1u);
@@ -113,7 +111,6 @@ void cli_db_remembered(const CliDbStatementCtx *args)
     {
         (void)EMBED_CALL(cli_err_msg_from_internal.move, CliErrMsgFromCtx, .from_text = next, .to = path);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 void cli_db_history(const CliDbOutCountCfg *args)

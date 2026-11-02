@@ -67,8 +67,6 @@ typedef struct
 static CliKeyed s_slices = {"slices", {NULL}, 0u, CLI_SERVERS_SLICES};
 static CliKeyed s_published = {"slices published", {NULL}, 0u, CLI_SERVERS_SLICES};
 static unsigned long long s_cuts;
-static CliLock s_slices_lock = CLI_LOCK_INIT;
-static CliLock s_sending_lock = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -189,7 +187,6 @@ static int slice_save(const ServersSliceCtx *args)
         EMBED_CALL(cli_servers_reading_internal.hash_get, CliServersReadingCtx, .text = args->slicing_read->text.out,
                    .size = args->slicing_read->text.at);
     *fresh = args->always || (args->head->cut == 0ull) || (args->head->hash != hash);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_slices_lock);
     // a file opened afresh has had nothing published of it by the server it is opened in
     if (*fresh && (version == 1ull))
     {
@@ -222,7 +219,6 @@ static int slice_save(const ServersSliceCtx *args)
     const int saved = (stored != NULL) &&
                       EMBED_CALL(cli_keyed_key_beside.put, CliKeyedKeyBesideCfg, .keyed_out = &s_slices, .key = key,
                                  .beside_value = args->path, .text = stored, .size_value = stored_size);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_slices_lock);
     g_cli_cells->persistent_buf_release(stored, &g_cli_servers_cells);
     return saved;
 }
@@ -335,8 +331,6 @@ int cli_servers_slice_send(const CliServersPathSizeRootCtx *args)
     VerbaLinea *err_msg = args->err_msg;
     char key[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = path, .key_out = key);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_sending_lock);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_slices_lock);
     CliServersSliceHead head = {0u, CLI_SERVERS_SLICE_LAST, 0u, 0u, 0ull, 0ull, 0ull, 0ull, 0ull};
     unsigned int opener[CLI_SERVERS_SLICE_OPENERS];
     char stored_root[CLI_PATH_MAX_LEN] = "";
@@ -351,7 +345,6 @@ int cli_servers_slice_send(const CliServersPathSizeRootCtx *args)
                                 .src = EMBED_CALL(slice_root, ServersSliceCtx, .stored = stored, .head_read = &head),
                                 .bytes = (size_t)head.root_size});
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_slices_lock);
     // a file is first sliced as it opens, with the tree it opens in, and given whole as it opens; a change outside the
     // slice leaves the server's text as it was, and it is told nothing
     const unsigned long long version =
@@ -374,7 +367,6 @@ int cli_servers_slice_send(const CliServersPathSizeRootCtx *args)
                                      .language_id = args->id, .text = slice, .length = slice_size, .err_msg = err_msg)
                         : EMBED_CALL(cli_lsp_err_msg_text.change, CliLspErrMsgTextCfg, .lsp = args->server,
                                      .path = path, .text = slice, .length = slice_size, .err_msg = err_msg)));
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_sending_lock);
     g_cli_cells->persistent_buf_release(slice, &g_cli_servers_cells);
     if (sent && fresh)
     {
@@ -477,7 +469,6 @@ int cli_servers_slices_cut(const CliServersPathSizeRootErrMsgCtx *args)
 int cli_servers_cut_send(const CliServersErrMsgServerCtx *args)
 {
     VerbaLinea *err_msg = args->err_msg;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_sending_lock);
     CliServersSliceHead head = args->cut->head;
     const unsigned long long version =
         (args->id != NULL)
@@ -496,7 +487,6 @@ int cli_servers_cut_send(const CliServersErrMsgServerCtx *args)
                                      : EMBED_CALL(cli_lsp_err_msg_text.change, CliLspErrMsgTextCfg, .lsp = args->server,
                                                   .path = args->cut->path, .text = args->cut->slicing.text.out,
                                                   .length = args->cut->slicing.text.at, .err_msg = err_msg));
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_sending_lock);
     if (sent)
     {
         EMBED_CALL(cli_servers_internal.ask_note, CliServersCtx, .server_read = args->server);
@@ -512,10 +502,8 @@ int cli_servers_slice(const CliServersPathLspCtx *args)
 {
     char key[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = args->path, .key_out = key);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_slices_lock);
     CliServersSliceHead head;
     const int sliced = EMBED_CALL(slice_store, ServersSliceCtx, .key = key, .head = &head) != NULL;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_slices_lock);
     return sliced;
 }
 
@@ -523,12 +511,8 @@ void cli_servers_slice_close(const CliServersPathLspCtx *args)
 {
     char key[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = args->path, .key_out = key);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_sending_lock);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_slices_lock);
     EMBED_CALL(cli_keyed_key_beside.remove, CliKeyedKeyBesideCfg, .keyed_out = &s_slices, .key = key);
     EMBED_CALL(cli_keyed_key_beside.remove, CliKeyedKeyBesideCfg, .keyed_out = &s_published, .key = key);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_slices_lock);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_sending_lock);
 }
 
 // One sliced file read for whether it owes its diagnostics, and whether any does
@@ -566,9 +550,7 @@ static void slice_owing(const CliEachKeyBesideTextSizeCfg *args)
 int cli_servers_slices_owed(void)
 {
     CliServersOwing owing = {0};
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_slices_lock);
     EMBED_CALL(cli_keyed_each_table.each, CliKeyedEachCfg, .keyed = &s_slices, .each = slice_owing, .context = &owing);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_slices_lock);
     return owing.owed;
 }
 
@@ -596,8 +578,6 @@ int cli_servers_view(const CliServersPathOutErrMsgCfg *args)
         return 1;
     }
     const unsigned int named = (args->openers < CLI_SERVERS_SLICE_OPENERS) ? args->openers : CLI_SERVERS_SLICE_OPENERS;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_sending_lock);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_slices_lock);
     CliServersSliceHead head;
     const char *const stored = EMBED_CALL(slice_store, ServersSliceCtx, .key = key, .head = &head);
     const int known = stored != NULL;
@@ -619,7 +599,6 @@ int cli_servers_view(const CliServersPathOutErrMsgCfg *args)
                                 .src = EMBED_CALL(slice_root, ServersSliceCtx, .stored = stored, .head_read = &head),
                                 .bytes = (size_t)head.root_size});
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_slices_lock);
     // a view whose slice is the slice the server was last given leaves the server's text as it was
     int sent = 1;
     int cut = 0;
@@ -642,7 +621,6 @@ int cli_servers_view(const CliServersPathOutErrMsgCfg *args)
                                    .text = slice, .length = slice_size, .err_msg = err_msg));
         g_cli_cells->persistent_buf_release(slice, &g_cli_servers_cells);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_sending_lock);
     if (sent && cut)
     {
         EMBED_CALL(cli_servers_internal.ask_note, CliServersCtx, .server_read = server);
@@ -662,13 +640,11 @@ int cli_servers_slice_in(const CliServersPathLineCtx *args)
     unsigned int *into = args->into;
     char key[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = args->path, .key_out = key);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_slices_lock);
     CliServersSliceHead head;
     const char *const stored = EMBED_CALL(slice_store, ServersSliceCtx, .key = key, .head = &head);
     *into = args->line;
     const int found = (stored == NULL) || EMBED_CALL(slice_line_in, ServersSliceCtx, .stored = stored,
                                                      .head_read = &head, .line = args->line, .into = into);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_slices_lock);
     return found;
 }
 
@@ -680,7 +656,6 @@ int cli_servers_slice_out(const CliServersPathLineFromCtx *args)
     (void)mmgr_line_finish(&from_line);
     char key[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = args->path, .key_out = key);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_slices_lock);
     CliServersSliceHead head;
     const char *const stored = EMBED_CALL(slice_store, ServersSliceCtx, .key = key, .head = &head);
     int moved = 1;
@@ -699,7 +674,6 @@ int cli_servers_slice_out(const CliServersPathLineFromCtx *args)
                        .joined = args->from_room);
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_slices_lock);
     return moved;
 }
 
@@ -758,7 +732,6 @@ int cli_servers_slice_ranged_in(const CliServersPathJsonCtx *args)
                                       .object = range, .name = "end"));
     char key[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = args->path, .key_out = key);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_slices_lock);
     CliServersSliceHead head;
     const char *const stored = EMBED_CALL(slice_store, ServersSliceCtx, .key = key, .head = &head);
     unsigned int from = start.line;
@@ -767,7 +740,6 @@ int cli_servers_slice_ranged_in(const CliServersPathJsonCtx *args)
                                                        .head_read = &head, .line = start.line, .into = &from) &&
                                             EMBED_CALL(slice_line_in, ServersSliceCtx, .stored = stored,
                                                        .head_read = &head, .line = end.line, .into = &to));
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_slices_lock);
     if (inside)
     {
         EMBED_CALL(slice_ranged_write, ServersSliceCtx, .json = args->json, .one = args->one, .from = from, .to = to,
@@ -808,7 +780,6 @@ char *cli_servers_slice_diagnostics(const CliServersPathSizeCtx *args)
                   : 0ull;
     char key[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = args->path, .key_out = key);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_slices_lock);
     CliServersSliceHead head;
     const char *const found = EMBED_CALL(slice_store, ServersSliceCtx, .key = key, .head = &head);
     const char *const stored = ((found != NULL) && (!versioned || (version >= head.version))) ? found : NULL;
@@ -872,7 +843,6 @@ char *cli_servers_slice_diagnostics(const CliServersPathSizeCtx *args)
         }
         mmgr_line_ch(&mapped, ']');
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_slices_lock);
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
     if (!made || !mmgr_line_ok(&mapped))
     {

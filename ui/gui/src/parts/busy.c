@@ -140,9 +140,10 @@ void gui_busy_work(const GuiBusyRunningCfg *args)
 int gui_busy_waiting(const GuiBusySinceCfg *args)
 {
     unsigned long long *since = args->since;
-    const unsigned long long asked = (args->busy_read->oldest <= args->busy_read->newest)
-                                         ? args->busy_read->request_start_ms[args->busy_read->oldest & (GUI_BUSY_ASKS - 1u)]
-                                         : 0ull;
+    const unsigned long long asked =
+        (args->busy_read->oldest <= args->busy_read->newest)
+            ? args->busy_read->request_start_ms[args->busy_read->oldest & (GUI_BUSY_ASKS - 1u)]
+            : 0ull;
     if ((asked == 0ull) && (args->busy_read->work_start_ms == 0ull))
     {
         return 0;
@@ -156,7 +157,7 @@ int gui_busy_waiting(const GuiBusySinceCfg *args)
     return 1;
 }
 
-// whether an ask has stood past the wait at `now`
+// whether an ask has stood past the wait
 EMBED_INLINE int busy_wait_over(const BusyCtx *args)
 {
     const unsigned long long now_ms = cli_clock_milliseconds();
@@ -195,29 +196,27 @@ unsigned long long gui_busy_next_deadline_ms(const GuiBusyCfg *args)
     unsigned long long since = 0ull;
     const int waiting =
         EMBED_CALL(gui_busy_since.waiting, GuiBusySinceCfg, .busy_read = args->busy_read, .since = &since);
+    const unsigned long long show_deadline_ms = since + GUI_BUSY_SHOW_DELAY_MS;
     if (!args->busy_read->shown)
     {
-        if (!waiting)
-        {
-            return 0ull;
-        }
-        return (now_ms < since + GUI_BUSY_SHOW_DELAY_MS) ? (since + GUI_BUSY_SHOW_DELAY_MS) - now_ms : 1ull;
+        return waiting ? show_deadline_ms : 0ull;
     }
     if (!args->busy_read->still)
     {
-        return GUI_BUSY_STAGE_MS - ((now_ms - args->busy_read->visible_start_ms) & (GUI_BUSY_STAGE_MS - 1ull));
+        return now_ms + GUI_BUSY_STAGE_MS - ((now_ms - args->busy_read->visible_start_ms) & (GUI_BUSY_STAGE_MS - 1ull));
     }
-    // standing still it wants a tick only to go: as its least ends, and then as soon as no ask has stood past the wait;
-    // while one has, the answer wakes the window
-    if (now_ms < args->busy_read->visible_start_ms + GUI_BUSY_MIN_VISIBLE_MS)
+    // standing still it wants a tick only to go: at its minimum visible time, and then as soon as no request has stood
+    // past the show delay; while one has, the answer wakes the window
+    const unsigned long long min_visible_end_ms = args->busy_read->visible_start_ms + GUI_BUSY_MIN_VISIBLE_MS;
+    if (now_ms < min_visible_end_ms)
     {
-        return (args->busy_read->visible_start_ms + GUI_BUSY_MIN_VISIBLE_MS) - now_ms;
+        return min_visible_end_ms;
     }
     if (!waiting)
     {
-        return 1ull;
+        return now_ms + 1ull;
     }
-    return (now_ms < since + GUI_BUSY_SHOW_DELAY_MS) ? (since + GUI_BUSY_SHOW_DELAY_MS) - now_ms : 0ull;
+    return (now_ms < show_deadline_ms) ? show_deadline_ms : 0ull;
 }
 
 unsigned int gui_busy_stage_at(const GuiBusyCfg *args)
@@ -228,7 +227,8 @@ unsigned int gui_busy_stage_at(const GuiBusyCfg *args)
         return 0u;
     }
     // a stage's index within a swirl is far inside what an unsigned int represents
-    return (unsigned int)((now_ms - args->busy_read->visible_start_ms) >> GUI_BUSY_STAGE_SHIFT) & (GUI_BUSY_STAGES - 1u);
+    return (unsigned int)((now_ms - args->busy_read->visible_start_ms) >> GUI_BUSY_STAGE_SHIFT) &
+           (GUI_BUSY_STAGES - 1u);
 }
 
 void gui_busy_still(const GuiBusyStillCfg *args)
@@ -476,7 +476,7 @@ EMBED_INLINE int busy_pictures_init(const BusyCtx *args)
     return 1;
 }
 
-// the picture of the stage at `now` laid in the circle's rectangle, no further than what was saved
+// the picture of the stage laid in the circle's rectangle, no further than what was saved
 EMBED_INLINE void busy_stage_layout(const BusyCtx *args)
 {
     const unsigned long long now_ms = cli_clock_milliseconds();

@@ -8,8 +8,6 @@
 #include "../toolchains/checkers.h"
 #include "servers_internal.h"
 
-static CliLock s_lock = CLI_LOCK_INIT;
-
 // a key and the text beside it put on the line that is `context`, each ended by a 0
 static void name_on_put(const CliEachKeyBesideTextSizeCfg *args)
 {
@@ -118,7 +116,6 @@ EMBED_INLINE int name_drop(const ServersNamedCtx *args)
 EMBED_INLINE void name_findings_drop(const ServersNamedCtx *args)
 {
     const CliServersSink *sink = args->sink;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_checks_lock);
     unsigned long long size = 0ull;
     char *const files = EMBED_CALL(name_files, ServersNamedCtx, .keyed = &g_cli_servers_checked, .size = &size);
     // the files that had findings of a checker gone are among those listed
@@ -136,9 +133,7 @@ EMBED_INLINE void name_findings_drop(const ServersNamedCtx *args)
         at += cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) + 1u +
               cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}) + 1u;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_checks_lock);
     g_cli_cells->persistent_buf_release(files, &g_cli_servers_cells);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers.lock);
     const unsigned long long dropped_size = mmgr_line_ok(&dropped) ? dropped.at : 0ull;
     for (unsigned long long at = 0ull; at < dropped_size;)
     {
@@ -155,10 +150,8 @@ EMBED_INLINE void name_findings_drop(const ServersNamedCtx *args)
 int cli_servers_set_checkers(const CliServersRootSinkOutCfg *args)
 {
     const CliServersSink *sink = args->sink;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const unsigned long long start = args->out->at;
     mmgr_line_ch(args->out, '[');
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers.lock);
     g_cli_servers.checkers = 0u;
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
@@ -192,20 +185,15 @@ int cli_servers_set_checkers(const CliServersRootSinkOutCfg *args)
     EMBED_CALL(name_findings_drop, ServersNamedCtx, .sink = sink);
     if (args->root == NULL)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return 1;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers.lock);
     g_cli_servers.sink = *sink;
     g_cli_servers.has_sink = 1;
     VerbaLinea checked = {g_cli_servers.checked_root, CLI_PATH_MAX_LEN, 0ull};
     mmgr_line_put(&checked, args->root);
     (void)mmgr_line_finish(&checked);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers.lock);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_texts_lock);
     unsigned long long size = 0ull;
     char *const files_text = EMBED_CALL(name_files, ServersNamedCtx, .keyed = &g_cli_servers_texts, .size = &size);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_texts_lock);
     for (unsigned long long at = 0ull; at < size;)
     {
         const char *const key = files_text + at;
@@ -228,6 +216,5 @@ int cli_servers_set_checkers(const CliServersRootSinkOutCfg *args)
         EMBED_CALL(cli_servers_files_internal.check_tree_with_checkers, CliServersFilesCtx, .root = args->root,
                    .sink = sink);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return 1;
 }

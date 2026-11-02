@@ -13,7 +13,6 @@
 // the PATH's folders for one call, and the folders a tool's places name, under the lock
 char (*g_cli_toolchains_path)[CLI_PATH_MAX_LEN];
 static char s_places[64][CLI_PATH_MAX_LEN];
-CliLock g_cli_toolchains_find_lock = CLI_LOCK_INIT;
 
 unsigned int cli_toolchains_find_path(void)
 {
@@ -31,7 +30,6 @@ void cli_toolchains_find_release(const CliToolchainsJsonCtx *args)
     }
     g_cli_cells->persistent_buf_release(g_cli_toolchains_path, &g_cli_toolchains_cells);
     g_cli_toolchains_path = NULL;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_toolchains_find_lock);
 }
 
 typedef struct
@@ -378,7 +376,6 @@ static int cli_version_get(const ToolchainsFindCtx *args)
 int cli_toolchains_version(const CliToolchainsIdErrMsgCfg *args)
 {
     CliJson json;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_toolchains_find_lock);
     const unsigned int tool =
         EMBED_CALL(cli_toolchains_json_manifest.tool, CliToolchainsJsonManifestCfg, .json_out = &json,
                    .manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
@@ -422,7 +419,6 @@ void cli_toolchains_check(const CliToolchainsVersionsCfg *args)
 {
     VerbaLinea *out = args->out;
     CliJson json;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_toolchains_find_lock);
     const unsigned int manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
                                              .json_out = &json, .nodes_more = 0u, .text_more = 0ull);
     const unsigned int count = cli_toolchains_find_path();
@@ -556,7 +552,6 @@ void cli_toolchains_check(const CliToolchainsVersionsCfg *args)
 int cli_toolchains_setup_line(const CliToolchainsIdErrMsgCfg *args)
 {
     CliJson json;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_toolchains_find_lock);
     const unsigned int tool =
         EMBED_CALL(cli_toolchains_json_manifest.tool, CliToolchainsJsonManifestCfg, .json_out = &json,
                    .manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
@@ -595,7 +590,6 @@ int cli_toolchains_open_install(const CliToolchainsIdErrMsgCfg *args)
 {
     CliJson json;
     char url[CLI_PATH_MAX_LEN];
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_toolchains_find_lock);
     const unsigned int tool =
         EMBED_CALL(cli_toolchains_json_manifest.tool, CliToolchainsJsonManifestCfg, .json_out = &json,
                    .manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,

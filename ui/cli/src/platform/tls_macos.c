@@ -15,7 +15,6 @@ struct CliTls
 };
 
 static CliTls s_sessions[CLI_TLS_MOST];
-static CliLock s_lock = CLI_LOCK_INIT;
 
 // what came read for Secure Transport, all it requested where it came: closed where the peer closed, would-block where
 // the wait ran out
@@ -59,7 +58,6 @@ static OSStatus cli_write_to(SSLConnectionRef connection, const void *data, size
 CliTls *cli_tls_connect(const CliTlsCfg *args)
 {
     CliSocket *socket = args->socket;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     CliTls *tls = NULL;
     for (unsigned int at = 0u; (tls == NULL) && (at < CLI_TLS_MOST); at += 1u)
     {
@@ -69,7 +67,6 @@ CliTls *cli_tls_connect(const CliTlsCfg *args)
     {
         tls->used = 1;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     if (tls == NULL)
     {
         mmgr_line_put(args->err_msg, "TLS: more sessions are open than orior_cli supports");
@@ -152,8 +149,6 @@ void cli_tls_close(const CliTlsOutCfg *args)
 {
     SSLClose(args->tls->context);
     CFRelease(args->tls->context);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     args->tls->used = 0;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 #endif

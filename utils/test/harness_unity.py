@@ -11,7 +11,7 @@
 
 A suite is a directory, utils/test/src/ui/cli/unit/<module>/test_<module>/, holding one test_<module>.c with file-scope
 `void test_<name>(void)` cases and the generated unity_runner.c beside it. The generator reads case names out of the source
-text: a function it does not collect never runs and the suite still passes, so a near miss is reported and fails the run.
+text: a function it does not collect never runs and the suite still passes. A near miss is reported and fails the run.
 Unity is fetched once into build/unity at the tag MMgr's suites pin.
 """
 
@@ -84,7 +84,7 @@ def generate_runner(root, suite_dir, unity, extension=".c"):
 def host_target():
     """The clang target triple and the program suffix and libraries for this machine, matching what ui/cli/build.sh builds."""
     if sys.platform == "win32":
-        return "x86_64-pc-windows-msvc", ".exe", ["-lws2_32", "-lsecur32", "-lcrypt32", "-lshell32", "-ladvapi32", "-luser32", "-lole32", "-luuid"]
+        return "x86_64-pc-windows-msvc", ".exe", ["-lws2_32", "-lsynchronization", "-lsecur32", "-lcrypt32", "-lshell32", "-ladvapi32", "-luser32", "-lole32", "-luuid"]
     machine = os.uname().machine
     if sys.platform == "darwin":
         return machine + "-apple-darwin", "", ["-lpthread", "-lm"]
@@ -95,7 +95,7 @@ def host_target():
 
 
 def link_words(root):
-    """The thin LTO link flags matching ui/cli/lto_words.sh: the library is bitcode, so a suite links it through lld."""
+    """The thin LTO link flags matching ui/cli/lto_words.sh. The library is bitcode, and a suite links it through lld."""
     cache = os.path.join(root, "build", "lto_cache").replace("\\", "/")
     os.makedirs(cache, exist_ok=True)
     words = ["-flto=thin"]

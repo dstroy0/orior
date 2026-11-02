@@ -231,7 +231,6 @@ struct CliLspBodyCfg
 struct CliLspWriterCfg
 {
     const CliLspWriter *writer;
-    CliLock *lock;
     const char *body;
     unsigned long long size_value;
     VerbaLinea *err_msg;
@@ -240,7 +239,6 @@ struct CliLspWriterCfg
 struct CliLspWriterLockCfg
 {
     const CliLspWriter *writer;
-    CliLock *lock;
     VerbaLinea *err_msg;
     const CliLspPart *parts;
     unsigned int count;

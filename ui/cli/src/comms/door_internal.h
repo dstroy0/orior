@@ -59,7 +59,6 @@ typedef struct
 typedef struct
 {
     unsigned long long waiting;
-    CliLock lock;
 #if defined(_WIN32)
     wchar_t name[CLI_PATH_MAX_LEN];
 #endif

@@ -28,7 +28,6 @@ int cli_toolchains_natural(const CliToolchainsACtx *args);
 int cli_toolchains_path_of_shell(const CliToolchainsShellCtx *args);
 
 // the lock the files are read and written under
-extern CliLock g_cli_toolchains_lock;
 
 // tool `id` as its search found it against the PATH's `count` folders, as cached in toolchains_found.json, into
 // `found`: 1, or 0 where it is not cached, what the search reads has changed since, or its program is gone; a search's
@@ -51,7 +50,6 @@ void cli_toolchains_trim(const CliToolchainsTextCtx *args);
 
 // the PATH's folders for one call, a cell taken under their lock, and the lock (toolchains_find.c)
 extern char (*g_cli_toolchains_path)[CLI_PATH_MAX_LEN];
-extern CliLock g_cli_toolchains_find_lock;
 
 // the PATH's folders taken for the call that acquires the lock, into g_cli_toolchains_path: their count; and the call's
 // manifest, where `json` is not NULL, and its folders given back, and the lock with them (toolchains_find.c)

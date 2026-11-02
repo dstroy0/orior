@@ -116,9 +116,7 @@ void test_a_crates_edition_is_read(void)
     char edition[CLI_NAME_MAX_LEN];
     char path[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_pkg, .relative = "a.rs", .joined = path);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_format_lock);
     EMBED_CALL(cli_format_internal.edition_get, CliFormatCtx, .path = path, .edition = edition);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_format_lock);
     TEST_ASSERT_EQUAL_STRING("2024", edition);
 }
 

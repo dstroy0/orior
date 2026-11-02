@@ -18,7 +18,6 @@ typedef struct
 static const char s_text[] = "export function f() {\n  const unused = 1;\n  return 2;\n}\n";
 
 static InspectDiagnostics s_diagnostics;
-static CliLock s_lock = CLI_LOCK_INIT;
 static char s_out[1u << 16u];
 static char s_open_answer[1024];
 static char s_why[1024];
@@ -42,7 +41,6 @@ static void diagnostics_recorded(const CliEachEventJsonSizeCfg *args)
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     CliJson tree;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &tree, .node_json_node_pointer = s_nodes, .nodes_most = 4096u, .text_out = s_tree_text, .text_most = sizeof(s_tree_text));
     const unsigned int read = EMBED_CALL(cli_json_tree_text_size_tokens.json_read, CliJsonTreeTextSizeTokensCfg, .json = &tree, .text = json, .size = size, .tokens = s_tokens, .tokens_most = 4096u, .err_msg = &err_msg);
     const char *const path = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &tree, .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &tree, .object = read, .name = "path"), .length_pointer = NULL);
@@ -66,14 +64,12 @@ static void diagnostics_recorded(const CliEachEventJsonSizeCfg *args)
         const char *const first = (message != NULL) ? message : "";
         memor.cpy(&(MemoriaCfg){.dst = s_diagnostics.first[file], .src = first, .bytes = CLI_UNITY_LENGTH(first) + 1ull});
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 // how many findings the file `name` was last sent, its first's message into s_first: -1 where it was sent none yet
 static int findings_of(const char *name)
 {
     int count = -1;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     for (unsigned int file = 0u; file < s_diagnostics.files; file += 1u)
     {
         if (cellul.eq(&(CatenaFinitaCfg){.src = s_diagnostics.name[file], .other = name, .cap = CLI_CELLS_POOL}))
@@ -83,7 +79,6 @@ static int findings_of(const char *name)
             memor.cpy(&(MemoriaCfg){.dst = s_first, .src = s_diagnostics.first[file], .bytes = CLI_UNITY_LENGTH(s_diagnostics.first[file]) + 1ull});
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return count;
 }
 

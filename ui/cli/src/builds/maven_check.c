@@ -303,8 +303,6 @@ void cli_maven_check(const CliMavenTextCtx *args)
     static CliXml s_xml;
     static CliMavenModel s_model;
     static CliMavenCheck s_check;
-    static CliLock s_check_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_check_lock);
     EMBED_CALL(cli_maven_xml_text_internal.xml_parse, CliMavenXmlTextCtx, .text = args->text, .size = args->size,
                .xml_out = &s_xml);
     s_check.xml = &s_xml;
@@ -335,7 +333,6 @@ void cli_maven_check(const CliMavenTextCtx *args)
                                                  .xml = &s_xml, .element = project, .name = "project"))
     {
         EMBED_CALL(cli_maven_xml_text_internal.xml_free, CliMavenXmlTextCtx, .xml_out = &s_xml);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_check_lock);
         return;
     }
     EMBED_CALL(cli_maven_text_size_model_internal.model_get, CliMavenTextSizeModelCtx, .path = args->path,
@@ -397,5 +394,4 @@ void cli_maven_check(const CliMavenTextCtx *args)
     }
     EMBED_CALL(cli_maven_xml_text_internal.xml_free, CliMavenXmlTextCtx, .xml_out = &s_xml);
     EMBED_CALL(cli_maven_text_size_model_internal.model_free, CliMavenTextSizeModelCtx, .model = &s_model);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_check_lock);
 }

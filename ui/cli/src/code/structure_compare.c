@@ -10,8 +10,6 @@
 // the one compare's state
 CliStructureState *g_cli_structure;
 
-static CliLock s_lock = CLI_LOCK_INIT;
-
 typedef struct
 {
     CliCompare *compare;
@@ -263,12 +261,10 @@ static int cli_mark_order(const void *one, const void *other)
 
 void cli_structure_compare(const CliStructureCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     g_cli_structure = g_cli_cells->persistent_buf_alloc(sizeof(*g_cli_structure), &g_cli_code_cells);
     if (g_cli_structure == NULL)
     {
         mmgr_line_put(args->out, "null");
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return;
     }
     CliCompare compare;
@@ -299,7 +295,6 @@ void cli_structure_compare(const CliStructureCfg *args)
         mmgr_line_put(args->out, "null");
         g_cli_cells->persistent_buf_release(g_cli_structure, &g_cli_code_cells);
         g_cli_structure = NULL;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return;
     }
     const unsigned int renames = EMBED_CALL(cli_structure_compare_renames_internal.renames_find,
@@ -312,5 +307,4 @@ void cli_structure_compare(const CliStructureCfg *args)
                .renames = renames, .out = args->out);
     g_cli_cells->persistent_buf_release(g_cli_structure, &g_cli_code_cells);
     g_cli_structure = NULL;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }

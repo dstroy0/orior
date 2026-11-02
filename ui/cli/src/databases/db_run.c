@@ -215,7 +215,6 @@ int cli_db_run(const CliDbOutFailureCfg *args)
     mmgr_line_ch(args->out, '{');
     // the rows buffered are taken before the query link, as every reader of them takes the two, and retained through
     // the run
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->open->results_lock);
     const int ran = EMBED_CALL(cli_db_failure_context_internal.with_query, CliDbFailureContextCtx, .open = args->open,
                                .work = run_work, .context = running, .failure = args->failure);
     const unsigned long long took = cli_clock_milliseconds() - started;
@@ -239,7 +238,6 @@ int cli_db_run(const CliDbOutFailureCfg *args)
                .size = length, .took = took, .err_text = tag_buf, .failed = !ran);
     if (!ran)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->open->results_lock);
         args->out->at = from;
         return 0;
     }
@@ -335,6 +333,5 @@ int cli_db_run(const CliDbOutFailureCfg *args)
     mmgr_line_put(args->out, ",\"ms\":");
     mmgr_line_decimal(args->out, took, 1u);
     mmgr_line_ch(args->out, '}');
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->open->results_lock);
     return 1;
 }

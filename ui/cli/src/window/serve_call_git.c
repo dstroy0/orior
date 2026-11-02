@@ -56,7 +56,6 @@ static int tree_change(const CliServeAnswerCfg *args)
     VerbaLinea *out = args->out;
     VerbaLinea *err_msg = args->err_msg;
     static const char *s_repos[CLI_GIT_REPOSITORIES];
-    static CliLock s_lock = CLI_LOCK_INIT;
     char root[CLI_PATH_MAX_LEN];
     unsigned int count = 0u;
     const unsigned int repos =
@@ -66,20 +65,17 @@ static int tree_change(const CliServeAnswerCfg *args)
                                                 .json_read = arguments->json, .node = repos, .kind = CFG_JSON_NULL);
     CliChangedList *const found = EMBED_CALL(cli_serve_size_err_msg_internal.cell, CliServeSizeErrMsgCtx,
                                              .size = sizeof(*found), .what = "what git finds", .err_msg = err_msg);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     if ((found == NULL) ||
         !EMBED_CALL(cli_serve_err_msg_request_root_internal.tree, CliServeErrMsgRequestRootCtx, .root = root,
                     .err_msg = err_msg) ||
         !EMBED_CALL(cli_serve_err_msg_internal.strings_or, CliServeErrMsgCtx, .request = arguments, .key = "repos",
                     .items = s_repos, .room = CLI_GIT_REPOSITORIES, .count = &count, .err_msg = err_msg))
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         g_cli_cells->persistent_buf_release(found, &g_cli_window_cells);
         return 0;
     }
     EMBED_CALL(cli_git_root_repos.change, CliGitRootReposCfg, .root = root, .repos = s_repos, .count = count,
                .named = named, .found_changed_list_pointer = found);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     EMBED_CALL(cli_git_out_found_changed_list.changed_write, CliGitOutFoundChangedListCfg,
                .found_changed_list_pointer_other = found, .out = out);
     EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &found->text);

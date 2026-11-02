@@ -24,7 +24,6 @@ typedef LONG(NTAPI *CliQueryProcess)(HANDLE process, ULONG kind, PVOID info, ULO
 
 // the text the name is written in, under its lock
 static char s_name[MAX_PATH * 4u];
-static CliLock s_lock = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -105,7 +104,6 @@ void cli_processes_each(const CliContextCtx *args)
     {
         return;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     PROCESSENTRY32W entry;
     memor.set(&(MemoriaCfg){.dst = &entry, .val = 0, .bytes = sizeof(entry)});
     entry.dwSize = sizeof(entry);
@@ -125,7 +123,6 @@ void cli_processes_each(const CliContextCtx *args)
                    .command = (command != NULL) ? command : "");
         g_cli_cells->persistent_buf_release(command, &g_cli_platform_cells);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     CloseHandle(snapshot);
 }
 

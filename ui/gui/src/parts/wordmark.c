@@ -105,7 +105,8 @@ static void wordmark_curves_init(void)
     for (unsigned int stage = 0u; stage < WORDMARK_SHOW_STAGES; stage += 1u)
     {
         // a share of a time under a second is a word, and a share of 255, rounded, is a byte
-        const int part = (int)(((unsigned long long)stage * GUI_WORDMARK_FRAME_MS * GUI_WHOLE) / GUI_WORDMARK_FADE_IN_MS);
+        const int part =
+            (int)(((unsigned long long)stage * GUI_WORDMARK_FRAME_MS * GUI_WHOLE) / GUI_WORDMARK_FADE_IN_MS);
         s_shows[stage] = (unsigned char)(((EMBED_CALL(gui_claim_share.ease_table_read, GuiClaimShareCfg,
                                                       .table_read = curve, .share = part) *
                                            255) +
@@ -126,7 +127,8 @@ static void wordmark_curves_init(void)
     for (unsigned int stage = 0u; stage < WORDMARK_FADE_STAGES; stage += 1u)
     {
         // a share of a time under a second is a word, and a share of 255, rounded, is a byte
-        const int part = (int)(((unsigned long long)stage * GUI_WORDMARK_FRAME_MS * GUI_WHOLE) / GUI_WORDMARK_FADE_OUT_MS);
+        const int part =
+            (int)(((unsigned long long)stage * GUI_WORDMARK_FRAME_MS * GUI_WHOLE) / GUI_WORDMARK_FADE_OUT_MS);
         s_fades[stage] = (unsigned char)((((GUI_WHOLE - EMBED_CALL(gui_claim_share.ease_table_read, GuiClaimShareCfg,
                                                                    .table_read = curve, .share = part)) *
                                            255) +
@@ -275,12 +277,11 @@ int gui_wordmark_session_read(const GuiWordmarkTextCfg *args)
 
 int gui_wordmark_first_in(const GuiWordmarkCfg *args)
 {
-    const unsigned long long now_ms = cli_clock_milliseconds();
-    const unsigned long long apart = (args->saved->booted > now_ms_wordmark_session_pointer->booted)
-                                         ? args->saved->booted - now_ms_wordmark_session_pointer->booted
-                                         : now_ms_wordmark_session_pointer->booted - args->saved->booted;
-    return !args->saved->known || !now_ms_wordmark_session_pointer->known ||
-           (args->saved->logon != now_ms_wordmark_session_pointer->logon) || (apart >= 60ull);
+    const unsigned long long apart = (args->saved->booted > args->current_session->booted)
+                                         ? args->saved->booted - args->current_session->booted
+                                         : args->current_session->booted - args->saved->booted;
+    return !args->saved->known || !args->current_session->known ||
+           (args->saved->logon != args->current_session->logon) || (apart >= 60ull);
 }
 
 void gui_wordmark_stand(const GuiWordmarkFrameCfg *args)
@@ -883,16 +884,15 @@ unsigned long long gui_wordmark_next_deadline_ms(const GuiWordmarkReadCfg *args)
     {
         if (!args->wordmark_read->under_whole)
         {
-            return GUI_WORDMARK_FRAME_MS;
+            return now_ms + GUI_WORDMARK_FRAME_MS;
         }
         if (!args->wordmark_read->tree_read)
         {
             return 0ull;
         }
-        const unsigned long long through = now_ms - args->wordmark_read->visible_start_ms;
-        return (through < GUI_WORDMARK_MIN_VISIBLE_MS) ? GUI_WORDMARK_MIN_VISIBLE_MS - through : 1ull;
+        return args->wordmark_read->visible_start_ms + GUI_WORDMARK_MIN_VISIBLE_MS;
     }
-    return (args->wordmark_read->exit_start_ms != 0ull) ? GUI_WORDMARK_FRAME_MS : 0ull;
+    return (args->wordmark_read->exit_start_ms != 0ull) ? now_ms + GUI_WORDMARK_FRAME_MS : 0ull;
 }
 
 // a stage of the flight at `part`, a share of it in the frame's words, walked: each row of the window from the tip down
@@ -1126,8 +1126,8 @@ void gui_wordmark_draw(const GuiWordmarkFrameCfg *args)
     }
     int down = 0;
     unsigned int opacity = 0u;
-    EMBED_CALL(gui_wordmark_read.under_at, GuiWordmarkReadCfg, .wordmark_read = args->wordmark,
-               .down = &down, .opacity = &opacity);
+    EMBED_CALL(gui_wordmark_read.under_at, GuiWordmarkReadCfg, .wordmark_read = args->wordmark, .down = &down,
+               .opacity = &opacity);
     EMBED_CALL(gui_raster_x.picture_layout, GuiRasterXCfg, .raster = args->raster,
                .picture_read = &args->wordmark->under, .x = args->wordmark->under_x,
                .y = args->wordmark->under_y + down, .opacity = opacity);

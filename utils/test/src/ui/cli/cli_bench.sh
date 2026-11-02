@@ -15,7 +15,7 @@ source "$TOP/ui/cli/lto_words.sh"
 
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*) HOST="x86_64-pc-windows-msvc"; SUFFIX=".exe"
-                          LIBRARIES=(-lws2_32 -lsecur32 -lcrypt32 -lshell32 -ladvapi32 -luser32) ;;
+                          LIBRARIES=(-lws2_32 -lsynchronization -lsecur32 -lcrypt32 -lshell32 -ladvapi32 -luser32) ;;
     Darwin) HOST="$(uname -m)-apple-darwin"; SUFFIX=""; LIBRARIES=(-lpthread -lm) ;;
     *) HOST="$(uname -m)-unknown-linux-gnu"; SUFFIX=""; LIBRARIES=(-lpthread -ldl -lm -lrt) ;;
 esac

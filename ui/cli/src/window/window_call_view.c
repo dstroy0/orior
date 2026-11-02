@@ -25,7 +25,6 @@
 #define CLI_VIEW_BYTES "application/octet-stream"
 
 static unsigned long long s_next_view;
-static CliLock s_lock = CLI_LOCK_INIT;
 
 // The media type each name a file ends in gives it, as the page windows read it
 typedef struct
@@ -139,10 +138,8 @@ static int view_window(const CliServeAnswerCfg *args)
         mmgr_line_put(err_msg, " is not a file");
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     s_next_view += 1ull;
     const unsigned long long view = s_next_view;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     mmgr_line_put(out, "{\"label\":\"view-");
     mmgr_line_decimal(out, view, 1u);
     mmgr_line_put(out, "\",\"url\":\"" CLI_VIEW_BASE);

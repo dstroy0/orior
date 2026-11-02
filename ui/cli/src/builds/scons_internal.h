@@ -40,7 +40,6 @@ typedef struct
 } CliSconsFile;
 
 extern CliSconsFile g_cli_scons;
-extern CliLock g_cli_scons_lock;
 
 // the names SCons gives an SConstruct and an SConscript, an environment's methods, the construction variables an
 // environment contains most often, and the calls whose keyword arguments are construction variables (scons.c)

@@ -197,45 +197,36 @@ long long query_process_wait(const QueryProcessCtx *args)
 
 int query_environment_set(const QueryNameCtx *args)
 {
-    static wchar_t s_name[QUERY_ENVIRONMENT_WIDE];
-    static wchar_t s_value[QUERY_ENVIRONMENT_WIDE];
-    static SRWLOCK s_lock = SRWLOCK_INIT;
-    AcquireSRWLockExclusive(&s_lock);
+    wchar_t s_name[QUERY_ENVIRONMENT_WIDE];
+    wchar_t s_value[QUERY_ENVIRONMENT_WIDE];
     const int named = (MultiByteToWideChar(CP_UTF8, 0, args->name, -1, s_name, (int)QUERY_ENVIRONMENT_WIDE) != 0) &&
                       (MultiByteToWideChar(CP_UTF8, 0, args->value, -1, s_value, (int)QUERY_ENVIRONMENT_WIDE) != 0);
     const int set = named && (SetEnvironmentVariableW(s_name, s_value) != 0);
-    ReleaseSRWLockExclusive(&s_lock);
     return set;
 }
 
 int query_environment_read(const QueryNameValueCtx *args)
 {
-    static wchar_t s_name[QUERY_ENVIRONMENT_WIDE];
-    static wchar_t s_value[QUERY_ENVIRONMENT_WIDE];
-    static SRWLOCK s_lock = SRWLOCK_INIT;
-    AcquireSRWLockExclusive(&s_lock);
+    wchar_t s_name[QUERY_ENVIRONMENT_WIDE];
+    wchar_t s_value[QUERY_ENVIRONMENT_WIDE];
     const DWORD length = (MultiByteToWideChar(CP_UTF8, 0, args->name, -1, s_name, (int)QUERY_ENVIRONMENT_WIDE) != 0)
                              ? GetEnvironmentVariableW(s_name, s_value, QUERY_ENVIRONMENT_WIDE)
                              : 0u;
     // a room is far below what an int counts
     const int read = (length != 0u) && (length < QUERY_ENVIRONMENT_WIDE) &&
                      (WideCharToMultiByte(CP_UTF8, 0, s_value, -1, args->value_out, (int)args->room, NULL, NULL) != 0);
-    ReleaseSRWLockExclusive(&s_lock);
     return read;
 }
 
 int query_environment_write(const QueryNameOutCtx *args)
 {
-    static char s_value[QUERY_ENVIRONMENT_MAX_LEN];
-    static SRWLOCK s_lock = SRWLOCK_INIT;
-    AcquireSRWLockExclusive(&s_lock);
+    char s_value[QUERY_ENVIRONMENT_MAX_LEN];
     const int read = EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = args->name,
                                 .value_out = s_value, .room = sizeof(s_value));
     if (read)
     {
         mmgr_line_put(args->out, s_value);
     }
-    ReleaseSRWLockExclusive(&s_lock);
     return read && mmgr_line_ok(args->out);
 }
 

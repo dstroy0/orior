@@ -22,11 +22,9 @@ typedef struct
 
 // the room, NULL where the cells could not meet it, and the lock printing is done under
 static CliPrintRoom *s_room;
-static CliLock s_lock = CLI_LOCK_INIT;
 
 void cli_print_take(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const unsigned long long line_bytes = (unsigned long long)CLI_PRINT_LINES * sizeof(CliPrintLine);
     const unsigned long long run_bytes = (unsigned long long)CLI_PRINT_RUNS * sizeof(CliPrintRun);
     const unsigned long long row_bytes = (unsigned long long)CLI_PRINT_ROWS * sizeof(CliPrintRow);
@@ -68,7 +66,6 @@ void cli_print_give(void)
     }
     g_cli_cells->persistent_buf_release(s_room, &g_cli_print_cells);
     s_room = NULL;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 typedef struct

@@ -8,8 +8,6 @@
 #include "../text/reply.h"
 #include "../text/text.h"
 
-CliLock g_cli_kernels_lock = CLI_LOCK_INIT;
-
 // how long a kernel has to start and answer that it is ready, and how long each query that it is ready waits, in
 // milliseconds
 #define CLI_KERNEL_START 60000ull
@@ -58,14 +56,12 @@ EMBED_INLINE void jupyter_let_go(const JupyterCtx *args)
     EMBED_CALL(cli_sock_internal.socket_end, CliSockCtx, .sock = &kernel->control);
     EMBED_CALL(cli_sock_internal.socket_end, CliSockCtx, .sock = &kernel->iopub);
     const unsigned long long until = cli_clock_milliseconds() + CLI_KERNEL_READERS_WAIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &kernel->lock);
     while ((kernel->reading > 0u) && (cli_clock_milliseconds() < until))
     {
-        (void)EMBED_CALL(cli_lock_internal.wake_wait_for, CliLockCtx, .wake = &kernel->wake, .lock = &kernel->lock,
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &kernel->wake,
                          .milliseconds_u64 = until - cli_clock_milliseconds());
     }
     const int ended = (kernel->reading == 0u);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &kernel->lock);
     if (!ended)
     {
         return;
@@ -79,17 +75,13 @@ EMBED_INLINE void jupyter_let_go(const JupyterCtx *args)
 
 void cli_jupyter_ref(const CliJupyterErrMsgKernelFileCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_kernels_lock);
     args->kernel->refs += 1u;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_kernels_lock);
 }
 
 void cli_jupyter_free(const CliJupyterErrMsgKernelFileCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_kernels_lock);
     args->kernel->refs -= 1u;
     const int last = (args->kernel->refs == 0u);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_kernels_lock);
     if (last)
     {
         EMBED_CALL(jupyter_let_go, JupyterCtx, .kernel = args->kernel);
@@ -112,15 +104,10 @@ static CliKernel *jupyter_place_take(void)
     kernel->shell.handle = 0ull;
     kernel->control.handle = 0ull;
     kernel->iopub.handle = 0ull;
-    kernel->shell_lock = (CliLock)CLI_LOCK_INIT;
-    kernel->control_lock = (CliLock)CLI_LOCK_INIT;
     kernel->shell_flight[0] = '\0';
     kernel->shell_queue = (VerbaLinea){NULL, 0ull, 0ull, NULL, NULL, 0ull};
     kernel->shell_queue_from = 0ull;
-    kernel->lock = (CliLock)CLI_LOCK_INIT;
     kernel->wake = (CliWake)CLI_WAKE_INIT;
-    kernel->debug_lock = (CliLock)CLI_LOCK_INIT;
-    kernel->content_lock = (CliLock)CLI_LOCK_INIT;
     memor.set(&(MemoriaCfg){.dst = kernel->waiters, .val = 0, .bytes = sizeof(kernel->waiters)});
     kernel->reading = 0u;
     kernel->listening = 0;
@@ -163,7 +150,6 @@ static int jupyter_connected_while(const JupyterCtx *args)
         {
             return 1;
         }
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->kernel->lock);
         long long code = 0ll;
         if (!args->kernel->ended && EMBED_CALL(cli_spawned_internal.spawn_poll, CliSpawnedCtx,
                                                .spawned = &args->kernel->spawned, .code = &code))
@@ -173,7 +159,6 @@ static int jupyter_connected_while(const JupyterCtx *args)
         }
         const int ended = args->kernel->ended;
         code = args->kernel->code;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->kernel->lock);
         if (ended)
         {
             mmgr_line_put(err_msg, "the kernel ended as it started, ");
@@ -256,8 +241,6 @@ EMBED_INLINE int jupyter_process_start(const JupyterCtx *args)
     {
         static char s_named[CLI_PATH_TEXT];
         static char s_word[CLI_PATH_TEXT];
-        static CliLock s_word_lock = CLI_LOCK_INIT;
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_word_lock);
         EMBED_CALL(jupyter_replace, JupyterCtx,
                    .text = EMBED_CALL(cli_jupyter_spec_internal.kernel_text, CliJupyterSpecCtx, .spec = spec,
                                       .at = spec->argv[at]),
@@ -268,7 +251,6 @@ EMBED_INLINE int jupyter_process_start(const JupyterCtx *args)
                    .out = s_word, .room = sizeof(s_word));
         EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = &kernel->words,
                    .word = s_word);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_word_lock);
     }
     if (kernel->words.count == 0u)
     {

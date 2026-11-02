@@ -5,10 +5,9 @@
 // of their own, the sessions listed, a file's breakpoints set in each session that debugs it, and sessions ended
 #include "debug_internal.h"
 
-CliDebugRoom g_cli_debug = {.lock = CLI_LOCK_INIT, .wake = CLI_WAKE_INIT};
+CliDebugRoom g_cli_debug = {.wake = CLI_WAKE_INIT};
 
 static CliDebugAnswer s_answers[CLI_DEBUG_ANSWERS];
-static CliLock s_answers_lock = CLI_LOCK_INIT;
 static CliWake s_answers_wake = CLI_WAKE_INIT;
 
 typedef struct
@@ -27,7 +26,6 @@ EMBED_INLINE void session_freed_where_finish(const DebugSessionCtx *args)
 
 CliDebugSession *cli_debug_take(const CliDebugErrMsgIdCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
     for (unsigned int at = 0u; at < CLI_DEBUG_SESSIONS; at += 1u)
     {
         CliDebugSession *const session = &g_cli_debug.sessions[at];
@@ -35,11 +33,9 @@ CliDebugSession *cli_debug_take(const CliDebugErrMsgIdCtx *args)
         {
             session->users += 1u;
             EMBED_CALL(cli_dap.ref, CliDapCfg, .dap = session->dap);
-            EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
             return session;
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
     mmgr_line_put(args->err_msg, "that session has ended");
     return NULL;
 }
@@ -47,15 +43,12 @@ CliDebugSession *cli_debug_take(const CliDebugErrMsgIdCtx *args)
 void cli_debug_let_go(const CliDebugSessionErrMsgCtx *args)
 {
     EMBED_CALL(cli_dap.unref, CliDapCfg, .dap = args->session->dap);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
     args->session->users -= 1u;
     EMBED_CALL(session_freed_where_finish, DebugSessionCtx, .session = args->session);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
 }
 
 CliDebugSession *cli_debug_place(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
     for (unsigned int at = 0u; at < CLI_DEBUG_SESSIONS; at += 1u)
     {
         CliDebugSession *const session = &g_cli_debug.sessions[at];
@@ -88,17 +81,14 @@ CliDebugSession *cli_debug_place(void)
             session->pid = 0ull;
             session->initialized = 0;
             memor.set(&(MemoriaCfg){.dst = &session->info, .val = 0, .bytes = sizeof(session->info)});
-            EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
             return session;
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
     return NULL;
 }
 
 CliDebugSession *cli_debug_native_get(const CliDebugErrMsgIdCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
     for (unsigned int at = 0u; at < CLI_DEBUG_SESSIONS; at += 1u)
     {
         CliDebugSession *const session = &g_cli_debug.sessions[at];
@@ -108,17 +98,14 @@ CliDebugSession *cli_debug_native_get(const CliDebugErrMsgIdCtx *args)
         {
             session->users += 1u;
             EMBED_CALL(cli_dap.ref, CliDapCfg, .dap = session->dap);
-            EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
             return session;
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
     return NULL;
 }
 
 CliDebugAnswer *cli_debug_answer_take(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_answers_lock);
     CliDebugAnswer *answer = NULL;
     while (answer == NULL)
     {
@@ -128,11 +115,10 @@ CliDebugAnswer *cli_debug_answer_take(void)
         }
         if (answer == NULL)
         {
-            EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_answers_wake, .lock = &s_answers_lock);
+            EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_answers_wake);
         }
     }
     answer->taken = 1;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_answers_lock);
     char *const args_text = g_cli_cells->temporary_buf_alloc(CLI_DEBUG_ARGS, &g_cli_debug_cells);
     answer->args = mmgr_line_over(args_text, CLI_DEBUG_ARGS);
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &answer->json,
@@ -145,10 +131,8 @@ void cli_debug_answer_free(const CliDebugSessionCommandCtx *args)
 {
     g_cli_cells->persistent_buf_release(args->answer->args.out, &g_cli_debug_cells);
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &args->answer->json);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_answers_lock);
     args->answer->taken = 0;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_answers_wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_answers_lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_answers_wake);
 }
 
 int cli_debug_request(const CliDebugSessionCommandCtx *args)
@@ -249,7 +233,6 @@ void cli_debug_sessions(const CliDebugOutErrMsgIdStepCfg *args)
     unsigned long long last = 0ull;
     int written = 0;
     mmgr_line_ch(args->out, '[');
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
     // by number, the order they were started in
     for (;;)
     {
@@ -272,19 +255,16 @@ void cli_debug_sessions(const CliDebugOutErrMsgIdStepCfg *args)
         written = 1;
         last = next->info.id;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
     mmgr_line_ch(args->out, ']');
 }
 
 int cli_debug_running(void)
 {
     int running = 0;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
     for (unsigned int at = 0u; at < CLI_DEBUG_SESSIONS; at += 1u)
     {
         running = running || (g_cli_debug.sessions[at].taken && g_cli_debug.sessions[at].listed);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
     return running;
 }
 
@@ -309,7 +289,6 @@ int cli_debug_set(const CliDebugSessionCtx *args)
     const CliJson *const reply = &answer->json;
     const unsigned int placed = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = reply,
                                            .object = answer->root, .name = "breakpoints");
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
     for (unsigned int at = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                           .json_read = reply, .array = placed, .index = at) != CLI_JSON_NONE;
          at += 1u)
@@ -330,7 +309,6 @@ int cli_debug_set(const CliDebugSessionCtx *args)
             args->session->placed_count += 1u;
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
     // each answer paired with the breakpoint requested in its turn, as many as both have
     mmgr_line_ch(args->out, '[');
     for (unsigned int at = 0u;
@@ -385,13 +363,11 @@ void cli_debug_breakpoints(const CliDebugRootJsonCfg *args)
     int placed = 0;
     for (unsigned int at = 0u; at < CLI_DEBUG_SESSIONS; at += 1u)
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
         CliDebugSession *const session = &g_cli_debug.sessions[at];
         const int takes = session->taken && session->listed &&
                           EMBED_CALL(cli_debug_file_internal.takes, CliDebugFileCtx, .language = session->info.language,
                                      .file = args->path);
         const unsigned long long id = session->info.id;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
         VerbaLinea err_msg = {why, sizeof(why), 0ull};
         CliDebugSession *const taken =
             takes ? EMBED_CALL(cli_debug_err_msg_id_internal.take, CliDebugErrMsgIdCtx, .id = id, .err_msg = &err_msg)
@@ -423,7 +399,6 @@ void cli_debug_breakpoints(const CliDebugRootJsonCfg *args)
 
 void cli_debug_process(const CliDebugCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
     for (unsigned int at = 0u; at < CLI_DEBUG_SESSIONS; at += 1u)
     {
         CliDebugSession *const session = &g_cli_debug.sessions[at];
@@ -433,7 +408,6 @@ void cli_debug_process(const CliDebugCfg *args)
             session->info.process = args->pid;
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
 }
 
 // the session's own use given back on a thread of its own, as an adapter's event, received on the adapter's reader,
@@ -447,7 +421,6 @@ static void session_free(void *context)
 void cli_debug_end(const CliDebugCfg *args)
 {
     CliDebugSession *ended = NULL;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
     for (unsigned int at = 0u; at < CLI_DEBUG_SESSIONS; at += 1u)
     {
         CliDebugSession *const session = &g_cli_debug.sessions[at];
@@ -457,7 +430,6 @@ void cli_debug_end(const CliDebugCfg *args)
             ended = session;
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
     if (ended == NULL)
     {
         return;
@@ -476,7 +448,6 @@ void cli_debug_stop(const CliDebugCfg *args)
     unsigned long long gone[CLI_DEBUG_SESSIONS + 1u];
     unsigned int going = 1u;
     gone[0] = args->id;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
     // the session, then each it started, and each they started in turn
     while (going > 0u)
     {
@@ -502,7 +473,6 @@ void cli_debug_stop(const CliDebugCfg *args)
             }
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         EMBED_CALL(cli_dap.stop, CliDapCfg, .dap = ended[at]->dap);
@@ -514,7 +484,6 @@ void cli_debug_stop_all(void)
 {
     CliDebugSession *ended[CLI_DEBUG_SESSIONS];
     unsigned int count = 0u;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
     for (unsigned int at = 0u; at < CLI_DEBUG_SESSIONS; at += 1u)
     {
         CliDebugSession *const session = &g_cli_debug.sessions[at];
@@ -525,7 +494,6 @@ void cli_debug_stop_all(void)
             count += 1u;
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         EMBED_CALL(cli_dap.stop, CliDapCfg, .dap = ended[at]->dap);

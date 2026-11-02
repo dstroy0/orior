@@ -183,9 +183,7 @@ static int calls_file_read(const SymbolsCallsCtx *args)
     if (given == NULL)
     {
         char full[CLI_PATH_MAX_LEN];
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_walk_lock);
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = g_cli_tree_root, .relative = path, .joined = full);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_walk_lock);
         // a text read mapped is read and never written
         file->text = (char *)EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = full,
                                         .size_pointer = &file->size, .owner = &g_cli_code_cells);

@@ -14,11 +14,8 @@
 int cli_file_begin(const CliPathFileCtx *args)
 {
     static unsigned long long s_count;
-    static CliLock s_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     s_count += 1ull;
     const unsigned long long count = s_count;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     char beside[CLI_WRITING_MAX_LEN];
     VerbaLinea named = {beside, sizeof(beside), 0u, NULL, NULL, 0u};
     mmgr_line_ch(&named, '.');
@@ -36,7 +33,7 @@ int cli_file_put(void *context, const char *bytes, size_t size)
 
 int cli_file_end(const CliFileCtx *args)
 {
-    return ksg_writing_end(args->file, args->whole);
+    return ksg_writing_ended(args->file, args->whole);
 }
 
 VerbaLinea cli_file_line(const CliFileStageCtx *args)
@@ -57,11 +54,8 @@ int cli_file_pieces_write(const CliPathCountCtx *args)
     static const char s_zeros[4096] = {0};
     static char s_stage[CLI_STAGE_BYTES + 1u];
     static CliFileWriting s_file;
-    static CliLock s_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     if (!EMBED_CALL(cli_path_file_internal.file_begin, CliPathFileCtx, .file = &s_file, .path = args->path))
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return 0;
     }
     VerbaLinea line = EMBED_CALL(cli_file_stage_internal.file_line, CliFileStageCtx, .file = &s_file, .stage = s_stage);
@@ -80,6 +74,5 @@ int cli_file_pieces_write(const CliPathCountCtx *args)
         }
     }
     const int written = EMBED_CALL(cli_line_internal.file_line_end, CliLineCtx, .file = &s_file, .line = &line);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return written;
 }

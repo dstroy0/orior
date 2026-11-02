@@ -127,8 +127,6 @@ EMBED_INLINE int code_file_read(const PluginsCodeCtx *args)
 int cli_plugins_code_in(const CliPluginsIdCfg *args)
 {
     static CliCodeMains s_mains;
-    static CliLock s_mains_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_mains_lock);
     int done = EMBED_CALL(code_mains_read, PluginsCodeCtx, .text = args->text, .size = args->size, .mains = &s_mains);
     if (!done)
     {
@@ -152,6 +150,5 @@ int cli_plugins_code_in(const CliPluginsIdCfg *args)
         done = EMBED_CALL(code_file_read, PluginsCodeCtx, .folder = args->folder_read, .name = s_mains.main[at],
                           .out = args->out, .err_msg = args->err_msg);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_mains_lock);
     return done;
 }

@@ -28,7 +28,6 @@ typedef struct
 } CliClipboardFiles;
 
 static CliClipboardFiles s_files;
-static CliLock s_lock = CLI_LOCK_INIT;
 
 // the files this window last cut, by the digest of their paths and their count, 0 for none: where the clipboard cannot
 // say a cut, a paste of the same files is one
@@ -148,10 +147,8 @@ static int clipboard_write(const CliServeAnswerCfg *args)
 // how many files and folders the clipboard holds
 static int clipboard_files(const CliServeAnswerCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     (void)clipboard_files_read();
     mmgr_line_decimal(args->out, s_files.count, 1u);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return 1;
 }
 
@@ -175,7 +172,6 @@ static int clipboard_files_copy(const CliServeAnswerCfg *args)
         EMBED_CALL(cli_serve_items_internal.strings_free, CliServeItemsCtx, .items = paths);
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     // the paths made whole in the room the clipboard's files are read into, which this call holds
     s_files.used = 0ull;
     s_files.count = 0u;
@@ -206,7 +202,6 @@ static int clipboard_files_copy(const CliServeAnswerCfg *args)
     {
         mmgr_line_put(err_msg, "the clipboard did not take the files");
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     EMBED_CALL(cli_serve_items_internal.strings_free, CliServeItemsCtx, .items = paths);
     return put;
 }
@@ -226,7 +221,6 @@ static int clipboard_files_paste(const CliServeAnswerCfg *args)
     {
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int cut = clipboard_files_read();
     int pasted = 1;
     if (s_files.count == 0u)
@@ -245,7 +239,6 @@ static int clipboard_files_paste(const CliServeAnswerCfg *args)
         s_cut_digest = 0ull;
         s_cut_count = 0u;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return pasted;
 }
 

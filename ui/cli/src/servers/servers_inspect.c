@@ -42,10 +42,8 @@ typedef struct
 // how many trees were let go, under its own lock; and the root the tree was read from and when, under the tree's
 // lock, which a read acquires
 static unsigned long long s_generation;
-static CliLock s_generation_lock = CLI_LOCK_INIT;
 static char s_tree_root[CLI_PATH_MAX_LEN];
 static unsigned long long s_tree_generation;
-static CliLock s_tree_lock = CLI_LOCK_INIT;
 // what each family sets and the files seen, under the tree's lock
 static CliKeyed s_supplied_new = {"names newly supplied", {NULL}, 0u, CLI_SERVERS_INSPECT_FILES};
 static CliKeyed s_seen = {"findings seen", {NULL}, 0u, CLI_SERVERS_INSPECT_FILES};
@@ -53,9 +51,7 @@ static CliKeyed s_seen = {"findings seen", {NULL}, 0u, CLI_SERVERS_INSPECT_FILES
 // how many trees were let go
 static unsigned long long inspect_generation(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_generation_lock);
     const unsigned long long generation = s_generation;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_generation_lock);
     return generation;
 }
 
@@ -81,10 +77,8 @@ EMBED_INLINE int inspect_has_tree(const ServersInspectCtx *args)
 
 int cli_servers_tree_read(const CliServersRootKindCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_tree_lock);
     const int read = (s_tree_root[0] != '\0') && (s_tree_generation == inspect_generation());
     memor.cpy(&(MemoriaCfg){.dst = args->root_out, .src = s_tree_root, .bytes = CLI_PATH_MAX_LEN});
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_tree_lock);
     return read;
 }
 
@@ -232,7 +226,6 @@ EMBED_INLINE void inspect_passed_on(const ServersInspectCtx *args)
     unsigned long long size = args->size;
     const CliServersSink *sink = args->sink;
     EMBED_CALL(cli_keyed_name.clear, CliKeyedNameCfg, .keyed_out = &s_seen);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_checks_lock);
     // a file found changes by its key and its URI, each at most a path's; one stored and no longer found by what it
     // stored
     const unsigned long long room =
@@ -285,7 +278,6 @@ EMBED_INLINE void inspect_passed_on(const ServersInspectCtx *args)
             one->used = 0;
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_checks_lock);
     const unsigned long long changed_size = mmgr_line_ok(&changed) ? changed.at : 0ull;
     for (unsigned long long at = 0ull; at < changed_size;)
     {
@@ -355,11 +347,9 @@ static void inspect_job(const CliServersJobCfg *args)
     {
         return;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_tree_lock);
     if (!EMBED_CALL(inspect_has_tree, ServersInspectCtx, .root = read->root) &&
         !EMBED_CALL(inspect_tree_read, ServersInspectCtx, .root = read->root, .born = read->born))
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_tree_lock);
         return;
     }
     const char *const language = EMBED_CALL(cli_inspect_table.language_get, CliInspectCfg, .path = read->file);
@@ -380,9 +370,7 @@ static void inspect_job(const CliServersJobCfg *args)
     EMBED_CALL(cli_keyed_name.clear, CliKeyedNameCfg, .keyed_out = &s_supplied_new);
     EMBED_CALL(cli_inspect_tree_context_each_supplied.supplied, CliInspectTreeContextEachSuppliedCfg,
                .each_inspect_supplied = inspect_supplied, .context = (void *)read->root);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_checks_lock);
     const int moved = inspect_supplied_put();
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_checks_lock);
     if (mmgr_line_ok(&line))
     {
         EMBED_CALL(inspect_passed_on, ServersInspectCtx, .root = read->root, .found_text = line.out, .size = line.at,
@@ -407,7 +395,6 @@ static void inspect_job(const CliServersJobCfg *args)
         EMBED_CALL(cli_servers_sink_key_internal.emit_whole, CliServersSinkKeyCtx, .key = key, .uri = uri,
                    .sink = &read->sink);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_tree_lock);
 }
 
 void cli_servers_inspect(const CliServersPathSizeRootSinkCtx *args)
@@ -445,14 +432,10 @@ void cli_servers_inspect(const CliServersPathSizeRootSinkCtx *args)
         // a size under CLI_SERVERS_LARGEST fits a size_t
         memor.cpy(&(MemoriaCfg){.dst = job + sizeof(*read), .src = args->text, .bytes = (size_t)text_size});
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers.lock);
     g_cli_servers.sink = *sink;
     g_cli_servers.has_sink = 1;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers.lock);
     read->born = inspect_generation();
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_tree_lock);
     const int ready = EMBED_CALL(inspect_has_tree, ServersInspectCtx, .root = args->root);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_tree_lock);
     if (ready)
     {
         EMBED_CALL(inspect_job, CliServersJobCfg, .job = job, .size = sizeof(*read) + text_size);
@@ -467,23 +450,16 @@ void cli_servers_inspect_again(const CliServersPathSizeLanguageCtx *args)
 {
     char root[CLI_PATH_MAX_LEN];
     static CliServersSink s_sink;
-    static CliLock s_sink_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_sink_lock);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers.lock);
     const int has_sink = g_cli_servers.has_sink;
     s_sink = g_cli_servers.sink;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers.lock);
     if (has_sink && EMBED_CALL(cli_servers_root_kind_internal.tree_read, CliServersRootKindCtx, .root_out = root))
     {
         EMBED_CALL(cli_servers_path_size_root_sink_internal.inspect, CliServersPathSizeRootSinkCtx, .root = root,
                    .path = args->path, .text = args->text, .size = args->size, .sink = &s_sink);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_sink_lock);
 }
 
 void cli_servers_inspect_let_go(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_generation_lock);
     s_generation += 1ull;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_generation_lock);
 }

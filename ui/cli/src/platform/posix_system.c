@@ -145,8 +145,6 @@ EMBED_INLINE unsigned long long system_read(const PosixSystemCtx *args)
 unsigned long long cli_booted_seconds(void)
 {
     static char s_stat[CLI_SYSTEM_STAT_MOST];
-    static CliLock s_stat_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_stat_lock);
     (void)EMBED_CALL(system_read, PosixSystemCtx, .path = "/proc/stat", .out = s_stat, .room = sizeof(s_stat));
     const char *at = cellul.find(
         &(CatenaFinitaCfg){.src = s_stat, .cap = sizeof(s_stat), .other = "\nbtime ", .other_cap = CLI_CELLS_POOL});
@@ -155,7 +153,6 @@ unsigned long long cli_booted_seconds(void)
                                         .size = cellul.len(&(CatenaFinitaCfg){.src = at + 7, .cap = CLI_CELLS_POOL}),
                                         .end = NULL)
                            : 0ull;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_stat_lock);
     return seconds;
 }
 

@@ -154,9 +154,7 @@ int cli_symbols_hints(const CliSymbolsPathTextSizeContextCfg *args)
                                                          .languages = languages, .path = args->path, .state = "root",
                                                          .text = args->text, .size = args->size, .read = &read);
     char root[CLI_PATH_MAX_LEN];
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_walk_lock);
     memor.cpy(&(MemoriaCfg){.dst = root, .src = g_cli_tree_root, .bytes = sizeof(root)});
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_walk_lock);
     CliHints hints = {args->path, args->text, args->size, "", 0u, 0};
     int done = 1;
     for (unsigned int leaf = 0u; done && leaved && (leaf < read.count) && (read.leaf[leaf].line <= args->to);

@@ -15,8 +15,8 @@
 int cli_lsp_send(const CliLspWriterCfg *args)
 {
     const CliLspPart part = {args->body, args->size_value, 0};
-    return EMBED_CALL(cli_lsp_writer_lock.send_parts, CliLspWriterLockCfg, .writer = args->writer, .lock = args->lock,
-                      .parts = &part, .count = 1u, .err_msg = args->err_msg);
+    return EMBED_CALL(cli_lsp_writer_lock.send_parts, CliLspWriterLockCfg, .writer = args->writer, .parts = &part,
+                      .count = 1u, .err_msg = args->err_msg);
 }
 
 typedef struct
@@ -90,14 +90,12 @@ int cli_lsp_send_parts(const CliLspWriterLockCfg *args)
     mmgr_line_put(&line, "Content-Length: ");
     mmgr_line_decimal(&line, length, 1u);
     mmgr_line_put(&line, "\r\n\r\n");
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = args->lock);
     failed = !EMBED_CALL(args->writer->write, CliSinkBytesSizeCfg, .sink = args->writer->sink, .bytes = head,
                          .size = line.at);
     for (unsigned int at = 0u; !failed && (at < args->count); at += 1u)
     {
         (void)EMBED_CALL(wire_part, LspWireCtx, .writer = args->writer, .part = &args->parts[at], .failed = &failed);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = args->lock);
     if (failed)
     {
         mmgr_line_put(args->err_msg, "the server stopped: its input could not be written");

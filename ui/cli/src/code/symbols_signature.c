@@ -259,7 +259,6 @@ EMBED_INLINE void cli_signature_tree_type(const SymbolsSignatureCtx *args)
     unsigned long long length = args->length;
     CliSymbolType *type = args->type;
     int seen = 0;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_walk_lock);
     char *const scratch = cli_branch_copy_take();
     for (unsigned int file = 0u; !seen && (scratch != NULL) && (file < g_cli_branch_count); file += 1u)
     {
@@ -286,7 +285,6 @@ EMBED_INLINE void cli_signature_tree_type(const SymbolsSignatureCtx *args)
         }
     }
     EMBED_CALL(cli_symbols_tree_branch.branch_copy_free, CliSymbolsTreeBranchCfg, .scratch = scratch);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_walk_lock);
     char full[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->signature->root, .relative = args->signature->sought,
                .joined = full);
@@ -388,7 +386,6 @@ EMBED_INLINE void cli_signature_heads(const SymbolsSignatureCtx *args)
     const char *name = args->name;
     unsigned long long length = args->length;
     args->signature->heads = 0u;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_walk_lock);
     char *const scratch = cli_branch_copy_take();
     for (unsigned int file = 0u; (scratch != NULL) && (file < g_cli_branch_count); file += 1u)
     {
@@ -416,7 +413,6 @@ EMBED_INLINE void cli_signature_heads(const SymbolsSignatureCtx *args)
         }
     }
     EMBED_CALL(cli_symbols_tree_branch.branch_copy_free, CliSymbolsTreeBranchCfg, .scratch = scratch);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_walk_lock);
     const CliSymbolCall *const call = &args->signature->call;
     unsigned int given = 0u;
     for (unsigned int argument = 0u; argument < call->arguments; argument += 1u)
@@ -547,9 +543,7 @@ EMBED_INLINE void cli_signature_write(const SymbolsSignatureCtx *args)
         }
         mmgr_line_put(out, "]}");
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_walk_lock);
     mmgr_line_put(out, g_cli_tree_walking ? "],\"reading\":true}" : "],\"reading\":false}");
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_walk_lock);
 }
 
 int cli_symbols_signature(const CliSymbolsPathTextSizeOutCfg *args)
@@ -564,9 +558,7 @@ int cli_symbols_signature(const CliSymbolsPathTextSizeOutCfg *args)
         mmgr_line_put(args->err_msg, "the cells cannot meet a signature's reading");
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_walk_lock);
     memor.cpy(&(MemoriaCfg){.dst = signature->root, .src = g_cli_tree_root, .bytes = CLI_PATH_MAX_LEN});
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_walk_lock);
     signature->language[0] = '\0';
     (void)EMBED_CALL(cli_plugins_languages_path.language_for, CliPluginsLanguagesPathCfg,
                      .languages_read = &languages->languages, .path = path, .id_out = signature->language);

@@ -497,8 +497,6 @@ EMBED_INLINE void cover_file_write(const TestCoverageCtx *args)
 
 void cli_test_coverage_emit(const CliTestRunsRunTextCtx *args)
 {
-    static CliLock s_cover_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_cover_lock);
     s_cover = &s_room;
     // the files counted on one pass and read on the next, into a room the counts size
     CliCoverCounts counts = {0ull, 0ull, 0ull};
@@ -520,7 +518,6 @@ void cli_test_coverage_emit(const CliTestRunsRunTextCtx *args)
     if (!EMBED_CALL(cover_room_take, TestCoverageCtx, .counts_read = &counts))
     {
         s_cover = NULL;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_cover_lock);
         return;
     }
     s_cover->files = 0u;
@@ -589,5 +586,4 @@ void cli_test_coverage_emit(const CliTestRunsRunTextCtx *args)
     g_cli_cells->persistent_buf_release(s_cover->room, &g_cli_tests_cells);
     s_cover->room = NULL;
     s_cover = NULL;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_cover_lock);
 }

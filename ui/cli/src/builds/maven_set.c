@@ -15,7 +15,6 @@
 // the bytes the user's settings written are taken with beyond what they contained
 #define CLI_MAVEN_SET_MORE 4096ull
 
-static CliLock s_set_lock = CLI_LOCK_INIT;
 static CliXml s_xml;
 static char s_edit[1u << 14u];
 
@@ -325,7 +324,6 @@ int cli_maven_set(const CliMavenKeyCfg *args)
     }
     memor.cpy(&(MemoriaCfg){.dst = s_value, .src = args->value + from, .bytes = (size_t)(to - from)});
     s_value[to - from] = '\0';
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_set_lock);
     int done = 0;
     unsigned int setting = 4u;
     for (unsigned int at = 0u; at < 4u; at += 1u)
@@ -375,6 +373,5 @@ int cli_maven_set(const CliMavenKeyCfg *args)
         mmgr_line_put(args->err_msg, "` is no setting that can be set");
     }
     EMBED_CALL(cli_maven_xml_text_internal.xml_free, CliMavenXmlTextCtx, .xml_out = &s_xml);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_set_lock);
     return done;
 }

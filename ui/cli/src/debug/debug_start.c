@@ -52,7 +52,6 @@ EMBED_INLINE int start_field(const DebugStartCtx *args)
 EMBED_INLINE int start_parent_language(const DebugStartCtx *args)
 {
     int found = 0;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
     for (unsigned int at = 0u; at < CLI_DEBUG_SESSIONS; at += 1u)
     {
         const CliDebugSession *const session = &g_cli_debug.sessions[at];
@@ -65,7 +64,6 @@ EMBED_INLINE int start_parent_language(const DebugStartCtx *args)
             found = 1;
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
     return found;
 }
 

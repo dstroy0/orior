@@ -130,7 +130,6 @@ EMBED_INLINE void cli_pending_emit(const RunnerLinesCtx *args)
     args->carrier->pending_size = 0ull;
 }
 
-static CliLock s_carried = CLI_LOCK_INIT;
 static CliWake s_carried_wake = CLI_WAKE_INIT;
 
 // a stream read to its end, each line printed as it is whole, a line of CLI_CARRIED_LINE bytes printed where it has
@@ -182,10 +181,8 @@ static void cli_errors_carry(void *context)
 {
     CliCarrier *const carrier = (CliCarrier *)context;
     EMBED_CALL(cli_on_carry, RunnerLinesCtx, .carrier = carrier);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_carried);
     carrier->ended = 1;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_carried_wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_carried);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_carried_wake);
 }
 
 void cli_run_carry(const CliRunnerRunSpawnedCtx *args)
@@ -204,12 +201,10 @@ void cli_run_carry(const CliRunnerRunSpawnedCtx *args)
         EMBED_CALL(cli_on_carry, RunnerLinesCtx, .carrier = err);
     }
     EMBED_CALL(cli_on_carry, RunnerLinesCtx, .carrier = out);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_carried);
     while (threaded && !err->ended)
     {
-        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_carried_wake, .lock = &s_carried);
+        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_carried_wake);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_carried);
     g_cli_cells->persistent_buf_release(out_carrier.pending, &g_cli_runs_cells);
     g_cli_cells->persistent_buf_release(err_carrier.pending, &g_cli_runs_cells);
 }

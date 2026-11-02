@@ -472,12 +472,9 @@ EMBED_INLINE void cli_comment_read(const PurposeCommentCtx *args)
 
 void cli_purpose_first_comment(const CliPurposePathTextCfg *args)
 {
-    static CliLock s_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     if (EMBED_CALL(cli_room_take, PurposeCommentCtx, .text = args->text, .size = args->size))
     {
         EMBED_CALL(cli_comment_read, PurposeCommentCtx, .path = args->path, .text = args->text, .out = args->out);
     }
     cli_room_free();
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }

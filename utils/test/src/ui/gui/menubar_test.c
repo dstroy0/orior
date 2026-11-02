@@ -7,6 +7,7 @@
 // the titles into a last one that lists them; and the titles and an open menu are drawn
 #include "../../../../../ui/gui/src/parts/menubar.h"
 #include "../cli/cli_check.h"
+#include "test_clock.h"
 
 static const char s_catalog[] =
     "{\"menus\":["
@@ -202,8 +203,9 @@ int main(void)
                   (EMBED_CALL(gui_menubar.next_deadline_ms, GuiMenubarCfg, .menubar_read = &menubar) == 0ull),
               "the pointer back on the opened row lets the rest go");
     g_test_clock_ms = 2100ull;
-    cli_check(EMBED_CALL(gui_menubar_glyphs_frame_x.move, GuiMenubarGlyphsFrameXCfg, .menubar = &menubar, .glyphs = &glyphs, .frame = &frame, .x = more.x, .y = menubar.menu[0].rect.y + 5 + 13) &&
-                  EMBED_CALL(gui_menubar_glyphs_frame_x.tick, GuiMenubarGlyphsFrameXCfg, .menubar = &menubar, .glyphs = &glyphs, .frame = &frame) && (menubar.levels == 1u) &&
+    const int moved_to_sibling = EMBED_CALL(gui_menubar_glyphs_frame_x.move, GuiMenubarGlyphsFrameXCfg, .menubar = &menubar, .glyphs = &glyphs, .frame = &frame, .x = more.x, .y = menubar.menu[0].rect.y + 5 + 13);
+    g_test_clock_ms = 2100ull + GUI_SUBMENU_DELAY_MS;
+    cli_check(moved_to_sibling && EMBED_CALL(gui_menubar_glyphs_frame_x.tick, GuiMenubarGlyphsFrameXCfg, .menubar = &menubar, .glyphs = &glyphs, .frame = &frame) && (menubar.levels == 1u) &&
                   (menubar.menu[0].opened == -1),
               "the rest's end on the sibling closes the items");
     cli_check(EMBED_CALL(gui_menubar_json.press, GuiMenubarJsonCfg, .menubar = &menubar, .glyphs = &glyphs, .frame = &frame, .x = more.x, .y = more.y, .choice = &choice) && (menubar.levels == 2u),

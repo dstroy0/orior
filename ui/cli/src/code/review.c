@@ -27,7 +27,6 @@ typedef struct
 } CliReviewRoom;
 
 static CliReviewRoom *s_room;
-static CliLock s_lock = CLI_LOCK_INIT;
 
 // the review's room and texts given back, and the lock with them
 static void review_release(void)
@@ -48,14 +47,12 @@ static void review_release(void)
     g_cli_review.text_room = 0ull;
     g_cli_review.call = NULL;
     g_cli_review.calls = 0u;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 // the lock taken and the review's room and texts with it: 1, or 0 with the lock given back where the cells cannot
 // meet them
 static int review_lock(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     s_room = g_cli_cells->persistent_buf_alloc(sizeof(*s_room), &g_cli_code_cells);
     if (s_room != NULL)
     {

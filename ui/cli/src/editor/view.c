@@ -172,7 +172,6 @@ typedef struct
 #define CLI_VIEW_KIND_DELETE_FORWARD 4u
 
 static CliView *s_views;
-static CliLock s_lock = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -503,21 +502,17 @@ int cli_view_open(const CliViewCfg *args)
 {
     const char *key = args->key;
     const char *path = args->path;
-    cli_document_lock_take();
     const CliStoredText *const stored = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = key);
     const int paged = (stored != NULL) && stored->paged;
-    cli_document_lock_give();
     if (stored == NULL)
     {
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     if (s_views == NULL)
     {
         s_views = g_cli_cells->persistent_buf_alloc(CLI_VIEWS * sizeof(*s_views), &g_cli_views_cells);
         if (s_views == NULL)
         {
-            EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
             return 0;
         }
         memor.set(&(MemoriaCfg){.dst = s_views, .val = 0, .bytes = CLI_VIEWS * sizeof(*s_views)});
@@ -541,7 +536,6 @@ int cli_view_open(const CliViewCfg *args)
     }
     if (view == NULL)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return 0;
     }
     memor.set(&(MemoriaCfg){.dst = view, .val = 0, .bytes = sizeof(*view)});
@@ -556,13 +550,11 @@ int cli_view_open(const CliViewCfg *args)
     view->paged = paged;
     EMBED_CALL(cli_editorconfig.indent, CliEditorconfigCfg, .path = path, .indent = &view->indent);
     EMBED_CALL(view_language_read, ViewCtx, .view = view);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return 1;
 }
 
 void cli_view_close(const CliViewCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key);
     if (view != NULL)
     {
@@ -574,7 +566,6 @@ void cli_view_close(const CliViewCfg *args)
         g_cli_cells->persistent_buf_release(view->line_units, &g_cli_views_cells);
         memor.set(&(MemoriaCfg){.dst = view, .val = 0, .bytes = sizeof(*view)});
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 // the text's lines: how many, as far as the pages' index has read for a paged text
@@ -898,7 +889,6 @@ EMBED_INLINE void view_line_read(const ViewCtx *args)
         g_cli_cells->persistent_buf_release(cell, &g_cli_views_cells);
         return;
     }
-    cli_document_lock_take();
     const CliStoredText *const one =
         EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->view->key);
     if ((one != NULL) && (line < one->lines.lines) &&
@@ -909,7 +899,6 @@ EMBED_INLINE void view_line_read(const ViewCtx *args)
                                 .src = one->lines.unit + one->lines.start[line],
                                 .bytes = args->view->line_length * sizeof(*args->view->line_units)});
     }
-    cli_document_lock_give();
 }
 
 // a line's length in units, and the unit at `col` of it, 0 past the line's end
@@ -1321,7 +1310,6 @@ static void view_search(const ViewCtx *args)
     }
     else
     {
-        cli_document_lock_take();
         const CliStoredText *const one =
             EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->view->key);
         if (one != NULL)
@@ -1329,7 +1317,6 @@ static void view_search(const ViewCtx *args)
             (void)EMBED_CALL(cli_document_lines.find_each, CliDocumentLinesCfg, .lines = &one->lines, .sought = &sought,
                              .most = CLI_VIEW_MATCHES, .each = view_match_save, .context = args->view, .err_msg = &why);
         }
-        cli_document_lock_give();
     }
     g_cli_cells->persistent_buf_release(query, &g_cli_views_cells);
     view_current_settle(args);
@@ -3859,11 +3846,9 @@ EMBED_INLINE void view_point(const ViewCtx *args)
 int cli_view_input(const CliViewInputCfg *args)
 {
     const char *key = args->key;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = key);
     if (view == NULL)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         mmgr_line_put(args->err_msg, "no view is open under the key");
         return 0;
     }
@@ -3966,7 +3951,6 @@ int cli_view_input(const CliViewInputCfg *args)
         (void)EMBED_CALL(cli_pages_view.view, CliPagesViewCfg, .key = view->key, .view = &placed_view,
                          .placed = &placed);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return taken;
 }
 
@@ -4134,11 +4118,9 @@ int cli_view_frame_write(const CliViewOutCfg *args)
 {
     const char *key = args->key;
     VerbaLinea *out = args->out;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = key);
     if (view == NULL)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return 0;
     }
     view->seq += 1ull;
@@ -4185,7 +4167,6 @@ int cli_view_frame_write(const CliViewOutCfg *args)
     }
     else
     {
-        cli_document_lock_take();
         const CliStoredText *const one =
             EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = view->key);
         for (unsigned long long at = 0ull; (one != NULL) && (at < shown.count); at += 1ull)
@@ -4202,7 +4183,6 @@ int cli_view_frame_write(const CliViewOutCfg *args)
                 mmgr_line_put(out, "\"\"");
             }
         }
-        cli_document_lock_give();
     }
     mmgr_line_put(out, "],\"numbers\":[");
     for (unsigned long long at = 0ull; at < shown.count; at += 1ull)
@@ -4360,7 +4340,6 @@ int cli_view_frame_write(const CliViewOutCfg *args)
     mmgr_line_ch(out, ']');
     mmgr_line_ch(out, '}');
     g_cli_cells->persistent_buf_release(shown.number, &g_cli_views_cells);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return 1;
 }
 
@@ -4368,11 +4347,9 @@ int cli_view_cursor(const CliViewCursorCfg *args)
 {
     CliPlace *cursor = args->cursor;
     CliPlace *anchor = args->anchor;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key);
     if (view == NULL)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return 0;
     }
     if (cursor != NULL)
@@ -4383,7 +4360,6 @@ int cli_view_cursor(const CliViewCursorCfg *args)
     {
         *anchor = view->anchor;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return 1;
 }
 
@@ -4536,11 +4512,9 @@ int cli_view_map_write(const CliViewOutCfg *args)
     unsigned long long first = args->first;
     unsigned long long last = args->last;
     VerbaLinea *out = args->out;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = key);
     if (view == NULL)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return 0;
     }
     const unsigned int tab = EMBED_CALL(view_tab, ViewCtx, .view_read = view);
@@ -4613,13 +4587,11 @@ int cli_view_map_write(const CliViewOutCfg *args)
     g_cli_cells->persistent_buf_release(texts, &g_cli_views_cells);
     g_cli_cells->persistent_buf_release(line, &g_cli_views_cells);
     g_cli_cells->persistent_buf_release(room, &g_cli_views_cells);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return 1;
 }
 
 int cli_view_path(const CliViewPathKindCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key);
     if (view != NULL)
     {
@@ -4627,13 +4599,11 @@ int cli_view_path(const CliViewPathKindCfg *args)
         mmgr_line_put(&line, view->path);
         (void)mmgr_line_finish(&line);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return view != NULL;
 }
 
 int cli_view_served_set(const CliViewFullCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key);
     if (view != NULL)
     {
@@ -4642,13 +4612,11 @@ int cli_view_served_set(const CliViewFullCfg *args)
         (void)mmgr_line_finish(&line);
         view->changed = 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return view != NULL;
 }
 
 int cli_view_serve(const CliViewFullKindCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key);
     const int served = (view != NULL) && (view->served[0] != '\0');
     if (served)
@@ -4657,34 +4625,29 @@ int cli_view_serve(const CliViewFullKindCfg *args)
         mmgr_line_put(&line, view->served);
         (void)mmgr_line_finish(&line);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return served;
 }
 
 int cli_view_serving(const CliViewFullCfg *args)
 {
     int serving = 0;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     for (unsigned int at = 0u; !serving && (s_views != NULL) && (at < CLI_VIEWS); at += 1u)
     {
         serving =
             s_views[at].used && cellul.eq(&(CatenaFinitaCfg){
                                     .src = s_views[at].served, .other = args->full, .cap = sizeof(s_views[at].served)});
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return serving;
 }
 
 int cli_view_changed_take(const CliViewCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key);
     const int changed = (view != NULL) && view->changed;
     if (view != NULL)
     {
         view->changed = 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return changed;
 }
 
@@ -4718,20 +4681,17 @@ int cli_view_place_at(const CliViewRowCfg *args)
 {
     unsigned long long *line = args->line;
     unsigned long long *col = args->col;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key);
     if (view != NULL)
     {
         *line = EMBED_CALL(view_down, ViewCtx, .view_read = view, .line = view->top, .count = args->row);
         *col = EMBED_CALL(view_col_at, ViewCtx, .view = view, .line = *line, .cell = args->column);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return view != NULL;
 }
 
 int cli_view_word_at(const CliViewLineCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key);
     const int found =
         (view != NULL) && EMBED_CALL(view_word_span, ViewCtx, .view = view, .line = args->line_value,
@@ -4743,18 +4703,15 @@ int cli_view_word_at(const CliViewLineCfg *args)
                    .units = view->line_units + *args->from, .count = *args->to - *args->from);
         (void)mmgr_line_finish(&text);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return found;
 }
 
 int cli_view_prefix(const CliViewFromCfg *args)
 {
     unsigned long long *from = args->from;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key);
     if (view == NULL)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return 0;
     }
     const unsigned long long line = view->cursor.line;
@@ -4776,7 +4733,6 @@ int cli_view_prefix(const CliViewFromCfg *args)
                    .units = view->line_units + start, .count = end - start);
     }
     (void)mmgr_line_finish(&text);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return 1;
 }
 
@@ -4839,15 +4795,12 @@ EMBED_INLINE int view_word_visit(const ViewCtx *args)
 int cli_view_words_write(const CliViewOutCfg *args)
 {
     const char *key = args->key;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = key);
     if (view == NULL)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return 0;
     }
     const CliPlace cursor = view->cursor;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     unsigned long long low = 0ull;
     unsigned long long high = 0ull;
     (void)EMBED_CALL(cli_document_key_low.bounds, CliDocumentKeyLowCfg, .key = key, .low = &low, .high = &high);

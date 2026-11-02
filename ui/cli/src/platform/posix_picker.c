@@ -675,9 +675,7 @@ EMBED_INLINE int dbus_response_read(const PosixPickerCtx *args)
 int cli_file_pick(const CliPathRoomCtx *args)
 {
     static unsigned char s_message[CLI_DBUS_MESSAGE_MOST];
-    static CliLock s_lock = CLI_LOCK_INIT;
     args->path_out[0] = '\0';
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int bus = dbus_connect();
     CliDbusWritten message;
     CliDbusMessage read;
@@ -760,7 +758,6 @@ int cli_file_pick(const CliPathRoomCtx *args)
     {
         close(bus);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return chosen;
 }
 #endif

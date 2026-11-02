@@ -31,7 +31,6 @@ typedef struct
 // a kernel starting needs
 #define CLI_SERVE_KERNELS (CLI_KERNELS_MOST * 2u)
 static CliServeKernel s_kernel[CLI_SERVE_KERNELS];
-static CliLock s_lock = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -47,7 +46,6 @@ typedef struct
 // the kernel under `key` taken out of those running: it, referenced, or NULL where none runs under it
 EMBED_INLINE CliKernel *kernels_take_out(const ServeKernelsCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     CliKernel *kernel = NULL;
     for (unsigned int at = 0u; (kernel == NULL) && (at < CLI_SERVE_KERNELS); at += 1u)
     {
@@ -58,7 +56,6 @@ EMBED_INLINE CliKernel *kernels_take_out(const ServeKernelsCtx *args)
             s_kernel[at].used = 0;
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return kernel;
 }
 
@@ -75,7 +72,6 @@ void cli_serve_kernels_stop(void)
 {
     static CliKernel *s_taken[CLI_SERVE_KERNELS];
     unsigned int count = 0u;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     for (unsigned int at = 0u; at < CLI_SERVE_KERNELS; at += 1u)
     {
         if (s_kernel[at].used)
@@ -85,7 +81,6 @@ void cli_serve_kernels_stop(void)
             count += 1u;
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         EMBED_CALL(kernels_end, ServeKernelsCtx, .kernel = s_taken[at], .wait = CLI_SERVE_KERNEL_ENDING);
@@ -103,7 +98,6 @@ EMBED_INLINE CliKernel *kernels_get(const ServeKernelsCtx *args)
     {
         return NULL;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     CliKernel *kernel = NULL;
     for (unsigned int at = 0u; (kernel == NULL) && (at < CLI_SERVE_KERNELS); at += 1u)
     {
@@ -114,7 +108,6 @@ EMBED_INLINE CliKernel *kernels_get(const ServeKernelsCtx *args)
             EMBED_CALL(cli_jupyter_err_msg_kernel_file.ref, CliJupyterErrMsgKernelFileCfg, .kernel = kernel);
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     if (kernel == NULL)
     {
         mmgr_line_put(err_msg, "no kernel runs for this notebook: pick one to start it");
@@ -168,7 +161,6 @@ static int kernel_start(const CliServeAnswerCfg *args)
     VerbaLinea *out = args->out;
     VerbaLinea *err_msg = args->err_msg;
     static CliKernelSpec s_spec;
-    static CliLock s_spec_lock = CLI_LOCK_INIT;
     char root[CLI_PATH_MAX_LEN];
     const char *const key = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
                                        .key = "key", .err_msg = err_msg);
@@ -180,10 +172,8 @@ static int kernel_start(const CliServeAnswerCfg *args)
     {
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_spec_lock);
     if (!EMBED_CALL(cli_jupyter_name.spec_by_name, CliJupyterNameCfg, .name = name, .spec = &s_spec))
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_spec_lock);
         mmgr_line_put(err_msg, "the machine has no kernel ");
         mmgr_line_put(err_msg, name);
         return 0;
@@ -205,7 +195,6 @@ static int kernel_start(const CliServeAnswerCfg *args)
     {
         EMBED_CALL(kernels_end, ServeKernelsCtx, .kernel = old, .wait = CLI_SERVE_KERNEL_ENDING);
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     // a place is free while a kernel can start, the places being twice the kernels that run at once
     unsigned int at = 0u;
     while (s_kernel[at].used)
@@ -220,8 +209,6 @@ static int kernel_start(const CliServeAnswerCfg *args)
                    .recv = kernels_recv, .context = s_kernel[at].key, .err_msg = err_msg);
     s_kernel[at].kernel = kernel;
     s_kernel[at].used = (kernel != NULL);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_spec_lock);
     if (kernel == NULL)
     {
         return 0;

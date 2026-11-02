@@ -31,8 +31,9 @@ typedef struct GuiClaimSlideCfg GuiClaimSlideCfg;
 #define GUI_CLAIM_LEFT 3u
 #define GUI_CLAIM_RIGHT 4u
 #define GUI_CLAIM_CONTROLS 5u
-// the milliseconds a rest takes, a part lingers after the pointer leaves it, and a slide runs; the milliseconds of
-// the pointer's path its pace is read over, and the pace, in pixels a millisecond, past which it is passing through;
+// the delay before a part shows, the delay before it hides after the pointer leaves it, and a slide's duration; the
+// window of the pointer's path its speed is measured over, and the speed, in pixels a millisecond, past which it is
+// passing through;
 // how many gaps in from an edge its band reaches; the controls' ghost's way down and the controls' opacity as the
 // ghost, each a number of GUI_WHOLE; and the points of the pointer's path saved
 #define GUI_CLAIM_SHOW_DELAY_MS 300ull
@@ -45,27 +46,26 @@ typedef struct GuiClaimSlideCfg GuiClaimSlideCfg;
 #define GUI_CLAIM_GHOST_ALPHA 22938
 #define GUI_CLAIM_TRAIL 16u
 
-// A slide: a number of GUI_WHOLE, running from `from` to `to` over one slide on
-// the page's ease curve, begun at `began` after
-// `delay` milliseconds
+// A slide: a number of GUI_WHOLE running from `from` to `to` over GUI_CLAIM_ANIMATION_MS on the page's ease curve, from
+// `start_ms`
 typedef struct
 {
     int from;
     int to;
-    unsigned long long began;
-    unsigned long long delay;
+    unsigned long long start_ms;
 } GuiSlide;
 
-// A point of the pointer's path: where and when
+// A sample of the pointer's path: its position and time
 typedef struct
 {
     int x;
     int y;
-    unsigned long long at;
+    unsigned long long time_ms;
 } GuiTrailPoint;
 
-// The claim: whether it holds; the edge whose part is shown, the one waiting for it to go and when it comes; the
-// pointer's edge, the edge whose rest runs and when it is due, when the linger is due, when the ghost is due; whether
+// The claim: whether it holds; the edge whose part is shown, the one waiting for it to hide and the deadline that shows
+// it; the pointer's edge, the edge the show deadline is armed for and that deadline, the hide deadline and the
+// controls' preview deadline, each 0 while disarmed; whether
 // the controls' ghost shows; whether the pointer stands over the shown part, as its last move left it; where the
 // pointer stands; its path over the last span; the slides: the claim, each edge's reveal, the controls' way down,
 // each edge's room and the controls' opacity; each slat's grown share and its reveal as last read; the point of each
@@ -120,11 +120,11 @@ int gui_ease(const GuiClaimShareCfg *args);
 #define GUI_EASE_STEPS 64u
 void gui_ease_table_init(const GuiClaimTableCfg *args);
 int gui_ease_table_read(const GuiClaimShareCfg *args);
-// a slide's number at `now`; and the slide sent to `to` from where it stands at `now`, after `delay`, a slide already
-// bound for `to` left running
+// a slide's number at `time_ms`; and the slide sent to `to` from where it stands now, starting after `delay_ms`, a
+// slide already bound for `to` left running
 int gui_slide_at(const GuiClaimSlideCfg *args);
 void gui_slide_to(const GuiClaimTargetCfg *args);
-// whether a slide still runs at `now`
+// whether a slide still runs at `time_ms`
 int gui_slide_running(const GuiClaimSlideCfg *args);
 
 // a claim not holding, every number at 0 and the controls whole
@@ -132,27 +132,26 @@ void gui_claim_init(const GuiClaimStillCfg *args);
 // less motion asked for or no longer: asked for, every slide stands where it is bound, a slide running ending there,
 // and a part waiting on the shown one to go comes as soon as it is asked for
 void gui_claim_still(const GuiClaimStillCfg *args);
-// the claim made or let go at `now`: let go, every part goes back
+// the claim made or let go: let go, every part goes back
 void gui_claim_set(const GuiClaimOnCfg *args);
 // the edge whose band the pointer at x, y stands in, for a window `width` by `height` at `scale` whose controls are
 // `controls_wide` wide: the controls' corner, the head, the foot, the left, the right, or none
 unsigned int gui_claim_zone(const GuiClaimWidthCfg *args);
-// the pointer moved to x, y at `now`, standing in `zone`, `over_parts` 1 where it stands over the part shown: a rest
-// begun or begun again, the ghost shown or hidden, the linger begun or ended
+// the pointer moved to x, y, standing in `zone`, `over_parts` 1 where it stands over the part shown: the show deadline
+// armed or armed again, the preview shown or hidden, the hide deadline armed or disarmed
 void gui_claim_move(const GuiClaimPointerCfg *args);
-// the pointer gone out of the window: nothing waiting on its rest comes
+// the pointer gone out of the window: the show and preview deadlines disarmed
 void gui_claim_leave(const GuiClaimStillCfg *args);
-// every timer due at `now` run: the rest reveals its edge, the linger hides the part shown unless the pointer stands
-// over it, the switch shows the edge waiting, the ghost shows; 1 where anything changed
+// every expired deadline run: the show deadline reveals its edge, the hide deadline hides the part shown unless the
+// pointer stands over it, the pending deadline shows the edge waiting, the preview shows; 1 where anything changed
 int gui_claim_step(const GuiClaimStateCfg *args);
-// when the claim next wants the clock, in milliseconds from `now`: 0 for never, the time to the nearest timer, or a
-// frame's time while a slide runs
+// the claim's earliest deadline, 0 for none; the next frame's while a slide runs
 unsigned long long gui_claim_next_deadline_ms(const GuiClaimCfg *args);
-// whether any slide runs at `now`; and when the last of them comes to rest, `now` where none runs
+// whether any slide runs at `time_ms`; and when the last of them ends, `time_ms` where none runs
 int gui_claim_moving(const GuiClaimCfg *args);
 unsigned long long gui_claim_animation_end_ms(const GuiClaimCfg *args);
-// the numbers at `now` for the frame: each slide's number, each slat's grown share, coming in as its reveal, going as
-// it grew, whole outside the claim, and the points the slats are pulled from
+// the numbers at `time_ms` for the frame: each slide's number, each slat's grown share, coming in as its reveal, going
+// as it grew, whole outside the claim, and the points the slats are pulled from
 void gui_claim_numbers(const GuiClaimStateCfg *args);
 struct GuiClaimPointerCfg
 {
@@ -186,7 +185,7 @@ struct GuiClaimTargetCfg
 {
     GuiSlide *slide_out;
     int to;
-    unsigned long long delay;
+    unsigned long long delay_ms;
 };
 
 struct GuiClaimStateCfg

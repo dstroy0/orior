@@ -374,7 +374,6 @@ static int env_use(const CliServeAnswerCfg *args)
     VerbaLinea *err_msg = args->err_msg;
     static const char *s_requires[CLI_SERVE_REQUIRES];
     static CliTreeEnvironment s_environment;
-    static CliLock s_lock = CLI_LOCK_INIT;
     char root[CLI_PATH_MAX_LEN];
     unsigned int count = 0u;
     const char *const place = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
@@ -389,7 +388,6 @@ static int env_use(const CliServeAnswerCfg *args)
     }
     const char *const kind = EMBED_CALL(cli_serve_err_msg_internal.string_or, CliServeErrMsgCtx, .request = arguments,
                                         .key = "kind", .otherwise = NULL);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     if (kind == NULL)
     {
         EMBED_CALL(cli_toolchains_environment_table.set_environment, CliToolchainsEnvironmentCfg, .environment = NULL);
@@ -401,7 +399,6 @@ static int env_use(const CliServeAnswerCfg *args)
         if (!EMBED_CALL(cli_envs_root.resolve, CliEnvsRootCfg, .root = root, .kind = kind, .place = place,
                         .environment = &s_environment, .err_msg = err_msg))
         {
-            EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
             return 0;
         }
         mmgr_line_put(out, "{\"python\":");
@@ -422,7 +419,6 @@ static int env_use(const CliServeAnswerCfg *args)
         EMBED_CALL(cli_toolchains_environment_table.set_environment, CliToolchainsEnvironmentCfg,
                    .environment = &s_environment);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     cli_servers_settings_change();
     return 1;
 }

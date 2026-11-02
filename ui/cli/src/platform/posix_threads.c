@@ -7,6 +7,13 @@
 #define _GNU_SOURCE
 #define _DARWIN_C_SOURCE
 #endif
+#include <limits.h>
+#include <time.h>
+#if defined(__linux__)
+#include <linux/futex.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+#endif
 #include "../command_line/cli_internal.h"
 
 #if !defined(_WIN32)
@@ -21,39 +28,55 @@
 #include <pthread/qos.h>
 #endif
 
-void cli_lock_take(const CliLockCtx *args)
-{
-    pthread_mutex_lock(&args->lock->mutex);
-}
+// the longest an untimed wait sleeps before its waiter tests again, which bounds a wake landing between the test and
+// the sleep
+#define CLI_WAKE_RECHECK_MS 10ull
 
-void cli_lock_give(const CliLockCtx *args)
+// a sleep of `milliseconds` on the wake's word, ended early where the word moves off `seen`: 1 where it moved
+static int wake_sleep(CliWake *wake, unsigned int seen, unsigned long long milliseconds)
 {
-    pthread_mutex_unlock(&args->lock->mutex);
-}
-
-void cli_wake_wait(const CliLockCtx *args)
-{
-    pthread_cond_wait(&args->wake->condition, &args->lock->mutex);
-}
-
-int cli_wake_wait_for(const CliLockCtx *args)
-{
-    struct timespec until;
-    clock_gettime(CLOCK_REALTIME, &until);
+    struct timespec span;
     // the seconds and nanoseconds to wait, each within what a time_t and a long represent
-    until.tv_sec += (time_t)(args->milliseconds_u64 / 1000ull);
-    until.tv_nsec += (long)((args->milliseconds_u64 % 1000ull) * 1000000ull);
-    if (until.tv_nsec >= 1000000000l)
-    {
-        until.tv_sec += 1;
-        until.tv_nsec -= 1000000000l;
-    }
-    return pthread_cond_timedwait(&args->wake->condition, &args->lock->mutex, &until) == 0;
+    span.tv_sec = (time_t)(milliseconds / 1000ull);
+    span.tv_nsec = (long)((milliseconds % 1000ull) * 1000000ull);
+#if defined(__linux__)
+    (void)syscall(SYS_futex, &wake->generation, FUTEX_WAIT_PRIVATE, seen, &span, NULL, 0);
+#else
+    (void)nanosleep(&span, NULL);
+#endif
+    return atomic_load_explicit(&wake->generation, memory_order_acquire) != seen;
 }
 
-void cli_wake_all(const CliLockCtx *args)
+void cli_wake_wait(const CliWakeCtx *args)
 {
-    pthread_cond_broadcast(&args->wake->condition);
+    (void)wake_sleep(args->wake, atomic_load_explicit(&args->wake->generation, memory_order_acquire),
+                     CLI_WAKE_RECHECK_MS);
+}
+
+int cli_wake_wait_for(const CliWakeCtx *args)
+{
+    return wake_sleep(args->wake, atomic_load_explicit(&args->wake->generation, memory_order_acquire),
+                      args->milliseconds_u64);
+}
+
+unsigned int cli_wake_read(const CliWakeCtx *args)
+{
+    return atomic_load_explicit(&args->wake->generation, memory_order_acquire);
+}
+
+void cli_wake_wait_seen(const CliWakeCtx *args)
+{
+    while (!wake_sleep(args->wake, args->seen, CLI_WAKE_RECHECK_MS))
+    {
+    }
+}
+
+void cli_wake_all(const CliWakeCtx *args)
+{
+    (void)atomic_fetch_add_explicit(&args->wake->generation, 1u, memory_order_release);
+#if defined(__linux__)
+    (void)syscall(SYS_futex, &args->wake->generation, FUTEX_WAKE_PRIVATE, INT_MAX, NULL, NULL, 0);
+#endif
 }
 
 static void *cli_thread_entry(void *given)

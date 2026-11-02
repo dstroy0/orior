@@ -138,9 +138,7 @@ EMBED_INLINE int watch_by_lldb(const DebugWatchCtx *args)
     {
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
     session->watching = 1;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
     return 1;
 }
 #endif
@@ -151,7 +149,6 @@ EMBED_INLINE int watch_set(const DebugWatchCtx *args)
     CliDebugSession *session = args->session;
     VerbaLinea *err_msg = args->err_msg;
     CliDebugAnswer *const answer = cli_debug_answer_take();
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
     const int room = (session->data_count < session->data_room);
     if (room)
     {
@@ -170,7 +167,6 @@ EMBED_INLINE int watch_set(const DebugWatchCtx *args)
                    .length = cellul.len(&(CatenaFinitaCfg){.src = session->data[at], .cap = CLI_CELLS_POOL}));
         mmgr_line_put(&answer->args, ",\"accessType\":\"write\"}");
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
     mmgr_line_put(&answer->args, "]}");
     if (!room)
     {

@@ -5,7 +5,6 @@
 #include "devcontainer_internal.h"
 
 // the lock acquired while a description is read
-static CliLock s_lock = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -285,10 +284,8 @@ EMBED_INLINE int cli_plan_lock(const DevcontainerReadCtx *args)
 
 int cli_devcontainer_plan(const CliDevcontainerRootCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int done = EMBED_CALL(cli_plan_lock, DevcontainerReadCtx, .root = args->root, .plan = args->plan_out,
                                 .err_msg = args->err_msg);
     cli_plan_description_free();
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return done;
 }

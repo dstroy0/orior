@@ -277,12 +277,9 @@ static void found_walk(const CargoFoundCtx *args)
     g_cli_cargo_scan.name_used = names;
 }
 
-static CliLock s_found_lock = CLI_LOCK_INIT;
-
 void cli_cargo_find(const CliCargoTestsCfg *args)
 {
     static const char *const s_not_searched[4] = {"target", "node_modules", ".git", "build"};
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_found_lock);
     CliCargoWalk walk = {args->root, args->tests, NULL, NULL, {0u, NULL}, NULL, 0ull, 0ull, NULL, 0ull, 0ull};
     cli_cargo_tests_table.free(args);
     cli_cargo_scan_free();
@@ -387,5 +384,4 @@ void cli_cargo_find(const CliCargoTestsCfg *args)
     EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);
     g_cli_cells->persistent_buf_release(seen_cell, &g_cli_cargo_cells);
     cli_cargo_scan_free();
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_found_lock);
 }

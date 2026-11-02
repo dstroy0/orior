@@ -22,8 +22,6 @@
 
 // the bytes a catalog entry's line is taken with
 
-static CliLock s_lock = CLI_LOCK_INIT;
-
 // orior_cli blocked from the network, or let on, as the reader's setting `network` specifies
 static int net_disable(const CliServeAnswerCfg *args)
 {
@@ -128,7 +126,6 @@ static int net_plugin_request(const CliServeAnswerCfg *args)
     {
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     memor.set(&(MemoriaCfg){.dst = &s_sent, .val = 0, .bytes = sizeof(s_sent)});
     memor.cpy(&(MemoriaCfg){.dst = s_sent.method,
                             .src = method,
@@ -171,7 +168,6 @@ static int net_plugin_request(const CliServeAnswerCfg *args)
     if (room == NULL)
     {
         mmgr_line_put(err_msg, "the request's room could not be taken");
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return 0;
     }
     EMBED_CALL(cli_requests_sent_internal.send, CliRequestsSentCtx, .sent = &s_sent, .verify = 1, .room = room);
@@ -213,7 +209,6 @@ static int net_plugin_request(const CliServeAnswerCfg *args)
         mmgr_line_put(out, answer->binary ? ",\"binary\":true}" : ",\"binary\":false}");
     }
     EMBED_CALL(cli_requests_size_err_msg_internal.room_free, CliRequestsSizeErrMsgCtx, .room = room);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return answered;
 }
 

@@ -13,15 +13,13 @@
 #define CLI_REQUESTS_ROOMS 2u
 
 static unsigned int s_rooms_used;
-static CliLock s_lock = CLI_LOCK_INIT;
 static CliWake s_wake = CLI_WAKE_INIT;
 
 CliRequestsRoom *cli_requests_room_take(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     while (s_rooms_used == CLI_REQUESTS_ROOMS)
     {
-        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_wake, .lock = &s_lock);
+        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_wake);
     }
     CliRequestsRoom *room = g_cli_cells->persistent_buf_alloc(sizeof(CliRequestsRoom), &g_cli_requests_cells);
     if (room != NULL)
@@ -41,7 +39,6 @@ CliRequestsRoom *cli_requests_room_take(void)
         }
     }
     s_rooms_used += (room != NULL) ? 1u : 0u;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return room;
 }
 
@@ -59,10 +56,8 @@ void cli_requests_room_free(const CliRequestsSizeErrMsgCtx *args)
     g_cli_cells->persistent_buf_release(args->room->body.out, &g_cli_requests_cells);
     mmgr_zero_buf(args->room, sizeof(*args->room));
     g_cli_cells->persistent_buf_release(args->room, &g_cli_requests_cells);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     s_rooms_used -= 1u;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_wake);
 }
 
 typedef struct

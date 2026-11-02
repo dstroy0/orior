@@ -25,19 +25,19 @@ static void handed_moved(const GuiInputHandlerCfg *args)
 int main(void)
 {
     const GuiInput *const down = GUI_DOWN_INPUT(7, 9, GUI_MOD_SHIFT);
-    cli_check((down->kind == GUI_INPUT_DOWN) && (down->x == 7) && (down->y == 9) && (down->mods == GUI_MOD_SHIFT), "a press carries its place and its modifiers");
+    cli_check((down->type == GUI_INPUT_DOWN) && (down->x == 7) && (down->y == 9) && (down->mods == GUI_MOD_SHIFT), "a press carries its place and its modifiers");
     cli_check((down->button == 0u) && (down->name == NULL) && (down->text == NULL) && (down->size == 0ull), "and the rest of it is zero");
     const GuiInput *const moved = GUI_MOVED_INPUT(3, 4);
-    cli_check((moved->kind == GUI_INPUT_MOVED) && (moved->x == 3) && (moved->y == 4), "the pointer moved carries its place");
+    cli_check((moved->type == GUI_INPUT_MOVED) && (moved->x == 3) && (moved->y == 4), "the pointer moved carries its place");
     const GuiInput *const up = GUI_UP_INPUT(5, 6);
-    cli_check((up->kind == GUI_INPUT_UP) && (up->x == 5) && (up->y == 6), "a release carries its place");
-    cli_check(GUI_LEFT_INPUT()->kind == GUI_INPUT_LEFT, "the pointer gone carries its kind");
+    cli_check((up->type == GUI_INPUT_UP) && (up->x == 5) && (up->y == 6), "a release carries its place");
+    cli_check(GUI_LEFT_INPUT()->type == GUI_INPUT_LEFT, "the pointer gone carries its kind");
     const GuiInput *const wheel = GUI_WHEEL_INPUT(1, 2, -3);
-    cli_check((wheel->kind == GUI_INPUT_WHEEL) && (wheel->x == 1) && (wheel->y == 2) && (wheel->rows == -3), "the wheel carries its place and its rows");
+    cli_check((wheel->type == GUI_INPUT_WHEEL) && (wheel->x == 1) && (wheel->y == 2) && (wheel->rows == -3), "the wheel carries its place and its rows");
     const GuiInput *const key = GUI_KEY_INPUT("Mod+Left");
-    cli_check((key->kind == GUI_INPUT_KEY) && (key->name != NULL) && (key->name[0] == 'M'), "a key carries its name");
+    cli_check((key->type == GUI_INPUT_KEY) && (key->name != NULL) && (key->name[0] == 'M'), "a key carries its name");
     const GuiInput *const text = GUI_TEXT_INPUT("ab", 2ull);
-    cli_check((text->kind == GUI_INPUT_TEXT) && (text->size == 2ull) && (text->text[1] == 'b'), "text typed carries its bytes");
+    cli_check((text->type == GUI_INPUT_TEXT) && (text->size == 2ull) && (text->text[1] == 'b'), "text typed carries its bytes");
 
     // the table hands each kind to the function it names, and a kind it names none for goes nowhere
     GuiInputHandlers handlers = {{NULL}};
@@ -53,7 +53,7 @@ int main(void)
     EMBED_CALL(gui_input_event.handle, GuiInputEventCfg, .handlers = &handlers, .window = window, .input = key);
     cli_check((s_pressed == NULL) && (s_moved == NULL), "a kind the table does not answer goes nowhere");
     EMBED_CALL(gui_input_event.handle, GuiInputEventCfg, .handlers = &handlers, .window = window, .input = &(GuiInput){.type = GUI_INPUT_TYPES});
-    EMBED_CALL(gui_input_event.handle, GuiInputEventCfg, .handlers = &handlers, .window = window, .input = &(GuiInput){.kind = 0xffffffffu});
+    EMBED_CALL(gui_input_event.handle, GuiInputEventCfg, .handlers = &handlers, .window = window, .input = &(GuiInput){.type = 0xffffffffu});
     cli_check((s_pressed == NULL) && (s_moved == NULL), "and a kind no table knows goes nowhere");
     return cli_on_check();
 }

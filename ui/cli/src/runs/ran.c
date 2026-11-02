@@ -24,7 +24,6 @@ typedef struct CliRanPieceStruct
 // what it gave
 typedef struct
 {
-    CliLock lock;
     CliWake wake;
     unsigned int ended;
     CliSpawned spawned;
@@ -50,9 +49,7 @@ CliRan *cli_ran_take(void)
     {
         return &s_refused;
     }
-    const CliLock lock = CLI_LOCK_INIT;
     const CliWake wake = CLI_WAKE_INIT;
-    room->lock = lock;
     room->wake = wake;
     room->ran = (CliRan){s_nothing, 0ull, s_nothing, 0ull, 1, -1ll, 0};
     return &room->ran;
@@ -177,11 +174,9 @@ static void cli_errors_read(void *context)
     int whole = 1;
     EMBED_CALL(cli_pipe_read, RanCtx, .pipe = room->spawned.err, .text = &ran->err, .size = &ran->err_size,
                .whole = &whole);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &room->lock);
     ran->whole = ran->whole && whole;
     room->ended += 1u;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &room->wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &room->lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &room->wake);
 }
 
 // the run's input written whole and its pipe closed, which the program reads as its input's end, the end reported
@@ -191,10 +186,8 @@ static void cli_input_write(void *context)
     EMBED_CALL(cli_pipe_handle_internal.spawn_write, CliPipeHandleCtx, .pipe_handle = room->spawned.in,
                .bytes = room->input, .size = room->length);
     EMBED_CALL(cli_spawned_internal.spawn_input_close, CliSpawnedCtx, .spawned = &room->spawned);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &room->lock);
     room->ended += 1u;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &room->wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &room->lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &room->wake);
 }
 
 // the run's time watched until its output ends, the run ended with every process under it where it runs past its
@@ -205,9 +198,7 @@ static void cli_on_watch(void *context)
     const unsigned long long began = cli_clock_milliseconds();
     for (;;)
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &room->lock);
         const int finished = room->finished;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &room->lock);
         if (finished)
         {
             break;
@@ -220,10 +211,8 @@ static void cli_on_watch(void *context)
         }
         EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 20u);
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &room->lock);
     room->ended += 1u;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &room->wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &room->lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &room->wake);
 }
 
 int cli_on_run(const CliWordsCtx *args)
@@ -294,16 +283,14 @@ int cli_ran_within(const CliWordsCtx *args)
     {
         cli_errors_read(room);
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &room->lock);
     room->finished = 1;
     while (room->ended < ending)
     {
-        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &room->wake, .lock = &room->lock);
+        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &room->wake);
     }
     args->ran->out = out;
     args->ran->out_size = out_size;
     args->ran->whole = args->ran->whole && whole;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &room->lock);
     args->ran->code = EMBED_CALL(cli_spawned_internal.spawn_wait, CliSpawnedCtx, .spawned = &room->spawned);
     EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &room->spawned);
     return 1;

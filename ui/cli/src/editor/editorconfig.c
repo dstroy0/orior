@@ -12,7 +12,6 @@ typedef struct
     int set;
 } CliValue;
 // the lock acquired while the files' bytes and a pattern's letters are stored
-static CliLock s_lock = CLI_LOCK_INIT;
 
 // the most bytes one `.editorconfig` contains, the most folders above a file, and the longest value of a key stored
 #define CLI_EDITORCONFIG_BYTES (1u << 20u)
@@ -332,7 +331,5 @@ EMBED_INLINE void cli_indent_resolve(const EditorconfigCtx *args)
 
 void cli_indent(const CliEditorconfigCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     EMBED_CALL(cli_indent_resolve, EditorconfigCtx, .path = args->path, .indent = args->indent);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }

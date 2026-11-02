@@ -71,7 +71,6 @@ EMBED_INLINE void door_end_init(const PosixDoorCtx *args)
     memor.set(&(MemoriaCfg){.dst = args->end, .val = 0, .bytes = sizeof(*args->end)});
     args->end->handle = (unsigned long long)args->fd;
     args->end->open = 1;
-    args->end->pending.lock = (CliLock)CLI_LOCK_INIT;
 }
 
 int cli_door_listening(const CliDoorListenerAddressCtx *args)
@@ -123,7 +122,6 @@ int cli_door_listening(const CliDoorListenerAddressCtx *args)
         close(fd);
         return 0;
     }
-    args->listener->lock = (CliLock)CLI_LOCK_INIT;
     // a descriptor that opened is not negative
     args->listener->waiting = (unsigned long long)fd;
     return 1;
@@ -155,10 +153,8 @@ EMBED_INLINE int door_peer(const PosixDoorCtx *args)
 int cli_door_accept(const CliDoorListenerCtx *args)
 {
     int *has_peer = args->has_peer;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->listener->lock);
     // the socket was a descriptor when it was stored
     const int socket_fd = (int)args->listener->waiting;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->listener->lock);
     int fd = -1;
     do
     {

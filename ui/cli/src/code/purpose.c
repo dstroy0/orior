@@ -169,7 +169,6 @@ int cli_purpose_write(const CliPurposeCfg *args)
 {
     static char s_text[(CLI_PURPOSE_HEAD * 3u) + 1u];
     static char s_comment_buf[1u << 16u];
-    static CliLock s_lock = CLI_LOCK_INIT;
     char file[CLI_PATH_MAX_LEN];
     if (!EMBED_CALL(cli_root_internal.inside, CliRootCtx, .root = args->root, .relative = args->path, .joined = file,
                     .err_msg = args->err_msg))
@@ -186,7 +185,6 @@ int cli_purpose_write(const CliPurposeCfg *args)
         return 0;
     }
     const unsigned long long head = (size < CLI_PURPOSE_HEAD) ? size : CLI_PURPOSE_HEAD;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     VerbaLinea comment = {s_comment_buf, sizeof(s_comment_buf), 0ull};
     if ((head == 0ull) || (memor.chr(&(MemoriaCfg){.src = bytes, .val = 0, .bytes = head}) == NULL))
     {
@@ -200,7 +198,6 @@ int cli_purpose_write(const CliPurposeCfg *args)
     EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_code_cells);
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out, .text = s_comment_buf,
                .length = comment.at);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return 1;
 }
 
@@ -222,8 +219,6 @@ typedef struct
 } CliUsers;
 
 static CliUsers *s_users;
-static CliLock s_ending = CLI_LOCK_INIT;
-static CliLock s_users_lock = CLI_LOCK_INIT;
 
 // a reader's files read, each marked where it uses the file
 EMBED_INLINE void cli_part_read(const PurposeCtx *args)
@@ -261,10 +256,8 @@ EMBED_INLINE void cli_part_read(const PurposeCtx *args)
 static void cli_part_thread(void *context)
 {
     EMBED_CALL(cli_part_read, PurposeCtx, .part = (CliPurposePart *)context);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_ending);
     s_users->ended += 1u;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_users->wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_ending);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_users->wake);
 }
 
 // the users found written: the first CLI_PURPOSE_USERS by path, and how many in all
@@ -348,23 +341,19 @@ static int cli_users_find(const PurposeCtx *args)
             EMBED_CALL(cli_part_read, PurposeCtx, .part = part);
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_ending);
     while (s_users->ended < started)
     {
-        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_users->wake, .lock = &s_ending);
+        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_users->wake);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_ending);
     return 1;
 }
 
 // the users' lock taken and the search a cell under it: 1, or 0 with why given and the lock given back
 EMBED_INLINE int cli_users_lock(const PurposeCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_users_lock);
     s_users = g_cli_cells->persistent_buf_alloc(sizeof(*s_users), &g_cli_code_cells);
     if (s_users == NULL)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_users_lock);
         mmgr_line_put(args->err_msg, "a search for users could not be taken");
         return 0;
     }
@@ -380,7 +369,6 @@ static void cli_users_release(void)
     EMBED_CALL(cli_files.let, CliFilesCfg, .files = s_users->files);
     g_cli_cells->persistent_buf_release(s_users, &g_cli_code_cells);
     s_users = NULL;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_users_lock);
 }
 
 int cli_purpose_users(const CliPurposeCfg *args)

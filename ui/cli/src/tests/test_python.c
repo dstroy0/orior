@@ -11,8 +11,6 @@ int cli_test_python(const CliTestRunsCfg *args)
 {
     static CliTreeEnvironment s_environment;
     static CliFound s_found;
-    static CliLock s_python_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_python_lock);
     int found = EMBED_CALL(cli_toolchains_table.environment, CliToolchainsCfg, .environment_out = &s_environment) &&
                 s_environment.has_python;
     if (found)
@@ -55,15 +53,12 @@ int cli_test_python(const CliTestRunsCfg *args)
         break;
     }
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_python_lock);
     return found;
 }
 
 int cli_test_has_pytest(const CliTestRunsPythonCtx *args)
 {
     static char s_path[CLI_PATH_TEXT];
-    static CliLock s_path_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_path_lock);
     EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = s_path, .size = sizeof(s_path));
     const CliSetting settings[1] = {{"PATH", s_path}};
     const char *const words[4] = {args->python, "-c", "import pytest", NULL};
@@ -74,7 +69,6 @@ int cli_test_has_pytest(const CliTestRunsPythonCtx *args)
                                .settings = settings, .count = 1u, .ran = ran, .err_msg = &err_msg) &&
                     (ran->code == 0ll);
     EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_path_lock);
     return has;
 }
 
@@ -345,10 +339,8 @@ static void python_worker(void *context)
     EMBED_CALL(cli_test_runs_text_worker_internal.test_file_let_go, CliTestRunsTextWorkerCtx, .text = errors,
                .size = errors_size);
     CliTestRun *const run = worker->run;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &run->lock);
     run->going -= 1u;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &run->wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &run->lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &run->wake);
 }
 
 // a file of the run's folder named for a share into `path`, sized for CLI_PATH_MAX_LEN
@@ -449,21 +441,17 @@ int cli_python_workers_start(const CliTestRunsRunCtx *args)
         worker->seen_count = 0u;
         worker->named = run->share_from[share];
         worker->named_count = run->share_size[share];
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_test_lock);
         const int started =
             EMBED_CALL(cli_words_err_msg_internal.spawn_as, CliWordsErrMsgCtx, .priority = CLI_PRIORITY_GUEST,
                        .spawned = &worker->spawned, .words = s_words.word, .folder = run->root, .settings = settings,
                        .count = 2u, .detached = 1, .err_msg = args->err_msg);
         run->worker_count += started ? 1u : 0u;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_test_lock);
         if (!started)
         {
             return 0;
         }
         EMBED_CALL(cli_test_runs_worker_line_internal.test_errors_start, CliTestRunsWorkerLineCtx, .worker = worker);
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &run->lock);
         run->going += 1u;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &run->lock);
         worker->thread = (CliThread){python_worker, worker, CLI_PRIORITY_GUEST};
         if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &worker->thread))
         {

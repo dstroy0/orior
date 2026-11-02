@@ -45,8 +45,6 @@ EMBED_INLINE int cli_tool_run(const ContainersCtx *args)
     CliRan *ran = args->ran;
     VerbaLinea *err_msg = args->err_msg;
     static CliWords s_words;
-    static CliLock g_cli_containers_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_containers_lock);
     s_words.count = 0u;
     s_words.used = 0u;
     s_words.full = 0;
@@ -68,7 +66,6 @@ EMBED_INLINE int cli_tool_run(const ContainersCtx *args)
     const int started =
         !s_words.full && EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = s_words.word, .folder = NULL,
                                     .settings = NULL, .count = 0u, .ran = ran, .err_msg = &unstarted);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_containers_lock);
     if (!started)
     {
         mmgr_line_put(err_msg, args->program);
@@ -128,17 +125,14 @@ int cli_containers_tool(const CliContainersVariableCtx *args)
 }
 
 CliContainers g_cli_containers;
-static CliLock s_containers_lock = CLI_LOCK_INIT;
 
 int cli_containers_lock(const CliContainersCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_containers_lock);
     const unsigned long long items = (unsigned long long)args->most * sizeof(CliContainer);
     const unsigned long long orders = (unsigned long long)args->most * sizeof(unsigned int);
     char *const cell = g_cli_cells->persistent_buf_alloc(items + orders + args->text_most + 1ull, &g_cli_deploy_cells);
     if (cell == NULL)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_containers_lock);
         static const char s_untaken[] = "a listing of containers could not be taken";
         mmgr_line_put(args->out, "{\"items\":[");
         EMBED_CALL(cli_containers_out_listed_internal.problem_write, CliContainersOutListedCtx, .out = args->out,
@@ -160,7 +154,6 @@ void cli_containers_release(void)
 {
     g_cli_cells->persistent_buf_release(g_cli_containers.item, &g_cli_deploy_cells);
     g_cli_containers = (CliContainers){NULL, NULL, 0u, 0u, NULL, 0ull, 0ull};
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_containers_lock);
 }
 
 // `length` bytes put in the texts, a 0 after them: their place, 0 where they do not fit, an empty text there

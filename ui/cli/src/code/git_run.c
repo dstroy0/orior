@@ -17,7 +17,6 @@
 // its cell
 typedef struct
 {
-    CliLock lock;
     CliWake wake;
     unsigned int ended;
     char err[CLI_GIT_ERR];
@@ -85,9 +84,7 @@ CliGitGave *cli_git_take(void)
         return &s_refused;
     }
     char *const out = (char *)(void *)(room + 1);
-    const CliLock lock = CLI_LOCK_INIT;
     const CliWake wake = CLI_WAKE_INIT;
-    room->lock = lock;
     room->wake = wake;
     out[0] = '\0';
     room->err[0] = '\0';
@@ -117,10 +114,8 @@ void cli_git_free(const CliGitGaveCtx *args)
 // a thread of a run ended, reported to the run
 EMBED_INLINE void cli_end(const GitRunCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->room->lock);
     args->room->ended += 1u;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &args->room->wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->room->lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &args->room->wake);
 }
 
 // what git reports went wrong read until it ends, the bytes past the room read and let go
@@ -248,12 +243,10 @@ int cli_git_gave(const CliGitGaveCtx *args)
     {
         cli_errors_read(room);
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &room->lock);
     while (room->ended < ending)
     {
-        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &room->wake, .lock = &room->lock);
+        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &room->wake);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &room->lock);
     args->gave->ok = EMBED_CALL(cli_spawned_internal.spawn_wait, CliSpawnedCtx, .spawned = &room->spawned) == 0ll;
     EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &room->spawned);
     return 1;

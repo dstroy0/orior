@@ -100,7 +100,6 @@ const MinimumSecurityGuard *const g_cli_cells = &cli_cells_site.cli_cells_pool;
 ParsMemoriaeInternae(cli_cells_movable,
                      MMGR_MOVABLE_STORAGE_BYTES(CLI_CELLS_MOVABLE, CELLS_WIDTH_MOST, CELLS_TOUCH_ROWS));
 static CliThread s_mover;
-static CliLock s_mover_lock = CLI_LOCK_INIT;
 static CliWake s_mover_wake = CLI_WAKE_INIT;
 
 static embed_bool cells_mover_started(void (*run)(void *context), void *context)
@@ -113,10 +112,8 @@ static embed_bool cells_mover_started(void (*run)(void *context), void *context)
 
 static embed_bool cells_mover_waited(uint32_t milliseconds)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_mover_lock);
-    (void)EMBED_CALL(cli_lock_internal.wake_wait_for, CliLockCtx, .wake = &s_mover_wake, .lock = &s_mover_lock,
+    (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &s_mover_wake,
                      .milliseconds_u64 = milliseconds);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_mover_lock);
     return EMBED_TRUE;
 }
 

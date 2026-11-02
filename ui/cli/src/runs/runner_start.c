@@ -90,7 +90,6 @@ int cli_runs_start(const CliRunnerErrMsgCfg *args)
     {
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_runs_lock);
     // every step that runs made once now: a step that cannot be made refuses the run before it starts
     const CliJob *const job_at = &args->catalog->job[args->job];
     for (unsigned int at = 0u; at < job_at->steps; at += 1u)
@@ -104,7 +103,6 @@ int cli_runs_start(const CliRunnerErrMsgCfg *args)
                         .catalog = args->catalog, .step = step, .values = args->values, .command = &s_checked,
                         .shown = &shown, .err_msg = args->err_msg))
         {
-            EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_runs_lock);
             return 0;
         }
     }
@@ -115,14 +113,12 @@ int cli_runs_start(const CliRunnerErrMsgCfg *args)
     }
     if (run == NULL)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_runs_lock);
         mmgr_line_put(args->err_msg, "more runs go at once than orior_cli supports");
         return 0;
     }
     if (!EMBED_CALL(cli_runner_run_internal.run_cells_take, CliRunnerRunCtx, .run = run, .catalog = args->catalog,
                     .job = args->job, .err_msg = args->err_msg))
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_runs_lock);
         return 0;
     }
     memor.cpy(&(MemoriaCfg){.dst = run->values, .src = args->values, .bytes = sizeof(*args->values)});
@@ -141,7 +137,6 @@ int cli_runs_start(const CliRunnerErrMsgCfg *args)
     run->lines->used = 0u;
     run->has_first = 0;
     run->began = cli_clock_milliseconds();
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_runs_lock);
     // the run's start reported before any line of it, so that a reader knows the run and its job first
     const CliRunEvent start = {CLI_RUN_EVENT_START,
                                run->run,
@@ -169,7 +164,6 @@ int cli_runs_start(const CliRunnerErrMsgCfg *args)
 
 void cli_runs_wait(const CliRunnerErrMsgRunNumberCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_runs_lock);
     for (;;)
     {
         int going = 0;
@@ -181,14 +175,12 @@ void cli_runs_wait(const CliRunnerErrMsgRunNumberCfg *args)
         {
             break;
         }
-        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &g_cli_runs_wake, .lock = &g_cli_runs_lock);
+        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &g_cli_runs_wake);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_runs_lock);
 }
 
 int cli_runs_stop(const CliRunnerErrMsgRunNumberCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_runs_lock);
     unsigned long long process = 0ull;
     unsigned long long group = 0ull;
     for (unsigned int at = 0u; at < CLI_RUNS_MOST; at += 1u)
@@ -201,7 +193,6 @@ int cli_runs_stop(const CliRunnerErrMsgRunNumberCfg *args)
         }
     }
     EMBED_CALL(cli_group_internal.spawn_group_end, CliGroupCtx, .group = group);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_runs_lock);
     if (process != 0ull)
     {
         EMBED_CALL(cli_id_internal.spawn_tree_end, CliIdCtx, .id_u64 = process);

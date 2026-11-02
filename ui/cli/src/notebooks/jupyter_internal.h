@@ -89,8 +89,6 @@ struct CliKernel
     CliSocket shell;
     CliSocket control;
     CliSocket iopub;
-    CliLock shell_lock;
-    CliLock control_lock;
     char shell_flight[CLI_KERNEL_ID];
     VerbaLinea shell_queue;
     unsigned long long shell_queue_from;
@@ -99,16 +97,13 @@ struct CliKernel
     char connection[CLI_PATH_MAX_LEN];
     CliKernelWaiter waiters[CLI_KERNEL_WAITERS];
     unsigned int reading;
-    CliLock lock;
     CliWake wake;
-    CliLock debug_lock;
     unsigned int debug_port;
     int listening;
     unsigned long long interrupt_event;
     CliKernelRecvFn recv;
     void *context;
     char content[CLI_KERNEL_CONTENT];
-    CliLock content_lock;
     char debug_reply[CLI_KERNEL_REPLY_ROOM];
     CliKernelReader readers[CLI_KERNEL_READERS];
     unsigned char iopub_room[CLI_KERNEL_IOPUB_ROOM];
@@ -120,7 +115,6 @@ struct CliKernel
 
 // the lock a kernel's references are counted under; each kernel is a cell of its own, taken as it starts and given back
 // as it is let go (jupyter.c)
-extern CliLock g_cli_kernels_lock;
 
 // a text of a spec by its place, "" for none (jupyter_specs.c)
 const char *cli_kernel_text(const CliJupyterSpecCtx *args);
@@ -169,7 +163,6 @@ struct CliJupyterKernelCtx
 {
     CliKernel *kernel;
     const CliSocket *socket;
-    CliLock *lock;
     const char *id_read;
     const char *msg_type;
     const char *content;

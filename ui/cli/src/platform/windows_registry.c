@@ -25,7 +25,6 @@ typedef struct
 EMBED_INLINE int cli_read(const WindowsRegistryCtx *args)
 {
     static wchar_t s_data[CLI_REGISTRY_UNITS];
-    static CliLock s_lock = CLI_LOCK_INIT;
     wchar_t wide_name[CLI_NAME_MAX_LEN];
     if (MultiByteToWideChar(CP_UTF8, 0, args->name, -1, wide_name, CLI_NAME_MAX_LEN) == 0)
     {
@@ -36,20 +35,17 @@ EMBED_INLINE int cli_read(const WindowsRegistryCtx *args)
     {
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     DWORD kind = 0u;
     DWORD size = sizeof(s_data) - sizeof(wchar_t);
     const LONG status = RegQueryValueExW(opened, wide_name, NULL, &kind, (LPBYTE)s_data, &size);
     RegCloseKey(opened);
     if ((status != ERROR_SUCCESS) || ((kind != REG_SZ) && (kind != REG_EXPAND_SZ)))
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return 0;
     }
     s_data[size / sizeof(wchar_t)] = L'\0';
     // the room is far below what an int counts
     const int written = WideCharToMultiByte(CP_UTF8, 0u, s_data, -1, args->out, (int)args->room, NULL, NULL);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return written > 0;
 }
 
@@ -108,15 +104,12 @@ void cli_registry_expand(const CliOutCtx *args)
 {
     static wchar_t s_source[CLI_REGISTRY_UNITS];
     static wchar_t s_expanded[CLI_REGISTRY_UNITS];
-    static CliLock s_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int read = MultiByteToWideChar(CP_UTF8, 0, args->text, -1, s_source, CLI_REGISTRY_UNITS);
     const DWORD written = (read != 0) ? ExpandEnvironmentStringsW(s_source, s_expanded, CLI_REGISTRY_UNITS) : 0u;
     // the room is far below what an int counts
     const int converted = ((written != 0u) && (written <= CLI_REGISTRY_UNITS))
                               ? WideCharToMultiByte(CP_UTF8, 0u, s_expanded, -1, args->out, (int)args->room, NULL, NULL)
                               : 0;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     if (converted == 0)
     {
         memor.cpy(

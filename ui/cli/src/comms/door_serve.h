@@ -29,13 +29,11 @@ typedef struct
     int has_peer;
     unsigned int peer;
     char key[CLI_COMMS_KEY];
-    CliLock output;
     char frame[CLI_DOOR_FRAME];
     char body[CLI_DOOR_FRAME];
     CliDoorEntry entries[CLI_DOOR_ENTRIES];
     unsigned int first;
     unsigned int queued;
-    CliLock queue_lock;
     CliWake queue_wake;
     int reading;
     unsigned int listeners[CLI_DOOR_LISTENS];
@@ -52,7 +50,6 @@ typedef struct
     char address[CLI_PATH_MAX_LEN];
     CliThread accepter;
     CliDoorJoined *joined[CLI_DOOR_JOINED];
-    CliLock lock;
 } CliDoorServed;
 
 // the door's container side, and the cells its places and the processes it lists occupy

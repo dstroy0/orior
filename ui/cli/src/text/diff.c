@@ -51,7 +51,6 @@ typedef struct
 
 static CliDiff s_room;
 static CliDiff *s_diff = &s_room;
-static CliLock s_lock = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -91,7 +90,6 @@ EMBED_INLINE void *diff_part(const DiffCtx *args)
 // where the cells cannot meet it; and the room given back with the lock
 EMBED_INLINE int diff_reserve(const DiffCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const unsigned long long both = args->then_lines + args->now_lines + 1ull;
     const unsigned long long most =
         (both < (unsigned long long)CLI_MOST_EDITS) ? both : (unsigned long long)CLI_MOST_EDITS;
@@ -102,7 +100,6 @@ EMBED_INLINE int diff_reserve(const DiffCtx *args)
     s_diff->cell = g_cli_cells->persistent_buf_alloc(bytes, &g_cli_text_cells);
     if (s_diff->cell == NULL)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return 0;
     }
     unsigned long long at = 0ull;
@@ -124,7 +121,6 @@ static void diff_release(void)
     g_cli_cells->persistent_buf_release(s_diff->trace, &g_cli_text_cells);
     g_cli_cells->persistent_buf_release(s_diff->cell, &g_cli_text_cells);
     memor.set(&(MemoriaCfg){.dst = s_diff, .val = 0, .bytes = sizeof(*s_diff)});
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 // whether the trace, taken at the rounds the texts can take, has room for round `round`

@@ -13,7 +13,6 @@
 #define CLI_REQUESTS_LINES (1u << 18u)
 #define CLI_REQUESTS_POOL_MORE 64ull
 
-CliLock g_cli_requests_lock = CLI_LOCK_INIT;
 CliRequestsParsed g_cli_requests_parsed;
 
 // where each line of the file being read starts and ends, cells of its count of lines allocated while it is read

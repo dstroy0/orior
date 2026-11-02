@@ -206,7 +206,6 @@ typedef struct
 } CliRequestsRoom;
 
 // the lock a file of requests is read under, and the file read under it (requests_parse.c)
-extern CliLock g_cli_requests_lock;
 extern CliRequestsParsed g_cli_requests_parsed;
 
 // a file of requests read into `parsed`, what it contained before given back, the lock above acquired: 1, or 0 where it

@@ -371,7 +371,6 @@ int cli_sea_build(const CliSeaNodeCfg *args)
 {
     static char s_wanted[CLI_SEA_WANTED][CLI_NAME_MAX_LEN];
     static char s_config_text[CLI_PATH_MAX_LEN * 4u];
-    static CliLock s_lock = CLI_LOCK_INIT;
     unsigned long long script_size = 0ull;
     // the script read as its text, the zero of the slack after it
     const unsigned char *const mapped = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = args->main,
@@ -382,7 +381,6 @@ int cli_sea_build(const CliSeaNodeCfg *args)
         return EMBED_CALL(cli_fail, SeaBuildCtx, .path = args->main, .how = ": it could not be read",
                           .err_msg = args->err_msg);
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const unsigned int wanted = EMBED_CALL(cli_sea_table.outside, CliSeaCfg, .text = (const char *)mapped,
                                            .found = s_wanted, .room = CLI_SEA_WANTED);
     EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = mapped, .owner = &g_cli_sea_cells);
@@ -398,7 +396,6 @@ int cli_sea_build(const CliSeaNodeCfg *args)
         mmgr_line_put(args->err_msg,
                       ", which a single executable of Node's does not contain: it loads Node's own modules alone; "
                       "Bun or Deno bundles them in");
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return 0;
     }
     memor.cpy(&(MemoriaCfg){.dst = args->made,
@@ -420,7 +417,6 @@ int cli_sea_build(const CliSeaNodeCfg *args)
     if (EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->made, .out = folder) &&
         !EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = folder))
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return EMBED_CALL(cli_fail, SeaBuildCtx, .path = folder, .how = ": it could not be made",
                           .err_msg = args->err_msg);
     }
@@ -429,7 +425,6 @@ int cli_sea_build(const CliSeaNodeCfg *args)
     if (!EMBED_CALL(cli_version, SeaBuildCtx, .node = args->node, .major = &major, .minor = &minor,
                     .err_msg = args->err_msg))
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return 0;
     }
     const char *const format = args->module ? "module" : "commonjs";
@@ -450,7 +445,6 @@ int cli_sea_build(const CliSeaNodeCfg *args)
         mmgr_line_ch(args->err_msg, '.');
         mmgr_line_decimal(args->err_msg, minor, 1u);
         mmgr_line_put(args->err_msg, " makes no single executable: Node 20 is the first that does");
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return 0;
     }
 #if defined(__APPLE__)
@@ -461,7 +455,6 @@ int cli_sea_build(const CliSeaNodeCfg *args)
         mmgr_line_ch(args->err_msg, '.');
         mmgr_line_decimal(args->err_msg, minor, 1u);
         mmgr_line_put(args->err_msg, " needs postject to add the blob; Node 25.5 builds it itself, with --build-sea");
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return 0;
     }
 #endif
@@ -482,7 +475,6 @@ int cli_sea_build(const CliSeaNodeCfg *args)
     if (!mmgr_line_ok(&text) || !EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx,
                                             .path = config, .bytes = s_config_text, .size = text.at))
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return EMBED_CALL(cli_fail, SeaBuildCtx, .path = config, .how = ": it could not be written",
                           .err_msg = args->err_msg);
     }
@@ -490,12 +482,10 @@ int cli_sea_build(const CliSeaNodeCfg *args)
     if (!EMBED_CALL(cli_node_run, SeaBuildCtx, .node = args->node, .request = arguments, .count = 2u,
                     .sink = args->sink, .err_msg = args->err_msg))
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return 0;
     }
     if (builds_itself)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return 1;
     }
     unsigned long long data_size = 0ull;
@@ -503,7 +493,6 @@ int cli_sea_build(const CliSeaNodeCfg *args)
                                                  .size_pointer = &data_size, .owner = &g_cli_sea_cells);
     if (data == NULL)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return EMBED_CALL(cli_fail, SeaBuildCtx, .path = blob, .how = ": it could not be read",
                           .err_msg = args->err_msg);
     }
@@ -539,6 +528,5 @@ int cli_sea_build(const CliSeaNodeCfg *args)
     {
         EMBED_CALL(cli_print, SeaBuildCtx, .sink = args->sink, .text = "turned the fuse to 1");
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return done;
 }

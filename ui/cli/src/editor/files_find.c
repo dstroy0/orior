@@ -159,8 +159,6 @@ int cli_search_by_git(const CliFilesRootCtx *args)
     static const char *const s_args[7] = {"grep", "-n", "--column", "-I", "--no-color", "--untracked", "--full-name"};
     static const char *s_words[CLI_WORDS_MOST + 24u];
     static char s_prefix[CLI_PATH_MAX_LEN];
-    static CliLock s_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     EMBED_CALL(cli_prefix, FilesFindCtx, .root = args->root, .prefix = s_prefix);
     unsigned int count = 0u;
     s_words[count] = "git";
@@ -226,7 +224,6 @@ int cli_search_by_git(const CliFilesRootCtx *args)
         came = CLI_GIT_SEARCH_FAILED;
     }
     EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return came;
 }
 
@@ -309,8 +306,6 @@ EMBED_INLINE void cli_finding_words(const FilesFindCtx *args)
 void cli_files_find(const CliFilesRootOutErrMsgCfg *args)
 {
     const char *root = args->root;
-    static CliLock s_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     EMBED_CALL(cli_finding_words, FilesFindCtx, .query = args->query);
     EMBED_CALL(cli_patterns_part.get, CliPatternsPartCfg, .part = CLI_PART_EXPLORER,
                .patterns_out = &s_finding.patterns);
@@ -321,7 +316,6 @@ void cli_files_find(const CliFilesRootOutErrMsgCfg *args)
     if (s_finding.found == NULL)
     {
         mmgr_line_ch(args->out, ']');
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return;
     }
     EMBED_CALL(cli_symbols_context.tree_list, CliSymbolsContextCfg, .root = root);
@@ -371,5 +365,4 @@ void cli_files_find(const CliFilesRootOutErrMsgCfg *args)
     }
     mmgr_line_ch(args->out, ']');
     cli_finding_free();
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }

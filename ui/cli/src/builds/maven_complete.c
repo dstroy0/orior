@@ -16,7 +16,6 @@
 
 static CliXml s_xml;
 static CliMavenModel s_model;
-static CliLock s_complete_lock = CLI_LOCK_INIT;
 
 // the properties Maven gives that a POM is offered
 static const char *const s_maven_given[6] = {
@@ -358,7 +357,6 @@ EMBED_INLINE int complete_values(const MavenCompleteCtx *args)
 
 void cli_maven_complete(const CliMavenTextSizeCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_complete_lock);
     const unsigned long long token = EMBED_CALL(cli_builds_text_at.build_run_before, CliBuildsTextAtCfg,
                                                 .text = args->text, .at = args->at_u64, .of = complete_name_letter);
     unsigned long long line_start = token;
@@ -435,5 +433,4 @@ void cli_maven_complete(const CliMavenTextSizeCtx *args)
         }
     }
     EMBED_CALL(cli_maven_xml_text_internal.xml_free, CliMavenXmlTextCtx, .xml_out = &s_xml);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_complete_lock);
 }

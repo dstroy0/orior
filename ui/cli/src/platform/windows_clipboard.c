@@ -31,13 +31,11 @@
 #define CLI_CLIPBOARD_PIECE 4096u
 
 // the lock a thread takes as it opens the clipboard and gives back as it closes it
-static CliLock s_clipboard_lock = CLI_LOCK_INIT;
 
 // the clipboard opened for this thread, the lock taken first, asked for again while another program holds it: 1, or
 // 0 with the lock given back where it stays locked
 static int clipboard_open(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_clipboard_lock);
     for (unsigned int asked = 0u; asked < CLI_CLIPBOARD_TRIES; asked += 1u)
     {
         if (OpenClipboard(NULL))
@@ -46,7 +44,6 @@ static int clipboard_open(void)
         }
         Sleep(CLI_CLIPBOARD_APART);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_clipboard_lock);
     return 0;
 }
 
@@ -54,7 +51,6 @@ static int clipboard_open(void)
 static void clipboard_close(void)
 {
     CloseClipboard();
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_clipboard_lock);
 }
 
 // the format a file manager says a cut or a copy in

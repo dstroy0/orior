@@ -19,8 +19,6 @@
 #define CLI_SERVE_TEXT_ROOM (64ull << 20u)
 #define CLI_SERVE_TEXT_MORE 64ull
 
-CliLock g_cli_serve_write_lock = CLI_LOCK_INIT;
-
 typedef struct
 {
     VerbaLinea *text;
@@ -324,7 +322,6 @@ int cli_serve_file_write(const CliServeErrMsgPathCtx *args)
     }
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = path, .joined = full);
     // the text the file contained is copied out before it is written over, as the write puts a new file in its place
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_serve_write_lock);
     unsigned long long old_size = 0ull;
     char *const was =
         EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = full, .size_pointer = &old_size)
@@ -338,7 +335,6 @@ int cli_serve_file_write(const CliServeErrMsgPathCtx *args)
                     .text = text, .length = length, .err_msg = err_msg))
     {
         g_cli_cells->persistent_buf_release(was, &g_cli_serve_files_cells);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_serve_write_lock);
         return 0;
     }
     char why[1024];
@@ -358,7 +354,6 @@ int cli_serve_file_write(const CliServeErrMsgPathCtx *args)
                    .length = mmgr_line_ok(&line) ? line.at : 0ull);
     }
     g_cli_cells->persistent_buf_release(was, &g_cli_serve_files_cells);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_serve_write_lock);
     return 1;
 }
 

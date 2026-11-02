@@ -27,7 +27,6 @@ typedef struct
 static CliQueued s_queue[CLI_BINARY_LIBRARIES];
 static char s_seen[CLI_BINARY_LIBRARIES][CLI_NAME_MAX_LEN];
 static char s_system_path[CLI_PATH_FOLDERS][CLI_PATH_MAX_LEN];
-static CliLock s_lock = CLI_LOCK_INIT;
 
 unsigned long long cli_binary_number(const CliBinaryBytesSizeCfg *args)
 {
@@ -449,7 +448,6 @@ int cli_binary_read(const CliBinaryPathOriorPathCfg *args)
         mmgr_line_put(err_msg, ": it could not be read");
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     int read = 0;
     if ((size >= 2u) && (bytes[0] == 'M') && (bytes[1] == 'Z'))
     {
@@ -476,7 +474,6 @@ int cli_binary_read(const CliBinaryPathOriorPathCfg *args)
         mmgr_line_put(err_msg, path);
         mmgr_line_put(err_msg, " is no program orior_cli reads");
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_programs_cells);
     return read;
 }

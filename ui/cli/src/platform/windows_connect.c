@@ -71,15 +71,12 @@ EMBED_INLINE SOCKET cli_connect_one(const WindowsConnectCtx *args)
 static int cli_connect_start(void)
 {
     static int s_started;
-    static CliLock s_start_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_start_lock);
     if (!s_started)
     {
         WSADATA data;
         s_started = (WSAStartup(MAKEWORD(2, 2), &data) == 0);
     }
     const int started = s_started;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_start_lock);
     return started;
 }
 

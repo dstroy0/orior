@@ -468,7 +468,6 @@ int cli_schema_matches(const CliSchemaTextCtx *args)
     static CliRegexpRoom s_room;
     static CliRegexpSpan s_groups[CLI_REGEXP_GROUPS + 1u];
     static char s_err_buf[512];
-    static CliLock s_matches_lock = CLI_LOCK_INIT;
     if (args->pattern_size >= CLI_SCHEMA_PATTERN)
     {
         return -1;
@@ -481,7 +480,6 @@ int cli_schema_matches(const CliSchemaTextCtx *args)
     int found = -1;
     if ((letters != NULL) && (source != NULL))
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_matches_lock);
         memor.cpy(&(MemoriaCfg){.dst = source, .src = args->pattern, .bytes = (size_t)args->pattern_size});
         source[args->pattern_size] = '\0';
         EMBED_CALL(cli_regexp_room.room, CliRegexpRoomCfg, .regexp_out = &s_regexp, .room = &s_room);
@@ -498,7 +496,6 @@ int cli_schema_matches(const CliSchemaTextCtx *args)
                                    .text_u32s = letters, .length = length, .at = at, .groups = s_groups);
             }
         }
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_matches_lock);
     }
     g_cli_cells->persistent_buf_release(source, &g_cli_schema_cells);
     g_cli_cells->persistent_buf_release(letters, &g_cli_schema_cells);

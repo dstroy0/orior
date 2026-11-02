@@ -6,7 +6,6 @@
 #include "format_internal.h"
 
 CliFormatRoom g_cli_format;
-CliLock g_cli_format_lock = CLI_LOCK_INIT;
 
 void cli_format_release(void)
 {
@@ -14,7 +13,6 @@ void cli_format_release(void)
     g_cli_cells->persistent_buf_release(g_cli_format.settings, &g_cli_toolchains_cells);
     g_cli_format.settings = NULL;
     g_cli_format.settings_size = 0ull;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_format_lock);
 }
 
 // A choice of a file's language: the extension in lower case, and the plugin chosen and where it came from
@@ -98,7 +96,6 @@ static void cli_plugin_each(const CliEachPluginCfg *args)
 
 int cli_format_language_get(const CliFormatCfg *args)
 {
-    static CliLock s_lock = CLI_LOCK_INIT;
     const char *name = args->path;
     const unsigned long long name_past =
         EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->path,
@@ -111,7 +108,6 @@ int cli_format_language_get(const CliFormatCfg *args)
     {
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     (void)EMBED_CALL(cli_text_out_room.lowered_into, CliTextOutRoomCfg, .out_room = s_choice.extension,
                      .room = CLI_NAME_MAX_LEN, .text = dot + 1);
     s_choice.chosen = 0;
@@ -124,13 +120,11 @@ int cli_format_language_get(const CliFormatCfg *args)
                           .src = s_choice.id,
                           .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_choice.id, .cap = CLI_CELLS_POOL}) + 1u});
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return chosen;
 }
 
 void cli_format_languages(const CliFormatPathCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_format_lock);
     const unsigned int manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
                                              .json_out = &g_cli_format.json, .nodes_more = 0u, .text_more = 0ull);
     mmgr_line_ch(args->out, '[');
@@ -235,7 +229,6 @@ unsigned int cli_format_tool(const CliFormatLanguageCtx *args)
 
 int cli_format_program_get(const CliFormatLanguageCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_format_lock);
     char why[CLI_NAME_MAX_LEN * 4u];
     VerbaLinea unknown = {why, sizeof(why), 0ull};
     const unsigned int tool = EMBED_CALL(cli_format_language_internal.tool, CliFormatLanguageCtx,
@@ -352,7 +345,6 @@ EMBED_INLINE const char *cli_word_fill(const FormatCtx *args)
 
 int cli_format(const CliFormatPathCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_format_lock);
     CliJson *const json = &g_cli_format.json;
     const unsigned int tool = EMBED_CALL(cli_format_language_internal.tool, CliFormatLanguageCtx,
                                          .language = args->language, .err_msg = args->err_msg);

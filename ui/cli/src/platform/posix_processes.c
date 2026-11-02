@@ -37,7 +37,6 @@ typedef struct
 
 static char s_name[CLI_PROCESS_TEXT];
 static char s_command[CLI_PROCESS_TEXT];
-static CliLock s_lock = CLI_LOCK_INIT;
 
 #if defined(__linux__)
 static char s_line[CLI_PROCESS_TEXT];
@@ -135,10 +134,8 @@ static void processes_entry(const CliEachNameIsFolderCfg *args)
 void cli_processes_each(const CliContextCtx *args)
 {
     CliProcessesRead read_list = {args->each_callback, args->context};
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     (void)EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = "/proc",
                      .each = processes_entry, .context_bytess = &read_list);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 #else
 void cli_processes_each(const CliContextCtx *args)
@@ -153,7 +150,6 @@ void cli_processes_each(const CliContextCtx *args)
         EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
         return;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     for (unsigned long long start = 0ull; start < ran->out_size;)
     {
         const unsigned long long end =
@@ -208,7 +204,6 @@ void cli_processes_each(const CliContextCtx *args)
         }
         start = end + 1ull;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     EMBED_CALL(cli_words_internal.ran_free, CliWordsCtx, .ran = ran);
 }
 #endif
@@ -268,7 +263,6 @@ EMBED_INLINE int processes_proc_read(const PosixProcessesCtx *args)
 
 int cli_process_memory(const CliPidCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int read =
         EMBED_CALL(processes_proc_read, PosixProcessesCtx, .pid = args->pid, .file = "/smaps_rollup", .out = s_line) &&
         EMBED_CALL(processes_proc_read, PosixProcessesCtx, .pid = args->pid, .file = "/status", .out = s_command);
@@ -282,13 +276,11 @@ int cli_process_memory(const CliPidCtx *args)
             EMBED_CALL(processes_kilobytes, PosixProcessesCtx, .text = s_command, .field = "VmSwap:");
         args->memory->started = 0ull;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return read;
 }
 
 int cli_process_by_name(const CliRoomPidCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int read =
         EMBED_CALL(processes_proc_read, PosixProcessesCtx, .pid = args->pid, .file = "/comm", .out = s_name);
     unsigned long long end = cellul.len(&(CatenaFinitaCfg){.src = s_name, .cap = CLI_PROCESS_TEXT});
@@ -300,7 +292,6 @@ int cli_process_by_name(const CliRoomPidCtx *args)
     VerbaLinea written = {args->name_out, args->room_size, 0ull};
     mmgr_line_put_n(&written, s_name, end);
     (void)mmgr_line_finish(&written);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return read;
 }
 #elif defined(__APPLE__)

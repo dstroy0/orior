@@ -14,7 +14,6 @@
 
 // the check, under its lock, and the wake its threads wait on for a file
 static CliServersQueue s_queue;
-static CliLock s_queue_lock = CLI_LOCK_INIT;
 static CliWake s_queue_ready = CLI_WAKE_INIT;
 static CliThread s_checker[CLI_SERVERS_CHECKING];
 static unsigned int s_checker_index[CLI_SERVERS_CHECKING];
@@ -67,10 +66,9 @@ static void check_checker(void *context)
     static CliServersSink s_emit[CLI_SERVERS_CHECKING];
     for (;;)
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_queue_lock);
         while ((s_queue.count == 0u) || !s_queue.has_sink)
         {
-            EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_queue_ready, .lock = &s_queue_lock);
+            EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_queue_ready);
         }
         const CliServersQueued one = *EMBED_CALL(cli_servers_queue_at_internal.check_queued_at, CliServersQueueAtCtx,
                                                  .queue_read = &s_queue, .at = 0u);
@@ -82,17 +80,14 @@ static void check_checker(void *context)
         s_queue.count -= 1u;
         s_queue.used = (s_queue.count == 0u) ? 0ull : s_queue.used;
         s_emit[checker] = s_queue.sink;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_queue_lock);
         EMBED_CALL(cli_servers_path_sink_internal.check_one, CliServersPathSinkCtx, .checker = checker,
                    .path = s_path[checker], .one_servers_waiting_pointer = &waiting, .sink = &s_emit[checker]);
         EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = one.server);
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_queue_lock);
         s_queue.done += 1ull;
         const unsigned long long done = s_queue.done;
         const unsigned long long total = s_queue.total;
         const int has_sink = s_queue.has_sink;
         s_emit[checker] = s_queue.sink;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_queue_lock);
         if (has_sink)
         {
             EMBED_CALL(check_progress_emit, ServersCheckCtx, .sink = &s_emit[checker], .done = done, .total = total);
@@ -103,10 +98,8 @@ static void check_checker(void *context)
 // the threads that check the tree's files started, once
 static void check_checkers_start(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_queue_lock);
     const int started = s_queue.started;
     s_queue.started = 1;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_queue_lock);
     for (unsigned int at = 0u; !started && (at < CLI_SERVERS_CHECKING); at += 1u)
     {
         s_checker_index[at] = at;
@@ -118,11 +111,9 @@ static void check_checkers_start(void)
 unsigned int cli_servers_check_tree(const CliServersRootSinkCountCfg *args)
 {
     const CliServersSink *sink = args->sink;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_queue_lock);
     if (!EMBED_CALL(cli_servers_queue_files_internal.check_room_init, CliServersQueueFilesCtx, .queue = &s_queue,
                     .files = args->files, .count = args->count))
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_queue_lock);
         return 0u;
     }
     s_queue.on = 1;
@@ -135,7 +126,6 @@ unsigned int cli_servers_check_tree(const CliServersRootSinkCountCfg *args)
     s_queue.files_used = 0ull;
     EMBED_CALL(cli_servers_queue_files_internal.check_files_put, CliServersQueueFilesCtx, .queue = &s_queue,
                .files = args->files, .count = args->count);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_queue_lock);
     check_checkers_start();
     EMBED_CALL(cli_servers_files_internal.check_tree_with_checkers, CliServersFilesCtx, .root = args->root,
                .sink = sink);
@@ -147,14 +137,12 @@ unsigned int cli_servers_check_tree(const CliServersRootSinkCountCfg *args)
 
 void cli_servers_stop_check(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_queue_lock);
     check_queue_clear();
     s_queue.total = s_queue.done;
     const int has_sink = s_queue.has_sink;
     static CliServersSink s_emit;
     s_emit = s_queue.sink;
     const unsigned long long done = s_queue.done;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_queue_lock);
     if (has_sink)
     {
         EMBED_CALL(check_progress_emit, ServersCheckCtx, .sink = &s_emit, .done = done, .total = done);
@@ -163,17 +151,13 @@ void cli_servers_stop_check(void)
 
 int cli_servers_check_on(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_queue_lock);
     const int on = s_queue.on;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_queue_lock);
     return on;
 }
 
 int cli_servers_checking(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_queue_lock);
     const int checking = s_queue.on && (s_queue.done < s_queue.total);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_queue_lock);
     return checking;
 }
 
@@ -183,7 +167,6 @@ void cli_servers_check_set(const CliServersSinkCtx *args)
     const CliServersSink *sink = args->sink;
     unsigned long long done = args->done;
     unsigned long long total = args->total;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_queue_lock);
     s_queue.on = on;
     s_queue.has_sink = sink != NULL;
     if (sink != NULL)
@@ -192,7 +175,6 @@ void cli_servers_check_set(const CliServersSinkCtx *args)
     }
     s_queue.done = done;
     s_queue.total = total;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_queue_lock);
 }
 
 void cli_servers_check_count(const CliServersOnCtx *args)
@@ -201,18 +183,15 @@ void cli_servers_check_count(const CliServersOnCtx *args)
     unsigned int *waiting = args->waiting_u32s;
     unsigned long long *done = args->done_pointer;
     unsigned long long *total = args->total_pointer;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_queue_lock);
     *on = s_queue.on;
     *waiting = s_queue.count;
     *done = s_queue.done;
     *total = s_queue.total;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_queue_lock);
 }
 
 int cli_servers_check_takes(const CliServersPathLspCtx *args)
 {
     CliLsp *lsp = args->lsp;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_queue_lock);
     int took = s_queue.on;
     if (took)
     {
@@ -226,20 +205,18 @@ int cli_servers_check_takes(const CliServersPathLspCtx *args)
             EMBED_CALL(cli_servers_path_uri_internal.uri_get, CliServersPathUriCtx, .path = args->path, .uri_out = uri);
             EMBED_CALL(cli_servers_uri_internal.check_open_set, CliServersUriCtx, .uri = uri, .open = 1);
             s_queue.total += 1ull;
-            EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_queue_ready);
+            EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_queue_ready);
         }
         else
         {
             EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = lsp);
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_queue_lock);
     return took;
 }
 
 void cli_servers_check_let_go(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_queue_lock);
     check_queue_clear();
     s_queue.on = 0;
     s_queue.root[0] = '\0';
@@ -249,16 +226,12 @@ void cli_servers_check_let_go(void)
     s_queue.total = 0ull;
     s_queue.done = 0ull;
     EMBED_CALL(cli_servers_queue_files_internal.check_room_free, CliServersQueueFilesCtx, .queue = &s_queue);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_queue_lock);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_check_open_lock);
     cli_servers_check_open_clear();
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_check_open_lock);
 }
 
 char *cli_servers_check_tree_files(const CliServersRootSizeCtx *args)
 {
     unsigned long long *size = args->size_pointer;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_queue_lock);
     const int on = s_queue.on && (s_queue.files != NULL) &&
                    (cellul.eq(&(CatenaFinitaCfg){.src = s_queue.root, .other = args->root, .cap = CLI_CELLS_POOL}));
     // the queue's bytes hold every path it lists, each ended by a 0
@@ -271,7 +244,6 @@ char *cli_servers_check_tree_files(const CliServersRootSizeCtx *args)
         memor.cpy(&(MemoriaCfg){.dst = files + used, .src = file, .bytes = (size_t)length});
         used += length;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_queue_lock);
     *size = used;
     return files;
 }
@@ -279,7 +251,6 @@ char *cli_servers_check_tree_files(const CliServersRootSizeCtx *args)
 int cli_servers_check_files_change(const CliServersFilesCountCtx *args)
 {
     CliServersSink *sink = args->sink_out;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_queue_lock);
     const int on = s_queue.on && s_queue.has_sink && (s_queue.files != NULL) &&
                    (cellul.eq(&(CatenaFinitaCfg){.src = s_queue.root, .other = args->root, .cap = CLI_CELLS_POOL}));
     if (on)
@@ -323,13 +294,11 @@ int cli_servers_check_files_change(const CliServersFilesCountCtx *args)
         s_queue.files_used = used;
         *sink = s_queue.sink;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_queue_lock);
     return on;
 }
 
 unsigned int cli_servers_check_queue(const CliServersCountCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_queue_lock);
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         int queued = 0;
@@ -355,9 +324,8 @@ unsigned int cli_servers_check_queue(const CliServersCountCtx *args)
     const unsigned long long total = s_queue.total;
     if (!idle)
     {
-        EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_queue_ready);
+        EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_queue_ready);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_queue_lock);
     if (idle)
     {
         EMBED_CALL(check_progress_emit, ServersCheckCtx, .sink = args->sink, .done = done, .total = total);

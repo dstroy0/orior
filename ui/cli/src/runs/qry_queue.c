@@ -40,7 +40,6 @@ typedef struct
 _Static_assert(sizeof(CliQueued) == CLI_QUEUE_HEAD, "CliQueued must be the bytes an item's head takes");
 
 static CliChannel s_channels[CLI_CHANNELS];
-static CliLock s_lock = CLI_LOCK_INIT;
 static CliWake s_wake = CLI_WAKE_INIT;
 // what the queue has done: the records appended, those that found no run or no room, and what the last of those
 // reported
@@ -61,12 +60,11 @@ EMBED_INLINE unsigned char *cli_bytes(const QryQueueCtx *args)
 static void cli_channel_run(void *context)
 {
     CliChannel *const channel = (CliChannel *)context;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     for (;;)
     {
         while (channel->used == 0ull)
         {
-            EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_wake, .lock = &s_lock);
+            EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_wake);
         }
         unsigned char *const at = EMBED_CALL(cli_bytes, QryQueueCtx, .channel = channel) + channel->tail;
         const CliQueued *const item = (const CliQueued *)(const void *)at;
@@ -77,7 +75,6 @@ static void cli_channel_run(void *context)
             channel->tail = 0ull;
             continue;
         }
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         const char *const path = (const char *)(at + CLI_QUEUE_HEAD);
         const char *const name = path + item->path_length + 1u;
         const unsigned char *const bytes = (const unsigned char *)(name + item->name_length + 1u);
@@ -86,7 +83,6 @@ static void cli_channel_run(void *context)
         const int done = EMBED_CALL(cli_qry_path.append, CliQryPathCfg, .path = path, .name = name, .bytes = bytes,
                                     .size = item->size, .priority = item->priority, .err_msg = &err_msg);
         mmgr_line_finish(&err_msg);
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
         s_handed += done ? 1ull : 0ull;
         s_failed += done ? 0ull : 1ull;
         if (!done)
@@ -98,7 +94,7 @@ static void cli_channel_run(void *context)
         channel->tail += item->total;
         channel->used -= item->total;
         channel->tail = (channel->tail == CLI_QUEUE_BYTES) ? 0ull : channel->tail;
-        EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_wake);
+        EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_wake);
     }
 }
 
@@ -112,17 +108,14 @@ void cli_qry_queue(const CliQryPathNameCfg *args)
     const unsigned long long name_length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
     const unsigned long long need =
         (CLI_QUEUE_HEAD + path_length + 1ull + name_length + 1ull + args->size + 7ull) & ~7ull;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     if (need > (CLI_QUEUE_BYTES / 2u))
     {
         // a record too large for the ring, a whole file as a rule, is appended as it is queued
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         char why[CLI_ERR_MSG_MAX_LEN];
         VerbaLinea err_msg = {why, sizeof(why), 0ull};
         const int done = EMBED_CALL(cli_qry_path.append, CliQryPathCfg, .path = args->path, .name = args->name,
                                     .bytes = bytes, .size = args->size, .priority = priority, .err_msg = &err_msg);
         mmgr_line_finish(&err_msg);
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
         s_handed += done ? 1ull : 0ull;
         s_failed += done ? 0ull : 1ull;
         if (!done)
@@ -131,7 +124,6 @@ void cli_qry_queue(const CliQryPathNameCfg *args)
                                     .src = why,
                                     .bytes = cellul.len(&(CatenaFinitaCfg){.src = why, .cap = CLI_CELLS_POOL}) + 1u});
         }
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return;
     }
     channel->ring = (channel->ring != NULL) ? channel->ring
@@ -144,7 +136,6 @@ void cli_qry_queue(const CliQryPathNameCfg *args)
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = "no ring could be taken for the channel",
                                                                        .cap = CLI_CELLS_POOL}) +
                                          1u});
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return;
     }
     if (!channel->started)
@@ -162,7 +153,7 @@ void cli_qry_queue(const CliQryPathNameCfg *args)
         {
             break;
         }
-        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_wake, .lock = &s_lock);
+        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_wake);
     }
     const unsigned long long end_room = CLI_QUEUE_BYTES - channel->head;
     if (end_room < need)
@@ -188,13 +179,11 @@ void cli_qry_queue(const CliQryPathNameCfg *args)
     channel->head += need;
     channel->head = (channel->head == CLI_QUEUE_BYTES) ? 0ull : channel->head;
     channel->used += need;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_wake);
 }
 
 void cli_qry_on_queue(const CliQryOutRootCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     mmgr_line_put(args->out, "{\"handed\":");
     mmgr_line_decimal(args->out, s_handed, 1u);
     mmgr_line_put(args->out, ",\"dumped\":0,\"failed\":");
@@ -203,5 +192,4 @@ void cli_qry_on_queue(const CliQryOutRootCfg *args)
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->out, .text = s_last_err,
                .length = cellul.len(&(CatenaFinitaCfg){.src = s_last_err, .cap = CLI_CELLS_POOL}));
     mmgr_line_ch(args->out, '}');
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }

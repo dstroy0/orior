@@ -139,7 +139,6 @@ int cli_members_get(const CliArchiveBytesSizeErrMsgCtx *args)
     unsigned long long *unpacked_size = args->unpacked_size;
     VerbaLinea *err_msg = args->err_msg;
     static char s_names[CLI_QRY_NAMES][CLI_NAME_MAX_LEN];
-    static CliLock s_lock = CLI_LOCK_INIT;
     args->members->count = 0u;
     args->members->used = 1ull;
     args->members->text[0] = '\0';
@@ -189,7 +188,6 @@ int cli_members_get(const CliArchiveBytesSizeErrMsgCtx *args)
         return 1;
     }
     // each name's blobs joined, the name a member of its own
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const unsigned int count = EMBED_CALL(cli_qry_data.member_names, CliQryDataCfg, .data = bytes, .size = size,
                                           .names = s_names, .room = CLI_QRY_NAMES);
     for (unsigned int at = 0u; at < count; at += 1u)
@@ -201,7 +199,6 @@ int cli_members_get(const CliArchiveBytesSizeErrMsgCtx *args)
                                   .length = cellul.len(&(CatenaFinitaCfg){.src = s_names[at], .cap = CLI_CELLS_POOL})),
                    .raw = 0u, .has_raw = 0, .dir = 0, .size = 0ull, .at = 0ull);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return 1;
 }
 

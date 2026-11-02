@@ -10,7 +10,6 @@
 
 #include "../text/text.h"
 
-CliLock g_cli_test_lock = CLI_LOCK_INIT;
 int g_cli_test_stopped;
 
 static CliTestRun *s_runs[CLI_TEST_RUNS];
@@ -21,15 +20,12 @@ static unsigned long long s_scratch;
 
 int cli_test_stop(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_test_lock);
     const int stopped = g_cli_test_stopped;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_test_lock);
     return stopped;
 }
 
 const char *cli_test_put(const CliTestRunsRunTextCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->run->lock);
     const char *put = "";
     if (args->run->used + args->length + 1ull <= CLI_TEST_TEXT)
     {
@@ -39,13 +35,11 @@ const char *cli_test_put(const CliTestRunsRunTextCtx *args)
         args->run->used += args->length + 1ull;
         put = at;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->run->lock);
     return put;
 }
 
 void cli_test_outcome_count(const CliTestRunsRunLengthCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->run->lock);
     args->run->passed +=
         (cellul.eq(&(CatenaFinitaCfg){.src = args->outcome, .other = "passed", .cap = CLI_CELLS_POOL})) ? 1ull : 0ull;
     args->run->failed +=
@@ -55,19 +49,16 @@ void cli_test_outcome_count(const CliTestRunsRunLengthCtx *args)
          (!cellul.eq(&(CatenaFinitaCfg){.src = args->outcome, .other = "failed", .cap = CLI_CELLS_POOL})))
             ? 1ull
             : 0ull;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->run->lock);
 }
 
 void cli_test_message_set(const CliTestRunsRunTextCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->run->lock);
     if (args->run->message[0] == '\0')
     {
         VerbaLinea line = {args->run->message, sizeof(args->run->message), 0ull};
         mmgr_line_put_n(&line, args->text, args->length);
         mmgr_line_finish(&line);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->run->lock);
 }
 
 typedef struct
@@ -112,7 +103,6 @@ EMBED_INLINE unsigned int test_seen_place(const TestRunsCtx *args)
 
 int cli_test_visit(const CliTestRunsRunLengthCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->run->lock);
     const unsigned int place = EMBED_CALL(test_seen_place, TestRunsCtx, .run = args->run, .worker = args->worker_u32,
                                           .name = args->name, .length = args->length);
     int fresh = 0;
@@ -129,26 +119,21 @@ int cli_test_visit(const CliTestRunsRunLengthCtx *args)
         args->run->workers[args->worker_u32].seen_count += 1u;
         fresh = 1;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->run->lock);
     return fresh;
 }
 
 const char *cli_test_seen_outcome(const CliTestRunsRunLengthCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->run->lock);
     const unsigned int place = EMBED_CALL(test_seen_place, TestRunsCtx, .run = args->run, .worker = args->worker_u32,
                                           .name = args->name, .length = args->length);
     const char *const outcome =
         ((place < CLI_TEST_SEEN_MAX) && (args->run->seen_name[place] != 0ull)) ? args->run->seen_outcome[place] : NULL;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->run->lock);
     return outcome;
 }
 
 int cli_test_seen_any(const CliTestRunsRunLengthCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->run->lock);
     const int any = (args->run->workers[args->worker_u32].seen_count > 0u);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->run->lock);
     return any;
 }
 
@@ -202,14 +187,11 @@ void cli_test_result_emit(const CliTestRunsOutcomeCtx *args)
 static void test_end(void *context)
 {
     CliTestRun *const run = (CliTestRun *)context;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &run->lock);
     while (run->going > 0u)
     {
-        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &run->wake, .lock = &run->lock);
+        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &run->wake);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &run->lock);
     EMBED_CALL(cli_test_runs_run_text_internal.test_coverage_emit, CliTestRunsRunTextCtx, .run = run);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_test_lock);
     for (unsigned int at = 0u; at < run->worker_count; at += 1u)
     {
         CliTestWorker *const worker = &run->workers[at];
@@ -221,7 +203,6 @@ static void test_end(void *context)
     }
     const int stopped = g_cli_test_stopped;
     s_going = (s_going == run) ? NULL : s_going;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_test_lock);
     char done[CLI_TEST_MESSAGE_MAX_LEN + 512u];
     VerbaLinea out = {done, sizeof(done), 0ull};
     mmgr_line_put(&out, "{\"kind\":\"done\",\"run\":");
@@ -246,16 +227,13 @@ static void test_end(void *context)
     {
         (void)EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = run->scratch);
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_test_lock);
     s_runs[run->place] = NULL;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_runs_wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_test_lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_runs_wake);
     g_cli_cells->persistent_buf_release(run, &g_cli_tests_cells);
 }
 
 void cli_test_runs_stop(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_test_lock);
     g_cli_test_stopped = 1;
     CliTestRun *const run = s_going;
     for (unsigned int at = 0u; (run != NULL) && (at < run->worker_count); at += 1u)
@@ -266,14 +244,12 @@ void cli_test_runs_stop(void)
         }
     }
     s_going = NULL;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_test_lock);
 }
 
 // a place for a run taken once one is free, the run a cell given back as it ends, made empty, its number the next: it,
 // or NULL where no room for it is left
 static CliTestRun *test_run_take(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_test_lock);
     CliTestRun *run = NULL;
     unsigned int at = CLI_TEST_RUNS;
     while (at == CLI_TEST_RUNS)
@@ -285,13 +261,12 @@ static CliTestRun *test_run_take(void)
         }
         if (at == CLI_TEST_RUNS)
         {
-            EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_runs_wake, .lock = &g_cli_test_lock);
+            EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_runs_wake);
         }
     }
     run = g_cli_cells->persistent_buf_alloc(sizeof(CliTestRun), &g_cli_tests_cells);
     if (run == NULL)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_test_lock);
         return NULL;
     }
     run->place = at;
@@ -300,8 +275,6 @@ static CliTestRun *test_run_take(void)
     run->number = s_last;
     g_cli_test_stopped = 0;
     s_going = run;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_test_lock);
-    run->lock = (CliLock)CLI_LOCK_INIT;
     run->wake = (CliWake)CLI_WAKE_INIT;
     run->going = 0u;
     run->passed = 0ull;
@@ -438,10 +411,8 @@ int cli_test_runs_start(const CliTestRunsRootCfg *args)
     mmgr_line_put(&name_line, "orior-tests-");
     mmgr_line_decimal(&name_line, cli_process_own(), 1u);
     mmgr_line_ch(&name_line, '-');
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_test_lock);
     mmgr_line_decimal(&name_line, s_scratch, 1u);
     s_scratch += 1ull;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_test_lock);
     mmgr_line_finish(&name_line);
     EMBED_CALL(cli_folder_internal.temp_folder, CliFolderCtx, .folder_out = temporary);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = temporary, .relative = name, .joined = run->scratch);

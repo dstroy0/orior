@@ -37,7 +37,6 @@ typedef struct
 } CliPySearch;
 
 static CliPySearch s_search;
-static CliLock s_lock = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -208,7 +207,6 @@ EMBED_INLINE void cli_script_read(const PythonPathsSearchCtx *args)
 unsigned int cli_python_paths(const CliPythonPathsCfg *args)
 {
     const char *root = args->root;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int fresh = s_search.has_counts &&
                       (cellul.eq(&(CatenaFinitaCfg){.src = s_search.root, .other = root, .cap = CLI_CELLS_POOL})) &&
                       ((cli_clock_milliseconds() - s_search.at) < CLI_PY_FRESH_FOR);
@@ -260,6 +258,5 @@ unsigned int cli_python_paths(const CliPythonPathsCfg *args)
     {
         EMBED_CALL(args->each, CliEachPathCfg, .context = args->context, .path = s_search.counted[at].path);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return count;
 }

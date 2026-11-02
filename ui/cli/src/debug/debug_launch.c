@@ -29,9 +29,7 @@ typedef struct
 EMBED_INLINE void launch_place_free(const DebugLaunchCtx *args)
 {
     CliDebugSession *place = args->place;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
     EMBED_CALL(cli_debug_internal.place_free, CliDebugCtx, .place = place);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
 }
 
 // the adapter started as the plan specifies: run in orior_cli for a recorded run, connected to where a debugger already
@@ -297,14 +295,12 @@ EMBED_INLINE int launch_initialized_within(const DebugLaunchCtx *args)
 {
     unsigned long long milliseconds = args->milliseconds;
     const unsigned long long until = cli_clock_milliseconds() + milliseconds;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
     while (!args->place->initialized && (cli_clock_milliseconds() < until))
     {
-        (void)EMBED_CALL(cli_lock_internal.wake_wait_for, CliLockCtx, .wake = &g_cli_debug.wake,
-                         .lock = &g_cli_debug.lock, .milliseconds_u64 = until - cli_clock_milliseconds());
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &g_cli_debug.wake,
+                         .milliseconds_u64 = until - cli_clock_milliseconds());
     }
     const int initialized = args->place->initialized;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
     return initialized;
 }
 
@@ -326,11 +322,9 @@ int cli_debug_start(const CliDebugRootCfg *args)
         EMBED_CALL(launch_place_free, DebugLaunchCtx, .place = place);
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
     g_cli_debug.next += 1ull;
     place->info.id = g_cli_debug.next;
     place->sink = sink;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
     const int reached = plan.listening;
     place->dap = EMBED_CALL(launch_adapter, DebugLaunchCtx, .place = place, .root = args->root, .plan = &plan,
                             .err_msg = err_msg);
@@ -429,7 +423,6 @@ int cli_debug_start(const CliDebugRootCfg *args)
         return EMBED_CALL(launch_fail, DebugLaunchCtx, .place = place, .plan = &plan, .err_msg = err_msg);
     }
     g_cli_cells->persistent_buf_release(launched.message, &g_cli_debug_cells);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
     if (!info.has_process && (place->pid != 0ull))
     {
         info.has_process = 1;
@@ -441,7 +434,6 @@ int cli_debug_start(const CliDebugRootCfg *args)
                             .src = adapter_id,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = adapter_id, .cap = CLI_CELLS_POOL}) + 1u});
     place->listed = 1;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
     EMBED_CALL(cli_debug_info_internal.info_write, CliDebugInfoCtx, .info = &info, .out = args->out);
     return 1;
 }

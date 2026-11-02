@@ -19,7 +19,7 @@
 #define CLI_SERVERS_EXTRA_PATHS 256u
 
 // what is received read, under the reading's lock
-static CliServersReading s_reading = {CLI_LOCK_INIT};
+static CliServersReading s_reading = {0};
 
 typedef struct
 {
@@ -102,10 +102,8 @@ EMBED_INLINE void recv_diagnostics(const ServersRecvCtx *args)
         return;
     }
     EMBED_CALL(cli_servers_key_checker_internal.wake, CliServersKeyCheckerCtx, .key = key);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_published_lock);
     (void)EMBED_CALL(cli_keyed_key_beside.put, CliKeyedKeyBesideCfg, .keyed_out = &g_cli_servers_published, .key = key,
                      .beside_value = uri, .text = all, .size_value = all_length);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_published_lock);
     g_cli_cells->persistent_buf_release(mapped, &g_cli_servers_cells);
     EMBED_CALL(cli_servers_sink_key_internal.emit_whole, CliServersSinkKeyCtx, .key = key, .uri = uri, .sink = sink);
 }

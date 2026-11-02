@@ -86,7 +86,6 @@ typedef struct
     CliCommsTraffic *traffic;
     unsigned int channels;
     unsigned int channels_room;
-    CliLock lock;
 } CliCommsRoom;
 
 extern CliCommsRoom g_cli_comms;

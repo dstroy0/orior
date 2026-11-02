@@ -127,7 +127,6 @@ int cli_door_listening(const CliDoorListenerAddressCtx *args)
         mmgr_line_ch(&named, "0123456789abcdef"[secret[at] & 15u]);
     }
     mmgr_line_finish(&named);
-    args->listener->lock = (CliLock)CLI_LOCK_INIT;
     (void)MultiByteToWideChar(CP_UTF8, 0u, args->address, -1, args->listener->name, CLI_PATH_MAX_LEN);
     const HANDLE waiting = EMBED_CALL(door_instance, WindowsDoorCtx, .listener = args->listener, .first = 1);
     const DWORD error = GetLastError();
@@ -145,19 +144,15 @@ int cli_door_accept(const CliDoorListenerCtx *args)
 {
     int *has_peer = args->has_peer;
     unsigned int *peer = args->peer;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->listener->lock);
     // the waiting instance's handle was a pointer's width when it was stored
     const HANDLE joined = (HANDLE)(uintptr_t)args->listener->waiting;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->listener->lock);
     DWORD moved = 0u;
     const int joining = EMBED_CALL(door_overlap, WindowsDoorCtx, .handle = joined, .shut = NULL, .kind = 2,
                                    .bytes = NULL, .size = 0u, .moved = &moved);
     const DWORD error = GetLastError();
     // the next instance waits for the process after, whether this one was joined or not
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->listener->lock);
     args->listener->waiting = (unsigned long long)(uintptr_t)EMBED_CALL(door_instance, WindowsDoorCtx,
                                                                         .listener = args->listener, .first = 0);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->listener->lock);
     if (!joining)
     {
         CloseHandle(joined);

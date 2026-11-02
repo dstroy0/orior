@@ -92,7 +92,6 @@ void cli_requests_full_err(const CliRequestsTextCtx *args)
 
 int cli_requests_on_parse(const CliRequestsTextCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_requests_lock);
     const CliRequestsParsed *const parsed = &g_cli_requests_parsed;
     const int whole = EMBED_CALL(cli_requests_text_size_parsed_internal.parse, CliRequestsTextSizeParsedCtx,
                                  .text = args->text, .size = args->size, .parsed = &g_cli_requests_parsed);
@@ -112,7 +111,6 @@ int cli_requests_on_parse(const CliRequestsTextCfg *args)
     }
     EMBED_CALL(cli_requests_text_size_parsed_internal.parsed_free, CliRequestsTextSizeParsedCtx,
                .parsed = &g_cli_requests_parsed);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_requests_lock);
     if (!whole)
     {
         EMBED_CALL(cli_requests_text_internal.full_err, CliRequestsTextCtx, .err_msg = args->err_msg);
@@ -134,7 +132,6 @@ void cli_requests_key(const CliRequestsParsedCtx *args)
 
 int cli_requests_key_at(const CliRequestsTextCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_requests_lock);
     const int whole = EMBED_CALL(cli_requests_text_size_parsed_internal.parse, CliRequestsTextSizeParsedCtx,
                                  .text = args->text, .size = args->size, .parsed = &g_cli_requests_parsed);
     const CliRequest *const request = whole ? EMBED_CALL(cli_requests_internal.at, CliRequestsCtx,
@@ -147,7 +144,6 @@ int cli_requests_key_at(const CliRequestsTextCfg *args)
     }
     EMBED_CALL(cli_requests_text_size_parsed_internal.parsed_free, CliRequestsTextSizeParsedCtx,
                .parsed = &g_cli_requests_parsed);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_requests_lock);
     if (!whole)
     {
         EMBED_CALL(cli_requests_text_internal.full_err, CliRequestsTextCtx, .err_msg = args->err_msg);

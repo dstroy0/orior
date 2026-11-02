@@ -127,8 +127,8 @@ typedef struct
     int submenu_index;
 } GuiMenubar;
 
-// the milliseconds the pointer rests on a row before the items under it open beside it, and before the items open
-// beside a sibling close, as the page's menu.js rests
+// the delay before the items under the row the pointer is on open beside it, and before the items open beside a
+// sibling close
 #define GUI_SUBMENU_DELAY_MS 180ull
 
 // a menu bar holding no catalog; and the catalog `json` given it, `menus` the node of its menus' array
@@ -148,12 +148,12 @@ int gui_menubar_holds(const GuiMenubarXCfg *args);
 // with its command empty where none was: 1 where the press was the bar's or a menu's, else 0, every menu closed where
 // one was open
 int gui_menubar_press(const GuiMenubarJsonCfg *args);
-// the pointer moved to x, y at `now`: the title it stands on marked, another's menu opened where one is open, the
+// the pointer moved to x, y: the title it stands on marked, another's menu opened where one is open, the
 // row it stands on marked and a rest begun where its items are to open or the items beside a sibling to close: 1
 // where anything changed
 int gui_menubar_move(const GuiMenubarGlyphsFrameXCfg *args);
-// the milliseconds from `now` until the rest the pointer is in ends, 0 where it is in none; and the tick come at
-// `now`: the rest's items opened or closed where it has ended: 1 where a menu opened or closed
+// the submenu deadline, 0 for none; and where it has passed, the row's items opened or closed: 1 where a menu opened or
+// closed
 unsigned long long gui_menubar_next_deadline_ms(const GuiMenubarCfg *args);
 int gui_menubar_tick(const GuiMenubarGlyphsFrameXCfg *args);
 // a key named as the page's editor names it taken: 1 where it was the bar's, an item chosen into `choice` where one

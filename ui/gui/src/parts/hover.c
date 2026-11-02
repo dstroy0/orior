@@ -19,12 +19,12 @@ void gui_hover_free(const GuiHoverStateCfg *args)
     args->hover->text = NULL;
     args->hover->length = 0ull;
     args->hover->shown = 0;
+    args->hover->hide_deadline_ms = 0ull;
 }
 
 void gui_hover_hide(const GuiHoverStateCfg *args)
 {
     gui_hover_state.free(args);
-    args->hover->hide_deadline_ms = 0ull;
     args->hover->rect = (GuiRect){0, 0, 0, 0};
     args->hover->word = (GuiRect){0, 0, 0, 0};
 }
@@ -60,7 +60,7 @@ void gui_hover_move(const GuiHoverInCfg *args)
     {
         if (moved || !args->hover->in_text)
         {
-            args->hover->show_deadline_ms = now_ms;
+            args->hover->show_deadline_ms = now_ms + GUI_HOVER_SHOW_DELAY_MS;
             args->hover->asked = 0;
         }
         args->hover->row = row;
@@ -80,27 +80,20 @@ void gui_hover_move(const GuiHoverInCfg *args)
         }
         else if (args->hover->hide_deadline_ms == 0ull)
         {
-            args->hover->hide_deadline_ms = now_ms;
+            args->hover->hide_deadline_ms = now_ms + GUI_HOVER_HIDE_DELAY_MS;
         }
     }
 }
 
 unsigned long long gui_hover_next_deadline_ms(const GuiHoverCfg *args)
 {
-    const unsigned long long now_ms = cli_clock_milliseconds();
-    unsigned long long due = 0ull;
-    if (args->hover_read->in_text && !args->hover_read->asked && (args->hover_read->show_deadline_ms != 0ull))
+    const unsigned long long show = args->hover_read->show_deadline_ms;
+    const unsigned long long hide = args->hover_read->hide_deadline_ms;
+    if (show == 0ull)
     {
-        const unsigned long long passed = now_ms - args->hover_read->show_deadline_ms;
-        due = (passed < GUI_HOVER_SHOW_DELAY_MS) ? GUI_HOVER_SHOW_DELAY_MS - passed : 1ull;
+        return hide;
     }
-    if (args->hover_read->shown && (args->hover_read->hide_deadline_ms != 0ull))
-    {
-        const unsigned long long passed = now_ms - args->hover_read->hide_deadline_ms;
-        const unsigned long long linger = (passed < GUI_HOVER_HIDE_DELAY_MS) ? GUI_HOVER_HIDE_DELAY_MS - passed : 1ull;
-        due = ((due == 0ull) || (linger < due)) ? linger : due;
-    }
-    return due;
+    return ((hide != 0ull) && (hide < show)) ? hide : show;
 }
 
 int gui_hover_tick(const GuiHoverStateCfg *args)
@@ -109,14 +102,14 @@ int gui_hover_tick(const GuiHoverStateCfg *args)
     int *ask = args->ask;
     int owed = 0;
     *ask = 0;
-    if (args->hover->shown && (args->hover->hide_deadline_ms != 0ull) && (now_ms - args->hover->hide_deadline_ms >= GUI_HOVER_HIDE_DELAY_MS))
+    if ((args->hover->hide_deadline_ms != 0ull) && (now_ms >= args->hover->hide_deadline_ms))
     {
         gui_hover_state.hide(args);
         owed = 1;
     }
-    if (args->hover->in_text && !args->hover->asked && (args->hover->show_deadline_ms != 0ull) &&
-        (now_ms - args->hover->show_deadline_ms >= GUI_HOVER_SHOW_DELAY_MS))
+    if ((args->hover->show_deadline_ms != 0ull) && (now_ms >= args->hover->show_deadline_ms))
     {
+        args->hover->show_deadline_ms = 0ull;
         args->hover->asked = 1;
         args->hover->asked_row = args->hover->row;
         args->hover->asked_column = args->hover->column;

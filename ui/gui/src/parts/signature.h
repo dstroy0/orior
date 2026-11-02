@@ -17,7 +17,7 @@ typedef struct GuiSignatureCfg GuiSignatureCfg;
 #include "embed_dispatch_layout.h"
 #include "panel.h"
 
-// the milliseconds between the bracket or comma typed and the ask; the box's most width and height in the page's
+// the debounce between the bracket or comma typed and the request; the box's most width and height in the page's
 // pixels, 40rem by 12rem, its padding down and across and the gap between the label and the documentation; the most
 // parameters a label marks; the bytes the label and the documentation are stored in
 #define GUI_SIGNATURE_DEBOUNCE_MS 120ull
@@ -55,10 +55,10 @@ typedef struct
 void gui_signature_init(const GuiSignatureJsonCfg *args);
 void gui_signature_free(const GuiSignatureJsonCfg *args);
 void gui_signature_hide(const GuiSignatureJsonCfg *args);
-// `size` bytes of text typed at `now`: an opening bracket or a comma among them begins the wait: 1 where it did
+// `size` bytes of text typed: an opening bracket or a comma among them arms the request deadline: 1 where it did
 int gui_signature_type(const GuiSignatureTextCfg *args);
-// the milliseconds until the signature next wants the clock, 0 for never; and the clock come at `now`: 1 where the wait
-// is up and the signature is to be asked for, the wait ended
+// the request deadline, 0 for none; and 1 where it has passed and the signature is to be requested, the deadline
+// disarmed
 unsigned long long gui_signature_next_deadline_ms(const GuiSignatureCfg *args);
 int gui_signature_tick(const GuiSignatureTextCfg *args);
 // the answer `root` of `json` taken, `{"own", "server"}`: the server's `{"label", "params", "active", "doc", "count"}`

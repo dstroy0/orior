@@ -43,11 +43,9 @@ static int job_start(const CliServeAnswerCfg *args)
         return 0;
     }
     char detached_dir_buf[CLI_PATH_MAX_LEN];
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_serve.lock);
     const int has_detached_dir = g_cli_serve.has_detached_dir;
     memor.cpy(
         &(MemoriaCfg){.dst = detached_dir_buf, .src = g_cli_serve.detached_dir, .bytes = sizeof(detached_dir_buf)});
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_serve.lock);
     return has_detached_dir ? EMBED_CALL(cli_serve_err_msg_out_internal.detached_start, CliServeErrMsgOutCtx,
                                          .detached_dir = detached_dir_buf, .job = job, .request = arguments, .out = out,
                                          .err_msg = err_msg)

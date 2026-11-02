@@ -20,9 +20,9 @@ typedef struct GuiWordmarkStillCfg GuiWordmarkStillCfg;
 #include "../palette.h"
 #include "embed_dispatch_layout.h"
 
-// the page's times in milliseconds: the least the pane stands, SHORTEST; the flight, FLIES; TABVLA's slide up, SLIDES,
-// its time whole there, HOLDS, and its fade, FADES; the wait before it fades in as the name stands and that fade; and
-// the time between frames while any of it moves
+// the durations in milliseconds: the pane's minimum visible time; the flight; TABVLA's slide up, the delay before it
+// fades out and the fade out; the delay before it fades in as the name appears and that fade in; and the frame time
+// while any of it moves
 #define GUI_WORDMARK_MIN_VISIBLE_MS 6000ull
 #define GUI_WORDMARK_FLIGHT_MS 900ull
 #define GUI_WORDMARK_SLIDE_MS 540ull
@@ -125,14 +125,13 @@ void gui_wordmark_land(const GuiWordmarkStillCfg *args);
 void gui_wordmark_tree_read(const GuiWordmarkStillCfg *args);
 // the name's place in `frame`, on the frame's inside, as style.css sets it
 void gui_wordmark_place(const GuiWordmarkGlyphsCfg *args);
-// TABVLA's way down from its box, in pixels, and its opacity, 0 to 255, at `now`, as its transition and its animation
+// TABVLA's way down from its box, in pixels, and its opacity, 0 to 255,, as its transition and its animation
 // run; whether a frame is owed for what moved by `now`, the pane leaving and the funnel ending as the clock passes
-// them, the frame being what the funnel's tip is taken from; and when the wordmark next wants a tick, in milliseconds,
-// 0 for never
+// them, the frame being what the funnel's tip is taken from; and the wordmark's next deadline, 0 for none
 void gui_wordmark_under_at(const GuiWordmarkReadCfg *args);
 int gui_wordmark_tick(const GuiWordmarkFrameCfg *args);
 unsigned long long gui_wordmark_next_deadline_ms(const GuiWordmarkReadCfg *args);
-// the large name drawn as it stands or goes at `now`: orior and the eye on the pane or up the funnel, and TABVLA; and
+// the large name drawn as it stands or goes: orior and the eye on the pane or up the funnel, and TABVLA; and
 // the square the eye stands on in the bar, its size given the claim's numbers, empty where it has shrunk out; and the
 // eye drawn on it once it is home
 void gui_wordmark_draw(const GuiWordmarkFrameCfg *args);
@@ -178,7 +177,7 @@ struct GuiWordmarkTextCfg
 struct GuiWordmarkCfg
 {
     const GuiWordmarkSession *saved;
-    const GuiWordmarkSession *now_wordmark_session_pointer;
+    const GuiWordmarkSession *current_session;
 };
 
 struct GuiWordmarkStillCfg

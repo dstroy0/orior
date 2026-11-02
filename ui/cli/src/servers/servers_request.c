@@ -27,8 +27,8 @@ typedef struct
 } CliServersUsage;
 
 // what a server answers quickly and what a search of the tree answers, each read under its own lock
-static CliServersReading s_quick = {CLI_LOCK_INIT};
-static CliServersReading s_search = {CLI_LOCK_INIT};
+static CliServersReading s_quick = {0};
+static CliServersReading s_search = {0};
 // the completions, under the quick reading's lock; and the usages and their paths, each in a cell of the answer's
 // size, under the search's
 static CliCompletions s_items;
@@ -234,9 +234,7 @@ EMBED_INLINE void request_tree_complete(const ServersRequestCtx *args)
     unsigned int line = args->line;
     unsigned int col = args->col;
     char tree[CLI_PATH_MAX_LEN];
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers.lock);
     memor.cpy(&(MemoriaCfg){.dst = tree, .src = g_cli_servers.checked_root, .bytes = sizeof(tree)});
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers.lock);
     char own[CLI_PATH_MAX_LEN];
     VerbaLinea own_line = {own, sizeof(own), 0ull};
     EMBED_CALL(cli_servers_path_err_msg_internal.tree_path, CliServersPathErrMsgCtx, .tree = tree, .path = path,
@@ -272,9 +270,7 @@ int cli_servers_complete(const CliServersPathOutCfg *args)
     if (EMBED_CALL(cli_servers_path_size_root_sink_internal.own_reads, CliServersPathSizeRootSinkCtx, .path = path))
     {
         char root[CLI_PATH_MAX_LEN];
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers.lock);
         memor.cpy(&(MemoriaCfg){.dst = root, .src = g_cli_servers.checked_root, .bytes = sizeof(root)});
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers.lock);
         unsigned long long size = 0ull;
         char *const text = (root[0] != '\0')
                                ? EMBED_CALL(cli_servers_path_size_kind.text_take, CliServersPathSizeKindCfg,
@@ -547,9 +543,7 @@ int cli_servers_renamable(const CliServersPathOutCfg *args)
 {
     // a file given its server as a slice is answered from the tree alone, a name it knows no definition of with none
     char tree[CLI_PATH_MAX_LEN];
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers.lock);
     memor.cpy(&(MemoriaCfg){.dst = tree, .src = g_cli_servers.checked_root, .bytes = sizeof(tree)});
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers.lock);
     if (EMBED_CALL(cli_servers_path_lsp_internal.slice, CliServersPathLspCtx, .path = args->path))
     {
         const int tree_found = EMBED_CALL(cli_servers_path_err_msg_internal.renamable_write, CliServersPathErrMsgCtx,

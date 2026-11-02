@@ -47,7 +47,6 @@ static char s_runs[1u << 16u];
 // Work done beside a coloring under way, on a thread of its own: what it does, the lock and wake its end is reported under, 1 where it ended and did its
 // work, -1 where it ended and did not, 0 before it ends, and the leaves it colored
 static int (*s_aside_work)(void);
-static CliLock s_aside_lock = CLI_LOCK_INIT;
 static CliWake s_aside_wake = CLI_WAKE_INIT;
 static int s_aside_ended;
 static char s_aside_leaves[256];
@@ -142,10 +141,8 @@ static void aside_run(void *context)
 {
     (void)context;
     const int done = s_aside_work();
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_aside_lock);
     s_aside_ended = done ? 1 : -1;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_aside_wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_aside_lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_aside_wake);
 }
 
 // the first line of a coloring recorded, and the aside's work started on a thread of its own and waited for, five seconds at the most, before the coloring
@@ -154,18 +151,16 @@ static void leaves_waiting(const CliLeavesEachCfg *args)
 {
     static CliThread s_thread = {aside_run, NULL, CLI_PRIORITY_WORK};
     leaves_recorded(args);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_aside_lock);
     const int first = s_aside_ended == 0;
     const unsigned long long until = cli_clock_milliseconds() + 5000ull;
     if (first && EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_thread))
     {
         for (unsigned long long now = cli_clock_milliseconds(); (s_aside_ended == 0) && (now < until); now = cli_clock_milliseconds())
         {
-            (void)EMBED_CALL(cli_lock_internal.wake_wait_for, CliLockCtx, .wake = &s_aside_wake, .lock = &s_aside_lock, .milliseconds_u64 = until - now);
+            (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &s_aside_wake, .milliseconds_u64 = until - now);
         }
     }
     s_aside_ended = (first && (s_aside_ended == 0)) ? -2 : s_aside_ended;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_aside_lock);
 }
 
 // two lines of the grammar under `key` colored, the aside's work `work` done beside the first, their leaves into `leaves`, `room` bytes: 1 where they

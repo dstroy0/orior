@@ -225,7 +225,6 @@ int cli_inspect_facts(const CliInspectFactsLanguageCfg *args)
     args->facts->names = 0u;
     args->facts->used = ((args->facts->text_most > 0u) || args->facts->counting) ? 1u : 0u;
     args->facts->full = 0;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_inspect_lock);
     if (!EMBED_CALL(cli_inspect_language_internal.reading_reserve, CliInspectLanguageCtx, .language = args->language,
                     .text_text = args->text, .size = args->size))
     {
@@ -242,7 +241,6 @@ int cli_inspect_facts(const CliInspectFactsLanguageCfg *args)
                    .size = args->size, .facts = args->facts);
     }
     cli_inspect_reading_free();
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_inspect_lock);
     return 1;
 }
 
@@ -274,7 +272,6 @@ int cli_inspect_parse(const CliInspectLanguageTextCfg *args)
     {
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_inspect_lock);
     const int reserved = EMBED_CALL(cli_inspect_language_internal.reading_reserve, CliInspectLanguageCtx,
                                     .language = args->language, .text_text = args->text, .size = args->size);
     if (reserved && python)
@@ -288,7 +285,6 @@ int cli_inspect_parse(const CliInspectLanguageTextCfg *args)
                    .size = args->size, .parsed = args->parsed);
     }
     cli_inspect_reading_free();
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_inspect_lock);
     return reserved;
 }
 
@@ -301,7 +297,6 @@ int cli_inspect_docstring(const CliInspectLanguageCfg *args)
         mmgr_line_put(args->err_msg, "Write Docstring reads Python and JavaScript.");
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_inspect_lock);
     const int reserved = EMBED_CALL(cli_inspect_language_internal.reading_reserve, CliInspectLanguageCtx,
                                     .language = args->language, .text_text = args->source, .size = args->size);
     const int written =
@@ -314,7 +309,6 @@ int cli_inspect_docstring(const CliInspectLanguageCfg *args)
                           .size = args->size, .line = args->line, .edit = args->edit,
                           .text = args->text_verba_linea_pointer, .summary = args->summary, .err_msg = args->err_msg));
     cli_inspect_reading_free();
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_inspect_lock);
     if (!reserved)
     {
         mmgr_line_put(args->err_msg, "a reading of the text could not be taken");
@@ -331,7 +325,6 @@ int cli_inspect_sort_methods(const CliInspectLanguageCfg *args)
         mmgr_line_put(args->err_msg, "Sort Methods by Name reads Python and JavaScript.");
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_inspect_lock);
     const int reserved = EMBED_CALL(cli_inspect_language_internal.reading_reserve, CliInspectLanguageCtx,
                                     .language = args->language, .text_text = args->source, .size = args->size);
     const int sorted =
@@ -343,7 +336,6 @@ int cli_inspect_sort_methods(const CliInspectLanguageCfg *args)
                              .size = args->size, .line = args->line, .edit = args->edit,
                              .text = args->text_verba_linea_pointer, .err_msg = args->err_msg));
     cli_inspect_reading_free();
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_inspect_lock);
     if (!reserved)
     {
         mmgr_line_put(args->err_msg, "a reading of the text could not be taken");

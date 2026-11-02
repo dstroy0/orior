@@ -201,8 +201,6 @@ EMBED_INLINE int cli_commit(const CarrySendCtx *args)
 
 int cli_carry_send(const CliCarryHomeToCfg *args)
 {
-    static CliLock s_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     int sent =
         EMBED_CALL(cli_carry.pack, CliCarryCfg, .home = args->home, .packed = &s_send.packed, .err_msg = args->err_msg);
     if (sent && !EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = args->to))
@@ -215,7 +213,6 @@ int cli_carry_send(const CliCarryHomeToCfg *args)
         }
         EMBED_CALL(cli_carry_carried_place_internal.carried_clear, CliCarryCarriedPlaceCtx,
                    .carried_out = &s_send.packed);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return sent;
     }
     char git[CLI_PATH_MAX_LEN];
@@ -241,6 +238,5 @@ int cli_carry_send(const CliCarryHomeToCfg *args)
     }
     EMBED_CALL(cli_carry_carried_place_internal.carried_clear, CliCarryCarriedPlaceCtx, .carried_out = &s_send.there);
     EMBED_CALL(cli_carry_carried_place_internal.carried_clear, CliCarryCarriedPlaceCtx, .carried_out = &s_send.packed);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return sent;
 }

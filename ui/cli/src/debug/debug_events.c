@@ -25,14 +25,12 @@ static void step_across_clear(void *context)
         EMBED_CALL(cli_debug_session_command_internal.answer_free, CliDebugSessionCommandCtx, .answer = answer);
         EMBED_CALL(cli_debug_session_err_msg_internal.let_go, CliDebugSessionErrMsgCtx, .session = native);
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
     session->clearing = 0;
     session->users -= 1u;
     if (!session->listed && session->adapter_ended && (session->users == 0u))
     {
         EMBED_CALL(cli_debug_internal.place_free, CliDebugCtx, .place = session);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
 }
 
 typedef struct
@@ -56,9 +54,7 @@ EMBED_INLINE int stop_rewritten(const DebugEventsCtx *args)
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
                                       .object = args->root, .name = "reason"),
                    .length_pointer = NULL);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
     const int watching = args->session->watching;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
     if ((args->root == CLI_JSON_NONE) || (reason == NULL) ||
         (!cellul.eq(&(CatenaFinitaCfg){.src = reason, .other = "breakpoint", .cap = CLI_CELLS_POOL})) || !watching)
     {
@@ -68,7 +64,6 @@ EMBED_INLINE int stop_rewritten(const DebugEventsCtx *args)
                                         .object = args->root, .name = "hitBreakpointIds");
     int any = 0;
     int placed = 0;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
     for (unsigned int at = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                           .json_read = json, .array = hit, .index = at) != CLI_JSON_NONE;
          at += 1u)
@@ -87,7 +82,6 @@ EMBED_INLINE int stop_rewritten(const DebugEventsCtx *args)
             placed = placed || (args->session->placed[one] == number);
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
     if (!any || placed)
     {
         return 0;
@@ -128,10 +122,8 @@ void cli_debug_event(void *context, const char *event, const char *body, unsigne
     CliDebugSession *const session = (CliDebugSession *)context;
     if (cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "initialized", .cap = CLI_CELLS_POOL}))
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
         session->initialized = 1;
-        EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &g_cli_debug.wake);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
+        EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &g_cli_debug.wake);
     }
     if (cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "process", .cap = CLI_CELLS_POOL}))
     {
@@ -148,16 +140,13 @@ void cli_debug_event(void *context, const char *event, const char *body, unsigne
                                           .object = root, .name = "systemProcessId"),
                        .value_u64s = &pid))
         {
-            EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
             session->pid = pid;
-            EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
         }
         EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
     }
     if (cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "stopped", .cap = CLI_CELLS_POOL}))
     {
         // a stop ends a step across, and its breakpoints go
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
         const int clears = session->has_across && !session->clearing;
         if (clears)
         {
@@ -167,7 +156,6 @@ void cli_debug_event(void *context, const char *event, const char *body, unsigne
             session->users += 1u;
             session->clearer = (CliThread){step_across_clear, session};
         }
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
         if (clears && !EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &session->clearer))
         {
             step_across_clear(session);
@@ -187,12 +175,10 @@ void cli_debug_event(void *context, const char *event, const char *body, unsigne
     if (cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "adapterStopped", .cap = CLI_CELLS_POOL}))
     {
         // the adapter's last event: its place may be freed once nothing else uses it
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
         session->adapter_ended = 1;
         if (!session->listed && (session->users == 0u))
         {
             EMBED_CALL(cli_debug_internal.place_free, CliDebugCtx, .place = session);
         }
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
     }
 }

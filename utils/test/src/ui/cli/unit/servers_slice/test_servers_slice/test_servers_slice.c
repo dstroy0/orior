@@ -58,7 +58,6 @@ static const char s_stand_in[] = "import json, sys\n"
 // size, under its lock; and the file's path
 typedef struct
 {
-    CliLock lock;
     unsigned int published;
     char last[4096];
     unsigned long long size;
@@ -85,7 +84,7 @@ typedef struct
     int released;
 } SliceRun;
 
-static SliceReceived s_received = {CLI_LOCK_INIT, 0u, "", 0ull, ""};
+static SliceReceived s_received = {0u, "", 0ull, ""};
 static char s_windows[1u << 14u];
 static SliceRun s_run;
 
@@ -102,13 +101,11 @@ static void server_message_received(const CliLspRecvCfg *args)
     }
     unsigned long long mapped_size = 0ull;
     char *const mapped = EMBED_CALL(cli_servers_path_size_internal.slice_diagnostics, CliServersPathSizeCtx, .path = s_received.path, .params_text = params, .params_size = size, .all = params + all_at, .size = all_length, .mapped_size = &mapped_size, .owner = &g_checks_cells);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_received.lock);
     VerbaLinea last = {s_received.last, sizeof(s_received.last), 0ull};
     // the diagnostics of one window are below 4 KiB here
     mmgr_line_put_n(&last, (mapped != NULL) ? mapped : "dropped", (mapped != NULL) ? (size_t)mapped_size : 7u);
     s_received.size = last.at;
     s_received.published += 1u;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_received.lock);
     g_cli_cells->persistent_buf_release(mapped, &g_checks_cells);
 }
 
@@ -126,18 +123,14 @@ static int window_sent(const CliServersWindowCfg *args)
     int received = 0;
     while (delivered && !received && (cli_clock_milliseconds() < until))
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_received.lock);
         received = s_received.published == sent->windows;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_received.lock);
         EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = received ? 0u : 10u);
     }
     mmgr_line_decimal(sent->out, args->first, 1u);
     mmgr_line_ch(sent->out, '-');
     mmgr_line_decimal(sent->out, args->last, 1u);
     mmgr_line_ch(sent->out, ':');
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_received.lock);
     mmgr_line_put_n(sent->out, received ? s_received.last : "none", received ? (size_t)s_received.size : 4u);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_received.lock);
     mmgr_line_ch(sent->out, '\n');
     return delivered && received;
 }

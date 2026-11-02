@@ -39,7 +39,6 @@ struct CliTls
 #define CLI_SEALED_BYTES (1u << 17u)
 
 static CliTls s_sessions[CLI_TLS_MOST];
-static CliLock s_lock = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -184,7 +183,6 @@ EMBED_INLINE int cli_records_reserve(const TlsWindowsCtx *args)
 CliTls *cli_tls_connect(const CliTlsCfg *args)
 {
     CliSocket *socket = args->socket;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     CliTls *tls = NULL;
     for (unsigned int at = 0u; (tls == NULL) && (at < CLI_TLS_MOST); at += 1u)
     {
@@ -194,7 +192,6 @@ CliTls *cli_tls_connect(const CliTlsCfg *args)
     {
         tls->used = 1;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     if (tls == NULL)
     {
         mmgr_line_put(args->err_msg, "TLS: more sessions are open than orior_cli supports");
@@ -326,7 +323,6 @@ long long cli_tls_read(const CliTlsOutCfg *args)
 
 long long cli_tls_write(const CliTlsDataCfg *args)
 {
-    static CliLock s_writing = CLI_LOCK_INIT;
     const unsigned long header = args->tls->sizes.cbHeader;
     const unsigned long trailer = args->tls->sizes.cbTrailer;
     const unsigned long most = args->tls->sizes.cbMaximumMessage;
@@ -337,7 +333,6 @@ long long cli_tls_write(const CliTlsDataCfg *args)
         return CLI_SOCKET_FAILED;
     }
     unsigned char *const message = args->tls->message;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_writing);
     memor.cpy(&(MemoriaCfg){.dst = message + header, .src = args->data, .bytes = part});
     SecBuffer buffers[4] = {{header, SECBUFFER_STREAM_HEADER, message},
                             {part, SECBUFFER_DATA, message + header},
@@ -349,7 +344,6 @@ long long cli_tls_write(const CliTlsDataCfg *args)
         (status == SEC_E_OK) &&
         EMBED_CALL(cli_bytes_size_internal.socket_write, CliBytesSizeCtx, .sock = args->tls->socket, .bytes = message,
                    .size = (unsigned long long)buffers[0].cbBuffer + buffers[1].cbBuffer + buffers[2].cbBuffer);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_writing);
     if (status != SEC_E_OK)
     {
         EMBED_CALL(cli_status_err_write, TlsWindowsCtx, .err_msg = args->err_msg, .status = status);
@@ -382,8 +376,6 @@ void cli_tls_close(const CliTlsOutCfg *args)
     args->tls->sealed = NULL;
     args->tls->plain = NULL;
     args->tls->message = NULL;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     args->tls->used = 0;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 #endif

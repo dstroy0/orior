@@ -13,7 +13,6 @@
 #define CLI_KERNEL_PARTS 5u
 #define CLI_KERNEL_QUEUE_ROOM (16ull << 20u)
 
-static CliLock s_next_lock = CLI_LOCK_INIT;
 static unsigned long long s_next = 1ull;
 
 void cli_kernel_key_init(const CliJupyterKeyCtx *args)
@@ -39,10 +38,8 @@ void cli_kernel_key_init(const CliJupyterKeyCtx *args)
 
 unsigned long long cli_kernel_next(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_next_lock);
     const unsigned long long next = s_next;
     s_next += 1ull;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_next_lock);
     return next;
 }
 
@@ -177,7 +174,6 @@ EMBED_INLINE int jupyter_shell_queue(const JupyterWireCtx *args)
 
 void cli_kernel_shell_answer(const CliJupyterKernelParentCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->kernel->shell_lock);
     if ((args->kernel->shell_flight[0] != '\0') &&
         (cellul.eq(
             &(CatenaFinitaCfg){.src = args->kernel->shell_flight, .other = args->parent, .cap = CLI_CELLS_POOL})))
@@ -204,7 +200,6 @@ void cli_kernel_shell_answer(const CliJupyterKernelParentCtx *args)
             args->kernel->shell_queue.at = 0u;
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->kernel->shell_lock);
 }
 
 int cli_kernel_frames_send(const CliJupyterKernelCtx *args)
@@ -248,7 +243,6 @@ int cli_kernel_frames_send(const CliJupyterKernelCtx *args)
         return 0;
     }
     const int shell = args->socket == &args->kernel->shell;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = args->lock);
     const int now = !shell || (args->kernel->shell_flight[0] == '\0');
     const int sent = now ? EMBED_CALL(cli_bytes_size_internal.socket_write, CliBytesSizeCtx, .sock = args->socket,
                                       .bytes = message, .size = size)
@@ -260,7 +254,6 @@ int cli_kernel_frames_send(const CliJupyterKernelCtx *args)
         mmgr_line_put(&flight, args->id_read);
         (void)mmgr_line_finish(&flight);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = args->lock);
     g_cli_cells->persistent_buf_release(message, &g_cli_notebook_cells);
     return sent;
 }

@@ -44,7 +44,6 @@ typedef struct
 } CliKernelListing;
 
 static CliKernelListing s_listing;
-static CliLock s_listing_lock = CLI_LOCK_INIT;
 
 const char *cli_kernel_text(const CliJupyterSpecCtx *args)
 {
@@ -364,7 +363,6 @@ EMBED_INLINE void jupyter_python_specs(const JupyterSpecsCtx *args)
 // every spec the machine has, each handed to `each` in Jupyter's order, under the listing's lock
 EMBED_INLINE void jupyter_specs_each(const JupyterSpecsCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_listing_lock);
     s_listing.listed = 0u;
     int has_environment = 0;
     const unsigned int pythons = EMBED_CALL(cli_jupyter_pythons_internal.kernel_pythons, CliJupyterPythonsCtx,
@@ -384,7 +382,6 @@ EMBED_INLINE void jupyter_specs_each(const JupyterSpecsCtx *args)
         EMBED_CALL(jupyter_python_specs, JupyterSpecsCtx, .pythons = pythons, .has_environment = has_environment,
                    .each = args->each, .context = args->context);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_listing_lock);
 }
 
 // a spec written as serde writes one, a comma before it where it is not the first

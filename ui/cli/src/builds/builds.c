@@ -9,7 +9,6 @@
 #include "scons_internal.h"
 #include "version_catalog_internal.h"
 
-static CliLock s_builds_lock = CLI_LOCK_INIT;
 static CliBuildFindings s_found;
 
 unsigned int cli_build_kind_get(const CliBuildsPathCfg *args)
@@ -55,7 +54,6 @@ unsigned int cli_build_kind_get(const CliBuildsPathCfg *args)
 
 void cli_build_check(const CliBuildsPathCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_builds_lock);
     EMBED_CALL(cli_builds_lines.build_findings_begin, CliBuildsLinesCfg, .found = &s_found);
     CliBuildLines lines;
     unsigned int *const starts = EMBED_CALL(cli_builds_text_size.build_lines_take, CliBuildsTextSizeCfg,
@@ -84,7 +82,6 @@ void cli_build_check(const CliBuildsPathCfg *args)
     EMBED_CALL(cli_builds_table.build_findings_write, CliBuildsCfg, .found_read = &s_found, .out = args->out);
     EMBED_CALL(cli_builds_lines.build_findings_free, CliBuildsLinesCfg, .found = &s_found);
     g_cli_cells->persistent_buf_release(starts, &g_cli_build_cells);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_builds_lock);
 }
 
 void cli_build_complete(const CliBuildsPathCfg *args)

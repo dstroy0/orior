@@ -17,7 +17,6 @@
 // The PATH's folders, a cell of a search's, a tool found, and the lock they and a search's toolchains are guarded by
 static char (*s_folders)[CLI_PATH_MAX_LEN];
 static CliFound s_found;
-static CliLock s_lock = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -49,7 +48,6 @@ EMBED_INLINE void find_release(const DebugFindCtx *args)
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = args->manifest);
     g_cli_cells->persistent_buf_release(s_folders, &g_cli_debug_cells);
     s_folders = NULL;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 // whether the array `array` of `json` contains the string `text`
@@ -126,7 +124,6 @@ int cli_debug_adapter(const CliDebugErrMsgCtx *args)
     unsigned int named[CLI_DEBUG_NAMED];
     unsigned int specs[CLI_DEBUG_NAMED];
     unsigned int count = 0u;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     CliJson manifest_json;
     const unsigned int manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
                                              .json_out = &manifest_json, .nodes_more = 0u, .text_more = 0ull);
@@ -447,7 +444,6 @@ int cli_debug_build(const CliDebugErrMsgLanguageCtx *args)
     unsigned int words_of[CLI_DEBUG_NAMED];
     unsigned int count = 0u;
     *built = 0;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     CliJson json;
     const unsigned int manifest = EMBED_CALL(cli_toolchains_json_nodes_more.manifest, CliToolchainsJsonNodesMoreCfg,
                                              .json_out = &json, .nodes_more = 0u, .text_more = 0ull);
@@ -532,8 +528,6 @@ int cli_debug_build(const CliDebugErrMsgLanguageCtx *args)
 #endif
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = out_folder, .relative = stem, .joined = out);
     static CliWords s_words;
-    static CliLock s_words_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_words_lock);
     s_words.count = 0u;
     s_words.used = 0u;
     s_words.full = 0;
@@ -547,7 +541,6 @@ int cli_debug_build(const CliDebugErrMsgLanguageCtx *args)
     }
     if (!filled || (s_words.count == 0u))
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_words_lock);
         return 0;
     }
     char run_path[CLI_PATH_TEXT];
@@ -567,7 +560,6 @@ int cli_debug_build(const CliDebugErrMsgLanguageCtx *args)
         mmgr_line_put(args->err_msg, ": ");
         mmgr_line_put_n(args->err_msg, err_buf.out, err_buf.at);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_words_lock);
     if (ran_well && ran->stopped)
     {
         mmgr_line_put(args->err_msg, "the build took longer than 300 s");

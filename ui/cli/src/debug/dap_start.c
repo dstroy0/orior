@@ -93,9 +93,7 @@ CliDap *cli_dap_start(const CliDapProgramCfg *args)
                     .words = dap->words.word, .folder = args->folder, .settings = settings, .count = 1u, .detached = 1,
                     .err_msg = args->err_msg))
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_daps_lock);
         dap->taken = 0;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_daps_lock);
         return NULL;
     }
     dap->input = (CliLspWriter){start_pipe, dap};
@@ -130,9 +128,7 @@ CliDap *cli_dap_connect(const CliDapEndsProgramCfg *args)
                     .host = args->host, .port = args->port, .milliseconds = CLI_DAP_CONNECTING,
                     .err_msg = args->err_msg))
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_daps_lock);
         dap->taken = 0;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_daps_lock);
         return NULL;
     }
     dap->kind = CLI_DAP_SOCKET;

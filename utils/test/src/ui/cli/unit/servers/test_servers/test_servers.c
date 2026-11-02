@@ -178,7 +178,6 @@ static void release_ran(void)
     passed_on_counts(s_passed_on_after_clear);
     const char *beside = NULL;
     unsigned long long size = 0ull;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_published_lock);
     const char *const published = EMBED_CALL(cli_keyed_key_beside.get, CliKeyedKeyBesideCfg, .keyed = &g_cli_servers_published, .key = key, .beside = &beside, .size = &size);
     if (published != NULL)
     {
@@ -186,7 +185,6 @@ static void release_ran(void)
         const CliJson *const json = cli_unity_parsed(published, size, &read);
         s_release_items = json->node[read].count;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_published_lock);
     diagnostics_published(s_uri, 0u);
     passed_on_counts(s_passed_on_final);
 }

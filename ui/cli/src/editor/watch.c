@@ -66,7 +66,6 @@ typedef struct
 } CliWatching;
 
 static CliWatching s_watching = {.wake = CLI_WAKE_INIT};
-static CliLock s_lock = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -133,9 +132,7 @@ EMBED_INLINE void cli_changes_clear(const WatchCtx *args)
 
 int cli_watch_stopping(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int stop = s_watching.stop;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return stop;
 }
 
@@ -143,7 +140,6 @@ void cli_watch_change(const CliEachPathKindCfg *args)
 {
     const char *path = args->path;
     unsigned int kind = args->kind;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     if (!s_watching.stop)
     {
         if (!EMBED_CALL(cli_change_put, WatchCtx, .changes = &s_watching.waiting, .path = path, .kind = kind,
@@ -151,9 +147,8 @@ void cli_watch_change(const CliEachPathKindCfg *args)
         {
             s_watching.overflowed = 1;
         }
-        EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_watching.wake);
+        EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_watching.wake);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 // the changes waiting taken into the bundle and their cells given back, the lock acquired
@@ -309,7 +304,6 @@ static void cli_batch(void *context)
     // the bundle a cell for as long as the batcher runs, past any one call; with no room for it the batcher ends at
     // once
     CliBatch *const batch = g_cli_cells->persistent_buf_alloc(sizeof(CliBatch), &g_cli_watch_cells);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     if (batch != NULL)
     {
         batch->changes = (CliChanges){NULL, 0u, 0ull, NULL, 0ull, 0ull};
@@ -318,7 +312,7 @@ static void cli_batch(void *context)
     {
         while ((s_watching.waiting.count == 0u) && !s_watching.overflowed && !s_watching.stop)
         {
-            EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_watching.wake, .lock = &s_lock);
+            EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_watching.wake);
         }
         if (s_watching.stop)
         {
@@ -341,7 +335,7 @@ static void cli_batch(void *context)
             while ((s_watching.waiting.count == 0u) && !s_watching.overflowed && !s_watching.stop &&
                    (cli_clock_milliseconds() < until))
             {
-                EMBED_CALL(cli_lock_internal.wake_wait_for, CliLockCtx, .wake = &s_watching.wake, .lock = &s_lock,
+                EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &s_watching.wake,
                            .milliseconds_u64 = until - cli_clock_milliseconds());
             }
             if ((s_watching.waiting.count == 0u) && !s_watching.overflowed)
@@ -350,7 +344,6 @@ static void cli_batch(void *context)
             }
             EMBED_CALL(cli_waiting_take, WatchCtx, .batch = batch);
         }
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         const unsigned long long out_room =
             (batch->changes.used * 12ull) + ((unsigned long long)batch->changes.count * 32ull) + 256ull;
         char *const out_cell = g_cli_cells->temporary_buf_alloc(out_room, &g_cli_watch_cells);
@@ -363,7 +356,6 @@ static void cli_batch(void *context)
                        .size = out.at);
         }
         g_cli_cells->persistent_buf_release(out.out, &g_cli_watch_cells);
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
         if (stopping)
         {
             break;
@@ -371,8 +363,7 @@ static void cli_batch(void *context)
     }
     EMBED_CALL(cli_changes_free, WatchCtx, .changes = &s_watching.waiting);
     s_watching.ended += 1u;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_watching.wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_watching.wake);
     if (batch != NULL)
     {
         EMBED_CALL(cli_changes_free, WatchCtx, .changes = &batch->changes);
@@ -382,24 +373,19 @@ static void cli_batch(void *context)
 
 void cli_watch_stop(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     if (!s_watching.running)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return;
     }
     s_watching.stop = 1;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_watching.wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_watching.wake);
     cli_watch_system_stop();
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const unsigned int threads = s_watching.polling ? 2u : 1u;
     while (s_watching.ended < threads)
     {
-        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_watching.wake, .lock = &s_lock);
+        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_watching.wake);
     }
     s_watching.running = 0;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 void cli_watch_start(const CliWatchCfg *args)
@@ -407,7 +393,6 @@ void cli_watch_start(const CliWatchCfg *args)
     CliTake take = args->take;
     void *context = args->context;
     cli_watch_stop();
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     memor.cpy(&(MemoriaCfg){.dst = s_watching.root,
                             .src = args->root,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL}) + 1u});
@@ -419,32 +404,25 @@ void cli_watch_start(const CliWatchCfg *args)
     s_watching.ended = 0u;
     s_watching.polling = 0;
     s_watching.running = 1;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     if (!EMBED_CALL(cli_root_context_internal.watch_system_start, CliRootContextCtx, .root = args->root,
                     .emit = cli_watch_change, .context = NULL))
     {
         s_watching.poller = (CliThread){cli_watch_poll, s_watching.root};
         const int polling = EMBED_CALL(cli_watch_internal.first_reading, CliWatchCtx, .root = args->root) &&
                             EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_watching.poller);
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
         s_watching.polling = polling;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     }
     s_watching.batcher = (CliThread){cli_batch, NULL};
     if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_watching.batcher))
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
         s_watching.ended += 1u;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     }
 }
 
 void cli_watch_poll_end(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     s_watching.ended += 1u;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_watching.wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_watching.wake);
 }
 
 int cli_watch_gathered_get(const CliWatchPathsCtx *args)

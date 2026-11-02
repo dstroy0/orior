@@ -8,6 +8,7 @@
 #include "../../../../../ui/gui/src/parts/glass.h"
 #include "../../../../../ui/gui/src/window.h"
 #include "../cli/cli_check.h"
+#include "test_clock.h"
 
 
 static void woken(void *context)

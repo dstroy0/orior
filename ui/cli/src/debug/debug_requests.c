@@ -195,7 +195,6 @@ int cli_debug_exceptions(const CliDebugJsonCfg *args)
     {
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
     for (unsigned int at = 0u; at < session->info.filter_count; at += 1u)
     {
         CliDebugFilter *const filter = &session->info.filters[at];
@@ -215,7 +214,6 @@ int cli_debug_exceptions(const CliDebugJsonCfg *args)
                  (cellul.eq(&(CatenaFinitaCfg){.src = named, .other = filter->filter, .cap = CLI_CELLS_POOL})));
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
     mmgr_line_put(args->out, "null");
     return EMBED_CALL(requests_finish, DebugRequestsCtx, .session = session, .answer = answer);
 }

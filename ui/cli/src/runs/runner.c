@@ -269,8 +269,6 @@ EMBED_INLINE int cli_space(const RunnerCtx *args)
 int cli_runner_shell_words(const CliRunnerTextCfg *args)
 {
     static char s_word[CLI_WORDS_TEXT];
-    static CliLock s_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     unsigned long long length = 0ull;
     int started = 0;
     char quote = '\0';
@@ -317,7 +315,6 @@ int cli_runner_shell_words(const CliRunnerTextCfg *args)
     }
     if (quote != '\0')
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         mmgr_line_put(args->err_msg, "a quote is left open in: ");
         mmgr_line_put(args->err_msg, args->text);
         return 0;
@@ -328,7 +325,6 @@ int cli_runner_shell_words(const CliRunnerTextCfg *args)
         EMBED_CALL(cli_words_words_internal.words_put, CliWordsWordsCtx, .words_words_pointer = args->words,
                    .word = s_word);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return 1;
 }
 
@@ -337,11 +333,8 @@ EMBED_INLINE int cli_runner_text_words(const RunnerCtx *args);
 int cli_runner_program_words(const CliRunnerVariableCfg *args)
 {
     static char s_text[QUERY_ENVIRONMENT_MAX_LEN];
-    static CliLock s_text_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_text_lock);
     const int words_read = EMBED_CALL(cli_runner_text_words, RunnerCtx, .variable = args->variable, .text_out = s_text,
                                       .room = sizeof(s_text), .words = args->words);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_text_lock);
     return words_read;
 }
 

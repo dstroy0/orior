@@ -142,7 +142,6 @@ typedef struct
 } CliFlagsSaved;
 
 static CliFlagsSaved s_saved;
-static CliLock s_saved_lock = CLI_LOCK_INIT;
 
 // the text at `at` among the saved texts
 EMBED_INLINE const char *cli_flags_text(const CompileDbFlagsCtx *args)
@@ -798,7 +797,6 @@ EMBED_INLINE void cli_flags_define_dispatch(const CompileDbFlagsCtx *args)
 
 void cli_compile_db_defines_get(const CliCompileDbRootCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_saved_lock);
     EMBED_CALL(cli_flags_read, CompileDbFlagsCtx, .root = args->root);
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL});
     // the top's own, then each folder's down to the branch's own, each node a cut of the path at a slash or its end
@@ -824,12 +822,10 @@ void cli_compile_db_defines_get(const CliCompileDbRootCfg *args)
         cut = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->path, .at = cut,
                          .size = length, .set = "/");
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_saved_lock);
 }
 
 void cli_compile_db_includes_all(const CliCompileDbRootPathCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_saved_lock);
     EMBED_CALL(cli_flags_read, CompileDbFlagsCtx, .root = args->root);
     for (unsigned int at = 0u; (s_saved.text.out != NULL) && (at < s_saved.includes); at += 1u)
     {
@@ -848,7 +844,6 @@ void cli_compile_db_includes_all(const CliCompileDbRootPathCfg *args)
                        .kind = s_saved.include[at].kind);
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_saved_lock);
 }
 
 // how many bytes of folders the paths `one` and `other` share, to the last slash both have at the same place
@@ -866,7 +861,6 @@ void cli_compile_db_includes_get(const CliCompileDbRootPathCfg *args)
 {
     static const unsigned int s_order[5] = {CLI_INCLUDE_QUOTE, CLI_INCLUDE_FOLDER, CLI_INCLUDE_SYSTEM,
                                             CLI_INCLUDE_AFTER, CLI_INCLUDE_FORCED};
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_saved_lock);
     EMBED_CALL(cli_flags_read, CompileDbFlagsCtx, .root = args->root);
     // the file's own entry, else the entry sharing the most of its folders, the first of those that share as many
     unsigned int nearest = CLI_JSON_NONE;
@@ -900,5 +894,4 @@ void cli_compile_db_includes_get(const CliCompileDbRootPathCfg *args)
             }
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_saved_lock);
 }

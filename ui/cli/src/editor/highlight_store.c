@@ -53,7 +53,6 @@ typedef struct
 static CliGrammarEntry *s_grammars;
 static unsigned int s_grammar_room;
 static CliGrammar s_read;
-static CliLock s_lock = CLI_LOCK_INIT;
 
 void cli_highlight_cells_usage_write(const CliHighlightCfg *args)
 {
@@ -437,14 +436,12 @@ EMBED_INLINE CliHighlightRoom *cli_coloring_room(const HighlightStoreCtx *args)
 
 int cli_highlight_store(const CliHighlightKeyJsonCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     CliGrammarRoom room;
     unsigned char *const cell = EMBED_CALL(cli_grammar_room, HighlightStoreCtx, .room = &room, .json = args->json);
     const int stored =
         (cell != NULL) && EMBED_CALL(cli_grammar_store, HighlightStoreCtx, .key = args->key, .json = args->json,
                                      .def = args->def, .room = &room, .err_msg = args->err_msg);
     g_cli_cells->persistent_buf_release(cell, &g_cli_grammars_cells);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     if (cell == NULL)
     {
         mmgr_line_put(args->err_msg, "no room to read a grammar into");
@@ -471,7 +468,6 @@ EMBED_INLINE unsigned int cli_grammar_entry_get(const HighlightStoreCtx *args)
 // 1, or 0 with why given
 static int cli_color(const HighlightStoreCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const unsigned int entry_at = cli_grammar_entry_get(args);
     const int has_entry = entry_at != s_grammar_room;
     unsigned char *const region = has_entry ? s_grammars[entry_at].region : NULL;
@@ -482,7 +478,6 @@ static int cli_color(const HighlightStoreCtx *args)
         (void)atomic_fetch_add_explicit(&EMBED_CALL(cli_grammar_head, HighlightStoreCtx, .region = region)->readers,
                                         1ull, memory_order_relaxed);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     if (!has_entry)
     {
         mmgr_line_put(args->err_msg, "no grammar is stored under ");
@@ -532,7 +527,6 @@ int cli_highlight_leaves(const CliHighlightKeyCfg *args)
 
 int cli_highlight_names_write(const CliHighlightKeyErrMsgCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const unsigned int entry_at = EMBED_CALL(cli_grammar_entry_get, HighlightStoreCtx, .key = args->key);
     const int has_entry = entry_at != s_grammar_room;
     if (has_entry)
@@ -548,13 +542,11 @@ int cli_highlight_names_write(const CliHighlightKeyErrMsgCfg *args)
         }
         mmgr_line_ch(args->out, ']');
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return has_entry;
 }
 
 unsigned int cli_highlight_names_each(const CliHighlightKeyContextCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const unsigned int entry_at = EMBED_CALL(cli_grammar_entry_get, HighlightStoreCtx, .key = args->key);
     const CliGrammar *const grammar = (entry_at != s_grammar_room) ? &s_grammars[entry_at].grammar : NULL;
     const unsigned int names = (grammar != NULL) ? grammar->names : 0u;
@@ -563,7 +555,6 @@ unsigned int cli_highlight_names_each(const CliHighlightKeyContextCfg *args)
         EMBED_CALL(args->each_name_each, CliNameEachCfg, .context = args->context, .place = at,
                    .name = grammar->text + grammar->name[at]);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return names;
 }
 

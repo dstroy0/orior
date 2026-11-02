@@ -19,8 +19,6 @@ const char *const g_cli_maven_compiler[4][4] = {
     {"target", "Java target", "maven.compiler.target", "target"},
     {"encoding", "Source encoding", "project.build.sourceEncoding", "encoding"}};
 
-static CliLock s_settings_lock = CLI_LOCK_INIT;
-
 unsigned int cli_maven_compiler_plugin(const CliMavenXmlProjectCtx *args)
 {
     static const char *const s_build[2] = {"build", "plugins"};
@@ -308,7 +306,6 @@ void cli_maven_settings(const CliMavenCfg *args)
     const char *root = args->root;
     VerbaLinea *out = args->out;
     static char s_value[1u << 16u];
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_settings_lock);
     char shown[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_builds_root.build_inside, CliBuildsRootCfg, .root = root, .folder = args->pom, .out_room = shown);
     mmgr_line_ch(out, '[');
@@ -384,5 +381,4 @@ void cli_maven_settings(const CliMavenCfg *args)
                .label = "Active profiles", .value = s_value, .value_size = value.at, .file = user_file, .settable = 0);
     mmgr_line_ch(out, ']');
     settings_let_go();
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_settings_lock);
 }

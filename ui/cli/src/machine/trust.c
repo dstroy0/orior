@@ -12,7 +12,6 @@
 #define CLI_TRUST_TEXT_MORE 64u
 
 // the file of answers read and written under its lock
-static CliLock s_trust_lock = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -50,8 +49,6 @@ EMBED_INLINE void cli_key(const TrustCtx *args)
     VerbaLinea line = {args->key, CLI_PATH_MAX_LEN, 0ull};
 #if defined(_WIN32)
     static unsigned int s_letters[CLI_PATH_MAX_LEN];
-    static CliLock s_letters_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_letters_lock);
     const unsigned long long count =
         EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = args->folder,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = args->folder, .cap = CLI_CELLS_POOL}),
@@ -63,7 +60,6 @@ EMBED_INLINE void cli_key(const TrustCtx *args)
                                  ? '/'
                                  : EMBED_CALL(cli_regexp_letter.lower, CliRegexpLetterCfg, .letter = s_letters[at]));
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_letters_lock);
 #else
     (void)EMBED_CALL(cli_text_from.put_swap, CliTextFromCfg, .out = &line, .text = args->folder, .from = '\\',
                      .to = '/');
@@ -139,7 +135,6 @@ int cli_trust_answer_in(const CliTrustTreeCfg *args)
     int *trusted = args->trusted;
     char key[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_key, TrustCtx, .folder = args->tree, .key = key);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_trust_lock);
     CliJson json = {0};
     unsigned int yes = CLI_JSON_NONE;
     unsigned int no = CLI_JSON_NONE;
@@ -149,7 +144,6 @@ int cli_trust_answer_in(const CliTrustTreeCfg *args)
     const unsigned long long by_refused =
         EMBED_CALL(cli_nearest, TrustCtx, .json_read = &json, .list = no, .tree = key);
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_trust_lock);
     *trusted = by_trusted > by_refused;
     return (by_trusted != 0ull) || (by_refused != 0ull);
 }
@@ -189,7 +183,6 @@ int cli_trust_set_in(const CliTrustFolderCfg *args)
     char key[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_key, TrustCtx, .folder = args->folder, .key = key);
     const unsigned long long key_length = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL});
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_trust_lock);
     CliJson read = {0};
     unsigned int yes = CLI_JSON_NONE;
     unsigned int no = CLI_JSON_NONE;
@@ -247,7 +240,6 @@ int cli_trust_set_in(const CliTrustFolderCfg *args)
     }
     g_cli_cells->persistent_buf_release(out.out, &g_cli_machine_cells);
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_trust_lock);
     if (done)
     {
         cli_trust_forget();

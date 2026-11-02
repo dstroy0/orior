@@ -1002,12 +1002,7 @@ int gui_menubar_move(const GuiMenubarGlyphsFrameXCfg *args)
 
 unsigned long long gui_menubar_next_deadline_ms(const GuiMenubarCfg *args)
 {
-    const unsigned long long now_ms = cli_clock_milliseconds();
-    if (args->menubar_read->submenu_deadline_ms == 0ull)
-    {
-        return 0ull;
-    }
-    return (args->menubar_read->submenu_deadline_ms > now_ms) ? args->menubar_read->submenu_deadline_ms - now_ms : 1ull;
+    return args->menubar_read->submenu_deadline_ms;
 }
 
 int gui_menubar_tick(const GuiMenubarGlyphsFrameXCfg *args)
@@ -1025,7 +1020,8 @@ int gui_menubar_tick(const GuiMenubarGlyphsFrameXCfg *args)
                           .frame = args->frame, .level = args->menubar->submenu_level,
                           .index = (unsigned int)args->menubar->submenu_index, .marked = 0);
     }
-    EMBED_CALL(menubar_closed_from, MenubarCtx, .menubar_out = args->menubar, .level = args->menubar->submenu_level + 1u);
+    EMBED_CALL(menubar_closed_from, MenubarCtx, .menubar_out = args->menubar,
+               .level = args->menubar->submenu_level + 1u);
     return 1;
 }
 

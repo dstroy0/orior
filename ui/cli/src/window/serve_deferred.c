@@ -20,7 +20,6 @@ typedef struct
     char args[];
 } CliServeDeferred;
 
-static CliLock s_lock = CLI_LOCK_INIT;
 static unsigned int s_running;
 
 typedef struct
@@ -97,9 +96,7 @@ static void deferred_run(void *context)
     {
         g_cli_cells->persistent_buf_release(out.out, &g_cli_window_cells);
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     s_running -= 1u;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     g_cli_cells->persistent_buf_release(deferred, &g_cli_window_cells);
 }
 
@@ -146,10 +143,8 @@ int cli_serve_deferred_or(const CliServeErrMsgOutRequestCtx *args)
     deferred->request_id = request_id;
     deferred->thread = (CliThread){deferred_run, deferred, CLI_PRIORITY_WORK};
     g_cli_cells->persistent_buf_release(text.out, &g_cli_window_cells);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int room = s_running < CLI_SERVE_DEFERRED_MAX;
     s_running += room ? 1u : 0u;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     if (!room)
     {
         g_cli_cells->persistent_buf_release(deferred, &g_cli_window_cells);
@@ -158,9 +153,7 @@ int cli_serve_deferred_or(const CliServeErrMsgOutRequestCtx *args)
     }
     if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &deferred->thread))
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
         s_running -= 1u;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         g_cli_cells->persistent_buf_release(deferred, &g_cli_window_cells);
         mmgr_line_put(args->err_msg, "the deferred call's thread did not start");
         return 0;

@@ -19,11 +19,10 @@ typedef struct
     unsigned int next;
     unsigned int running;
     int plain;
-    CliLock lock;
     CliWake wake;
 } BenchReaders;
 
-static BenchReaders s_readers = {NULL, 0u, 0u, 0, CLI_LOCK_INIT, CLI_WAKE_INIT};
+static BenchReaders s_readers = {NULL, 0u, 0u, 0, CLI_WAKE_INIT};
 
 // each file read in turn: through the cells, or through the system's allocator alone where the readers are plain
 static void readers_run(void *context)
@@ -32,10 +31,8 @@ static void readers_run(void *context)
     const BenchCorpus *const corpus = s_readers.corpus;
     for (;;)
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_readers.lock);
         const unsigned int index = s_readers.next;
         s_readers.next += (index < corpus->count) ? 1u : 0u;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_readers.lock);
         if (index >= corpus->count)
         {
             break;
@@ -55,10 +52,8 @@ static void readers_run(void *context)
         const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take, CliPathCtx, .path = corpus->paths[index], .size_pointer = &size, .owner = &g_checks_cells);
         EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_checks_cells);
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_readers.lock);
     s_readers.running -= 1u;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_readers.wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_readers.lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_readers.wake);
 }
 
 BenchMeasure bench_files_read_by(const BenchCorpus *corpus, unsigned int threads, int plain)
@@ -81,12 +76,10 @@ BenchMeasure bench_files_read_by(const BenchCorpus *corpus, unsigned int threads
                 readers_run(NULL);
             }
         }
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_readers.lock);
         while (s_readers.running > 0u)
         {
-            EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_readers.wake, .lock = &s_readers.lock);
+            EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_readers.wake);
         }
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_readers.lock);
         const unsigned long long took = cli_clock_microseconds() - began;
         measure.bytes = corpus->whole;
         measure.least = (took < measure.least) ? took : measure.least;

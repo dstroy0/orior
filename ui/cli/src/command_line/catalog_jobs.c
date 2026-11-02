@@ -21,7 +21,6 @@ typedef struct
 } CliCatalogJobsRoom;
 
 static CliCatalogJobsRoom *s_jobs;
-static CliLock s_lock = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -554,11 +553,9 @@ static void cli_jobs_free(void)
 
 void cli_catalog_read(const CliCatalogRootCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     s_jobs = g_cli_cells->persistent_buf_alloc(sizeof(*s_jobs), &g_cli_catalog_cells);
     if (s_jobs == NULL)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return;
     }
     memor.set(&(MemoriaCfg){.dst = s_jobs, .val = 0, .bytes = sizeof(*s_jobs)});
@@ -575,5 +572,4 @@ void cli_catalog_read(const CliCatalogRootCfg *args)
     cli_jobs_free();
     g_cli_cells->persistent_buf_release(s_jobs, &g_cli_catalog_cells);
     s_jobs = NULL;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }

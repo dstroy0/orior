@@ -35,7 +35,6 @@ static CliPart s_parts[CLI_LAYER_PARTS];
 static CliPartValue s_values[CLI_LAYER_RAW];
 static CliKindSet s_kinds[CLI_LAYER_PARTS];
 static char s_value[CLI_LAYER_VALUE];
-static CliLock s_lock = CLI_LOCK_INIT;
 
 // the bytes the layers' texts are first taken with
 
@@ -349,7 +348,6 @@ void cli_settings_layers(const CliSettingsRootCfg *args)
         EMBED_CALL(cli_settings_layers_problem_internal.problem, CliSettingsLayersProblemCtx, .layers = args->layers,
                    .problem = args->tree->problem[at]);
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     EMBED_CALL(cli_settings_parts_internal.parts_store, CliSettingsPartsCtx, .parts = s_parts, .values = s_values,
                .kinds = s_kinds);
     unsigned int parts = 0u;
@@ -496,5 +494,4 @@ void cli_settings_layers(const CliSettingsRootCfg *args)
                        .part = NULL, .text = text);
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }

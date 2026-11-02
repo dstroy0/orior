@@ -398,12 +398,9 @@ void cli_files_warm(const CliFilesRootPathsCfg *args)
 {
     static char s_root[CLI_PATH_MAX_LEN];
     static CliThread s_warmer;
-    static CliLock s_warm_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_warm_lock);
     memor.cpy(&(MemoriaCfg){.dst = s_root,
                             .src = args->root,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL}) + 1u});
     s_warmer = (CliThread){seen_warm, s_root, CLI_PRIORITY_IDLE};
     EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &s_warmer);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_warm_lock);
 }

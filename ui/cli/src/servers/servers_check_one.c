@@ -48,15 +48,12 @@ typedef struct
 } CliServersWait;
 
 static CliKeyed s_check_open = {"open checks", {NULL}, 0u, CLI_SERVERS_CHECK_OPEN_MAX};
-CliLock g_cli_servers_check_open_lock = CLI_LOCK_INIT;
 
 static CliKeyed s_letting = {"checks let go", {NULL}, 0u, CLI_SERVERS_CHECK_OPEN_MAX};
 static CliServersWait s_wait[CLI_SERVERS_CHECKING];
-static CliLock s_letting_lock = CLI_LOCK_INIT;
 
 static unsigned long long s_refused[CLI_SERVERS_REFUSED];
 static unsigned int s_refusing;
-static CliLock s_refused_lock = CLI_LOCK_INIT;
 
 int cli_servers_check_open(const CliServersUriCtx *args)
 {
@@ -107,29 +104,24 @@ void cli_servers_reread_open(const CliServersServerCommandCtx *args)
 
 void cli_servers_let_go_clear(const CliServersKeyCheckerCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_letting_lock);
     EMBED_CALL(cli_keyed_key_beside.remove, CliKeyedKeyBesideCfg, .keyed_out = &s_letting, .key = args->key);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_letting_lock);
 }
 
 void cli_servers_wake(const CliServersKeyCheckerCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_letting_lock);
     for (unsigned int at = 0u; at < CLI_SERVERS_CHECKING; at += 1u)
     {
         if (s_wait[at].waiting &&
             (cellul.eq(&(CatenaFinitaCfg){.src = s_wait[at].key, .other = args->key, .cap = CLI_CELLS_POOL})))
         {
             s_wait[at].signals += 1u;
-            EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_wait[at].wake);
+            EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_wait[at].wake);
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_letting_lock);
 }
 
 int cli_servers_gather(const CliServersSizeKeyCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_letting_lock);
     int gathered = 0;
     for (unsigned int at = 0u; at < CLI_SERVERS_CHECKING; at += 1u)
     {
@@ -140,17 +132,15 @@ int cli_servers_gather(const CliServersSizeKeyCtx *args)
             // the diagnostics of one slice are below 2^32 bytes
             mmgr_line_put_n(&s_wait[at].gathered, args->all, (size_t)args->size);
             s_wait[at].signals += 1u;
-            EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_wait[at].wake);
+            EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_wait[at].wake);
             gathered = 1;
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_letting_lock);
     return gathered;
 }
 
 void cli_servers_gathering_end(const CliServersKeyCheckerCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_letting_lock);
     for (unsigned int at = 0u; at < CLI_SERVERS_CHECKING; at += 1u)
     {
         if (cellul.eq(&(CatenaFinitaCfg){.src = s_wait[at].key, .other = args->key, .cap = CLI_CELLS_POOL}))
@@ -158,48 +148,39 @@ void cli_servers_gathering_end(const CliServersKeyCheckerCtx *args)
             s_wait[at].gathering = 0;
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_letting_lock);
 }
 
 int cli_servers_letting_go(const CliServersKeyCheckerCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_letting_lock);
     const char *beside = NULL;
     unsigned long long size = 0ull;
     const int letting = EMBED_CALL(cli_keyed_key_beside.get, CliKeyedKeyBesideCfg, .keyed = &s_letting,
                                    .key = args->key, .beside = &beside, .size = &size) != NULL;
     EMBED_CALL(cli_keyed_key_beside.remove, CliKeyedKeyBesideCfg, .keyed_out = &s_letting, .key = args->key);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_letting_lock);
     return letting;
 }
 
 void cli_servers_wait_on(const CliServersKeyCheckerCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_letting_lock);
     s_wait[args->checker].waiting = 1;
     s_wait[args->checker].signals = 0u;
     memor.cpy(&(MemoriaCfg){.dst = s_wait[args->checker].key,
                             .src = args->key,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_CELLS_POOL}) + 1u});
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_letting_lock);
 }
 
 int cli_servers_was_wake(const CliServersKeyCheckerCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_letting_lock);
     const int woken = s_wait[args->checker].signals > 0u;
     s_wait[args->checker].signals = 0u;
     s_wait[args->checker].waiting = 0;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_letting_lock);
     return woken;
 }
 
 void cli_servers_let_go_get(const CliServersKeyCheckerCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_letting_lock);
     (void)EMBED_CALL(cli_keyed_key_beside.put, CliKeyedKeyBesideCfg, .keyed_out = &s_letting, .key = args->key,
                      .beside_value = "", .text = "", .size_value = 0ull);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_letting_lock);
 }
 
 typedef struct
@@ -232,8 +213,8 @@ EMBED_INLINE int check_one_woken_within(const ServersCheckOneCtx *args)
         {
             return 0;
         }
-        (void)EMBED_CALL(cli_lock_internal.wake_wait_for, CliLockCtx, .wake = &s_wait[args->checker].wake,
-                         .lock = &s_letting_lock, .milliseconds_u64 = until - now);
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &s_wait[args->checker].wake,
+                         .milliseconds_u64 = until - now);
     }
     s_wait[args->checker].signals = 0u;
     return 1;
@@ -242,7 +223,6 @@ EMBED_INLINE int check_one_woken_within(const ServersCheckOneCtx *args)
 // the checker waited on its server to give a file's diagnostics, and for any it gives after them
 EMBED_INLINE void check_one_wait(const ServersCheckOneCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_letting_lock);
     if (EMBED_CALL(check_one_woken_within, ServersCheckOneCtx, .checker = args->checker,
                    .milliseconds = CLI_SERVERS_PATIENCE))
     {
@@ -251,13 +231,11 @@ EMBED_INLINE void check_one_wait(const ServersCheckOneCtx *args)
         {
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_letting_lock);
 }
 
 // whether the server of process `pid` refused to be queried for a file's diagnostics; and it recorded as one that did
 EMBED_INLINE int check_one_reject(const ServersCheckOneCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_refused_lock);
     int refused = 0;
     for (unsigned int at = 0u; !refused && (at < s_refusing); at += 1u)
     {
@@ -268,7 +246,6 @@ EMBED_INLINE int check_one_reject(const ServersCheckOneCtx *args)
         s_refused[s_refusing] = args->pid;
         s_refusing += 1u;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_refused_lock);
     return refused;
 }
 
@@ -280,21 +257,17 @@ EMBED_INLINE int check_one_free(const ServersCheckOneCtx *args)
     const char *uri = args->uri;
     const char *key = args->key;
     const char *text = args->text;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_check_open_lock);
     const int open = EMBED_CALL(cli_lsp_path_out.has, CliLspPathOutCfg, .lsp = args->one->server, .path = path);
     if (open && !EMBED_CALL(cli_servers_uri_internal.check_open, CliServersUriCtx, .uri = uri))
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_check_open_lock);
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_letting_lock);
     s_wait[args->checker].waiting = 1;
     memor.cpy(&(MemoriaCfg){.dst = s_wait[args->checker].key,
                             .src = key,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) + 1u});
     s_wait[args->checker].signals = 0u;
     EMBED_CALL(cli_keyed_key_beside.remove, CliKeyedKeyBesideCfg, .keyed_out = &s_letting, .key = key);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_letting_lock);
     EMBED_CALL(cli_servers_uri_internal.check_open_set, CliServersUriCtx, .uri = uri, .open = 1);
     char quiet[1024];
     VerbaLinea err_msg = {quiet, sizeof(quiet), 0ull};
@@ -306,11 +279,8 @@ EMBED_INLINE int check_one_free(const ServersCheckOneCtx *args)
     if (!sent)
     {
         EMBED_CALL(cli_servers_uri_internal.check_open_set, CliServersUriCtx, .uri = uri, .open = 0);
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_letting_lock);
         s_wait[args->checker].waiting = 0;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_letting_lock);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_check_open_lock);
     return sent;
 }
 
@@ -388,10 +358,8 @@ static void check_one_request(const ServersCheckOneCtx *args)
         g_cli_cells->persistent_buf_release(reply.message, &g_cli_servers_cells);
         return;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_published_lock);
     (void)EMBED_CALL(cli_keyed_key_beside.put, CliKeyedKeyBesideCfg, .keyed_out = &g_cli_servers_published, .key = key,
                      .beside_value = uri, .text = items, .size_value = items_size);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_published_lock);
     g_cli_cells->persistent_buf_release(reply.message, &g_cli_servers_cells);
     EMBED_CALL(cli_servers_sink_key_internal.emit_whole, CliServersSinkKeyCtx, .key = key, .uri = uri, .sink = sink);
 }
@@ -441,16 +409,13 @@ static int check_one_window(const CliServersWindowCfg *args)
     unsigned int last = args->last;
     CliServersCheckSliced *const sliced = (CliServersCheckSliced *)args->context;
     const unsigned int checker = sliced->checker;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_check_open_lock);
     const int open =
         EMBED_CALL(cli_lsp_path_out.has, CliLspPathOutCfg, .lsp = sliced->one->server, .path = sliced->path);
     if (open && !EMBED_CALL(cli_servers_uri_internal.check_open, CliServersUriCtx, .uri = sliced->uri))
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_check_open_lock);
         sliced->stopped = 1;
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_letting_lock);
     s_wait[checker].waiting = 1;
     memor.cpy(&(MemoriaCfg){.dst = s_wait[checker].key,
                             .src = sliced->key,
@@ -459,7 +424,6 @@ static int check_one_window(const CliServersWindowCfg *args)
     s_wait[checker].gathering = 1;
     s_wait[checker].gathered.at = 0u;
     EMBED_CALL(cli_keyed_key_beside.remove, CliKeyedKeyBesideCfg, .keyed_out = &s_letting, .key = sliced->key);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_letting_lock);
     EMBED_CALL(cli_servers_uri_internal.check_open_set, CliServersUriCtx, .uri = sliced->uri, .open = 1);
     char quiet[1024];
     VerbaLinea err_msg = {quiet, sizeof(quiet), 0ull};
@@ -470,7 +434,6 @@ static int check_one_window(const CliServersWindowCfg *args)
     {
         EMBED_CALL(cli_servers_uri_internal.check_open_set, CliServersUriCtx, .uri = sliced->uri, .open = 0);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_check_open_lock);
     if (!sent)
     {
         sliced->stopped = 1;
@@ -480,14 +443,12 @@ static int check_one_window(const CliServersWindowCfg *args)
     EMBED_CALL(check_one_request, ServersCheckOneCtx, .checker = checker, .path = sliced->path, .uri = sliced->uri,
                .key = sliced->key, .one = sliced->one, .sink = sliced->sink);
     // the window's diagnostics taken from the wait, as the thread that reads the server may write them again
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_letting_lock);
     const unsigned long long size = mmgr_line_ok(&s_wait[checker].gathered) ? s_wait[checker].gathered.at : 0ull;
     char *const gathered = (size > 0ull) ? g_cli_cells->temporary_buf_alloc(size, &g_cli_servers_cells) : NULL;
     if (gathered != NULL)
     {
         memor.cpy(&(MemoriaCfg){.dst = gathered, .src = s_wait[checker].gathered.out, .bytes = (size_t)size});
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_letting_lock);
     if (gathered != NULL)
     {
         EMBED_CALL(check_one_window_save, ServersCheckOneCtx, .sliced = sliced, .gathered = gathered, .size = size,
@@ -509,11 +470,9 @@ EMBED_INLINE void check_one_slice(const ServersCheckOneCtx *args)
     const CliServersSink *sink = args->sink;
     CliServersCheckSliced sliced = {
         args->checker, path, uri, key, args->one, sink, 0, 0, {NULL, 0ull, 0ull, NULL, NULL, 0ull}, 0};
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_letting_lock);
     s_wait[args->checker].gathering = 0;
     char *const gathered_cell = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_GATHERED_ROOM, &g_cli_servers_cells);
     s_wait[args->checker].gathered = mmgr_line_over(gathered_cell, CLI_SERVERS_GATHERED_ROOM);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_letting_lock);
     char quiet[1024];
     VerbaLinea err_msg = {quiet, sizeof(quiet), 0ull};
     char *const all_cell = g_cli_cells->temporary_buf_alloc(CLI_SERVERS_GATHERED_ROOM, &g_cli_servers_cells);
@@ -527,45 +486,35 @@ EMBED_INLINE void check_one_slice(const ServersCheckOneCtx *args)
                            .root = sink->tree, .path = path, .text = text, .size = size, .window = check_one_window,
                            .context = &sliced, .err_msg = &err_msg);
     // the file let go before its gathering ends: what its server gives as it closes is the clearing let go
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_check_open_lock);
     const int ours = EMBED_CALL(cli_servers_uri_internal.check_open, CliServersUriCtx, .uri = uri);
     const int editors =
         !ours && EMBED_CALL(cli_lsp_path_out.has, CliLspPathOutCfg, .lsp = args->one->server, .path = path);
     EMBED_CALL(cli_servers_uri_internal.check_open_set, CliServersUriCtx, .uri = uri, .open = 0);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_letting_lock);
     s_wait[args->checker].waiting = 0;
     if (ours)
     {
         (void)EMBED_CALL(cli_keyed_key_beside.put, CliKeyedKeyBesideCfg, .keyed_out = &s_letting, .key = key,
                          .beside_value = "", .text = "", .size_value = 0ull);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_letting_lock);
     if (ours)
     {
         (void)EMBED_CALL(cli_lsp_err_msg_text.close, CliLspErrMsgTextCfg, .lsp = args->one->server, .path = path,
                          .err_msg = &err_msg);
         EMBED_CALL(cli_servers_path_lsp_internal.slice_close, CliServersPathLspCtx, .path = path);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_check_open_lock);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_letting_lock);
     s_wait[args->checker].gathering = 0;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_letting_lock);
     EMBED_CALL(cli_servers_internal.ask_end, CliServersCtx, .server_read = args->one->server);
     mmgr_line_ch(&sliced.all, ']');
     if (cut && !sliced.stopped && !editors && mmgr_line_ok(&sliced.all))
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_published_lock);
         (void)EMBED_CALL(cli_keyed_key_beside.put, CliKeyedKeyBesideCfg, .keyed_out = &g_cli_servers_published,
                          .key = key, .beside_value = uri, .text = sliced.all.out, .size_value = sliced.all.at);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_published_lock);
         EMBED_CALL(cli_servers_sink_key_internal.emit_whole, CliServersSinkKeyCtx, .key = key, .uri = uri,
                    .sink = sink);
     }
     g_cli_cells->persistent_buf_release(sliced.all.out, &g_cli_servers_cells);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_letting_lock);
     g_cli_cells->persistent_buf_release(s_wait[args->checker].gathered.out, &g_cli_servers_cells);
     s_wait[args->checker].gathered = (VerbaLinea){NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_letting_lock);
 }
 
 // one file checked by the checker `checker`, its `size` bytes of `text` as the disk stores them; NULL where it is not
@@ -585,14 +534,12 @@ EMBED_INLINE void check_one_run(const ServersCheckOneCtx *args)
     if ((text == NULL) || (size > CLI_SERVERS_LARGEST) ||
         !EMBED_CALL(cli_json_tree_size.utf8_whole, CliJsonTreeSizeCfg, .bytes = text, .size = size))
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_check_open_lock);
         if (EMBED_CALL(cli_servers_uri_internal.check_open, CliServersUriCtx, .uri = uri))
         {
             EMBED_CALL(cli_servers_uri_internal.check_open_set, CliServersUriCtx, .uri = uri, .open = 0);
             (void)EMBED_CALL(cli_lsp_err_msg_text.close, CliLspErrMsgTextCfg, .lsp = args->one->server, .path = path,
                              .err_msg = &err_msg);
         }
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_check_open_lock);
         return;
     }
     if (EMBED_CALL(cli_servers_internal.slicing, CliServersCtx, .server_read = args->one->server))
@@ -608,23 +555,19 @@ EMBED_INLINE void check_one_run(const ServersCheckOneCtx *args)
     }
     EMBED_CALL(check_one_request, ServersCheckOneCtx, .checker = args->checker, .path = path, .uri = uri, .key = key,
                .one = args->one, .sink = args->sink);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_check_open_lock);
     const int ours = EMBED_CALL(cli_servers_uri_internal.check_open, CliServersUriCtx, .uri = uri);
     EMBED_CALL(cli_servers_uri_internal.check_open_set, CliServersUriCtx, .uri = uri, .open = 0);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_letting_lock);
     s_wait[args->checker].waiting = 0;
     if (ours)
     {
         (void)EMBED_CALL(cli_keyed_key_beside.put, CliKeyedKeyBesideCfg, .keyed_out = &s_letting, .key = key,
                          .beside_value = "", .text = "", .size_value = 0ull);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_letting_lock);
     if (ours)
     {
         (void)EMBED_CALL(cli_lsp_err_msg_text.close, CliLspErrMsgTextCfg, .lsp = args->one->server, .path = path,
                          .err_msg = &err_msg);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_check_open_lock);
 }
 
 void cli_servers_check_one(const CliServersPathSinkCtx *args)

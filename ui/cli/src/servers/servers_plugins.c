@@ -40,7 +40,6 @@ typedef struct
 #define CLI_SERVERS_PLUGINS 8u
 
 static CliPluginServer s_plugin[CLI_SERVERS_PLUGINS];
-static CliLock s_plugins_lock = CLI_LOCK_INIT;
 
 // What a plugin's start reads: its id, its plugin.json read into a tree, and that plugin.json's root there
 typedef struct
@@ -320,7 +319,6 @@ int cli_servers_plugin_start(const CliServersRootSinkCfg *args)
                    .length = length, .folder = folder, .escaped = 1);
         EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = path, .size = CLI_PATH_TEXT);
         const CliSetting setting[1] = {{"PATH", path}};
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_plugins_lock);
         unsigned int at = 0u;
         while ((at < CLI_SERVERS_PLUGINS) && s_plugin[at].used)
         {
@@ -349,15 +347,12 @@ int cli_servers_plugin_start(const CliServersRootSinkCfg *args)
         {
             mmgr_line_put(err_msg, "as many plugin servers run as orior_cli runs at once");
         }
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_plugins_lock);
         if (started)
         {
             CliPluginHanding handing = {plugin, {NULL, 0u, 0u}};
             EMBED_CALL(cli_plugins_table.languages_for_call, CliPluginsCfg, .languages = &handing.languages);
-            EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_texts_lock);
             EMBED_CALL(cli_keyed_each_table.each, CliKeyedEachCfg, .keyed = &g_cli_servers_texts,
                        .each = plugins_open_dispatch, .context = &handing);
-            EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_texts_lock);
             EMBED_CALL(cli_plugins_table.languages_free, CliPluginsCfg, .languages = &handing.languages);
         }
         g_cli_cells->persistent_buf_release(given, &g_cli_servers_cells);
@@ -370,7 +365,6 @@ int cli_servers_plugin_start(const CliServersRootSinkCfg *args)
 
 void cli_servers_plugin_stop(const CliServersRootSinkCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_plugins_lock);
     const unsigned int at = EMBED_CALL(plugins_place, ServersPluginsCtx, .id = args->id);
     CliLsp *const lsp = (at < CLI_SERVERS_PLUGINS) ? s_plugin[at].lsp : NULL;
     if (at < CLI_SERVERS_PLUGINS)
@@ -378,7 +372,6 @@ void cli_servers_plugin_stop(const CliServersRootSinkCfg *args)
         s_plugin[at].used = 0;
         s_plugin[at].lsp = NULL;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_plugins_lock);
     if (lsp != NULL)
     {
         EMBED_CALL(cli_lsp_context.stop, CliLspContextCfg, .lsp = lsp);
@@ -389,14 +382,12 @@ void cli_servers_plugin_stop(const CliServersRootSinkCfg *args)
 // the server of plugin `id`, referenced, or NULL with why given where none runs
 CliLsp *cli_servers_plugin_get(const CliServersErrMsgServerCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_plugins_lock);
     const unsigned int at = EMBED_CALL(plugins_place, ServersPluginsCtx, .id = args->id);
     CliLsp *const lsp = (at < CLI_SERVERS_PLUGINS) ? s_plugin[at].lsp : NULL;
     if (lsp != NULL)
     {
         EMBED_CALL(cli_lsp_context.ref, CliLspContextCfg, .lsp = lsp);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_plugins_lock);
     if (lsp == NULL)
     {
         mmgr_line_put(args->err_msg, "no server of the plugin ");
@@ -472,7 +463,6 @@ static unsigned int plugins_change_send(const ServersPluginsCtx *args)
     CliLsp *owners[CLI_SERVERS_PLUGINS];
     const char *named[CLI_SERVERS_PLUGINS];
     unsigned int count = 0u;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_plugins_lock);
     for (unsigned int at = 0u; at < CLI_SERVERS_PLUGINS; at += 1u)
     {
         const char *const name = (s_plugin[at].used && (args->change->language != NULL))
@@ -488,7 +478,6 @@ static unsigned int plugins_change_send(const ServersPluginsCtx *args)
             count += 1u;
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_plugins_lock);
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     for (unsigned int at = 0u; at < count; at += 1u)
@@ -540,7 +529,6 @@ CliLsp *cli_servers_plugin_owner_get(const CliServersPathIdCtx *args)
     unsigned int *at = args->at_pointer;
     const char *path = args->path;
     CliLsp *found = NULL;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_plugins_lock);
     while ((found == NULL) && (*at < CLI_SERVERS_PLUGINS))
     {
         const CliPluginServer *const plugin = &s_plugin[*at];
@@ -552,16 +540,13 @@ CliLsp *cli_servers_plugin_owner_get(const CliServersPathIdCtx *args)
             memor.cpy(&(MemoriaCfg){.dst = args->id_out, .src = plugin->id, .bytes = CLI_NAME_MAX_LEN});
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_plugins_lock);
     return found;
 }
 
 void cli_servers_plugin_command(const CliServersSizeCommandCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_plugins_lock);
     const unsigned int at = EMBED_CALL(plugins_place, ServersPluginsCtx, .id = args->id);
     const CliServersSink sink = (at < CLI_SERVERS_PLUGINS) ? s_plugin[at].sink : (CliServersSink){NULL, NULL, ""};
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_plugins_lock);
     if (sink.emit != NULL)
     {
         EMBED_CALL(plugins_msg_emit, ServersPluginsCtx, .id = args->id, .sink = &sink, .method = "orior/command",

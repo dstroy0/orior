@@ -6,7 +6,6 @@
 #include "../text/regexp.h"
 #include "inspect_internal.h"
 
-CliLock g_cli_inspect_lock = CLI_LOCK_INIT;
 CliInspectTok *g_cli_inspect_tok;
 unsigned int g_cli_inspect_toks;
 CliInspectSpan *g_cli_inspect_comment;

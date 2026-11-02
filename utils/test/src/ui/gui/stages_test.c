@@ -5,6 +5,7 @@
 // the base's own map draws for that frame, and the cell given back
 #include "../../../../../ui/gui/src/stages.h"
 #include "../cli/cli_check.h"
+#include "test_clock.h"
 
 // whether two rasters of one size hold the same pixels
 static int same_pixels(const GuiRaster *one, const GuiRaster *other)

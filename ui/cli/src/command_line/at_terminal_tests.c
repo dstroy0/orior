@@ -31,7 +31,6 @@ static char s_counts[4096];
 static unsigned long long s_counts_used;
 static int s_done;
 static int s_good;
-static CliLock s_lock = CLI_LOCK_INIT;
 static CliWake s_wake = CLI_WAKE_INIT;
 
 typedef struct
@@ -174,7 +173,6 @@ EMBED_INLINE void tests_counts(const AtTerminalTestsCtx *args)
 static void tests_event(const CliEachJsonSizeCfg *args)
 {
     unsigned long long size = args->size;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     CliJson tree;
     CliJson *const json = &tree;
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = json, .node_json_node_pointer = NULL,
@@ -269,10 +267,9 @@ static void tests_event(const CliEachJsonSizeCfg *args)
     {
         EMBED_CALL(tests_counts, AtTerminalTestsCtx, .json = json, .done = root);
         s_done = 1;
-        EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_wake);
+        EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_wake);
     }
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = json);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 int cli_at_terminal_tests(const CliAtTerminalRootCfg *args)
@@ -282,39 +279,29 @@ int cli_at_terminal_tests(const CliAtTerminalRootCfg *args)
     unsigned int count = args->count;
     int cover = args->cover;
     VerbaLinea *err_msg = args->err_msg;
-    static CliLock s_running = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_running);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     EMBED_CALL(tests_lines_begin, AtTerminalTestsCtx, .lines = &s_failed);
     EMBED_CALL(tests_lines_begin, AtTerminalTestsCtx, .lines = &s_covered);
     s_counts_used = 0ull;
     s_done = 0;
     s_good = 0;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     const CliJsonSink sink = {tests_event, NULL};
     unsigned long long run = 0ull;
     if (!EMBED_CALL(cli_test_runs_root.start, CliTestRunsRootCfg, .root = root, .given = given, .count = count,
                     .parallel = 1, .cover = cover, .sink = sink, .number = &run, .err_msg = err_msg))
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
         EMBED_CALL(tests_lines_free, AtTerminalTestsCtx, .lines = &s_failed);
         EMBED_CALL(tests_lines_free, AtTerminalTestsCtx, .lines = &s_covered);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_running);
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     while (!s_done)
     {
-        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_wake, .lock = &s_lock);
+        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &s_wake);
     }
     VerbaLinea *const into = s_good ? args->out : err_msg;
     EMBED_CALL(tests_lines_write, AtTerminalTestsCtx, .lines = &s_failed, .into = into);
     EMBED_CALL(tests_lines_write, AtTerminalTestsCtx, .lines = &s_covered, .into = into);
     mmgr_line_put_n(into, s_counts, s_counts_used);
     const int good = s_good;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_running);
     return good;
 }
 
@@ -351,11 +338,8 @@ int cli_at_terminal_take(const CliAtTerminalCountCfg *args)
     VerbaLinea *out = args->out;
     VerbaLinea *err_msg = args->err_msg;
     static CliCarried s_there;
-    static CliLock s_take_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_take_lock);
     if (!EMBED_CALL(cli_carry_from.read, CliCarryFromCfg, .from = from, .there_out = &s_there, .err_msg = err_msg))
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_take_lock);
         return 0;
     }
     char *const differences_text = tests_carried_take();
@@ -372,7 +356,6 @@ int cli_at_terminal_take(const CliAtTerminalCountCfg *args)
     if (chosen_places == NULL)
     {
         EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = json);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_take_lock);
         mmgr_line_put(err_msg, "the cell the places and settings taken are listed in could not be taken");
         return 0;
     }
@@ -480,7 +463,6 @@ int cli_at_terminal_take(const CliAtTerminalCountCfg *args)
     }
     g_cli_cells->persistent_buf_release(chosen_places, &g_cli_command_line_cells);
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = json);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_take_lock);
     return done;
 }
 

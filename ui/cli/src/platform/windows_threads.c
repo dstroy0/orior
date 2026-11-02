@@ -8,39 +8,39 @@
 #define NOMINMAX
 #include <windows.h>
 
-// a slim reader-writer lock and a condition variable are each one pointer, zero where free, the size of their storage
-_Static_assert(sizeof(SRWLOCK) == sizeof(void *), "CliLock: SRWLOCK is not one pointer wide");
-_Static_assert(sizeof(CONDITION_VARIABLE) == sizeof(void *), "CliWake: CONDITION_VARIABLE is not one pointer wide");
+// the longest an untimed wait sleeps before its waiter tests again, which bounds a wake landing between the test and
+// the sleep
+#define CLI_WAKE_RECHECK_MS 10ul
 
-void cli_lock_take(const CliLockCtx *args)
+void cli_wake_wait(const CliWakeCtx *args)
 {
-    // the storage is the lock's one word, laid out as SRWLOCK is
-    AcquireSRWLockExclusive((PSRWLOCK)(void *)&args->lock->system_word);
+    unsigned int seen = atomic_load_explicit(&args->wake->generation, memory_order_acquire);
+    (void)WaitOnAddress(&args->wake->generation, &seen, sizeof(seen), CLI_WAKE_RECHECK_MS);
 }
 
-void cli_lock_give(const CliLockCtx *args)
+int cli_wake_wait_for(const CliWakeCtx *args)
 {
-    ReleaseSRWLockExclusive((PSRWLOCK)(void *)&args->lock->system_word);
-}
-
-void cli_wake_wait(const CliLockCtx *args)
-{
-    // each is its one word, laid out as the system's type is
-    SleepConditionVariableSRW((PCONDITION_VARIABLE)(void *)&args->wake->system_word,
-                              (PSRWLOCK)(void *)&args->lock->system_word, INFINITE, 0ul);
-}
-
-int cli_wake_wait_for(const CliLockCtx *args)
-{
+    unsigned int seen = atomic_load_explicit(&args->wake->generation, memory_order_acquire);
     // a wait past the longest a DWORD counts waits that long
     const DWORD waited = (DWORD)((args->milliseconds_u64 < 0xfffffffeull) ? args->milliseconds_u64 : 0xfffffffeull);
-    return SleepConditionVariableSRW((PCONDITION_VARIABLE)(void *)&args->wake->system_word,
-                                     (PSRWLOCK)(void *)&args->lock->system_word, waited, 0ul) != 0;
+    return WaitOnAddress(&args->wake->generation, &seen, sizeof(seen), waited) != FALSE;
 }
 
-void cli_wake_all(const CliLockCtx *args)
+unsigned int cli_wake_read(const CliWakeCtx *args)
 {
-    WakeAllConditionVariable((PCONDITION_VARIABLE)(void *)&args->wake->system_word);
+    return atomic_load_explicit(&args->wake->generation, memory_order_acquire);
+}
+
+void cli_wake_wait_seen(const CliWakeCtx *args)
+{
+    unsigned int seen = args->seen;
+    (void)WaitOnAddress(&args->wake->generation, &seen, sizeof(seen), INFINITE);
+}
+
+void cli_wake_all(const CliWakeCtx *args)
+{
+    (void)atomic_fetch_add_explicit(&args->wake->generation, 1u, memory_order_release);
+    WakeByAddressAll(&args->wake->generation);
 }
 
 static DWORD WINAPI cli_thread_entry(LPVOID given)

@@ -60,7 +60,6 @@ static const char s_stand_in[] = "import json, sys\n"
 // the events received, each `event json`, and how many
 static char s_events[32][4096];
 static unsigned int s_event_count;
-static CliLock s_events_lock = CLI_LOCK_INIT;
 static char s_why[1024];
 static VerbaLinea s_err_msg;
 static char s_tree[CLI_PATH_MAX_LEN];
@@ -72,7 +71,6 @@ static int s_opened;
 // an event received recorded as `event json`
 static void event_recorded(const CliEachEventJsonSizeCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_events_lock);
     if (s_event_count < 32u)
     {
         VerbaLinea line = {s_events[s_event_count], sizeof(s_events[0]), 0ull};
@@ -82,7 +80,6 @@ static void event_recorded(const CliEachEventJsonSizeCfg *args)
         (void)mmgr_line_finish(&line);
         s_event_count += 1u;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_events_lock);
 }
 
 // whether an event received contains both `one` and `other`, waited for up to five seconds
@@ -91,14 +88,12 @@ static int event_seen(const char *one, const char *other)
     const unsigned long long until = cli_clock_milliseconds() + 5000ull;
     while (cli_clock_milliseconds() < until)
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_events_lock);
         int found = 0;
         for (unsigned int at = 0u; (at < s_event_count) && !found; at += 1u)
         {
             found = (cellul.find(&(CatenaFinitaCfg){.src = s_events[at], .cap = CLI_CELLS_POOL, .other = one, .other_cap = CLI_CELLS_POOL}) != NULL) &&
                     (cellul.find(&(CatenaFinitaCfg){.src = s_events[at], .cap = CLI_CELLS_POOL, .other = other, .other_cap = CLI_CELLS_POOL}) != NULL);
         }
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_events_lock);
         if (found)
         {
             return 1;
@@ -170,9 +165,7 @@ static void actions_listed(void)
 void setUp(void)
 {
     cli_unity_begun();
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_events_lock);
     s_event_count = 0u;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_events_lock);
     s_err_msg = (VerbaLinea){s_why, sizeof(s_why), 0ull};
     s_started = 0;
     s_opened = 0;

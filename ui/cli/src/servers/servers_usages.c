@@ -36,7 +36,6 @@ typedef struct
 
 // the usages read, sorted under their own lock
 static const CliServersUsagesRead *s_sorting;
-static CliLock s_sorting_lock = CLI_LOCK_INIT;
 
 // the text the editor holds of the tree's file at `path`, in a cell of its size: NULL where it holds none
 static char *usages_open_text(const CliOpenTextCfg *args)
@@ -158,10 +157,8 @@ static int usages_read(const ServersUsagesCtx *args)
     }
     if (*order != NULL)
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_sorting_lock);
         s_sorting = read;
         qsort(*order, read->count, sizeof(unsigned int), usages_order);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_sorting_lock);
     }
     return found;
 }

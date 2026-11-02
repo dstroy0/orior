@@ -32,7 +32,6 @@ typedef struct
 } CliToolsFound;
 
 static CliToolsFound s_found;
-static CliLock s_found_lock = CLI_LOCK_INIT;
 
 // the states a search is cached with: those found by what the search reads, not by a variable or the tree
 static const char *const s_found_states[4] = {"chosen", "path", "found", "missing"};
@@ -73,14 +72,12 @@ EMBED_INLINE void cli_chosen_release(const ToolchainsChosenCtx *args)
 {
     CliJson *json = args->json;
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = json);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_toolchains_lock);
 }
 
 int cli_toolchains_on_choose(const CliToolchainsIdFolderCfg *args)
 {
     CliJson json;
     char path[CLI_PATH_MAX_LEN];
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_toolchains_lock);
     const unsigned int chosen = EMBED_CALL(cli_chosen_read, ToolchainsChosenCtx, .json = &json, .path = path);
     const char *const given =
         EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
@@ -104,7 +101,6 @@ void cli_toolchains_chosen_each(const CliToolchainsContextCfg *args)
     CliJson json;
     char path[CLI_PATH_MAX_LEN];
     unsigned int count = 0u;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_toolchains_lock);
     const unsigned int chosen = EMBED_CALL(cli_chosen_read, ToolchainsChosenCtx, .json = &json, .path = path);
     // a read the cells refused has no tree, and tells nothing
     if (chosen == CLI_JSON_NONE)
@@ -174,7 +170,6 @@ int cli_toolchains_choose(const CliToolchainsIdCfg *args)
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &manifest_json);
     CliJson json;
     char path[CLI_PATH_MAX_LEN];
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_toolchains_lock);
     const unsigned int chosen = EMBED_CALL(cli_chosen_read, ToolchainsChosenCtx, .json = &json, .path = path);
     EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = &json, .object = chosen,
                .name = args->id,
@@ -196,7 +191,6 @@ int cli_toolchains_forget(const CliToolchainsIdErrMsgCfg *args)
 {
     CliJson json;
     char path[CLI_PATH_MAX_LEN];
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_toolchains_lock);
     const unsigned int chosen = EMBED_CALL(cli_chosen_read, ToolchainsChosenCtx, .json = &json, .path = path);
     int saved = 1;
     if (EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json, .object = chosen,
@@ -453,7 +447,6 @@ int cli_toolchains_found_cache(const CliToolchainsIdCtx *args)
     unsigned int count = args->count;
     const unsigned long long against =
         EMBED_CALL(found_against, ToolchainsChosenCtx, .path_callback = path, .count = count);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_found_lock);
     EMBED_CALL(found_current, ToolchainsChosenCtx, .against = against);
     const unsigned int place = EMBED_CALL(found_place, ToolchainsChosenCtx, .id = id);
     const CliToolFound *const tool = (place < s_found.count) ? &s_found.tool[place] : NULL;
@@ -474,7 +467,6 @@ int cli_toolchains_found_cache(const CliToolchainsIdCtx *args)
         cut = (cut_past != 0ull) ? (args->found->folder + (cut_past - 1ull)) : cut;
         *cut = '\0';
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_found_lock);
     return cached;
 }
 
@@ -490,7 +482,6 @@ void cli_toolchains_found_put(const CliToolchainsIdPathCtx *args)
     }
     const unsigned long long against =
         EMBED_CALL(found_against, ToolchainsChosenCtx, .path_callback = path, .count = count);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_found_lock);
     EMBED_CALL(found_current, ToolchainsChosenCtx, .against = against);
     (void)EMBED_CALL(found_put, ToolchainsChosenCtx, .id = id, .state = state,
                      .program = args->found_read->has_program ? args->found_read->program : "");
@@ -498,23 +489,18 @@ void cli_toolchains_found_put(const CliToolchainsIdPathCtx *args)
     {
         found_write();
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_found_lock);
 }
 
 void cli_toolchains_found_ref(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_found_lock);
     s_found.refs += 1u;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_found_lock);
 }
 
 void cli_toolchains_found_let(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_found_lock);
     s_found.refs -= 1u;
     if (s_found.refs == 0u)
     {
         found_write();
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_found_lock);
 }

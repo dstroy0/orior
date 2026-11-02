@@ -10,7 +10,6 @@
 
 // the PATH every program the query starts runs with
 static char s_run_path[1u << 16u];
-static CliLock s_run_path_lock = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -107,10 +106,8 @@ static int jobs_program(const QueryEachRolePathRoomErrMsgCfg *args)
 static const char *jobs_run_path(void *context)
 {
     (void)context;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_run_path_lock);
     EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = s_run_path,
                .size = sizeof(s_run_path));
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_run_path_lock);
     return s_run_path;
 }
 

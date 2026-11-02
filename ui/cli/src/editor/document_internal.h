@@ -107,8 +107,6 @@ typedef struct CliStoredText
 // the lock the texts are read and written under taken and given back; the first of the texts stored; the text stored
 // under `key`, or NULL; and the lines of a paged text counted again as far as the pages' index has read, each line it
 // had not counted not colored: 1, or 0 where the cells cannot meet their states. Each under the lock (document_store.c)
-void cli_document_lock_take(void);
-void cli_document_lock_give(void);
 CliStoredText *cli_document_texts(void);
 CliStoredText *cli_document_on_store(const CliDocumentKeyCtx *args);
 int cli_document_paged_count(const CliDocumentCtx *args);

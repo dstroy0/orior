@@ -32,7 +32,6 @@ typedef struct
 } CliTrustFound;
 
 static CliTrustFound s_found[CLI_TRUST_TREES];
-static CliLock s_found_lock = CLI_LOCK_INIT;
 
 void cli_trust_code_free(const CliTrustTreeCodeCfg *args)
 {
@@ -43,13 +42,11 @@ void cli_trust_code_free(const CliTrustTreeCodeCfg *args)
 
 void cli_trust_forget(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_found_lock);
     for (unsigned int at = 0u; at < CLI_TRUST_TREES; at += 1u)
     {
         s_found[at].has = 0;
         EMBED_CALL(cli_trust_tree_code.code_free, CliTrustTreeCodeCfg, .code = &s_found[at].code);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_found_lock);
 }
 
 typedef struct
@@ -324,7 +321,6 @@ int cli_trust_own_code(const CliTrustTreeCodeCfg *args)
 {
     CliTrustCode *code = args->code;
     const unsigned long long now = cli_clock_milliseconds();
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_found_lock);
     for (unsigned int at = 0u; at < CLI_TRUST_TREES; at += 1u)
     {
         CliTrustFound *const one = &s_found[at];
@@ -333,11 +329,9 @@ int cli_trust_own_code(const CliTrustTreeCodeCfg *args)
         {
             const int copied = EMBED_CALL(cli_code_copy, TrustCodeCtx, .paths = one->code.paths, .size = one->code.size,
                                           .count = one->code.count, .code = code);
-            EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_found_lock);
             return copied;
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_found_lock);
     // a tree whose code the cellblock could not meet is not cached, and it is looked through again when next requested
     CliTrustCode looked = {NULL, 0ull, 0u};
     if (!EMBED_CALL(cli_trust_tree_code.looked_for, CliTrustTreeCodeCfg, .tree = args->tree, .code = &looked))
@@ -345,7 +339,6 @@ int cli_trust_own_code(const CliTrustTreeCodeCfg *args)
         *code = (CliTrustCode){NULL, 0ull, 0u};
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_found_lock);
     // the tree's place, else a free one, else the oldest
     unsigned int place = CLI_TRUST_TREES;
     for (unsigned int at = 0u; (place == CLI_TRUST_TREES) && (at < CLI_TRUST_TREES); at += 1u)
@@ -377,7 +370,6 @@ int cli_trust_own_code(const CliTrustTreeCodeCfg *args)
     one->code = looked;
     const int copied = EMBED_CALL(cli_code_copy, TrustCodeCtx, .paths = looked.paths, .size = looked.size,
                                   .count = looked.count, .code = code);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_found_lock);
     return copied;
 }
 

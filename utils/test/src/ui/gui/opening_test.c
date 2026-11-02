@@ -13,7 +13,6 @@
 // the wake the link gives the window's thread, counted
 typedef struct
 {
-    CliLock lock;
     CliWake wake;
     unsigned int woken;
 } Woken;
@@ -21,10 +20,8 @@ typedef struct
 static void woken(void *context)
 {
     Woken *const count = (Woken *)context;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &count->lock);
     count->woken += 1u;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &count->wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &count->lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &count->wake);
 }
 
 // the window's thread draining each wake until the editor holds lines or five seconds pass: whether it does
@@ -32,9 +29,7 @@ static int lines_came(GuiWindow *window, Woken *count)
 {
     for (unsigned int left = 500u; left > 0u; left -= 1u)
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &count->lock);
-        (void)EMBED_CALL(cli_lock_internal.wake_wait_for, CliLockCtx, .wake = &count->wake, .lock = &count->lock, .milliseconds_u64 = 10ull);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &count->lock);
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &count->wake, .milliseconds_u64 = 10ull);
         EMBED_CALL(gui_window_table.drain, GuiWindowCfg, .window = window);
         if (window->editor.count > 0u)
         {
@@ -50,9 +45,7 @@ static int cursor_came_at(GuiWindow *window, Woken *count, unsigned long long li
 {
     for (unsigned int left = 500u; left > 0u; left -= 1u)
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &count->lock);
-        (void)EMBED_CALL(cli_lock_internal.wake_wait_for, CliLockCtx, .wake = &count->wake, .lock = &count->lock, .milliseconds_u64 = 10ull);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &count->lock);
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &count->wake, .milliseconds_u64 = 10ull);
         EMBED_CALL(gui_window_table.drain, GuiWindowCfg, .window = window);
         if (window->editor.has_cursor && (window->editor.cursor.line == line) && (window->editor.cursor.col == col))
         {
@@ -71,9 +64,7 @@ static int top_came(GuiWindow *window, Woken *count, unsigned long long top)
 {
     for (unsigned int left = 500u; left > 0u; left -= 1u)
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &count->lock);
-        (void)EMBED_CALL(cli_lock_internal.wake_wait_for, CliLockCtx, .wake = &count->wake, .lock = &count->lock, .milliseconds_u64 = 10ull);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &count->lock);
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &count->wake, .milliseconds_u64 = 10ull);
         EMBED_CALL(gui_window_table.drain, GuiWindowCfg, .window = window);
         if (window->editor.top == top)
         {
@@ -88,9 +79,7 @@ static int catalog_came(GuiWindow *window, Woken *count)
 {
     for (unsigned int left = 500u; left > 0u; left -= 1u)
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &count->lock);
-        (void)EMBED_CALL(cli_lock_internal.wake_wait_for, CliLockCtx, .wake = &count->wake, .lock = &count->lock, .milliseconds_u64 = 10ull);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &count->lock);
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &count->wake, .milliseconds_u64 = 10ull);
         EMBED_CALL(gui_window_table.drain, GuiWindowCfg, .window = window);
         if (window->cataloged)
         {
@@ -105,9 +94,7 @@ static int asks_answered(GuiWindow *window, Woken *count)
 {
     for (unsigned int left = 500u; left > 0u; left -= 1u)
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &count->lock);
-        (void)EMBED_CALL(cli_lock_internal.wake_wait_for, CliLockCtx, .wake = &count->wake, .lock = &count->lock, .milliseconds_u64 = 10ull);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &count->lock);
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &count->wake, .milliseconds_u64 = 10ull);
         EMBED_CALL(gui_window_table.drain, GuiWindowCfg, .window = window);
         unsigned long long since = 0ull;
         if (!EMBED_CALL(gui_busy_since.waiting, GuiBusySinceCfg, .busy_read = &window->busy, .since = &since))
@@ -123,9 +110,7 @@ static int rows_came(GuiWindow *window, Woken *count)
 {
     for (unsigned int left = 500u; left > 0u; left -= 1u)
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &count->lock);
-        (void)EMBED_CALL(cli_lock_internal.wake_wait_for, CliLockCtx, .wake = &count->wake, .lock = &count->lock, .milliseconds_u64 = 10ull);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &count->lock);
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &count->wake, .milliseconds_u64 = 10ull);
         EMBED_CALL(gui_window_table.drain, GuiWindowCfg, .window = window);
         if (EMBED_CALL(gui_explorer_frame_xy.rows, GuiExplorerFrameXYCfg, .explorer_read = &window->explorer) > 0u)
         {
@@ -146,9 +131,7 @@ static int saved_came(GuiWindow *window, Woken *count, const char *needle)
     const unsigned long long wanted = cellul.len(&(CatenaFinitaCfg){.src = needle, .cap = CLI_PATH_MAX_LEN});
     for (unsigned int left = 500u; left > 0u; left -= 1u)
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &count->lock);
-        (void)EMBED_CALL(cli_lock_internal.wake_wait_for, CliLockCtx, .wake = &count->wake, .lock = &count->lock, .milliseconds_u64 = 10ull);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &count->lock);
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &count->wake, .milliseconds_u64 = 10ull);
         EMBED_CALL(gui_window_table.drain, GuiWindowCfg, .window = window);
         const unsigned long long line_room = 1ull << 20u;
         char *const line_cell = g_cli_cells->temporary_buf_alloc(line_room, &g_checks_cells);
@@ -176,9 +159,7 @@ static int tabs_came(GuiWindow *window, Woken *count, unsigned int tabs)
 {
     for (unsigned int left = 500u; left > 0u; left -= 1u)
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &count->lock);
-        (void)EMBED_CALL(cli_lock_internal.wake_wait_for, CliLockCtx, .wake = &count->wake, .lock = &count->lock, .milliseconds_u64 = 10ull);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &count->lock);
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &count->wake, .milliseconds_u64 = 10ull);
         EMBED_CALL(gui_window_table.drain, GuiWindowCfg, .window = window);
         if (window->restored && (window->tabs == tabs))
         {
@@ -194,9 +175,7 @@ static int hover_came(GuiWindow *window, Woken *count)
 {
     for (unsigned int left = 2000u; left > 0u; left -= 1u)
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &count->lock);
-        (void)EMBED_CALL(cli_lock_internal.wake_wait_for, CliLockCtx, .wake = &count->wake, .lock = &count->lock, .milliseconds_u64 = 10ull);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &count->lock);
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &count->wake, .milliseconds_u64 = 10ull);
         EMBED_CALL(gui_window_table.drain, GuiWindowCfg, .window = window);
         if (window->hover.shown)
         {
@@ -210,9 +189,7 @@ static int suggest_came(GuiWindow *window, Woken *count)
 {
     for (unsigned int left = 2000u; left > 0u; left -= 1u)
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &count->lock);
-        (void)EMBED_CALL(cli_lock_internal.wake_wait_for, CliLockCtx, .wake = &count->wake, .lock = &count->lock, .milliseconds_u64 = 10ull);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &count->lock);
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &count->wake, .milliseconds_u64 = 10ull);
         EMBED_CALL(gui_window_table.drain, GuiWindowCfg, .window = window);
         if (window->suggest.open)
         {
@@ -226,9 +203,7 @@ static int signature_came(GuiWindow *window, Woken *count)
 {
     for (unsigned int left = 2000u; left > 0u; left -= 1u)
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &count->lock);
-        (void)EMBED_CALL(cli_lock_internal.wake_wait_for, CliLockCtx, .wake = &count->wake, .lock = &count->lock, .milliseconds_u64 = 10ull);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &count->lock);
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &count->wake, .milliseconds_u64 = 10ull);
         EMBED_CALL(gui_window_table.drain, GuiWindowCfg, .window = window);
         if (window->signature.shown)
         {
@@ -243,9 +218,7 @@ static int served_came(GuiWindow *window, Woken *count)
 {
     for (unsigned int left = 2000u; left > 0u; left -= 1u)
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &count->lock);
-        (void)EMBED_CALL(cli_lock_internal.wake_wait_for, CliLockCtx, .wake = &count->wake, .lock = &count->lock, .milliseconds_u64 = 10ull);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &count->lock);
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &count->wake, .milliseconds_u64 = 10ull);
         EMBED_CALL(gui_window_table.drain, GuiWindowCfg, .window = window);
         if ((window->active >= 0) && window->tab[window->active].served)
         {
@@ -262,9 +235,7 @@ static int name_came(GuiWindow *window, Woken *count)
     const unsigned long long until = cli_clock_milliseconds() + 10000ull;
     while (!window->wordmark.stands && !window->wordmark.home && (cli_clock_milliseconds() < until))
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &count->lock);
-        (void)EMBED_CALL(cli_lock_internal.wake_wait_for, CliLockCtx, .wake = &count->wake, .lock = &count->lock, .milliseconds_u64 = 10ull);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &count->lock);
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &count->wake, .milliseconds_u64 = 10ull);
         EMBED_CALL(gui_window_table.drain, GuiWindowCfg, .window = window);
     }
     return window->wordmark.stands || window->wordmark.home;
@@ -276,9 +247,7 @@ static void waited(GuiWindow *window, Woken *count, unsigned long long ms)
     const unsigned long long until = cli_clock_milliseconds() + ms;
     while (cli_clock_milliseconds() < until)
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &count->lock);
-        (void)EMBED_CALL(cli_lock_internal.wake_wait_for, CliLockCtx, .wake = &count->wake, .lock = &count->lock, .milliseconds_u64 = 10ull);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &count->lock);
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &count->wake, .milliseconds_u64 = 10ull);
         EMBED_CALL(gui_window_table.drain, GuiWindowCfg, .window = window);
     }
 }
@@ -370,9 +339,7 @@ static int line_came(GuiWindow *window, Woken *count, unsigned int line, const c
 {
     for (unsigned int left = 500u; left > 0u; left -= 1u)
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &count->lock);
-        (void)EMBED_CALL(cli_lock_internal.wake_wait_for, CliLockCtx, .wake = &count->wake, .lock = &count->lock, .milliseconds_u64 = 10ull);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &count->lock);
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &count->wake, .milliseconds_u64 = 10ull);
         EMBED_CALL(gui_window_table.drain, GuiWindowCfg, .window = window);
         if (line_starts(&window->editor, line, head))
         {
@@ -398,7 +365,7 @@ int main(void)
     (void)EMBED_CALL(cli_cells_table.init, CliCellsCfg, .bytes = CLI_CELLS_POOL);
     char why_text[1024];
     VerbaLinea why = {why_text, sizeof(why_text), 0ull};
-    Woken count = {CLI_LOCK_INIT, CLI_WAKE_INIT, 0u};
+    Woken count = {CLI_WAKE_INIT, 0u};
     static GuiWindow window;
     if (!EMBED_CALL(gui_window_woken.begin, GuiWindowWokenCfg, .window = &window, .woken = woken, .context = &count, .err_msg = &why))
     {
@@ -497,20 +464,20 @@ int main(void)
     EMBED_CALL(gui_window_input_kind.input, GuiWindowInputKindCfg, .window = &window, .input = GUI_TEXT_INPUT("gui_re", 6ull));
     cli_check(cursor_came_at(&window, &count, statement, 6ull) && suggest_came(&window, &count),
               "a word's letters typed open the completion's list");
-    cli_check(suggest_shows(&window.suggest, "gui_rect_met") && suggest_shows(&window.suggest, "gui_rect_empty") &&
+    cli_check(suggest_shows(&window.suggest, "gui_rect_intersect") && suggest_shows(&window.suggest, "gui_rect_empty") &&
                   cellul.eq(&(CatenaFinitaCfg){.src = window.suggest.prefix, .other = "gui_re", .cap = 16ull}),
               "the list shows the file's words that answer the prefix");
     EMBED_CALL(gui_window_input_kind.input, GuiWindowInputKindCfg, .window = &window, .input = GUI_KEY_INPUT("Escape"));
     cli_check(!window.suggest.open, "Escape closes the list");
-    EMBED_CALL(gui_window_input_kind.input, GuiWindowInputKindCfg, .window = &window, .input = GUI_TEXT_INPUT("ct_met(", 7ull));
-    cli_check(cursor_came_at(&window, &count, statement, 13ull) &&
-                  line_has(&window.editor, (unsigned int)statement, "gui_rect_met("),
+    EMBED_CALL(gui_window_input_kind.input, GuiWindowInputKindCfg, .window = &window, .input = GUI_TEXT_INPUT("ct_intersect(", 13ull));
+    cli_check(cursor_came_at(&window, &count, statement, 19ull) &&
+                  line_has(&window.editor, (unsigned int)statement, "gui_rect_intersect("),
               "the call's name and its bracket are written");
     cli_check(EMBED_CALL(cli_window_input.timeout_ms, GuiWindowInputCfg, .window_read = &window) <= GUI_SIGNATURE_DEBOUNCE_MS, "the bracket typed begins the signature's wait");
     waited(&window, &count, GUI_SIGNATURE_DEBOUNCE_MS + 20ull);
     EMBED_CALL(gui_window_table.tick, GuiWindowCfg, .window = &window);
     cli_check(signature_came(&window, &count) &&
-                  contains(window.signature.label, window.signature.length, "gui_rect_met") &&
+                  contains(window.signature.label, window.signature.length, "gui_rect_intersect") &&
                   (window.signature.params == 1u) && (window.signature.active == 0),
               "the wait up, the signature shows the declaration of the call, its one parameter active");
     EMBED_CALL(gui_window_table.draw, GuiWindowCfg, .window = &window);
@@ -557,7 +524,7 @@ int main(void)
     cli_check(lines_came(&window, &count) && top_came(&window, &count, 3ull) &&
                   line_starts(&window.editor, 0u, "// space"),
               "the frame of its view comes again, the view where the wheel left it");
-    cli_check(cursor_came_at(&window, &count, statement, 13ull), "the cursor stands where it was left");
+    cli_check(cursor_came_at(&window, &count, statement, 19ull), "the cursor stands where it was left");
     EMBED_CALL(gui_window_path.file_open, GuiWindowPathCfg, .window = &window, .path = "ui/gui/src/frame.c");
     cli_check((window.tabs == 3u) && (window.active == 2), "a file open already is shown, not opened again");
     const GuiRect close = EMBED_CALL(gui_tabs_glyphs.tab_close_rect, GuiTabsGlyphsCfg, .glyphs = &window.glyphs, .frame = &window.frame, .tab = window.tab, .count = window.tabs, .at = 2u);

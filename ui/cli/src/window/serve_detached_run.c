@@ -17,7 +17,6 @@ static char s_lines_file[CLI_PATH_MAX_LEN];
 static char s_stop_file[CLI_PATH_MAX_LEN];
 static unsigned long long s_inner;
 static CliThread s_stopper;
-static CliLock s_lock = CLI_LOCK_INIT;
 static CliJson s_json;
 
 void cli_serve_detached_file(const CliServeBaseCtx *args)
@@ -46,13 +45,11 @@ static void detached_run_event(const CliEachEventCfg *args)
     copy.run = s_run;
     static const char *const s_kinds[3] = {"{\"start\":", "{\"line\":", "{\"end\":"};
     char piece[4096];
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     VerbaLinea line = {piece, sizeof(piece), 0ull, detached_run_put, NULL, 0ull};
     mmgr_line_put(&line, s_kinds[copy.kind]);
     EMBED_CALL(cli_runner_event.run_event_write, CliRunnerEventCfg, .event = &copy, .out = &line);
     mmgr_line_put(&line, "}\n");
     (void)mmgr_line_flush(&line);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 typedef struct

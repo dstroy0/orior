@@ -43,7 +43,6 @@ typedef struct
 } CliListing;
 
 static CliListing *s_listing;
-static CliLock s_lock = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -269,18 +268,15 @@ static void list_release(void)
     g_cli_cells->persistent_buf_release(s_listing->item, &g_cli_editor_cells);
     g_cli_cells->persistent_buf_release(s_listing, &g_cli_editor_cells);
     s_listing = NULL;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 int cli_files_list(const CliFilesRootOutDirCfg *args)
 {
     const char *root = args->root;
     VerbaLinea *err_msg = args->err_msg;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     s_listing = g_cli_cells->persistent_buf_alloc(sizeof(*s_listing), &g_cli_editor_cells);
     if (s_listing == NULL)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         mmgr_line_put(err_msg, "a folder's listing could not be taken");
         return 0;
     }

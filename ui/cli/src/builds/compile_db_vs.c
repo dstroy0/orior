@@ -150,13 +150,10 @@ static int cli_vs_read(void)
 
 const CliVsEnvironment *cli_compile_db_vs_environment(void)
 {
-    static CliLock s_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     if (!s_vs_read)
     {
         s_vs_found = cli_vs_read();
         s_vs_read = 1;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return s_vs_found ? &s_vs : NULL;
 }

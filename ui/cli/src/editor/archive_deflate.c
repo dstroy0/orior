@@ -36,8 +36,6 @@ unsigned int cli_crc32(const CliArchiveBytesSizeCfg *args)
 {
     static unsigned int s_table[256];
     static int s_made;
-    static CliLock s_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     if (!s_made)
     {
         for (unsigned int at = 0u; at < 256u; at += 1u)
@@ -51,7 +49,6 @@ unsigned int cli_crc32(const CliArchiveBytesSizeCfg *args)
         }
         s_made = 1;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     unsigned int crc = 0xffffffffu;
     for (unsigned long long at = 0ull; at < args->size; at += 1ull)
     {
@@ -237,12 +234,10 @@ int cli_inflate(const CliArchiveSizeCfg *args)
     static CliHuffman s_literals;
     static CliHuffman s_distances;
     static CliHuffman s_lengths_code;
-    static CliLock s_lock = CLI_LOCK_INIT;
     static const unsigned char s_order[19] = {16u, 17u, 18u, 0u, 8u,  7u, 9u,  6u, 10u, 5u,
                                               11u, 4u,  12u, 3u, 13u, 2u, 14u, 1u, 15u};
     CliBits bits = {args->data, args->size, 0ull, 0u, 0u};
     *out_size = 0ull;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     for (;;)
     {
         unsigned int last = 0u;
@@ -250,7 +245,6 @@ int cli_inflate(const CliArchiveSizeCfg *args)
         if (!EMBED_CALL(cli_take, ArchiveDeflateCtx, .bits = &bits, .count = 1u, .value = &last) ||
             !EMBED_CALL(cli_take, ArchiveDeflateCtx, .bits = &bits, .count = 2u, .value = &kind))
         {
-            EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
             mmgr_line_put(args->err_msg, "the deflated data ends early");
             return 0;
         }
@@ -400,13 +394,11 @@ int cli_inflate(const CliArchiveSizeCfg *args)
         }
         if (!done)
         {
-            EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
             return 0;
         }
         if (last != 0u)
         {
             *used = bits.at;
-            EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
             return 1;
         }
     }

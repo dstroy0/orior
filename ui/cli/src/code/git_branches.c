@@ -82,12 +82,9 @@ EMBED_INLINE int cli_run_quiet(const GitBranchesCtx *args)
     unsigned int count = args->count;
     VerbaLinea *err_msg = args->err_msg;
     static char s_output_buf[CLI_GIT_OUTPUT_MAX_LEN];
-    static CliLock s_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     VerbaLinea out = {s_output_buf, sizeof(s_output_buf), 0ull};
     const int ok = EMBED_CALL(cli_git_root_out_count_err_msg.run, CliGitRootOutCountErrMsgCfg, .root = root,
                               .request = arguments, .count = count, .out = &out, .err_msg = err_msg);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return ok;
 }
 

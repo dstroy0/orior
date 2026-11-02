@@ -15,8 +15,7 @@ static const char s_xml[] = "<testsuites><testsuite><testcase classname=\"tests.
                             "time=\"0\"><skipped type=\"pytest.skip\" message=\"not here\">skip</skipped></testcase></testsuite>"
                             "</testsuites>";
 
-static CliTestRun s_run = {.lock = CLI_LOCK_INIT, .wake = CLI_WAKE_INIT};
-static CliLock s_lock = CLI_LOCK_INIT;
+static CliTestRun s_run = { .wake = CLI_WAKE_INIT};
 static CliWake s_wake = CLI_WAKE_INIT;
 static char s_events[1u << 20u];
 static unsigned long long s_events_at;
@@ -29,25 +28,21 @@ static int s_python_started;
 // what a run reports recorded, a line each
 static void event_recorded(const CliEachJsonSizeCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     if (s_events_at + args->size + 1ull < sizeof(s_events))
     {
         memor.cpy(&(MemoriaCfg){.dst = s_events + s_events_at, .src = args->json, .bytes = args->size});
         s_events[s_events_at + args->size] = '\n';
         s_events_at += args->size + 1ull;
     }
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_wake);
 }
 
 // the first line reported of `kind`, and of the result `id` where it is not NULL, after the `from`th line: its node in the shared tree, CLI_JSON_NONE
 // where none is; how many lines there are into `lines`
 static unsigned int line_found(const char *kind, const char *id, unsigned int from, unsigned int *lines)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const unsigned long long size = s_events_at;
     memor.cpy(&(MemoriaCfg){.dst = s_seen, .src = s_events, .bytes = size});
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     unsigned int index = 0u;
     unsigned int found = CLI_JSON_NONE;
     for (unsigned long long at = 0ull; at < size; index += 1u)
@@ -161,9 +156,7 @@ static void python_ran(void)
     const unsigned long long until = cli_clock_milliseconds() + 120000ull;
     while (s_python_started && (line_found("done", NULL, 0u, &lines) == CLI_JSON_NONE) && (cli_clock_milliseconds() < until))
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
-        (void)EMBED_CALL(cli_lock_internal.wake_wait_for, CliLockCtx, .wake = &s_wake, .lock = &s_lock, .milliseconds_u64 = 100ull);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &s_wake, .milliseconds_u64 = 100ull);
     }
 }
 

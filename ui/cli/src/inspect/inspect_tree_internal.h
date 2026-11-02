@@ -40,7 +40,6 @@ typedef struct
 #define CLI_TREE_PAGES (CLI_TREE_FILES / CLI_TREE_PAGE)
 extern CliTreeFile *g_cli_tree_page[CLI_TREE_PAGES];
 extern unsigned int g_cli_tree_files;
-extern CliLock g_cli_tree_lock;
 #define CLI_TREE_FILE(file_) (g_cli_tree_page[(file_) / CLI_TREE_PAGE][(file_) % CLI_TREE_PAGE])
 
 // the file of `size` bytes of path at `path`: its place, CLI_TREE_NONE where the tree contains none; the same of a

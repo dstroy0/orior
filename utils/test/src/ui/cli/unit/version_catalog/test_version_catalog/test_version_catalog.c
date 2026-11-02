@@ -61,7 +61,6 @@ void tearDown(void)
 void test_a_catalog_reads_its_sections_in_order_with_no_error(void)
 {
     static const char *const s_names[5] = {"versions", "libraries", "bundles", "plugins", "librarys"};
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_versions_lock);
     const int parsed = EMBED_CALL(cli_version_catalog_text_internal.versions_parse, CliVersionCatalogTextCtx, .text = s_catalog, .size = sizeof(s_catalog) - 1u);
     const unsigned int errors = g_cli_versions.errors;
     const unsigned int sections = g_cli_versions.sections;
@@ -72,7 +71,6 @@ void test_a_catalog_reads_its_sections_in_order_with_no_error(void)
                 (memor.cmp(&(MemoriaCfg){.src = EMBED_CALL(cli_version_catalog_internal.versions_text, CliVersionCatalogCtx, .at = g_cli_versions.section[at].name_at), .other = s_names[at], .bytes = g_cli_versions.section[at].name_size}) == 0);
     }
     cli_versions_release();
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_versions_lock);
     TEST_ASSERT_TRUE(parsed);
     TEST_ASSERT_EQUAL_UINT(0u, errors);
     TEST_ASSERT_EQUAL_UINT(5u, sections);

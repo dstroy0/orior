@@ -14,7 +14,6 @@
 // the fingerprints of the errors this run filed, under the lock
 static char s_filed[CLI_REPORT_AUTO][17];
 static unsigned int s_filed_count;
-static CliLock s_filed_lock = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -107,7 +106,6 @@ int cli_report_open_url(const CliReportErrMsgCfg *args)
 }
 
 // the lock a report is struck and filed under, one at a time
-static CliLock s_report_lock = CLI_LOCK_INIT;
 
 // a field of a report struck into `into`, a line begun here and given back with
 // g_cli_cells->persistent_buf_release(into->out, &g_cli_machine_cells): the field, "" where its cells are refused
@@ -212,7 +210,6 @@ EMBED_INLINE int cli_file_by_gh(const ReportFileCtx *args)
 static void cli_file_as(const ReportFileCtx *args)
 {
     const char *root = args->root;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_report_lock);
     VerbaLinea field[4];
     const CliReport report = {
         EMBED_CALL(cli_report_internal.category_get, CliReportCtx, .report = args->given),
@@ -250,7 +247,6 @@ static void cli_file_as(const ReportFileCtx *args)
     {
         g_cli_cells->persistent_buf_release(field[at].out, &g_cli_machine_cells);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_report_lock);
     if (!by_gh && args->open)
     {
         char unopened[CLI_PATH_MAX_LEN];
@@ -267,8 +263,6 @@ void cli_report_file(const CliReportRootCfg *args)
 int cli_report_error(const CliReportCategoryCfg *args)
 {
     static char s_scrubbed[CLI_NAME_MAX_LEN * 2u];
-    static CliLock s_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     char *const report_cell = g_cli_cells->temporary_buf_alloc(2ull * CLI_REPORT_FIELD_ROOM, &g_cli_machine_cells);
     VerbaLinea report_line = mmgr_line_over(report_cell, 2ull * CLI_REPORT_FIELD_ROOM);
     mmgr_line_put(&report_line, args->message);
@@ -281,7 +275,6 @@ int cli_report_error(const CliReportCategoryCfg *args)
     g_cli_cells->persistent_buf_release(report_line.out, &g_cli_machine_cells);
     if (!cli_report_auto() || cli_net_is_disable())
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return 0;
     }
     // the message's first line, trimmed, and the title its category and that line, a hundred letters at most
@@ -328,7 +321,6 @@ int cli_report_error(const CliReportCategoryCfg *args)
     char print[17];
     EMBED_CALL(cli_report_category_text.fingerprint, CliReportCategoryTextCfg, .category = args->category,
                .text = s_scrubbed, .out_room = print);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_filed_lock);
     int known = 0;
     for (unsigned int each = 0u; !known && (each < s_filed_count); each += 1u)
     {
@@ -342,10 +334,8 @@ int cli_report_error(const CliReportCategoryCfg *args)
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = print, .cap = CLI_CELLS_POOL}) + 1u});
         s_filed_count += 1u;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_filed_lock);
     if (!files)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return 0;
     }
     char *const what_cell = g_cli_cells->temporary_buf_alloc(CLI_REPORT_FIELD_ROOM, &g_cli_machine_cells);
@@ -360,6 +350,5 @@ int cli_report_error(const CliReportCategoryCfg *args)
     const CliReport report = {args->category, title, err_text, "", args->detail};
     EMBED_CALL(cli_file_as, ReportFileCtx, .given = &report, .root = args->root, .open = 0, .filed = args->filed);
     g_cli_cells->persistent_buf_release(what.out, &g_cli_machine_cells);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return 1;
 }

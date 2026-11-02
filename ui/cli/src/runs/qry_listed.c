@@ -43,7 +43,6 @@ typedef struct
 
 // the walks cached, under the lock
 static CliWalk s_walks[CLI_WALKS_MOST];
-static CliLock s_lock = CLI_LOCK_INIT;
 
 // The folders a walk has yet to read, in a cell of `room`
 typedef struct
@@ -244,24 +243,20 @@ void cli_qry_run_write(const CliQryPathRootCfg *args)
     char folder[CLI_PATH_MAX_LEN];
     memor.cpy(&(MemoriaCfg){.dst = folder, .src = args->path, .bytes = (size_t)((cut > 0u) ? cut - 1u : 0u)});
     folder[(cut > 0u) ? cut - 1u : 0u] = '\0';
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const unsigned int found = EMBED_CALL(cli_walk_find, QryListedCtx, .root = args->root);
     if (found != CLI_WALKS_MOST)
     {
         EMBED_CALL(cli_walk_folder_put, QryListedCtx, .walk = &s_walks[found], .folder = folder);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 void cli_qry_runs_lose(const CliQryOutRootCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const unsigned int found = EMBED_CALL(cli_walk_find, QryListedCtx, .root = args->root);
     if (found != CLI_WALKS_MOST)
     {
         s_walks[found].lost = 1;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 // What one folder of runs read hands on: its full path, its place among the folders, and the runs listed
@@ -402,7 +397,6 @@ EMBED_INLINE int cli_folder_full(const QryListedCtx *args)
 
 void cli_qry_list(const CliQryOutRootCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const CliWalk *const walk = EMBED_CALL(cli_walk_get, QryListedCtx, .root = args->root);
     CliListed *const listed_cell = g_cli_cells->temporary_buf_alloc(
         (unsigned long long)CLI_LISTED_MOST * sizeof(CliListed), &g_cli_qry_listed_cells);
@@ -484,5 +478,4 @@ void cli_qry_list(const CliQryOutRootCfg *args)
         mmgr_line_put(args->out, "]}");
     }
     mmgr_line_put(args->out, "]}");
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }

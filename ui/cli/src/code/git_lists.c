@@ -71,7 +71,6 @@ typedef struct
 } CliElsewhere;
 
 static CliElsewhere s_elsewhere;
-static CliLock s_elsewhere_lock = CLI_LOCK_INIT;
 
 // the records `id\x1fwhen\x1fauthor\x1fat\x1fmessage\x1e` of what git wrote handed to `each` with the commit's id, its
 // time, and its author, the time the author made it and its message joined by `\x1f`, the message's end trimmed
@@ -172,7 +171,6 @@ void cli_git_elsewhere(const CliGitRootFileErrMsgCfg *args)
     static const char *const s_format = "--format=%H%x1f%ct%x1f%ae%x1f%at%x1f%B%x1e";
     args->found->count = 0u;
     EMBED_CALL(cli_git_text.text_begin, CliGitTextCfg, .text = &args->found->text);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_elsewhere_lock);
     s_elsewhere.found.count = 0u;
     EMBED_CALL(cli_git_text.text_begin, CliGitTextCfg, .text = &s_elsewhere.found.text);
     EMBED_CALL(cli_git_text.text_begin, CliGitTextCfg, .text = &s_elsewhere.made);
@@ -230,7 +228,6 @@ void cli_git_elsewhere(const CliGitRootFileErrMsgCfg *args)
     }
     EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_elsewhere.found.text);
     EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_elsewhere.made);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_elsewhere_lock);
 }
 
 int cli_git_commits(const CliGitRootFileErrMsgCfg *args)

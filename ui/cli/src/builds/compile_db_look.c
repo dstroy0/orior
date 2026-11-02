@@ -165,7 +165,6 @@ typedef struct
 } CliLookCache;
 
 static CliLookCache s_cache;
-static CliLock s_cache_lock = CLI_LOCK_INIT;
 
 // the files a look read saved for the next look in a cell of their count, the one saved before and the reading given
 // back
@@ -207,13 +206,11 @@ EMBED_INLINE int cli_same_inputs(const CompileDbLookCtx *args)
 int cli_compile_db_refresh(const CliCompileDbRootDatabaseCfg *args)
 {
     CliDatabase *database = args->database;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_cache_lock);
     const int same = s_cache.is_cached &&
                      (cellul.eq(&(CatenaFinitaCfg){.src = s_cache.root, .other = args->root, .cap = CLI_CELLS_POOL}));
     if (same && ((cli_clock_milliseconds() - s_cache.at) < CLI_COMPILE_LOOKED_FOR))
     {
         *database = s_cache.database;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_cache_lock);
         return 0;
     }
     CliInputs reading = {0, NULL, 0u, 0u};
@@ -224,7 +221,6 @@ int cli_compile_db_refresh(const CliCompileDbRootDatabaseCfg *args)
         EMBED_CALL(cli_compile_db_inputs_internal.compile_inputs_free, CliCompileDbInputsCtx, .inputs = &reading);
         s_cache.at = cli_clock_milliseconds();
         *database = s_cache.database;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_cache_lock);
         return 0;
     }
     EMBED_CALL(cli_compile_db_root_internal.compile_gather, CliCompileDbRootCtx, .root = args->root,
@@ -238,7 +234,6 @@ int cli_compile_db_refresh(const CliCompileDbRootDatabaseCfg *args)
     // the files this look read are stored in place of the last look's
     EMBED_CALL(cli_inputs_save, CompileDbLookCtx, .saved = &s_cache.read, .reading = &reading);
     *database = s_cache.database;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_cache_lock);
     return same;
 }
 

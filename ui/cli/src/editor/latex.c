@@ -9,15 +9,12 @@
 #include "latex_internal.h"
 
 CliLatexRoom *g_cli_latex;
-CliLock g_cli_latex_lock = CLI_LOCK_INIT;
 
 int cli_latex_lock(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_latex_lock);
     g_cli_latex = g_cli_cells->persistent_buf_alloc(sizeof(*g_cli_latex), &g_cli_editor_cells);
     if (g_cli_latex == NULL)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_latex_lock);
     }
     return g_cli_latex != NULL;
 }
@@ -26,7 +23,6 @@ void cli_latex_release(void)
 {
     g_cli_cells->persistent_buf_release(g_cli_latex, &g_cli_editor_cells);
     g_cli_latex = NULL;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_latex_lock);
 }
 
 typedef struct

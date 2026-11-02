@@ -69,7 +69,6 @@ typedef struct
 {
     CliCarried *paths;
     CliCarryRoom *room;
-    CliLock *lock;
     const char *text;
     unsigned long long size;
     const char *what;
@@ -82,10 +81,8 @@ typedef struct
 EMBED_INLINE void carry_release(const CarryCtx *args)
 {
     CliCarryRoom *room = args->room;
-    CliLock *lock = args->lock;
     EMBED_CALL(cli_carry_carried_place_internal.carried_clear, CliCarryCarriedPlaceCtx, .carried_out = args->paths);
     EMBED_CALL(cli_carry_room_object_internal.room_free, CliCarryRoomObjectCtx, .room = room);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = lock);
 }
 
 // `size` bytes of `text` in a cell of their own, a 0 after them: the cell, or NULL where none could be taken
@@ -373,8 +370,6 @@ int cli_carry_pack(const CliCarryCfg *args)
 {
     static CliCarried s_paths;
     static CliCarryRoom s_room;
-    static CliLock s_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     EMBED_CALL(cli_carry_room_object_internal.room_begin, CliCarryRoomObjectCtx, .room = &s_room);
     EMBED_CALL(cli_carry_carried_place_internal.carried_clear, CliCarryCarriedPlaceCtx, .carried_out = args->packed);
     EMBED_CALL(cli_carry_folder_internal.files, CliCarryFolderCtx, .folder = args->home, .found = &s_paths);
@@ -390,7 +385,7 @@ int cli_carry_pack(const CliCarryCfg *args)
         {
             mmgr_line_put(args->err_msg, path);
             mmgr_line_put(args->err_msg, " is over 16 MB, the most a file that travels carries");
-            EMBED_CALL(carry_release, CarryCtx, .paths = &s_paths, .room = &s_room, .lock = &s_lock);
+            EMBED_CALL(carry_release, CarryCtx, .paths = &s_paths, .room = &s_room);
             return 0;
         }
         const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_take_utf8, CliPathCtx, .path = path,
@@ -439,7 +434,7 @@ int cli_carry_pack(const CliCarryCfg *args)
         EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes,
                    .owner = &g_cli_machine_cells);
     }
-    EMBED_CALL(carry_release, CarryCtx, .paths = &s_paths, .room = &s_room, .lock = &s_lock);
+    EMBED_CALL(carry_release, CarryCtx, .paths = &s_paths, .room = &s_room);
     return 1;
 }
 
@@ -460,8 +455,6 @@ int cli_carry_read(const CliCarryFromCfg *args)
 {
     static CliCarried s_paths;
     static CliCarryRoom s_room;
-    static CliLock s_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     EMBED_CALL(cli_carry_room_object_internal.room_begin, CliCarryRoomObjectCtx, .room = &s_room);
     EMBED_CALL(cli_carry_carried_place_internal.carried_clear, CliCarryCarriedPlaceCtx, .carried_out = args->there_out);
     if (EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = args->from))
@@ -476,7 +469,7 @@ int cli_carry_read(const CliCarryFromCfg *args)
             !EMBED_CALL(cli_git_root_out_count_err_msg.pull, CliGitRootOutCountErrMsgCfg, .root = args->from,
                         .out = &pulled, .err_msg = args->err_msg))
         {
-            EMBED_CALL(carry_release, CarryCtx, .paths = &s_paths, .room = &s_room, .lock = &s_lock);
+            EMBED_CALL(carry_release, CarryCtx, .paths = &s_paths, .room = &s_room);
             return 0;
         }
         EMBED_CALL(cli_carry_folder_internal.files, CliCarryFolderCtx, .folder = args->from, .found = &s_paths);
@@ -499,7 +492,7 @@ int cli_carry_read(const CliCarryFromCfg *args)
                            .owner = &g_cli_machine_cells);
             }
         }
-        EMBED_CALL(carry_release, CarryCtx, .paths = &s_paths, .room = &s_room, .lock = &s_lock);
+        EMBED_CALL(carry_release, CarryCtx, .paths = &s_paths, .room = &s_room);
         return 1;
     }
     unsigned long long size = 0ull;
@@ -509,7 +502,7 @@ int cli_carry_read(const CliCarryFromCfg *args)
     {
         mmgr_line_put(args->err_msg, args->from);
         mmgr_line_put(args->err_msg, ": it could not be read");
-        EMBED_CALL(carry_release, CarryCtx, .paths = &s_paths, .room = &s_room, .lock = &s_lock);
+        EMBED_CALL(carry_release, CarryCtx, .paths = &s_paths, .room = &s_room);
         return 0;
     }
     char why[CLI_NAME_MAX_LEN];
@@ -550,6 +543,6 @@ int cli_carry_read(const CliCarryFromCfg *args)
         mmgr_line_put(args->err_msg,
                       (root == CLI_JSON_NONE) ? ": it is no JSON" : " contains no settings orior_cli carried");
     }
-    EMBED_CALL(carry_release, CarryCtx, .paths = &s_paths, .room = &s_room, .lock = &s_lock);
+    EMBED_CALL(carry_release, CarryCtx, .paths = &s_paths, .room = &s_room);
     return read;
 }

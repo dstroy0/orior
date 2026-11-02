@@ -10,7 +10,6 @@
 #define CLI_DEBUG_FILLED (1u << 16u)
 
 static char s_filled[2][CLI_DEBUG_FILLED];
-static CliLock s_filled_lock = CLI_LOCK_INIT;
 
 // the spaces a text is trimmed of
 static const char s_spaces[] = " \t\n\r\f\v";
@@ -268,11 +267,9 @@ static unsigned int arguments_fill(const DebugArgumentsCtx *args)
 
 unsigned int cli_debug_fill(const CliDebugJsonCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_filled_lock);
     const unsigned int filled =
         EMBED_CALL(arguments_fill, DebugArgumentsCtx, .to = args->to, .json = args->json, .from = args->from,
                    .names = args->names, .withs = args->withs, .count = args->count, .numbered = args->numbered);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_filled_lock);
     return filled;
 }
 

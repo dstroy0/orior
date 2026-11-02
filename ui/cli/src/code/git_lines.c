@@ -198,7 +198,6 @@ EMBED_INLINE int cli_ends_with(const GitLinesCtx *args)
 int cli_git_line_history(const CliGitLengthCfg *args)
 {
     static const char *const s_prefix[2] = {"rev-parse", "--show-prefix"};
-    static CliLock s_lock = CLI_LOCK_INIT;
     args->found_line_history_pointer->commits = 0u;
     args->found_line_history_pointer->lines = 0u;
     EMBED_CALL(cli_git_text.text_begin, CliGitTextCfg, .text = &args->found_line_history_pointer->text);
@@ -256,10 +255,8 @@ int cli_git_line_history(const CliGitLengthCfg *args)
                        gave->ok && gave->out_whole;
     if (blamed)
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
         EMBED_CALL(cli_history_get, GitLinesCtx, .out = gave->out, .size = gave->out_size, .under = &under,
                    .found = args->found_line_history_pointer);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     }
     EMBED_CALL(cli_git_gave_internal.free, CliGitGaveCtx, .gave = gave);
     if (!blamed)

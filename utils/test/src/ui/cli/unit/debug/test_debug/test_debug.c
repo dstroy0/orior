@@ -133,9 +133,7 @@ static CliDebugSession *place_planned(void)
 // `place` freed under the debugger's lock
 static void place_freed(CliDebugSession *place)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
     EMBED_CALL(cli_debug_internal.place_free, CliDebugCtx, .place = place);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
 }
 
 // whether a tool of the manifest debugs `language`, or builds `kind`

@@ -6,6 +6,7 @@
 // the box, and the box is drawn over the cursor's row with the active parameter in the type's color
 #include "../../../../../ui/gui/src/parts/signature.h"
 #include "../cli/cli_check.h"
+#include "test_clock.h"
 
 static const char s_server[] = "{\"own\":null,\"server\":{\"label\":\"int f(int a, char "
                                "b)\",\"params\":[[6,11],[13,19]],\"active\":1,\"doc\":\"Adds them.\",\"count\":1}}";

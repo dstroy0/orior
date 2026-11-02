@@ -57,12 +57,10 @@ typedef struct
 } CliTakings;
 
 static CliTakings s_takings;
-static CliLock s_lock = CLI_LOCK_INIT;
 
 // the lock taken and the room begun empty under it
 static void undo_lock(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     EMBED_CALL(cli_carry_room_object_internal.room_begin, CliCarryRoomObjectCtx, .room = &s_takings.room);
 }
 
@@ -70,7 +68,6 @@ static void undo_lock(void)
 static void undo_release(void)
 {
     EMBED_CALL(cli_carry_room_object_internal.room_free, CliCarryRoomObjectCtx, .room = &s_takings.room);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 typedef struct

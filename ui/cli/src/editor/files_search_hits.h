@@ -40,7 +40,7 @@ typedef struct
 } CliSearchHits;
 
 // the cell taken, every entry free, and none where it is refused
-void cli_hits_on_take(const CliFilesSearchHitsCfg *args);
+void cli_hits_init(const CliFilesSearchHitsCfg *args);
 // a entry taken for one line more and put among the live, under the search's lock: the line's room, or NULL where none
 // is left. Where the lines stored are the most, those after the first CLI_HITS_MOST are let go first: no line found
 // later can bring one of them back among the first
@@ -57,14 +57,14 @@ struct CliFilesSearchHitsCfg
 
 typedef struct
 {
-    void (*hits_take)(const CliFilesSearchHitsCfg *args);
+    void (*hits_init)(const CliFilesSearchHitsCfg *args);
     CliSearchHit *(*hits_take)(const CliFilesSearchHitsCfg *args);
     void (*hits_sort)(const CliFilesSearchHitsCfg *args);
     void (*hits_free)(const CliFilesSearchHitsCfg *args);
 } CliFilesSearchHitsNs;
-EMBED_TABLE_LAYOUT(CliFilesSearchHitsNs, hits_take, hits_take, hits_sort, hits_free);
+EMBED_TABLE_LAYOUT(CliFilesSearchHitsNs, hits_init, hits_take, hits_sort, hits_free);
 EMBED_TABLE_STORAGE CliFilesSearchHitsNs cli_files_search_hits EMBED_UNUSED = {
-    .hits_take = cli_hits_on_take,
+    .hits_init = cli_hits_init,
     .hits_take = cli_hits_take,
     .hits_sort = cli_hits_sort,
     .hits_free = cli_hits_free,

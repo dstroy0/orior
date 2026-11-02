@@ -13,12 +13,14 @@
 #include "serve_internal.h"
 #include "window_internal.h"
 
-// A room a call is answered in: whether it is taken, whether its call was answered, and its answer and why it failed,
-// two cells the room takes at its first call and writes over on each one after, why it failed a text of this file's own
-// where no cell could be taken for it; and the
+#include "embed_atomic.h"
+#include "memoria_anularis/memoria_anularis.h"
+
+// A room a call is answered in: whether its call was answered, and its answer and why it failed, two cells the room
+// takes at its first call and writes over on each one after, why it failed a text of this file's own where no cell
+// could be taken for it. The thread that claimed a room's bit in s_rooms_taken alone writes the room
 typedef struct
 {
-    int taken;
     int ok;
     char *answer;
     unsigned long long answer_size;
@@ -31,7 +33,7 @@ typedef struct
 static char s_refused[] = "the call's cells could not be taken";
 
 static CliWindowRoom s_room[CLI_WINDOW_ROOMS];
-static CliLock s_lock = CLI_LOCK_INIT;
+static embed_atomic_u32 s_rooms_taken;
 static CliWake s_wake = CLI_WAKE_INIT;
 static CliOutcome s_outcome;
 
@@ -142,7 +144,6 @@ void cli_window_begun(CliServeEmit emit, void *context)
 
 void cli_window_launch_take(const CliWindowOutRequestCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int has = s_outcome.window && (s_outcome.command[0] != '\0');
     if (has)
     {
@@ -186,7 +187,6 @@ void cli_window_launch_take(const CliWindowOutRequestCtx *args)
     {
         mmgr_line_put(args->out, "null");
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 void cli_window_ended(void)
@@ -261,26 +261,26 @@ int cli_window_tree_call(const CliWindowOutSizeCtx *args)
                       .out = out, .err_msg = err_msg);
 }
 
-// a room taken, waited for where every one is: its place
+// the lowest free room's bit claimed, sleeping while every room is taken: its index. The wake's generation is read
+// before the mask, so a room released after that read ends the sleep
 static unsigned int window_room_take(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
-    unsigned int at = CLI_WINDOW_ROOMS;
-    while (at == CLI_WINDOW_ROOMS)
+    for (;;)
     {
-        at = 0u;
-        while ((at < CLI_WINDOW_ROOMS) && s_room[at].taken)
+        const unsigned int seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &s_wake);
+        const embed_u32 free_rooms = ~EMBED_ATOMIC_LOAD(&s_rooms_taken) & ((1u << CLI_WINDOW_ROOMS) - 1u);
+        if (free_rooms == 0u)
         {
-            at += 1u;
+            EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &s_wake, .seen = seen);
+            continue;
         }
-        if (at == CLI_WINDOW_ROOMS)
+        const embed_u32 bit = free_rooms & (0u - free_rooms);
+        if ((EMBED_ATOMIC_OR_32(&s_rooms_taken, bit) & bit) == 0u)
         {
-            EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &s_wake, .lock = &s_lock);
+            // a set bit of a mask of CLI_WINDOW_ROOMS bits names a room
+            return (unsigned int)anularis.loculus_next(&(AnularisCfg){.mask = (embed_word)bit});
         }
     }
-    s_room[at].taken = 1;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
-    return at;
 }
 
 unsigned int cli_window_called(int own, const char *name, const char *args, unsigned long long size)
@@ -351,10 +351,8 @@ void cli_window_given(unsigned int room)
 {
     CliWindowRoom *const entry = &s_room[room];
     entry->err_msg = NULL;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
-    s_room[room].taken = 0;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &s_wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
+    (void)EMBED_ATOMIC_AND_32(&s_rooms_taken, ~((embed_u32)1u << room));
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_wake);
 }
 
 int cli_window_terminal_key(const CliWindowKeyAddressCtx *args)

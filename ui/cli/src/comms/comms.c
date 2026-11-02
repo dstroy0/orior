@@ -8,7 +8,7 @@
 
 #include "../text/text.h"
 
-CliCommsRoom g_cli_comms = {.lock = CLI_LOCK_INIT};
+CliCommsRoom g_cli_comms = {0};
 
 // the parts, the listeners and the channels' traffic taken at their most in one cell, all empty, as the first of them
 // is needed; under the lock
@@ -90,7 +90,6 @@ int cli_comms_register(const CliCommsNameCfg *args)
         mmgr_line_ch(&written, "0123456789abcdef"[secret[at] & 15u]);
     }
     mmgr_line_finish(&written);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_comms.lock);
     comms_tables_init();
     CliCommsPart *part = NULL;
     for (unsigned int at = 0u; (at < g_cli_comms.parts_room) && (part == NULL); at += 1u)
@@ -104,7 +103,6 @@ int cli_comms_register(const CliCommsNameCfg *args)
             : NULL;
     if ((part == NULL) || ((grants != 0u) && (granted == NULL)))
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_comms.lock);
         mmgr_line_put(args->err_msg, "the comms layer has as many parts as it can");
         return 0;
     }
@@ -136,7 +134,6 @@ int cli_comms_register(const CliCommsNameCfg *args)
     }
     part->listens = listens;
     part->send_grants = send_grants;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_comms.lock);
     return 1;
 }
 
@@ -148,13 +145,11 @@ int cli_comms_register_persistent(const CliCommsNameCfg *args)
     {
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_comms.lock);
     const unsigned int at = EMBED_CALL(comms_part_get, CommsCtx, .key = args->key_out);
     if (at < CLI_COMMS_PARTS)
     {
         g_cli_comms.parts[at].persistent = 1;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_comms.lock);
     return 1;
 }
 
@@ -180,11 +175,9 @@ EMBED_INLINE const char *comms_beyond(const CommsCtx *args)
 
 int cli_comms_register_under(const CliCommsNameCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_comms.lock);
     const unsigned int at = EMBED_CALL(comms_part_get, CommsCtx, .key = args->parent);
     if (at == CLI_COMMS_PARTS)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_comms.lock);
         mmgr_line_put(args->err_msg, "that key is no part's");
         return 0;
     }
@@ -203,38 +196,31 @@ int cli_comms_register_under(const CliCommsNameCfg *args)
         mmgr_line_put(args->err_msg, " may not grant ");
         mmgr_line_put(args->err_msg, beyond);
         mmgr_line_put(args->err_msg, ", which is not its own");
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_comms.lock);
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_comms.lock);
     return cli_comms_name.comms_register(args);
 }
 
 int cli_comms_is_persistent(const CliCommsProcessCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_comms.lock);
     const unsigned int at = EMBED_CALL(comms_part_get, CommsCtx, .key = args->key);
     const int persistent = (at < CLI_COMMS_PARTS) && g_cli_comms.parts[at].persistent;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_comms.lock);
     return persistent;
 }
 
 void cli_comms_bind(const CliCommsProcessCfg *args)
 {
     unsigned int process = args->process;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_comms.lock);
     const unsigned int at = EMBED_CALL(comms_part_get, CommsCtx, .key = args->key);
     if (at < CLI_COMMS_PARTS)
     {
         g_cli_comms.parts[at].has_process = 1;
         g_cli_comms.parts[at].process = process;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_comms.lock);
 }
 
 void cli_comms_leave(const CliCommsProcessCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_comms.lock);
     const unsigned int at = EMBED_CALL(comms_part_get, CommsCtx, .key = args->key);
     if (at < CLI_COMMS_PARTS)
     {
@@ -248,23 +234,19 @@ void cli_comms_leave(const CliCommsProcessCfg *args)
             listener->taken = (listener->taken && (listener->part == at)) ? 0 : listener->taken;
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_comms.lock);
 }
 
 int cli_comms_process_get(const CliCommsKeyProcessCfg *args)
 {
     unsigned int *process = args->process_pointer;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_comms.lock);
     const unsigned int at = EMBED_CALL(comms_part_get, CommsCtx, .key = args->key);
     const int has = (at < CLI_COMMS_PARTS) && g_cli_comms.parts[at].has_process;
     *process = has ? g_cli_comms.parts[at].process : 0u;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_comms.lock);
     return has;
 }
 
 int cli_comms_name_get(const CliCommsKeyCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_comms.lock);
     const unsigned int at = EMBED_CALL(comms_part_get, CommsCtx, .key = args->key);
     if (at < CLI_COMMS_PARTS)
     {
@@ -273,18 +255,15 @@ int cli_comms_name_get(const CliCommsKeyCfg *args)
             .src = g_cli_comms.parts[at].name,
             .bytes = cellul.len(&(CatenaFinitaCfg){.src = g_cli_comms.parts[at].name, .cap = CLI_CELLS_POOL}) + 1u});
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_comms.lock);
     return at < CLI_COMMS_PARTS;
 }
 
 int cli_comms_listen(const CliCommsChannelCfg *args)
 {
     unsigned int *listener = args->listener;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_comms.lock);
     const unsigned int at = EMBED_CALL(comms_part_get, CommsCtx, .key = args->key);
     if (at == CLI_COMMS_PARTS)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_comms.lock);
         mmgr_line_put(args->err_msg, "that key is no part's");
         return 0;
     }
@@ -300,7 +279,6 @@ int cli_comms_listen(const CliCommsChannelCfg *args)
         mmgr_line_put(args->err_msg, part->name);
         mmgr_line_put(args->err_msg, " may not listen on ");
         mmgr_line_put(args->err_msg, args->channel);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_comms.lock);
         return 0;
     }
     comms_tables_init();
@@ -318,22 +296,18 @@ int cli_comms_listen(const CliCommsChannelCfg *args)
                           .src = args->channel,
                           .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->channel, .cap = CLI_CELLS_POOL}) + 1u});
         *listener = vacant;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_comms.lock);
         return 1;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_comms.lock);
     mmgr_line_put(args->err_msg, "the comms layer has as many listeners as it can");
     return 0;
 }
 
 void cli_comms_unlisten(const CliCommsListenerCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_comms.lock);
     if (args->listener_value < g_cli_comms.listeners_room)
     {
         g_cli_comms.listeners[args->listener_value].taken = 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_comms.lock);
 }
 
 // the traffic of `channel`, made where it has none, NULL where the channels stored are full, under the lock
@@ -414,11 +388,9 @@ int cli_comms_send(const CliCommsChannelErrMsgCfg *args)
     // listener called may send in turn
     CliCommsRecvFn recv_fns[CLI_COMMS_LISTENERS];
     void *calls_context[CLI_COMMS_LISTENERS];
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_comms.lock);
     const unsigned int at = EMBED_CALL(comms_part_get, CommsCtx, .key = args->key);
     if (at == CLI_COMMS_PARTS)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_comms.lock);
         mmgr_line_put(args->err_msg, "that key is no part's");
         return 0;
     }
@@ -441,7 +413,6 @@ int cli_comms_send(const CliCommsChannelErrMsgCfg *args)
         {
             traffic->refused += 1ull;
         }
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_comms.lock);
         mmgr_line_put(args->err_msg, name);
         mmgr_line_put(args->err_msg, " may not send on ");
         mmgr_line_put(args->err_msg, args->channel);
@@ -480,7 +451,6 @@ int cli_comms_send(const CliCommsChannelErrMsgCfg *args)
             listener->taken = (got == 0) ? 0 : listener->taken;
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_comms.lock);
     for (unsigned int one = 0u; one < calls; one += 1u)
     {
         (void)EMBED_CALL(recv_fns[one], CliCommsRecvCfg, .context = calls_context[one], .channel = args->channel,
@@ -492,11 +462,9 @@ int cli_comms_send(const CliCommsChannelErrMsgCfg *args)
 
 void cli_comms_transfer(const CliCommsChannelBytesCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_comms.lock);
     CliCommsTraffic *const traffic = EMBED_CALL(comms_traffic_get, CommsCtx, .channel = args->channel);
     if (traffic != NULL)
     {
         traffic->transferred += args->bytes;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_comms.lock);
 }

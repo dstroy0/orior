@@ -123,10 +123,8 @@ void cli_servers_check_own(const CliServersPathSizeRootSinkCtx *args)
     EMBED_CALL(cli_builds_path_text.build_input_names, CliBuildsPathTextCfg, .path = args->path, .text = args->text,
                .size = size, .each = own_name_put, .context = &names);
     const int whole = mmgr_line_ok(&names);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_checks_lock);
     (void)EMBED_CALL(cli_keyed_key_beside.put, CliKeyedKeyBesideCfg, .keyed_out = &g_cli_servers_given, .key = key,
                      .beside_value = "", .text = whole ? names.out : "", .size_value = whole ? names.at : 0ull);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_checks_lock);
     g_cli_cells->persistent_buf_release(given, &g_cli_servers_cells);
     char *const job = g_cli_cells->persistent_buf_alloc(sizeof(CliServersOwnJob) + size, &g_cli_servers_cells);
     if (job == NULL)
@@ -205,9 +203,7 @@ EMBED_INLINE void own_tree_file(const ServersOwnCtx *args)
                       (memor.cmp(&(MemoriaCfg){.src = args->items->out, .other = "[]", .bytes = 2u}) == 0);
     char key[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_servers_path_key_internal.key_get, CliServersPathKeyCtx, .path = path, .key_out = key);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_checks_lock);
     const int had = EMBED_CALL(own_had, ServersOwnCtx, .key = key);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_checks_lock);
     if (whole && (!empty || had))
     {
         mmgr_line_put(args->found, *written ? ",[" : "[");

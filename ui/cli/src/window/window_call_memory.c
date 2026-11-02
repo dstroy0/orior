@@ -52,7 +52,6 @@ typedef struct
 
 // the web view's browser process, 0 until the window names it
 static unsigned int s_browser;
-static CliLock s_lock = CLI_LOCK_INIT;
 static CliProcess s_listed[CLI_PROCESSES_MOST];
 static unsigned int s_members[CLI_MEMORY_PROCESSES];
 static unsigned int s_found[CLI_MEMORY_PROCESSES];
@@ -66,9 +65,7 @@ static const char *s_stopping[CLI_SERVERS_MOST];
 
 void cli_window_browser_known(unsigned int pid)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     s_browser = pid;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 typedef struct
@@ -294,10 +291,8 @@ static int memory_read(void)
 static int memory_usage(const CliServeAnswerCfg *args)
 {
     VerbaLinea *out = args->out;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     if (!memory_read())
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         mmgr_line_put(out, "null");
         return 1;
     }
@@ -335,7 +330,6 @@ static int memory_usage(const CliServeAnswerCfg *args)
         mmgr_line_ch(out, '}');
     }
     mmgr_line_put(out, "]}");
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return 1;
 }
 
@@ -374,7 +368,6 @@ static int memory_servers_unneeded_stop(const CliServeAnswerCfg *args)
     }
     const char *const shown = EMBED_CALL(cli_serve_err_msg_internal.string_or, CliServeErrMsgCtx, .request = arguments,
                                          .key = "shown", .otherwise = NULL);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     unsigned int stopping = 0u;
     const unsigned int servers = cli_servers_checking() ? 0u
                                                         : EMBED_CALL(cli_servers_table.list, CliServersCfg,
@@ -425,7 +418,6 @@ static int memory_servers_unneeded_stop(const CliServeAnswerCfg *args)
     mmgr_line_put(out, "],\"files\":");
     EMBED_CALL(cli_servers_out.stop, CliServersOutCfg, .tools_letters = s_stopping, .count = stopping, .out = out);
     mmgr_line_ch(out, '}');
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     EMBED_CALL(cli_serve_items_internal.strings_free, CliServeItemsCtx, .items = open);
     return 1;
 }

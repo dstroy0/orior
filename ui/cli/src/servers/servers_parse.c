@@ -42,7 +42,7 @@ static CliServersParseRoom s_room;
 static CliParsed s_parsed;
 static int s_whole;
 static char *s_text;
-static CliServersReading s_reading = {CLI_LOCK_INIT};
+static CliServersReading s_reading = {0};
 
 // the parse's storage given back
 static void parse_storage_free(void)
@@ -171,7 +171,6 @@ EMBED_INLINE void parse_copied_out(const ServersParseCtx *args)
 EMBED_INLINE int parse_stored_read(const ServersParseCtx *args)
 {
     const char *key = args->key;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_texts_lock);
     const char *beside = NULL;
     unsigned long long size = 0ull;
     const char *const stored = EMBED_CALL(cli_keyed_key_beside.get, CliKeyedKeyBesideCfg,
@@ -206,7 +205,6 @@ EMBED_INLINE int parse_stored_read(const ServersParseCtx *args)
         s_parsed.ranges = head.ranges;
         s_whole = (int)head.whole;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_texts_lock);
     return found;
 }
 
@@ -252,10 +250,8 @@ EMBED_INLINE void parse_store(const ServersParseCtx *args)
                .count = s_parsed.folds, .size = sizeof(unsigned int));
     EMBED_CALL(parse_put, ServersParseCtx, .stored_out = stored, .at = &at, .from = s_room.range,
                .count = s_parsed.ranges, .size = sizeof(CliInspectSpan));
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_texts_lock);
     (void)EMBED_CALL(cli_keyed_key_beside.put, CliKeyedKeyBesideCfg, .keyed_out = &g_cli_servers_parses, .key = key,
                      .beside_value = args->path, .text = stored, .size_value = size);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_texts_lock);
     g_cli_cells->persistent_buf_release(stored, &g_cli_servers_cells);
 }
 
@@ -578,7 +574,6 @@ static int parse_get(const ServersParseCtx *args)
 
 void cli_servers_forget_tokens(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_texts_lock);
     for (unsigned int at = 0u; at < g_cli_servers_parses.entries; at += 1u)
     {
         CliKeyedEntry *const one =
@@ -591,7 +586,6 @@ void cli_servers_forget_tokens(void)
         }
         one->used = one->used && head.whole;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_texts_lock);
 }
 
 int cli_servers_colors(const CliServersPathOutErrMsgFromToCfg *args)

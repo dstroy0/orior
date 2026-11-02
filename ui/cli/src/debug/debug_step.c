@@ -65,9 +65,7 @@ int cli_debug_lldb_command(const CliDebugSessionErrMsgCtx *args)
 
 int cli_debug_lldb_script(const CliDebugSessionErrMsgCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
     const int scripted = args->session->scripted;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
     if (scripted)
     {
         return 1;
@@ -100,9 +98,7 @@ int cli_debug_lldb_script(const CliDebugSessionErrMsgCtx *args)
     {
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
     args->session->scripted = 1;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
     return 1;
 }
 
@@ -201,10 +197,8 @@ int cli_debug_step(const CliDebugOutErrMsgIdThreadHowCfg *args)
     {
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
     const int has_parent = session->info.has_parent;
     const unsigned long long parent = session->info.parent;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
     // a step out of the tree's C into the Python that called it lets the native code run on and stops the Python at
     // the next line it runs
     CliDebugSession *const sibling =
@@ -323,12 +317,10 @@ int cli_debug_step_across(const CliDebugRootOutErrMsgCfg *args)
     placed = number ? placed : 0ull;
     if (placed > 0ull)
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_debug.lock);
         python->has_across = 1;
         python->across = native->info.id;
         native->has_across = 1;
         native->across = native->info.id;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_debug.lock);
     }
     EMBED_CALL(cli_debug_session_err_msg_internal.let_go, CliDebugSessionErrMsgCtx, .session = native);
     EMBED_CALL(cli_debug_session_err_msg_internal.let_go, CliDebugSessionErrMsgCtx, .session = python);

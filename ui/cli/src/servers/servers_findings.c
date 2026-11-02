@@ -6,7 +6,7 @@
 #include "servers_internal.h"
 
 // the findings read, under the reading's lock
-static CliServersReading s_found = {CLI_LOCK_INIT};
+static CliServersReading s_found = {0};
 
 typedef struct
 {
@@ -138,10 +138,8 @@ void cli_servers_findings_store(const CliServersSizeCtx *args)
         {
             continue;
         }
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_checks_lock);
         const int put = EMBED_CALL(findings_put, ServersFindingsCtx, .key_read = key, .uri_read = uri, .id = args->id,
                                    .items = items);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_checks_lock);
         if (put || args->always)
         {
             changed_files[changed] = pair;

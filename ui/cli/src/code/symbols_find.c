@@ -144,7 +144,6 @@ void cli_tree_declarations_find(const CliSymbolsQueryMostCfg *args)
     static CliScored s_found[CLI_SYMBOLS_FOUND];
     const unsigned int room = (args->most < CLI_SYMBOLS_FOUND) ? args->most : CLI_SYMBOLS_FOUND;
     unsigned int count = 0u;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_walk_lock);
     char *const scratch = cli_branch_copy_take();
     for (unsigned int file = 0u; (scratch != NULL) && (file < g_cli_branch_count); file += 1u)
     {
@@ -212,5 +211,4 @@ void cli_tree_declarations_find(const CliSymbolsQueryMostCfg *args)
     }
     mmgr_line_put(args->out, g_cli_tree_walking ? "],\"reading\":true}" : "],\"reading\":false}");
     EMBED_CALL(cli_symbols_tree_branch.branch_copy_free, CliSymbolsTreeBranchCfg, .scratch = scratch);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_walk_lock);
 }

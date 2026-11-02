@@ -83,7 +83,6 @@ typedef struct
     int reading;
     unsigned long long count;
     char version[64];
-    CliLock input_lock;
     char text[CLI_DB_LITE_LINE];
     CliDbHead head;
     CliDbValue row[CLI_DB_COLUMNS];
@@ -133,22 +132,16 @@ struct CliDbOpen
     char root[CLI_PATH_MAX_LEN];
     char password[CLI_NAME_MAX_LEN];
     CliDbLink query;
-    CliLock query_lock;
     CliDbLink meta;
-    CliLock meta_lock;
     CliDbStop stop;
     int has_stop;
     CliDbStop meta_stop;
     int has_meta_stop;
     int busy;
-    CliLock stop_lock;
     CliDbTunnel tunnel;
-    CliLock tunnel_lock;
     CliDbResults results;
-    CliLock results_lock;
     char version[CLI_NAME_MAX_LEN];
     char zone[CLI_NAME_MAX_LEN];
-    CliLock zone_lock;
 };
 
 // a link opened to `config`'s database at `host`:`port`, read-only where `read_only`: 1, or 0 with the failure given;

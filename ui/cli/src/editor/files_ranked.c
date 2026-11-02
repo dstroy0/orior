@@ -14,8 +14,6 @@
 #define CLI_RANKED_EXACT 100000.0
 #define CLI_RANKED_LATELY 6.0
 
-static CliLock s_lock = CLI_LOCK_INIT;
-
 // whether the quick open reads a file: the search's patterns do not hide it
 static int cli_ranked_includes(const CliEachPathCfg *args)
 {
@@ -340,10 +338,8 @@ static void cli_ranked_get(const FilesRankedCtx *args)
 void cli_files_rank(const CliFilesRootOutCfg *args)
 {
     const char *root = args->root;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     if (!EMBED_CALL(ranking_reserve, FilesRankedCtx, .out = args->out))
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return;
     }
     // until the files are listed, those opened lately alone answer
@@ -376,15 +372,12 @@ void cli_files_rank(const CliFilesRootOutCfg *args)
                .recents = args->recents, .most = args->most, .fuzzy = args->fuzzy, .read = read, .out = args->out);
     EMBED_CALL(cli_files_picked_internal.picked_let, CliFilesPickedCtx, .picked = &picked);
     ranking_release();
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 void cli_files_ranked_in(const CliFilesCountOutCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     if (!EMBED_CALL(ranking_reserve, FilesRankedCtx, .out = args->out))
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return;
     }
     const unsigned int paths = (args->count < CLI_FILES_MOST) ? args->count : CLI_FILES_MOST;
@@ -395,5 +388,4 @@ void cli_files_ranked_in(const CliFilesCountOutCfg *args)
     EMBED_CALL(cli_ranked_get, FilesRankedCtx, .paths = paths, .query = args->query, .recent = args->recent,
                .recents = args->recents, .most = args->most, .fuzzy = args->fuzzy, .read = 1, .out = args->out);
     ranking_release();
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }

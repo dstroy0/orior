@@ -186,11 +186,10 @@ typedef struct GuiWindow
     unsigned int pressed;
 } GuiWindow;
 
-// the milliseconds within which presses count up, the pixels a press may move and still count, the milliseconds
-// between readings of the memory, the milliseconds the view's rows rest before the server is told the view, its
-// slice cut for it, and the caret's breath: its period; each slide, down from full ink and up again, which the caret
-// eases through on a cosine, the rests at full and at dim between them taking what the period leaves; and the dim
-// rest's ink, 0 to 255, where the caret rests before it rises
+// the double-click window, the pixels a press may move and still count, the memory poll period, the debounce before the
+// server is told the viewport, its slice cut for it, and the caret's blink: its period; each fade, down from full ink
+// and up again, which the caret eases through on a cosine, the steady times at full and at dim taking what the period
+// leaves; and the dim ink, 0 to 255
 #define GUI_DOUBLE_CLICK_MS 500ull
 #define GUI_CLICK_NEAR 4
 #define GUI_MEMORY_POLL_MS 2000ull
@@ -257,8 +256,8 @@ void gui_window_drain(const GuiWindowCfg *args);
 // never
 void gui_window_tick(const GuiWindowCfg *args);
 unsigned long long gui_window_timeout_ms(const GuiWindowInputCfg *args);
-// the frame laid for the claim's movement at `now`: while a slide runs the stage standing then, the stages made where a
-// slide has been sent since they were; at rest the frame the slides rest at
+// the frame laid for the claim's movement at `time_ms`: while a slide runs the stage standing then, the stages made
+// where a slide has been sent since they were; at rest the frame the slides rest at
 void gui_window_claim_layout(const GuiWindowClaimCfg *args);
 // the system's wish for less motion told, 1 where it asks for less: that or View's Reduce Motion, saved in orior's
 // folder, stills the lattice, the claim's slides, the name's flight and the caret's breath

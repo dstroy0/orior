@@ -7,7 +7,6 @@
 int cli_dap_answer(const CliDapErrMsgCommandSeqCfg *args)
 {
     int answered = -1;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->dap->lock);
     for (unsigned int at = 0u; at < CLI_DAP_WAITERS; at += 1u)
     {
         const CliDapWaiter *const waiter = &args->dap->waiters[at];
@@ -17,13 +16,11 @@ int cli_dap_answer(const CliDapErrMsgCommandSeqCfg *args)
             mmgr_line_put(args->err_msg, waiter->error);
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->dap->lock);
     return answered;
 }
 
 void cli_dap_forgotten(const CliDapErrMsgCommandSeqCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->dap->lock);
     for (unsigned int at = 0u; at < CLI_DAP_WAITERS; at += 1u)
     {
         if (args->dap->waiters[at].waiting && (args->dap->waiters[at].seq == args->seq))
@@ -33,5 +30,4 @@ void cli_dap_forgotten(const CliDapErrMsgCommandSeqCfg *args)
             args->dap->waiters[at].answer = (CliLspAnswer){NULL, NULL, 0ull};
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->dap->lock);
 }

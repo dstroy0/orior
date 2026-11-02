@@ -18,10 +18,8 @@ typedef struct
 // a reader's end notified, the kernel's waiters woken
 EMBED_INLINE void jupyter_reader_end(const JupyterReadersCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->kernel->lock);
     args->kernel->reading -= 1u;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &args->kernel->wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->kernel->lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &args->kernel->wake);
 }
 
 // a message received: a reply on the shell ending the request in flight there, a reply handed to the request waiting on
@@ -37,7 +35,6 @@ EMBED_INLINE void jupyter_recv(const JupyterReadersCtx *args)
     }
     if (args->reader->replies && (parent[0] != '\0'))
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &kernel->lock);
         for (unsigned int at = 0u; at < CLI_KERNEL_WAITERS; at += 1u)
         {
             CliKernelWaiter *const waiter = &kernel->waiters[at];
@@ -47,12 +44,10 @@ EMBED_INLINE void jupyter_recv(const JupyterReadersCtx *args)
                 mmgr_line_put_n(waiter->reply, args->message, args->size);
                 waiter->answered = 1;
                 waiter->waiting = 0;
-                EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &kernel->wake);
-                EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &kernel->lock);
+                EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &kernel->wake);
                 return;
             }
         }
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &kernel->lock);
     }
     EMBED_CALL(kernel->recv, CliKernelRecvCfg, .context = kernel->context, .message = args->message,
                .size = args->size);
@@ -150,9 +145,7 @@ void cli_kernel_reader_start(const CliJupyterAtCtx *args)
     CliKernelReader *const reader = &kernel->readers[args->at];
     reader->kernel = kernel;
     reader->thread = (CliThread){(args->at < 3u) ? jupyter_socket_read : jupyter_log_read, reader};
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &kernel->lock);
     kernel->reading += 1u;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &kernel->lock);
     if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &reader->thread))
     {
         EMBED_CALL(jupyter_reader_end, JupyterReadersCtx, .kernel = kernel);

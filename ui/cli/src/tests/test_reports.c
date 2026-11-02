@@ -27,7 +27,6 @@ typedef struct
 
 static CliReportTag s_case;
 static CliReportTag s_tag;
-static CliLock s_report_lock = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -438,7 +437,6 @@ EMBED_INLINE void report_case_emit(const TestReportsCtx *args)
 
 void cli_test_report_emit(const CliTestRunsWorkerCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_report_lock);
     unsigned long long rest = 0ull;
     for (;;)
     {
@@ -470,5 +468,4 @@ void cli_test_report_emit(const CliTestRunsWorkerCtx *args)
     g_cli_cells->persistent_buf_release(s_tag.values, &g_cli_test_report_cells);
     s_case = (CliReportTag){0};
     s_tag = (CliReportTag){0};
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_report_lock);
 }

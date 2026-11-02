@@ -14,7 +14,6 @@
 static CliTextPlace *s_place;
 static unsigned long long *s_byte;
 static unsigned int *s_order;
-static CliLock s_edits_lock = CLI_LOCK_INIT;
 
 void cli_text_place_write(const CliEditsPlaceCfg *args)
 {
@@ -146,7 +145,6 @@ int cli_text_apply(const CliEditsOutCfg *args)
     {
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_edits_lock);
     s_byte = (unsigned long long *)(void *)cell;
     s_place = (CliTextPlace *)(void *)(s_byte + places + 1ull);
     s_order = (unsigned int *)(void *)(s_place + places + 1ull);
@@ -175,7 +173,6 @@ int cli_text_apply(const CliEditsOutCfg *args)
     s_byte = NULL;
     s_place = NULL;
     s_order = NULL;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_edits_lock);
     g_cli_cells->persistent_buf_release(cell, &g_cli_text_cells);
     return 1;
 }

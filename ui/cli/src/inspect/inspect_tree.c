@@ -28,7 +28,6 @@ typedef struct
 
 CliTreeFile *g_cli_tree_page[CLI_TREE_PAGES];
 unsigned int g_cli_tree_files;
-CliLock g_cli_tree_lock = CLI_LOCK_INIT;
 
 static unsigned int s_bucket[CLI_TREE_BUCKETS];
 
@@ -276,7 +275,6 @@ int cli_inspect_tree_set(const CliInspectTreePathLanguageCfg *args)
     const unsigned long long needed =
         read ? EMBED_CALL(tree_size, InspectTreeCtx, .facts = facts, .path_size = path_size) : 0ull;
     unsigned char *const cell = read ? g_cli_cells->persistent_buf_alloc(needed, &g_cli_inspect_cells) : NULL;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_tree_lock);
     const unsigned int place =
         EMBED_CALL(cli_inspect_tree_path_internal.tree_find, CliInspectTreePathCtx, .path = path, .size = path_size);
     if (place != CLI_TREE_NONE)
@@ -286,7 +284,6 @@ int cli_inspect_tree_set(const CliInspectTreePathLanguageCfg *args)
     const unsigned int file = (cell != NULL) ? tree_place() : CLI_TREE_NONE;
     if (file == CLI_TREE_NONE)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_tree_lock);
         g_cli_cells->persistent_buf_release(cell, &g_cli_inspect_cells);
         g_cli_cells->persistent_buf_release(work_cell, &g_cli_inspect_cells);
         return 0;
@@ -332,14 +329,12 @@ int cli_inspect_tree_set(const CliInspectTreePathLanguageCfg *args)
     tree_file->used = 1;
     EMBED_CALL(tree_bucket_put, InspectTreeCtx, .file = file);
     cli_tree_families_free();
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_tree_lock);
     g_cli_cells->persistent_buf_release(work_cell, &g_cli_inspect_cells);
     return 1;
 }
 
 void cli_inspect_tree_remove(const CliInspectTreePathLineCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_tree_lock);
     const unsigned int place =
         EMBED_CALL(cli_inspect_tree_path_internal.tree_find, CliInspectTreePathCtx, .path = args->path,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}));
@@ -347,12 +342,10 @@ void cli_inspect_tree_remove(const CliInspectTreePathLineCfg *args)
     {
         EMBED_CALL(tree_take, InspectTreeCtx, .file = place);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_tree_lock);
 }
 
 void cli_inspect_tree_clear(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_tree_lock);
     for (unsigned int file = 0u; file < g_cli_tree_files; file += 1u)
     {
         g_cli_cells->persistent_buf_release(CLI_TREE_FILE(file).cell, &g_cli_inspect_cells);
@@ -367,22 +360,18 @@ void cli_inspect_tree_clear(void)
     g_cli_tree_files = 0u;
     memor.set(&(MemoriaCfg){.dst = s_bucket, .val = 0, .bytes = sizeof(s_bucket)});
     cli_tree_families_free();
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_tree_lock);
 }
 
 int cli_inspect_tree_contains(const CliInspectTreePathLineCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_tree_lock);
     const int found =
         (EMBED_CALL(cli_inspect_tree_path_internal.tree_find, CliInspectTreePathCtx, .path = args->path,
                     .size = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL})) != CLI_TREE_NONE);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_tree_lock);
     return found;
 }
 
 void cli_inspect_tree_paths(const CliInspectTreeEachCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_tree_lock);
     for (unsigned int file = 0u; file < g_cli_tree_files; file += 1u)
     {
         if (CLI_TREE_FILE(file).used)
@@ -390,13 +379,11 @@ void cli_inspect_tree_paths(const CliInspectTreeEachCfg *args)
             EMBED_CALL(args->each_callback, CliEachPathCfg, .context = args->context, .path = CLI_TREE_FILE(file).path);
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_tree_lock);
 }
 
 int cli_inspect_tree_function_at(const CliInspectTreePathLineCfg *args)
 {
     unsigned int *at = args->at_pointer;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_tree_lock);
     const unsigned int file =
         EMBED_CALL(cli_inspect_tree_path_internal.tree_find, CliInspectTreePathCtx, .path = args->path,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}));
@@ -412,13 +399,11 @@ int cli_inspect_tree_function_at(const CliInspectTreePathLineCfg *args)
             *at = index;
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_tree_lock);
     return found;
 }
 
 int cli_inspect_tree_function(const CliInspectTreePathCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_tree_lock);
     const unsigned int file =
         EMBED_CALL(cli_inspect_tree_path_internal.tree_find, CliInspectTreePathCtx, .path = args->path,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}));
@@ -428,14 +413,12 @@ int cli_inspect_tree_function(const CliInspectTreePathCfg *args)
         EMBED_CALL(args->each, CliInspectReachedCfg, .context = args->context, .path = CLI_TREE_FILE(file).path,
                    .facts = &CLI_TREE_FILE(file).facts, .function = args->at, .sites = NULL, .count = 0u);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_tree_lock);
     return found;
 }
 
 int cli_inspect_tree_function_on(const CliInspectTreePathLineCfg *args)
 {
     unsigned int *at = args->at_pointer;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_tree_lock);
     const unsigned int file =
         EMBED_CALL(cli_inspect_tree_path_internal.tree_find, CliInspectTreePathCtx, .path = args->path,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}));
@@ -449,6 +432,5 @@ int cli_inspect_tree_function_on(const CliInspectTreePathLineCfg *args)
             *at = index;
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_tree_lock);
     return found;
 }

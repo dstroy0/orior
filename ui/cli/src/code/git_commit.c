@@ -33,7 +33,6 @@ typedef struct
 static CliCommitting s_committing;
 static CliRepositories s_repositories;
 static const char *s_repos[CLI_GIT_REPOSITORIES];
-static CliLock s_lock = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -397,7 +396,6 @@ int cli_git_commit(const CliGitRootOutCountCfg *args)
         mmgr_line_put(args->err_msg, "no file is chosen to commit");
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     int ok = EMBED_CALL(cli_committing_take, GitCommitCtx, .message = args->message, .count = args->count,
                         .err_msg = args->err_msg) &&
              EMBED_CALL(cli_own, GitCommitCtx, .root = args->root, .paths = args->paths, .count = args->count,
@@ -439,7 +437,6 @@ int cli_git_commit(const CliGitRootOutCountCfg *args)
     }
     EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_repositories.text);
     cli_committing_free();
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return ok;
 }
 
@@ -450,7 +447,6 @@ int cli_git_commit_parts(const CliGitRootCfg *args)
         mmgr_line_put(args->err_msg, "no file is chosen to commit");
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const unsigned int count = args->whole_count + args->part_count;
     int ok = EMBED_CALL(cli_committing_take, GitCommitCtx, .message = args->message, .count = count,
                         .err_msg = args->err_msg);
@@ -519,7 +515,6 @@ int cli_git_commit_parts(const CliGitRootCfg *args)
     }
     EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_repositories.text);
     cli_committing_free();
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return ok;
 }
 

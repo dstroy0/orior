@@ -34,7 +34,6 @@ typedef struct
 
 static CliServersChanged s_batch;
 static CliServerSpec s_spec;
-static CliLock s_lock = CLI_LOCK_INIT;
 
 // What the servers receive of a round: the line it is written on, whether a change is written on it yet, and the line
 // the URIs of the files gone are put on, each ended by a 0
@@ -264,7 +263,6 @@ EMBED_INLINE void changed_servers_send(const ServersChangedCtx *args)
     static CliLsp *s_server[CLI_SERVERS_MOST];
     static int s_whole[CLI_SERVERS_MOST];
     unsigned int count = 0u;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers.lock);
     for (unsigned int at = 0u; at < CLI_SERVERS_MOST; at += 1u)
     {
         if (g_cli_servers.running[at].used)
@@ -275,8 +273,6 @@ EMBED_INLINE void changed_servers_send(const ServersChangedCtx *args)
             count += 1u;
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers.lock);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_check_open_lock);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         char quiet[256];
@@ -291,7 +287,6 @@ EMBED_INLINE void changed_servers_send(const ServersChangedCtx *args)
         }
         EMBED_CALL(cli_lsp_context.unref, CliLspContextCfg, .lsp = s_server[at]);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_check_open_lock);
 }
 
 // the file of the URI `uri`, gone, reported to have no diagnostics
@@ -332,7 +327,6 @@ EMBED_INLINE void changed_emit(const ServersChangedCtx *args)
 {
     const char *root = args->root;
     // a change's URI is at most a path's, written with every byte escaped; a URI gone is one stored beside its key
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_servers_published_lock);
     const unsigned long long stored =
         EMBED_CALL(cli_keyed_table.listed_size, CliKeyedCfg, .keyed = &g_cli_servers_published);
     const unsigned long long gone_room = stored + 1ull;
@@ -359,7 +353,6 @@ EMBED_INLINE void changed_emit(const ServersChangedCtx *args)
     }
     EMBED_CALL(cli_keyed_each_table.each, CliKeyedEachCfg, .keyed = &g_cli_servers_published, .each = changed_gone_find,
                .context = &events);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_servers_published_lock);
     mmgr_line_put(&line, "]}");
     if (mmgr_line_ok(&line) && events.written)
     {
@@ -440,11 +433,9 @@ EMBED_INLINE int changed_take(const ServersChangedCtx *args)
 void cli_servers_on_change(const CliServersRootSinkCountCfg *args)
 {
     static CliServersSink s_emit;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     if (!EMBED_CALL(cli_servers_files_count_internal.check_files_change, CliServersFilesCountCtx, .root = args->root,
                     .files = args->files, .count = args->count, .sink_out = &s_emit))
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return;
     }
     EMBED_CALL(changed_emit, ServersChangedCtx, .root = args->root, .files = args->files, .count = args->count,
@@ -472,7 +463,6 @@ void cli_servers_on_change(const CliServersRootSinkCountCfg *args)
     if (!EMBED_CALL(changed_take, ServersChangedCtx, .root = args->root, .count = args->count))
     {
         changed_free();
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return;
     }
     for (unsigned int at = 0u; at < args->count; at += 1u)
@@ -518,5 +508,4 @@ void cli_servers_on_change(const CliServersRootSinkCountCfg *args)
     (void)EMBED_CALL(cli_servers_files_internal.check_files, CliServersFilesCtx, .root = args->root,
                      .files = s_batch.again, .count = s_batch.agains, .sink = &s_emit);
     changed_free();
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }

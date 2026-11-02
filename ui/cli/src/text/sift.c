@@ -14,7 +14,6 @@
 
 // the alignments a plan scores on, guarded by the lock while a plan is made
 static unsigned long long s_standing[(2u * CLI_SIFT_SCORED) + 2u];
-static CliLock s_lock = CLI_LOCK_INIT;
 
 unsigned char cli_sift_on_fold(const CliSiftFoldCfg *args)
 {
@@ -229,11 +228,9 @@ unsigned int cli_sift_plan(const CliSiftWindowLengthFoldCfg *args)
 
 unsigned int cli_sift_plan_with(const CliSiftWindowLengthFoldCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const unsigned int placed = EMBED_CALL(
         cli_plan_anchors_place, SiftCtx, .given = args->census_read, .window = args->window, .length = args->length,
         .needle = args->needle, .needle_length = args->needle_length, .fold = args->fold, .anchors = args->anchors_out);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return placed;
 }
 

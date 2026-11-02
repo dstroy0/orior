@@ -9,7 +9,6 @@
 // the patterns of each part, 1 in `s_made` where they were set, and the lock that is acquired while one is read or set
 static CliPatterns s_set[CLI_PARTS];
 static int s_made[CLI_PARTS];
-static CliLock s_lock = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -425,7 +424,6 @@ EMBED_INLINE int cli_same_list(const PatternsCtx *args)
 int cli_patterns_set(const CliPatternsLinesCountCfg *args)
 {
     static CliPatterns s_read;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     EMBED_CALL(cli_patterns_lines.read, CliPatternsLinesCfg, .lines = args->lines, .count = args->count,
                .patterns_out = &s_read);
     CliPatterns *const set_at = &s_set[args->part];
@@ -436,13 +434,11 @@ int cli_patterns_set(const CliPatternsLinesCountCfg *args)
                                 .other_list = s_read.include, .count = s_read.includes);
     memor.cpy(&(MemoriaCfg){.dst = set_at, .src = &s_read, .bytes = sizeof(s_read)});
     s_made[args->part] = 1;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return !same;
 }
 
 void cli_patterns_get(const CliPatternsPartCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     if (s_made[args->part])
     {
         memor.cpy(
@@ -454,5 +450,4 @@ void cli_patterns_get(const CliPatternsPartCfg *args)
         args->patterns_out->includes = 0u;
         args->patterns_out->used = 0u;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }

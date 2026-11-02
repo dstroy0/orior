@@ -17,7 +17,6 @@ static char s_cached_paths[CLI_TRACKED_CACHE][CLI_PATH_MAX_LEN];
 static int s_ignored[CLI_TRACKED_CACHE];
 static unsigned int s_cached_count;
 static unsigned long long s_cached_at;
-static CliLock s_cache_lock = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -31,7 +30,6 @@ typedef struct
 EMBED_INLINE int tracked_cache(const FilesTrackedCtx *args)
 {
     int *ignored = args->ignored;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_cache_lock);
     if (s_cached_at != args->at)
     {
         s_cached_count = 0u;
@@ -44,14 +42,12 @@ EMBED_INLINE int tracked_cache(const FilesTrackedCtx *args)
             cellul.eq(&(CatenaFinitaCfg){.src = s_cached_paths[each], .other = args->outside, .cap = CLI_CELLS_POOL});
         *ignored = found ? s_ignored[each] : *ignored;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_cache_lock);
     return found;
 }
 
 // git's answer for `outside` cached for the listing made at `at`, where it is that listing's still and room is left
 EMBED_INLINE void tracked_put(const FilesTrackedCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_cache_lock);
     if ((s_cached_at == args->at) && (s_cached_count < CLI_TRACKED_CACHE))
     {
         memor.cpy(
@@ -61,7 +57,6 @@ EMBED_INLINE void tracked_put(const FilesTrackedCtx *args)
         s_ignored[s_cached_count] = args->ignored_value;
         s_cached_count += 1u;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_cache_lock);
 }
 
 int cli_files_track(const CliFilesRootPathCfg *args)

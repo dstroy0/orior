@@ -72,7 +72,6 @@ EMBED_INLINE void complete_kind_declare(const SymbolsCompleteCtx *args)
 {
     const char *path = args->path;
     args->kind_out[0] = '\0';
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_walk_lock);
     const unsigned int file = EMBED_CALL(cli_symbols_tree_path.branch_get, CliSymbolsTreePathCfg, .path = path);
     const CliTreeBranch *const branch = (file < CLI_BRANCHES_MOST) ? &g_cli_branches[file] : NULL;
     char *const scratch = ((branch != NULL) && branch->used) ? cli_branch_copy_take() : NULL;
@@ -94,7 +93,6 @@ EMBED_INLINE void complete_kind_declare(const SymbolsCompleteCtx *args)
         }
     }
     EMBED_CALL(cli_symbols_tree_branch.branch_copy_free, CliSymbolsTreeBranchCfg, .scratch = scratch);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_walk_lock);
 }
 
 // the defines in effect where the walk ended, the database's first, each of the kind its declaration's grammar names,

@@ -402,7 +402,6 @@ static int tree_search(const CliServeAnswerCfg *args)
     VerbaLinea *err_msg = args->err_msg;
     static const char *s_set[CLI_SERVE_LINES];
     static CliPatterns s_patterns;
-    static CliLock s_patterns_lock = CLI_LOCK_INIT;
     char root[CLI_PATH_MAX_LEN];
     unsigned int count = 0u;
     const char *const query = EMBED_CALL(cli_serve_err_msg_internal.string, CliServeErrMsgCtx, .request = arguments,
@@ -430,12 +429,10 @@ static int tree_search(const CliServeAnswerCfg *args)
                                                .key = "word", .otherwise_i32 = 0),
                                     EMBED_CALL(cli_serve_err_msg_internal.bool_or, CliServeErrMsgCtx, .request = &read,
                                                .key = "regex", .otherwise_i32 = 0)};
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_patterns_lock);
     EMBED_CALL(cli_patterns_lines.read_set, CliPatternsLinesCfg, .lines = s_set, .count = count,
                .patterns_out = &s_patterns);
     const int done = EMBED_CALL(cli_files_root_out_err_msg.search, CliFilesRootOutErrMsgCfg, .root = root,
                                 .query = query, .how = searching, .set = &s_patterns, .out = out, .err_msg = err_msg);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_patterns_lock);
     return done;
 }
 

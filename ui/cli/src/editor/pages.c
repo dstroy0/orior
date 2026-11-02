@@ -12,8 +12,6 @@
 #define CLI_PAGE_HEAD (64ull * 1024ull)
 
 CliPaged *g_cli_paged = NULL;
-CliLock g_cli_pages_lock = CLI_LOCK_INIT;
-CliLock g_cli_index_lock = CLI_LOCK_INIT;
 CliWake g_cli_index_wake = CLI_WAKE_INIT;
 
 typedef struct
@@ -97,13 +95,11 @@ EMBED_INLINE void pages_let_go(const PagesCtx *args)
     {
         *link = args->one->next;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_index_lock);
     args->one->index.cancel = 1;
     while (args->one->index.reading)
     {
-        EMBED_CALL(cli_lock_internal.wake_wait, CliLockCtx, .wake = &g_cli_index_wake, .lock = &g_cli_index_lock);
+        EMBED_CALL(cli_wake_internal.wake_wait, CliWakeCtx, .wake = &g_cli_index_wake);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_index_lock);
     pages_cells_free(args);
     if (args->one->shadow_used > 0ull)
     {
@@ -128,9 +124,7 @@ CliPaged *cli_paged_get(const CliPagesErrMsgCtx *args)
 
 unsigned long long cli_page_index(const CliPagesOneCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_index_lock);
     const unsigned long long lines = args->one->index.lines;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_index_lock);
     return lines;
 }
 
@@ -163,7 +157,6 @@ static void cli_index_read(void *context)
             EMBED_CALL(cli_path_internal.file_piece_take, CliPathCtx, .path = index->path, .from = offset,
                        .count_u64 = CLI_PAGE_CHUNK, .size_pointer = &len, .owner = &g_cli_editor_cells);
         const unsigned long long end = offset + len;
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_index_lock);
         for (unsigned long long at = offset; (chunk != NULL) && (at < end);)
         {
             const unsigned char *const newline =
@@ -188,15 +181,12 @@ static void cli_index_read(void *context)
         }
         index->lines = lines;
         stop = index->cancel || (chunk == NULL) || (len == 0ull);
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_index_lock);
         EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = chunk, .owner = &g_cli_editor_cells);
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_index_lock);
     index->lines = lines;
     index->done = 1;
     index->reading = 0;
-    EMBED_CALL(cli_lock_internal.wake_all, CliLockCtx, .wake = &g_cli_index_wake);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_index_lock);
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &g_cli_index_wake);
 }
 
 // the end of line a file's first line ends with: "\r\n" where it does, and "\n" otherwise
@@ -218,10 +208,8 @@ EMBED_INLINE const char *cli_eol_get(const PagesCtx *args)
 EMBED_INLINE unsigned long long pages_total(const PagesCtx *args)
 {
     int *done = args->done;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_index_lock);
     const unsigned long long indexed = args->one->index.lines;
     *done = args->one->index.done;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_index_lock);
     unsigned long long lines = 0ull;
     for (unsigned int at = 0u; at < args->one->pieces; at += 1u)
     {
@@ -308,23 +296,19 @@ int cli_page_open_reading(const CliPagesErrMsgCtx *args)
 
 int cli_pages_open(const CliPagesPathCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_pages_lock);
     const int opened = EMBED_CALL(cli_pages_err_msg_internal.page_open_reading, CliPagesErrMsgCtx, .key = args->key,
                                   .path = args->path, .behind = 1, .out = args->out, .err_msg = args->err_msg);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_pages_lock);
     return opened;
 }
 
 int cli_pages_shape(const CliPagesPathCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_pages_lock);
     CliPaged *const one =
         EMBED_CALL(cli_pages_err_msg_internal.paged_get, CliPagesErrMsgCtx, .key = args->key, .err_msg = args->err_msg);
     if (one != NULL)
     {
         EMBED_CALL(cli_pages_one_internal.page_shape_write, CliPagesOneCtx, .one = one, .out = args->out);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_pages_lock);
     return one != NULL;
 }
 
@@ -333,7 +317,6 @@ EMBED_INLINE int cli_index_near(const PagesCtx *args)
 {
     unsigned long long *start = args->start;
     unsigned long long *first_line = args->first_line;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_index_lock);
     const CliPageIndex *const index = &args->one->index;
     unsigned long long low = 0ull;
     unsigned long long high = index->starts;
@@ -352,7 +335,6 @@ EMBED_INLINE int cli_index_near(const PagesCtx *args)
     const int indexed = index->starts != 0ull;
     *start = indexed ? index->start[low] : 0ull;
     *first_line = indexed ? index->line[low] : 0ull;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_index_lock);
     return indexed;
 }
 
@@ -361,7 +343,6 @@ EMBED_INLINE int cli_index_near(const PagesCtx *args)
 // once it has read the file or has no more places
 EMBED_INLINE unsigned long long cli_index_end(const PagesCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_index_lock);
     const CliPageIndex *const index = &args->one->index;
     unsigned long long low = 0ull;
     unsigned long long high = index->starts;
@@ -386,7 +367,6 @@ EMBED_INLINE unsigned long long cli_index_end(const PagesCtx *args)
     {
         end = index->start[index->starts - 1ull] + CLI_PAGE_SPAN;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_index_lock);
     return (end < args->whole) ? end : args->whole;
 }
 
@@ -638,17 +618,13 @@ int cli_pages_read(const CliPagesOutCfg *args)
     // the index read as far as `to`, or whole, the text found again each turn since it may be let go meanwhile
     for (;;)
     {
-        EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_pages_lock);
         CliPaged *const one = EMBED_CALL(cli_pages_err_msg_internal.paged_get, CliPagesErrMsgCtx, .key = args->key,
                                          .err_msg = args->err_msg);
         int far = 0;
         if (one != NULL)
         {
-            EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_index_lock);
             far = (one->index.lines >= args->to) || one->index.done;
-            EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_index_lock);
         }
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_pages_lock);
         if (one == NULL)
         {
             return 0;
@@ -660,7 +636,6 @@ int cli_pages_read(const CliPagesOutCfg *args)
         EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 10u);
     }
     CliPageLines lines = {0};
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_pages_lock);
     CliPaged *const one =
         EMBED_CALL(cli_pages_err_msg_internal.paged_get, CliPagesErrMsgCtx, .key = args->key, .err_msg = args->err_msg);
     const int read = (one != NULL) &&
@@ -693,7 +668,6 @@ int cli_pages_read(const CliPagesOutCfg *args)
             *cut = any ? letters : 0ull;
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_pages_lock);
     EMBED_CALL(cli_pages_lines_lines_first_internal.page_lines_free, CliPagesLinesLinesFirstCtx, .lines = &lines);
     return read;
 }
@@ -703,14 +677,12 @@ int cli_pages_count(const CliPagesCfg *args)
     unsigned long long *lines = args->lines;
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_pages_lock);
     CliPaged *const one =
         EMBED_CALL(cli_pages_err_msg_internal.paged_get, CliPagesErrMsgCtx, .key = args->key, .err_msg = &err_msg);
     if (one != NULL)
     {
         *lines = EMBED_CALL(pages_total, PagesCtx, .one = one, .done = args->whole);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_pages_lock);
     return one != NULL;
 }
 
@@ -722,14 +694,12 @@ char *cli_pages_lines_take(const CliPagesFromCfg *args)
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     const unsigned long long wanted = (args->to > args->from) ? (args->to - args->from) : 1ull;
     CliPageLines lines = {0};
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_pages_lock);
     CliPaged *const one =
         EMBED_CALL(cli_pages_err_msg_internal.paged_get, CliPagesErrMsgCtx, .key = args->key, .err_msg = &err_msg);
     const int read = (one != NULL) &&
                      EMBED_CALL(cli_pages_lines_err_msg_internal.page_lines_get, CliPagesLinesErrMsgCtx, .one = one,
                                 .from = args->from, .to_value = args->to, .lines = &lines, .err_msg = &err_msg) &&
                      !lines.full;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_pages_lock);
     // each line's bytes and its NUL
     char *const text = read ? g_cli_cells->persistent_buf_alloc(lines.used + lines.count + 1ull, args->owner) : NULL;
     const unsigned long long taken = (lines.count < wanted) ? lines.count : wanted;
@@ -1000,7 +970,6 @@ int cli_pages_on_view(const CliPagesViewCfg *args)
     CliPagesPlaced *placed = args->placed;
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_pages_lock);
     CliPaged *const one =
         EMBED_CALL(cli_pages_err_msg_internal.paged_get, CliPagesErrMsgCtx, .key = args->key, .err_msg = &err_msg);
     if (one != NULL)
@@ -1017,13 +986,11 @@ int cli_pages_on_view(const CliPagesViewCfg *args)
         one->view_top = args->view->top;
         one->view_at = now;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_pages_lock);
     return one != NULL;
 }
 
 void cli_pages_release(const CliPagesCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_pages_lock);
     CliPaged *one = g_cli_paged;
     while ((one != NULL) &&
            (!cellul.eq(&(CatenaFinitaCfg){.src = one->key, .other = args->key, .cap = CLI_CELLS_POOL})))
@@ -1034,5 +1001,4 @@ void cli_pages_release(const CliPagesCfg *args)
     {
         EMBED_CALL(pages_let_go, PagesCtx, .one = one);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_pages_lock);
 }

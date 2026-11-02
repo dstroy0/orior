@@ -9,7 +9,6 @@
 #include "ui/cli/src/editor/watch_internal.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
-static CliLock s_lock = CLI_LOCK_INIT;
 static unsigned int s_rounds;
 static char s_root[CLI_PATH_MAX_LEN];
 static unsigned long long s_listed_at;
@@ -64,17 +63,13 @@ static void repository_listed(const char *name)
 static void round_counted(const CliEachBatchSizeCfg *args)
 {
     (void)args;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     s_rounds += 1u;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 // the rounds counted
 static unsigned int rounds_counted(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const unsigned int rounds = s_rounds;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return rounds;
 }
 

@@ -7,7 +7,6 @@
 #include "archive_internal.h"
 
 CliLevels *g_cli_archive_levels;
-CliLock g_cli_archive_lock = CLI_LOCK_INIT;
 
 // the rooms of the levels, in one list
 #define CLI_ARCHIVE_ROOMS ((3u * CLI_ARCHIVE_DEPTH) - 1u + 1u)
@@ -36,11 +35,9 @@ EMBED_INLINE CliRoom *cli_archive_rooms(const ArchivePathCtx *args)
 
 int cli_archive_lock(const CliArchiveErrMsgPartsCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &g_cli_archive_lock);
     g_cli_archive_levels = g_cli_cells->persistent_buf_alloc(sizeof(*g_cli_archive_levels), &g_cli_editor_cells);
     if (g_cli_archive_levels == NULL)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_archive_lock);
         mmgr_line_put(args->err_msg, "the archives a path runs through could not be taken");
         return 0;
     }
@@ -60,7 +57,6 @@ void cli_archive_release(void)
     }
     g_cli_cells->persistent_buf_release(g_cli_archive_levels, &g_cli_editor_cells);
     g_cli_archive_levels = NULL;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &g_cli_archive_lock);
 }
 
 int cli_archive_room(const CliArchiveErrMsgRoomCtx *args)

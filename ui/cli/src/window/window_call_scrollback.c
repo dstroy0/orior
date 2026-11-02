@@ -35,7 +35,6 @@ typedef struct
 
 static CliScrollback s_scrollback[CLI_SCROLLBACKS];
 static unsigned long long s_next_id;
-static CliLock s_lock = CLI_LOCK_INIT;
 static char s_piece[CLI_SCROLLBACK_PIECE];
 static unsigned long long s_starts[CLI_SCROLLBACK_STARTS];
 
@@ -79,7 +78,6 @@ EMBED_INLINE void scrollback_let_go(const WindowCallScrollbackCtx *args)
 // a scrollback made for a terminal screen: its number
 static int scrollback_open(const CliServeAnswerCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     CliScrollback *free_place = NULL;
     for (unsigned int at = 0u; (free_place == NULL) && (at < CLI_SCROLLBACKS); at += 1u)
     {
@@ -106,7 +104,6 @@ static int scrollback_open(const CliServeAnswerCfg *args)
         mmgr_line_put(args->err_msg,
                       (free_place == NULL) ? "every scrollback is taken" : "a scrollback's file could not be made");
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return whole;
 }
 
@@ -169,7 +166,6 @@ static int scrollback_save(const CliServeAnswerCfg *args)
         EMBED_CALL(cli_serve_items_internal.strings_free, CliServeItemsCtx, .items = lines);
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     CliScrollback *const scrollback = EMBED_CALL(scrollback_get, WindowCallScrollbackCtx, .id = id, .err_msg = err_msg);
     CliScrollbackSave save = {scrollback, 0ull, 0u, 1};
     for (unsigned int at = 0u; (scrollback != NULL) && (at < count); at += 1u)
@@ -188,7 +184,6 @@ static int scrollback_save(const CliServeAnswerCfg *args)
             mmgr_line_put(err_msg, "the scrollback's file could not be written");
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     EMBED_CALL(cli_serve_items_internal.strings_free, CliServeItemsCtx, .items = lines);
     return (scrollback != NULL) && save.written;
 }
@@ -246,7 +241,6 @@ static int scrollback_read(const CliServeAnswerCfg *args)
     {
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const CliScrollback *const scrollback =
         EMBED_CALL(scrollback_get, WindowCallScrollbackCtx, .id = id, .err_msg = err_msg);
     int read = scrollback != NULL;
@@ -277,7 +271,6 @@ static int scrollback_read(const CliServeAnswerCfg *args)
     {
         mmgr_line_put(err_msg, "the scrollback's file could not be read");
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return read;
 }
 
@@ -294,14 +287,12 @@ static int scrollback_close(const CliServeAnswerCfg *args)
     {
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     CliScrollback *const scrollback =
         EMBED_CALL(scrollback_get, WindowCallScrollbackCtx, .id = id, .err_msg = &unknown);
     if (scrollback != NULL)
     {
         EMBED_CALL(scrollback_let_go, WindowCallScrollbackCtx, .scrollback = scrollback);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return 1;
 }
 
@@ -309,7 +300,6 @@ static int scrollback_close(const CliServeAnswerCfg *args)
 static int scrollback_reset(const CliServeAnswerCfg *args)
 {
     (void)args;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     for (unsigned int at = 0u; at < CLI_SCROLLBACKS; at += 1u)
     {
         if (s_scrollback[at].id != 0ull)
@@ -317,7 +307,6 @@ static int scrollback_reset(const CliServeAnswerCfg *args)
             EMBED_CALL(scrollback_let_go, WindowCallScrollbackCtx, .scrollback = &s_scrollback[at]);
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return 1;
 }
 

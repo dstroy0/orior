@@ -38,7 +38,6 @@ typedef struct
 } CliReachRead;
 
 static CliReachEntry s_entries[CLI_REACH_WINDOWS];
-static CliLock s_lock = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -339,7 +338,6 @@ int cli_reach_request_in(const CliReachMenuCfg *args)
     VerbaLinea *err_msg = args->err_msg;
     char folder[CLI_PATH_MAX_LEN];
     EMBED_CALL(reach_folder, ReachCtx, .home = args->home, .folder = folder);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     CliReachRead read = {folder, s_entries, 0u};
     (void)EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = folder, .each = reach_entry,
                      .context_bytess = &read);
@@ -375,7 +373,6 @@ int cli_reach_request_in(const CliReachMenuCfg *args)
                        .request = args->request, .count = args->count, .answer = args->answer, .err_msg = err_msg);
         EMBED_CALL(cli_door_client.leave, CliDoorClientCfg, .client = client);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return answered;
 }
 

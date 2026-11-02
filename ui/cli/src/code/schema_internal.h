@@ -187,7 +187,6 @@ int cli_schema_matches(const CliSchemaTextCtx *args);
 // them; and them given back with the lock (schema.c)
 extern CliSchemaRead *g_cli_schema_read;
 extern CliSchemaStore *g_cli_schema_store;
-extern CliLock g_cli_schema_lock;
 int cli_schema_lock(void);
 void cli_schema_release(void);
 

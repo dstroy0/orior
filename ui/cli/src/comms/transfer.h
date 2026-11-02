@@ -61,7 +61,6 @@ typedef struct
     int fd[CLI_DESCRIPTORS_PENDING_MAX];
     unsigned int start;
     unsigned int count;
-    CliLock lock;
 } CliDescriptors;
 
 // `size` bytes of `frame` written to `socket`, the descriptor `fd` going with the first byte: 1, or 0 where it could

@@ -9,7 +9,6 @@
 
 // the cores reserved, 0 before anything has given them, under the lock
 static unsigned int s_reserved;
-static CliLock s_lock = CLI_LOCK_INIT;
 
 // What the cores reserved are read from, a cell taken as they are first read and given back as they are reserved: the
 // reader's chain, an empty chain for a tree, and the layers of the two
@@ -27,9 +26,7 @@ unsigned int cli_cores_machine(void)
 
 void cli_cores_reserve(const CliCoresCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     s_reserved = (args->reserved > CLI_CORES_RESERVED_MIN) ? args->reserved : CLI_CORES_RESERVED_MIN;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 typedef struct
@@ -66,17 +63,14 @@ EMBED_INLINE int cli_count(const CoresCtx *args)
 
 unsigned int cli_cores_on_reserve(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     if (s_reserved != 0u)
     {
         const unsigned int reserved = s_reserved;
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return reserved;
     }
     CliCoresRead *const read = g_cli_cells->temporary_buf_alloc(sizeof(*read), &g_cli_settings_cells);
     if (read == NULL)
     {
-        EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
         return CLI_CORES_RESERVED_MIN;
     }
     EMBED_CALL(cli_settings_path_table.reader, CliSettingsPathCfg, .chain = &read->reader);
@@ -117,7 +111,6 @@ unsigned int cli_cores_on_reserve(void)
     g_cli_cells->persistent_buf_release(read, &g_cli_settings_cells);
     s_reserved = (reserved > CLI_CORES_RESERVED_MIN) ? reserved : CLI_CORES_RESERVED_MIN;
     reserved = s_reserved;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return reserved;
 }
 

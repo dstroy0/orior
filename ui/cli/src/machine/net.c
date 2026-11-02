@@ -17,7 +17,6 @@
 // where it lets orior_cli on; 2 where it blocks orior_cli from it. Read and set under the lock, which also guards the
 // file of addresses
 static int s_disabled;
-static CliLock s_lock = CLI_LOCK_INIT;
 
 typedef struct
 {
@@ -40,9 +39,7 @@ EMBED_INLINE CfgJsonToken *cli_net_tokens(const NetCtx *args)
 
 void cli_net_disable(const CliNetCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     s_disabled = args->off ? 2 : 1;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 // `settings.json` in orior's folder read as JSON with comments: whether its `network` is `off`
@@ -91,9 +88,7 @@ static int cli_settings_off(void)
 
 int cli_net_is_disable(void)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int disabled = (s_disabled == 1) ? 0 : (s_disabled == 2) ? 1 : cli_settings_off();
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return disabled;
 }
 
@@ -249,9 +244,7 @@ int cli_net_reach(const CliNetAddressCfg *args)
         mmgr_line_put(args->err_msg, ": Preferences or Help, Network, lets it on");
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     EMBED_CALL(net_log, NetCtx, .address = args->address, .purpose = args->purpose);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return 1;
 }
 
@@ -260,7 +253,6 @@ void cli_net_on_reach(const CliNetMostCfg *args)
     char folder[CLI_PATH_MAX_LEN];
     char path[CLI_PATH_MAX_LEN];
     mmgr_line_ch(args->out, '[');
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     VerbaLinea named = {path, sizeof(path), 0ull};
     const int homed = EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = folder);
     mmgr_line_put(&named, folder);
@@ -323,6 +315,5 @@ void cli_net_on_reach(const CliNetMostCfg *args)
     }
     g_cli_cells->persistent_buf_release(tokens, &g_cli_machine_cells);
     EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_machine_cells);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     mmgr_line_ch(args->out, ']');
 }

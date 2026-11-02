@@ -23,14 +23,12 @@ typedef struct
 // the connections read, a cell of their count and one more for one saved, guarded under the lock from the read to
 // config_release
 static CliDbConnection *s_connections;
-static CliLock s_lock = CLI_LOCK_INIT;
 
 // the connections read given back, and the lock with them
 static void config_release(void)
 {
     g_cli_cells->persistent_buf_release(s_connections, &g_cli_db_cells);
     s_connections = NULL;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 unsigned int cli_db_port(const CliDbConnectionOutKindCfg *args)
@@ -330,7 +328,6 @@ EMBED_INLINE int config_write(const DbConfigCtx *args)
 int cli_db_by_name(const CliDbRootNameCfg *args)
 {
     CliDbConnection *connection = args->connection_out;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int count = EMBED_CALL(config_read, DbConfigCtx, .root = args->root, .err_msg = args->err_msg);
     for (int at = 0; at < count; at += 1)
     {
@@ -373,7 +370,6 @@ int cli_db_save(const CliDbConnectionCfg *args)
         mmgr_line_put(args->err_msg, " is no kind of database orior_cli supports: postgres, mysql or sqlite");
         return 0;
     }
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int count = EMBED_CALL(config_read, DbConfigCtx, .root = args->root, .err_msg = args->err_msg);
     if (count < 0)
     {
@@ -415,7 +411,6 @@ int cli_db_save(const CliDbConnectionCfg *args)
 
 int cli_db_remove(const CliDbRootNameCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int count = EMBED_CALL(config_read, DbConfigCtx, .root = args->root, .err_msg = args->err_msg);
     if (count < 0)
     {
@@ -449,7 +444,6 @@ int cli_db_remove(const CliDbRootNameCfg *args)
 
 int cli_db_list(const CliDbOutRootCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const int read = EMBED_CALL(config_read, DbConfigCtx, .root = args->root, .err_msg = args->err_msg);
     if (read < 0)
     {

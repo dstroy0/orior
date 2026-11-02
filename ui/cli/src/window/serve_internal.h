@@ -37,7 +37,6 @@ typedef struct CliServeItemsCtx CliServeItemsCtx;
 // joins the door with, and the door's address
 typedef struct
 {
-    CliLock lock;
     char root[CLI_PATH_MAX_LEN];
     int has_root;
     char detached_dir[CLI_PATH_MAX_LEN];
@@ -189,7 +188,6 @@ int cli_serve_deferred_or(const CliServeErrMsgOutRequestCtx *args);
 // history that cannot be recorded reported on the errors: 1, or 0 with why given (serve_call_files.c)
 int cli_serve_file_write(const CliServeErrMsgPathCtx *args);
 // the lock every write of a file of the tree acquires, so that one write lands at a time (serve_call_files.c)
-extern CliLock g_cli_serve_write_lock;
 
 // the statement at the argument `offset` of the argument `text`, and every statement of it, each as the argument
 // `kind` of database splits them (serve_statements.c)

@@ -9,8 +9,6 @@
 #include "../text/regexp.h"
 #include "../text/text.h"
 
-static CliLock s_lock = CLI_LOCK_INIT;
-
 // The reader's plugins' ids in order, in a cell of `room`, `count` of them
 typedef struct
 {
@@ -143,9 +141,7 @@ void cli_plugins_each(const CliPluginsEachCfg *args)
 {
     void (*each)(const CliEachPluginCfg *args) = args->each;
     void *context = args->context;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     EMBED_CALL(cli_each_lock, PluginsCtx, .each = each, .context = context);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }
 
 // `key` put as mapped to `id`, in place of the id it had

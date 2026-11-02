@@ -8,6 +8,7 @@
 // point's origin, due at the moment the loop next shows, drawn again on a tick past it and lattice still off the screen
 #include "../../../../../ui/gui/src/ground.h"
 #include "../cli/cli_check.h"
+#include "test_clock.h"
 
 #include <math.h>
 
@@ -127,8 +128,8 @@ int main(void)
     cli_check(ground.raster.pixels[(99u * 200u) + 0u] == palette->deep,
               "the corner clear of every dot is the deep color");
     g_test_clock_ms = 1000ull;
-    const unsigned long long due = EMBED_CALL(gui_ground_clock.next_deadline_ms, GuiGroundClockCfg, .ground = &ground);
-    cli_check((due >= 16000ull) && (due <= 20000ull), "the ground is due as the first change shows");
+    const unsigned long long wait_ms = EMBED_CALL(gui_ground_clock.next_deadline_ms, GuiGroundClockCfg, .ground = &ground) - 1000ull;
+    cli_check((wait_ms >= 16000ull) && (wait_ms <= 20000ull), "the next draw's deadline falls as the first change shows");
     g_test_clock_ms = 6000ull;
     cli_check(!EMBED_CALL(gui_ground_raster.tick, GuiGroundRasterCfg, .ground = &ground, .palette = palette) && (ground.frames == 1u),
               "a tick through the rest draws nothing");
@@ -139,7 +140,7 @@ int main(void)
     g_test_clock_ms = 32000ull;
     EMBED_CALL(gui_ground.pause, GuiGroundCfg, .ground = &ground, .paused = 1);
     g_test_clock_ms = 40000ull;
-    cli_check(EMBED_CALL(gui_ground_clock.next_deadline_ms, GuiGroundClockCfg, .ground = &ground) == 0ull, "the ground lattice is never due");
+    cli_check(EMBED_CALL(gui_ground_clock.next_deadline_ms, GuiGroundClockCfg, .ground = &ground) == 0ull, "the ground off screen has no deadline");
     g_test_clock_ms = 40000ull;
     cli_check(EMBED_CALL(gui_ground_clock.elapsed_ms, GuiGroundClockCfg, .ground = &ground) == 31000ull, "the clock stands while the ground is lattice");
     g_test_clock_ms = 40000ull;

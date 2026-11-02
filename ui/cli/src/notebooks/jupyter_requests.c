@@ -10,7 +10,6 @@
 
 void cli_kernel_end(const CliJupyterAtCtx *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->kernel->lock);
     if (!args->kernel->ended && (args->kernel->spawned.process != 0ull))
     {
 #if defined(_WIN32)
@@ -21,7 +20,6 @@ void cli_kernel_end(const CliJupyterAtCtx *args)
             EMBED_CALL(cli_spawned_internal.spawn_wait, CliSpawnedCtx, .spawned = &args->kernel->spawned);
         args->kernel->ended = 1;
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->kernel->lock);
 }
 
 void cli_kernel_forgotten(const CliJupyterAtCtx *args)
@@ -39,16 +37,13 @@ typedef struct
 {
     CliKernel *kernel;
     const char *channel;
-    CliLock **lock;
 } JupyterRequestsCtx;
 // the socket of the channel named, the control socket for "control" and the shell socket for any other, and the lock
 // a write to it is made under
 EMBED_INLINE const CliSocket *jupyter_socket_get(const JupyterRequestsCtx *args)
 {
-    CliLock **lock = args->lock;
     const int control =
         (cellul.eq(&(CatenaFinitaCfg){.src = args->channel, .other = "control", .cap = CLI_CELLS_POOL}));
-    *lock = control ? &args->kernel->control_lock : &args->kernel->shell_lock;
     return control ? &args->kernel->control : &args->kernel->shell;
 }
 
@@ -56,12 +51,11 @@ int cli_jupyter_send(const CliJupyterErrMsgKernelCfg *args)
 {
     EMBED_CALL(cli_jupyter_session_internal.kernel_id_init, CliJupyterSessionCtx, .session = args->kernel->session,
                .id = args->id);
-    CliLock *lock = NULL;
-    const CliSocket *const socket = EMBED_CALL(jupyter_socket_get, JupyterRequestsCtx, .kernel = args->kernel,
-                                               .channel = args->channel, .lock = &lock);
+    const CliSocket *const socket =
+        EMBED_CALL(jupyter_socket_get, JupyterRequestsCtx, .kernel = args->kernel, .channel = args->channel);
     if (!EMBED_CALL(cli_jupyter_kernel_internal.kernel_frames_send, CliJupyterKernelCtx, .kernel = args->kernel,
-                    .socket = socket, .lock = lock, .id_read = args->id, .msg_type = args->msg_type,
-                    .content = args->content, .length = args->length))
+                    .socket = socket, .id_read = args->id, .msg_type = args->msg_type, .content = args->content,
+                    .length = args->length))
     {
         mmgr_line_put(args->err_msg, "the kernel's socket could not be written");
         return 0;
@@ -75,7 +69,6 @@ int cli_jupyter_request(const CliJupyterErrMsgCfg *args)
     char id[CLI_KERNEL_ID];
     EMBED_CALL(cli_jupyter_session_internal.kernel_id_init, CliJupyterSessionCtx, .session = args->kernel->session,
                .id = id);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->kernel->lock);
     CliKernelWaiter *waiter = NULL;
     for (unsigned int at = 0u; (at < CLI_KERNEL_WAITERS) && (waiter == NULL); at += 1u)
     {
@@ -88,28 +81,24 @@ int cli_jupyter_request(const CliJupyterErrMsgCfg *args)
             memor.cpy(&(MemoriaCfg){.dst = waiter->id, .src = id, .bytes = sizeof(id)});
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->kernel->lock);
     if (waiter == NULL)
     {
         mmgr_line_put(args->err_msg, "no more requests wait on the kernel at once");
         return 0;
     }
-    CliLock *lock = NULL;
-    const CliSocket *const socket = EMBED_CALL(jupyter_socket_get, JupyterRequestsCtx, .kernel = args->kernel,
-                                               .channel = args->channel, .lock = &lock);
+    const CliSocket *const socket =
+        EMBED_CALL(jupyter_socket_get, JupyterRequestsCtx, .kernel = args->kernel, .channel = args->channel);
     const int sent = EMBED_CALL(cli_jupyter_kernel_internal.kernel_frames_send, CliJupyterKernelCtx,
-                                .kernel = args->kernel, .socket = socket, .lock = lock, .id_read = id,
-                                .msg_type = args->msg_type, .content = args->content, .length = args->length);
+                                .kernel = args->kernel, .socket = socket, .id_read = id, .msg_type = args->msg_type,
+                                .content = args->content, .length = args->length);
     const unsigned long long until = cli_clock_milliseconds() + args->wait;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->kernel->lock);
     while (sent && !waiter->answered && (cli_clock_milliseconds() < until))
     {
-        (void)EMBED_CALL(cli_lock_internal.wake_wait_for, CliLockCtx, .wake = &args->kernel->wake,
-                         .lock = &args->kernel->lock, .milliseconds_u64 = until - cli_clock_milliseconds());
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &args->kernel->wake,
+                         .milliseconds_u64 = until - cli_clock_milliseconds());
     }
     const int answered = waiter->answered;
     waiter->waiting = 0;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->kernel->lock);
     if (!sent)
     {
         mmgr_line_put(args->err_msg, "the kernel's socket could not be written");
@@ -126,7 +115,6 @@ int cli_jupyter_request(const CliJupyterErrMsgCfg *args)
 
 int cli_jupyter_execute(const CliJupyterErrMsgKernelLengthCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->kernel->content_lock);
     VerbaLinea content = {args->kernel->content, sizeof(args->kernel->content), 0ull};
     mmgr_line_put(&content, "{\"code\":");
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &content, .text = args->code,
@@ -144,7 +132,6 @@ int cli_jupyter_execute(const CliJupyterErrMsgKernelLengthCfg *args)
                           .channel = "shell", .msg_type = "execute_request", .content = content.out,
                           .length = content.at, .id = args->id, .err_msg = args->err_msg);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->kernel->content_lock);
     return sent;
 }
 
@@ -177,7 +164,6 @@ int cli_jupyter_interrupt(const CliJupyterErrMsgKernelFileCfg *args)
 
 int cli_jupyter_alive(const CliJupyterErrMsgCfg *args)
 {
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &args->kernel->lock);
     long long code = 0ll;
     if (!args->kernel->ended &&
         EMBED_CALL(cli_spawned_internal.spawn_poll, CliSpawnedCtx, .spawned = &args->kernel->spawned, .code = &code))
@@ -186,7 +172,6 @@ int cli_jupyter_alive(const CliJupyterErrMsgCfg *args)
         args->kernel->code = code;
     }
     const int alive = !args->kernel->ended;
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &args->kernel->lock);
     return alive;
 }
 

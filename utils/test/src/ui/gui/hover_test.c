@@ -6,6 +6,7 @@
 // null answer leaves nothing shown
 #include "../../../../../ui/gui/src/parts/hover.h"
 #include "../cli/cli_check.h"
+#include "test_clock.h"
 
 static int contains(const char *text, unsigned long long length, const char *part)
 {
@@ -107,7 +108,7 @@ int main(void)
     g_test_clock_ms = 2200ull;
     EMBED_CALL(gui_hover_in.move, GuiHoverInCfg, .hover = &hover, .in_text = 1, .row = 5ull, .column = 1ull, .x = 20, .y = 300);
     g_test_clock_ms = 2200ull;
-    cli_check((hover.hide_deadline_ms == 2200ull) && (EMBED_CALL(gui_hover.next_deadline_ms, GuiHoverCfg, .hover_read = &hover) == 2200ull + GUI_HOVER_HIDE_DELAY_MS),
+    cli_check((hover.hide_deadline_ms == 2200ull + GUI_HOVER_HIDE_DELAY_MS) && (EMBED_CALL(gui_hover.next_deadline_ms, GuiHoverCfg, .hover_read = &hover) == 2200ull + GUI_HOVER_HIDE_DELAY_MS),
               "a pointer off the word and the box begins the linger");
     g_test_clock_ms = 2200ull + GUI_HOVER_HIDE_DELAY_MS - 1ull;
     cli_check(!EMBED_CALL(gui_hover_state.tick, GuiHoverStateCfg, .hover = &hover, .ask = &ask) && hover.shown,

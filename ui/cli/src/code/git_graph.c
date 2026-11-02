@@ -328,11 +328,9 @@ EMBED_INLINE int cli_draw_put(const GitGraphCtx *args)
 void cli_git_graph(const CliGitRootQueryCfg *args)
 {
     static char s_words[CLI_GIT_QUERY_WORDS][CLI_NAME_MAX_LEN];
-    static CliLock s_lock = CLI_LOCK_INIT;
     args->found_graph_pointer->count = 0u;
     args->found_graph_pointer->strokes = 0u;
     EMBED_CALL(cli_git_text.text_begin, CliGitTextCfg, .text = &args->found_graph_pointer->text);
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     unsigned int words = 0u;
     const char *word = args->query;
     while ((word[0] != '\0') && (words < CLI_GIT_QUERY_WORDS))
@@ -394,5 +392,4 @@ void cli_git_graph(const CliGitRootQueryCfg *args)
     {
         EMBED_CALL(cli_git_found_internal.layout_out, CliGitFoundCtx, .found = args->found_graph_pointer);
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
 }

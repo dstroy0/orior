@@ -139,8 +139,6 @@ int cli_fuzzy_letters(const CliFilesBytesWantedCtx *args)
 unsigned int cli_files_want(const CliFilesQueryLettersCfg *args)
 {
     static unsigned int s_read[CLI_FUZZY_LETTERS];
-    static CliLock s_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const unsigned long long count =
         EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = args->query,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = args->query, .cap = CLI_CELLS_POOL}), .letters = s_read,
@@ -154,7 +152,6 @@ unsigned int cli_files_want(const CliFilesQueryLettersCfg *args)
             wanted_count += 1u;
         }
     }
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return wanted_count;
 }
 
@@ -186,8 +183,6 @@ int cli_files_fuzzy(const CliFilesQueryCfg *args)
     static unsigned int s_shown[CLI_FUZZY_LETTERS];
     static unsigned int s_lower[CLI_FUZZY_LETTERS];
     static unsigned int s_latest[CLI_FUZZY_LETTERS];
-    static CliLock s_lock = CLI_LOCK_INIT;
-    EMBED_CALL(cli_lock_internal.lock_take, CliLockCtx, .lock = &s_lock);
     const unsigned int wanted = EMBED_CALL(cli_files_query_letters.want, CliFilesQueryLettersCfg, .query = args->query,
                                            .letters = s_wanted, .room = CLI_FUZZY_LETTERS);
     const unsigned int letters = EMBED_CALL(cli_files_text.letters, CliFilesTextCfg, .text = args->text,
@@ -198,6 +193,5 @@ int cli_files_fuzzy(const CliFilesQueryCfg *args)
                                    .wanted = s_wanted, .wanted_count = wanted, .shown = s_shown, .lower = s_lower,
                                    .count_u32 = letters, .from_u32 = start, .bytes_i32 = 0, .latest = s_latest,
                                    .score = args->score, .hits = args->hits, .hit_count = args->count_pointer);
-    EMBED_CALL(cli_lock_internal.lock_give, CliLockCtx, .lock = &s_lock);
     return matched;
 }
