@@ -793,6 +793,12 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM pixel_w
         return 0;
     case WM_KEYDOWN:
     case WM_SYSKEYDOWN:
+        // Alt+F4 is the system's, as a browser leaves it to the system: it closes the window as it closes any, and no
+        // part of the window is handed it
+        if ((message == WM_SYSKEYDOWN) && (pixel_width == VK_F4))
+        {
+            return DefWindowProcW(window, message, pixel_width, low);
+        }
         if (!EMBED_CALL(system_modifier_key, SystemWindowsCtx, .system = system, .key = pixel_width, .down = 1))
         {
             EMBED_CALL(system_key_press, SystemWindowsCtx, .system = system, .key = pixel_width);

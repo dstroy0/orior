@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // system_test.c: the system body's check, on Windows: a window opened and the messages a check posts to its queue
 // handed on as the window's events, a key with the modifiers posted before it named as the page's editor names it, a
-// character posted typed as text and a key pressed with control typing none, the pointer's press and release at their
-// pixel, and the wheel; on another system the check has no window to open and checks nothing
+// character posted typed as text and a key pressed with control typing none, Alt+F4 the system's close and no key, the
+// pointer's press and release at their pixel, and the wheel; on another system the check has no window to open and
+// checks nothing
 #include "../../../../../ui/gui/src/system.h"
 #include "../../../../../ui/cli/src/command_line/callback_cfg.h"
 #include "../cli/cli_check.h"
@@ -28,6 +29,7 @@ typedef struct
     int wheel_rows;
     unsigned int sized;
     unsigned int motions;
+    unsigned int closings;
 } Transferred;
 
 static void transferred_sized(const GuiEachWidthHeightScaleCfg *args)
@@ -91,6 +93,11 @@ static void transferred_motion(void *context)
     ((Transferred *)context)->motions += 1u;
 }
 
+static void transferred_closing(void *context)
+{
+    ((Transferred *)context)->closings += 1u;
+}
+
 static int same(const char *one, const char *other)
 {
     return cellul.eq(&(CatenaFinitaCfg){.src = one, .other = other, .cap = 64ull});
@@ -117,7 +124,7 @@ int main(void)
     char error_text[1024];
     VerbaLinea why = {error_text, sizeof(error_text), 0ull};
     static Transferred transferred;
-    static const GuiSystemEvents s_events = {transferred_sized, transferred_input,     transferred_nothing, transferred_nothing,
+    static const GuiSystemEvents s_events = {transferred_sized, transferred_input,     transferred_nothing, transferred_closing,
                                              transferred_hit,   transferred_displayed, transferred_motion};
     const CliWindowPosition place = {20, 20, 320, 200, 0};
     GuiSystem *const system = EMBED_CALL(gui_system_position_title.open, GuiSystemPositionTitleCfg, .place = &place, .title = "orior check", .events = &s_events, .context = &transferred, .err_msg = &why);
@@ -183,6 +190,14 @@ int main(void)
     posted(window, NULL, 0u, 'Q');
     EMBED_CALL(gui_system_table.pumped, GuiSystemCfg, .system = system);
     cli_check((transferred.keys == 4u) && same(transferred.key, "Q"), "a letter's key goes by its capital");
+
+    // Alt+F4 is the system's, as a browser leaves it to the system: it asks the window to close and is handed on as no
+    // key
+    PostMessageW(window, WM_SYSKEYDOWN, VK_F4, (LPARAM)KF_ALTDOWN << 16);
+    PostMessageW(window, WM_SYSKEYUP, VK_F4, (LPARAM)KF_ALTDOWN << 16);
+    EMBED_CALL(gui_system_table.pumped, GuiSystemCfg, .system = system);
+    cli_check(transferred.closings == 1u, "Alt+F4 asks the window to close");
+    cli_check(transferred.keys == 4u, "and is handed on as no key");
 
     PostMessageW(window, WM_LBUTTONDOWN, 0, (60 << 16) | 50);
     PostMessageW(window, WM_LBUTTONUP, 0, (60 << 16) | 50);
