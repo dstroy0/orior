@@ -351,6 +351,26 @@ void test_a_jsdoc_comment_is_generated_for_a_javascript_function(void)
     TEST_ASSERT_EQUAL_UINT(3u, summary.col);
 }
 
+void test_a_jsdoc_comment_passes_over_the_functions_inside_and_names_each_thrown_once(void)
+{
+    static const char s_js[] = "function run(items) {\n  const pick = function () {\n    throw new TypeError(\"x\");\n"
+                               "    return 1;\n  };\n  if (!items) {\n    throw items;\n  }\n  throw \"no\";\n}\n";
+    char required[512];
+    CliInspectPosition summary = {0u, 0u};
+    VerbaLinea line = {required, sizeof(required), 0ull};
+    mmgr_line_put(&line, "/**\n * \n *\n * @param items\n * @throws {Error}\n */\n");
+    mmgr_line_put(&line, s_js);
+    (void)mmgr_line_finish(&line);
+    TEST_ASSERT_TRUE(docstring_written("javascript", s_js, 0u, "google", &summary));
+    TEST_ASSERT_EQUAL_STRING(required, s_applied);
+}
+
+void test_a_javascript_function_with_a_comment_over_it_is_unchanged(void)
+{
+    CliInspectPosition summary = {0u, 0u};
+    TEST_ASSERT_FALSE(docstring_written("javascript", "/** draws */\nfunction draw() {\n  return 1;\n}\n", 2u, "google", &summary));
+}
+
 void test_a_python_classs_methods_are_sorted_with_their_comments_and_decorators(void)
 {
     static const char s_text[] = "class Shape:\n    \"\"\"A shape.\"\"\"\n\n    sides = 0\n\n    # the area\n    "

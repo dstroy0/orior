@@ -30,6 +30,8 @@ extern void test_a_docstring_in_restructured_texts_form(void);
 extern void test_a_plain_docstring_is_a_summary_line_alone(void);
 extern void test_a_function_with_a_docstring_is_unchanged(void);
 extern void test_a_jsdoc_comment_is_generated_for_a_javascript_function(void);
+extern void test_a_jsdoc_comment_passes_over_the_functions_inside_and_names_each_thrown_once(void);
+extern void test_a_javascript_function_with_a_comment_over_it_is_unchanged(void);
 extern void test_a_python_classs_methods_are_sorted_with_their_comments_and_decorators(void);
 extern void test_a_javascript_classs_methods_are_sorted(void);
 extern void test_methods_in_order_are_unchanged(void);
@@ -116,9 +118,11 @@ int main(void)
   run_test(test_a_plain_docstring_is_a_summary_line_alone, "test_a_plain_docstring_is_a_summary_line_alone", 322);
   run_test(test_a_function_with_a_docstring_is_unchanged, "test_a_function_with_a_docstring_is_unchanged", 329);
   run_test(test_a_jsdoc_comment_is_generated_for_a_javascript_function, "test_a_jsdoc_comment_is_generated_for_a_javascript_function", 338);
-  run_test(test_a_python_classs_methods_are_sorted_with_their_comments_and_decorators, "test_a_python_classs_methods_are_sorted_with_their_comments_and_decorators", 354);
-  run_test(test_a_javascript_classs_methods_are_sorted, "test_a_javascript_classs_methods_are_sorted", 367);
-  run_test(test_methods_in_order_are_unchanged, "test_methods_in_order_are_unchanged", 377);
+  run_test(test_a_jsdoc_comment_passes_over_the_functions_inside_and_names_each_thrown_once, "test_a_jsdoc_comment_passes_over_the_functions_inside_and_names_each_thrown_once", 354);
+  run_test(test_a_javascript_function_with_a_comment_over_it_is_unchanged, "test_a_javascript_function_with_a_comment_over_it_is_unchanged", 368);
+  run_test(test_a_python_classs_methods_are_sorted_with_their_comments_and_decorators, "test_a_python_classs_methods_are_sorted_with_their_comments_and_decorators", 374);
+  run_test(test_a_javascript_classs_methods_are_sorted, "test_a_javascript_classs_methods_are_sorted", 387);
+  run_test(test_methods_in_order_are_unchanged, "test_methods_in_order_are_unchanged", 397);
 
   return UNITY_END();
 }
