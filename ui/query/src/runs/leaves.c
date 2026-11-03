@@ -113,6 +113,13 @@ typedef struct
     unsigned int count_u32;
     VerbaLinea *displayed;
     unsigned int changes;
+    const QueryRun *run_read;
+    unsigned int at;
+    QueryContext *context;
+    QueryLeave leave;
+    QueryAnswer answer;
+    const QueryPrompter *prompter;
+    VerbaLinea *err_msg;
 } LeavesCtx;
 // the lines of `size` bytes at `bytes` cut at their ends into `line` and `length`, or counted where `line` is NULL:
 // their count
@@ -422,27 +429,109 @@ void query_leaf_show(const QueryPathTreeCtx *args)
     mmgr_line_put(args->displayed, " as the run leaves it");
 }
 
+// the path at `at` among those `run_read` read and then those it may leave
+EMBED_INLINE const char *query_run_path(const LeavesCtx *args)
+{
+    const unsigned int reads = args->run_read->read.count;
+    return (args->at < reads) ? args->run_read->read.path[args->at] : args->run_read->left.path[args->at - reads];
+}
+
+// whether the path at `at` among `run_read`'s is named before it
+EMBED_INLINE int query_named_before(const LeavesCtx *args)
+{
+    const char *const path = query_run_path(args);
+    for (unsigned int before = 0u; before < args->at; before += 1u)
+    {
+        if (cellul.eq(&(CatenaFinitaCfg){
+                .src = EMBED_CALL(query_run_path, LeavesCtx, .run_read = args->run_read, .at = before),
+                .other = path,
+                .cap = CLI_CELLS_POOL}))
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// the file `what` as the run leaves it, the `after_size` bytes at `after`, shown against the `before_size` bytes at
+// `before` the tree has, NULL where it has none, and printed to `context`: what is shown is in a cell of the most it
+// writes to, up to the most shown, a line that fills it holding what fit and its 0
+EMBED_INLINE void query_leaf_printed(const LeavesCtx *args)
+{
+    const unsigned long long required =
+        ((args->before_size + args->after_size) * QUERY_DISPLAYED_WIDER) + QUERY_PATH_MAX_LEN + 256ULL;
+    const unsigned long long capacity = (required < QUERY_DISPLAYED_MAX) ? required : QUERY_DISPLAYED_MAX;
+    char *const text = g_cli_cells->temporary_buf_alloc(capacity, &g_query_cells);
+    VerbaLinea displayed = mmgr_line_over(text, capacity);
+    EMBED_CALL(query_path_tree_internal.leaf_show, QueryPathTreeCtx, .path = args->what,
+               .tree = (args->before != NULL) ? args->before : (const unsigned char *)"",
+               .tree_size = args->before_size, .stored = args->after, .stored_size = args->after_size,
+               .displayed = &displayed);
+    if (text != NULL)
+    {
+        EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = args->context, .text = text);
+    }
+    g_cli_cells->persistent_buf_release(text, &g_query_cells);
+}
+
+// the answer for the file `what`: yes where every file is left, no where none is, else the `prompter`'s
+EMBED_INLINE QueryAnswer query_leave_answer(const LeavesCtx *args)
+{
+    if (args->leave == QUERY_LEAVE_ALL)
+    {
+        return QUERY_ANSWER_YES;
+    }
+    if (args->leave == QUERY_LEAVE_NONE)
+    {
+        return QUERY_ANSWER_NO;
+    }
+    return EMBED_CALL(args->prompter->prompt, CliEachPathCfg, .context = args->prompter->context, .path = args->what);
+}
+
+// what every later file is answered with after `answer`, `leave` before it: all after all, none after none
+EMBED_INLINE QueryLeave query_leave_after(const LeavesCtx *args)
+{
+    if (args->answer == QUERY_ANSWER_ALL)
+    {
+        return QUERY_LEAVE_ALL;
+    }
+    return (args->answer == QUERY_ANSWER_NONE) ? QUERY_LEAVE_NONE : args->leave;
+}
+
+// the file `what` handed back to the writer of `run_read` as the tree has it, the `before_size` bytes at `before`, NULL
+// where it has none, and told to `context`; 1, or 0 with why given
+EMBED_INLINE int query_leaf_refused(const LeavesCtx *args)
+{
+    if (!EMBED_CALL(query_path_bytes_size_internal.writer_file, QueryPathBytesSizeCtx,
+                    .writer = &args->run_read->writer, .path = args->what,
+                    .bytes = (args->before != NULL) ? args->before : (const unsigned char *)"",
+                    .size = args->before_size, .err_msg = args->err_msg))
+    {
+        return 0;
+    }
+    char left_text[QUERY_PATH_MAX_LEN + 64u];
+    VerbaLinea left_line = {left_text, sizeof(left_text), 0ULL};
+    mmgr_line_put(&left_line, "  ");
+    mmgr_line_put(&left_line, args->what);
+    mmgr_line_put(&left_line, " is left as the tree has it");
+    if (mmgr_line_finish(&left_line) != 0ULL)
+    {
+        EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = args->context, .text = left_text);
+    }
+    return 1;
+}
+
 int query_leaves_settle(const QueryContextErrMsgCtx *args)
 {
     QueryLeave existing = args->leave;
-    const unsigned int reads = args->run_read->read.count;
-    const unsigned int count = reads + args->run_read->left.count;
+    const unsigned int count = args->run_read->read.count + args->run_read->left.count;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        const char *const path = (at < reads) ? args->run_read->read.path[at] : args->run_read->left.path[at - reads];
-        // each path once, in the order first named
-        int named_before = 0;
-        unsigned int before = 0u;
-        while (!named_before && (before < at))
-        {
-            const char *const other =
-                (before < reads) ? args->run_read->read.path[before] : args->run_read->left.path[before - reads];
-            named_before = cellul.eq(&(CatenaFinitaCfg){.src = other, .other = path, .cap = CLI_CELLS_POOL});
-            before += 1u;
-        }
+        const char *const path = EMBED_CALL(query_run_path, LeavesCtx, .run_read = args->run_read, .at = at);
         const unsigned char *stored = NULL;
         unsigned long long stored_size = 0ULL;
-        if (named_before ||
+        // each path once, in the order first named
+        if (EMBED_CALL(query_named_before, LeavesCtx, .run_read = args->run_read, .at = at) ||
             !EMBED_CALL(query_count_name_internal.writer_current, QueryCountNameCtx, .writer = &args->run_read->writer,
                         .path = path, .bytes_u8s = &stored, .size_pointer = &stored_size))
         {
@@ -453,59 +542,22 @@ int query_leaves_settle(const QueryContextErrMsgCtx *args)
         const int same = (tree_size == stored_size) &&
                          ((tree_size == 0ULL) ||
                           (memor.cmp(&(MemoriaCfg){.src = tree, .other = stored, .bytes = (size_t)stored_size}) == 0));
+        int refused = 0;
         if (!same)
         {
-            // what is shown of the file in a cell of the most it writes to, up to the most shown: a line that fills it
-            // holds what fit and its 0
-            const unsigned long long required =
-                ((tree_size + stored_size) * QUERY_DISPLAYED_WIDER) + QUERY_PATH_MAX_LEN + 256ULL;
-            const unsigned long long capacity = (required < QUERY_DISPLAYED_MAX) ? required : QUERY_DISPLAYED_MAX;
-            char *const text = g_cli_cells->temporary_buf_alloc(capacity, &g_query_cells);
-            VerbaLinea displayed = mmgr_line_over(text, capacity);
-            EMBED_CALL(query_path_tree_internal.leaf_show, QueryPathTreeCtx, .path = path,
-                       .tree = (tree != NULL) ? tree : (const unsigned char *)"", .tree_size = tree_size,
-                       .stored = stored, .stored_size = stored_size, .displayed = &displayed);
-            if (text != NULL)
-            {
-                EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = args->context, .text = text);
-            }
-            g_cli_cells->persistent_buf_release(text, &g_query_cells);
-            QueryAnswer answer;
-            if (existing == QUERY_LEAVE_ALL)
-            {
-                answer = QUERY_ANSWER_YES;
-            }
-            else if (existing == QUERY_LEAVE_NONE)
-            {
-                answer = QUERY_ANSWER_NO;
-            }
-            else
-            {
-                answer =
-                    EMBED_CALL(args->prompter.prompt, CliEachPathCfg, .context = args->prompter.context, .path = path);
-            }
-            existing = (answer == QUERY_ANSWER_ALL) ? QUERY_LEAVE_ALL : existing;
-            existing = (answer == QUERY_ANSWER_NONE) ? QUERY_LEAVE_NONE : existing;
-            if ((answer == QUERY_ANSWER_NO) || (answer == QUERY_ANSWER_NONE))
-            {
-                if (!EMBED_CALL(query_path_bytes_size_internal.writer_file, QueryPathBytesSizeCtx,
-                                .writer = &args->run_read->writer, .path = path,
-                                .bytes = (tree != NULL) ? tree : (const unsigned char *)"", .size = tree_size,
-                                .err_msg = args->err_msg))
-                {
-                    qry_member_file_unmapped(tree, tree_size);
-                    return 0;
-                }
-                char left_text[QUERY_PATH_MAX_LEN + 64u];
-                VerbaLinea left_line = {left_text, sizeof(left_text), 0ULL};
-                mmgr_line_put(&left_line, "  ");
-                mmgr_line_put(&left_line, path);
-                mmgr_line_put(&left_line, " is left as the tree has it");
-                if (mmgr_line_finish(&left_line) != 0ULL)
-                {
-                    EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = args->context, .text = left_text);
-                }
-            }
+            EMBED_CALL(query_leaf_printed, LeavesCtx, .what = path, .before = tree, .before_size = tree_size,
+                       .after = stored, .after_size = stored_size, .context = args->context);
+            const QueryAnswer answer =
+                EMBED_CALL(query_leave_answer, LeavesCtx, .leave = existing, .prompter = &args->prompter, .what = path);
+            existing = EMBED_CALL(query_leave_after, LeavesCtx, .leave = existing, .answer = answer);
+            refused = (answer == QUERY_ANSWER_NO) || (answer == QUERY_ANSWER_NONE);
+        }
+        if (refused &&
+            !EMBED_CALL(query_leaf_refused, LeavesCtx, .run_read = args->run_read, .what = path, .before = tree,
+                        .before_size = tree_size, .context = args->context, .err_msg = args->err_msg))
+        {
+            qry_member_file_unmapped(tree, tree_size);
+            return 0;
         }
         qry_member_file_unmapped(tree, tree_size);
     }
