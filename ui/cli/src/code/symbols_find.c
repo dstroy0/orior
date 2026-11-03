@@ -35,6 +35,9 @@ typedef struct
     unsigned int bytes;
     const CliScored *one_scored_pointer;
     const CliScored *other_scored_pointer;
+    CliScored *found;
+    unsigned int count;
+    unsigned int capacity;
 } SymbolsFindCtx;
 // the declaration's own line, `line` counted from 0 in the file at `path`, written with the whitespace at either end
 // left off, cut to CLI_SYMBOL_LINE_MAX bytes: nothing where the file is not read or has no such line
@@ -162,6 +165,29 @@ EMBED_INLINE int cli_ranks_before(const SymbolsFindCtx *args)
     return (order != 0) ? (order < 0) : (left.line < right.line);
 }
 
+// `one_scored_pointer` put in rank among the best `capacity` of the `count` in `found`, after each that ranks before
+// it: the count after
+EMBED_INLINE unsigned int cli_rank_in(const SymbolsFindCtx *args)
+{
+    CliScored *const found = args->found;
+    unsigned int place = (args->count < args->capacity) ? args->count : args->capacity;
+    while ((place > 0u) && EMBED_CALL(cli_ranks_before, SymbolsFindCtx, .one_scored_pointer = args->one_scored_pointer,
+                                      .other_scored_pointer = &found[place - 1u]))
+    {
+        if (place < args->capacity)
+        {
+            found[place] = found[place - 1u];
+        }
+        place -= 1u;
+    }
+    if (place >= args->capacity)
+    {
+        return args->count;
+    }
+    found[place] = *args->one_scored_pointer;
+    return args->count + ((args->count < args->capacity) ? 1u : 0u);
+}
+
 CliFoundDeclarations *cli_tree_declarations_alloc(const CliSymbolsQueryMaxCfg *args)
 {
     static CliScored s_found[CLI_SYMBOLS_FOUND];
@@ -186,22 +212,8 @@ CliFoundDeclarations *cli_tree_declarations_alloc(const CliSymbolsQueryMaxCfg *a
             {
                 continue;
             }
-            // retained in rank among the best `capacity` so far
-            unsigned int place = (count < capacity) ? count : capacity;
-            while ((place > 0u) && EMBED_CALL(cli_ranks_before, SymbolsFindCtx, .one_scored_pointer = &scored,
-                                              .other_scored_pointer = &s_found[place - 1u]))
-            {
-                if (place < capacity)
-                {
-                    s_found[place] = s_found[place - 1u];
-                }
-                place -= 1u;
-            }
-            if (place < capacity)
-            {
-                s_found[place] = scored;
-                count += (count < capacity) ? 1u : 0u;
-            }
+            count = EMBED_CALL(cli_rank_in, SymbolsFindCtx, .one_scored_pointer = &scored, .found = s_found,
+                               .count = count, .capacity = capacity);
         }
     }
     // each found's name, kind, path and line of text in one line laid after the list, a line of text no longer than its

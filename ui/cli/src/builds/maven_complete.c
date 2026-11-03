@@ -408,16 +408,14 @@ void cli_maven_complete(const CliMavenTextSizeCtx *args)
              NULL))
         {
             unsigned long long name_end = tag;
-            while (name_end < comment_prefix_size)
+            for (int lettered = 1; lettered && (name_end < comment_prefix_size);)
             {
                 unsigned long long length = 0ULL;
-                if (!EMBED_CALL(cli_maven_internal.xml_name_letter, CliMavenCtx,
-                                .letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = lead,
-                                                     .size = comment_prefix_size, .at = name_end, .length = &length)))
-                {
-                    break;
-                }
-                name_end += length;
+                lettered =
+                    EMBED_CALL(cli_maven_internal.xml_name_letter, CliMavenCtx,
+                               .letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = lead,
+                                                    .size = comment_prefix_size, .at = name_end, .length = &length));
+                name_end += lettered ? length : 0ULL;
             }
             static char s_name[1u << 12u];
             const unsigned long long name_size = (name_end - tag < sizeof(s_name)) ? name_end - tag : 0ULL;

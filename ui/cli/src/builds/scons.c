@@ -201,23 +201,16 @@ void cli_scons_calls(const CliSconsNameCtx *args)
         unsigned long long end = size;
         for (unsigned long long walk = open; walk < size; walk += 1u)
         {
-            if (class_of[walk] != CLI_SCONS_CODE)
-            {
-                continue;
-            }
+            const int code = class_of[walk] == CLI_SCONS_CODE;
             const char byte = text[walk];
-            if ((byte == '(') || (byte == '[') || (byte == '{'))
+            const int opens = code && ((byte == '(') || (byte == '[') || (byte == '{'));
+            const int closes = code && ((byte == ')') || (byte == ']') || (byte == '}'));
+            depth += opens ? 1 : 0;
+            depth -= closes ? 1 : 0;
+            if (closes && (depth == 0))
             {
-                depth += 1;
-            }
-            else if ((byte == ')') || (byte == ']') || (byte == '}'))
-            {
-                depth -= 1;
-                if (depth == 0)
-                {
-                    end = walk;
-                    break;
-                }
+                end = walk;
+                break;
             }
         }
         EMBED_CALL(args->each, CliSconsSpanCfg, .context = args->context, .from = open + 1u, .to = end);

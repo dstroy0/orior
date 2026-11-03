@@ -132,11 +132,8 @@ EMBED_INLINE void offer_keys(const SchemaOfferCtx *args)
             VerbaLinea insert = {s_insert, sizeof(s_insert), 0ULL};
             for (unsigned long long letter = 0ULL; letter < quoted.at; letter += 1u)
             {
-                mmgr_line_put(&insert, (s_quoted[letter] == '$') ? "\\$" : "");
-                if (s_quoted[letter] != '$')
-                {
-                    mmgr_line_ch(&insert, s_quoted[letter]);
-                }
+                const int dollar = s_quoted[letter] == '$';
+                mmgr_line_put_n(&insert, dollar ? "\\$" : (s_quoted + letter), dollar ? 2u : 1u);
             }
             mmgr_line_put(&insert, ": ");
             mmgr_line_put(&insert, shape);
@@ -292,17 +289,18 @@ EMBED_INLINE void offer_values(const SchemaOfferCtx *args)
         static const CfgJsonKind s_kinds[3] = {CFG_JSON_TRUE, CFG_JSON_FALSE, CFG_JSON_NULL};
         for (unsigned int word_text = 0u; word_text < 3u; word_text += 1u)
         {
-            if (EMBED_CALL(offer_type, SchemaOfferCtx, .json = json, .schema = one,
-                           .kind = (word_text < 2u) ? "boolean" : "null") &&
-                !g_cli_schema_spot.in_string)
+            if (!EMBED_CALL(offer_type, SchemaOfferCtx, .json = json, .schema = one,
+                            .kind = (word_text < 2u) ? "boolean" : "null") ||
+                g_cli_schema_spot.in_string)
             {
-                const unsigned int made = EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = json,
-                                                     .kind = s_kinds[word_text]);
-                if (made != CLI_JSON_NONE)
-                {
-                    EMBED_CALL(offer_value, SchemaOfferCtx, .json = json, .value = made, .detail = s_detail,
-                               .detail_size = detail.at);
-                }
+                continue;
+            }
+            const unsigned int made =
+                EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = json, .kind = s_kinds[word_text]);
+            if (made != CLI_JSON_NONE)
+            {
+                EMBED_CALL(offer_value, SchemaOfferCtx, .json = json, .value = made, .detail = s_detail,
+                           .detail_size = detail.at);
             }
         }
     }

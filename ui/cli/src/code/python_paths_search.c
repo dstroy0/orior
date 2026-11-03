@@ -62,24 +62,25 @@ EMBED_INLINE int cli_search(const PythonPathsSearchCtx *args)
     const char *part = args->file;
     for (const char *at = args->file;; at += 1)
     {
-        if ((at[0] == '/') || (at[0] == '\0'))
+        if ((at[0] != '/') && (at[0] != '\0'))
         {
-            // the part lies in the path, at or past its start
-            const unsigned long long size = (unsigned long long)(at - part);
-            for (unsigned int one = 0u; one < 8u; one += 1u)
-            {
-                if ((cellul.len(&(CatenaFinitaCfg){.src = s_not[one], .cap = CLI_CELLS_POOL}) == size) &&
-                    (memor.cmp(&(MemoriaCfg){.src = part, .other = s_not[one], .bytes = size}) == 0))
-                {
-                    return 0;
-                }
-            }
-            if (at[0] == '\0')
-            {
-                return 1;
-            }
-            part = at + 1;
+            continue;
         }
+        // the part lies in the path, at or past its start
+        const unsigned long long size = (unsigned long long)(at - part);
+        for (unsigned int one = 0u; one < 8u; one += 1u)
+        {
+            if ((cellul.len(&(CatenaFinitaCfg){.src = s_not[one], .cap = CLI_CELLS_POOL}) == size) &&
+                (memor.cmp(&(MemoriaCfg){.src = part, .other = s_not[one], .bytes = size}) == 0))
+            {
+                return 0;
+            }
+        }
+        if (at[0] == '\0')
+        {
+            return 1;
+        }
+        part = at + 1;
     }
 }
 

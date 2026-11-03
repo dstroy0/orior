@@ -301,6 +301,23 @@ static unsigned int cli_primary(void)
                       .number = 0LL, .left = 0u, .right = 0u, .first_value = 0u, .count_value = 0u);
 }
 
+// the subscript after a `[`, up to its `]`: the expression within, a slice read as its start, which the reading
+// takes as 0, or CLI_PY_NONE
+static unsigned int cli_subscript(void)
+{
+    cli_blank();
+    if (!EMBED_CALL(cli_letter_is, PythonPathsParseCtx, .at = g_cli_py.at, .letter = ':'))
+    {
+        return cli_expr();
+    }
+    while ((g_cli_py.at < g_cli_py.letters) && (g_cli_py.letter[g_cli_py.at] != ']'))
+    {
+        g_cli_py.at += 1u;
+    }
+    return EMBED_CALL(cli_expr_init, PythonPathsParseCtx, .kind = CLI_EXPR_NUMBER, .text = 0u, .number = 0LL,
+                      .left = 0u, .right = 0u, .first_value = 0u, .count_value = 0u);
+}
+
 // a primary with its attributes, calls and indexes after it: its expression, or CLI_PY_NONE
 static unsigned int cli_postfix(void)
 {
@@ -333,22 +350,7 @@ static unsigned int cli_postfix(void)
         }
         else if (EMBED_CALL(cli_eat, PythonPathsParseCtx, .letter = '['))
         {
-            cli_blank();
-            unsigned int index = CLI_PY_NONE;
-            if (EMBED_CALL(cli_letter_is, PythonPathsParseCtx, .at = g_cli_py.at, .letter = ':'))
-            {
-                // a slice reads as its start, which the reading takes as 0
-                while ((g_cli_py.at < g_cli_py.letters) && (g_cli_py.letter[g_cli_py.at] != ']'))
-                {
-                    g_cli_py.at += 1u;
-                }
-                index = EMBED_CALL(cli_expr_init, PythonPathsParseCtx, .kind = CLI_EXPR_NUMBER, .text = 0u,
-                                   .number = 0LL, .left = 0u, .right = 0u, .first_value = 0u, .count_value = 0u);
-            }
-            else
-            {
-                index = cli_expr();
-            }
+            const unsigned int index = cli_subscript();
             if ((index == CLI_PY_NONE) || !EMBED_CALL(cli_eat, PythonPathsParseCtx, .letter = ']'))
             {
                 return CLI_PY_NONE;

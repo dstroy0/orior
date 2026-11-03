@@ -373,6 +373,37 @@ EMBED_INLINE int cli_is_stage(const CatalogJobsCtx *args)
            (args->name[0] <= '9') && (args->name[1] == '_');
 }
 
+// the job of the stage script `name` in the stage folder `path` of the subject folder `under`, its path listed after
+// the `seen` listed before it
+EMBED_INLINE void cli_stage_script(const CatalogJobsCtx *args)
+{
+    const char *root = args->root;
+    CliCatalog *catalog = args->catalog;
+    unsigned int *seen = args->seen;
+    char script[CLI_PATH_MAX_LEN];
+    char file[CLI_PATH_MAX_LEN];
+    char title[CLI_PATH_MAX_LEN];
+    EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = args->path, .name = args->name,
+               .path_out = script);
+    EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = root, .path = script, .relative_out = file);
+    EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = args->under, .path = script,
+               .relative_out = title);
+    if (*seen < s_jobs->paths.capacity)
+    {
+        memor.cpy(&(MemoriaCfg){.dst = s_jobs->paths.path[*seen],
+                                .src = file,
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}) + 1u});
+        *seen += 1u;
+    }
+    EMBED_CALL(cli_catalog_path_internal.script_job, CliCatalogPathCtx, .catalog = catalog, .root = root,
+               .group = "stage", .path = script, .title = title, .opens = "");
+    EMBED_CALL(cli_catalog_choice_table.words, CliCatalogChoiceCfg, .catalog = catalog);
+    EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = catalog,
+               .program = CLI_PROGRAM_PYTHON, .text = file, .tool_program = NULL, .system = 0);
+    EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_WORDS, .a = "arguments",
+               .b = NULL, .c = NULL, .d = NULL, .separated = 0);
+}
+
 // Each subject's stage scripts, one job a script, and one pipeline a subject that runs its stages in order and stops
 // at the first that fails
 EMBED_INLINE void cli_stages(const CatalogJobsCtx *args)
@@ -407,30 +438,8 @@ EMBED_INLINE void cli_stages(const CatalogJobsCtx *args)
                              .most = every + s_jobs->files.count);
             for (unsigned int each = 0u; each < s_jobs->files.count; each += 1u)
             {
-                char script[CLI_PATH_MAX_LEN];
-                char file[CLI_PATH_MAX_LEN];
-                char title[CLI_PATH_MAX_LEN];
-                EMBED_CALL(cli_catalog_folder_name_internal.join, CliCatalogFolderNameCtx, .folder = folder,
-                           .name = s_jobs->files.name[each], .path_out = script);
-                EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = root, .path = script,
-                           .relative_out = file);
-                EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = subject, .path = script,
-                           .relative_out = title);
-                if (every < s_jobs->paths.capacity)
-                {
-                    memor.cpy(&(MemoriaCfg){
-                        .dst = s_jobs->paths.path[every],
-                        .src = file,
-                        .bytes = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}) + 1u});
-                    every += 1u;
-                }
-                EMBED_CALL(cli_catalog_path_internal.script_job, CliCatalogPathCtx, .catalog = catalog, .root = root,
-                           .group = "stage", .path = script, .title = title, .opens = "");
-                EMBED_CALL(cli_catalog_choice_table.words, CliCatalogChoiceCfg, .catalog = catalog);
-                EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = catalog,
-                           .program = CLI_PROGRAM_PYTHON, .text = file, .tool_program = NULL, .system = 0);
-                EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_WORDS,
-                           .a = "arguments", .b = NULL, .c = NULL, .d = NULL, .separated = 0);
+                EMBED_CALL(cli_stage_script, CatalogJobsCtx, .root = root, .catalog = catalog, .path = folder,
+                           .under = subject, .name = s_jobs->files.name[each], .seen = &every);
             }
         }
         if (every == 0u)

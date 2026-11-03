@@ -252,21 +252,22 @@ void cli_job_show(const CliCommandLineRootCtx *args)
             }
             EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = s_line,
                        .size = mmgr_line_ok(&line) ? line.at : 0ULL);
-            if (param->choices > 0u)
+            if (param->choices == 0u)
             {
-                static char s_choices[1u << 16u];
-                VerbaLinea choices = {s_choices, sizeof(s_choices), 0ULL};
-                for (unsigned int choice = 0u; choice < param->choices; choice += 1u)
-                {
-                    mmgr_line_put(&choices, (choice > 0u) ? ", " : "");
-                    mmgr_line_put(&choices,
-                                  EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = catalog,
-                                             .text_u32 = catalog->list[param->first + choice]));
-                }
-                EMBED_CALL(cli_command_line_text_internal.wrap, CliCommandLineTextCtx, .text = s_choices,
-                           .size = mmgr_line_ok(&choices) ? choices.at : 0ULL, .lead = "      ", .most = most,
-                           .each = jobs_line_out, .context = NULL);
+                continue;
             }
+            static char s_choices[1u << 16u];
+            VerbaLinea choices = {s_choices, sizeof(s_choices), 0ULL};
+            for (unsigned int choice = 0u; choice < param->choices; choice += 1u)
+            {
+                mmgr_line_put(&choices, (choice > 0u) ? ", " : "");
+                mmgr_line_put(&choices,
+                              EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = catalog,
+                                         .text_u32 = catalog->list[param->first + choice]));
+            }
+            EMBED_CALL(cli_command_line_text_internal.wrap, CliCommandLineTextCtx, .text = s_choices,
+                       .size = mmgr_line_ok(&choices) ? choices.at : 0ULL, .lead = "      ", .most = most,
+                       .each = jobs_line_out, .context = NULL);
         }
     }
     EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx, .text = "");

@@ -646,18 +646,19 @@ void cli_tree_relist(const CliSymbolsContextCfg *args)
         for (unsigned int at = 0u; whole && (at < g_cli_branch_count); at += 1u)
         {
             const CliTreeBranch *const branch = &g_cli_branches[at];
-            if (branch->used && !branch->folder && !branch->seen && (branch->parent != CLI_BRANCH_MOUNTED))
+            if (!branch->used || branch->folder || branch->seen || (branch->parent == CLI_BRANCH_MOUNTED))
             {
-                if (args->emit != NULL)
-                {
-                    char path[CLI_PATH_MAX_LEN];
-                    EMBED_CALL(cli_symbols_tree_branch_path.branch_path_read, CliSymbolsTreeBranchPathCfg,
-                               .branch = branch, .path_out = path);
-                    EMBED_CALL(args->emit, CliEachPathKindCfg, .context = args->context, .path = path,
-                               .kind = CLI_CHANGE_REMOVED);
-                }
-                EMBED_CALL(cli_symbols_tree_file.branch_leave, CliSymbolsTreeFileCfg, .file = at);
+                continue;
             }
+            if (args->emit != NULL)
+            {
+                char path[CLI_PATH_MAX_LEN];
+                EMBED_CALL(cli_symbols_tree_branch_path.branch_path_read, CliSymbolsTreeBranchPathCfg, .branch = branch,
+                           .path_out = path);
+                EMBED_CALL(args->emit, CliEachPathKindCfg, .context = args->context, .path = path,
+                           .kind = CLI_CHANGE_REMOVED);
+            }
+            EMBED_CALL(cli_symbols_tree_file.branch_leave, CliSymbolsTreeFileCfg, .file = at);
         }
         s_git = git;
         s_listing_at = cli_clock_milliseconds();

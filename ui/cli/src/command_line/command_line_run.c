@@ -137,16 +137,14 @@ static void run_window(const CommandLineRunCtx *args)
         }
         if (requested > 0)
         {
-            if (s_answer.text[0] != '\0')
+            const int answered = s_answer.text[0] != '\0';
+            if (answered && s_answer.done)
             {
-                if (s_answer.done)
-                {
-                    EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx, .text = s_answer.text);
-                }
-                else
-                {
-                    EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx, .text = s_answer.text);
-                }
+                EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx, .text = s_answer.text);
+            }
+            if (answered && !s_answer.done)
+            {
+                EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx, .text = s_answer.text);
             }
             EMBED_CALL(run_exit, CommandLineRunCtx, .outcome = args->outcome, .code = s_answer.done ? 0 : CLI_WRONG);
             return;

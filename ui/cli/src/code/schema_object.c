@@ -329,15 +329,15 @@ void cli_schema_object_check(const CliSchemaBaseMapCtx *args)
             const char *const pattern = json->text + json->node[at].key;
             if (EMBED_CALL(cli_schema_text_internal.matches, CliSchemaTextCtx, .pattern = pattern,
                            .pattern_size = cellul.len(&(CatenaFinitaCfg){.src = pattern, .cap = CLI_CELLS_POOL}),
-                           .text = name, .size = one->key_size) == 1)
+                           .text = name, .size = one->key_size) != 1)
             {
-                matched = 1;
-                if (one->value != CLI_SCHEMA_NONE)
-                {
-                    EMBED_CALL(cli_schema_base_internal.node, CliSchemaBaseCtx, .check = args->check,
-                               .node = one->value, .schema = at, .base = args->base, .key_schema_key = here,
-                               .depth = args->depth + 1u);
-                }
+                continue;
+            }
+            matched = 1;
+            if (one->value != CLI_SCHEMA_NONE)
+            {
+                EMBED_CALL(cli_schema_base_internal.node, CliSchemaBaseCtx, .check = args->check, .node = one->value,
+                           .schema = at, .base = args->base, .key_schema_key = here, .depth = args->depth + 1u);
             }
         }
         if (!matched)

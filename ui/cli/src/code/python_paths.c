@@ -420,20 +420,20 @@ EMBED_INLINE void cli_set_read(const PythonPathsCtx *args)
         {
             const char *const name_at =
                 EMBED_CALL(cli_python_paths_at_internal.py_text, CliPythonPathsAtCtx, .at = g_cli_py.name[at].name);
-            if ((cellul.len(&(CatenaFinitaCfg){.src = name_at, .cap = CLI_CELLS_POOL}) == target.length) &&
-                (memor.cmp(&(MemoriaCfg){.src = name_at, .other = target.at, .bytes = target.length}) == 0))
+            if ((cellul.len(&(CatenaFinitaCfg){.src = name_at, .cap = CLI_CELLS_POOL}) != target.length) ||
+                (memor.cmp(&(MemoriaCfg){.src = name_at, .other = target.at, .bytes = target.length}) != 0))
             {
-                const CliValues was = g_cli_py.name[at].values;
-                const unsigned int mark = g_cli_py.values;
-                for (unsigned int one = 0u; one < was.count; one += 1u)
-                {
-                    EMBED_CALL(cli_python_paths_out_internal.py_upward, CliPythonPathsOutCtx,
-                               .path = EMBED_CALL(cli_python_paths_at_internal.py_text, CliPythonPathsAtCtx,
-                                                  .at = g_cli_py.value[was.first + one]));
-                }
-                values =
-                    EMBED_CALL(cli_python_paths_first_internal.py_values_from, CliPythonPathsFirstCtx, .first = mark);
+                continue;
             }
+            const CliValues was = g_cli_py.name[at].values;
+            const unsigned int mark = g_cli_py.values;
+            for (unsigned int one = 0u; one < was.count; one += 1u)
+            {
+                EMBED_CALL(cli_python_paths_out_internal.py_upward, CliPythonPathsOutCtx,
+                           .path = EMBED_CALL(cli_python_paths_at_internal.py_text, CliPythonPathsAtCtx,
+                                              .at = g_cli_py.value[was.first + one]));
+            }
+            values = EMBED_CALL(cli_python_paths_first_internal.py_values_from, CliPythonPathsFirstCtx, .first = mark);
         }
     }
     else

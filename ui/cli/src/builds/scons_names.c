@@ -269,11 +269,9 @@ static void names_script_call(const CliSconsSpanCfg *args)
                 unsigned long long first[3] = {0ULL, 0ULL, 0ULL};
                 EMBED_CALL(cli_scons_each_internal.strings, CliSconsEachCtx, .from = value, .to = s_call.to[at],
                            .each = names_first_string, .context = first);
-                if (first[2] != 0u)
-                {
-                    name = text + first[0];
-                    name_size = first[1] - first[0];
-                }
+                const int found = first[2] != 0u;
+                name = found ? (text + first[0]) : name;
+                name_size = found ? (first[1] - first[0]) : name_size;
             }
             continue;
         }

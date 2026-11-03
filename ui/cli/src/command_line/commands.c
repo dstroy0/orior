@@ -201,18 +201,17 @@ static int cli_flat_find(const CommandsCtx *args)
         {
             const unsigned int command = cfg_json_member(s_text, s_tokens, at, "command");
             const unsigned int nested = cfg_json_member(s_text, s_tokens, at, "items");
-            if (command != 0u)
+            if ((command != 0u) && cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_member_string, CommandsCtx,
+                                                                                  .object = at, .name = "command"),
+                                                                .other = args->word_text,
+                                                                .cap = CLI_CELLS_POOL}))
             {
-                const char *const named = EMBED_CALL(cli_member_string, CommandsCtx, .object = at, .name = "command");
-                if (cellul.eq(&(CatenaFinitaCfg){.src = named, .other = args->word_text, .cap = CLI_CELLS_POOL}))
-                {
-                    EMBED_CALL(cli_item_read, CommandsCtx, .at = at, .item = args->item);
-                    return 1;
-                }
+                EMBED_CALL(cli_item_read, CommandsCtx, .at = at, .item = args->item);
+                return 1;
             }
-            else if ((nested != 0u) && (s_tokens[nested].kind == CFG_JSON_ARRAY) &&
-                     EMBED_CALL(cli_flat_find, CommandsCtx, .list = nested, .word_text = args->word_text,
-                                .item = args->item))
+            if ((command == 0u) && (nested != 0u) && (s_tokens[nested].kind == CFG_JSON_ARRAY) &&
+                EMBED_CALL(cli_flat_find, CommandsCtx, .list = nested, .word_text = args->word_text,
+                           .item = args->item))
             {
                 return 1;
             }

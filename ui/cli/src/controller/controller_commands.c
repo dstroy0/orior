@@ -454,19 +454,21 @@ EMBED_INLINE int commands_title_letter(const ControllerCommandsCtx *args)
     for (unsigned int at = 0u; (at < s_menus.titles) && (at < s_menus.shown); at += 1u)
     {
         const char *const text = s_menus.title[s_menus.title_menu[at]];
-        for (unsigned int byte = 0u; text[byte] != '\0'; byte += 1u)
+        char letter = '\0';
+        for (unsigned int byte = 0u; (letter == '\0') && (text[byte] != '\0'); byte += 1u)
         {
             const char lower = commands_lower(text[byte]);
-            if ((lower >= 'a') && (lower <= 'z') && !taken[lower - 'a'])
-            {
-                taken[lower - 'a'] = 1;
-                if (lower == required)
-                {
-                    // the titles are fewer than an int counts
-                    return (int)at;
-                }
-                break;
-            }
+            letter = ((lower >= 'a') && (lower <= 'z') && !taken[lower - 'a']) ? lower : '\0';
+        }
+        if (letter == '\0')
+        {
+            continue;
+        }
+        taken[letter - 'a'] = 1;
+        if (letter == required)
+        {
+            // the titles are fewer than an int counts
+            return (int)at;
         }
     }
     return -1;

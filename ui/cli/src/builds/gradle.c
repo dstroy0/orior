@@ -224,21 +224,14 @@ EMBED_INLINE unsigned long long gradle_name_before(const GradleCtx *args)
         while (end > 0u)
         {
             end -= 1u;
-            if (class_of[end] != CLI_GRADLE_CODE)
+            const int code = class_of[end] == CLI_GRADLE_CODE;
+            const int closes = code && (text[end] == s_pairs[pair][0]);
+            const int opens = code && (text[end] == s_pairs[pair][1]);
+            depth += closes ? 1 : 0;
+            depth -= opens ? 1 : 0;
+            if (opens && (depth == 0))
             {
-                continue;
-            }
-            if (text[end] == s_pairs[pair][0])
-            {
-                depth += 1;
-            }
-            else if (text[end] == s_pairs[pair][1])
-            {
-                depth -= 1;
-                if (depth == 0)
-                {
-                    break;
-                }
+                break;
             }
         }
         end = EMBED_CALL(gradle_back, GradleCtx, .end = end);

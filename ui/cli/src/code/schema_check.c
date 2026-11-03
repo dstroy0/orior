@@ -32,6 +32,7 @@ typedef struct
     int exactly;
     unsigned int map;
     const CliJson *json;
+    unsigned int finding;
 } SchemaCheckCtx;
 // the span a finding about a value stands on: its key's where it has one, its own where it has none
 EMBED_INLINE void check_span(const SchemaCheckCtx *args)
@@ -224,6 +225,43 @@ EMBED_INLINE int check_type(const SchemaCheckCtx *args)
     return 0;
 }
 
+// a fix on `finding` for each string among the schema's `enum` values `choices` near the text value at `node`
+EMBED_INLINE void check_values_adjacent(const SchemaCheckCtx *args)
+{
+    const CliJson *const json = args->json;
+    const CliSchemaNode *const value = &args->check->read->node[args->node];
+    CliBuildAdjacent adjacent;
+    EMBED_CALL(cli_builds_size.build_adjacent_begin, CliBuildsSizeCfg, .adjacent = &adjacent,
+               .name = EMBED_CALL(cli_schema_read_at_internal.text, CliSchemaReadAtCtx, .read = args->check->read,
+                                  .at = value->text_at),
+               .size = value->text_size);
+    for (unsigned int one = json->node[args->choices].first; one != CLI_JSON_NONE; one = json->node[one].next)
+    {
+        unsigned long long size = 0ULL;
+        const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                            .json_read = json, .node = one, .length_pointer = &size);
+        if (text != NULL)
+        {
+            EMBED_CALL(cli_builds_size_adjacent.build_adjacent_offer, CliBuildsSizeAdjacentCfg, .adjacent = &adjacent,
+                       .one = text, .size = size);
+        }
+    }
+    for (unsigned int at = 0u; at < adjacent.count; at += 1u)
+    {
+        VerbaLinea title = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = args->check->found);
+        mmgr_line_put(&title, "Change to \"");
+        mmgr_line_put_n(&title, adjacent.adjacent[at], adjacent.adjacent_size[at]);
+        mmgr_line_ch(&title, '"');
+        static char s_quoted[1u << 13u];
+        VerbaLinea quoted = {s_quoted, sizeof(s_quoted), 0ULL};
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &quoted,
+                   .text = adjacent.adjacent[at], .length = adjacent.adjacent_size[at]);
+        EMBED_CALL(cli_builds_text.build_edit_fix, CliBuildsTextCfg, .found = args->check->found,
+                   .finding = args->finding, .title = &title, .lines = args->check->lines, .from = value->from,
+                   .to = value->to, .text = s_quoted, .size = quoted.at);
+    }
+}
+
 // the value checked against the schema's `enum` and `const`
 EMBED_INLINE void check_values(const SchemaCheckCtx *args)
 {
@@ -264,37 +302,8 @@ EMBED_INLINE void check_values(const SchemaCheckCtx *args)
                            .severity = CLI_BUILD_WARNING, .code = "schema-enum");
             if (value->kind == CLI_SCHEMA_TEXT)
             {
-                CliBuildAdjacent adjacent;
-                EMBED_CALL(cli_builds_size.build_adjacent_begin, CliBuildsSizeCfg, .adjacent = &adjacent,
-                           .name = EMBED_CALL(cli_schema_read_at_internal.text, CliSchemaReadAtCtx,
-                                              .read = args->check->read, .at = value->text_at),
-                           .size = value->text_size);
-                for (unsigned int one = json->node[choices].first; one != CLI_JSON_NONE; one = json->node[one].next)
-                {
-                    unsigned long long size = 0ULL;
-                    const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
-                                                        .json_read = json, .node = one, .length_pointer = &size);
-                    if (text != NULL)
-                    {
-                        EMBED_CALL(cli_builds_size_adjacent.build_adjacent_offer, CliBuildsSizeAdjacentCfg,
-                                   .adjacent = &adjacent, .one = text, .size = size);
-                    }
-                }
-                for (unsigned int at = 0u; at < adjacent.count; at += 1u)
-                {
-                    VerbaLinea title =
-                        EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = args->check->found);
-                    mmgr_line_put(&title, "Change to \"");
-                    mmgr_line_put_n(&title, adjacent.adjacent[at], adjacent.adjacent_size[at]);
-                    mmgr_line_ch(&title, '"');
-                    static char s_quoted[1u << 13u];
-                    VerbaLinea quoted = {s_quoted, sizeof(s_quoted), 0ULL};
-                    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &quoted,
-                               .text = adjacent.adjacent[at], .length = adjacent.adjacent_size[at]);
-                    EMBED_CALL(cli_builds_text.build_edit_fix, CliBuildsTextCfg, .found = args->check->found,
-                               .finding = finding, .title = &title, .lines = args->check->lines, .from = value->from,
-                               .to = value->to, .text = s_quoted, .size = quoted.at);
-                }
+                EMBED_CALL(check_values_adjacent, SchemaCheckCtx, .check = args->check, .node = node, .json = json,
+                           .choices = choices, .finding = finding);
             }
         }
     }

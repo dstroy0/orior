@@ -132,21 +132,22 @@ EMBED_INLINE void usages_regions_read(const SymbolsUsagesCtx *args)
             (depth > 0u))
         {
             depth -= 1u;
-            if (depth == 0u)
+            if (depth != 0u)
             {
-                int function = 0;
-                unsigned int head = statement;
-                while (!function && (head < open))
-                {
-                    function = EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = read,
-                                          .leaf = head, .roles = CLI_LEAF_DECLARES | CLI_LEAF_FUNCTION);
-                    head += 1u;
-                }
-                const CliUsageRegion region = {statement, open, leaf + 1u, function, -1};
-                mmgr_line_put_n(&args->usages_out->regions, (const char *)&region, sizeof(region));
-                args->usages_out->region_count += 1u;
-                statement = leaf + 1u;
+                continue;
             }
+            int function = 0;
+            unsigned int head = statement;
+            while (!function && (head < open))
+            {
+                function = EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = read,
+                                      .leaf = head, .roles = CLI_LEAF_DECLARES | CLI_LEAF_FUNCTION);
+                head += 1u;
+            }
+            const CliUsageRegion region = {statement, open, leaf + 1u, function, -1};
+            mmgr_line_put_n(&args->usages_out->regions, (const char *)&region, sizeof(region));
+            args->usages_out->region_count += 1u;
+            statement = leaf + 1u;
             continue;
         }
         directive_line = ((read->leaf[leaf].is & CLI_LEAF_DIRECTIVE) != 0u) ? read->leaf[leaf].line : directive_line;
