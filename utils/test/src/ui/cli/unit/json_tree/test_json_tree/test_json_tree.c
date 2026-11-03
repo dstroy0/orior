@@ -24,6 +24,20 @@ static void assert_round_trip(const char *text)
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
 }
 
+// `text` refused as JSON, the reason containing `reason`
+static void assert_refused(const char *text, const char *reason)
+{
+    CliJson json;
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &json, .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ull);
+    char why[256];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    const unsigned int root = EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = &json, .text = text, .size = CLI_UNITY_LENGTH(text), .nodes_more = 0u, .text_more = 0ull, .err_msg = &err_msg, .owner = &g_cli_text_cells);
+    (void)mmgr_line_finish(&err_msg);
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &json);
+    TEST_ASSERT_EQUAL_UINT(CLI_JSON_NONE, root);
+    TEST_ASSERT_NOT_NULL_MESSAGE(cellul.find(&(CatenaFinitaCfg){.src = why, .cap = CLI_CELLS_POOL, .other = reason, .other_cap = CLI_CELLS_POOL}), why);
+}
+
 void setUp(void)
 {
     cli_unity_begun();
@@ -61,4 +75,10 @@ void test_control_bytes_each_written_as_six(void)
 void test_number_escapes_and_empty_key(void)
 {
     assert_round_trip("{\"a\":-1.5e300,\"b\":[\"\\\"\",\"\\\\\"],\"\":\"\"}");
+}
+
+void test_a_value_after_a_close_with_no_comma_between_is_refused(void)
+{
+    assert_refused("[[1] 2]", "no comma or close after it");
+    assert_refused("{\"a\":{} \"b\":1}", "no comma or close after it");
 }

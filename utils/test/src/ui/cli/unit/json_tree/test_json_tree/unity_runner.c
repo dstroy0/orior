@@ -13,6 +13,7 @@ extern void test_literals_which_have_no_text(void);
 extern void test_nested_arrays_whose_nodes_have_no_text(void);
 extern void test_control_bytes_each_written_as_six(void);
 extern void test_number_escapes_and_empty_key(void);
+extern void test_a_value_after_a_close_with_no_comma_between_is_refused(void);
 
 
 /*=======Mock Management=====*/
@@ -74,12 +75,13 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\json_tree\\test_json_tree\\test_json_tree.c");
-  run_test(test_empty_object, "test_empty_object", 36);
-  run_test(test_empty_array, "test_empty_array", 41);
-  run_test(test_literals_which_have_no_text, "test_literals_which_have_no_text", 46);
-  run_test(test_nested_arrays_whose_nodes_have_no_text, "test_nested_arrays_whose_nodes_have_no_text", 51);
-  run_test(test_control_bytes_each_written_as_six, "test_control_bytes_each_written_as_six", 56);
-  run_test(test_number_escapes_and_empty_key, "test_number_escapes_and_empty_key", 61);
+  run_test(test_empty_object, "test_empty_object", 50);
+  run_test(test_empty_array, "test_empty_array", 55);
+  run_test(test_literals_which_have_no_text, "test_literals_which_have_no_text", 60);
+  run_test(test_nested_arrays_whose_nodes_have_no_text, "test_nested_arrays_whose_nodes_have_no_text", 65);
+  run_test(test_control_bytes_each_written_as_six, "test_control_bytes_each_written_as_six", 70);
+  run_test(test_number_escapes_and_empty_key, "test_number_escapes_and_empty_key", 75);
+  run_test(test_a_value_after_a_close_with_no_comma_between_is_refused, "test_a_value_after_a_close_with_no_comma_between_is_refused", 80);
 
   return UNITY_END();
 }

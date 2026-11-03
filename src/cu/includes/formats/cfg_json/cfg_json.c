@@ -14,6 +14,10 @@ typedef struct
     unsigned int count;
     const char *reason;
     int fractions;
+    unsigned int open[CFG_JSON_DEPTH];
+    unsigned int depth;
+    int expect_key;
+    int done;
 } CfgJsonWalk;
 
 static void cfg_json_space(CfgJsonWalk *walk)
@@ -27,7 +31,7 @@ static void cfg_json_space(CfgJsonWalk *walk)
 
 static unsigned int cfg_json_token(CfgJsonWalk *walk, CfgJsonKind kind, size_t start, size_t end)
 {
-    if (walk->count == walk->capacity)
+    if ((walk->count == walk->capacity) || (walk->tokens == NULL))
     {
         walk->reason = "more tokens than the reader supports";
         return 0u;
@@ -141,109 +145,160 @@ static int cfg_json_number(CfgJsonWalk *walk)
     return cfg_json_token(walk, CFG_JSON_NUMBER, start, walk->at) != 0u;
 }
 
+// the walk past a value or a close: done where nothing stays open; else past a comma, a key expected next inside an
+// object, or before a close; anything else a value with no comma or close after it
+static void cfg_json_after(CfgJsonWalk *walk)
+{
+    walk->done = (walk->depth == 0u);
+    cfg_json_space(walk);
+    if (walk->done || (walk->at >= walk->length))
+    {
+        return;
+    }
+    if (walk->text[walk->at] == ',')
+    {
+        walk->at += 1u;
+        walk->expect_key = (walk->tokens[walk->open[walk->depth - 1u]].kind == CFG_JSON_OBJECT);
+    }
+    else if ((walk->text[walk->at] != '}') && (walk->text[walk->at] != ']'))
+    {
+        walk->reason = "a value with no comma or close after it";
+    }
+}
+
+// the object or array open closed at the walk's place: its end and the token after it set, and the walk past it
+static void cfg_json_closed(CfgJsonWalk *walk)
+{
+    walk->depth -= 1u;
+    const unsigned int closed = walk->open[walk->depth];
+    walk->tokens[closed].end = walk->at + 1u;
+    walk->tokens[closed].next = walk->count;
+    walk->at += 1u;
+    walk->expect_key = 0;
+    cfg_json_after(walk);
+}
+
+// a member's name read at the walk's place, `byte` there, counted in its object, and its colon passed; why it fails
+// into `reason`
+static void cfg_json_named(CfgJsonWalk *walk, char byte)
+{
+    if (byte != '"')
+    {
+        walk->reason = "a member with no quoted name";
+        return;
+    }
+    if (!cfg_json_quoted(walk))
+    {
+        return;
+    }
+    walk->tokens[walk->open[walk->depth - 1u]].count += 1u;
+    cfg_json_space(walk);
+    if ((walk->at >= walk->length) || (walk->text[walk->at] != ':'))
+    {
+        walk->reason = "a name with no colon after it";
+        return;
+    }
+    walk->at += 1u;
+    walk->expect_key = 0;
+}
+
+// an object or an array opened at the walk's place, `byte` there; why it fails into `reason`
+static void cfg_json_opened(CfgJsonWalk *walk, char byte)
+{
+    if (walk->depth == CFG_JSON_DEPTH)
+    {
+        walk->reason = "nesting deeper than a .cfg may go";
+        return;
+    }
+    const unsigned int made =
+        cfg_json_token(walk, (byte == '{') ? CFG_JSON_OBJECT : CFG_JSON_ARRAY, walk->at, walk->at);
+    if (made == 0u)
+    {
+        return;
+    }
+    walk->open[walk->depth] = made - 1u;
+    walk->depth += 1u;
+    walk->at += 1u;
+    walk->expect_key = 0;
+}
+
+// a value that opens no object or array read at the walk's place, `byte` there: a string, a number or a literal; 1, or
+// 0 with why it fails in `reason`
+static int cfg_json_value(CfgJsonWalk *walk, char byte)
+{
+    if (byte == '"')
+    {
+        return cfg_json_quoted(walk);
+    }
+    if ((byte == '-') || ((byte >= '0') && (byte <= '9')))
+    {
+        return cfg_json_number(walk);
+    }
+    if (byte == 't')
+    {
+        return cfg_json_literal(walk, "true", CFG_JSON_TRUE);
+    }
+    if (byte == 'f')
+    {
+        return cfg_json_literal(walk, "false", CFG_JSON_FALSE);
+    }
+    if (byte == 'n')
+    {
+        return cfg_json_literal(walk, "null", CFG_JSON_NULL);
+    }
+    walk->reason = "a value the scheme does not know";
+    return 0;
+}
+
+// one step of the walk at its place, which holds a byte: the close of what stands open, a member's name, an opening or
+// a value; why it fails into `reason`
+static void cfg_json_step(CfgJsonWalk *walk)
+{
+    const char byte = walk->text[walk->at];
+    const CfgJsonToken *const parent = (walk->depth > 0u) ? &walk->tokens[walk->open[walk->depth - 1u]] : NULL;
+    const int closes = (parent != NULL) && (((byte == '}') && (parent->kind == CFG_JSON_OBJECT)) ||
+                                            ((byte == ']') && (parent->kind == CFG_JSON_ARRAY)));
+    if (closes)
+    {
+        cfg_json_closed(walk);
+        return;
+    }
+    if (walk->expect_key ||
+        ((parent != NULL) && (parent->kind == CFG_JSON_OBJECT) && (walk->count == walk->open[walk->depth - 1u] + 1u)))
+    {
+        cfg_json_named(walk, byte);
+        return;
+    }
+    if ((parent != NULL) && (parent->kind == CFG_JSON_ARRAY))
+    {
+        walk->tokens[walk->open[walk->depth - 1u]].count += 1u;
+    }
+    if ((byte == '{') || (byte == '['))
+    {
+        cfg_json_opened(walk, byte);
+        return;
+    }
+    if (cfg_json_value(walk, byte))
+    {
+        cfg_json_after(walk);
+    }
+}
+
 static int cfg_json_walk(const char *text, size_t length, CfgJsonToken *tokens, unsigned int capacity,
                          CfgJsonParse *parse, int fractions)
 {
-    CfgJsonWalk walk = {text, length, 0u, tokens, capacity, 0u, NULL, fractions};
-    unsigned int open[CFG_JSON_DEPTH];
-    unsigned int depth = 0u;
-    int expect_key = 0;
-    int done = 0;
+    CfgJsonWalk walk = {text, length, 0u, tokens, capacity, 0u, NULL, fractions, {0u}, 0u, 0, 0};
     cfg_json_space(&walk);
-    while ((walk.reason == NULL) && !done)
+    while ((walk.reason == NULL) && !walk.done)
     {
         cfg_json_space(&walk);
         if (walk.at >= walk.length)
         {
             walk.reason = "the text ends inside a value";
-            break;
         }
-        const char byte = walk.text[walk.at];
-        const CfgJsonToken *const parent = (depth > 0u) ? &walk.tokens[open[depth - 1u]] : NULL;
-        const int closes = (parent != NULL) && (((byte == '}') && (parent->kind == CFG_JSON_OBJECT)) ||
-                                                ((byte == ']') && (parent->kind == CFG_JSON_ARRAY)));
-        if (closes)
+        else
         {
-            depth -= 1u;
-            walk.tokens[open[depth]].end = walk.at + 1u;
-            walk.tokens[open[depth]].next = walk.count;
-            walk.at += 1u;
-            done = (depth == 0u);
-            expect_key = 0;
-            cfg_json_space(&walk);
-            if (!done && (walk.at < walk.length) && (walk.text[walk.at] == ','))
-            {
-                walk.at += 1u;
-                expect_key = (walk.tokens[open[depth - 1u]].kind == CFG_JSON_OBJECT);
-            }
-            continue;
-        }
-        if (expect_key ||
-            ((parent != NULL) && (parent->kind == CFG_JSON_OBJECT) && (walk.count == open[depth - 1u] + 1u)))
-        {
-            if (byte != '"')
-            {
-                walk.reason = "a member with no quoted name";
-                break;
-            }
-            if (!cfg_json_quoted(&walk))
-            {
-                break;
-            }
-            walk.tokens[open[depth - 1u]].count += 1u;
-            cfg_json_space(&walk);
-            if ((walk.at >= walk.length) || (walk.text[walk.at] != ':'))
-            {
-                walk.reason = "a name with no colon after it";
-                break;
-            }
-            walk.at += 1u;
-            expect_key = 0;
-            continue;
-        }
-        if ((parent != NULL) && (parent->kind == CFG_JSON_ARRAY))
-        {
-            walk.tokens[open[depth - 1u]].count += 1u;
-        }
-        if ((byte == '{') || (byte == '['))
-        {
-            if (depth == CFG_JSON_DEPTH)
-            {
-                walk.reason = "nesting deeper than a .cfg may go";
-                break;
-            }
-            const unsigned int made =
-                cfg_json_token(&walk, (byte == '{') ? CFG_JSON_OBJECT : CFG_JSON_ARRAY, walk.at, walk.at);
-            if (made == 0u)
-            {
-                break;
-            }
-            open[depth] = made - 1u;
-            depth += 1u;
-            walk.at += 1u;
-            expect_key = 0;
-            continue;
-        }
-        const int made = (byte == '"')                                         ? cfg_json_quoted(&walk)
-                         : ((byte == '-') || ((byte >= '0') && (byte <= '9'))) ? cfg_json_number(&walk)
-                         : (byte == 't') ? cfg_json_literal(&walk, "true", CFG_JSON_TRUE)
-                         : (byte == 'f') ? cfg_json_literal(&walk, "false", CFG_JSON_FALSE)
-                         : (byte == 'n') ? cfg_json_literal(&walk, "null", CFG_JSON_NULL)
-                                         : (walk.reason = "a value the scheme does not know", 0);
-        if (!made)
-        {
-            break;
-        }
-        done = (depth == 0u);
-        cfg_json_space(&walk);
-        if (!done && (walk.at < walk.length) && (walk.text[walk.at] == ','))
-        {
-            walk.at += 1u;
-            expect_key = (walk.tokens[open[depth - 1u]].kind == CFG_JSON_OBJECT);
-        }
-        else if (!done && (walk.at < walk.length) && (walk.text[walk.at] != '}') && (walk.text[walk.at] != ']'))
-        {
-            walk.reason = "a value with no comma or close after it";
+            cfg_json_step(&walk);
         }
     }
     cfg_json_space(&walk);
@@ -301,16 +356,31 @@ int cfg_json_unsigned(const char *text, const CfgJsonToken *token, unsigned long
 // the four hex digits at `at` before `end`: their value, or CFG_JSON_NO_LETTER where they are not four hex digits
 #define CFG_JSON_NO_LETTER 0x110000u
 
+// a hex digit's value; 16 where `digit` is none
+static unsigned int cfg_json_nibble(char digit)
+{
+    if ((digit >= '0') && (digit <= '9'))
+    {
+        return (unsigned int)(digit - '0');
+    }
+    if ((digit >= 'a') && (digit <= 'f'))
+    {
+        return (unsigned int)(digit - 'a') + 10u;
+    }
+    if ((digit >= 'A') && (digit <= 'F'))
+    {
+        return (unsigned int)(digit - 'A') + 10u;
+    }
+    return 16u;
+}
+
 static unsigned int cfg_json_hex4(const char *text, size_t at, size_t end)
 {
     unsigned int value = 0u;
     for (size_t step = 0u; step < 4u; step += 1u)
     {
         const char digit = (at + step < end) ? text[at + step] : '\0';
-        const unsigned int nibble = ((digit >= '0') && (digit <= '9'))   ? (unsigned int)(digit - '0')
-                                    : ((digit >= 'a') && (digit <= 'f')) ? (unsigned int)(digit - 'a') + 10u
-                                    : ((digit >= 'A') && (digit <= 'F')) ? (unsigned int)(digit - 'A') + 10u
-                                                                         : 16u;
+        const unsigned int nibble = cfg_json_nibble(digit);
         if (nibble == 16u)
         {
             return CFG_JSON_NO_LETTER;
@@ -365,6 +435,20 @@ static unsigned int cfg_json_escape(const char *text, size_t at, size_t end, siz
     }
 }
 
+// the bytes a letter takes in UTF-8: one below 0x80, two below 0x800, three below 0x10000, four past
+static size_t cfg_json_utf8_bytes(unsigned int letter)
+{
+    if (letter < 0x80u)
+    {
+        return 1u;
+    }
+    if (letter < 0x800u)
+    {
+        return 2u;
+    }
+    return (letter < 0x10000u) ? 3u : 4u;
+}
+
 int cfg_json_string(const char *text, const CfgJsonToken *token, char *out, size_t capacity)
 {
     size_t written = 0u;
@@ -382,8 +466,7 @@ int cfg_json_string(const char *text, const CfgJsonToken *token, char *out, size
         }
         size_t step = 0u;
         const unsigned int letter = cfg_json_escape(text, at, token->end, &step);
-        // a letter written in UTF-8: one byte below 0x80, two below 0x800, three below 0x10000, four past
-        const size_t bytes = (letter < 0x80u) ? 1u : (letter < 0x800u) ? 2u : (letter < 0x10000u) ? 3u : 4u;
+        const size_t bytes = cfg_json_utf8_bytes(letter);
         ok = (letter != 0u) && (letter != CFG_JSON_NO_LETTER) && (written + bytes < capacity);
         if (ok)
         {
