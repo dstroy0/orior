@@ -28,6 +28,14 @@ typedef struct
     float y0;
     float x1;
     float y1;
+    unsigned char *flags;
+    unsigned int points;
+    float *xs;
+    float *ys;
+    unsigned int start;
+    unsigned int end;
+    long long row;
+    float signed_height;
 } FontOutlineCtx;
 // a point put after the outline's, placed by the matrix
 EMBED_INLINE void cli_point(const FontOutlineCtx *args)
@@ -129,6 +137,129 @@ EMBED_INLINE void cli_composite(const FontOutlineCtx *args)
     }
 }
 
+// the flags of a simple glyph's `points` points read from `at` into `flags`, a flag's repeats with it: where its
+// coordinates start
+EMBED_INLINE unsigned long long cli_flags_read(const FontOutlineCtx *args)
+{
+    const CliFont *font = args->font;
+    unsigned long long cursor = args->at;
+    unsigned int flag_count = 0u;
+    while (flag_count < args->points)
+    {
+        const unsigned char flag = (cursor < font->size) ? font->data[cursor] : 0u;
+        cursor += 1ULL;
+        args->flags[flag_count] = flag;
+        flag_count += 1u;
+        if ((flag & 8u) == 0u)
+        {
+            continue;
+        }
+        const unsigned int repeats = (cursor < font->size) ? font->data[cursor] : 0u;
+        cursor += 1ULL;
+        unsigned int each = 0u;
+        while ((each < repeats) && (flag_count < args->points))
+        {
+            args->flags[flag_count] = flag;
+            flag_count += 1u;
+            each += 1u;
+        }
+    }
+    return cursor;
+}
+
+// the x's of a simple glyph's points read from `at`, then the y's: a short one a byte, its sign by the flag, else a
+// word, or the one before where the flag gives the same
+EMBED_INLINE void cli_coords_read(const FontOutlineCtx *args)
+{
+    const CliFont *font = args->font;
+    unsigned long long cursor = args->at;
+    for (unsigned int axis = 0u; axis < 2u; axis += 1u)
+    {
+        const unsigned char short_flag = (axis == 0u) ? 0x02u : 0x04u;
+        const unsigned char same_flag = (axis == 0u) ? 0x10u : 0x20u;
+        float *const values = (axis == 0u) ? args->xs : args->ys;
+        int value = 0;
+        for (unsigned int index = 0u; index < args->points; index += 1u)
+        {
+            const unsigned char flag = args->flags[index];
+            if ((flag & short_flag) != 0u)
+            {
+                const int delta = (cursor < font->size) ? font->data[cursor] : 0;
+                cursor += 1ULL;
+                value += ((flag & same_flag) != 0u) ? delta : -delta;
+            }
+            else if ((flag & same_flag) == 0u)
+            {
+                value += EMBED_CALL(cli_font_at.i16, CliFontAtCfg, .font = font, .at = cursor);
+                cursor += 2ULL;
+            }
+            values[index] = (float)value;
+        }
+    }
+}
+
+// the contour of the points from `start` to `end` put after the outline's, its curves cut into lines. It starts at a
+// point on the curve: the first that is, or the middle of the first two
+EMBED_INLINE void cli_contour(const FontOutlineCtx *args)
+{
+    const unsigned int start = args->start;
+    const unsigned int ring = args->end - start + 1u;
+    unsigned int first_on = ring;
+    for (unsigned int index = 0u; (first_on == ring) && (index < ring); index += 1u)
+    {
+        first_on = ((args->flags[start + index] & 1u) != 0u) ? index : ring;
+    }
+    const unsigned int second = start + ((ring > 1u) ? 1u : 0u);
+    const float *const xs = args->xs;
+    const float *const ys = args->ys;
+    const float begin[2] = {(first_on < ring) ? xs[start + first_on] : ((xs[start] + xs[second]) / 2.0f),
+                            (first_on < ring) ? ys[start + first_on] : ((ys[start] + ys[second]) / 2.0f)};
+    const unsigned int shift = (first_on < ring) ? first_on : 0u;
+    EMBED_CALL(cli_point, FontOutlineCtx, .out = args->out, .matrix = args->matrix, .x = begin[0], .y = begin[1]);
+    int controlled = 0;
+    float control[2] = {0.0f, 0.0f};
+    float pen[2] = {begin[0], begin[1]};
+    for (unsigned int step = 1u; step <= ring; step += 1u)
+    {
+        const unsigned int index = start + ((shift + step) % ring);
+        const float point[2] = {xs[index], ys[index]};
+        const int on_curve = (args->flags[index] & 1u) != 0u;
+        if (on_curve && controlled)
+        {
+            EMBED_CALL(cli_curve, FontOutlineCtx, .out = args->out, .matrix = args->matrix, .from = pen,
+                       .control = control, .to = point);
+        }
+        else if (on_curve)
+        {
+            EMBED_CALL(cli_point, FontOutlineCtx, .out = args->out, .matrix = args->matrix, .x = point[0],
+                       .y = point[1]);
+        }
+        else if (controlled)
+        {
+            const float middle[2] = {(control[0] + point[0]) / 2.0f, (control[1] + point[1]) / 2.0f};
+            EMBED_CALL(cli_curve, FontOutlineCtx, .out = args->out, .matrix = args->matrix, .from = pen,
+                       .control = control, .to = middle);
+            pen[0] = middle[0];
+            pen[1] = middle[1];
+        }
+        pen[0] = on_curve ? point[0] : pen[0];
+        pen[1] = on_curve ? point[1] : pen[1];
+        control[0] = on_curve ? control[0] : point[0];
+        control[1] = on_curve ? control[1] : point[1];
+        controlled = !on_curve;
+    }
+    if (controlled)
+    {
+        EMBED_CALL(cli_curve, FontOutlineCtx, .out = args->out, .matrix = args->matrix, .from = pen,
+                   .control = control, .to = begin);
+    }
+    if (args->out->contours < CLI_OUTLINE_CONTOURS)
+    {
+        args->out->end[args->out->contours] = args->out->points;
+        args->out->contours += 1u;
+    }
+}
+
 void cli_font_outline(const CliFontGlyphMatrixCfg *args)
 {
     static unsigned int s_ends[CLI_OUTLINE_CONTOURS];
@@ -163,52 +294,11 @@ void cli_font_outline(const CliFontGlyphMatrixCfg *args)
     }
     const unsigned int instructions =
         EMBED_CALL(cli_font_at.u16, CliFontAtCfg, .font = args->font, .at = at + 10u + (count * 2ULL));
-    unsigned long long cursor = at + 12u + (count * 2ULL) + instructions;
-    unsigned int flag_count = 0u;
-    while (flag_count < points)
-    {
-        const unsigned char flag = (cursor < args->font->size) ? args->font->data[cursor] : 0u;
-        cursor += 1ULL;
-        s_flags[flag_count] = flag;
-        flag_count += 1u;
-        if ((flag & 8u) != 0u)
-        {
-            const unsigned int repeats = (cursor < args->font->size) ? args->font->data[cursor] : 0u;
-            cursor += 1ULL;
-            unsigned int each = 0u;
-            while ((each < repeats) && (flag_count < points))
-            {
-                s_flags[flag_count] = flag;
-                flag_count += 1u;
-                each += 1u;
-            }
-        }
-    }
-    // the x's, then the y's: a short one a byte, its sign by the flag, else a word, or the one before where the flag
-    // gives the same
-    for (unsigned int axis = 0u; axis < 2u; axis += 1u)
-    {
-        const unsigned char short_flag = (axis == 0u) ? 0x02u : 0x04u;
-        const unsigned char same_flag = (axis == 0u) ? 0x10u : 0x20u;
-        float *const values = (axis == 0u) ? s_xs : s_ys;
-        int value = 0;
-        for (unsigned int index = 0u; index < points; index += 1u)
-        {
-            const unsigned char flag = s_flags[index];
-            if ((flag & short_flag) != 0u)
-            {
-                const int delta = (cursor < args->font->size) ? args->font->data[cursor] : 0;
-                cursor += 1ULL;
-                value += ((flag & same_flag) != 0u) ? delta : -delta;
-            }
-            else if ((flag & same_flag) == 0u)
-            {
-                value += EMBED_CALL(cli_font_at.i16, CliFontAtCfg, .font = args->font, .at = cursor);
-                cursor += 2ULL;
-            }
-            values[index] = (float)value;
-        }
-    }
+    const unsigned long long coords =
+        EMBED_CALL(cli_flags_read, FontOutlineCtx, .font = args->font, .at = at + 12u + (count * 2ULL) + instructions,
+                   .flags = s_flags, .points = points);
+    EMBED_CALL(cli_coords_read, FontOutlineCtx, .font = args->font, .at = coords, .flags = s_flags, .points = points,
+               .xs = s_xs, .ys = s_ys);
     unsigned int start = 0u;
     for (unsigned int contour = 0u; contour < count; contour += 1u)
     {
@@ -217,74 +307,59 @@ void cli_font_outline(const CliFontGlyphMatrixCfg *args)
         {
             break;
         }
-        const unsigned int ring = end - start + 1u;
-        // The contour starts at a point on the curve: the first that is, or the middle of the first two
-        unsigned int first_on = ring;
-        {
-            unsigned int index = 0u;
-            while ((first_on == ring) && (index < ring))
-            {
-                first_on = ((s_flags[start + index] & 1u) != 0u) ? index : ring;
-                index += 1u;
-            }
-        }
-        const unsigned int second = start + ((ring > 1u) ? 1u : 0u);
-        const float begin[2] = {(first_on < ring) ? s_xs[start + first_on] : ((s_xs[start] + s_xs[second]) / 2.0f),
-                                (first_on < ring) ? s_ys[start + first_on] : ((s_ys[start] + s_ys[second]) / 2.0f)};
-        const unsigned int shift = (first_on < ring) ? first_on : 0u;
-        EMBED_CALL(cli_point, FontOutlineCtx, .out = args->out, .matrix = args->matrix, .x = begin[0], .y = begin[1]);
-        int controlled = 0;
-        float control[2] = {0.0f, 0.0f};
-        float pen[2] = {begin[0], begin[1]};
-        for (unsigned int step = 1u; step <= ring; step += 1u)
-        {
-            const unsigned int index = start + ((shift + step) % ring);
-            const float point[2] = {s_xs[index], s_ys[index]};
-            if ((s_flags[index] & 1u) != 0u)
-            {
-                if (controlled)
-                {
-                    EMBED_CALL(cli_curve, FontOutlineCtx, .out = args->out, .matrix = args->matrix, .from = pen,
-                               .control = control, .to = point);
-                    controlled = 0;
-                }
-                else
-                {
-                    EMBED_CALL(cli_point, FontOutlineCtx, .out = args->out, .matrix = args->matrix, .x = point[0],
-                               .y = point[1]);
-                }
-                pen[0] = point[0];
-                pen[1] = point[1];
-            }
-            else if (controlled)
-            {
-                const float middle[2] = {(control[0] + point[0]) / 2.0f, (control[1] + point[1]) / 2.0f};
-                EMBED_CALL(cli_curve, FontOutlineCtx, .out = args->out, .matrix = args->matrix, .from = pen,
-                           .control = control, .to = middle);
-                pen[0] = middle[0];
-                pen[1] = middle[1];
-                control[0] = point[0];
-                control[1] = point[1];
-            }
-            else
-            {
-                control[0] = point[0];
-                control[1] = point[1];
-                controlled = 1;
-            }
-        }
-        if (controlled)
-        {
-            EMBED_CALL(cli_curve, FontOutlineCtx, .out = args->out, .matrix = args->matrix, .from = pen,
-                       .control = control, .to = begin);
-        }
-        if (args->out->contours < CLI_OUTLINE_CONTOURS)
-        {
-            args->out->end[args->out->contours] = args->out->points;
-            args->out->contours += 1u;
-        }
+        EMBED_CALL(cli_contour, FontOutlineCtx, .out = args->out, .matrix = args->matrix, .flags = s_flags,
+                   .xs = s_xs, .ys = s_ys, .start = start, .end = end);
         start = end + 1u;
     }
+}
+
+// the signed area a line's piece across one row leaves in the row's cells, the piece running across from x0 to x1 and
+// `signed_height` its height signed by the line's way, `row` the row's first cell
+EMBED_INLINE void cli_line_row(const FontOutlineCtx *args)
+{
+    const long long start = args->row;
+    const float x = args->x0;
+    const float next = args->x1;
+    const float d = args->signed_height;
+    const float x0_cell = (x < next) ? x : next;
+    const float x1_cell = (x < next) ? next : x;
+    const float x0_floor = floorf(x0_cell);
+    const long long x0i = (long long)x0_floor;
+    const float x1_ceil = ceilf(x1_cell);
+    const long long x1i = (long long)x1_ceil;
+#define CLI_AT(column_) ((unsigned long long)(((start + (column_)) > 0LL) ? (start + (column_)) : 0LL))
+    if (x1i <= (x0i + 1LL))
+    {
+        const float middle = (0.5f * (x + next)) - x0_floor;
+        args->area[CLI_AT(x0i)] += d - (d * middle);
+        args->area[CLI_AT(x0i + 1LL)] += d * middle;
+    }
+    else
+    {
+        const float s = 1.0f / (x1_cell - x0_cell);
+        const float x0f = x0_cell - x0_floor;
+        const float a0 = 0.5f * s * (1.0f - x0f) * (1.0f - x0f);
+        const float x1f = (x1_cell - x1_ceil) + 1.0f;
+        const float am = 0.5f * s * x1f * x1f;
+        args->area[CLI_AT(x0i)] += d * a0;
+        if (x1i == (x0i + 2LL))
+        {
+            args->area[CLI_AT(x0i + 1LL)] += d * (1.0f - a0 - am);
+        }
+        else
+        {
+            const float a1 = s * (1.5f - x0f);
+            args->area[CLI_AT(x0i + 1LL)] += d * (a1 - a0);
+            for (long long column = x0i + 2LL; column < (x1i - 1LL); column += 1LL)
+            {
+                args->area[CLI_AT(column)] += d * s;
+            }
+            const float a2 = a1 + ((float)(x1i - x0i - 3LL) * s);
+            args->area[CLI_AT(x1i - 1LL)] += d * (1.0f - a2 - am);
+        }
+        args->area[CLI_AT(x1i)] += d * am;
+    }
+#undef CLI_AT
 }
 
 // Adds the signed area a line from `p0` to `p1` leaves in each cell it crosses, as the sum along a row of the cells'
@@ -310,51 +385,12 @@ EMBED_INLINE void cli_line(const FontOutlineCtx *args)
     const unsigned long long last = (ceiling < args->height) ? ceiling : args->height;
     for (unsigned long long y = first; y < last; y += 1ULL)
     {
-        const long long start = (long long)(y * args->width);
         const float top = ((float)(y + 1ULL) < to[1]) ? (float)(y + 1ULL) : to[1];
         const float bottom = ((float)y > from[1]) ? (float)y : from[1];
         const float dy = top - bottom;
         const float next = x + (dxdy * dy);
-        const float d = dy * dir;
-        const float x0_cell = (x < next) ? x : next;
-        const float x1_cell = (x < next) ? next : x;
-        const float x0_floor = floorf(x0_cell);
-        const long long x0i = (long long)x0_floor;
-        const float x1_ceil = ceilf(x1_cell);
-        const long long x1i = (long long)x1_ceil;
-#define CLI_AT(column_) ((unsigned long long)(((start + (column_)) > 0LL) ? (start + (column_)) : 0LL))
-        if (x1i <= (x0i + 1LL))
-        {
-            const float middle = (0.5f * (x + next)) - x0_floor;
-            args->area[CLI_AT(x0i)] += d - (d * middle);
-            args->area[CLI_AT(x0i + 1LL)] += d * middle;
-        }
-        else
-        {
-            const float s = 1.0f / (x1_cell - x0_cell);
-            const float x0f = x0_cell - x0_floor;
-            const float a0 = 0.5f * s * (1.0f - x0f) * (1.0f - x0f);
-            const float x1f = (x1_cell - x1_ceil) + 1.0f;
-            const float am = 0.5f * s * x1f * x1f;
-            args->area[CLI_AT(x0i)] += d * a0;
-            if (x1i == (x0i + 2LL))
-            {
-                args->area[CLI_AT(x0i + 1LL)] += d * (1.0f - a0 - am);
-            }
-            else
-            {
-                const float a1 = s * (1.5f - x0f);
-                args->area[CLI_AT(x0i + 1LL)] += d * (a1 - a0);
-                for (long long column = x0i + 2LL; column < (x1i - 1LL); column += 1LL)
-                {
-                    args->area[CLI_AT(column)] += d * s;
-                }
-                const float a2 = a1 + ((float)(x1i - x0i - 3LL) * s);
-                args->area[CLI_AT(x1i - 1LL)] += d * (1.0f - a2 - am);
-            }
-            args->area[CLI_AT(x1i)] += d * am;
-        }
-#undef CLI_AT
+        EMBED_CALL(cli_line_row, FontOutlineCtx, .area = args->area, .row = (long long)(y * args->width), .x0 = x,
+                   .x1 = next, .signed_height = dy * dir);
         x = next;
     }
 }

@@ -33,6 +33,10 @@ typedef struct
     unsigned int name;
     int test;
     int *marked;
+    unsigned int *opened_names;
+    unsigned long long *opened_depths;
+    unsigned int *open_pointer;
+    unsigned long long *depth_pointer;
 } CargoScanCtx;
 // the letter at `at` of `size` bytes and the bytes it takes, CLI_RUST_NONE past the end
 EMBED_INLINE unsigned int scan_letter(const CargoScanCtx *args)
@@ -136,6 +140,120 @@ EMBED_INLINE unsigned long long scan_raw(const CargoScanCtx *args)
     return at;
 }
 
+// the words' letters from `at` passed over: where the text goes on
+EMBED_INLINE unsigned long long scan_word_end(const CargoScanCtx *args)
+{
+    unsigned long long at = args->at_u64;
+    unsigned long long word_allocated = 0ULL;
+    while (EMBED_CALL(scan_word, CargoScanCtx,
+                      .letter = EMBED_CALL(scan_letter, CargoScanCtx, .text = args->text, .size = args->size,
+                                           .at_u64 = at, .reserved = &word_allocated)))
+    {
+        at += word_allocated;
+    }
+    return at;
+}
+
+// a block comment passed over from its `/*`, those written in it with it, each line it ends counted into
+// `line_pointer`: where the text goes on
+EMBED_INLINE unsigned long long scan_block_comment(const CargoScanCtx *args)
+{
+    const char *text = args->text;
+    const unsigned long long size = args->size;
+    unsigned long long at = args->at_u64;
+    long long depth = 0LL;
+    while (at < size)
+    {
+        const int opens = (text[at] == '/') && (at + 1ULL < size) && (text[at + 1ULL] == '*');
+        const int closes = !opens && (text[at] == '*') && (at + 1ULL < size) && (text[at + 1ULL] == '/');
+        if (!opens && !closes)
+        {
+            *args->line_pointer += (text[at] == '\n') ? 1u : 0u;
+            at += 1ULL;
+            continue;
+        }
+        depth += opens ? 1LL : -1LL;
+        at += 2ULL;
+        if (depth == 0LL)
+        {
+            break;
+        }
+    }
+    return at;
+}
+
+// a string passed over from its quote, its escapes with it, each line it ends counted into `line_pointer`: where the
+// text goes on
+EMBED_INLINE unsigned long long scan_string(const CargoScanCtx *args)
+{
+    const char *text = args->text;
+    const unsigned long long size = args->size;
+    unsigned long long at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = text,
+                                       .at = args->at_u64 + 1ULL, .size = size, .set = "\"\\\n");
+    while ((at < size) && (text[at] != '"'))
+    {
+        at += (text[at] == '\\') ? 1ULL : 0ULL;
+        *args->line_pointer += ((at < size) && (text[at] == '\n')) ? 1u : 0u;
+        at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = text, .at = at + 1ULL,
+                        .size = size, .set = "\"\\\n");
+    }
+    return at + 1ULL;
+}
+
+// a character, 'a' or '\n', or a lifetime, 'a, passed over from its quote as no token: where the text goes on
+EMBED_INLINE unsigned long long scan_quote(const CargoScanCtx *args)
+{
+    const char *text = args->text;
+    const unsigned long long size = args->size;
+    const unsigned long long at = args->at_u64;
+    unsigned long long next_bytes = 0ULL;
+    const unsigned int next = EMBED_CALL(scan_letter, CargoScanCtx, .text = text, .size = size, .at_u64 = at + 1ULL,
+                                         .reserved = &next_bytes);
+    unsigned long long third_bytes = 0ULL;
+    const unsigned int third = EMBED_CALL(scan_letter, CargoScanCtx, .text = text, .size = size,
+                                          .at_u64 = at + 1ULL + next_bytes, .reserved = &third_bytes);
+    if (next == '\\')
+    {
+        return EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = text, .at = at + 2ULL,
+                          .size = size, .set = "'") +
+               1ULL;
+    }
+    if (third == '\'')
+    {
+        return at + 1ULL + next_bytes + third_bytes;
+    }
+    return EMBED_CALL(scan_word_end, CargoScanCtx, .text = text, .size = size, .at_u64 = at + 1ULL);
+}
+
+// a word from `at` put as a token on the line `line_pointer` gives, or the raw or byte string it begins passed over:
+// where the text goes on
+EMBED_INLINE unsigned long long scan_word_token(const CargoScanCtx *args)
+{
+    const char *text = args->text;
+    const unsigned long long size = args->size;
+    const unsigned long long start = args->at_u64;
+    const unsigned long long at = EMBED_CALL(scan_word_end, CargoScanCtx, .text = text, .size = size, .at_u64 = start);
+    const unsigned long long length = at - start;
+    const int raw =
+        ((length == 1ULL) && (text[start] == 'r')) ||
+        ((length == 2ULL) && (memor.cmp(&(MemoriaCfg){.src = text + start, .other = "br", .bytes = 2u}) == 0));
+    const int byte = (length == 1ULL) && (text[start] == 'b');
+    const int quoted = (at < size) && (text[at] == '"');
+    if (byte && quoted)
+    {
+        // a byte string is passed over as a string is, from its quote
+        return at;
+    }
+    if (raw && (quoted || ((at < size) && (text[at] == '#'))))
+    {
+        return EMBED_CALL(scan_raw, CargoScanCtx, .text = text, .size = size, .at_u64 = at,
+                          .line_pointer = args->line_pointer);
+    }
+    EMBED_CALL(scan_append, CargoScanCtx, .kind = CLI_RUST_WORD, .letter = 0u, .start = start, .end = at,
+               .line = *args->line_pointer);
+    return at;
+}
+
 // the tokens of the text counted, each put where the tokens' cell fits it
 static void scan_tokens_append(const CargoScanCtx *args)
 {
@@ -169,100 +287,21 @@ static void scan_tokens_append(const CargoScanCtx *args)
         }
         else if ((c == '/') && (next == '*'))
         {
-            long long depth = 0LL;
-            while (at < size)
-            {
-                if ((text[at] == '/') && (at + 1ULL < size) && (text[at + 1ULL] == '*'))
-                {
-                    depth += 1LL;
-                    at += 2ULL;
-                }
-                else if ((text[at] == '*') && (at + 1ULL < size) && (text[at + 1ULL] == '/'))
-                {
-                    depth -= 1LL;
-                    at += 2ULL;
-                    if (depth == 0LL)
-                    {
-                        break;
-                    }
-                }
-                else
-                {
-                    line += (text[at] == '\n') ? 1u : 0u;
-                    at += 1ULL;
-                }
-            }
+            at = EMBED_CALL(scan_block_comment, CargoScanCtx, .text = text, .size = size, .at_u64 = at,
+                            .line_pointer = &line);
         }
         else if (c == '"')
         {
-            at += 1ULL;
-            at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = text, .at = at,
-                            .size = size, .set = "\"\\\n");
-            while ((at < size) && (text[at] != '"'))
-            {
-                at += (text[at] == '\\') ? 1ULL : 0ULL;
-                line += ((at < size) && (text[at] == '\n')) ? 1u : 0u;
-                at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = text, .at = at + 1ULL,
-                                .size = size, .set = "\"\\\n");
-            }
-            at += 1ULL;
+            at = EMBED_CALL(scan_string, CargoScanCtx, .text = text, .size = size, .at_u64 = at, .line_pointer = &line);
         }
         else if (c == '\'')
         {
-            // a character, 'a' or '\n', or a lifetime, 'a, which is passed over as no token
-            unsigned long long third_allocated = 0ULL;
-            const unsigned int third =
-                EMBED_CALL(scan_letter, CargoScanCtx, .text = text, .size = size,
-                           .at_u64 = at + reserved + next_allocated, .reserved = &third_allocated);
-            if (next == '\\')
-            {
-                at += 2ULL;
-                at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = text, .at = at,
-                                .size = size, .set = "'");
-                at += 1ULL;
-            }
-            else if (third == '\'')
-            {
-                at += reserved + next_allocated + third_allocated;
-            }
-            else
-            {
-                at += 1ULL;
-                unsigned long long word_allocated = 0ULL;
-                while (EMBED_CALL(scan_word, CargoScanCtx,
-                                  .letter = EMBED_CALL(scan_letter, CargoScanCtx, .text = text, .size = size,
-                                                       .at_u64 = at, .reserved = &word_allocated)))
-                {
-                    at += word_allocated;
-                }
-            }
+            at = EMBED_CALL(scan_quote, CargoScanCtx, .text = text, .size = size, .at_u64 = at);
         }
         else if (EMBED_CALL(scan_word, CargoScanCtx, .letter = c))
         {
-            const unsigned long long start = at;
-            unsigned long long word_allocated = reserved;
-            while (EMBED_CALL(scan_word, CargoScanCtx,
-                              .letter = EMBED_CALL(scan_letter, CargoScanCtx, .text = text, .size = size, .at_u64 = at,
-                                                   .reserved = &word_allocated)))
-            {
-                at += word_allocated;
-            }
-            const unsigned long long length = at - start;
-            const int raw =
-                ((length == 1ULL) && (text[start] == 'r')) ||
-                ((length == 2ULL) && (memor.cmp(&(MemoriaCfg){.src = text + start, .other = "br", .bytes = 2u}) == 0));
-            const int byte = (length == 1ULL) && (text[start] == 'b');
-            const int quoted = (at < size) && (text[at] == '"');
-            if ((raw && (quoted || ((at < size) && (text[at] == '#')))) || (byte && quoted))
-            {
-                // a byte string is passed over as a string is, from its quote
-                at = byte ? at
-                          : EMBED_CALL(scan_raw, CargoScanCtx, .text = text, .size = size, .at_u64 = at,
-                                       .line_pointer = &line);
-                continue;
-            }
-            EMBED_CALL(scan_append, CargoScanCtx, .kind = CLI_RUST_WORD, .letter = 0u, .start = start, .end = at,
-                       .line = line);
+            at = EMBED_CALL(scan_word_token, CargoScanCtx, .text = text, .size = size, .at_u64 = at,
+                            .line_pointer = &line);
         }
         else if ((c == ':') && (next == ':'))
         {
@@ -395,6 +434,29 @@ EMBED_INLINE unsigned int scan_attribute(const CargoScanCtx *args)
     return step + 1u;
 }
 
+// the module the `mod` at `at` names: one in a file of its own stored, or one written here opened, its name put among
+// those open with the depth it opens at; where the tokens go on
+EMBED_INLINE unsigned int scan_module(const CargoScanCtx *args)
+{
+    const unsigned int at = args->at;
+    unsigned int *const open = args->open_pointer;
+    if (EMBED_CALL(scan_is_mark, CargoScanCtx, .at = at + 2u, .letter = ';'))
+    {
+        EMBED_CALL(scan_item_append, CargoScanCtx, .text = args->text, .inline_names = args->opened_names,
+                   .count = *open, .name = at + 1u, .test = 0);
+        return at + 3u;
+    }
+    if (EMBED_CALL(scan_is_mark, CargoScanCtx, .at = at + 2u, .letter = '{') && (*open < CLI_CARGO_INLINE))
+    {
+        args->opened_names[*open] = at + 1u;
+        args->opened_depths[*open] = *args->depth_pointer;
+        *open += 1u;
+        *args->depth_pointer += 1ULL;
+        return at + 3u;
+    }
+    return at + 2u;
+}
+
 unsigned int cli_cargo_scan(const CliCargoTestsCtx *args)
 {
     if (g_cli_cargo_scan.items == NULL)
@@ -427,24 +489,8 @@ unsigned int cli_cargo_scan(const CliCargoTestsCtx *args)
             (at + 1u < g_cli_cargo_scan.token_count) && (g_cli_cargo_scan.tokens[at + 1u].kind == CLI_RUST_WORD);
         if (EMBED_CALL(scan_is_word, CargoScanCtx, .text = args->text, .at = at, .word_text = "mod") && named)
         {
-            if (EMBED_CALL(scan_is_mark, CargoScanCtx, .at = at + 2u, .letter = ';'))
-            {
-                EMBED_CALL(scan_item_append, CargoScanCtx, .text = args->text, .inline_names = inline_names,
-                           .count = open, .name = at + 1u, .test = 0);
-                at += 3u;
-            }
-            else if (EMBED_CALL(scan_is_mark, CargoScanCtx, .at = at + 2u, .letter = '{') && (open < CLI_CARGO_INLINE))
-            {
-                inline_names[open] = at + 1u;
-                inline_depths[open] = depth;
-                open += 1u;
-                depth += 1ULL;
-                at += 3u;
-            }
-            else
-            {
-                at += 2u;
-            }
+            at = EMBED_CALL(scan_module, CargoScanCtx, .text = args->text, .at = at, .opened_names = inline_names,
+                            .opened_depths = inline_depths, .open_pointer = &open, .depth_pointer = &depth);
             marked = 0;
             continue;
         }

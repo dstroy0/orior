@@ -125,6 +125,7 @@ typedef struct
     unsigned long long size;
     int from_disk;
     unsigned int first;
+    unsigned int *declared_at;
 } SymbolsEffectCtx;
 // what a slice's walk met put in the walk's cell after what it met before: its place among them, or CLI_JSON_NONE
 // where the walk is no slice's, or the cells cannot meet it and the walk is refused
@@ -695,6 +696,110 @@ EMBED_INLINE void cli_effect_define(const SymbolsEffectCtx *args)
     EMBED_CALL(cli_effect_intersect, SymbolsEffectCtx, .effect = args->effect, .met = &met);
 }
 
+// the condition the directive whose role is the leaf `role` opens put last among those of the branch, whether the name
+// it asks about, `named` of `length` bytes, stands defined or its leaves to before `end` give a value that is not 0
+EMBED_INLINE void cli_effect_condition_open(const SymbolsEffectCtx *args)
+{
+    CliEffect *effect = args->effect;
+    CliEffectBranch *const branch = args->branch;
+    const unsigned long long is = branch->read.leaf[args->role].is;
+    const int active = (branch->open == 0u) || branch->condition[branch->open - 1u].active;
+    const int defined = (args->length != 0ULL) &&
+                        (EMBED_CALL(cli_symbols_name_internal.effect_macro, CliSymbolsNameCtx, .effect_read = effect,
+                                    .name = args->named, .length = args->length) != CLI_JSON_NONE);
+    int holds;
+    if ((is & CLI_LEAF_IF) != 0u)
+    {
+        holds = EMBED_CALL(cli_effect_judged, SymbolsEffectCtx, .effect = effect, .read = &branch->read,
+                           .from = args->role + 1u, .to = args->end) != 0LL;
+    }
+    else if ((is & CLI_LEAF_IFDEF) != 0u)
+    {
+        holds = defined;
+    }
+    else
+    {
+        holds = !defined;
+    }
+    if (branch->open < CLI_EFFECT_DEPTH)
+    {
+        branch->condition[branch->open] = (CliEffectCondition){active && holds, holds, active};
+        branch->open += 1u;
+    }
+}
+
+// the branch's last open condition turned or closed by the directive whose role is the leaf `role`: 1, or 0 where the
+// directive does neither
+EMBED_INLINE int cli_effect_condition_turn(const SymbolsEffectCtx *args)
+{
+    CliEffectBranch *const branch = args->branch;
+    const unsigned long long is = branch->read.leaf[args->role].is;
+    CliEffectCondition *const open = (branch->open > 0u) ? &branch->condition[branch->open - 1u] : NULL;
+    if (((is & CLI_LEAF_ELIF) != 0u) && (open != NULL))
+    {
+        const int holds =
+            !open->reserved && (EMBED_CALL(cli_effect_judged, SymbolsEffectCtx, .effect = args->effect,
+                                           .read = &branch->read, .from = args->role + 1u, .to = args->end) != 0LL);
+        open->active = open->outer && holds;
+        open->reserved |= holds;
+        return 1;
+    }
+    if (((is & CLI_LEAF_ELSE) != 0u) && (open != NULL))
+    {
+        open->active = open->outer && !open->reserved;
+        open->reserved = 1;
+        return 1;
+    }
+    if ((is & CLI_LEAF_ENDIF) != 0u)
+    {
+        branch->open -= (branch->open > 0u) ? 1u : 0u;
+        return 1;
+    }
+    return 0;
+}
+
+// the include whose role is the leaf `role`, its first leaf after that `named_u32`: the file of the tree it reaches
+// walked, or for a slice's walk an include of no file of the tree met. Its file is the leaf its grammar names the
+// included, beside the branch where it names it so
+EMBED_INLINE void cli_effect_directive_include(const SymbolsEffectCtx *args)
+{
+    CliEffect *effect = args->effect;
+    const CliLeafRead *const read = &args->branch->read;
+    unsigned int included = args->named_u32;
+    while ((included < args->end) && ((read->leaf[included].is & CLI_LEAF_INCLUDED) == 0u))
+    {
+        included += 1u;
+    }
+    if (((read->leaf[args->role].is & CLI_LEAF_INCLUDE) == 0u) || (included >= args->end) ||
+        (args->depth >= CLI_EFFECT_DEPTH))
+    {
+        return;
+    }
+    unsigned long long size = 0ULL;
+    const char *const file = EMBED_CALL(cli_symbols_read_leaf_internal.leaf_text, CliSymbolsReadLeafCtx,
+                                        .read_read = read, .leaf = included, .length_pointer = &size);
+    const int angled = (read->leaf[included].is & CLI_LEAF_ADJACENT) == 0u;
+    char reached[CLI_PATH_MAX_LEN];
+    if (EMBED_CALL(cli_effect_include, SymbolsEffectCtx, .effect_read = effect,
+                   .path = EMBED_CALL(cli_symbols_internal.effect_text, CliSymbolsCtx, .effect_read = effect,
+                                      .at_value = args->path_u32),
+                   .named = file, .length = size, .angled = angled, .out = reached))
+    {
+        EMBED_CALL(cli_effect_walk, SymbolsEffectCtx, .effect = effect, .path = reached, .upto = CLI_EFFECT_INPUT,
+                   .depth = args->depth + 1u);
+        return;
+    }
+    const CliEffectSeen seen = {CLI_SEEN_INCLUDE,
+                                args->branch->read_at,
+                                read->leaf[args->role].line,
+                                args->from,
+                                args->end,
+                                CLI_JSON_NONE,
+                                0u,
+                                CLI_JSON_NONE};
+    (void)EMBED_CALL(cli_effect_visit, SymbolsEffectCtx, .effect = effect, .seen = &seen);
+}
+
 // the directive whose role is the leaf `role`, its leaves running from its line's first, `from`, to before `end`,
 // taken in the branch at `path`, a place among the texts: its conditions opened, turned and closed, and in an active
 // region its defines and undefines met, its includes of the tree's files walked, and for a slice's walk an include of
@@ -714,53 +819,13 @@ static void cli_effect_directive(const SymbolsEffectCtx *args)
                                  : "";
     if ((is & (CLI_LEAF_IF | CLI_LEAF_IFDEF | CLI_LEAF_IFNDEF)) != 0u)
     {
-        const int defined =
-            (length != 0ULL) && (EMBED_CALL(cli_symbols_name_internal.effect_macro, CliSymbolsNameCtx,
-                                            .effect_read = effect, .name = name, .length = length) != CLI_JSON_NONE);
-        int holds;
-        if ((is & CLI_LEAF_IF) != 0u)
-        {
-            holds = EMBED_CALL(cli_effect_judged, SymbolsEffectCtx, .effect = effect, .read = read,
-                               .from = args->role + 1u, .to = args->end) != 0LL;
-        }
-        else if ((is & CLI_LEAF_IFDEF) != 0u)
-        {
-            holds = defined;
-        }
-        else
-        {
-            holds = !defined;
-        }
-        if (args->branch->open < CLI_EFFECT_DEPTH)
-        {
-            args->branch->condition[args->branch->open] = (CliEffectCondition){active && holds, holds, active};
-            args->branch->open += 1u;
-        }
+        EMBED_CALL(cli_effect_condition_open, SymbolsEffectCtx, .effect = effect, .branch = args->branch,
+                   .role = args->role, .end = args->end, .named = name, .length = length);
         return;
     }
-    CliEffectCondition *const open =
-        (args->branch->open > 0u) ? &args->branch->condition[args->branch->open - 1u] : NULL;
-    if (((is & CLI_LEAF_ELIF) != 0u) && (open != NULL))
-    {
-        const int holds =
-            !open->reserved && (EMBED_CALL(cli_effect_judged, SymbolsEffectCtx, .effect = effect, .read = read,
-                                           .from = args->role + 1u, .to = args->end) != 0LL);
-        open->active = open->outer && holds;
-        open->reserved |= holds;
-        return;
-    }
-    if (((is & CLI_LEAF_ELSE) != 0u) && (open != NULL))
-    {
-        open->active = open->outer && !open->reserved;
-        open->reserved = 1;
-        return;
-    }
-    if ((is & CLI_LEAF_ENDIF) != 0u)
-    {
-        args->branch->open -= (args->branch->open > 0u) ? 1u : 0u;
-        return;
-    }
-    if (!active || (named >= args->end))
+    if (EMBED_CALL(cli_effect_condition_turn, SymbolsEffectCtx, .effect = effect, .branch = args->branch,
+                   .role = args->role, .end = args->end) ||
+        !active || (named >= args->end))
     {
         return;
     }
@@ -771,38 +836,9 @@ static void cli_effect_directive(const SymbolsEffectCtx *args)
                    .end = args->end);
         return;
     }
-    // an include's file is the leaf its grammar names the included, beside the branch where it names it so
-    unsigned int included = named;
-    while ((included < args->end) && ((read->leaf[included].is & CLI_LEAF_INCLUDED) == 0u))
-    {
-        included += 1u;
-    }
-    if (((is & CLI_LEAF_INCLUDE) != 0u) && (included < args->end) && (args->depth < CLI_EFFECT_DEPTH))
-    {
-        unsigned long long size = 0ULL;
-        const char *const file = EMBED_CALL(cli_symbols_read_leaf_internal.leaf_text, CliSymbolsReadLeafCtx,
-                                            .read_read = read, .leaf = included, .length_pointer = &size);
-        const int angled = (read->leaf[included].is & CLI_LEAF_ADJACENT) == 0u;
-        char reached[CLI_PATH_MAX_LEN];
-        if (EMBED_CALL(cli_effect_include, SymbolsEffectCtx, .effect_read = effect,
-                       .path = EMBED_CALL(cli_symbols_internal.effect_text, CliSymbolsCtx, .effect_read = effect,
-                                          .at_value = args->path_u32),
-                       .named = file, .length = size, .angled = angled, .out = reached))
-        {
-            EMBED_CALL(cli_effect_walk, SymbolsEffectCtx, .effect = effect, .path = reached, .upto = CLI_EFFECT_INPUT,
-                       .depth = args->depth + 1u);
-            return;
-        }
-        const CliEffectSeen seen = {CLI_SEEN_INCLUDE,
-                                    args->branch->read_at,
-                                    read->leaf[args->role].line,
-                                    args->from,
-                                    args->end,
-                                    CLI_JSON_NONE,
-                                    0u,
-                                    CLI_JSON_NONE};
-        (void)EMBED_CALL(cli_effect_visit, SymbolsEffectCtx, .effect = effect, .seen = &seen);
-    }
+    EMBED_CALL(cli_effect_directive_include, SymbolsEffectCtx, .effect = effect, .branch = args->branch,
+               .path_u32 = args->path_u32, .role = args->role, .from = args->from, .named_u32 = named, .end = args->end,
+               .depth = args->depth);
 }
 
 // a branch a slice's walk read whole, its bytes and its leaves, put in the walk's cell after those read before: its
@@ -860,6 +896,119 @@ EMBED_INLINE void cli_effect_noted_line(const SymbolsEffectCtx *args)
         const unsigned int line = (macro != CLI_JSON_NONE) ? effect->macro[macro].line : effect->first_line;
         EMBED_CALL(effect->noted, CliEffectNotedCfg, .context = effect->noted_context, .read = read, .leaf = leaf,
                    .path = defined, .line = line);
+    }
+}
+
+// the line of the branch's leaf `from` a needle of the walk names, from its first leaf to its last, put among the
+// walk's texts with where it stands, the first such the walk found read as the name's first declaration. The branch's
+// bytes are `bytes`
+EMBED_INLINE void cli_effect_line_found(const SymbolsEffectCtx *args)
+{
+    CliEffect *effect = args->effect;
+    const CliLeafRead *read = args->read;
+    const unsigned int line = read->leaf[args->from].line;
+    unsigned int last = args->from;
+    while (((last + 1u) < read->count) && (read->leaf[last + 1u].line == line))
+    {
+        last += 1u;
+    }
+    const unsigned int first =
+        EMBED_CALL(cli_effect_next, SymbolsEffectCtx, .read = read, .from = args->from, .to = last + 1u);
+    const unsigned long long from = (first <= last) ? read->leaf[first].from : 0ULL;
+    const unsigned int output =
+        EMBED_CALL(cli_symbols_text_length_internal.effect_append, CliSymbolsTextLengthCtx, .effect = effect,
+                   .text = (const char *)args->bytes + from, .length = read->leaf[last].to - from);
+    effect->found_path = args->path_u32;
+    effect->found_text = output;
+    effect->found_line = line;
+    effect->found = output != CLI_JSON_NONE;
+    effect->first_path = effect->first_found ? effect->first_path : args->path_u32;
+    effect->first_line = effect->first_found ? effect->first_line : line;
+    effect->first_found = 1;
+}
+
+// the line of the branch's leaf `from`, which is no directive's, read: in an active region, each declaration on it met,
+// `declared_at` moved past them whatever the region, and the line among the walk's texts for each needle naming it
+EMBED_INLINE void cli_effect_line_met(const SymbolsEffectCtx *args)
+{
+    CliEffectBranch *const branch = args->branch;
+    const unsigned int line = args->read->leaf[args->from].line;
+    const int active = (branch->open == 0u) || branch->condition[branch->open - 1u].active;
+    unsigned int declared = *args->declared_at;
+    for (; (declared < branch->declareds) && (branch->declared[declared].line == line); declared += 1u)
+    {
+        const CliEffectDeclared *const one = &branch->declared[declared];
+        const CliEffectSeen seen = {CLI_SEEN_DECLARED, branch->read_at, line,     args->from, 0u,
+                                    one->name,         one->length,     one->kind};
+        if (active)
+        {
+            (void)EMBED_CALL(cli_effect_visit, SymbolsEffectCtx, .effect = args->effect, .seen = &seen);
+        }
+    }
+    *args->declared_at = declared;
+    for (unsigned int at = 0u; active && (at < branch->needles); at += 1u)
+    {
+        if (branch->needle[at] == line)
+        {
+            EMBED_CALL(cli_effect_line_found, SymbolsEffectCtx, .effect = args->effect, .read = args->read,
+                       .from = args->from, .bytes = args->bytes, .path_u32 = args->path_u32);
+        }
+    }
+}
+
+// the leaves of the branch read in order to before line `upto`, a directive's line taken as one and every other line
+// read, each handed where its lines go first and the walk ended there where it is refused
+EMBED_INLINE void cli_effect_leaves_walk(const SymbolsEffectCtx *args)
+{
+    CliEffect *effect = args->effect;
+    CliEffectBranch *const branch = args->branch;
+    const CliLeafRead *const read = &branch->read;
+    unsigned int leaf = 0u;
+    unsigned int declared = 0u;
+    while ((leaf < read->count) && (read->leaf[leaf].line < args->upto) && !effect->refused)
+    {
+        const unsigned int line = read->leaf[leaf].line;
+        const unsigned int line_first = leaf;
+        const int active_here = (branch->open == 0u) || branch->condition[branch->open - 1u].active;
+        if ((args->depth == 0u) && (effect->reached != NULL) &&
+            !EMBED_CALL(effect->reached, CliEffectReachedCfg, .context = effect->reached_context, .read = read,
+                        .leaf = leaf, .active = active_here))
+        {
+            break;
+        }
+        unsigned int role = leaf;
+        while ((role < read->count) && (read->leaf[role].line == line) &&
+               ((read->leaf[role].is & CLI_LEAF_DIRECTIVE) == 0u) &&
+               ((read->leaf[role].is & (CLI_LEAF_BLANK | CLI_LEAF_KEYWORD)) != 0u))
+        {
+            role += 1u;
+        }
+        // a declaration on a line the walk passed over, or on a directive's, is none the walk meets
+        while ((declared < branch->declareds) && (branch->declared[declared].line < line))
+        {
+            declared += 1u;
+        }
+        if ((role < read->count) && (read->leaf[role].line == line) &&
+            ((read->leaf[role].is & CLI_LEAF_DIRECTIVE) != 0u))
+        {
+            leaf = EMBED_CALL(cli_effect_directive_end, SymbolsEffectCtx, .read = read, .role = role);
+            EMBED_CALL(cli_effect_directive, SymbolsEffectCtx, .effect = effect, .branch = branch,
+                       .path_u32 = args->path_u32, .role = role, .from = line_first, .end = leaf, .depth = args->depth);
+        }
+        else
+        {
+            EMBED_CALL(cli_effect_line_met, SymbolsEffectCtx, .effect = effect, .branch = branch, .read = read,
+                       .from = leaf, .bytes = args->bytes, .path_u32 = args->path_u32, .declared_at = &declared);
+            while ((leaf < read->count) && (read->leaf[leaf].line == line))
+            {
+                leaf += 1u;
+            }
+        }
+        if ((args->depth == 0u) && active_here)
+        {
+            EMBED_CALL(cli_effect_noted_line, SymbolsEffectCtx, .effect = effect, .read = read, .first = line_first,
+                       .end = leaf);
+        }
     }
 }
 
@@ -921,95 +1070,8 @@ static void cli_effect_walk(const SymbolsEffectCtx *args)
             : CLI_JSON_NONE;
     if (leaved)
     {
-        const CliLeafRead *const read = &branch->read;
-        unsigned int leaf = 0u;
-        unsigned int declared = 0u;
-        while ((leaf < read->count) && (read->leaf[leaf].line < args->upto) && !effect->refused)
-        {
-            const unsigned int line = read->leaf[leaf].line;
-            const unsigned int line_first = leaf;
-            const int active_here = (branch->open == 0u) || branch->condition[branch->open - 1u].active;
-            if ((args->depth == 0u) && (effect->reached != NULL) &&
-                !EMBED_CALL(effect->reached, CliEffectReachedCfg, .context = effect->reached_context, .read = read,
-                            .leaf = leaf, .active = active_here))
-            {
-                break;
-            }
-            unsigned int role = leaf;
-            while ((role < read->count) && (read->leaf[role].line == line) &&
-                   ((read->leaf[role].is & CLI_LEAF_DIRECTIVE) == 0u) &&
-                   ((read->leaf[role].is & (CLI_LEAF_BLANK | CLI_LEAF_KEYWORD)) != 0u))
-            {
-                role += 1u;
-            }
-            // a declaration on a line the walk passed over, or on a directive's, is none the walk meets
-            while ((declared < branch->declareds) && (branch->declared[declared].line < line))
-            {
-                declared += 1u;
-            }
-            if ((role < read->count) && (read->leaf[role].line == line) &&
-                ((read->leaf[role].is & CLI_LEAF_DIRECTIVE) != 0u))
-            {
-                const unsigned int end =
-                    EMBED_CALL(cli_effect_directive_end, SymbolsEffectCtx, .read = read, .role = role);
-                EMBED_CALL(cli_effect_directive, SymbolsEffectCtx, .effect = effect, .branch = branch,
-                           .path_u32 = path_at, .role = role, .from = leaf, .end = end, .depth = args->depth);
-                if ((args->depth == 0u) && active_here)
-                {
-                    EMBED_CALL(cli_effect_noted_line, SymbolsEffectCtx, .effect = effect, .read = read,
-                               .first = line_first, .end = end);
-                }
-                leaf = end;
-                continue;
-            }
-            const int active = (branch->open == 0u) || branch->condition[branch->open - 1u].active;
-            for (; (declared < branch->declareds) && (branch->declared[declared].line == line); declared += 1u)
-            {
-                const CliEffectDeclared *const one = &branch->declared[declared];
-                const CliEffectSeen seen = {CLI_SEEN_DECLARED, branch->read_at, line,     leaf, 0u,
-                                            one->name,         one->length,     one->kind};
-                if (active)
-                {
-                    (void)EMBED_CALL(cli_effect_visit, SymbolsEffectCtx, .effect = effect, .seen = &seen);
-                }
-            }
-            for (unsigned int at = 0u; active && (at < branch->needles); at += 1u)
-            {
-                if (branch->needle[at] != line)
-                {
-                    continue;
-                }
-                // the declaration's line, from its first leaf to its last, put among the walk's texts with where it
-                // stands
-                unsigned int last = leaf;
-                while (((last + 1u) < read->count) && (read->leaf[last + 1u].line == line))
-                {
-                    last += 1u;
-                }
-                const unsigned int first =
-                    EMBED_CALL(cli_effect_next, SymbolsEffectCtx, .read = read, .from = leaf, .to = last + 1u);
-                const unsigned long long from = (first <= last) ? read->leaf[first].from : 0ULL;
-                const unsigned int output =
-                    EMBED_CALL(cli_symbols_text_length_internal.effect_append, CliSymbolsTextLengthCtx,
-                               .effect = effect, .text = text + from, .length = read->leaf[last].to - from);
-                effect->found_path = path_at;
-                effect->found_text = output;
-                effect->found_line = line;
-                effect->found = output != CLI_JSON_NONE;
-                effect->first_path = effect->first_found ? effect->first_path : path_at;
-                effect->first_line = effect->first_found ? effect->first_line : line;
-                effect->first_found = 1;
-            }
-            while ((leaf < read->count) && (read->leaf[leaf].line == line))
-            {
-                leaf += 1u;
-            }
-            if ((args->depth == 0u) && active_here)
-            {
-                EMBED_CALL(cli_effect_noted_line, SymbolsEffectCtx, .effect = effect, .read = read, .first = line_first,
-                           .end = leaf);
-            }
-        }
+        EMBED_CALL(cli_effect_leaves_walk, SymbolsEffectCtx, .effect = effect, .branch = branch, .path_u32 = path_at,
+                   .bytes = bytes, .upto = args->upto, .depth = args->depth);
     }
     // a branch a slice's walk read whole stays in the walk's cell until the walk is given back
     if (branch->read_at == CLI_JSON_NONE)

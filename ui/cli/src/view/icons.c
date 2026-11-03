@@ -249,6 +249,15 @@ typedef struct
     unsigned int size;
     float stroke;
     GuiMask *mask_bits;
+    const float *corner;
+    unsigned int saved;
+    float sample_y;
+    float *cross_x;
+    int *cross_way;
+    unsigned char *counts;
+    int samples_width;
+    int *seen_from;
+    int *seen_to;
 } IconsCtx;
 // a place in units as pixels of the square across and down
 EMBED_INLINE float pen_px(const IconsCtx *args)
@@ -282,19 +291,7 @@ EMBED_INLINE void pen_capsule(const IconsCtx *args)
             const float from_x = ((float)x + 0.5f) - args->x0;
             const float from_y = ((float)y + 0.5f) - args->y0;
             const float along = (length_sq > 0.0f) ? ((from_x * run_x) + (from_y * run_y)) / length_sq : 0.0f;
-            float clamped;
-            if (along < 0.0f)
-            {
-                clamped = 0.0f;
-            }
-            else if (along > 1.0f)
-            {
-                clamped = 1.0f;
-            }
-            else
-            {
-                clamped = along;
-            }
+            const float clamped = fminf(fmaxf(along, 0.0f), 1.0f);
             const float away = hypotf(from_x - (clamped * run_x), from_y - (clamped * run_y));
             const float share = args->radius + 0.5f - away;
             // the pixel lies on the square: its place is not negative
@@ -356,6 +353,85 @@ EMBED_INLINE void pen_draw(const IconsCtx *args)
     args->pen->y = y;
 }
 
+// the edges of the polygon of `saved` corners in pixels a row of samples at `sample_y` crosses, in order across, each
+// with the way it winds: how many
+EMBED_INLINE unsigned int polygon_crossings(const IconsCtx *args)
+{
+    unsigned int crossings = 0u;
+    for (unsigned int at = 0u; at < args->saved; at += 1u)
+    {
+        const unsigned int next = (at + 1u) % args->saved;
+        const float x0 = args->corner[at * 2u];
+        const float y0 = args->corner[(at * 2u) + 1u];
+        const float x1 = args->corner[next * 2u];
+        const float y1 = args->corner[(next * 2u) + 1u];
+        if ((y0 > args->sample_y) == (y1 > args->sample_y))
+        {
+            continue;
+        }
+        const float x = x0 + ((args->sample_y - y0) * (x1 - x0) / (y1 - y0));
+        unsigned int place = crossings;
+        while ((place > 0u) && (args->cross_x[place - 1u] > x))
+        {
+            args->cross_x[place] = args->cross_x[place - 1u];
+            args->cross_way[place] = args->cross_way[place - 1u];
+            place -= 1u;
+        }
+        args->cross_x[place] = x;
+        args->cross_way[place] = (y1 > y0) ? 1 : -1;
+        crossings += 1u;
+    }
+    return crossings;
+}
+
+// a run across the row from x0 to x1 in pixels counted into `counts` across the samples it covers, a whole pixel at a
+// time inside it, the samples the row's runs span widened to it. A sample stands at the middle of its fraction of a
+// pixel: the first at or past each end
+EMBED_INLINE void polygon_run_counted(const IconsCtx *args)
+{
+    const int first = (int)ceilf((args->x0 * (float)ICONS_SAMPLES) - 0.5f);
+    const int end = (int)ceilf((args->x1 * (float)ICONS_SAMPLES) - 0.5f);
+    int sample = (first < 0) ? 0 : first;
+    const int stop = (end > args->samples_width) ? args->samples_width : end;
+    *args->seen_from = ((sample < stop) && (sample < *args->seen_from)) ? sample : *args->seen_from;
+    *args->seen_to = ((sample < stop) && (stop > *args->seen_to)) ? stop : *args->seen_to;
+    while (sample < stop)
+    {
+        const int whole =
+            (((sample % (int)ICONS_SAMPLES) == 0) && (sample + (int)ICONS_SAMPLES <= stop)) ? (int)ICONS_SAMPLES : 1;
+        // a pixel's count of its samples is a small count, and the sample lies on the row
+        args->counts[(unsigned int)sample / ICONS_SAMPLES] =
+            (unsigned char)(args->counts[(unsigned int)sample / ICONS_SAMPLES] + whole);
+        sample += whole;
+    }
+}
+
+// a row of samples at `sample_y` counted: each run the winding holds off zero
+EMBED_INLINE void polygon_sample_row(const IconsCtx *args)
+{
+    float cross_x[ICONS_CORNERS];
+    int cross_way[ICONS_CORNERS];
+    const unsigned int crossings =
+        EMBED_CALL(polygon_crossings, IconsCtx, .corner = args->corner, .saved = args->saved,
+                   .sample_y = args->sample_y, .cross_x = cross_x, .cross_way = cross_way);
+    int winding = 0;
+    float run_from = 0.0f;
+    for (unsigned int at = 0u; at < crossings; at += 1u)
+    {
+        const int before = winding;
+        winding += cross_way[at];
+        if ((before == 0) && (winding != 0))
+        {
+            run_from = cross_x[at];
+        }
+        else if ((before != 0) && (winding == 0))
+        {
+            EMBED_CALL(polygon_run_counted, IconsCtx, .x0 = run_from, .x1 = cross_x[at], .counts = args->counts,
+                       .samples_width = args->samples_width, .seen_from = args->seen_from, .seen_to = args->seen_to);
+        }
+    }
+}
+
 void gui_icons_polygon_fill(const GuiIconsCoverCfg *args)
 {
     if (args->corners < 3u)
@@ -389,67 +465,9 @@ void gui_icons_polygon_fill(const GuiIconsCoverCfg *args)
         int seen_to = 0;
         for (unsigned int row = 0u; row < ICONS_SAMPLES; row += 1u)
         {
-            const float sample_y = (float)y + (((float)row + 0.5f) * step);
-            // the edges this row of samples crosses, in order across, each with the way it winds
-            float cross_x[ICONS_CORNERS];
-            int cross_way[ICONS_CORNERS];
-            unsigned int crossings = 0u;
-            for (unsigned int at = 0u; at < saved; at += 1u)
-            {
-                const unsigned int next = (at + 1u) % saved;
-                const float x0 = args->corner[at * 2u];
-                const float y0 = args->corner[(at * 2u) + 1u];
-                const float x1 = args->corner[next * 2u];
-                const float y1 = args->corner[(next * 2u) + 1u];
-                if ((y0 > sample_y) != (y1 > sample_y))
-                {
-                    const float x = x0 + ((sample_y - y0) * (x1 - x0) / (y1 - y0));
-                    unsigned int place = crossings;
-                    while ((place > 0u) && (cross_x[place - 1u] > x))
-                    {
-                        cross_x[place] = cross_x[place - 1u];
-                        cross_way[place] = cross_way[place - 1u];
-                        place -= 1u;
-                    }
-                    cross_x[place] = x;
-                    cross_way[place] = (y1 > y0) ? 1 : -1;
-                    crossings += 1u;
-                }
-            }
-            // each run the winding holds off zero counted across the samples it covers, a whole pixel at a time inside
-            // it
-            int winding = 0;
-            float run_from = 0.0f;
-            for (unsigned int at = 0u; at < crossings; at += 1u)
-            {
-                const int before = winding;
-                winding += cross_way[at];
-                if ((before == 0) && (winding != 0))
-                {
-                    run_from = cross_x[at];
-                }
-                else if ((before != 0) && (winding == 0))
-                {
-                    // a sample stands at the middle of its fraction of a pixel: the first at or past each end
-                    const int first = (int)ceilf((run_from * (float)ICONS_SAMPLES) - 0.5f);
-                    const int end = (int)ceilf((cross_x[at] * (float)ICONS_SAMPLES) - 0.5f);
-                    int sample = (first < 0) ? 0 : first;
-                    const int stop = (end > samples_width) ? samples_width : end;
-                    seen_from = ((sample < stop) && (sample < seen_from)) ? sample : seen_from;
-                    seen_to = ((sample < stop) && (stop > seen_to)) ? stop : seen_to;
-                    while (sample < stop)
-                    {
-                        const int whole =
-                            (((sample % (int)ICONS_SAMPLES) == 0) && (sample + (int)ICONS_SAMPLES <= stop))
-                                ? (int)ICONS_SAMPLES
-                                : 1;
-                        // a pixel's count of its samples is a small count, and the sample lies on the row
-                        counts[(unsigned int)sample / ICONS_SAMPLES] =
-                            (unsigned char)(counts[(unsigned int)sample / ICONS_SAMPLES] + whole);
-                        sample += whole;
-                    }
-                }
-            }
+            EMBED_CALL(polygon_sample_row, IconsCtx, .corner = args->corner, .saved = saved,
+                       .sample_y = (float)y + (((float)row + 0.5f) * step), .counts = counts,
+                       .samples_width = samples_width, .seen_from = &seen_from, .seen_to = &seen_to);
         }
         // the pixels this row touched take their shares, where those are more than they have
         const int pixels_to = (seen_to + (int)ICONS_SAMPLES - 1) / (int)ICONS_SAMPLES;

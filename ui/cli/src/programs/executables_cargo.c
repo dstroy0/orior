@@ -85,102 +85,101 @@ static void cli_bin_each(const CliEachNameIsFolderCfg *args)
     }
 }
 
-void cli_cargo_bins(const CliExecutablesNamesCtx *args)
+// A Cargo.toml read for its binaries: its [[bin]] tables; the table a line stands in, the package's name and whether
+// one is given, and whether Cargo finds binaries itself; a line, `length` bytes from `from`; the folder the manifest
+// stands in; the names found, those Cargo finds itself, and the place of one of src/bin's binaries
+typedef struct
 {
-    static CliBins s_bins;
-    args->names->count = 0u;
-    CliBins *const bins = &s_bins;
-    bins->count = 0u;
-    bins->allocations = 0u;
-    bins->more.count = 0u;
-    char table[CLI_NAME_MAX_LEN] = "";
-    char package[CLI_NAME_MAX_LEN] = "";
-    int has_package = 0;
-    int autobins = 1;
-    const char *line = args->text;
-    while (line[0] != '\0')
+    CliBins *bins;
+    char *table;
+    char *package;
+    int *has_package;
+    int *autobins;
+    const char *from;
+    unsigned long long length;
+    const char *folder;
+    CliNames *names;
+    unsigned int place;
+} ExecutablesCargoCtx;
+
+// a line of the manifest that opens a table: the table's name, the lines after it stand in, and a [[bin]] put after
+// those before it; 1, or 0 where the line opens none
+EMBED_INLINE int cargo_table_opened(const ExecutablesCargoCtx *args)
+{
+    const char *from = args->from;
+    const unsigned long long length = args->length;
+    CliBins *const bins = args->bins;
+    const int doubled = (length >= 2ULL) && (from[0] == '[') && (from[1] == '[');
+    if (!doubled && ((length == 0ULL) || (from[0] != '[')))
     {
-        const char *stop = line;
-        stop += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = stop, .at = 0ULL,
-                           .size = cellul.len(&(CatenaFinitaCfg){.src = stop, .cap = CLI_CELLS_POOL}), .set = "\n");
-        const char *const next = (stop[0] != '\0') ? (stop + 1) : stop;
-        const char *from = line;
-        unsigned long long length = (unsigned long long)(stop - line);
-        EMBED_CALL(cli_executables_text_length_internal.scan_trim, CliExecutablesTextLengthCtx, .text_pointer = &from,
-                   .length_pointer = &length);
-        line = next;
-        const int doubled = (length >= 2ULL) && (from[0] == '[') && (from[1] == '[');
-        if (doubled || ((length >= 1ULL) && (from[0] == '[')))
-        {
-            const char *inner = from + (doubled ? 2 : 1);
-            unsigned long long size = 0ULL;
-            size = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = inner, .at = 0ULL,
-                              .size = (unsigned long long)((from + length) - inner), .set = "]");
-            EMBED_CALL(cli_executables_text_length_internal.scan_trim, CliExecutablesTextLengthCtx,
-                       .text_pointer = &inner, .length_pointer = &size);
-            EMBED_CALL(cli_executables_length_text_internal.scan_copy, CliExecutablesLengthTextCtx, .text = inner,
-                       .length = size, .out = table, .capacity = sizeof(table));
-            if (doubled && (cellul.eq(&(CatenaFinitaCfg){.src = table, .other = "bin", .cap = CLI_CELLS_POOL})) &&
-                (bins->count < CLI_SCAN_BINS))
-            {
-                bins->has_name[bins->count] = 0;
-                bins->has_path[bins->count] = 0;
-                bins->count += 1u;
-            }
-            continue;
-        }
-        const char *equals = from;
-        equals += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = equals, .at = 0ULL,
-                             .size = (unsigned long long)((from + length) - equals), .set = "=");
-        if (equals == (from + length))
-        {
-            continue;
-        }
-        const char *key = from;
-        unsigned long long key_length = (unsigned long long)(equals - from);
-        EMBED_CALL(cli_executables_text_length_internal.scan_trim, CliExecutablesTextLengthCtx, .text_pointer = &key,
-                   .length_pointer = &key_length);
-        char value[CLI_PATH_MAX_LEN];
-        EMBED_CALL(cli_executables_length_value_internal.toml_value, CliExecutablesLengthValueCtx, .value = equals + 1,
-                   .length = (unsigned long long)((from + length) - (equals + 1)), .out = value,
-                   .capacity = sizeof(value));
-        const int is_name =
-            (key_length == 4ULL) && (memor.cmp(&(MemoriaCfg){.src = key, .other = "name", .bytes = 4u}) == 0);
-        const int is_path =
-            (key_length == 4ULL) && (memor.cmp(&(MemoriaCfg){.src = key, .other = "path", .bytes = 4u}) == 0);
-        if ((cellul.eq(&(CatenaFinitaCfg){.src = table, .other = "package", .cap = CLI_CELLS_POOL})) && is_name)
-        {
-            memor.cpy(&(MemoriaCfg){.dst = package,
-                                    .src = value,
-                                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = value, .cap = CLI_CELLS_POOL}) + 1u});
-            has_package = 1;
-        }
-        else if ((cellul.eq(&(CatenaFinitaCfg){.src = table, .other = "package", .cap = CLI_CELLS_POOL})) &&
-                 (key_length == 8ULL) && (memor.cmp(&(MemoriaCfg){.src = key, .other = "autobins", .bytes = 8u}) == 0))
-        {
-            autobins = !cellul.eq(&(CatenaFinitaCfg){.src = value, .other = "false", .cap = CLI_CELLS_POOL});
-        }
-        else if ((cellul.eq(&(CatenaFinitaCfg){.src = table, .other = "bin", .cap = CLI_CELLS_POOL})) &&
-                 (bins->count > 0u) && (is_name || is_path))
-        {
-            const unsigned int last = bins->count - 1u;
-            memor.cpy(&(MemoriaCfg){.dst = is_name ? bins->name[last] : bins->path[last],
-                                    .src = value,
-                                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = value, .cap = CLI_CELLS_POOL}) + 1u});
-            *(is_name ? &bins->has_name[last] : &bins->has_path[last]) = 1;
-        }
+        return 0;
     }
-    if (!has_package)
+    const char *inner = from + (doubled ? 2 : 1);
+    unsigned long long size = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = inner,
+                                         .at = 0ULL, .size = (unsigned long long)((from + length) - inner), .set = "]");
+    EMBED_CALL(cli_executables_text_length_internal.scan_trim, CliExecutablesTextLengthCtx, .text_pointer = &inner,
+               .length_pointer = &size);
+    EMBED_CALL(cli_executables_length_text_internal.scan_copy, CliExecutablesLengthTextCtx, .text = inner,
+               .length = size, .out = args->table, .capacity = CLI_NAME_MAX_LEN);
+    if (doubled && (cellul.eq(&(CatenaFinitaCfg){.src = args->table, .other = "bin", .cap = CLI_CELLS_POOL})) &&
+        (bins->count < CLI_SCAN_BINS))
+    {
+        bins->has_name[bins->count] = 0;
+        bins->has_path[bins->count] = 0;
+        bins->count += 1u;
+    }
+    return 1;
+}
+
+// a line of the manifest that gives a key its value, read in the table it stands in: the package's name and whether
+// Cargo finds binaries itself, and a [[bin]]'s name and path
+EMBED_INLINE void cargo_key_read(const ExecutablesCargoCtx *args)
+{
+    const char *from = args->from;
+    const unsigned long long length = args->length;
+    CliBins *const bins = args->bins;
+    const char *equals = from;
+    equals += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = equals, .at = 0ULL,
+                         .size = length, .set = "=");
+    if (equals == (from + length))
     {
         return;
     }
-    char folder[CLI_PATH_MAX_LEN];
-    if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->manifest, .out = folder))
+    const char *key = from;
+    unsigned long long key_length = (unsigned long long)(equals - from);
+    EMBED_CALL(cli_executables_text_length_internal.scan_trim, CliExecutablesTextLengthCtx, .text_pointer = &key,
+               .length_pointer = &key_length);
+    char value[CLI_PATH_MAX_LEN];
+    EMBED_CALL(cli_executables_length_value_internal.toml_value, CliExecutablesLengthValueCtx, .value = equals + 1,
+               .length = (unsigned long long)((from + length) - (equals + 1)), .out = value, .capacity = sizeof(value));
+    const int is_name = (key_length == 4ULL) && (memor.cmp(&(MemoriaCfg){.src = key, .other = "name", .bytes = 4u}) == 0);
+    const int is_path = (key_length == 4ULL) && (memor.cmp(&(MemoriaCfg){.src = key, .other = "path", .bytes = 4u}) == 0);
+    const int in_package = cellul.eq(&(CatenaFinitaCfg){.src = args->table, .other = "package", .cap = CLI_CELLS_POOL});
+    const unsigned long long value_bytes = cellul.len(&(CatenaFinitaCfg){.src = value, .cap = CLI_CELLS_POOL}) + 1u;
+    if (in_package && is_name)
     {
-        memor.cpy(&(MemoriaCfg){.dst = folder,
-                                .src = ".",
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = ".", .cap = CLI_CELLS_POOL}) + 1u});
+        memor.cpy(&(MemoriaCfg){.dst = args->package, .src = value, .bytes = value_bytes});
+        *args->has_package = 1;
     }
+    else if (in_package && (key_length == 8ULL) &&
+             (memor.cmp(&(MemoriaCfg){.src = key, .other = "autobins", .bytes = 8u}) == 0))
+    {
+        *args->autobins = !cellul.eq(&(CatenaFinitaCfg){.src = value, .other = "false", .cap = CLI_CELLS_POOL});
+    }
+    else if ((cellul.eq(&(CatenaFinitaCfg){.src = args->table, .other = "bin", .cap = CLI_CELLS_POOL})) &&
+             (bins->count > 0u) && (is_name || is_path))
+    {
+        const unsigned int last = bins->count - 1u;
+        memor.cpy(&(MemoriaCfg){.dst = is_name ? bins->name[last] : bins->path[last], .src = value, .bytes = value_bytes});
+        *(is_name ? &bins->has_name[last] : &bins->has_path[last]) = 1;
+    }
+}
+
+// the binaries the [[bin]] tables name put among `names`, each table with a name, the path each is read from stored so
+// that none of src/bin's is named again
+EMBED_INLINE void cargo_bins_listed(const ExecutablesCargoCtx *args)
+{
+    CliBins *const bins = args->bins;
     for (unsigned int at = 0u; at < bins->count; at += 1u)
     {
         if (!bins->has_name[at])
@@ -193,7 +192,7 @@ void cli_cargo_bins(const CliExecutablesNamesCtx *args)
         {
             mmgr_line_put(&line_created, bins->path[at]);
         }
-        else if (cellul.eq(&(CatenaFinitaCfg){.src = bins->name[at], .other = package, .cap = CLI_CELLS_POOL}))
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = bins->name[at], .other = args->package, .cap = CLI_CELLS_POOL}))
         {
             mmgr_line_put(&line_created, "src/main.rs");
         }
@@ -228,95 +227,136 @@ void cli_cargo_bins(const CliExecutablesNamesCtx *args)
             args->names->count += 1u;
         }
     }
+}
+
+// whether src/bin's binary at `place` comes after the one before it, by its name, then its path
+EMBED_INLINE int cargo_more_after(const ExecutablesCargoCtx *args)
+{
+    const CliNames *const more = &args->bins->more;
+    const unsigned int place = args->place;
+    const int order = EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = more->name[place - 1u],
+                                 .other_pointer = more->name[place]);
+    return (order > 0) || ((order == 0) && (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg,
+                                                       .one = more->value[place - 1u],
+                                                       .other_pointer = more->value[place]) > 0));
+}
+
+// src/bin's binary at `place` and the one before it each put in the other's place
+EMBED_INLINE void cargo_more_swapped(const ExecutablesCargoCtx *args)
+{
+    CliNames *const more = &args->bins->more;
+    const unsigned int place = args->place;
+    char name[CLI_NAME_MAX_LEN];
+    char value[CLI_PATH_MAX_LEN];
+    memor.cpy(&(MemoriaCfg){.dst = name, .src = more->name[place], .bytes = CLI_NAME_MAX_LEN});
+    memor.cpy(&(MemoriaCfg){.dst = value, .src = more->value[place], .bytes = CLI_PATH_MAX_LEN});
+    memor.cpy(&(MemoriaCfg){.dst = more->name[place], .src = more->name[place - 1u], .bytes = CLI_NAME_MAX_LEN});
+    memor.cpy(&(MemoriaCfg){.dst = more->value[place], .src = more->value[place - 1u], .bytes = CLI_PATH_MAX_LEN});
+    memor.cpy(&(MemoriaCfg){.dst = more->name[place - 1u], .src = name, .bytes = CLI_NAME_MAX_LEN});
+    memor.cpy(&(MemoriaCfg){.dst = more->value[place - 1u], .src = value, .bytes = CLI_PATH_MAX_LEN});
+}
+
+// the binaries Cargo finds itself put among `names`: src/main.rs as the package's, then src/bin's files and folders in
+// the order of their names, then their paths, each a [[bin]] table reads passed over
+EMBED_INLINE void cargo_bins_found(const ExecutablesCargoCtx *args)
+{
+    CliBins *const bins = args->bins;
+    char main[CLI_PATH_MAX_LEN];
+    VerbaLinea main_line = {main, sizeof(main), 0ULL};
+    mmgr_line_put(&main_line, args->folder);
+    mmgr_line_put(&main_line, "/src/main.rs");
+    CliNames found;
+    found.count = 0u;
+    if ((mmgr_line_finish(&main_line) != 0ULL) &&
+        EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = main))
+    {
+        EMBED_CALL(cli_executables_name_names_internal.names_append, CliExecutablesNameNamesCtx, .names = &found,
+                   .name = args->package,
+                   .length = cellul.len(&(CatenaFinitaCfg){.src = args->package, .cap = CLI_CELLS_POOL}),
+                   .value = "src/main.rs");
+    }
+    char bin_folder[CLI_PATH_MAX_LEN];
+    VerbaLinea bin_line = {bin_folder, sizeof(bin_folder), 0ULL};
+    mmgr_line_put(&bin_line, args->folder);
+    mmgr_line_put(&bin_line, "/src/bin");
+    bins->folder = args->folder;
+    if (mmgr_line_finish(&bin_line) != 0ULL)
+    {
+        EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = bin_folder,
+                   .each = cli_bin_each, .context_bytess = bins);
+    }
+    // the folder is the walk's alone: no address of the caller's frame stays in the bins, which outlive it
+    bins->folder = NULL;
+    for (unsigned int at = 1u; at < bins->more.count; at += 1u)
+    {
+        unsigned int place = at;
+        while ((place > 0u) && EMBED_CALL(cargo_more_after, ExecutablesCargoCtx, .bins = bins, .place = place))
+        {
+            EMBED_CALL(cargo_more_swapped, ExecutablesCargoCtx, .bins = bins, .place = place);
+            place -= 1u;
+        }
+    }
+    for (unsigned int at = 0u; at < (found.count + bins->more.count); at += 1u)
+    {
+        const char *const name = (at < found.count) ? found.name[at] : bins->more.name[at - found.count];
+        const char *const path = (at < found.count) ? found.value[at] : bins->more.value[at - found.count];
+        int reserved = 0;
+        for (unsigned int each = 0u; !reserved && (each < bins->allocations); each += 1u)
+        {
+            reserved = cellul.eq(&(CatenaFinitaCfg){.src = bins->reserved[each], .other = path, .cap = CLI_CELLS_POOL});
+        }
+        if (!reserved)
+        {
+            EMBED_CALL(cli_executables_name_names_internal.names_append, CliExecutablesNameNamesCtx,
+                       .names = args->names, .name = name,
+                       .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .value = NULL);
+        }
+    }
+}
+
+void cli_cargo_bins(const CliExecutablesNamesCtx *args)
+{
+    static CliBins s_bins;
+    args->names->count = 0u;
+    CliBins *const bins = &s_bins;
+    bins->count = 0u;
+    bins->allocations = 0u;
+    bins->more.count = 0u;
+    char table[CLI_NAME_MAX_LEN] = "";
+    char package[CLI_NAME_MAX_LEN] = "";
+    int has_package = 0;
+    int autobins = 1;
+    const char *line = args->text;
+    while (line[0] != '\0')
+    {
+        const char *stop = line;
+        stop += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = stop, .at = 0ULL,
+                           .size = cellul.len(&(CatenaFinitaCfg){.src = stop, .cap = CLI_CELLS_POOL}), .set = "\n");
+        const char *from = line;
+        unsigned long long length = (unsigned long long)(stop - line);
+        EMBED_CALL(cli_executables_text_length_internal.scan_trim, CliExecutablesTextLengthCtx, .text_pointer = &from,
+                   .length_pointer = &length);
+        line = (stop[0] != '\0') ? (stop + 1) : stop;
+        if (!EMBED_CALL(cargo_table_opened, ExecutablesCargoCtx, .bins = bins, .table = table, .from = from,
+                        .length = length))
+        {
+            EMBED_CALL(cargo_key_read, ExecutablesCargoCtx, .bins = bins, .table = table, .package = package,
+                       .has_package = &has_package, .autobins = &autobins, .from = from, .length = length);
+        }
+    }
+    if (!has_package)
+    {
+        return;
+    }
+    char folder[CLI_PATH_MAX_LEN];
+    if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->manifest, .out = folder))
+    {
+        memor.cpy(&(MemoriaCfg){.dst = folder, .src = ".", .bytes = 2u});
+    }
+    EMBED_CALL(cargo_bins_listed, ExecutablesCargoCtx, .bins = bins, .package = package, .names = args->names);
     if (autobins)
     {
-        char main[CLI_PATH_MAX_LEN];
-        VerbaLinea main_line = {main, sizeof(main), 0ULL};
-        mmgr_line_put(&main_line, folder);
-        mmgr_line_put(&main_line, "/src/main.rs");
-        CliNames found;
-        found.count = 0u;
-        if ((mmgr_line_finish(&main_line) != 0ULL) &&
-            EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = main))
-        {
-            EMBED_CALL(cli_executables_name_names_internal.names_append, CliExecutablesNameNamesCtx, .names = &found,
-                       .name = package, .length = cellul.len(&(CatenaFinitaCfg){.src = package, .cap = CLI_CELLS_POOL}),
-                       .value = "src/main.rs");
-        }
-        char bin_folder[CLI_PATH_MAX_LEN];
-        VerbaLinea bin_line = {bin_folder, sizeof(bin_folder), 0ULL};
-        mmgr_line_put(&bin_line, folder);
-        mmgr_line_put(&bin_line, "/src/bin");
-        bins->folder = folder;
-        if (mmgr_line_finish(&bin_line) != 0ULL)
-        {
-            EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = bin_folder,
-                       .each = cli_bin_each, .context_bytess = bins);
-        }
-        // the folder is the walk's alone: no address of this frame stays in the bins, which outlive it
-        bins->folder = NULL;
-        // src/bin's binaries in the order of their names, then their paths
-        for (unsigned int at = 1u; at < bins->more.count; at += 1u)
-        {
-            for (unsigned int place = at; place > 0u; place -= 1u)
-            {
-                const int order =
-                    EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = bins->more.name[place - 1u],
-                               .other_pointer = bins->more.name[place]);
-                if ((order < 0) || ((order == 0) && (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg,
-                                                                .one = bins->more.value[place - 1u],
-                                                                .other_pointer = bins->more.value[place]) <= 0)))
-                {
-                    break;
-                }
-                char name[CLI_NAME_MAX_LEN];
-                char value[CLI_PATH_MAX_LEN];
-                memor.cpy(&(MemoriaCfg){
-                    .dst = name,
-                    .src = bins->more.name[place],
-                    .bytes =
-                        cellul.len(&(CatenaFinitaCfg){.src = bins->more.name[place], .cap = CLI_CELLS_POOL}) + 1u});
-                memor.cpy(&(MemoriaCfg){
-                    .dst = value,
-                    .src = bins->more.value[place],
-                    .bytes =
-                        cellul.len(&(CatenaFinitaCfg){.src = bins->more.value[place], .cap = CLI_CELLS_POOL}) + 1u});
-                memor.cpy(&(MemoriaCfg){
-                    .dst = bins->more.name[place],
-                    .src = bins->more.name[place - 1u],
-                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = bins->more.name[place - 1u], .cap = CLI_CELLS_POOL}) +
-                             1u});
-                memor.cpy(&(MemoriaCfg){.dst = bins->more.value[place],
-                                        .src = bins->more.value[place - 1u],
-                                        .bytes = cellul.len(&(CatenaFinitaCfg){.src = bins->more.value[place - 1u],
-                                                                               .cap = CLI_CELLS_POOL}) +
-                                                 1u});
-                memor.cpy(
-                    &(MemoriaCfg){.dst = bins->more.name[place - 1u],
-                                  .src = name,
-                                  .bytes = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) + 1u});
-                memor.cpy(
-                    &(MemoriaCfg){.dst = bins->more.value[place - 1u],
-                                  .src = value,
-                                  .bytes = cellul.len(&(CatenaFinitaCfg){.src = value, .cap = CLI_CELLS_POOL}) + 1u});
-            }
-        }
-        for (unsigned int at = 0u; at < (found.count + bins->more.count); at += 1u)
-        {
-            const char *const name = (at < found.count) ? found.name[at] : bins->more.name[at - found.count];
-            const char *const path = (at < found.count) ? found.value[at] : bins->more.value[at - found.count];
-            int reserved = 0;
-            for (unsigned int each = 0u; !reserved && (each < bins->allocations); each += 1u)
-            {
-                reserved =
-                    cellul.eq(&(CatenaFinitaCfg){.src = bins->reserved[each], .other = path, .cap = CLI_CELLS_POOL});
-            }
-            if (!reserved)
-            {
-                EMBED_CALL(cli_executables_name_names_internal.names_append, CliExecutablesNameNamesCtx,
-                           .names = args->names, .name = name,
-                           .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), .value = NULL);
-            }
-        }
+        EMBED_CALL(cargo_bins_found, ExecutablesCargoCtx, .bins = bins, .package = package, .folder = folder,
+                   .names = args->names);
     }
 }
