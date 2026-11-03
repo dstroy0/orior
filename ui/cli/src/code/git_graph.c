@@ -39,6 +39,11 @@ typedef struct
     unsigned int count_value;
     const char *line_text;
     const char *stop;
+    int *opened;
+    unsigned int *colors;
+    unsigned int lane_at;
+    unsigned int nth;
+    unsigned int parent;
 } GitGraphCtx;
 // `length` bytes of `text` put in lower case after `line`
 EMBED_INLINE void cli_on_lower(const GitGraphCtx *args)
@@ -90,6 +95,99 @@ EMBED_INLINE unsigned int cli_free(const GitGraphCtx *args)
     return *count - 1u;
 }
 
+// the first of the `count_value` columns of `lanes` that waits for the commit whose id is `text`, CLI_GIT_LANES where
+// none waits
+EMBED_INLINE unsigned int cli_lane_waiting(const GitGraphCtx *args)
+{
+    for (unsigned int at = 0u; at < args->count_value; at += 1u)
+    {
+        if (args->lanes[at].has &&
+            (cellul.eq(
+                &(CatenaFinitaCfg){.src = EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg,
+                                                     .text_read = &args->found_read->text, .at = args->lanes[at].id),
+                                   .other = args->text,
+                                   .cap = CLI_CELLS_POOL})))
+        {
+            return at;
+        }
+    }
+    return CLI_GIT_LANES;
+}
+
+// the top half of the row of `drawn`, the commit whose id is `text` in column `lane_at`: each of the `count` columns of
+// `lanes` drawn on, those waiting for the commit bent into its column and ended there, and none `opened` yet
+EMBED_INLINE void cli_lanes_met(const GitGraphCtx *args)
+{
+    CliLane *const lanes = args->lanes;
+    for (unsigned int at = 0u; at < *args->count; at += 1u)
+    {
+        args->opened[at] = 0;
+        if (!lanes[at].has)
+        {
+            continue;
+        }
+        const int waits =
+            cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg,
+                                                           .text_read = &args->found->text, .at = lanes[at].id),
+                                         .other = args->text,
+                                         .cap = CLI_CELLS_POOL});
+        EMBED_CALL(cli_stroke, GitGraphCtx, .found = args->found, .drawn = args->drawn, .from = at,
+                   .to = waits ? args->lane_at : at, .half = 0u, .color = lanes[at].color);
+        if (waits)
+        {
+            lanes[at].has = 0;
+        }
+    }
+}
+
+// the `nth` parent `parent` of the commit of `drawn`, in column `lane_at` of `color`, drawn in the bottom half of its
+// row: joined to the column waiting for it; else the first parent carried on in the commit's column, and a further one
+// in a free column of its own with the next of the `colors`, each `opened`
+EMBED_INLINE void cli_parent_joined(const GitGraphCtx *args)
+{
+    CliLane *const lanes = args->lanes;
+    const unsigned int lane_at = args->lane_at;
+    const unsigned int joins = EMBED_CALL(cli_lane_waiting, GitGraphCtx, .lanes = lanes, .count_value = *args->count,
+                                          .found_read = args->found,
+                                          .text = EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg,
+                                                             .text_read = &args->found->text, .at = args->parent));
+    if (joins < CLI_GIT_LANES)
+    {
+        EMBED_CALL(cli_stroke, GitGraphCtx, .found = args->found, .drawn = args->drawn, .from = lane_at, .to = joins,
+                   .half = 1u, .color = lanes[joins].color);
+    }
+    else if (args->nth == 0u)
+    {
+        lanes[lane_at] = (CliLane){1, args->parent, args->color};
+        args->opened[lane_at] = 1;
+        EMBED_CALL(cli_stroke, GitGraphCtx, .found = args->found, .drawn = args->drawn, .from = lane_at, .to = lane_at,
+                   .half = 1u, .color = args->color);
+    }
+    else
+    {
+        const unsigned int at = EMBED_CALL(cli_free, GitGraphCtx, .lanes = lanes, .count = args->count);
+        lanes[at] = (CliLane){1, args->parent, *args->colors};
+        args->opened[at] = 1;
+        EMBED_CALL(cli_stroke, GitGraphCtx, .found = args->found, .drawn = args->drawn, .from = lane_at, .to = at,
+                   .half = 1u, .color = *args->colors);
+        *args->colors += 1u;
+    }
+}
+
+// the bottom half of the row of `drawn` for each of the `count` columns of `lanes` that goes on past it: those waiting
+// that no parent `opened`
+EMBED_INLINE void cli_lanes_carried(const GitGraphCtx *args)
+{
+    for (unsigned int at = 0u; at < *args->count; at += 1u)
+    {
+        if (args->lanes[at].has && !args->opened[at])
+        {
+            EMBED_CALL(cli_stroke, GitGraphCtx, .found = args->found, .drawn = args->drawn, .from = at, .to = at,
+                       .half = 1u, .color = args->lanes[at].color);
+        }
+    }
+}
+
 // Each commit given its column and the strokes of its row. Each column tracks the commit it waits for, the next on its
 // line, and the line's color. A commit takes the first column waiting for it, or the first free one where none waits,
 // a branch's newest commit; every other column waiting for it ends at it. Its first parent goes on in its column, or,
@@ -108,22 +206,8 @@ void cli_git_layout_out(const CliGitFoundCtx *args)
                                           .text_read = &args->found->text, .at = commit->id);
         commit->first_stroke = args->found->strokes;
         commit->stroke_count = 0u;
-        unsigned int lane_at = CLI_GIT_LANES;
-        {
-            unsigned int at = 0u;
-            while ((lane_at == CLI_GIT_LANES) && (at < lanes))
-            {
-                lane_at =
-                    (s_lanes[at].has && (cellul.eq(&(CatenaFinitaCfg){
-                                            .src = EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg,
-                                                              .text_read = &args->found->text, .at = s_lanes[at].id),
-                                            .other = id,
-                                            .cap = CLI_CELLS_POOL})))
-                        ? at
-                        : lane_at;
-                at += 1u;
-            }
-        }
+        unsigned int lane_at = EMBED_CALL(cli_lane_waiting, GitGraphCtx, .lanes = s_lanes, .count_value = lanes,
+                                          .found_read = args->found, .text = id);
         unsigned int color = 0u;
         if (lane_at < CLI_GIT_LANES)
         {
@@ -135,82 +219,16 @@ void cli_git_layout_out(const CliGitFoundCtx *args)
             color = colors;
             colors += 1u;
         }
-        for (unsigned int at = 0u; at < lanes; at += 1u)
-        {
-            if (s_lanes[at].has)
-            {
-                const int waits = cellul.eq(
-                    &(CatenaFinitaCfg){.src = EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg,
-                                                         .text_read = &args->found->text, .at = s_lanes[at].id),
-                                       .other = id,
-                                       .cap = CLI_CELLS_POOL});
-                EMBED_CALL(cli_stroke, GitGraphCtx, .found = args->found, .drawn = commit, .from = at,
-                           .to = waits ? lane_at : at, .half = 0u, .color = s_lanes[at].color);
-            }
-        }
-        for (unsigned int at = 0u; at < lanes; at += 1u)
-        {
-            if (s_lanes[at].has &&
-                (cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg,
-                                                                .text_read = &args->found->text, .at = s_lanes[at].id),
-                                              .other = id,
-                                              .cap = CLI_CELLS_POOL})))
-            {
-                s_lanes[at].has = 0;
-            }
-            s_opened[at] = 0;
-        }
+        EMBED_CALL(cli_lanes_met, GitGraphCtx, .lanes = s_lanes, .count = &lanes, .opened = s_opened,
+                   .found = args->found, .drawn = commit, .text = id, .lane_at = lane_at);
         for (unsigned int nth = 0u; nth < commit->parents; nth += 1u)
         {
-            const unsigned int parent = commit->parent[nth];
-            const char *const parent_id = EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg,
-                                                     .text_read = &args->found->text, .at = parent);
-            unsigned int joins = CLI_GIT_LANES;
-            {
-                unsigned int at = 0u;
-                while ((joins == CLI_GIT_LANES) && (at < lanes))
-                {
-                    joins = (s_lanes[at].has &&
-                             (cellul.eq(&(CatenaFinitaCfg){
-                                 .src = EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg,
-                                                   .text_read = &args->found->text, .at = s_lanes[at].id),
-                                 .other = parent_id,
-                                 .cap = CLI_CELLS_POOL})))
-                                ? at
-                                : joins;
-                    at += 1u;
-                }
-            }
-            if (joins < CLI_GIT_LANES)
-            {
-                EMBED_CALL(cli_stroke, GitGraphCtx, .found = args->found, .drawn = commit, .from = lane_at, .to = joins,
-                           .half = 1u, .color = s_lanes[joins].color);
-            }
-            else if (nth == 0u)
-            {
-                s_lanes[lane_at] = (CliLane){1, parent, color};
-                s_opened[lane_at] = 1;
-                EMBED_CALL(cli_stroke, GitGraphCtx, .found = args->found, .drawn = commit, .from = lane_at,
-                           .to = lane_at, .half = 1u, .color = color);
-            }
-            else
-            {
-                const unsigned int at = EMBED_CALL(cli_free, GitGraphCtx, .lanes = s_lanes, .count = &lanes);
-                s_lanes[at] = (CliLane){1, parent, colors};
-                s_opened[at] = 1;
-                EMBED_CALL(cli_stroke, GitGraphCtx, .found = args->found, .drawn = commit, .from = lane_at, .to = at,
-                           .half = 1u, .color = colors);
-                colors += 1u;
-            }
+            EMBED_CALL(cli_parent_joined, GitGraphCtx, .lanes = s_lanes, .count = &lanes, .opened = s_opened,
+                       .colors = &colors, .found = args->found, .drawn = commit, .lane_at = lane_at, .color = color,
+                       .nth = nth, .parent = commit->parent[nth]);
         }
-        for (unsigned int at = 0u; at < lanes; at += 1u)
-        {
-            if (s_lanes[at].has && !s_opened[at])
-            {
-                EMBED_CALL(cli_stroke, GitGraphCtx, .found = args->found, .drawn = commit, .from = at, .to = at,
-                           .half = 1u, .color = s_lanes[at].color);
-            }
-        }
+        EMBED_CALL(cli_lanes_carried, GitGraphCtx, .lanes = s_lanes, .count = &lanes, .opened = s_opened,
+                   .found = args->found, .drawn = commit);
         while ((lanes > 0u) && !s_lanes[lanes - 1u].has)
         {
             lanes -= 1u;
