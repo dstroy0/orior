@@ -219,6 +219,51 @@ def cmd_keys(a):
     return 0
 
 
+def cmd_chars(a):
+    """Every character of the texts posted to the window as characters typed, one past the basic plane as its two
+    surrogates, with no key pressed."""
+    if not windows_only():
+        return 1
+    import harness_win32 as win
+
+    found = window_of(a.id)
+    if not found:
+        return 1
+    process_id, handle, _ = found
+    text = "".join(a.texts)
+    win.chars_sent(handle, text)
+    print("window %d sent %d characters" % (process_id, len(text)))
+    return 0
+
+
+def cmd_wheel(a):
+    """The wheel turned at x, y of the window's client, by notches toward the reader where positive."""
+    if not windows_only():
+        return 1
+    import harness_win32 as win
+
+    found = window_of(a.id)
+    if not found:
+        return 1
+    process_id, handle, _ = found
+    win.wheel_sent(handle, a.x, a.y, a.rows)
+    print("window %d wheel turned %d at %d,%d" % (process_id, a.rows, a.x, a.y))
+    return 0
+
+
+def cmd_keymap(a):
+    """Every key the harness presses by name, with its virtual key, and the modifiers a chord names before it."""
+    if not windows_only():
+        return 1
+    import harness_win32 as win
+
+    for name, (key, extended) in sorted(win.KEY_NAMES.items(), key=lambda item: (item[1][0], item[0])):
+        print("%-18s 0x%02X%s" % (name, key, "  extended" if extended else ""))
+    print("modifiers: %s" % ", ".join(sorted(win.MODIFIER_OF)))
+    print("any other single character is typed on the key the layout gives it, or sent as the character itself")
+    return 0
+
+
 def cmd_click(a):
     """A press at x, y of the window's client posted to its queue, dragged to --to where one is given, and released."""
     if not windows_only():
@@ -1197,10 +1242,23 @@ def register(sub):
 
     p = window.add_parser("ended", help="every window running from the release program ended")
     p.set_defaults(fn=cmd_ended)
-    p = window.add_parser("keys", help="keys sent to the window as real input, each named as the editor names a key")
-    p.add_argument("names", nargs="+", help="the keys in order: Right, Mod+Z, Shift+End, or one character")
+    p = window.add_parser("keys", help="keys pressed in the window as the keyboard presses them, each named as the editor names a key")
+    p.add_argument("names", nargs="+",
+                   help="the keys in order: Right, Mod+Shift+Z, Alt+F4, Numpad7, 0x5B, or one character; window keymap lists them")
     p.add_argument("--id", type=int, default=0, help="the window's process, the started one where 0")
     p.set_defaults(fn=cmd_keys)
+    p = window.add_parser("chars", help="text sent to the window as characters typed, any character, with no key pressed")
+    p.add_argument("texts", nargs="+", help="the text, the words joined as given")
+    p.add_argument("--id", type=int, default=0, help="the window's process, the started one where 0")
+    p.set_defaults(fn=cmd_chars)
+    p = window.add_parser("wheel", help="the wheel turned at a pixel of the window's client")
+    p.add_argument("x", type=int)
+    p.add_argument("y", type=int)
+    p.add_argument("rows", type=int, help="the notches, toward the reader where positive")
+    p.add_argument("--id", type=int, default=0, help="the window's process, the started one where 0")
+    p.set_defaults(fn=cmd_wheel)
+    p = window.add_parser("keymap", help="every key the keys command presses by name, with its virtual key")
+    p.set_defaults(fn=cmd_keymap)
     p = window.add_parser("click", help="a press of the pointer posted to the window at a pixel of its client, dragged and released")
     p.add_argument("x", type=int)
     p.add_argument("y", type=int)

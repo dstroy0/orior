@@ -385,19 +385,54 @@ class KeyInput(ctypes.Structure):
 
 INPUT_KEYBOARD = 1
 KEYEVENTF_KEYUP = 2
-VK_OF = {"Left": 0x25, "Right": 0x27, "Up": 0x26, "Down": 0x28, "Home": 0x24, "End": 0x23, "PageUp": 0x21, "PageDown": 0x22,
-         "Backspace": 0x08, "Delete": 0x2E, "Enter": 0x0D, "Tab": 0x09, "Escape": 0x1B, "Space": 0x20, "Insert": 0x2D,
-         "[": 0xDB, "]": 0xDD, "/": 0xBF, "\\": 0xDC, ".": 0xBE, ",": 0xBC, "`": 0xC0, "-": 0xBD, "=": 0xBB,
-         ";": 0xBA, "'": 0xDE}
-VK_SHIFT, VK_CONTROL, VK_MENU = 0x10, 0x11, 0x12
+VK_SHIFT, VK_CONTROL, VK_MENU, VK_LWIN, VK_RETURN = 0x10, 0x11, 0x12, 0x5B, 0x0D
 
 
-WM_KEYDOWN, WM_KEYUP, WM_CHAR = 0x0100, 0x0101, 0x0102
-# a key message's lParam as the keyboard sends it: a press once, and a release with its previous state down and its
-# transition up, which TranslateMessage reads as no character
-KEY_PRESSED, KEY_RELEASED = 0x00000001, 0xC0000001
-WM_MOUSEMOVE, WM_LBUTTONDOWN, WM_LBUTTONUP = 0x0200, 0x0201, 0x0202
+def _key_names():
+    """Every key of the keyboard by the name the window gives it, or the name the system gives a key the window does
+    not name: its virtual key, and 1 where it is one of the keys the keyboard marks extended."""
+    names = {"Left": (0x25, 1), "Right": (0x27, 1), "Up": (0x26, 1), "Down": (0x28, 1), "Home": (0x24, 1),
+             "End": (0x23, 1), "PageUp": (0x21, 1), "PageDown": (0x22, 1), "Insert": (0x2D, 1), "Delete": (0x2E, 1),
+             "Backspace": (0x08, 0), "Tab": (0x09, 0), "Enter": (0x0D, 0), "Escape": (0x1B, 0), "Space": (0x20, 0),
+             "Clear": (0x0C, 0), "Pause": (0x13, 0), "CapsLock": (0x14, 0), "NumLock": (0x90, 1),
+             "ScrollLock": (0x91, 0), "PrintScreen": (0x2C, 1), "ContextMenu": (0x5D, 1),
+             "Shift": (VK_SHIFT, 0), "Control": (VK_CONTROL, 0), "Ctrl": (VK_CONTROL, 0), "Alt": (VK_MENU, 0),
+             "Win": (VK_LWIN, 1), "Meta": (VK_LWIN, 1), "Super": (VK_LWIN, 1),
+             "NumpadMultiply": (0x6A, 0), "NumpadAdd": (0x6B, 0), "NumpadSeparator": (0x6C, 0),
+             "NumpadSubtract": (0x6D, 0), "NumpadDecimal": (0x6E, 0), "NumpadDivide": (0x6F, 1),
+             "NumpadEnter": (VK_RETURN, 1),
+             "BrowserBack": (0xA6, 1), "BrowserForward": (0xA7, 1), "BrowserRefresh": (0xA8, 1),
+             "BrowserStop": (0xA9, 1), "BrowserSearch": (0xAA, 1), "BrowserFavorites": (0xAB, 1),
+             "BrowserHome": (0xAC, 1), "VolumeMute": (0xAD, 1), "VolumeDown": (0xAE, 1), "VolumeUp": (0xAF, 1),
+             "MediaNext": (0xB0, 1), "MediaPrevious": (0xB1, 1), "MediaStop": (0xB2, 1), "MediaPlayPause": (0xB3, 1),
+             "LaunchMail": (0xB4, 1), "LaunchMedia": (0xB5, 1), "LaunchApp1": (0xB6, 1), "LaunchApp2": (0xB7, 1),
+             ";": (0xBA, 0), "=": (0xBB, 0), ",": (0xBC, 0), "-": (0xBD, 0), ".": (0xBE, 0), "/": (0xBF, 0),
+             "`": (0xC0, 0), "[": (0xDB, 0), "\\": (0xDC, 0), "]": (0xDD, 0), "'": (0xDE, 0)}
+    for number in range(1, 25):
+        names["F%d" % number] = (0x6F + number, 0)
+    for digit in range(10):
+        names["Numpad%d" % digit] = (0x60 + digit, 0)
+        names[str(digit)] = (0x30 + digit, 0)
+    for letter in range(26):
+        names[chr(0x41 + letter)] = (0x41 + letter, 0)
+    return names
+
+
+KEY_NAMES = _key_names()
+user32.VkKeyScanW.argtypes = [wintypes.WCHAR]
+user32.VkKeyScanW.restype = ctypes.c_short
+user32.AttachThreadInput.argtypes = [wintypes.DWORD, wintypes.DWORD, wintypes.BOOL]
+# the modifiers a chord names before its key, each by its virtual key
+MODIFIER_OF = {"Mod": VK_CONTROL, "Ctrl": VK_CONTROL, "Control": VK_CONTROL, "Alt": VK_MENU, "Shift": VK_SHIFT,
+               "Win": VK_LWIN, "Meta": VK_LWIN, "Super": VK_LWIN}
+
+WM_KEYDOWN, WM_KEYUP, WM_CHAR, WM_SYSKEYDOWN, WM_SYSKEYUP = 0x0100, 0x0101, 0x0102, 0x0104, 0x0105
+# a key message's lParam bits as the keyboard sets them: the key's extended mark, Alt down, the key down before it, and
+# a release
+KEY_EXTENDED, KEY_ALT_DOWN, KEY_WAS_DOWN, KEY_RELEASING = 1 << 24, 1 << 29, 1 << 30, 1 << 31
+WM_MOUSEMOVE, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOUSEWHEEL = 0x0200, 0x0201, 0x0202, 0x020A
 MK_LBUTTON = 0x0001
+WHEEL_DELTA = 120
 
 
 def pointer_sent(handle, x, y, down, up, moved=()):
@@ -428,32 +463,133 @@ def pointer_moved(handle, places, pause):
         user32.PostMessageW(handle, WM_MOUSEMOVE, 0, (y << 16) | (x & 0xFFFF))
 
 
+def _key_message(key, extended, down, alt):
+    """A key message and its lParam as the keyboard sends them for the virtual key `key`: down or up, the scan code
+    the layout gives the key, its extended mark, and the system's messages where Alt is down or the key is F10."""
+    scan = user32.MapVirtualKeyW(key, 0) & 0xFF
+    system = alt or key == 0x79
+    low = 1 | (scan << 16) | (KEY_EXTENDED if extended else 0) | (KEY_ALT_DOWN if alt else 0)
+    if down:
+        return (WM_SYSKEYDOWN if system else WM_KEYDOWN), low
+    return (WM_SYSKEYUP if system else WM_KEYUP), low | KEY_WAS_DOWN | KEY_RELEASING
+
+
+def _chord(name):
+    """The modifiers' virtual keys and the key's, with its extended mark, a chord names: Mod+Shift+Z, F5, Numpad3,
+    0x5B for a virtual key by its number, or one character, the key the layout types it on with Shift where it asks
+    for Shift, Ctrl or Alt it asks for being out of a chord's reach; None where no key types the character."""
+    if name == "+":
+        head, key = "", "+"
+    elif name.endswith("++"):
+        head, key = name[:-2], "+"
+    else:
+        head, _, key = name.rpartition("+")
+    parts = head.split("+") if head else []
+    modifiers = []
+    for part in parts:
+        if part not in MODIFIER_OF:
+            raise SystemExit("no modifier is named %s in %s" % (part, name))
+        modifiers.append(MODIFIER_OF[part])
+    if key in KEY_NAMES and len(key) > 1:
+        return modifiers, KEY_NAMES[key]
+    if key.lower().startswith("0x") and len(key) > 2:
+        return modifiers, (int(key, 16) & 0xFF, 0)
+    if len(key) == 1 and modifiers and key.upper() in KEY_NAMES and key.isalnum():
+        # a letter or a digit in a chord is its key, the case the chord's Shift gives it
+        return modifiers, KEY_NAMES[key.upper()]
+    if len(key) == 1:
+        if ord(key) > 0xFFFF:
+            return modifiers, None
+        scanned = user32.VkKeyScanW(key)
+        shifts = (scanned >> 8) & 0xFF
+        if scanned == -1 or shifts & 0x06:
+            return modifiers, None
+        if shifts & 0x01 and VK_SHIFT not in modifiers:
+            modifiers.append(VK_SHIFT)
+        return modifiers, (scanned & 0xFF, 0)
+    raise SystemExit("no key is named %s" % name)
+
+
+def _keyboard_state(thread, down):
+    """The keyboard state the window's thread translates its keys by: the keys `down` pressed, each modifier's left key
+    with it, and every other key up and every lock off. The harness's thread shares the window's input while it sets
+    it."""
+    state = (ctypes.c_ubyte * 256)()
+    for key in down:
+        state[key] = 0x80
+        side = {VK_SHIFT: 0xA0, VK_CONTROL: 0xA2, VK_MENU: 0xA4}.get(key)
+        if side:
+            state[side] = 0x80
+    mine = kernel32.GetCurrentThreadId()
+    attached = user32.AttachThreadInput(mine, thread, True)
+    user32.SetKeyboardState(state)
+    return mine, attached
+
+
+def _keyboard_left(mine, thread, attached):
+    """Every key up again in the state the window's thread shares, and the harness's thread let go of it."""
+    state = (ctypes.c_ubyte * 256)()
+    user32.SetKeyboardState(state)
+    if attached:
+        user32.AttachThreadInput(mine, thread, False)
+
+
 def keys_sent(handle, names):
-    """The keys `names` posted to the window's own queue, each named as the page's editor names a key, Mod+Shift+Z or
-    Right, the modifiers posted down before the key and up after it; one character posted as the character typed. The
-    window reads the modifiers off the messages. No focus is needed and nothing reaches another window."""
+    """The keys `names` pressed in the window as the keyboard presses them, each a chord the window names, Mod+Shift+Z,
+    F5 or Right, a virtual key by its number, 0x5B, or one character, any the layout types: the modifiers down first, the
+    key down and up as the keyboard sends it with its scan code, and the modifiers up after it, the window's thread
+    reading the same keys down while it translates the key into the character the keyboard types. A
+    character no key types, or one the layout types with Ctrl or Alt, goes as the character itself. Everything is
+    posted to the window's own queue: no focus is needed and nothing reaches another window."""
     import time
 
+    thread = user32.GetWindowThreadProcessId(handle, None)
     for name in names:
-        parts = name.split("+")
-        key = parts.pop() or "+"
-        pressed = [VK_CONTROL for part in parts if part in ("Mod", "Ctrl")] + [VK_MENU for part in parts if part == "Alt"]
-        pressed += [VK_SHIFT for part in parts if part == "Shift"]
-        for modifier in pressed:
-            user32.PostMessageW(handle, WM_KEYDOWN, modifier, KEY_PRESSED)
-        if key in VK_OF:
-            user32.PostMessageW(handle, WM_KEYDOWN, VK_OF[key], KEY_PRESSED)
-            user32.PostMessageW(handle, WM_KEYUP, VK_OF[key], KEY_RELEASED)
-        elif len(key) == 1 and not pressed:
-            user32.PostMessageW(handle, WM_CHAR, ord(key), KEY_PRESSED)
-        elif len(key) == 1:
-            user32.PostMessageW(handle, WM_KEYDOWN, ord(key.upper()), KEY_PRESSED)
-            user32.PostMessageW(handle, WM_KEYUP, ord(key.upper()), KEY_RELEASED)
-        else:
-            raise SystemExit("no key is named %s" % name)
-        for modifier in reversed(pressed):
-            user32.PostMessageW(handle, WM_KEYUP, modifier, KEY_RELEASED)
+        modifiers, key = _chord(name)
+        if key is None:
+            chars_sent(handle, name if len(name) == 1 else (name.rpartition("+")[2] or "+"))
+            continue
+        # the keyboard sends the system's messages while Alt is down without Ctrl
+        alt = (VK_MENU in modifiers) and (VK_CONTROL not in modifiers)
+        mine, attached = _keyboard_state(thread, modifiers + [key[0]])
+        for modifier in modifiers:
+            message, low = _key_message(modifier, modifier == VK_LWIN, True, alt)
+            user32.PostMessageW(handle, message, modifier, low)
+        message, low = _key_message(key[0], key[1], True, alt)
+        user32.PostMessageW(handle, message, key[0], low)
+        # the window translates the key while its thread reads it down
+        time.sleep(0.03)
+        message, low = _key_message(key[0], key[1], False, alt)
+        user32.PostMessageW(handle, message, key[0], low)
+        for modifier in reversed(modifiers):
+            message, low = _key_message(modifier, modifier == VK_LWIN, False, alt)
+            user32.PostMessageW(handle, message, modifier, low)
         time.sleep(0.02)
+        _keyboard_left(mine, thread, attached)
+    return True
+
+
+def chars_sent(handle, text):
+    """Each character of `text` posted to the window as the character typed, its UTF-16 units one message each, a
+    letter past the basic plane its two surrogates, with no key pressed for it."""
+    import time
+
+    for letter in text:
+        point = ord(letter)
+        units = [point] if point < 0x10000 else [0xD800 + ((point - 0x10000) >> 10), 0xDC00 + ((point - 0x10000) & 0x3FF)]
+        for unit in units:
+            user32.PostMessageW(handle, WM_CHAR, unit, 1)
+        time.sleep(0.005)
+    return True
+
+
+def wheel_sent(handle, x, y, rows):
+    """The wheel turned at x, y of the window's client by `rows` notches, toward the reader where positive, as the
+    system sends it: its delta in the high word and the place on the screen."""
+    point = wintypes.POINT(x, y)
+    user32.ClientToScreen(handle, ctypes.byref(point))
+    delta = (-rows * WHEEL_DELTA) & 0xFFFF
+    user32.PostMessageW(handle, WM_MOUSEWHEEL, delta << 16, ((point.y & 0xFFFF) << 16) | (point.x & 0xFFFF))
     return True
 
 
