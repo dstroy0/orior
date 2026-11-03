@@ -70,6 +70,7 @@ typedef struct
     unsigned int report;
     const char *flag;
     int *flagged;
+    int check;
 } CommandLineFilesCtx;
 // `text` read as JSON into the tree: its node, or CLI_JSON_NONE
 EMBED_INLINE unsigned int files_tree(const CommandLineFilesCtx *args)
@@ -185,17 +186,21 @@ EMBED_INLINE int files_run_words(const CommandLineFilesCtx *args)
     return code;
 }
 
+// the first item of the array member of `node` named `name`, or CLI_JSON_NONE where it has none
+EMBED_INLINE unsigned int files_first(const CommandLineFilesCtx *args)
+{
+    const unsigned int array = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                          .json_read = &s_work_state->json, .object = args->node, .name = args->name);
+    return EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_work_state->json,
+                      .node = array, .kind = CFG_JSON_ARRAY)
+               ? s_work_state->json.node[array].first
+               : CLI_JSON_NONE;
+}
+
 // the strings of an array member joined by `between`
 EMBED_INLINE void files_join(const CommandLineFilesCtx *args)
 {
-    unsigned int node = args->node;
-    const char *name = args->name;
-    const unsigned int array = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                          .json_read = &s_work_state->json, .object = node, .name = name);
-    const unsigned int first = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                          .json_read = &s_work_state->json, .node = array, .kind = CFG_JSON_ARRAY)
-                                   ? s_work_state->json.node[array].first
-                                   : CLI_JSON_NONE;
+    const unsigned int first = EMBED_CALL(files_first, CommandLineFilesCtx, .node = args->node, .name = args->name);
     for (unsigned int item = first; item != CLI_JSON_NONE; item = s_work_state->json.node[item].next)
     {
         const char *const text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
@@ -226,137 +231,140 @@ EMBED_INLINE double files_number(const CommandLineFilesCtx *args)
     return strtod(text, NULL);
 }
 
+// the text member of `node` named `name`, or NULL where it has none
+EMBED_INLINE const char *files_member_text(const CommandLineFilesCtx *args)
+{
+    return EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &s_work_state->json,
+                      .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                         .json_read = &s_work_state->json, .object = args->node, .name = args->name),
+                      .length_pointer = NULL);
+}
+
+// the work state's line printed on the output
+EMBED_INLINE void files_line_print(const CommandLineFilesCtx *args)
+{
+    EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = s_work_state->line,
+               .size = mmgr_line_ok(args->out) ? args->out->at : 0ULL);
+}
+
+// a check of a report printed: its settings, "as it is" where it gives none, its seconds to a tenth, its count of
+// errors and the barriers that stopped it, where any did
+EMBED_INLINE void files_check_print(const CommandLineFilesCtx *args)
+{
+    const unsigned int check = args->node;
+    VerbaLinea line = {s_work_state->line, sizeof(s_work_state->line), 0ULL};
+    mmgr_line_put(&line, "  checked ");
+    if (EMBED_CALL(files_first, CommandLineFilesCtx, .node = check, .name = "settings") == CLI_JSON_NONE)
+    {
+        mmgr_line_put(&line, "as it is");
+    }
+    EMBED_CALL(files_join, CommandLineFilesCtx, .out = &line, .node = check, .name = "settings", .between = " ");
+    mmgr_line_put(&line, ": ");
+    const double seconds = EMBED_CALL(files_number, CommandLineFilesCtx, .node = check, .name = "seconds");
+    // the seconds to a tenth, rounded; a check's seconds are not negative
+    const unsigned long long tenths = (unsigned long long)(seconds * 10.0 + 0.5);
+    mmgr_line_decimal(&line, tenths / 10ULL, 1u);
+    mmgr_line_ch(&line, '.');
+    mmgr_line_decimal(&line, tenths % 10ULL, 1u);
+    mmgr_line_put(&line, " s, ");
+    const double errors = EMBED_CALL(files_number, CommandLineFilesCtx, .node = check, .name = "errors");
+    // a count of errors is a whole number
+    mmgr_line_decimal(&line, (unsigned long long)errors, 1u);
+    mmgr_line_put(&line, (errors == 1.0) ? " error" : " errors");
+    if (EMBED_CALL(files_first, CommandLineFilesCtx, .node = check, .name = "barriers") != CLI_JSON_NONE)
+    {
+        mmgr_line_put(&line, ", stopped by ");
+        EMBED_CALL(files_join, CommandLineFilesCtx, .out = &line, .node = check, .name = "barriers", .between = ", ");
+    }
+    EMBED_CALL(files_line_print, CommandLineFilesCtx, .out = &line);
+}
+
+// a finding's message `text` printed after what the line `out` holds: its first line not blank there, each other line
+// not blank on a line of its own set in by four spaces, a line's carriage return dropped; `out` printed as it is
+// where every line is blank
+EMBED_INLINE void files_message_print(const CommandLineFilesCtx *args)
+{
+    VerbaLinea *const line = args->out;
+    const char *rest = args->text;
+    int head = 1;
+    for (;;)
+    {
+        const char *const end = cellul.chr(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL, .byte = '\n'});
+        const unsigned long long size = (end != NULL)
+                                            ? (unsigned long long)(end - rest)
+                                            : cellul.len(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL});
+        unsigned long long from = 0ULL;
+        unsigned long long to = 0ULL;
+        EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = rest, .size = size,
+                   .from_u64s = &from, .to_u64s = &to);
+        if ((to > from) && !head)
+        {
+            line->at = 0ULL;
+            mmgr_line_put(line, "    ");
+        }
+        if (to > from)
+        {
+            const unsigned long long len = ((size > 0ULL) && (rest[size - 1ULL] == '\r')) ? size - 1ULL : size;
+            mmgr_line_put_n(line, rest, len);
+            EMBED_CALL(files_line_print, CommandLineFilesCtx, .out = line);
+            head = 0;
+        }
+        if (end == NULL)
+        {
+            break;
+        }
+        rest = end + 1;
+    }
+    if (head)
+    {
+        EMBED_CALL(files_line_print, CommandLineFilesCtx, .out = line);
+    }
+}
+
+// a finding of a report printed: the file, its line and column counted from 1, its kind and its message, then what it
+// lifted, where it gives it, on a line of its own set in by four spaces
+EMBED_INLINE void files_finding_print(const CommandLineFilesCtx *args)
+{
+    const unsigned int finding = args->node;
+    const char *const kind = EMBED_CALL(files_member_text, CommandLineFilesCtx, .node = finding, .name = "kind");
+    const char *const message = EMBED_CALL(files_member_text, CommandLineFilesCtx, .node = finding, .name = "message");
+    const char *const lifted = EMBED_CALL(files_member_text, CommandLineFilesCtx, .node = finding, .name = "lifted");
+    VerbaLinea line = {s_work_state->line, sizeof(s_work_state->line), 0ULL};
+    mmgr_line_put(&line, args->file);
+    mmgr_line_ch(&line, ':');
+    // a line and a column counted from 0 are whole numbers
+    mmgr_line_decimal(
+        &line,
+        (unsigned long long)EMBED_CALL(files_number, CommandLineFilesCtx, .node = finding, .name = "line") + 1ULL, 1u);
+    mmgr_line_ch(&line, ':');
+    mmgr_line_decimal(
+        &line, (unsigned long long)EMBED_CALL(files_number, CommandLineFilesCtx, .node = finding, .name = "col") + 1ULL,
+        1u);
+    mmgr_line_put(&line, ": ");
+    mmgr_line_put(&line, (kind != NULL) ? kind : "");
+    mmgr_line_put(&line, ": ");
+    EMBED_CALL(files_message_print, CommandLineFilesCtx, .out = &line, .text = (message != NULL) ? message : "");
+    if (lifted != NULL)
+    {
+        line.at = 0ULL;
+        mmgr_line_put(&line, "    ");
+        mmgr_line_put(&line, lifted);
+        EMBED_CALL(files_line_print, CommandLineFilesCtx, .out = &line);
+    }
+}
+
 // each check of a report printed, then each finding, then the file's verdict
 EMBED_INLINE void files_report_print(const CommandLineFilesCtx *args)
 {
-    const unsigned int checks = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                           .json_read = &s_work_state->json, .object = args->report, .name = "checks");
-    const unsigned int first = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                          .json_read = &s_work_state->json, .node = checks, .kind = CFG_JSON_ARRAY)
-                                   ? s_work_state->json.node[checks].first
-                                   : CLI_JSON_NONE;
-    for (unsigned int check = first; check != CLI_JSON_NONE; check = s_work_state->json.node[check].next)
+    for (unsigned int check = EMBED_CALL(files_first, CommandLineFilesCtx, .node = args->report, .name = "checks");
+         check != CLI_JSON_NONE; check = s_work_state->json.node[check].next)
     {
-        VerbaLinea line = {s_work_state->line, sizeof(s_work_state->line), 0ULL};
-        mmgr_line_put(&line, "  checked ");
-        const unsigned int settings = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                                 .json_read = &s_work_state->json, .object = check, .name = "settings");
-        if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_work_state->json,
-                        .node = settings, .kind = CFG_JSON_ARRAY) ||
-            (s_work_state->json.node[settings].count == 0u))
-        {
-            mmgr_line_put(&line, "as it is");
-        }
-        EMBED_CALL(files_join, CommandLineFilesCtx, .out = &line, .node = check, .name = "settings", .between = " ");
-        mmgr_line_put(&line, ": ");
-        const double seconds = EMBED_CALL(files_number, CommandLineFilesCtx, .node = check, .name = "seconds");
-        // the seconds to a tenth, rounded; a check's seconds are not negative
-        const unsigned long long tenths = (unsigned long long)(seconds * 10.0 + 0.5);
-        mmgr_line_decimal(&line, tenths / 10ULL, 1u);
-        mmgr_line_ch(&line, '.');
-        mmgr_line_decimal(&line, tenths % 10ULL, 1u);
-        mmgr_line_put(&line, " s, ");
-        const double errors = EMBED_CALL(files_number, CommandLineFilesCtx, .node = check, .name = "errors");
-        // a count of errors is a whole number
-        mmgr_line_decimal(&line, (unsigned long long)errors, 1u);
-        mmgr_line_put(&line, (errors == 1.0) ? " error" : " errors");
-        const unsigned int barriers = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                                 .json_read = &s_work_state->json, .object = check, .name = "barriers");
-        if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_work_state->json,
-                       .node = barriers, .kind = CFG_JSON_ARRAY) &&
-            (s_work_state->json.node[barriers].count > 0u))
-        {
-            mmgr_line_put(&line, ", stopped by ");
-            EMBED_CALL(files_join, CommandLineFilesCtx, .out = &line, .node = check, .name = "barriers",
-                       .between = ", ");
-        }
-        EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = s_work_state->line,
-                   .size = mmgr_line_ok(&line) ? line.at : 0ULL);
+        EMBED_CALL(files_check_print, CommandLineFilesCtx, .node = check);
     }
-    const unsigned int findings =
-        EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_work_state->json,
-                   .object = args->report, .name = "findings");
-    const unsigned int found = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                          .json_read = &s_work_state->json, .node = findings, .kind = CFG_JSON_ARRAY)
-                                   ? s_work_state->json.node[findings].first
-                                   : CLI_JSON_NONE;
-    for (unsigned int finding = found; finding != CLI_JSON_NONE; finding = s_work_state->json.node[finding].next)
+    for (unsigned int finding = EMBED_CALL(files_first, CommandLineFilesCtx, .node = args->report, .name = "findings");
+         finding != CLI_JSON_NONE; finding = s_work_state->json.node[finding].next)
     {
-        const char *const kind = EMBED_CALL(
-            cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &s_work_state->json,
-            .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_work_state->json,
-                               .object = finding, .name = "kind"),
-            .length_pointer = NULL);
-        const char *const message = EMBED_CALL(
-            cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &s_work_state->json,
-            .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_work_state->json,
-                               .object = finding, .name = "message"),
-            .length_pointer = NULL);
-        const char *const lifted = EMBED_CALL(
-            cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &s_work_state->json,
-            .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &s_work_state->json,
-                               .object = finding, .name = "lifted"),
-            .length_pointer = NULL);
-        VerbaLinea line = {s_work_state->line, sizeof(s_work_state->line), 0ULL};
-        mmgr_line_put(&line, args->file);
-        mmgr_line_ch(&line, ':');
-        // a line and a column counted from 0 are whole numbers
-        mmgr_line_decimal(
-            &line,
-            (unsigned long long)EMBED_CALL(files_number, CommandLineFilesCtx, .node = finding, .name = "line") + 1ULL,
-            1u);
-        mmgr_line_ch(&line, ':');
-        mmgr_line_decimal(
-            &line,
-            (unsigned long long)EMBED_CALL(files_number, CommandLineFilesCtx, .node = finding, .name = "col") + 1ULL,
-            1u);
-        mmgr_line_put(&line, ": ");
-        mmgr_line_put(&line, (kind != NULL) ? kind : "");
-        mmgr_line_put(&line, ": ");
-        const char *rest = (message != NULL) ? message : "";
-        int head = 1;
-        for (;;)
-        {
-            const char *const end = cellul.chr(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL, .byte = '\n'});
-            const unsigned long long size = (end != NULL)
-                                                ? (unsigned long long)(end - rest)
-                                                : cellul.len(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL});
-            unsigned long long from = 0ULL;
-            unsigned long long to = 0ULL;
-            EMBED_CALL(cli_text_size_from_u_64s.trim, CliTextSizeFromU64sCfg, .text = rest, .size = size,
-                       .from_u64s = &from, .to_u64s = &to);
-            if (to > from)
-            {
-                if (!head)
-                {
-                    line.at = 0ULL;
-                    mmgr_line_put(&line, "    ");
-                }
-                const unsigned long long len = ((size > 0ULL) && (rest[size - 1ULL] == '\r')) ? size - 1ULL : size;
-                mmgr_line_put_n(&line, rest, len);
-                EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx,
-                           .text = s_work_state->line, .size = mmgr_line_ok(&line) ? line.at : 0ULL);
-                head = 0;
-            }
-            if (end == NULL)
-            {
-                break;
-            }
-            rest = end + 1;
-        }
-        if (head)
-        {
-            EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx,
-                       .text = s_work_state->line, .size = mmgr_line_ok(&line) ? line.at : 0ULL);
-        }
-        if (lifted != NULL)
-        {
-            line.at = 0ULL;
-            mmgr_line_put(&line, "    ");
-            mmgr_line_put(&line, lifted);
-            EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx,
-                       .text = s_work_state->line, .size = mmgr_line_ok(&line) ? line.at : 0ULL);
-        }
+        EMBED_CALL(files_finding_print, CommandLineFilesCtx, .node = finding, .file = args->file);
     }
     const int passes =
         EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &s_work_state->json,
@@ -465,6 +473,68 @@ EMBED_INLINE int files_validate(const CommandLineFilesCtx *args)
     return code;
 }
 
+// the file named `file` formatted in place with its language's formatter, or with `check` named on the output where
+// it would change; 0, or CLI_NO_CODE where it is not known, read, formatted or written, or with `check` would change
+EMBED_INLINE int files_format_file(const CommandLineFilesCtx *args)
+{
+    static char s_err_buf[4096];
+    const char *const file = args->file;
+    char full[CLI_PATH_MAX_LEN];
+    EMBED_CALL(files_full, CommandLineFilesCtx, .word_text = file, .full = full);
+    char language[CLI_NAME_MAX_LEN];
+    if (!EMBED_CALL(cli_format_table.language_get, CliFormatCfg, .path = file, .id = language))
+    {
+        EMBED_CALL(files_err, CommandLineFilesCtx, .one = file,
+                   .two = ": no plugin opens it, and so no formatter knows it", .three = "");
+        return CLI_NO_CODE;
+    }
+    const unsigned long long size =
+        qry_member_file_read(file, (unsigned char *)s_work_state->read, sizeof(s_work_state->read));
+    if ((size == QRY_MEMBER_UNREAD) ||
+        !EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = s_work_state->read, .size = size))
+    {
+        EMBED_CALL(files_err, CommandLineFilesCtx, .one = file, .two = ": it could not be read", .three = "");
+        return CLI_NO_CODE;
+    }
+    VerbaLinea formatted = {s_work_state->made, sizeof(s_work_state->made), 0ULL};
+    VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ULL};
+    if (!EMBED_CALL(cli_format_path.format, CliFormatPathCfg, .path = full, .language = language,
+                    .text = s_work_state->read, .length = size, .out = &formatted, .err_msg = &err_msg))
+    {
+        EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = s_err_buf,
+                   .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ULL);
+        return CLI_NO_CODE;
+    }
+    unsigned long long length = 0ULL;
+    const char *const text =
+        EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &s_work_state->json,
+                   .node = EMBED_CALL(files_tree, CommandLineFilesCtx, .text = s_work_state->made,
+                                      .size = mmgr_line_ok(&formatted) ? formatted.at : 0ULL),
+                   .length_pointer = &length);
+    if ((text != NULL) && (length == size) &&
+        (memor.cmp(&(MemoriaCfg){.src = text, .other = s_work_state->read, .bytes = size}) == 0))
+    {
+        return 0;
+    }
+    VerbaLinea line = {s_work_state->line, sizeof(s_work_state->line), 0ULL};
+    mmgr_line_put(&line, file);
+    if (args->check)
+    {
+        mmgr_line_put(&line, " would change");
+        EMBED_CALL(files_line_print, CommandLineFilesCtx, .out = &line);
+        return CLI_NO_CODE;
+    }
+    if ((text == NULL) || !EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx, .path = file,
+                                      .bytes = text, .size = length))
+    {
+        EMBED_CALL(files_err, CommandLineFilesCtx, .one = file, .two = ": it could not be written", .three = "");
+        return CLI_NO_CODE;
+    }
+    mmgr_line_put(&line, " formatted");
+    EMBED_CALL(files_line_print, CommandLineFilesCtx, .out = &line);
+    return 0;
+}
+
 EMBED_INLINE int files_format(const CommandLineFilesCtx *args)
 {
     int check = 0;
@@ -476,76 +546,14 @@ EMBED_INLINE int files_format(const CommandLineFilesCtx *args)
         return CLI_WRONG;
     }
     int code = 0;
-    static char s_err_buf[4096];
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         const char *const file = args->words[at];
-        if (cellul.eq(&(CatenaFinitaCfg){.src = file, .other = "--check", .cap = CLI_CELLS_POOL}))
+        if (!cellul.eq(&(CatenaFinitaCfg){.src = file, .other = "--check", .cap = CLI_CELLS_POOL}) &&
+            (EMBED_CALL(files_format_file, CommandLineFilesCtx, .file = file, .check = check) != 0))
         {
-            continue;
-        }
-        char full[CLI_PATH_MAX_LEN];
-        EMBED_CALL(files_full, CommandLineFilesCtx, .word_text = file, .full = full);
-        char language[CLI_NAME_MAX_LEN];
-        if (!EMBED_CALL(cli_format_table.language_get, CliFormatCfg, .path = file, .id = language))
-        {
-            EMBED_CALL(files_err, CommandLineFilesCtx, .one = file,
-                       .two = ": no plugin opens it, and so no formatter knows it", .three = "");
             code = CLI_NO_CODE;
-            continue;
         }
-        const unsigned long long size =
-            qry_member_file_read(file, (unsigned char *)s_work_state->read, sizeof(s_work_state->read));
-        if ((size == QRY_MEMBER_UNREAD) ||
-            !EMBED_CALL(cli_json_tree_size.utf8_valid, CliJsonTreeSizeCfg, .bytes = s_work_state->read, .size = size))
-        {
-            EMBED_CALL(files_err, CommandLineFilesCtx, .one = file, .two = ": it could not be read", .three = "");
-            code = CLI_NO_CODE;
-            continue;
-        }
-        VerbaLinea formatted = {s_work_state->made, sizeof(s_work_state->made), 0ULL};
-        VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ULL};
-        if (!EMBED_CALL(cli_format_path.format, CliFormatPathCfg, .path = full, .language = language,
-                        .text = s_work_state->read, .length = size, .out = &formatted, .err_msg = &err_msg))
-        {
-            EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = s_err_buf,
-                       .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ULL);
-            code = CLI_NO_CODE;
-            continue;
-        }
-        unsigned long long length = 0ULL;
-        const char *const text = EMBED_CALL(
-            cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &s_work_state->json,
-            .node = EMBED_CALL(files_tree, CommandLineFilesCtx, .text = s_work_state->made,
-                               .size = mmgr_line_ok(&formatted) ? formatted.at : 0ULL),
-            .length_pointer = &length);
-        if ((text != NULL) && (length == size) &&
-            (memor.cmp(&(MemoriaCfg){.src = text, .other = s_work_state->read, .bytes = size}) == 0))
-        {
-            continue;
-        }
-        if (check)
-        {
-            VerbaLinea line = {s_work_state->line, sizeof(s_work_state->line), 0ULL};
-            mmgr_line_put(&line, file);
-            mmgr_line_put(&line, " would change");
-            EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx,
-                       .text = s_work_state->line, .size = mmgr_line_ok(&line) ? line.at : 0ULL);
-            code = CLI_NO_CODE;
-            continue;
-        }
-        if ((text == NULL) || !EMBED_CALL(query_path_bytes_size_internal.file_write, QueryPathBytesSizeCtx,
-                                          .path = file, .bytes = text, .size = length))
-        {
-            EMBED_CALL(files_err, CommandLineFilesCtx, .one = file, .two = ": it could not be written", .three = "");
-            code = CLI_NO_CODE;
-            continue;
-        }
-        VerbaLinea line = {s_work_state->line, sizeof(s_work_state->line), 0ULL};
-        mmgr_line_put(&line, file);
-        mmgr_line_put(&line, " formatted");
-        EMBED_CALL(cli_command_line_text_size_internal.out_line, CliCommandLineTextSizeCtx, .text = s_work_state->line,
-                   .size = mmgr_line_ok(&line) ? line.at : 0ULL);
     }
     return code;
 }
