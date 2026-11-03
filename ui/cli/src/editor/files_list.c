@@ -58,6 +58,9 @@ typedef struct
     VerbaLinea *out;
     const char *root;
     CellOwner *owner;
+    int counting;
+    unsigned long long *count;
+    unsigned long long *bytes;
 } FilesListCtx;
 // a text put in the entries' texts: its place
 EMBED_INLINE unsigned int cli_entry_text_store(const FilesListCtx *args)
@@ -168,6 +171,27 @@ EMBED_INLINE CliFileEntries *cli_entries_alloc(const FilesListCtx *args)
     return entries;
 }
 
+// each folder containing the file `path`, the path cut at one of its slashes: counted into `count`, with the bytes it
+// takes into `bytes`, where `counting`, else put among the listing's folders
+EMBED_INLINE void cli_folders_of(const FilesListCtx *args)
+{
+    const char *const file = args->path;
+    const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL});
+    for (unsigned long long slash = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = file,
+                                               .at = 0ULL, .size = whole, .set = "/");
+         slash < whole; slash = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = file,
+                                           .at = slash + 1ULL, .size = whole, .set = "/"))
+    {
+        *args->count += args->counting ? 1ULL : 0ULL;
+        *args->bytes += args->counting ? (slash + 1ULL) : 0ULL;
+        if (!args->counting)
+        {
+            EMBED_CALL(cli_files_path_length_internal.put, CliFilesPathLengthCtx, .files = &s_listing->folders,
+                       .path = file, .length = slash);
+        }
+    }
+}
+
 // every folder of the view's files that contains a file the patterns leave, counted on a first pass, the containing
 // folders made at that size, put on a second, and sorted
 EMBED_INLINE void cli_folders_collect(const FilesListCtx *args)
@@ -192,20 +216,8 @@ EMBED_INLINE void cli_folders_collect(const FilesListCtx *args)
             {
                 continue;
             }
-            const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL});
-            for (unsigned long long slash = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
-                                                       .text = file, .at = 0ULL, .size = whole, .set = "/");
-                 slash < whole; slash = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
-                                                   .text = file, .at = slash + 1ULL, .size = whole, .set = "/"))
-            {
-                count += (pass == 0u) ? 1ULL : 0ULL;
-                bytes += (pass == 0u) ? (slash + 1ULL) : 0ULL;
-                if (pass == 1u)
-                {
-                    EMBED_CALL(cli_files_path_length_internal.put, CliFilesPathLengthCtx, .files = &s_listing->folders,
-                               .path = file, .length = slash);
-                }
-            }
+            EMBED_CALL(cli_folders_of, FilesListCtx, .path = file, .counting = pass == 0u, .count = &count,
+                       .bytes = &bytes);
         }
     }
     EMBED_CALL(cli_files.let, CliFilesCfg, .files = files);

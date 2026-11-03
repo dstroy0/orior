@@ -50,21 +50,23 @@ EMBED_INLINE int docstring_around(const FillDocstringCtx *args)
         while (going)
         {
             unsigned long long place = 0ULL;
-            if (open != NULL)
+            const int closed = (open != NULL) && EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg,
+                                                            .text = text + rest, .length_value = line.end - rest,
+                                                            .required = open, .size = 3u, .at_pointer = &place);
+            if ((open != NULL) && !closed)
             {
-                if (!EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = text + rest,
-                                .length_value = line.end - rest, .required = open, .size = 3u, .at_pointer = &place))
-                {
-                    going = 0;
-                    continue;
-                }
-                if ((open_start <= at) && (at <= line.index))
-                {
-                    args->found->quote = open;
-                    args->found->start = open_start;
-                    args->found->end = line.index;
-                    return 1;
-                }
+                going = 0;
+                continue;
+            }
+            if (closed && (open_start <= at) && (at <= line.index))
+            {
+                args->found->quote = open;
+                args->found->start = open_start;
+                args->found->end = line.index;
+                return 1;
+            }
+            if (closed)
+            {
                 open = NULL;
                 rest += place + 3u;
                 continue;

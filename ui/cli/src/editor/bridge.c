@@ -228,6 +228,39 @@ static unsigned int cli_key_default(const CliJsonLineCfg *args)
     return EMBED_CALL(cli_key_init, CliJsonLineCfg, .json = args->json, .line = 0u);
 }
 
+// the verdict `word_text` and its `rest` put after the rest of the identity `object`, two spaces between; a tree whose
+// text has too few bytes left marked full
+EMBED_INLINE void cli_verdict_join(const BridgeCtx *args)
+{
+    CliJson *const json = args->json;
+    unsigned long long length = 0ULL;
+    const unsigned int rest = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                         .object = args->object, .name = "rest");
+    const char *const had = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                       .json_read = json, .node = rest, .length_pointer = &length);
+    const unsigned long long start = json->used;
+    if ((json->used + length + args->word_length + args->remainder_length + 4u) > json->text_max)
+    {
+        json->full = 1;
+        return;
+    }
+    memor.cpy(&(MemoriaCfg){.dst = json->text + json->used, .src = had, .bytes = length});
+    json->used += length;
+    memor.cpy(&(MemoriaCfg){.dst = json->text + json->used, .src = "  ", .bytes = 2u});
+    json->used += 2u;
+    memor.cpy(&(MemoriaCfg){.dst = json->text + json->used, .src = args->word_text, .bytes = args->word_length});
+    json->used += args->word_length;
+    json->text[json->used] = ' ';
+    json->used += 1u;
+    memor.cpy(&(MemoriaCfg){.dst = json->text + json->used, .src = args->rest, .bytes = args->remainder_length});
+    json->used += args->remainder_length;
+    const unsigned int joined =
+        EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg, .json = json,
+                   .text = json->text + start, .length = json->used - start);
+    EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = args->object,
+               .name = "rest", .value = joined);
+}
+
 unsigned int cli_bridge_klq(const CliBridgePathCfg *args)
 {
     const unsigned int keys =
@@ -332,39 +365,9 @@ unsigned int cli_bridge_klq(const CliBridgePathCfg *args)
             const unsigned int last = args->json->node[identities].last;
             if (last != CLI_JSON_NONE)
             {
-                unsigned long long length = 0ULL;
-                const unsigned int rest = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                                     .json_read = args->json, .object = last, .name = "rest");
-                const char *const had = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
-                                                   .json_read = args->json, .node = rest, .length_pointer = &length);
-                const unsigned long long start = args->json->used;
-                if ((args->json->used + length + parsed.word_length + parsed.remainder_length + 4u) <=
-                    args->json->text_max)
-                {
-                    memor.cpy(&(MemoriaCfg){.dst = args->json->text + args->json->used, .src = had, .bytes = length});
-                    args->json->used += length;
-                    memor.cpy(&(MemoriaCfg){.dst = args->json->text + args->json->used, .src = "  ", .bytes = 2u});
-                    args->json->used += 2u;
-                    memor.cpy(&(MemoriaCfg){.dst = args->json->text + args->json->used,
-                                            .src = parsed.word_text,
-                                            .bytes = parsed.word_length});
-                    args->json->used += parsed.word_length;
-                    args->json->text[args->json->used] = ' ';
-                    args->json->used += 1u;
-                    memor.cpy(&(MemoriaCfg){.dst = args->json->text + args->json->used,
-                                            .src = parsed.rest,
-                                            .bytes = parsed.remainder_length});
-                    args->json->used += parsed.remainder_length;
-                    const unsigned int joined = EMBED_CALL(
-                        cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
-                        .json = args->json, .text = args->json->text + start, .length = args->json->used - start);
-                    EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json,
-                               .object = last, .name = "rest", .value = joined);
-                }
-                else
-                {
-                    args->json->full = 1;
-                }
+                EMBED_CALL(cli_verdict_join, BridgeCtx, .json = args->json, .object = last,
+                           .word_text = parsed.word_text, .word_length = parsed.word_length, .rest = parsed.rest,
+                           .remainder_length = parsed.remainder_length);
             }
             under_identity = 0;
             continue;

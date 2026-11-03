@@ -276,6 +276,25 @@ EMBED_INLINE void cli_trimmed_append(const SqlDoesCtx *args)
     mmgr_line_put_n(args->out, args->statement + from, (to > from) ? (to - from) : 0ULL);
 }
 
+// the sum of the counts of the tables the `length` bytes of `statement` list between commas, each counted alone
+EMBED_INLINE void cli_counts_added(const SqlDoesCtx *args)
+{
+    mmgr_line_put(args->out, "SELECT ");
+    unsigned long long piece = 0ULL;
+    for (unsigned long long at = 0ULL; at <= args->length; at += 1ULL)
+    {
+        if ((at != args->length) && (args->statement[at] != ','))
+        {
+            continue;
+        }
+        mmgr_line_put(args->out, (piece != 0ULL) ? " + (SELECT count(*) FROM " : "(SELECT count(*) FROM ");
+        EMBED_CALL(cli_trimmed_append, SqlDoesCtx, .out = args->out, .statement = args->statement, .from = piece,
+                   .to = at);
+        mmgr_line_ch(args->out, ')');
+        piece = at + 1ULL;
+    }
+}
+
 // The table an UPDATE or a DELETE with no WHERE at its own level reaches every row of, or each a TRUNCATE names, put
 // after `SELECT count(*) FROM`; or the sum of each table's count where a TRUNCATE names more than one
 EMBED_INLINE int cli_unbounded_lock(const SqlDoesCtx *args)
@@ -351,19 +370,7 @@ EMBED_INLINE int cli_unbounded_lock(const SqlDoesCtx *args)
         if (list_entries)
         {
             // Each table a TRUNCATE names is counted alone and the counts added
-            mmgr_line_put(args->out, "SELECT ");
-            unsigned long long piece = 0ULL;
-            for (unsigned long long at = 0ULL; at <= names; at += 1ULL)
-            {
-                if ((at == names) || (s_source[at] == ','))
-                {
-                    mmgr_line_put(args->out, (piece != 0ULL) ? " + (SELECT count(*) FROM " : "(SELECT count(*) FROM ");
-                    EMBED_CALL(cli_trimmed_append, SqlDoesCtx, .out = args->out, .statement = s_source, .from = piece,
-                               .to = at);
-                    mmgr_line_ch(args->out, ')');
-                    piece = at + 1ULL;
-                }
-            }
+            EMBED_CALL(cli_counts_added, SqlDoesCtx, .out = args->out, .statement = s_source, .length = names);
             return 1;
         }
     }

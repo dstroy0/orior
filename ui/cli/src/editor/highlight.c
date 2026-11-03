@@ -565,21 +565,15 @@ EMBED_INLINE void cli_words_read(const HighlightCtx *args)
                                                  .length = length, .lower = args->grammar->ignore_case);
             // put in its place among the list's words, none twice
             unsigned int place = list->count;
-            int twice = 0;
-            while ((place > 0u) && !twice)
+            int order = 1;
+            while ((place > 0u) && (order > 0))
             {
-                const int order =
-                    EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg,
-                               .one = args->grammar->text + args->grammar->word_text[list->first + place - 1u],
-                               .other_pointer = args->grammar->text + text);
-                twice = order == 0;
-                if (order <= 0)
-                {
-                    break;
-                }
-                place -= 1u;
+                order = EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg,
+                                   .one = args->grammar->text + args->grammar->word_text[list->first + place - 1u],
+                                   .other_pointer = args->grammar->text + text);
+                place -= (order > 0) ? 1u : 0u;
             }
-            if (twice)
+            if (order == 0)
             {
                 continue;
             }

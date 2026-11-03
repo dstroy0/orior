@@ -429,14 +429,7 @@ int cli_deploy_run(const CliDeployRootCfg *args)
             if (EMBED_CALL(cli_git_root_commit.head, CliGitRootCommitCfg, .root = root, .commit = commit, .when = &when,
                            .clean = &clean))
             {
-                if (when > 0)
-                {
-                    s_time = (unsigned long long)when;
-                }
-                else
-                {
-                    s_time = 0ULL;
-                }
+                s_time = (when > 0) ? (unsigned long long)when : 0ULL;
             }
             else
             {

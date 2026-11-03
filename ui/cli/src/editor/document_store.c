@@ -826,15 +826,15 @@ int cli_document_edit(const CliDocumentErrMsgCfg *args)
                    !before;
             // an edit is written in the text's own capacity, and a capacity of its own is taken only where the result
             // outgrows it
-            if (fits && !EMBED_CALL(cli_edit_position, DocumentStoreCtx, .now = &one->lines, .edit = edit))
+            const int outgrown =
+                fits && !EMBED_CALL(cli_edit_position, DocumentStoreCtx, .now = &one->lines, .edit = edit);
+            CliLines reserve;
+            capacity = outgrown ? EMBED_CALL(stored_reserve_alloc, DocumentStoreCtx, .now_read = &one->lines,
+                                             .edit = edit, .reserve = &reserve)
+                                : capacity;
+            if (outgrown && capacity)
             {
-                CliLines reserve;
-                capacity = EMBED_CALL(stored_reserve_alloc, DocumentStoreCtx, .now_read = &one->lines, .edit = edit,
-                                      .reserve = &reserve);
-                if (capacity)
-                {
-                    EMBED_CALL(cli_edit_write, DocumentStoreCtx, .one = one, .edit = edit, .reserve = &reserve);
-                }
+                EMBED_CALL(cli_edit_write, DocumentStoreCtx, .one = one, .edit = edit, .reserve = &reserve);
             }
             at -= 1u;
         }

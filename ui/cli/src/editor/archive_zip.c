@@ -188,26 +188,26 @@ static int cli_central(const ArchiveZipCtx *args)
         {
             return 0;
         }
-        if (id == 1ULL)
-        {
-            unsigned long long value = field + 4ULL;
-            unsigned long long *const fields[3] = {&args->central->size, &args->central->packed, &args->central->local};
-            for (unsigned int index = 0u; index < 3u; index += 1u)
-            {
-                if (*fields[index] != 0xffffffffULL)
-                {
-                    continue;
-                }
-                if (!EMBED_CALL(cli_archive_bytes_size_at_internal.number, CliArchiveBytesSizeAtCtx, .bytes = bytes,
-                                .size = extra_end, .at = value, .width = 8u, .value = fields[index],
-                                .err_msg = err_msg))
-                {
-                    return 0;
-                }
-                value += 8ULL;
-            }
-        }
+        unsigned long long value = field + 4ULL;
         field += 4ULL + length;
+        if (id != 1ULL)
+        {
+            continue;
+        }
+        unsigned long long *const fields[3] = {&args->central->size, &args->central->packed, &args->central->local};
+        for (unsigned int index = 0u; index < 3u; index += 1u)
+        {
+            if (*fields[index] != 0xffffffffULL)
+            {
+                continue;
+            }
+            if (!EMBED_CALL(cli_archive_bytes_size_at_internal.number, CliArchiveBytesSizeAtCtx, .bytes = bytes,
+                            .size = extra_end, .at = value, .width = 8u, .value = fields[index], .err_msg = err_msg))
+            {
+                return 0;
+            }
+            value += 8ULL;
+        }
     }
     args->central->length = 46ULL + args->central->name_length + extra_length + comment_length;
     return 1;

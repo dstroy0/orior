@@ -543,21 +543,17 @@ EMBED_INLINE int pages_pieces_read(const PagesCtx *args)
             EMBED_CALL(cli_pages_internal.page_length, CliPagesCtx, .piece = piece, .indexed = indexed);
         const unsigned long long start = (args->from > at) ? args->from : at;
         const unsigned long long end = (args->to < (at + count)) ? args->to : (at + count);
-        if (start < end)
+        if ((start < end) && !piece->written &&
+            !EMBED_CALL(cli_file_lines, PagesCtx, .one = one, .from = piece->from + start - at,
+                        .to = piece->from + end - at, .lines = lines, .err_msg = args->err_msg))
         {
-            if (!piece->written)
-            {
-                if (!EMBED_CALL(cli_file_lines, PagesCtx, .one = one, .from = piece->from + start - at,
-                                .to = piece->from + end - at, .lines = lines, .err_msg = args->err_msg))
-                {
-                    return 0;
-                }
-            }
-            else if (!EMBED_CALL(cli_write_lines, PagesCtx, .one_read = one, .piece = piece, .skip = start - at,
-                                 .count = end - start, .lines = lines, .err_msg = args->err_msg))
-            {
-                return 0;
-            }
+            return 0;
+        }
+        if ((start < end) && piece->written &&
+            !EMBED_CALL(cli_write_lines, PagesCtx, .one_read = one, .piece = piece, .skip = start - at,
+                        .count = end - start, .lines = lines, .err_msg = args->err_msg))
+        {
+            return 0;
         }
         at += count;
         if (at >= args->to)
