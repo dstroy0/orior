@@ -189,9 +189,10 @@ void cli_model_watch_end(const CliModelCtx *args);
 // does not; a press on the terminal, `input` a CliInput, or elsewhere, which takes the keys from it; the pointer moved
 // or let go after a press on a pane, handed to the pane's view: 1, or 0 where no press on a pane came before it; the
 // wheel over a pane, its view scrolled; the view `input` names sized to its rows and columns, or the panel's height
-// where `input` is a CLI_INPUT_TERMINAL_HEIGHT; every shell drained, 1 where an xterm changed; the clock's reading of
-// its next timer, 0 for none; its snapshot, and a snapshot's frames and cell released; and every shell hung up on and
-// its tabs let go
+// where `input` is a CLI_INPUT_TERMINAL_HEIGHT; every shell drained and the place stored once its time comes, 1 where
+// an xterm changed; the clock's reading of its next timer, 0 for none; its snapshot, and a snapshot's frames and cell
+// released; the place read back from the values `input` holds, a CliStateEntries or NULL for none, as the window
+// starts; and the place stored, every shell hung up on and its tabs let go
 int cli_model_terminal_command(const CliModelCtx *args);
 int cli_model_terminal_key(const CliModelCtx *args);
 int cli_model_terminal_text(const CliModelCtx *args);
@@ -203,6 +204,7 @@ int cli_model_terminal_step(const CliModelCtx *args);
 unsigned long long cli_model_terminal_next_ms(const CliModelCtx *args);
 void *cli_model_terminal_alloc(const CliModelCtx *args);
 void cli_model_terminal_release(CliTerminalPanel *panel);
+void cli_model_terminal_restore(const CliModelCtx *args);
 void cli_model_terminal_end(const CliModelCtx *args);
 
 struct CliModelCtx
@@ -391,9 +393,11 @@ typedef struct
     int (*step)(const CliModelCtx *args);
     unsigned long long (*next_ms)(const CliModelCtx *args);
     void *(*alloc)(const CliModelCtx *args);
+    void (*restore)(const CliModelCtx *args);
     void (*end)(const CliModelCtx *args);
 } CliModelTerminalNs;
-EMBED_TABLE_LAYOUT(CliModelTerminalNs, command, key, text, press, pointer, wheel, size, step, next_ms, alloc, end);
+EMBED_TABLE_LAYOUT(CliModelTerminalNs, command, key, text, press, pointer, wheel, size, step, next_ms, alloc, restore,
+                   end);
 EMBED_TABLE_STORAGE CliModelTerminalNs cli_model_terminal EMBED_UNUSED = {
     .command = cli_model_terminal_command,
     .key = cli_model_terminal_key,
@@ -405,6 +409,7 @@ EMBED_TABLE_STORAGE CliModelTerminalNs cli_model_terminal EMBED_UNUSED = {
     .step = cli_model_terminal_step,
     .next_ms = cli_model_terminal_next_ms,
     .alloc = cli_model_terminal_alloc,
+    .restore = cli_model_terminal_restore,
     .end = cli_model_terminal_end,
 };
 

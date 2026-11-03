@@ -8,19 +8,23 @@
 // the tab shown and the one beside it where the panel is split; the one the keys go to; whether the panel is open and
 // takes the keys; and its height. Every shell is drained each step whether its tab shows or not. A tab closed waits,
 // its shell hung up on, until the shell ends before its cell goes. A shell starts the first time its tab shows, in the
-// tree's top folder; one that ended starts again at the next key typed into it
+// folder its tab last stood in where that is a folder and else in the tree's top folder; one that ended starts again
+// at the next key typed into it. The place, whether the panel is open, the tab shown and the one beside it, the height
+// and each tab's number and folder, is stored as a value of orior's folder TERMINAL_PLACE_REST_MS after the last change
+// and as the window ends, when each tab's rows are written after its history too, and read back as the window starts
 #include "controller_internal.h"
 
 #include "../command_line/cells.h"
 #include "../command_line/commands.h"
+#include "../machine/state.h"
 #include "../terminal/keys.h"
 #include "../terminal/shells.h"
 #include "../text/text.h"
 
 // the panel's height at first, in pixels at a scale of one; the tabs closed that wait for their shells to end, at the
 // most; how long the window's end waits for every shell; the most bytes a paste sends; the most bytes a key sends; the
-// lines of a tab's history read back as it starts; the head of a tab's key; and the folder of orior's the histories
-// stand in
+// lines of a tab's history read back as it starts; the head of a tab's key; the folder of orior's the histories stand
+// in; and the key the place is stored under and how long after the last change it is stored
 #define TERMINAL_HEIGHT 256u
 #define TERMINAL_CLOSING 16u
 #define TERMINAL_END_MS 2000ULL
@@ -29,10 +33,13 @@
 #define TERMINAL_RESTORED 300ULL
 #define TERMINAL_KEY_HEAD "terminal:"
 #define TERMINAL_FOLDER "terminals"
+#define TERMINAL_PLACE_KEY "terminal.place"
+#define TERMINAL_PLACE_REST_MS 800ULL
 
 // One tab: its xterm and its shell; whether the xterm has a size yet and whether its text is stored with its view
-// open; its number, which names its key and its history; the key and the history's path; and how many lines of the
-// text stand above the xterm's rows and how many of the xterm's rows the text holds after them
+// open; its number, which its key and its history are called by; the key and the history's path; how many lines of the
+// text stand above the xterm's rows and how many of the xterm's rows the text holds after them; and the folder its
+// shell last reported standing in, or the one read back for it, empty for none
 typedef struct
 {
     CliTerminalXterm xterm;
@@ -44,12 +51,14 @@ typedef struct
     char history_path[CLI_PATH_MAX_LEN];
     unsigned long long history;
     unsigned int rows_written;
+    char folder[CLI_PATH_MAX_LEN];
 } TerminalTab;
 
 // The terminal: its tabs and how many the cell of them has places for; the tabs closed whose shells have yet to end;
 // the tab shown, the one beside it, the one the keys go to and the one the pointer chooses in, each -1 for none;
-// whether the panel is open, whether it takes the keys and whether the editor took them before it did; its height; and
-// the columns and rows the window last said its two views have, 0 before it said
+// whether the panel is open, whether it takes the keys and whether the editor took them before it did; its height; the
+// columns and rows the window last said its two views have, 0 before it said; the clock's reading the place is stored
+// at, 0 for none; and whether the place was read back, before which nothing is stored
 typedef struct
 {
     TerminalTab **tab;
@@ -67,6 +76,8 @@ typedef struct
     unsigned int height;
     unsigned int columns[2];
     unsigned int rows[2];
+    unsigned long long place_ms;
+    int restored;
 } TerminalModel;
 
 static TerminalModel s_terminal = {.shown = -1, .beside = -1, .focused = -1, .choosing = -1, .height = TERMINAL_HEIGHT};
@@ -88,12 +99,16 @@ typedef struct
     int on;
     const char *place;
     VerbaLinea *out;
+    unsigned int number;
+    unsigned long long *read_at;
 } TerminalCtx;
 
-// the terminal's part marked to be published again
+// the terminal's part marked to be published again, and its place to be stored TERMINAL_PLACE_REST_MS after this change
+// where no other comes before then
 EMBED_INLINE void terminal_dirty(void)
 {
     g_cli_model.dirty |= CLI_MODEL_DIRTY(CLI_SNAPSHOT_TERMINAL);
+    s_terminal.place_ms = cli_clock_milliseconds() + TERMINAL_PLACE_REST_MS;
 }
 
 // the tab the view `view` shows, 0 the one shown and 1 the one beside it: -1 for none
@@ -127,6 +142,113 @@ EMBED_INLINE void terminal_cells_write(const TerminalCtx *args)
         EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = args->out,
                    .letter = (letter != 0u) ? letter : (unsigned int)' ');
     }
+}
+
+// a hexadecimal digit's value, or 16 where `at` is none
+EMBED_INLINE unsigned int terminal_hex(const TerminalCtx *args)
+{
+    const char digit = args->bytes[args->at];
+    return ((digit >= '0') && (digit <= '9'))   ? (unsigned int)(digit - '0')
+           : ((digit >= 'a') && (digit <= 'f')) ? (unsigned int)(digit - 'a' + 10)
+           : ((digit >= 'A') && (digit <= 'F')) ? (unsigned int)(digit - 'A' + 10)
+                                                : 16u;
+}
+
+// where the path of the place `place` a shell reported, `file://host/path`, starts: past the host, or at 0 where the
+// place is a path alone
+EMBED_INLINE unsigned long long terminal_place_from(const TerminalCtx *args)
+{
+    const char *const place = args->place;
+    unsigned long long from = 0ULL;
+    if (cellul.starts(&(CatenaFinitaCfg){.src = place, .other = "file://", .cap = CLI_TERMINAL_PLACE_MAX}))
+    {
+        from = 7ULL;
+        while ((place[from] != '\0') && (place[from] != '/'))
+        {
+            from += 1ULL;
+        }
+    }
+    return from;
+}
+
+// the bytes of the place `place` from `first` up to, not including, `past` put after `out`, its %XX escapes read
+EMBED_INLINE void terminal_unescaped(const TerminalCtx *args)
+{
+    const char *const place = args->place;
+    for (unsigned long long at = args->first; at < args->past; at += 1ULL)
+    {
+        // a place's length is far inside what an int counts
+        const unsigned int high =
+            ((at + 2ULL) < args->past) ? EMBED_CALL(terminal_hex, TerminalCtx, .bytes = place, .at = (int)at + 1) : 16u;
+        const unsigned int low =
+            (high < 16u) ? EMBED_CALL(terminal_hex, TerminalCtx, .bytes = place, .at = (int)at + 2) : 16u;
+        const int escaped = (place[at] == '%') && (low < 16u);
+        // two hexadecimal digits make a byte
+        mmgr_line_ch(args->out, escaped ? (char)((high * 16u) + low) : place[at]);
+        at += escaped ? 2ULL : 0ULL;
+    }
+}
+
+// the last folder of the place `place` a shell reported, `file://host/path`, its %XX escapes read, put after `out`: 1,
+// or 0 where it names none
+EMBED_INLINE int terminal_folder(const TerminalCtx *args)
+{
+    const char *const place = args->place;
+    const unsigned long long from = EMBED_CALL(terminal_place_from, TerminalCtx, .place = place);
+    unsigned long long end = cellul.len(&(CatenaFinitaCfg){.src = place, .cap = CLI_TERMINAL_PLACE_MAX});
+    while ((end > from) && ((place[end - 1ULL] == '/') || (place[end - 1ULL] == '\\')))
+    {
+        end -= 1ULL;
+    }
+    unsigned long long start = end;
+    while ((start > from) && (place[start - 1ULL] != '/') && (place[start - 1ULL] != '\\'))
+    {
+        start -= 1ULL;
+    }
+    EMBED_CALL(terminal_unescaped, TerminalCtx, .place = place, .first = start, .past = end, .out = args->out);
+    return end > start;
+}
+
+// the whole path of the place `place` a shell reported, `file://host/path`, its %XX escapes read, put after `out`: 1,
+// or 0 where it names none
+EMBED_INLINE int terminal_place_path(const TerminalCtx *args)
+{
+    const char *const place = args->place;
+    const unsigned long long from = EMBED_CALL(terminal_place_from, TerminalCtx, .place = place);
+    const unsigned long long end = cellul.len(&(CatenaFinitaCfg){.src = place, .cap = CLI_TERMINAL_PLACE_MAX});
+    EMBED_CALL(terminal_unescaped, TerminalCtx, .place = place, .first = from, .past = end, .out = args->out);
+    return end > from;
+}
+
+// the folder the shell of `tab` starts in put after `out`: the tab's folder where it is one, as it is written or, where
+// Git's bash wrote it as /d/rest, as d:/rest; 1, or 0 where neither is a folder and the shell starts in the tree's top
+EMBED_INLINE int terminal_start_folder(const TerminalCtx *args)
+{
+    const char *const folder = args->tab->folder;
+    if (folder[0] == '\0')
+    {
+        return 0;
+    }
+    if (EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = folder))
+    {
+        mmgr_line_put(args->out, folder);
+        return mmgr_line_ok(args->out);
+    }
+    const int letter = ((folder[1] >= 'a') && (folder[1] <= 'z')) || ((folder[1] >= 'A') && (folder[1] <= 'Z'));
+    if ((folder[0] != '/') || !letter || ((folder[2] != '/') && (folder[2] != '\0')))
+    {
+        return 0;
+    }
+    const unsigned long long began = args->out->at;
+    mmgr_line_ch(args->out, folder[1]);
+    mmgr_line_ch(args->out, ':');
+    mmgr_line_put(args->out, (folder[2] == '/') ? (folder + 2) : "/");
+    const unsigned long long length = args->out->at;
+    const int folder_found = mmgr_line_ok(args->out) && (mmgr_line_finish(args->out) != 0ULL) &&
+                             EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx,
+                                        .path = args->out->out + began);
+    args->out->at = folder_found ? length : began;
+    return folder_found;
 }
 
 // the lines of the tab's text from `first` up to, not including, `past` written over by `size` bytes of `bytes`: 1, or
@@ -256,7 +378,8 @@ EMBED_INLINE void terminal_history_clear(const TerminalCtx *args)
 }
 
 // the tab's text stored and its view opened: its history's last TERMINAL_RESTORED lines read back from its file, which
-// is written again with them alone, and the xterm's rows after them, blank, the view on the rows
+// is written again with them alone, and the xterm's rows after them, blank, the view on the rows. The lines read back
+// stand above the rows and not on them: a pseudo-console clears its screen as its shell starts
 EMBED_INLINE void terminal_store(const TerminalCtx *args)
 {
     TerminalTab *const tab = args->tab;
@@ -430,15 +553,20 @@ EMBED_INLINE int terminal_copy(const TerminalCtx *args)
     return 1;
 }
 
-// the shell of `tab` started in the tree's top folder, or why it could not be printed on its xterm
+// the shell of `tab` started in its folder, or the tree's top where it has none, or why it could not be printed on its
+// xterm
 EMBED_INLINE void terminal_start(const TerminalCtx *args)
 {
     TerminalTab *const tab = args->tab;
+    char folder[CLI_PATH_MAX_LEN];
+    VerbaLinea folder_line = {folder, sizeof(folder), 0ULL};
+    const int own_folder = EMBED_CALL(terminal_start_folder, TerminalCtx, .tab = tab, .out = &folder_line) &&
+                           (mmgr_line_finish(&folder_line) != 0ULL);
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     mmgr_line_put(&err_msg, "\r\n");
     if (!EMBED_CALL(cli_terminal_shell.start, CliTerminalShellCfg, .shell = &tab->shell, .xterm = &tab->xterm,
-                    .words = NULL, .folder = g_cli_model.root, .err_msg = &err_msg))
+                    .words = NULL, .folder = own_folder ? folder : g_cli_model.root, .err_msg = &err_msg))
     {
         mmgr_line_put(&err_msg, "\r\n");
         EMBED_CALL(cli_terminal_xterm_bytes.write, CliTerminalXtermBytesCfg, .xterm = &tab->xterm,
@@ -498,9 +626,9 @@ EMBED_INLINE void terminal_fit_all(void)
     EMBED_CALL(terminal_fit, TerminalCtx, .view = 1u);
 }
 
-// a tab added after the rest, its shell not started, its number the least no other tab has: its place, or -1 where no
-// cell could be had for it
-EMBED_INLINE int terminal_add(void)
+// a tab added after the rest, its shell not started, its number `number` or, where that is 0, the least no other tab
+// has: its place, or -1 where no cell could be had for it
+EMBED_INLINE int terminal_add(const TerminalCtx *args)
 {
     if (s_terminal.tabs == s_terminal.capacity)
     {
@@ -525,7 +653,7 @@ EMBED_INLINE int terminal_add(void)
     }
     memor.set(&(MemoriaCfg){.dst = tab, .val = 0, .bytes = sizeof(*tab)});
     unsigned int number = 0u;
-    int taken = 1;
+    int taken = args->number == 0u;
     while (taken)
     {
         number += 1u;
@@ -535,7 +663,7 @@ EMBED_INLINE int terminal_add(void)
             taken = taken || (s_terminal.tab[at]->number == number);
         }
     }
-    tab->number = number;
+    tab->number = (args->number != 0u) ? args->number : number;
     s_terminal.tab[s_terminal.tabs] = tab;
     s_terminal.tabs += 1u;
     terminal_dirty();
@@ -580,7 +708,7 @@ EMBED_INLINE void terminal_toggle(const TerminalCtx *args)
     }
     if (s_terminal.tabs == 0u)
     {
-        s_terminal.shown = terminal_add();
+        s_terminal.shown = EMBED_CALL(terminal_add, TerminalCtx, .number = 0u);
         s_terminal.focused = s_terminal.shown;
     }
     if (args->on == 2)
@@ -680,7 +808,7 @@ EMBED_INLINE void terminal_close(const TerminalCtx *args)
     if (s_terminal.tabs == 0u)
     {
         EMBED_CALL(terminal_toggle, TerminalCtx, .on = 0);
-        s_terminal.shown = terminal_add();
+        s_terminal.shown = EMBED_CALL(terminal_add, TerminalCtx, .number = 0u);
         s_terminal.focused = s_terminal.shown;
     }
     terminal_fit_all();
@@ -704,7 +832,7 @@ EMBED_INLINE void terminal_split(void)
         // the tabs are far fewer than an int counts
         other = ((int)at != s_terminal.shown) ? (int)at : -1;
     }
-    other = (other >= 0) ? other : terminal_add();
+    other = (other >= 0) ? other : EMBED_CALL(terminal_add, TerminalCtx, .number = 0u);
     if (other >= 0)
     {
         s_terminal.beside = other;
@@ -797,7 +925,7 @@ int cli_model_terminal_command(const CliModelCtx *args)
         EMBED_CALL(terminal_toggle, TerminalCtx, .on = 0);
         return 1;
     case 3u: {
-        const int added = terminal_add();
+        const int added = EMBED_CALL(terminal_add, TerminalCtx, .number = 0u);
         if (added >= 0)
         {
             EMBED_CALL(terminal_show, TerminalCtx, .at = added);
@@ -1022,10 +1150,90 @@ void cli_model_terminal_size(const CliModelCtx *args)
     EMBED_CALL(terminal_fit, TerminalCtx, .view = view);
 }
 
+// the place stored as a value of orior's folder: whether the panel is open, the tab shown and the one beside it, each
+// one past its place and 0 for none, and the height on the first line, then each tab's number and folder a line;
+// written at once where `on` is 1, as the window ends, and else on the files' lane. Nothing is stored before the place
+// was read back, which it would write over
+EMBED_INLINE void terminal_place_save(const TerminalCtx *args)
+{
+    s_terminal.place_ms = 0ULL;
+    if (!s_terminal.restored)
+    {
+        return;
+    }
+    const unsigned long long bytes = 64ULL + ((unsigned long long)s_terminal.tabs * (CLI_PATH_MAX_LEN + 16ULL));
+    char *const text = g_cli_cells->persistent_buf_alloc(bytes, &g_cli_terminal_cells);
+    if (text == NULL)
+    {
+        return;
+    }
+    VerbaLinea out = {text, bytes, 0ULL};
+    mmgr_line_decimal(&out, s_terminal.open ? 1ULL : 0ULL, 1u);
+    mmgr_line_ch(&out, ' ');
+    // a place among the tabs, or -1 for none, one past it is far inside what an unsigned long long counts
+    mmgr_line_decimal(&out, (unsigned long long)(s_terminal.shown + 1), 1u);
+    mmgr_line_ch(&out, ' ');
+    mmgr_line_decimal(&out, (unsigned long long)(s_terminal.beside + 1), 1u);
+    mmgr_line_ch(&out, ' ');
+    mmgr_line_decimal(&out, s_terminal.height, 1u);
+    mmgr_line_ch(&out, '\n');
+    for (unsigned int at = 0u; at < s_terminal.tabs; at += 1u)
+    {
+        mmgr_line_decimal(&out, s_terminal.tab[at]->number, 1u);
+        mmgr_line_ch(&out, ' ');
+        mmgr_line_put(&out, s_terminal.tab[at]->folder);
+        mmgr_line_ch(&out, '\n');
+    }
+    if (mmgr_line_ok(&out) && (mmgr_line_finish(&out) != 0ULL))
+    {
+        EMBED_CALL(cli_model.value_save, CliModelCtx, .path = TERMINAL_PLACE_KEY, .value = text, .on = args->on);
+    }
+    g_cli_cells->persistent_buf_release(text, &g_cli_terminal_cells);
+}
+
+// the xterm's rows as the window ends written after the tab's history in its file, the blank rows at their foot left
+// off, so the tab of its number reads them back with the rest
+EMBED_INLINE void terminal_rows_file(const TerminalCtx *args)
+{
+    TerminalTab *const tab = args->tab;
+    const CliTerminalXterm *const xterm = &tab->xterm;
+    if (!tab->sized || !tab->stored)
+    {
+        return;
+    }
+    // each cell's letter four bytes of UTF-8 at the most, each row's newline after it
+    const unsigned long long bytes = ((unsigned long long)xterm->rows * ((4ULL * xterm->columns) + 1ULL)) + 1ULL;
+    char *const text = g_cli_cells->persistent_buf_alloc(bytes, &g_cli_terminal_cells);
+    if (text == NULL)
+    {
+        return;
+    }
+    VerbaLinea out = {text, bytes, 0ULL};
+    unsigned long long written = 0ULL;
+    for (unsigned int y = 0u; y < xterm->rows; y += 1u)
+    {
+        const unsigned long long began = out.at;
+        EMBED_CALL(terminal_cells_write, TerminalCtx, .cells = xterm->shown + ((unsigned long long)y * xterm->columns),
+                   .columns = xterm->columns, .out = &out);
+        mmgr_line_ch(&out, '\n');
+        written = (out.at > (began + 1ULL)) ? out.at : written;
+    }
+    if (mmgr_line_ok(&out) && (written != 0ULL))
+    {
+        (void)EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = tab->history_path,
+                         .bytes = text, .size = written, .fresh = 0);
+    }
+    g_cli_cells->persistent_buf_release(text, &g_cli_terminal_cells);
+}
+
 int cli_model_terminal_step(const CliModelCtx *args)
 {
     (void)args;
     const unsigned long long now_ms = cli_clock_milliseconds();
+    if ((s_terminal.place_ms != 0ULL) && (now_ms >= s_terminal.place_ms))
+    {
+        EMBED_CALL(terminal_place_save, TerminalCtx, .on = 0);
+    }
     int changed = 0;
     for (unsigned int at = 0u; at < s_terminal.tabs; at += 1u)
     {
@@ -1041,6 +1249,14 @@ int cli_model_terminal_step(const CliModelCtx *args)
             {
                 EMBED_CALL(terminal_scroll, TerminalCtx, .tab = tab, .first = tab->history);
             }
+        }
+        if (tab->xterm.place_reported)
+        {
+            VerbaLinea folder = {tab->folder, sizeof(tab->folder), 0ULL};
+            const int folder_read =
+                EMBED_CALL(terminal_place_path, TerminalCtx, .place = tab->xterm.place, .out = &folder) &&
+                mmgr_line_ok(&folder) && (mmgr_line_finish(&folder) != 0ULL);
+            tab->folder[0] = folder_read ? tab->folder[0] : '\0';
         }
         changed = drained || tab->xterm.place_reported || changed;
         tab->xterm.place_reported = 0;
@@ -1073,7 +1289,7 @@ unsigned long long cli_model_terminal_next_ms(const CliModelCtx *args)
 {
     (void)args;
     const unsigned long long now_ms = cli_clock_milliseconds();
-    unsigned long long earliest = 0ULL;
+    unsigned long long earliest = s_terminal.place_ms;
     for (unsigned int at = 0u; at < (s_terminal.tabs + s_terminal.closings); at += 1u)
     {
         TerminalTab *const tab = (at < s_terminal.tabs) ? s_terminal.tab[at] : s_terminal.closing[at - s_terminal.tabs];
@@ -1082,56 +1298,6 @@ unsigned long long cli_model_terminal_next_ms(const CliModelCtx *args)
         earliest = ((next != 0ULL) && ((earliest == 0ULL) || (next < earliest))) ? next : earliest;
     }
     return earliest;
-}
-
-// a hexadecimal digit's value, or 16 where `at` is none
-EMBED_INLINE unsigned int terminal_hex(const TerminalCtx *args)
-{
-    const char digit = args->bytes[args->at];
-    return ((digit >= '0') && (digit <= '9'))   ? (unsigned int)(digit - '0')
-           : ((digit >= 'a') && (digit <= 'f')) ? (unsigned int)(digit - 'a' + 10)
-           : ((digit >= 'A') && (digit <= 'F')) ? (unsigned int)(digit - 'A' + 10)
-                                                : 16u;
-}
-
-// the last folder of the place `place` a shell reported, `file://host/path`, its %XX escapes read, put after `out`: 1,
-// or 0 where it names none
-EMBED_INLINE int terminal_folder(const TerminalCtx *args)
-{
-    const char *const place = args->place;
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = place, .cap = CLI_TERMINAL_PLACE_MAX});
-    unsigned long long from = 0ULL;
-    if (cellul.starts(&(CatenaFinitaCfg){.src = place, .other = "file://", .cap = CLI_TERMINAL_PLACE_MAX}))
-    {
-        from = 7ULL;
-        while ((from < size) && (place[from] != '/'))
-        {
-            from += 1ULL;
-        }
-    }
-    unsigned long long end = size;
-    while ((end > from) && ((place[end - 1ULL] == '/') || (place[end - 1ULL] == '\\')))
-    {
-        end -= 1ULL;
-    }
-    unsigned long long start = end;
-    while ((start > from) && (place[start - 1ULL] != '/') && (place[start - 1ULL] != '\\'))
-    {
-        start -= 1ULL;
-    }
-    for (unsigned long long at = start; at < end; at += 1ULL)
-    {
-        // a place's length is far inside what an int counts
-        const unsigned int high =
-            ((at + 2ULL) < end) ? EMBED_CALL(terminal_hex, TerminalCtx, .bytes = place, .at = (int)at + 1) : 16u;
-        const unsigned int low =
-            (high < 16u) ? EMBED_CALL(terminal_hex, TerminalCtx, .bytes = place, .at = (int)at + 2) : 16u;
-        const int escaped = (place[at] == '%') && (low < 16u);
-        // two hexadecimal digits make a byte
-        mmgr_line_ch(args->out, escaped ? (char)((high * 16u) + low) : place[at]);
-        at += escaped ? 2ULL : 0ULL;
-    }
-    return end > start;
 }
 
 void *cli_model_terminal_alloc(const CliModelCtx *args)
@@ -1220,10 +1386,100 @@ void cli_model_terminal_release(CliTerminalPanel *panel)
     g_cli_cells->persistent_buf_release(panel, &g_cli_controller_cells);
 }
 
+// a decimal number read from `size` bytes of `bytes` at `*read_at`, `*read_at` moved past it and one space after it:
+// the number, 0 where no digit stands there
+EMBED_INLINE unsigned long long terminal_number_read(const TerminalCtx *args)
+{
+    unsigned long long *const at = args->read_at;
+    unsigned long long number = 0ULL;
+    while ((*at < args->size) && (args->bytes[*at] >= '0') && (args->bytes[*at] <= '9') && (number < 0xFFFFFFFFULL))
+    {
+        // a digit's value is far inside what an unsigned long long counts
+        number = (number * 10ULL) + (unsigned long long)(args->bytes[*at] - '0');
+        *at += 1ULL;
+    }
+    *at += ((*at < args->size) && (args->bytes[*at] == ' ')) ? 1ULL : 0ULL;
+    return number;
+}
+
+void cli_model_terminal_restore(const CliModelCtx *args)
+{
+    const char *const place = cli_state_entry_value((const CliStateEntries *)args->input, TERMINAL_PLACE_KEY);
+    s_terminal.restored = 1;
+    if (place == NULL)
+    {
+        return;
+    }
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = place, .cap = CLI_CELLS_POOL});
+    unsigned long long at = 0ULL;
+    const unsigned long long open =
+        EMBED_CALL(terminal_number_read, TerminalCtx, .bytes = place, .size = size, .read_at = &at);
+    const unsigned long long shown =
+        EMBED_CALL(terminal_number_read, TerminalCtx, .bytes = place, .size = size, .read_at = &at);
+    const unsigned long long beside =
+        EMBED_CALL(terminal_number_read, TerminalCtx, .bytes = place, .size = size, .read_at = &at);
+    const unsigned long long height =
+        EMBED_CALL(terminal_number_read, TerminalCtx, .bytes = place, .size = size, .read_at = &at);
+    while ((at < size) && (place[at] != '\n'))
+    {
+        at += 1ULL;
+    }
+    at += 1ULL;
+    while (at < size)
+    {
+        const unsigned long long number =
+            EMBED_CALL(terminal_number_read, TerminalCtx, .bytes = place, .size = size, .read_at = &at);
+        unsigned long long end = at;
+        while ((end < size) && (place[end] != '\n'))
+        {
+            end += 1ULL;
+        }
+        int taken = (number == 0ULL) || (number > 0xFFFFULL);
+        for (unsigned int tab = 0u; tab < s_terminal.tabs; tab += 1u)
+        {
+            taken = taken || (s_terminal.tab[tab]->number == number);
+        }
+        // a tab's number is far inside what an unsigned int counts
+        const int added = taken ? -1 : EMBED_CALL(terminal_add, TerminalCtx, .number = (unsigned int)number);
+        if (added >= 0)
+        {
+            TerminalTab *const tab = s_terminal.tab[added];
+            VerbaLinea folder = {tab->folder, sizeof(tab->folder), 0ULL};
+            mmgr_line_put_n(&folder, place + at, end - at);
+            const int folder_read = mmgr_line_ok(&folder) && (mmgr_line_finish(&folder) != 0ULL);
+            tab->folder[0] = folder_read ? tab->folder[0] : '\0';
+        }
+        at = end + 1ULL;
+    }
+    // a place among the tabs read back one past it, 0 for none, and the tabs, are far inside what an int counts
+    const int tabs = (int)s_terminal.tabs;
+    const int first = (tabs != 0) ? 0 : -1;
+    s_terminal.shown = ((shown != 0ULL) && (shown <= (unsigned long long)tabs)) ? ((int)shown - 1) : first;
+    const int beside_at = ((beside != 0ULL) && (beside <= (unsigned long long)tabs)) ? ((int)beside - 1) : -1;
+    s_terminal.beside = (beside_at != s_terminal.shown) ? beside_at : -1;
+    s_terminal.focused = s_terminal.shown;
+    // a height read back is far inside what an unsigned int counts
+    s_terminal.height = ((height != 0ULL) && (height <= 0xFFFFULL)) ? (unsigned int)height : TERMINAL_HEIGHT;
+    if (open != 0ULL)
+    {
+        EMBED_CALL(terminal_toggle, TerminalCtx, .on = 1);
+    }
+    terminal_dirty();
+}
+
 void cli_model_terminal_end(const CliModelCtx *args)
 {
     (void)args;
     const unsigned long long now_ms = cli_clock_milliseconds();
+    EMBED_CALL(terminal_place_save, TerminalCtx, .on = 1);
+    for (unsigned int at = 0u; at < s_terminal.tabs; at += 1u)
+    {
+        EMBED_CALL(terminal_rows_file, TerminalCtx, .tab = s_terminal.tab[at]);
+    }
+    // nothing is fitted as the tabs close, so the fresh tab the last close leaves reads back no history its number's
+    // file holds
+    s_terminal.columns[0] = 0u;
+    s_terminal.columns[1] = 0u;
     while (s_terminal.tabs != 0u)
     {
         // each history stays for the tab of its number to read back

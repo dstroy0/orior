@@ -792,6 +792,7 @@ void cli_controller_model_begin(void)
         }
     }
     EMBED_CALL(model_wordmark_read, ControllerModelCtx, .entries = entries);
+    EMBED_CALL(cli_model_terminal.restore, CliModelCtx, .input = entries);
     if (g_cli_model.root != NULL)
     {
         EMBED_CALL(cli_model.session_restore, CliModelCtx, .input = entries);

@@ -6,15 +6,18 @@
 // pseudo-terminal, what it writes drained onto its xterm, text typed while it starts sent once it settles, and its end
 // printed; and the terminal's model, its panel opened on a tab whose shell starts as its pane is sized, the keys it
 // takes and those it lets go to the window, what it publishes, and the lines that leave the xterm's top in the tab's
-// text and its history's file
+// text and its history's file; and the panel's place stored as the window ends and read back as it starts, a tab's
+// shell started in its folder and the rows standing at the end written to its history
 #include "ui/cli/src/command_line/cells.h"
 #include "ui/cli/src/controller/controller_internal.h"
+#include "ui/cli/src/machine/state.h"
 #include "ui/cli/src/terminal/keys.h"
 
 #include "ui/cli/src/terminal/shells.h"
 #include "ui/cli/src/terminal/xterm.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 #include <stdlib.h>
+#include <string.h>
 
 static CliTerminalXterm s_xterm;
 static char s_text[256];
@@ -417,6 +420,16 @@ void test_the_terminal_opens_on_a_tab_whose_shell_takes_what_is_typed_and_shows_
     TEST_ASSERT_EQUAL_INT(0, setenv("ORIOR_SHELL", "/bin/sh", 1));
     TEST_ASSERT_EQUAL_INT(0, setenv("ORIOR_HOME", "build/harness/terminal_home", 1));
 #endif
+    // the first tab's history emptied, which it reads back as it starts
+    char home[CLI_PATH_MAX_LEN];
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = home));
+    char history_path[CLI_PATH_MAX_LEN];
+    VerbaLinea history_line = {history_path, sizeof(history_path), 0ull};
+    mmgr_line_put(&history_line, home);
+    mmgr_line_put(&history_line, "/terminals/1");
+    TEST_ASSERT_NOT_EQUAL(0ull, mmgr_line_finish(&history_line));
+    (void)EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = history_path, .bytes = "",
+                     .size = 0ull, .fresh = 1);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.command, CliModelCtx, .path = "toggle"));
     const CliInput sized = {.kind = CLI_INPUT_TERMINAL_SIZE, .index = 0u, .columns = 80u, .rows = 24u};
     EMBED_CALL(cli_model_terminal.size, CliModelCtx, .input = &sized);
@@ -464,4 +477,131 @@ void test_the_terminal_opens_on_a_tab_whose_shell_takes_what_is_typed_and_shows_
     TEST_ASSERT_TRUE(ended->tab[0].exited);
     cli_model_terminal_release(ended);
     EMBED_CALL(cli_model_terminal.end, CliModelCtx, .at = 0u);
+}
+
+// the values stored in orior's folder, read as the window reads them as it starts: NULL where none could be read
+static CliStateEntries *entries_read(void)
+{
+    char folder[CLI_PATH_MAX_LEN];
+    return EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = folder)
+               ? cli_state_entries_alloc(&(CliStateEntriesCfg){.folder = folder, .owner = &g_cli_controller_cells})
+               : NULL;
+}
+
+// the model's place read back from what orior's folder stores, as the window reads it as it starts
+static void place_restored(void)
+{
+    CliStateEntries *const entries = entries_read();
+    TEST_ASSERT_NOT_NULL(entries);
+    EMBED_CALL(cli_model_terminal.restore, CliModelCtx, .input = entries);
+    g_cli_cells->persistent_buf_release(entries, &g_cli_controller_cells);
+}
+
+void test_the_terminal_place_is_stored_as_the_window_ends_and_read_back_as_it_starts(void)
+{
+#if defined(_WIN32)
+    TEST_ASSERT_EQUAL_INT(0, _putenv_s("ORIOR_HOME", "build/harness/terminal_home"));
+#else
+    TEST_ASSERT_EQUAL_INT(0, setenv("ORIOR_HOME", "build/harness/terminal_home", 1));
+#endif
+    EMBED_CALL(cli_model_terminal.restore, CliModelCtx, .input = NULL);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.command, CliModelCtx, .path = "toggle"));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.command, CliModelCtx, .path = "new"));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.command, CliModelCtx, .path = "split"));
+    const CliInput tall = {.kind = CLI_INPUT_TERMINAL_HEIGHT, .rows = 300u};
+    EMBED_CALL(cli_model_terminal.size, CliModelCtx, .input = &tall);
+    CliTerminalPanel *const before = panel_read();
+    TEST_ASSERT_NOT_NULL(before);
+    const int shown = before->shown;
+    const int beside = before->beside;
+    TEST_ASSERT_EQUAL_UINT(2u, before->tabs);
+    TEST_ASSERT_TRUE((shown >= 0) && (beside >= 0) && (shown != beside));
+    cli_model_terminal_release(before);
+    EMBED_CALL(cli_model_terminal.end, CliModelCtx, .at = 0u);
+    place_restored();
+    CliTerminalPanel *const after = panel_read();
+    TEST_ASSERT_NOT_NULL(after);
+    // the panel opens as it stood, without taking the keys, its tabs, the one shown, the one beside it and its height
+    TEST_ASSERT_TRUE(after->open);
+    TEST_ASSERT_FALSE(after->keys);
+    TEST_ASSERT_EQUAL_UINT(2u, after->tabs);
+    TEST_ASSERT_EQUAL_INT(shown, after->shown);
+    TEST_ASSERT_EQUAL_INT(beside, after->beside);
+    TEST_ASSERT_EQUAL_UINT(300u, after->height);
+    TEST_ASSERT_EQUAL_STRING("1 shell", after->tab[0].label);
+    TEST_ASSERT_EQUAL_STRING("2 shell", after->tab[1].label);
+    cli_model_terminal_release(after);
+    EMBED_CALL(cli_model_terminal.end, CliModelCtx, .at = 0u);
+}
+
+void test_a_tab_read_back_starts_its_shell_in_its_folder_and_its_rows_reach_its_history_as_the_window_ends(void)
+{
+#if defined(_WIN32)
+    TEST_ASSERT_EQUAL_INT(0, _putenv_s("ORIOR_SHELL", "cmd.exe"));
+    TEST_ASSERT_EQUAL_INT(0, _putenv_s("ORIOR_HOME", "build/harness/terminal_home"));
+    const char *const asked = "cd";
+#else
+    TEST_ASSERT_EQUAL_INT(0, setenv("ORIOR_SHELL", "/bin/sh", 1));
+    TEST_ASSERT_EQUAL_INT(0, setenv("ORIOR_HOME", "build/harness/terminal_home", 1));
+    const char *const asked = "pwd";
+#endif
+    char home[CLI_PATH_MAX_LEN];
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_folder_internal.home_folder, CliFolderCtx, .folder_out = home));
+    char folder[CLI_PATH_MAX_LEN];
+    VerbaLinea folder_line = {folder, sizeof(folder), 0ull};
+    mmgr_line_put(&folder_line, home);
+    mmgr_line_put(&folder_line, "/place_folder");
+    TEST_ASSERT_NOT_EQUAL(0ull, mmgr_line_finish(&folder_line));
+    TEST_ASSERT_TRUE(EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = folder));
+    // the place as the window stores it: open, the first tab shown and none beside, the height, then a tab a line
+    char place[CLI_PATH_MAX_LEN + 64u];
+    VerbaLinea place_line = {place, sizeof(place), 0ull};
+    mmgr_line_put(&place_line, "1 1 0 256\n1 ");
+    mmgr_line_put(&place_line, folder);
+    mmgr_line_ch(&place_line, '\n');
+    TEST_ASSERT_NOT_EQUAL(0ull, mmgr_line_finish(&place_line));
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    TEST_ASSERT_TRUE(cli_state_value_save(
+        &(CliStateValueCfg){.folder = home, .key = "terminal.place", .value = place, .err_msg = &err_msg}));
+    char history_path[CLI_PATH_MAX_LEN];
+    VerbaLinea history_line = {history_path, sizeof(history_path), 0ull};
+    mmgr_line_put(&history_line, home);
+    mmgr_line_put(&history_line, "/terminals/1");
+    TEST_ASSERT_NOT_EQUAL(0ull, mmgr_line_finish(&history_line));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = history_path,
+                                .bytes = "line_before\n", .size = 12ull, .fresh = 1));
+    place_restored();
+    const CliInput sized = {.kind = CLI_INPUT_TERMINAL_SIZE, .index = 0u, .columns = 120u, .rows = 24u};
+    EMBED_CALL(cli_model_terminal.size, CliModelCtx, .input = &sized);
+    // the history read back stands in the tab's text above the xterm's rows, its one line
+    CliTerminalPanel *const restored = panel_read();
+    TEST_ASSERT_NOT_NULL(restored);
+    TEST_ASSERT_EQUAL_UINT64(1ull, restored->view[0].xterm_line);
+    cli_model_terminal_release(restored);
+    // the panel opens as it stood, without the keys, which a press in its pane gives it
+    const CliInput pressed = {.hit = CLI_HIT_TERMINAL, .index = 0u};
+    EMBED_CALL(cli_model_terminal.press, CliModelCtx, .input = &pressed);
+    const CliInput let_go = {.kind = CLI_INPUT_POINTER_UP};
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.pointer, CliModelCtx, .input = &let_go));
+    unsigned long long asked_size = 0ull;
+    while (asked[asked_size] != '\0')
+    {
+        asked_size += 1ull;
+    }
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.text, CliModelCtx, .path = asked, .length = asked_size));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.key, CliModelCtx, .path = "Enter"));
+    TEST_ASSERT_TRUE(model_until("place_folder"));
+    EMBED_CALL(cli_model_terminal.end, CliModelCtx, .at = 0u);
+    unsigned long long size = 0ull;
+    const unsigned char *const history = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = history_path,
+                                                    .size_pointer = &size, .owner = &g_cli_terminal_cells);
+    TEST_ASSERT_NOT_NULL(history);
+    int found = 0;
+    for (unsigned long long at = 0ull; (at + 12ull) <= size; at += 1ull)
+    {
+        found = found || (memcmp(history + at, "place_folder", 12u) == 0);
+    }
+    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .owner = &g_cli_terminal_cells, .bytes_bytes_other = history);
+    TEST_ASSERT_TRUE_MESSAGE(found, "the rows standing as the window ended are in the tab's history");
 }
