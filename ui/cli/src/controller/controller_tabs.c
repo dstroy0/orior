@@ -22,7 +22,7 @@
 #define CLI_MODEL_GROUP_KEY "panes.group"
 
 // A file being opened on the files' lane: its path, key and tree after it in its cell, the rows the walk starts with,
-// what the opening left, and the text as the file stands
+// and what the opening left
 typedef struct
 {
     const char *path;
@@ -30,7 +30,6 @@ typedef struct
     const char *root;
     unsigned int rows;
     unsigned int opened;
-    CliModelSavedText saved;
 } CliModelOpening;
 
 // A value being saved on the files' lane, its key and value after it in its cell
@@ -116,8 +115,6 @@ static void tabs_open_run(void *context)
     {
         (void)EMBED_CALL(cli_document_key_from.cache, CliDocumentKeyFromCfg, .key = opening->key, .from = 0ULL,
                          .to = opening->rows + 1ULL);
-        EMBED_CALL(cli_model_saved_text.read, CliModelSavedTextCfg, .key = opening->key, .text = &opening->saved,
-                   .digest = 1);
     }
     char id[CLI_NAME_MAX_LEN];
     char grammar[CLI_NAME_MAX_LEN];
@@ -152,11 +149,6 @@ static void tabs_open_done(void *context)
     {
         CliModelTab *const tab = g_cli_model.tab[at];
         tab->viewed = 1;
-        // the file stands at the state the view opened in
-        tab->paged = opening->opened == CLI_FILES_OPEN_PAGED;
-        tab->saved = opening->saved;
-        tab->saved.state = EMBED_CALL(cli_view_table.state, CliViewCfg, .key = opening->key);
-        tab->compared_state = tab->saved.state;
         char why[CLI_ERR_MSG_MAX_LEN];
         VerbaLinea err_msg = {why, sizeof(why), 0ULL};
         const CliViewInput sized = {.kind = CLI_VIEW_SIZE, .rows = g_cli_model.rows, .columns = g_cli_model.columns};
@@ -325,7 +317,7 @@ void cli_model_tab_close(const CliModelCtx *args)
     }
     CliModelTab *const tab = g_cli_model.tab[args->at];
     // a tab with changes not saved closes on a second close, as tabs.js closes one
-    if (tab->changed && !tab->closing)
+    if (EMBED_CALL(cli_view_table.modified, CliViewCfg, .key = tab->key) && !tab->closing)
     {
         tab->closing = 1;
         g_cli_model.dirty |= CLI_MODEL_DIRTY(CLI_SNAPSHOT_TABS);

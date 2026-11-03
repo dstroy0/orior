@@ -68,9 +68,9 @@ static const char *const s_view_commands[] = {"sort-ascending", "sort-descending
                                               "upper-case",     "lower-case",      "title-case"};
 // the commands that run here whatever else their keys might mean, the terminal's among them
 static const char *const s_own_commands[] = {
-    "exit",           "close-editor", "close-all", "last-editor", "reduce-motion", "preferences",   "terminal-view",
-    "toggle",         "new",          "split",     "clear",       "kill",          "terminal-copy", "terminal-paste",
-    "terminal-close", "save",         "save-all"};
+    "exit", "close-editor", "close-all", "last-editor", "reduce-motion", "preferences",    "terminal-view", "toggle",
+    "new",  "split",        "clear",     "kill",        "terminal-copy", "terminal-paste", "terminal-close", "save",
+    "save-all"};
 
 typedef struct
 {
@@ -118,8 +118,8 @@ EMBED_INLINE int commands_by_name(const ControllerCommandsCtx *args)
     return cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = args->required, .cap = 32ULL});
 }
 
-// whether the item cannot be chosen: it needs a file open while none is, text chosen in the terminal while none is, the
-// tab shown changed while it is not or any tab changed while none is, it is never chosen, or it has no command
+// whether the item cannot be chosen: it needs a file open while none is, text chosen in the terminal while none is,
+// the tab shown changed while it is not or any tab changed while none is, it is never chosen, or it has no command
 EMBED_INLINE int commands_item_disabled(const ControllerCommandsCtx *args)
 {
     const char *const needs = args->item->needs;

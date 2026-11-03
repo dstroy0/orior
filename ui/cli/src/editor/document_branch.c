@@ -2376,6 +2376,25 @@ char *cli_document_text_alloc(const CliDocumentKeyCfg *args)
     return reserved;
 }
 
+int cli_document_file_put(const CliDocumentOutCfg *args)
+{
+    const CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
+    if ((one == NULL) || one->paged)
+    {
+        mmgr_line_put(args->err_msg, "no text read whole is stored under ");
+        mmgr_line_put(args->err_msg, args->key);
+        return 0;
+    }
+    const CliLines *const lines = &one->lines;
+    const char *const ending = lines->crlf ? "\r\n" : "\n";
+    for (unsigned int line = 0u; line < lines->lines; line += 1u)
+    {
+        mmgr_line_put(args->out, (line != 0u) ? ending : "");
+        EMBED_CALL(branch_line_append, DocumentBranchCtx, .lines = lines, .line = line, .out = args->out);
+    }
+    return mmgr_line_ok(args->out);
+}
+
 // the lines asked of a stored text, `first_u64` to `last_u64` cut to the text, into `first_pointer` and `end_pointer`,
 // the last of them; the colorer's own state the first is entered in, the scope after its mark left out, into
 // `entered`; and the lines written into `out`, a newline between each two, or where the text is paged its key into

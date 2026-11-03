@@ -197,6 +197,11 @@ int cli_document_bounds(const CliDocumentKeyLowCfg *args);
 // for `owner`, given back with persistent_buf_release, its bytes into `size`: NULL where no text read whole is stored
 // under `key` or the cells cannot meet it (document_branch.c)
 char *cli_document_text_alloc(const CliDocumentKeyCfg *args);
+// the text read whole stored under `key` put into `out` as its file holds it, a line at a time, its letters as the file
+// was read and each line but the last ended as the text's lines were read, by a newline or a carriage return and a
+// newline; `out` hands its bytes on as it fills, as the file writer's line does: 1, or 0 with why given where no text
+// read whole is stored under `key` or `out` refused its bytes (document_branch.c)
+int cli_document_file_put(const CliDocumentOutCfg *args);
 // the lines from `from` to before `to` of the branch under `key` the page's mirror, those about its view: those it did
 // not mirror before handed on with the runs the walk saved for them, and colored again where they save none, and lines
 // outside them colored with no runs handed on: 1, or 0 where no text is stored under `key`. A text stored hands every
@@ -638,10 +643,12 @@ EMBED_TABLE_STORAGE CliDocumentContextNs cli_document_context EMBED_UNUSED = {
 typedef struct
 {
     int (*paged_edit)(const CliDocumentOutCfg *args);
+    int (*file_put)(const CliDocumentOutCfg *args);
 } CliDocumentOutNs;
-EMBED_TABLE_LAYOUT(CliDocumentOutNs, paged_edit);
+EMBED_TABLE_LAYOUT(CliDocumentOutNs, paged_edit, file_put);
 EMBED_TABLE_STORAGE CliDocumentOutNs cli_document_out EMBED_UNUSED = {
     .paged_edit = cli_document_paged_edit,
+    .file_put = cli_document_file_put,
 };
 
 typedef struct

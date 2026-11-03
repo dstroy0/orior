@@ -279,6 +279,32 @@ void test_a_text_is_stored_with_its_shape_until_it_is_released(void)
     TEST_ASSERT_FALSE(EMBED_CALL(cli_document_text.shape, CliDocumentTextCfg, .key = "stored", .shape = &shape));
 }
 
+// the text stored under `key` put as its file holds it, asserted to read `required`
+static void assert_file_put(const char *key, const char *required)
+{
+    char put[64];
+    char why[128];
+    VerbaLinea out = {put, sizeof(put), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_out.file_put, CliDocumentOutCfg, .key = key, .out = &out, .err_msg = &err_msg));
+    CLI_TEST_ASSERT_TEXT(required, put, out.at);
+}
+
+void test_a_text_is_put_as_its_file_holds_it_its_line_ends_as_they_were_read(void)
+{
+    CliShape shape;
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "put", .text = "one\n\xC5\xBFtwo\n", .size = 10ull, .shape = &shape));
+    assert_file_put("put", "one\n\xC5\xBFtwo\n");
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_text.store, CliDocumentTextCfg, .key = "put", .text = "a\r\nb", .size = 4ull, .shape = &shape));
+    assert_file_put("put", "a\r\nb");
+    EMBED_CALL(cli_document.release, CliDocumentCfg, .key = "put");
+    char why[128];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    char put[8];
+    VerbaLinea out = {put, sizeof(put), 0ull};
+    TEST_ASSERT_FALSE_MESSAGE(EMBED_CALL(cli_document_out.file_put, CliDocumentOutCfg, .key = "put", .out = &out, .err_msg = &err_msg), "no text is stored under the key");
+}
+
 void test_find_with_case(void)
 {
     assert_found(lines_of("Line one line\nnoline LINE\n\xC5\xBFtar KING"), needle_of("line", 0, 1, 0), 100ull, "[[0,9,13],[1,2,6]]");

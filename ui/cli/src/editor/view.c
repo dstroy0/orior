@@ -40,8 +40,8 @@ typedef struct CliViewEdit
     struct CliViewEdit *before;
     struct CliViewEdit *after;
 } CliViewEdit;
-// A step: its first and last edits, how many, the kind of edit it holds and when its last was written, the state the
-// text stands in once it is done, and where the cursor and the anchor stood before it and after it
+// A step: its first and last edits, how many, the kind of edit it holds and when its last was written, and where the
+// cursor and the anchor stood before it and after it
 typedef struct
 {
     CliViewEdit *first;
@@ -49,7 +49,6 @@ typedef struct
     unsigned int edits;
     unsigned int kind;
     unsigned long long at_ms;
-    unsigned long long state;
     CliPosition cursor_before;
     CliPosition anchor_before;
     CliPosition cursor_after;
@@ -68,8 +67,7 @@ typedef struct
 // columns; the cursor and the anchor; the column the cursor saves as it moves up and down, in cells; the selections
 // Expand Selection grew from, each its cursor and its anchor, how many, and the selection it last made; the
 // indentation; the frames written; the steps, in a cell of their own, how many are stored and how many of them are
-// done, those past the done ones being undone, and the state the text stands in with none of them done; the folds
-// closed, in a cell of their own in the order of their first
+// done, those past the done ones being undone; the folds closed, in a cell of their own in the order of their first
 // lines, how many and the work state; find: whether its bar is open and whether the keys are its own, its query in a
 // cell of its own, in units, its length, the work state and where its cursor stands, whether it seeks a pattern, with
 // case and whole words, whether the matches are to be found anew, the matches, each a line, a from and a to column, in
@@ -124,7 +122,8 @@ typedef struct
     unsigned int steps;
     unsigned int steps_capacity;
     unsigned int done;
-    unsigned long long base_state;
+    const CliViewEdit *save_point;
+    int save_point_lost;
     CliViewFold *fold;
     unsigned int folds;
     unsigned int folds_capacity;
@@ -178,8 +177,6 @@ typedef struct
 #define CLI_VIEW_KIND_DELETE_FORWARD 4u
 
 static CliView *s_views;
-// the last state any view's text was put in, each new state the one after it; the views are the controller's thread's
-static unsigned long long s_state_last;
 
 typedef struct
 {
@@ -313,12 +310,13 @@ EMBED_INLINE int view_by_name(const ViewCtx *args)
     return cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = args->required, .cap = 64ULL});
 }
 
-// the steps from `from` on let go, their cells given back
+// the steps from `from` on let go, their cells given back, the view's save point lost where it stood on one of them
 EMBED_INLINE void view_step_free(const ViewCtx *args)
 {
     for (CliViewEdit *edit = args->step->first; edit != NULL;)
     {
         CliViewEdit *const after = edit->after;
+        args->view->save_point_lost = args->view->save_point_lost || (edit == args->view->save_point);
         g_cli_cells->persistent_buf_release(edit, &g_cli_views_cells);
         edit = after;
     }
@@ -328,7 +326,7 @@ EMBED_INLINE void view_steps_cut(const ViewCtx *args)
 {
     for (unsigned int at = args->from_u32; at < args->view->steps; at += 1u)
     {
-        EMBED_CALL(view_step_free, ViewCtx, .step = &args->view->step[at]);
+        EMBED_CALL(view_step_free, ViewCtx, .view = args->view, .step = &args->view->step[at]);
     }
     args->view->steps = (args->from_u32 < args->view->steps) ? args->from_u32 : args->view->steps;
     args->view->done = (args->view->done < args->view->steps) ? args->view->done : args->view->steps;
@@ -573,8 +571,6 @@ int cli_view_open(const CliViewCfg *args)
     (void)mmgr_line_finish(&pathed);
     view->rows = 1u;
     view->paged = paged;
-    s_state_last += 1ULL;
-    view->base_state = s_state_last;
     EMBED_CALL(cli_editorconfig.indent, CliEditorconfigCfg, .path = path, .indent = &view->indent);
     EMBED_CALL(view_language_read, ViewCtx, .view = view);
     return 1;
@@ -1731,12 +1727,12 @@ static int view_edit_cell_write(const ViewCtx *args)
             }
             args->view->steps_capacity = CLI_VIEW_STEPS;
         }
-        // the steps full, the oldest goes and those after it come down, the state it left the text in standing for
-        // none of them done
+        // the steps full, the oldest goes and those after it come down, a save point at the text as it opened lost
+        // with it
         if (args->view->steps == args->view->steps_capacity)
         {
-            args->view->base_state = args->view->step[0].state;
-            EMBED_CALL(view_step_free, ViewCtx, .step = &args->view->step[0]);
+            args->view->save_point_lost = args->view->save_point_lost || (args->view->save_point == NULL);
+            EMBED_CALL(view_step_free, ViewCtx, .view = args->view, .step = &args->view->step[0]);
             memor.move_down(&(MemoriaCfg){.dst = &args->view->step[0],
                                           .src = &args->view->step[1],
                                           .bytes = (size_t)(args->view->steps - 1u) * sizeof(*args->view->step)});
@@ -1759,8 +1755,6 @@ static int view_edit_cell_write(const ViewCtx *args)
     step->last = args->made;
     step->edits += 1u;
     step->at_ms = now;
-    s_state_last += 1ULL;
-    step->state = s_state_last;
     args->view->done = args->view->steps;
     EMBED_CALL(view_move, ViewCtx, .view = args->view, .place = args->made->end, .extend = 0, .saved = 0);
     step->cursor_after = args->view->cursor;
@@ -4707,6 +4701,38 @@ int cli_view_serving(const CliViewFullCfg *args)
     return serving;
 }
 
+// the last edit of the step the view stands after, NULL where it stands before every step
+EMBED_INLINE const CliViewEdit *view_place(const ViewCtx *args)
+{
+    return (args->view_read->done != 0u) ? args->view_read->step[args->view_read->done - 1u].last : NULL;
+}
+
+void cli_view_saved(const CliViewCfg *args)
+{
+    CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key);
+    if (view != NULL)
+    {
+        view->save_point = EMBED_CALL(view_place, ViewCtx, .view_read = view);
+        view->save_point_lost = 0;
+    }
+}
+
+void cli_view_unsaved(const CliViewCfg *args)
+{
+    CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key);
+    if (view != NULL)
+    {
+        view->save_point_lost = 1;
+    }
+}
+
+int cli_view_modified(const CliViewCfg *args)
+{
+    const CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key);
+    return (view != NULL) &&
+           (view->save_point_lost || (EMBED_CALL(view_place, ViewCtx, .view_read = view) != view->save_point));
+}
+
 int cli_view_changed_alloc(const CliViewCfg *args)
 {
     CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key);
@@ -4716,16 +4742,6 @@ int cli_view_changed_alloc(const CliViewCfg *args)
         view->changed = 0;
     }
     return changed;
-}
-
-unsigned long long cli_view_state(const CliViewCfg *args)
-{
-    const CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key);
-    if (view == NULL)
-    {
-        return 0ULL;
-    }
-    return (view->done != 0u) ? view->step[view->done - 1u].state : view->base_state;
 }
 
 // the span of the word the place at `line`, `col` touches, inside it or at either end: its first unit into `from` and

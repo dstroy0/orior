@@ -477,60 +477,54 @@ void test_redo_restores_the_typing(void)
     assert_reads(0ull, 1ull, "int main(void)");
 }
 
-// the state the view stands in, as the view numbers it
-static unsigned long long state_now(void)
+// whether the view's text reads modified against its save point
+static int modified_now(void)
 {
-    return EMBED_CALL(cli_view_table.state, CliViewCfg, .key = s_key);
+    return EMBED_CALL(cli_view_table.modified, CliViewCfg, .key = s_key);
 }
 
-void test_a_state_undone_back_to_reads_its_number_again_and_redo_reads_the_one_after(void)
+void test_a_view_opens_at_its_save_point_and_an_edit_moves_it_away(void)
 {
     fresh(s_text);
-    const unsigned long long opened = state_now();
-    TEST_ASSERT_NOT_EQUAL_UINT64(0ull, opened);
-    EMBED_CALL(key, CliNameCfg, .name = "End");
-    TEST_ASSERT_EQUAL_UINT64_MESSAGE(opened, state_now(), "a move leaves the state as it stands");
+    TEST_ASSERT_FALSE_MESSAGE(modified_now(), "a view opens at its save point");
     typed("x");
-    const unsigned long long typed_state = state_now();
-    TEST_ASSERT_NOT_EQUAL_UINT64(opened, typed_state);
+    TEST_ASSERT_TRUE(modified_now());
     EMBED_CALL(key, CliNameCfg, .name = "Mod+Z");
-    TEST_ASSERT_EQUAL_UINT64_MESSAGE(opened, state_now(), "undo returns to the state the view opened in");
+    TEST_ASSERT_FALSE_MESSAGE(modified_now(), "undo back to the save point");
     EMBED_CALL(key, CliNameCfg, .name = "Mod+Y");
-    TEST_ASSERT_EQUAL_UINT64_MESSAGE(typed_state, state_now(), "redo returns to the state after the typing");
+    TEST_ASSERT_TRUE(modified_now());
 }
 
-void test_typing_joined_to_a_step_moves_the_state_and_one_undo_takes_both_letters_back(void)
+void test_a_save_point_put_marks_the_view_where_it_stands(void)
 {
     fresh(s_text);
-    const unsigned long long opened = state_now();
     typed("a");
-    const unsigned long long first = state_now();
+    EMBED_CALL(cli_view_table.saved, CliViewCfg, .key = s_key);
+    TEST_ASSERT_FALSE(modified_now());
     typed("b");
-    TEST_ASSERT_NOT_EQUAL_UINT64_MESSAGE(first, state_now(), "a letter joined to the step is a state of its own");
+    TEST_ASSERT_TRUE_MESSAGE(modified_now(), "a letter joined to the saved step moves it past the save point");
     EMBED_CALL(key, CliNameCfg, .name = "Mod+Z");
-    TEST_ASSERT_EQUAL_UINT64(opened, state_now());
+    TEST_ASSERT_TRUE_MESSAGE(modified_now(), "undo takes the whole step back, before the save point");
+    EMBED_CALL(key, CliNameCfg, .name = "Mod+Y");
+    TEST_ASSERT_TRUE(modified_now());
 }
 
-void test_an_edit_after_an_undo_stands_in_a_state_no_edit_stood_in_before(void)
+void test_a_save_point_on_steps_let_go_is_lost_until_put_again(void)
 {
     fresh(s_text);
-    const unsigned long long opened = state_now();
+    EMBED_CALL(key, CliNameCfg, .name = "End");
     typed("a");
-    const unsigned long long first = state_now();
+    EMBED_CALL(key, CliNameCfg, .name = "Enter");
+    EMBED_CALL(cli_view_table.saved, CliViewCfg, .key = s_key);
     EMBED_CALL(key, CliNameCfg, .name = "Mod+Z");
-    typed("b");
-    TEST_ASSERT_NOT_EQUAL_UINT64(opened, state_now());
-    TEST_ASSERT_NOT_EQUAL_UINT64(first, state_now());
-}
-
-void test_a_view_opened_again_stands_in_a_state_of_its_own(void)
-{
-    fresh(s_text);
-    const unsigned long long before = state_now();
-    fresh(s_text);
-    TEST_ASSERT_NOT_EQUAL_UINT64(before, state_now());
-    TEST_ASSERT_EQUAL_UINT64_MESSAGE(0ull, EMBED_CALL(cli_view_table.state, CliViewCfg, .key = "check:none"),
-                                     "no view stands under a key not opened");
+    typed("c");
+    TEST_ASSERT_TRUE_MESSAGE(modified_now(), "the step saved at was let go");
+    EMBED_CALL(key, CliNameCfg, .name = "Mod+Z");
+    TEST_ASSERT_TRUE(modified_now());
+    EMBED_CALL(cli_view_table.saved, CliViewCfg, .key = s_key);
+    TEST_ASSERT_FALSE(modified_now());
+    EMBED_CALL(cli_view_table.unsaved, CliViewCfg, .key = s_key);
+    TEST_ASSERT_TRUE_MESSAGE(modified_now(), "a save point lost reads modified where the view stands");
 }
 
 void test_enter_breaks_the_line(void)

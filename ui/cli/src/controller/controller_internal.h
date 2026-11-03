@@ -17,37 +17,15 @@ typedef struct CliModelCtx CliModelCtx;
 // a part marked to be published again
 #define CLI_MODEL_DIRTY(part_) (1u << (part_))
 
-// A text as its file stands: the state its view stood in, how many lines it had, whether they ended in a carriage
-// return and a newline, its census, and its SHA-256 with whether that is known, a paged text's never being
-typedef struct
-{
-    unsigned long long state;
-    unsigned long long lines;
-    int crlf;
-    CliHistogram census;
-    unsigned char digest[32];
-    int digest_known;
-} CliModelSavedText;
-
 // One file open as a tab, its path and the key its text is stored under after it in the tab's own cell: whether a view
-// stands on it and whether its language's server took it; whether its text is paged; its text as its file stands, as it
-// opened or was last saved; the state its text stood in when last compared with that and whether it then differed, the
-// tab changed while it does; whether a close waits on a second; and whether a save is under way, CLI_MODEL_SAVING_AGAIN
-// where another was asked for meanwhile
-#define CLI_MODEL_SAVING 1
-#define CLI_MODEL_SAVING_AGAIN 2
+// stands on it, whether its language's server took it, and whether its close waits on a second
 typedef struct
 {
     char *path;
     char *key;
     int viewed;
     int served;
-    int paged;
-    CliModelSavedText saved;
-    unsigned long long compared_state;
-    int changed;
     int closing;
-    int saving;
 } CliModelTab;
 
 // A menu open: the catalog's list its rows come from, its rows in a cell, how many, the row marked and the row whose
@@ -141,14 +119,10 @@ void cli_model_tabs_close(const CliModelCtx *args);
 void cli_model_tab_last(const CliModelCtx *args);
 const char *cli_model_key(const CliModelCtx *args);
 void cli_model_shown_dirty(const CliModelCtx *args);
-// the saves (controller_save.c): the tab `at` compared with its file as it stands, marked changed while its text
-// differs from that and the tabs marked dirty where the mark moved: the view's state the one its file stands at is no
-// change, and a text read whole whose lines, line ends, census and SHA-256 all match its file's is none either, as a
-// letter typed and taken out again; the tab `at`'s text written to its file on the files' lane, a paged text's through
-// the pages, its line ends as it read them, the tab no longer changed nor its close waiting once the write comes back;
-// every changed tab saved so; and whether the save's need `path` is met, changed-active while the tab shown is changed
-// and changed while any tab is: 1, or 0 where it is not or is none of these
-void cli_model_tab_compare(const CliModelCtx *args);
+// the saves (controller_save.c): the tab `at`'s text written to its file on the files' lane through the file writer,
+// a paged text's through the pages, its view's save point put as the save is asked for and lost where the write fails;
+// every tab with changes not saved saved so; and whether the save's need `path` is met, changed-active while the tab
+// shown has changes not saved and changed while any tab has: 1, or 0 where it is not or is none of these
 void cli_model_tab_save(const CliModelCtx *args);
 void cli_model_tabs_save(const CliModelCtx *args);
 int cli_model_save_needs(const CliModelCtx *args);
@@ -175,15 +149,6 @@ void cli_model_notices_show_again(const CliModelCtx *args);
 int cli_model_notices_step(const CliModelCtx *args);
 unsigned long long cli_model_notices_due_ms(const CliModelCtx *args);
 void cli_model_notices_restore(const CliModelCtx *args);
-// the text stored under `key` as its file would stand: its lines, line ends and census, and where `digest` is 1 its
-// SHA-256 where it is read whole, on whatever thread (controller_save.c)
-typedef struct
-{
-    const char *key;
-    CliModelSavedText *text;
-    int digest;
-} CliModelSavedTextCfg;
-void cli_model_saved_text_read(const CliModelSavedTextCfg *args);
 // orior's folder (controller_tabs.c): `value` saved under the key `path` on the files' lane, here where `on` is 1, the
 // window ending; the session as it stands saved the same way; and what `input`, a CliStateEntries, saves of the tree's
 // tabs and the strip's group taken as the window begins
@@ -381,14 +346,12 @@ EMBED_TABLE_STORAGE CliModelCommandsNs cli_model_commands EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*tab_compare)(const CliModelCtx *args);
     void (*tab_save)(const CliModelCtx *args);
     void (*tabs_save)(const CliModelCtx *args);
     int (*needs)(const CliModelCtx *args);
 } CliModelSaveNs;
-EMBED_TABLE_LAYOUT(CliModelSaveNs, tab_compare, tab_save, tabs_save, needs);
+EMBED_TABLE_LAYOUT(CliModelSaveNs, tab_save, tabs_save, needs);
 EMBED_TABLE_STORAGE CliModelSaveNs cli_model_save EMBED_UNUSED = {
-    .tab_compare = cli_model_tab_compare,
     .tab_save = cli_model_tab_save,
     .tabs_save = cli_model_tabs_save,
     .needs = cli_model_save_needs,
@@ -417,15 +380,6 @@ EMBED_TABLE_STORAGE CliModelNoticesNs cli_model_notices EMBED_UNUSED = {
     .step = cli_model_notices_step,
     .due_ms = cli_model_notices_due_ms,
     .restore = cli_model_notices_restore,
-};
-
-typedef struct
-{
-    void (*read)(const CliModelSavedTextCfg *args);
-} CliModelSavedTextNs;
-EMBED_TABLE_LAYOUT(CliModelSavedTextNs, read);
-EMBED_TABLE_STORAGE CliModelSavedTextNs cli_model_saved_text EMBED_UNUSED = {
-    .read = cli_model_saved_text_read,
 };
 
 typedef struct
