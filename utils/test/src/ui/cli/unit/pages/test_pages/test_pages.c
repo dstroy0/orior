@@ -273,7 +273,8 @@ static void wide_run_result(void)
     text_stored(s_wide_found, sizeof(s_wide_found), s_out, out.at);
     out.at = 0ull;
     err_msg.at = 0ull;
-    s_wide_saved = EMBED_CALL(cli_pages_path.save, CliPagesPathCfg, .key = "wide", .out = &out, .err_msg = &err_msg);
+    struct CliPaged *const read = EMBED_CALL(cli_pages_path.save_beside_alloc, CliPagesPathCfg, .key = "wide", .err_msg = &err_msg);
+    s_wide_saved = (read != NULL) && EMBED_CALL(cli_pages_place.save_place, CliPagesPlaceCfg, .read = read, .whole = 1, .err_msg = &err_msg);
     s_wide_sized = EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = path, .size_pointer = &s_wide_size);
     EMBED_CALL(cli_pages.release, CliPagesCfg, .key = "wide");
 }
@@ -401,4 +402,44 @@ void test_a_save_writes_every_byte_of_every_wide_line(void)
     TEST_ASSERT_TRUE(s_wide_saved);
     TEST_ASSERT_TRUE(s_wide_sized);
     TEST_ASSERT_EQUAL_UINT64(s_wide_total, s_wide_size);
+}
+
+// the size of the file at `path`, ~0 where there is none
+static unsigned long long size_of(const char *path)
+{
+    unsigned long long size = 0ull;
+    return EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = path, .size_pointer = &size) ? size : ~0ull;
+}
+
+void test_a_save_put_back_leaves_the_file_as_it_was_and_one_put_in_place_replaces_it(void)
+{
+    char path[CLI_PATH_MAX_LEN];
+    char beside[CLI_PATH_MAX_LEN];
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_folder, .relative = "placed.txt", .joined = path);
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_folder, .relative = ".placed.txt.saving", .joined = beside);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = path, .bytes = "one\ntwo\n", .size = 8ull, .fresh = 1));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_pages_path.open, CliPagesPathCfg, .key = "placed", .path = path, .out = &out, .err_msg = &err_msg));
+    TEST_ASSERT_TRUE(shape_indexed("placed").indexed);
+    const CliEdit edit = {{0ull, 0ull}, {0ull, 0ull}, "x", 1ull};
+    const CliEdit *const changes[1] = {&edit};
+    const unsigned int edits[1] = {1u};
+    out.at = 0ull;
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_pages_out_err_msg.edit, CliPagesOutErrMsgCfg, .key = "placed", .changes = changes, .edits = edits, .count_u32 = 1u, .out = &out, .err_msg = &err_msg));
+    struct CliPaged *read = EMBED_CALL(cli_pages_path.save_beside_alloc, CliPagesPathCfg, .key = "placed", .err_msg = &err_msg);
+    TEST_ASSERT_NOT_NULL(read);
+    TEST_ASSERT_EQUAL_UINT64_MESSAGE(9ull, size_of(beside), "the text with its edit written beside the file");
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_pages_place.save_place, CliPagesPlaceCfg, .read = read, .whole = 0, .err_msg = &err_msg));
+    TEST_ASSERT_EQUAL_UINT64_MESSAGE(~0ull, size_of(beside), "nothing left beside the file");
+    TEST_ASSERT_EQUAL_UINT64_MESSAGE(8ull, size_of(path), "the file as it was");
+    read = EMBED_CALL(cli_pages_path.save_beside_alloc, CliPagesPathCfg, .key = "placed", .err_msg = &err_msg);
+    TEST_ASSERT_NOT_NULL(read);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_pages_place.save_place, CliPagesPlaceCfg, .read = read, .whole = 1, .err_msg = &err_msg));
+    TEST_ASSERT_EQUAL_UINT64(~0ull, size_of(beside));
+    TEST_ASSERT_EQUAL_UINT64_MESSAGE(9ull, size_of(path), "the file replaced by the text with its edit");
+    const PagesShape shape = shape_indexed("placed");
+    TEST_ASSERT_TRUE_MESSAGE(shape.indexed, "the text stored in place reads the new file, its index whole");
+    TEST_ASSERT_EQUAL_UINT64(3ull, shape.lines);
+    EMBED_CALL(cli_pages.release, CliPagesCfg, .key = "placed");
 }

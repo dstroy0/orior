@@ -4,6 +4,7 @@
 #ifndef DOCUMENT_INTERNAL_H
 #define DOCUMENT_INTERNAL_H
 #include "document.h"
+#include "embed_atomic.h"
 #include "embed_dispatch_layout.h"
 
 typedef struct CliDocumentCtx CliDocumentCtx;
@@ -49,8 +50,9 @@ typedef struct CliDocumentKeyCtx CliDocumentKeyCtx;
 // lines the page holds alone. Its lines are colored with the lock given back: a coloring claims lines under the lock,
 // colors them with no lock taken and puts what it found in under the lock again. For that the text saves the serial its
 // lines and states stand at, a number no text took before, taken anew each time they are stored again, edited or
-// colored by another grammar, so a coloring that finds it moved puts nothing in; how many colorings and walks hold it
-// across the lock given back, and whether it was let go while one did, its cells given back as the last ends; whether a
+// colored by another grammar, so a coloring that finds it moved puts nothing in; how many colorings, walks and saves
+// read it on threads of their own, counted atomically, and whether it was let go while one did, its cells freed as the
+// last ends; whether a
 // walker walks it, one at a time, and whether the walk found nothing to color on it since it last moved; whether every
 // name of its grammar has its roles read; and the lines each coloring under way claims, from `claim_from` to before
 // `claim_to`, a place free where the two are the same, which the walk leaves to it. A paged text is a branch the walk
@@ -89,7 +91,7 @@ typedef struct CliStoredText
     unsigned int run_used;
     unsigned int run_capacity;
     unsigned long long serial;
-    unsigned int readers;
+    embed_atomic_u32 readers;
     int let_go;
     int walked;
     int resting;

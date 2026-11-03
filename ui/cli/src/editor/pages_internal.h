@@ -137,13 +137,19 @@ extern CliWake g_cli_index_wake;
 // contains, as far as the index has read; the text's lines from `from` to before `to`, as far as it contains them, into
 // `lines`: 1, or 0 with why given; the text's shape written; and the file at `path` opened as the text `key`, its index
 // read behind where `behind` is set and whole before it answers where not: 1, or 0 with why given. The pages' lock is
-// acquired around each (pages.c)
+// acquired around each. Then a text `key` for the file at `path`, not stored, its index read whole from the
+// file at `index_path`, where the same bytes stand until they are moved to `path`: the text, or NULL with why written
+// into `err_msg`; `one` stored in place of the text stored under its key, that one let go; and `one`, not stored, let
+// go (pages.c)
 CliPaged *cli_paged_get(const CliPagesErrMsgCtx *args);
 unsigned long long cli_page_index(const CliPagesOneCtx *args);
 unsigned long long cli_page_length(const CliPagesCtx *args);
 int cli_page_lines_get(const CliPagesLinesErrMsgCtx *args);
 void cli_page_shape_write(const CliPagesOneCtx *args);
 int cli_page_open_read_state(const CliPagesErrMsgCtx *args);
+CliPaged *cli_page_read_alloc(const CliPagesErrMsgCtx *args);
+void cli_page_store(const CliPagesOneCtx *args);
+void cli_page_free(const CliPagesOneCtx *args);
 
 // the path beside `path` named a dot, its file's name and `ending`; and the byte of the shadow line `line` of a written
 // piece of `one` starts at, its end past its last line (pages_shadow.c)
@@ -177,6 +183,7 @@ struct CliPagesErrMsgCtx
     VerbaLinea *out;
     const char *path;
     int behind;
+    const char *index_path;
 };
 
 struct CliPagesLinesLinesFirstCtx
@@ -271,22 +278,28 @@ typedef struct
 {
     CliPaged *(*paged_get)(const CliPagesErrMsgCtx *args);
     int (*page_open_read_state)(const CliPagesErrMsgCtx *args);
+    CliPaged *(*page_read_alloc)(const CliPagesErrMsgCtx *args);
 } CliPagesErrMsgNs;
-EMBED_TABLE_LAYOUT(CliPagesErrMsgNs, paged_get, page_open_read_state);
+EMBED_TABLE_LAYOUT(CliPagesErrMsgNs, paged_get, page_open_read_state, page_read_alloc);
 EMBED_TABLE_STORAGE CliPagesErrMsgNs cli_pages_err_msg_internal EMBED_UNUSED = {
     .paged_get = cli_paged_get,
     .page_open_read_state = cli_page_open_read_state,
+    .page_read_alloc = cli_page_read_alloc,
 };
 
 typedef struct
 {
     unsigned long long (*page_index)(const CliPagesOneCtx *args);
     void (*page_shape_write)(const CliPagesOneCtx *args);
+    void (*page_store)(const CliPagesOneCtx *args);
+    void (*page_free)(const CliPagesOneCtx *args);
 } CliPagesOneNs;
-EMBED_TABLE_LAYOUT(CliPagesOneNs, page_index, page_shape_write);
+EMBED_TABLE_LAYOUT(CliPagesOneNs, page_index, page_shape_write, page_store, page_free);
 EMBED_TABLE_STORAGE CliPagesOneNs cli_pages_one_internal EMBED_UNUSED = {
     .page_index = cli_page_index,
     .page_shape_write = cli_page_shape_write,
+    .page_store = cli_page_store,
+    .page_free = cli_page_free,
 };
 
 typedef struct

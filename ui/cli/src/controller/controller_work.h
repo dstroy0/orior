@@ -16,10 +16,12 @@ typedef struct CliControllerWorkCfg CliControllerWorkCfg;
 
 // the lanes begun: 1, or 0 where the cells cannot meet their rings; from the controller's thread alone, `run` posted to
 // `lane` with `context`, and `done` run on the controller's thread with it after, the window's busy circle turning
-// until it has where `busy` is 1; each `done` come back run: 1 where any was; and the lanes ended, every piece posted
-// finished
+// until it has where `busy` is 1, both run on the controller's thread at once where the lane's ring is full; the same
+// posted where the lane's ring has a segment free: 1, or 0 where it is full, nothing run; each `done` come back run: 1
+// where any was; and the lanes ended, every piece posted finished
 int cli_controller_work_begin(void);
 void cli_controller_work_post(const CliControllerWorkCfg *args);
+int cli_controller_work_try_post(const CliControllerWorkCfg *args);
 int cli_controller_work_step(void);
 void cli_controller_work_end(void);
 
@@ -35,10 +37,12 @@ struct CliControllerWorkCfg
 typedef struct
 {
     void (*post)(const CliControllerWorkCfg *args);
+    int (*try_post)(const CliControllerWorkCfg *args);
 } CliControllerWorkNs;
-EMBED_TABLE_LAYOUT(CliControllerWorkNs, post);
+EMBED_TABLE_LAYOUT(CliControllerWorkNs, post, try_post);
 EMBED_TABLE_STORAGE CliControllerWorkNs cli_controller_work EMBED_UNUSED = {
     .post = cli_controller_work_post,
+    .try_post = cli_controller_work_try_post,
 };
 
 #endif

@@ -13,6 +13,7 @@
 #include "ui/cli/src/editor/files.h"
 #include "ui/cli/src/editor/view.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
+#include "embed_atomic.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -294,16 +295,65 @@ static char s_root[CLI_PATH_MAX_LEN];
 // what a file read back holds
 static unsigned char s_read[256];
 
-// the controller's work stepped until the window has nothing it waits on, ten seconds at the most
+// the controller's work and its saves waiting for the files' lane stepped until the window has nothing it waits on,
+// ten seconds at the most
 static void work_rested(void)
 {
     const unsigned long long until = cli_clock_milliseconds() + 10000ULL;
     (void)cli_controller_work_step();
+    (void)EMBED_CALL(cli_model_save.step, CliModelCtx, .at = 0u);
     while ((g_cli_model.busy != 0u) && (cli_clock_milliseconds() < until))
     {
         (void)cli_controller_work_step();
+        (void)EMBED_CALL(cli_model_save.step, CliModelCtx, .at = 0u);
     }
     TEST_ASSERT_EQUAL_UINT_MESSAGE(0u, g_cli_model.busy, "the work came back within ten seconds");
+}
+
+// whether the files' lane may go on past the piece that stops it, and whether it runs such a piece
+static embed_atomic_u32 s_lane_free = EMBED_ATOMIC_INIT(1u);
+static embed_atomic_u32 s_lane_stopped;
+
+// a piece that stops the files' lane until the lane is let free, and what comes back of it
+static void lane_stopped(void *context)
+{
+    (void)context;
+    EMBED_ATOMIC_STORE(&s_lane_stopped, 1u);
+    CliWake pause = CLI_WAKE_INIT;
+    while (EMBED_ATOMIC_LOAD(&s_lane_free) == 0u)
+    {
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &pause, .milliseconds_u64 = 1ull);
+    }
+}
+
+static void lane_stopped_done(void *context)
+{
+    (void)context;
+}
+
+// the files' lane stopped on a piece it runs, and more posted behind it until `pieces` stand posted in all, as many as
+// its ring takes where `pieces` is 0: how many were posted
+static unsigned int lane_stopped_behind(unsigned int pieces)
+{
+    EMBED_ATOMIC_STORE(&s_lane_free, 0u);
+    EMBED_ATOMIC_STORE(&s_lane_stopped, 0u);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_controller_work.try_post, CliControllerWorkCfg, .lane_at = CLI_WORK_FILES,
+                                .run = lane_stopped, .done = lane_stopped_done, .context = NULL, .busy = 1));
+    const unsigned long long until = cli_clock_milliseconds() + 10000ULL;
+    CliWake pause = CLI_WAKE_INIT;
+    while ((EMBED_ATOMIC_LOAD(&s_lane_stopped) == 0u) && (cli_clock_milliseconds() < until))
+    {
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &pause, .milliseconds_u64 = 1ull);
+    }
+    TEST_ASSERT_EQUAL_UINT_MESSAGE(1u, EMBED_ATOMIC_LOAD(&s_lane_stopped), "the lane runs the piece that stops it");
+    unsigned int posted = 1u;
+    while (((pieces == 0u) || (posted < pieces)) &&
+           EMBED_CALL(cli_controller_work.try_post, CliControllerWorkCfg, .lane_at = CLI_WORK_FILES,
+                      .run = lane_stopped, .done = lane_stopped_done, .context = NULL, .busy = 1))
+    {
+        posted += 1u;
+    }
+    return posted;
 }
 
 // every tab closed, a changed one by the second close it waits on
@@ -330,6 +380,8 @@ static void tree_made(const char *first, const char *first_text, const char *sec
     TEST_ASSERT_EQUAL_INT(0, setenv("ORIOR_HOME", "build/harness/controller_home", 1));
 #endif
     catalog_read_once();
+    EMBED_ATOMIC_STORE(&s_lane_free, 1u);
+    work_rested();
     tabs_closed();
     cli_unity_folder("build/harness/controller_tree", s_root);
     cli_unity_file(s_root, first, first_text);
@@ -494,6 +546,36 @@ void test_save_and_save_all_can_be_chosen_only_while_a_text_is_changed(void)
     (void)tab_opened("second.txt");
     TEST_ASSERT_FALSE_MESSAGE(file_row_enabled("Save"), "the tab shown is not changed");
     TEST_ASSERT_TRUE_MESSAGE(file_row_enabled("Save All"), "another tab is");
+}
+
+void test_a_save_waits_for_a_full_files_lane_and_writes_nothing_on_the_controllers_thread(void)
+{
+    tree_made("saved.txt", "one\n", NULL, NULL);
+    const unsigned int at = tab_opened("saved.txt");
+    typed("x");
+    TEST_ASSERT_NOT_EQUAL_UINT(0u, lane_stopped_behind(0u));
+    EMBED_CALL(cli_model_commands.command_run, CliModelCtx, .path = "save");
+    file_reads("saved.txt", "one\n");
+    TEST_ASSERT_FALSE_MESSAGE(EMBED_CALL(cli_model_save.step, CliModelCtx, .at = 0u),
+                              "the save waits while the lane's ring stands full");
+    EMBED_ATOMIC_STORE(&s_lane_free, 1u);
+    work_rested();
+    file_reads("saved.txt", "xone\n");
+    TEST_ASSERT_FALSE(changed(at));
+}
+
+void test_an_edit_after_a_save_begins_leaves_the_file_as_it_was_and_the_save_runs_again(void)
+{
+    tree_made("saved.txt", "one\n", NULL, NULL);
+    const unsigned int at = tab_opened("saved.txt");
+    typed("x");
+    TEST_ASSERT_EQUAL_UINT(1u, lane_stopped_behind(1u));
+    EMBED_CALL(cli_model_commands.command_run, CliModelCtx, .path = "save");
+    typed("y");
+    EMBED_ATOMIC_STORE(&s_lane_free, 1u);
+    work_rested();
+    file_reads("saved.txt", "xyone\n");
+    TEST_ASSERT_FALSE_MESSAGE(changed(at), "the save ran again for the text as it stands, its save point there");
 }
 
 void test_a_save_that_cannot_write_posts_a_failure_and_leaves_the_tab_changed(void)

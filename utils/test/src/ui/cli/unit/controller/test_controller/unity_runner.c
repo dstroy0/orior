@@ -6,6 +6,7 @@
 #include "ui/cli/src/controller/controller_work.h"
 #include "ui/cli/src/editor/files.h"
 #include "ui/cli/src/editor/view.h"
+#include "embed_atomic.h"
 
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
@@ -25,6 +26,8 @@ extern void test_a_changed_tab_closes_on_the_second_close_and_an_unchanged_one_o
 extern void test_close_all_closes_the_unchanged_tabs_and_marks_the_changed_ones(void);
 extern void test_save_all_writes_every_changed_tab(void);
 extern void test_save_and_save_all_can_be_chosen_only_while_a_text_is_changed(void);
+extern void test_a_save_waits_for_a_full_files_lane_and_writes_nothing_on_the_controllers_thread(void);
+extern void test_an_edit_after_a_save_begins_leaves_the_file_as_it_was_and_the_save_runs_again(void);
 extern void test_a_save_that_cannot_write_posts_a_failure_and_leaves_the_tab_changed(void);
 
 
@@ -87,22 +90,24 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\controller\\test_controller\\test_controller.c");
-  run_test(test_reduce_motion_shows_on_while_the_saved_setting_or_the_system_asks_for_less_motion, "test_reduce_motion_shows_on_while_the_saved_setting_or_the_system_asks_for_less_motion", 101);
-  run_test(test_a_menu_opened_anew_takes_a_new_serial_and_keeps_it_while_it_stands_open, "test_a_menu_opened_anew_takes_a_new_serial_and_keeps_it_while_it_stands_open", 130);
-  run_test(test_a_notice_answering_a_command_shows_at_once_and_stands_five_seconds, "test_a_notice_answering_a_command_shows_at_once_and_stands_five_seconds", 196);
-  run_test(test_a_failure_stands_fifteen_seconds_and_shows_its_first_line, "test_a_failure_stands_fifteen_seconds_and_shows_its_first_line", 211);
-  run_test(test_a_notice_answering_nothing_waits_for_the_work_to_rest, "test_a_notice_answering_nothing_waits_for_the_work_to_rest", 224);
-  run_test(test_a_break_shows_the_last_notice_waiting, "test_a_break_shows_the_last_notice_waiting", 237);
-  run_test(test_focus_holds_every_notice_until_it_ends, "test_focus_holds_every_notice_until_it_ends", 250);
-  run_test(test_silence_puts_a_kind_away_for_good_and_show_again_brings_it_back, "test_silence_puts_a_kind_away_for_good_and_show_again_brings_it_back", 268);
-  run_test(test_a_tab_is_changed_while_its_view_stands_away_from_its_save_point, "test_a_tab_is_changed_while_its_view_stands_away_from_its_save_point", 409);
-  run_test(test_save_writes_the_text_to_its_file_and_the_tab_is_no_longer_changed, "test_save_writes_the_text_to_its_file_and_the_tab_is_no_longer_changed", 422);
-  run_test(test_a_file_whose_lines_end_in_a_carriage_return_saves_with_them, "test_a_file_whose_lines_end_in_a_carriage_return_saves_with_them", 436);
-  run_test(test_a_changed_tab_closes_on_the_second_close_and_an_unchanged_one_on_the_first, "test_a_changed_tab_closes_on_the_second_close_and_an_unchanged_one_on_the_first", 445);
-  run_test(test_close_all_closes_the_unchanged_tabs_and_marks_the_changed_ones, "test_close_all_closes_the_unchanged_tabs_and_marks_the_changed_ones", 460);
-  run_test(test_save_all_writes_every_changed_tab, "test_save_all_writes_every_changed_tab", 471);
-  run_test(test_save_and_save_all_can_be_chosen_only_while_a_text_is_changed, "test_save_and_save_all_can_be_chosen_only_while_a_text_is_changed", 485);
-  run_test(test_a_save_that_cannot_write_posts_a_failure_and_leaves_the_tab_changed, "test_a_save_that_cannot_write_posts_a_failure_and_leaves_the_tab_changed", 499);
+  run_test(test_reduce_motion_shows_on_while_the_saved_setting_or_the_system_asks_for_less_motion, "test_reduce_motion_shows_on_while_the_saved_setting_or_the_system_asks_for_less_motion", 102);
+  run_test(test_a_menu_opened_anew_takes_a_new_serial_and_keeps_it_while_it_stands_open, "test_a_menu_opened_anew_takes_a_new_serial_and_keeps_it_while_it_stands_open", 131);
+  run_test(test_a_notice_answering_a_command_shows_at_once_and_stands_five_seconds, "test_a_notice_answering_a_command_shows_at_once_and_stands_five_seconds", 197);
+  run_test(test_a_failure_stands_fifteen_seconds_and_shows_its_first_line, "test_a_failure_stands_fifteen_seconds_and_shows_its_first_line", 212);
+  run_test(test_a_notice_answering_nothing_waits_for_the_work_to_rest, "test_a_notice_answering_nothing_waits_for_the_work_to_rest", 225);
+  run_test(test_a_break_shows_the_last_notice_waiting, "test_a_break_shows_the_last_notice_waiting", 238);
+  run_test(test_focus_holds_every_notice_until_it_ends, "test_focus_holds_every_notice_until_it_ends", 251);
+  run_test(test_silence_puts_a_kind_away_for_good_and_show_again_brings_it_back, "test_silence_puts_a_kind_away_for_good_and_show_again_brings_it_back", 269);
+  run_test(test_a_tab_is_changed_while_its_view_stands_away_from_its_save_point, "test_a_tab_is_changed_while_its_view_stands_away_from_its_save_point", 461);
+  run_test(test_save_writes_the_text_to_its_file_and_the_tab_is_no_longer_changed, "test_save_writes_the_text_to_its_file_and_the_tab_is_no_longer_changed", 474);
+  run_test(test_a_file_whose_lines_end_in_a_carriage_return_saves_with_them, "test_a_file_whose_lines_end_in_a_carriage_return_saves_with_them", 488);
+  run_test(test_a_changed_tab_closes_on_the_second_close_and_an_unchanged_one_on_the_first, "test_a_changed_tab_closes_on_the_second_close_and_an_unchanged_one_on_the_first", 497);
+  run_test(test_close_all_closes_the_unchanged_tabs_and_marks_the_changed_ones, "test_close_all_closes_the_unchanged_tabs_and_marks_the_changed_ones", 512);
+  run_test(test_save_all_writes_every_changed_tab, "test_save_all_writes_every_changed_tab", 523);
+  run_test(test_save_and_save_all_can_be_chosen_only_while_a_text_is_changed, "test_save_and_save_all_can_be_chosen_only_while_a_text_is_changed", 537);
+  run_test(test_a_save_waits_for_a_full_files_lane_and_writes_nothing_on_the_controllers_thread, "test_a_save_waits_for_a_full_files_lane_and_writes_nothing_on_the_controllers_thread", 551);
+  run_test(test_an_edit_after_a_save_begins_leaves_the_file_as_it_was_and_the_save_runs_again, "test_an_edit_after_a_save_begins_leaves_the_file_as_it_was_and_the_save_runs_again", 567);
+  run_test(test_a_save_that_cannot_write_posts_a_failure_and_leaves_the_tab_changed, "test_a_save_that_cannot_write_posts_a_failure_and_leaves_the_tab_changed", 581);
 
   return UNITY_END();
 }

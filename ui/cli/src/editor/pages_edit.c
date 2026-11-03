@@ -488,20 +488,20 @@ int cli_pages_find(const CliPagesOutErrMsgNeedleCfg *args)
     return read;
 }
 
-int cli_pages_save(const CliPagesPathCfg *args)
+CliPaged *cli_pages_save_beside_alloc(const CliPagesPathCfg *args)
 {
     VerbaLinea *err_msg = args->err_msg;
     CliPaged *const one =
         EMBED_CALL(cli_pages_err_msg_internal.paged_get, CliPagesErrMsgCtx, .key = args->key, .err_msg = err_msg);
     if (one == NULL)
     {
-        return 0;
+        return NULL;
     }
     const int done = one->index.done;
     if (!done)
     {
         mmgr_line_put(err_msg, "the file is still being read: it saves once it is read whole");
-        return 0;
+        return NULL;
     }
     CliPageLines lines = {0};
     // the text goes to the file as the tree writes every file: beside it, then moved over it once whole
@@ -511,7 +511,7 @@ int cli_pages_save(const CliPagesPathCfg *args)
                     .adjacent = adjacent, .err_msg = err_msg))
     {
         EMBED_CALL(cli_pages_lines_lines_first_internal.page_lines_free, CliPagesLinesLinesFirstCtx, .lines = &lines);
-        return 0;
+        return NULL;
     }
     // the lines go to the file through a stage of CLI_PAGE_SAVE_STAGE bytes, written whenever the next line would
     // not fit, and a line wider than the stage is written as it lies in the reading
@@ -559,7 +559,12 @@ int cli_pages_save(const CliPagesPathCfg *args)
         written && EMBED_CALL(save_stage, PagesEditCtx, .adjacent = adjacent, .block = &block, .err_msg = err_msg);
     g_cli_cells->persistent_buf_release(stage, &g_cli_editor_cells);
     EMBED_CALL(cli_pages_lines_lines_first_internal.page_lines_free, CliPagesLinesLinesFirstCtx, .lines = &lines);
-    if (!written)
+    // the file written beside read as the text it becomes once moved over the file, its index whole
+    CliPaged *const read =
+        written ? EMBED_CALL(cli_pages_err_msg_internal.page_read_alloc, CliPagesErrMsgCtx, .key = one->key,
+                             .path = one->path, .index_path = adjacent, .err_msg = err_msg)
+                : NULL;
+    if (read == NULL)
     {
         EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = adjacent);
         if (err_msg->at == 0ULL)
@@ -567,18 +572,30 @@ int cli_pages_save(const CliPagesPathCfg *args)
             mmgr_line_put(err_msg, adjacent);
             mmgr_line_put(err_msg, ": it could not be written");
         }
-        return 0;
     }
-    if (!EMBED_CALL(cli_files_path.save, CliFilesPathCfg, .adjacent_read = adjacent, .path = one->path,
-                    .file = one->path, .err_msg = err_msg))
+    return read;
+}
+
+int cli_pages_save_place(const CliPagesPlaceCfg *args)
+{
+    CliPaged *const read = args->read;
+    char adjacent[CLI_PATH_MAX_LEN];
+    const int beside = EMBED_CALL(cli_files_path_err_msg.saving_adjacent, CliFilesPathErrMsgCfg, .path = read->path,
+                                  .file = read->path, .adjacent = adjacent, .err_msg = args->err_msg);
+    if (beside && !args->whole)
     {
-        return 0;
+        EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = adjacent);
     }
-    char path[CLI_PATH_MAX_LEN];
-    memor.cpy(&(MemoriaCfg){.dst = path,
-                            .src = one->path,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = one->path, .cap = CLI_CELLS_POOL}) + 1u});
-    const int opened = EMBED_CALL(cli_pages_err_msg_internal.page_open_read_state, CliPagesErrMsgCtx, .key = args->key,
-                                  .path = path, .behind = 0, .out = args->out, .err_msg = err_msg);
-    return opened;
+    const int placed = beside && args->whole &&
+                       EMBED_CALL(cli_files_path.save, CliFilesPathCfg, .adjacent_read = adjacent, .path = read->path,
+                                  .file = read->path, .err_msg = args->err_msg);
+    if (placed)
+    {
+        EMBED_CALL(cli_pages_one_internal.page_store, CliPagesOneCtx, .one = read);
+    }
+    else
+    {
+        EMBED_CALL(cli_pages_one_internal.page_free, CliPagesOneCtx, .one = read);
+    }
+    return placed || (beside && !args->whole);
 }

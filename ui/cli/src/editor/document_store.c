@@ -39,7 +39,7 @@ void cli_document_serial_move(const CliDocumentCtx *args)
 
 void cli_document_holder_add(const CliDocumentCtx *args)
 {
-    args->one->readers += 1u;
+    (void)EMBED_ATOMIC_ADD_32(&args->one->readers, 1u);
 }
 
 typedef struct
@@ -261,7 +261,7 @@ EMBED_INLINE void cli_stored_let_go(const DocumentStoreCtx *args)
         *link = args->one->next;
     }
     args->one->let_go = 1;
-    if (args->one->readers == 0u)
+    if (EMBED_ATOMIC_LOAD(&args->one->readers) == 0u)
     {
         stored_cells_free(args);
     }
@@ -269,8 +269,9 @@ EMBED_INLINE void cli_stored_let_go(const DocumentStoreCtx *args)
 
 void cli_document_holder_end(const CliDocumentCtx *args)
 {
-    args->one->readers -= (args->one->readers != 0u) ? 1u : 0u;
-    if (args->one->let_go && (args->one->readers == 0u))
+    // each end follows its own add, so the count before it is 1 at the least
+    const embed_u32 before = EMBED_ATOMIC_ADD_32(&args->one->readers, (embed_u32)-1);
+    if (args->one->let_go && (before == 1u))
     {
         EMBED_CALL(stored_cells_free, DocumentStoreCtx, .one = args->one);
     }

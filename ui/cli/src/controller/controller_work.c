@@ -108,16 +108,13 @@ int cli_controller_work_begin(void)
     return 1;
 }
 
-void cli_controller_work_post(const CliControllerWorkCfg *args)
+int cli_controller_work_try_post(const CliControllerWorkCfg *args)
 {
     CliWorkLane *const lane_at = &s_lane[args->lane_at];
     size_t at = 0u;
-    // a full ring runs the piece here, a lane far behind already, which keeps every piece's `done` promised
     if (!anularis.seg_next(&(AnularisCfg){.ring = &lane_at->work_ring, .out_index = &at}))
     {
-        args->run(args->context);
-        args->done(args->context);
-        return;
+        return 0;
     }
     *(CliWorkPiece *)(void *)anularis.seg_at(&(AnularisCfg){.ring = &lane_at->work_ring, .index = at}) =
         (CliWorkPiece){args->run, args->done, args->context, args->busy};
@@ -128,6 +125,17 @@ void cli_controller_work_post(const CliControllerWorkCfg *args)
     }
     anularis.seg_publish(&(AnularisCfg){.ring = &lane_at->work_ring});
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &lane_at->wake);
+    return 1;
+}
+
+void cli_controller_work_post(const CliControllerWorkCfg *args)
+{
+    // a full ring runs the piece here, a lane far behind already, which keeps every piece's `done` promised
+    if (!cli_controller_work_try_post(args))
+    {
+        args->run(args->context);
+        args->done(args->context);
+    }
 }
 
 int cli_controller_work_step(void)
