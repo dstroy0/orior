@@ -85,6 +85,10 @@ typedef struct
     void (*found)(const CliEachAtCfg *args);
     void *context;
     const unsigned char *text;
+    unsigned long long existing;
+    const unsigned long long *candidates_read;
+    unsigned int candidate_count;
+    unsigned long long *left_out;
 } SiftCtx;
 // How rare a byte is in the census, larger the rarer: the bytes counted that are other bytes
 EMBED_INLINE unsigned long long cli_magnitude(const SiftCtx *args)
@@ -99,6 +103,139 @@ EMBED_INLINE int cli_agrees(const SiftCtx *args)
     return EMBED_CALL(cli_sift_fold.fold, CliSiftFoldCfg, .byte = args->window[args->at + args->offset],
                       .fold = fold) ==
            EMBED_CALL(cli_sift_fold.fold, CliSiftFoldCfg, .byte = args->needle[args->offset], .fold = fold);
+}
+
+// whether `offset` is among the first `anchor_count` of `anchors_read`
+EMBED_INLINE int cli_offset_among(const SiftCtx *args)
+{
+    for (unsigned int at = 0u; at < args->anchor_count; at += 1u)
+    {
+        if (args->anchors_read[at] == args->offset)
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// how rare the needle's byte at `offset` is in `histogram`, folded where `fold` is set
+EMBED_INLINE unsigned long long cli_needle_magnitude(const SiftCtx *args)
+{
+    return EMBED_CALL(
+        cli_magnitude, SiftCtx, .histogram = args->histogram,
+        .byte = EMBED_CALL(cli_sift_fold.fold, CliSiftFoldCfg, .byte = args->needle[args->offset], .fold = args->fold));
+}
+
+// The candidates into `anchors`, at most CLI_SIFT_CANDIDATES: the needle's offsets, the byte rarest in `histogram`
+// first, ties in the needle's order; a byte the needle repeats tests at each of its offsets what it tests at another
+// place, which the descent may want. Their count
+EMBED_INLINE unsigned int cli_candidates_ranked(const SiftCtx *args)
+{
+    unsigned long long *const candidates = args->anchors;
+    unsigned int candidate_count = 0u;
+    int going = 1;
+    while (going && (candidate_count < CLI_SIFT_CANDIDATES))
+    {
+        unsigned long long best = args->needle_length;
+        for (unsigned long long offset = 0ULL; offset < args->needle_length; offset += 1ULL)
+        {
+            if (!EMBED_CALL(cli_offset_among, SiftCtx, .anchors_read = candidates, .anchor_count = candidate_count,
+                            .offset = offset) &&
+                ((best == args->needle_length) ||
+                 (EMBED_CALL(cli_needle_magnitude, SiftCtx, .histogram = args->histogram, .needle = args->needle,
+                             .fold = args->fold, .offset = offset) >
+                  EMBED_CALL(cli_needle_magnitude, SiftCtx, .histogram = args->histogram, .needle = args->needle,
+                             .fold = args->fold, .offset = best))))
+            {
+                best = offset;
+            }
+        }
+        going = best != args->needle_length;
+        if (going)
+        {
+            candidates[candidate_count] = best;
+            candidate_count += 1u;
+        }
+    }
+    return candidate_count;
+}
+
+// the alignments the descent scores on, every so many of those a window of `length` holds for a needle of
+// `needle_length`, into s_existing as far as it holds them: their count
+EMBED_INLINE unsigned long long cli_alignments_sampled(const SiftCtx *args)
+{
+    const unsigned long long alignments = args->length - args->needle_length + 1ULL;
+    const unsigned long long stride = ((alignments / CLI_SIFT_SCORED) > 1ULL) ? (alignments / CLI_SIFT_SCORED) : 1ULL;
+    unsigned long long existing = 0ULL;
+    unsigned long long at = 0ULL;
+    while ((at < alignments) && (existing < (sizeof(s_existing) / sizeof(s_existing[0]))))
+    {
+        s_existing[existing] = at;
+        existing += 1ULL;
+        at += stride;
+    }
+    return existing;
+}
+
+// how many of the first `existing` alignments in s_existing agree with the needle at `offset`, those an anchor there
+// leaves
+EMBED_INLINE unsigned long long cli_agreeing(const SiftCtx *args)
+{
+    unsigned long long left = 0ULL;
+    for (unsigned long long at = 0ULL; at < args->existing; at += 1ULL)
+    {
+        left += EMBED_CALL(cli_agrees, SiftCtx, .window = args->window, .needle = args->needle, .offset = args->offset,
+                           .at = s_existing[at], .fold = args->fold)
+                    ? 1ULL
+                    : 0ULL;
+    }
+    return left;
+}
+
+// the candidate of the first `candidate_count` of `candidates_read`, not among the `anchor_count` placed in
+// `anchors_read`, that leaves the least of the `existing` alignments, the lesser offset among equals, the count it
+// leaves into `left_out`: `needle_length` where every candidate is placed
+EMBED_INLINE unsigned long long cli_candidate_best(const SiftCtx *args)
+{
+    unsigned long long best_left = 0ULL;
+    unsigned long long best_offset = args->needle_length;
+    for (unsigned int each = 0u; each < args->candidate_count; each += 1u)
+    {
+        const unsigned long long offset = args->candidates_read[each];
+        if (EMBED_CALL(cli_offset_among, SiftCtx, .anchors_read = args->anchors_read,
+                       .anchor_count = args->anchor_count, .offset = offset))
+        {
+            continue;
+        }
+        const unsigned long long left =
+            EMBED_CALL(cli_agreeing, SiftCtx, .window = args->window, .needle = args->needle, .offset = offset,
+                       .fold = args->fold, .existing = args->existing);
+        // the least refuted left, the lesser offset among equals
+        if ((best_offset == args->needle_length) || (left < best_left) ||
+            ((left == best_left) && (offset < best_offset)))
+        {
+            best_left = left;
+            best_offset = offset;
+        }
+    }
+    *args->left_out = best_left;
+    return best_offset;
+}
+
+// the first `existing` alignments in s_existing that agree with the needle at `offset` moved to its start: their count
+EMBED_INLINE unsigned long long cli_alignments_kept(const SiftCtx *args)
+{
+    unsigned long long count = 0ULL;
+    for (unsigned long long at = 0ULL; at < args->existing; at += 1ULL)
+    {
+        if (EMBED_CALL(cli_agrees, SiftCtx, .window = args->window, .needle = args->needle, .offset = args->offset,
+                       .at = s_existing[at], .fold = args->fold))
+        {
+            s_existing[count] = s_existing[at];
+            count += 1ULL;
+        }
+    }
+    return count;
 }
 
 // the anchors planned for `window`, ranked by `supplied`, a census stored with the text, where one is given, else by a
@@ -122,108 +259,31 @@ EMBED_INLINE unsigned int cli_plan_anchors_position(const SiftCtx *args)
         EMBED_CALL(cli_sift_window_length_fold_histogram.histogram, CliSiftWindowLengthFoldHistogramCfg,
                    .window = window, .length = length, .fold = fold, .histogram = &histogram);
     }
-    // The candidates: the needle's offsets, the rarest byte first, ties in the needle's order; a byte the needle
-    // repeats tests at each of its offsets what it tests at another place, which the descent may want
     unsigned long long candidates[CLI_SIFT_CANDIDATES];
-    unsigned int candidate_count = 0u;
-    while (candidate_count < CLI_SIFT_CANDIDATES)
-    {
-        unsigned long long best = args->needle_length;
-        for (unsigned long long offset = 0ULL; offset < args->needle_length; offset += 1ULL)
-        {
-            int chosen = 0;
-            unsigned int at = 0u;
-            while (!chosen && (at < candidate_count))
-            {
-                chosen = candidates[at] == offset;
-                at += 1u;
-            }
-            if (!chosen && ((best == args->needle_length) ||
-                            (EMBED_CALL(cli_magnitude, SiftCtx, .histogram = &histogram,
-                                        .byte = EMBED_CALL(cli_sift_fold.fold, CliSiftFoldCfg,
-                                                           .byte = args->needle[offset], .fold = fold)) >
-                             EMBED_CALL(cli_magnitude, SiftCtx, .histogram = &histogram,
-                                        .byte = EMBED_CALL(cli_sift_fold.fold, CliSiftFoldCfg,
-                                                           .byte = args->needle[best], .fold = fold)))))
-            {
-                best = offset;
-            }
-        }
-        if (best == args->needle_length)
-        {
-            break;
-        }
-        candidates[candidate_count] = best;
-        candidate_count += 1u;
-    }
-    const unsigned long long alignments = length - args->needle_length + 1ULL;
-    const unsigned long long stride = ((alignments / CLI_SIFT_SCORED) > 1ULL) ? (alignments / CLI_SIFT_SCORED) : 1ULL;
-    unsigned long long existing = 0ULL;
-    {
-        unsigned long long at = 0ULL;
-        while ((at < alignments) && (existing < (sizeof(s_existing) / sizeof(s_existing[0]))))
-        {
-            s_existing[existing] = at;
-            existing += 1ULL;
-            at += stride;
-        }
-    }
+    const unsigned int candidate_count =
+        EMBED_CALL(cli_candidates_ranked, SiftCtx, .histogram = &histogram, .needle = args->needle,
+                   .needle_length = args->needle_length, .fold = fold, .anchors = candidates);
+    unsigned long long existing =
+        EMBED_CALL(cli_alignments_sampled, SiftCtx, .length = length, .needle_length = args->needle_length);
     unsigned int positioned = 0u;
-    while (positioned < CLI_SIFT_ANCHORS)
+    int going = 1;
+    while (going && (positioned < CLI_SIFT_ANCHORS))
     {
         unsigned long long best_left = 0ULL;
-        unsigned long long best_offset = args->needle_length;
-        for (unsigned int each = 0u; each < candidate_count; each += 1u)
-        {
-            const unsigned long long offset = candidates[each];
-            int reserved = 0;
-            {
-                unsigned int at = 0u;
-                while (!reserved && (at < positioned))
-                {
-                    reserved = args->anchors[at] == offset;
-                    at += 1u;
-                }
-            }
-            if (reserved)
-            {
-                continue;
-            }
-            unsigned long long left = 0ULL;
-            for (unsigned long long at = 0ULL; at < existing; at += 1ULL)
-            {
-                left += EMBED_CALL(cli_agrees, SiftCtx, .window = window, .needle = args->needle, .offset = offset,
-                                   .at = s_existing[at], .fold = fold)
-                            ? 1ULL
-                            : 0ULL;
-            }
-            // the least refuted left, the lesser offset among equals
-            if ((best_offset == args->needle_length) || (left < best_left) ||
-                ((left == best_left) && (offset < best_offset)))
-            {
-                best_left = left;
-                best_offset = offset;
-            }
-        }
+        const unsigned long long best_offset = EMBED_CALL(
+            cli_candidate_best, SiftCtx, .candidates_read = candidates, .candidate_count = candidate_count,
+            .anchors_read = args->anchors, .anchor_count = positioned, .window = window, .needle = args->needle,
+            .needle_length = args->needle_length, .fold = fold, .existing = existing, .left_out = &best_left);
         // A level that refutes nothing the levels above it did not ends the descent, and the first level is always
         // placed
-        if ((best_offset == args->needle_length) || ((positioned != 0u) && (best_left >= existing)))
+        going = (best_offset != args->needle_length) && ((positioned == 0u) || (best_left < existing));
+        if (going)
         {
-            break;
+            existing = EMBED_CALL(cli_alignments_kept, SiftCtx, .window = window, .needle = args->needle,
+                                  .offset = best_offset, .fold = fold, .existing = existing);
+            args->anchors[positioned] = best_offset;
+            positioned += 1u;
         }
-        unsigned long long count = 0ULL;
-        for (unsigned long long at = 0ULL; at < existing; at += 1ULL)
-        {
-            if (EMBED_CALL(cli_agrees, SiftCtx, .window = window, .needle = args->needle, .offset = best_offset,
-                           .at = s_existing[at], .fold = fold))
-            {
-                s_existing[count] = s_existing[at];
-                count += 1ULL;
-            }
-        }
-        existing = count;
-        args->anchors[positioned] = best_offset;
-        positioned += 1u;
     }
     return positioned;
 }
