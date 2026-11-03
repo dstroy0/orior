@@ -68,6 +68,13 @@ typedef struct
     unsigned long long length;
     const char *name;
     unsigned int answers;
+    unsigned int declared;
+    unsigned int answer;
+    VerbaLinea *out;
+    int *all_gaps;
+    int *any_gap;
+    unsigned int line;
+    unsigned int ends;
 } ValidateAxiomsCtx;
 // whether `size` bytes of `text` and `length` bytes of `other` are the same
 EMBED_INLINE int report_same(const ValidateAxiomsCtx *args)
@@ -127,76 +134,121 @@ EMBED_INLINE unsigned int report_declare(const ValidateAxiomsCtx *args)
     return count;
 }
 
-void cli_validate_axioms_report(const CliValidateAnswersCtx *args)
+// the place among the `declared` declarations of the axiom named by `name`, `size` bytes of the last answer's text:
+// `declared` where none names it
+EMBED_INLINE unsigned int report_declared_at(const ValidateAxiomsCtx *args)
+{
+    const char *const text = g_cli_validate->last.text;
+    unsigned int at = 0u;
+    while ((at < args->declared) &&
+           !EMBED_CALL(report_same, ValidateAxiomsCtx, .text = text + s_axioms[s_declared[at].axioms].name,
+                       .size = s_axioms[s_declared[at].axioms].name_size, .other = args->name, .length = args->size))
+    {
+        at += 1u;
+    }
+    return at;
+}
+
+// the note the tool's `explains` gives the axiom `text`, `length` bytes, the first whose key it contains, put after
+// `, ` in `out`; nothing where none does
+EMBED_INLINE void report_explained(const ValidateAxiomsCtx *args)
 {
     const CliJson *const json = &g_cli_validate->json;
     const CliTool *const tool = &g_cli_validate->tool;
+    for (unsigned int member = (tool->explains != CLI_JSON_NONE) ? json->node[tool->explains].first : CLI_JSON_NONE;
+         member != CLI_JSON_NONE; member = json->node[member].next)
+    {
+        if (EMBED_CALL(cli_validate_text_length_internal.contains, CliValidateTextLengthCtx, .text = args->text,
+                       .length = args->length, .part = json->text + json->node[member].key))
+        {
+            mmgr_line_put(args->out, ", ");
+            mmgr_line_put(args->out, EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                                .json_read = json, .node = member, .length_pointer = NULL));
+            return;
+        }
+    }
+}
+
+// the axioms the answer `answer` rests on that the tool does not trust written into `out`, `; ` between them, each with
+// its note, and whether they are all gaps the tool names and whether any is into `all_gaps` and `any_gap`: whether any
+// is written
+EMBED_INLINE int report_axioms_listed(const ValidateAxiomsCtx *args)
+{
+    const CliJson *const json = &g_cli_validate->json;
+    const CliTool *const tool = &g_cli_validate->tool;
+    const char *const list = g_cli_validate->last.text + s_axioms[args->answer].list;
+    const unsigned long long list_size = s_axioms[args->answer].list_size;
+    int others = 0;
+    for (unsigned long long from = 0ULL; from <= list_size;)
+    {
+        const char *const comma = memor.chr(&(MemoriaCfg){.src = list + from, .val = ',', .bytes = list_size - from});
+        const unsigned long long end = (comma != NULL) ? (unsigned long long)(comma - list) : list_size;
+        unsigned long long start = from;
+        unsigned long long length = end - from;
+        while ((length > 0ULL) && (cellul.chr(&(CatenaFinitaCfg){
+                                       .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = list[start]}) != NULL))
+        {
+            start += 1ULL;
+            length -= 1ULL;
+        }
+        while ((length > 0ULL) &&
+               (cellul.chr(&(CatenaFinitaCfg){
+                    .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = list[start + length - 1ULL]}) != NULL))
+        {
+            length -= 1ULL;
+        }
+        from = end + 1ULL;
+        if ((length == 0ULL) || EMBED_CALL(cli_validate_json_internal.in_array, CliValidateJsonCtx, .json = json,
+                                           .array = tool->trusted, .text = list + start, .length = length))
+        {
+            continue;
+        }
+        const int gap = EMBED_CALL(cli_validate_json_internal.in_array, CliValidateJsonCtx, .json = json,
+                                   .array = tool->gaps, .text = list + start, .length = length);
+        *args->all_gaps = *args->all_gaps && gap;
+        *args->any_gap = *args->any_gap || gap;
+        mmgr_line_put(args->out, others ? "; " : "");
+        mmgr_line_put_n(args->out, list + start, length);
+        EMBED_CALL(report_explained, ValidateAxiomsCtx, .text = list + start, .length = length, .out = args->out);
+        others = 1;
+    }
+    return others;
+}
+
+// whether a proof failed between the line `line` and before `ends`: a proof that does not check stands on a gap the
+// prover put there, which the error reports
+EMBED_INLINE int report_failed(const ValidateAxiomsCtx *args)
+{
+    for (unsigned int finding = 0u; finding < g_cli_validate->finding_count; finding += 1u)
+    {
+        const CliFinding *const found = &g_cli_validate->findings[finding];
+        if ((found->severity == 1u) &&
+            ((cellul.eq(&(CatenaFinitaCfg){.src = found->kind, .other = "math", .cap = CLI_CELLS_POOL})) ||
+             (cellul.eq(&(CatenaFinitaCfg){.src = found->kind, .other = "barrier", .cap = CLI_CELLS_POOL}))) &&
+            (found->line >= args->line) && (found->line < args->ends))
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+void cli_validate_axioms_report(const CliValidateAnswersCtx *args)
+{
     const char *const text = g_cli_validate->last.text;
     const unsigned int declared = EMBED_CALL(report_declare, ValidateAxiomsCtx, .answers = args->answers);
     for (unsigned int answer = 0u; answer < args->answers; answer += 1u)
     {
         const char *const name = text + s_axioms[answer].name;
         const unsigned long long size = s_axioms[answer].name_size;
-        unsigned int at = 0u;
-        while ((at < declared) &&
-               !EMBED_CALL(report_same, ValidateAxiomsCtx, .text = text + s_axioms[s_declared[at].axioms].name,
-                           .size = s_axioms[s_declared[at].axioms].name_size, .other = name, .length = size))
-        {
-            at += 1u;
-        }
+        const unsigned int at =
+            EMBED_CALL(report_declared_at, ValidateAxiomsCtx, .declared = declared, .name = name, .size = size);
         char msg_buf[16384];
         VerbaLinea msg = {msg_buf, sizeof(msg_buf), 0ULL};
-        int others = 0;
         int all_gaps = 1;
         int any_gap = 0;
-        const char *const list = text + s_axioms[answer].list;
-        const unsigned long long list_size = s_axioms[answer].list_size;
-        for (unsigned long long from = 0ULL; from <= list_size;)
-        {
-            const char *const comma =
-                memor.chr(&(MemoriaCfg){.src = list + from, .val = ',', .bytes = list_size - from});
-            const unsigned long long end = (comma != NULL) ? (unsigned long long)(comma - list) : list_size;
-            unsigned long long start = from;
-            unsigned long long length = end - from;
-            while ((length > 0ULL) && (cellul.chr(&(CatenaFinitaCfg){
-                                           .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = list[start]}) != NULL))
-            {
-                start += 1ULL;
-                length -= 1ULL;
-            }
-            while ((length > 0ULL) &&
-                   (cellul.chr(&(CatenaFinitaCfg){
-                        .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = list[start + length - 1ULL]}) != NULL))
-            {
-                length -= 1ULL;
-            }
-            from = end + 1ULL;
-            if ((length == 0ULL) || EMBED_CALL(cli_validate_json_internal.in_array, CliValidateJsonCtx, .json = json,
-                                               .array = tool->trusted, .text = list + start, .length = length))
-            {
-                continue;
-            }
-            const int gap = EMBED_CALL(cli_validate_json_internal.in_array, CliValidateJsonCtx, .json = json,
-                                       .array = tool->gaps, .text = list + start, .length = length);
-            all_gaps = all_gaps && gap;
-            any_gap = any_gap || gap;
-            mmgr_line_put(&msg, others ? "; " : "");
-            mmgr_line_put_n(&msg, list + start, length);
-            for (unsigned int member = (tool->explains != CLI_JSON_NONE) ? json->node[tool->explains].first
-                                                                         : CLI_JSON_NONE;
-                 member != CLI_JSON_NONE; member = json->node[member].next)
-            {
-                if (EMBED_CALL(cli_validate_text_length_internal.contains, CliValidateTextLengthCtx,
-                               .text = list + start, .length = length, .part = json->text + json->node[member].key))
-                {
-                    mmgr_line_put(&msg, ", ");
-                    mmgr_line_put(&msg, EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
-                                                   .json_read = json, .node = member, .length_pointer = NULL));
-                    break;
-                }
-            }
-            others = 1;
-        }
+        const int others = EMBED_CALL(report_axioms_listed, ValidateAxiomsCtx, .answer = answer, .out = &msg,
+                                      .all_gaps = &all_gaps, .any_gap = &any_gap);
         if (!others || (at == declared))
         {
             continue;
@@ -204,17 +256,7 @@ void cli_validate_axioms_report(const CliValidateAnswersCtx *args)
         const unsigned int line = s_declared[at].line;
         const unsigned int col = s_declared[at].col;
         const unsigned int ends = (at + 1u < declared) ? s_declared[at + 1u].line : 0xffffffffu;
-        int failed = 0;
-        for (unsigned int finding = 0u; !failed && (finding < g_cli_validate->finding_count); finding += 1u)
-        {
-            const CliFinding *const found = &g_cli_validate->findings[finding];
-            // a proof that does not check stands on a gap the prover put there: the error reports it
-            failed = (found->severity == 1u) &&
-                     ((cellul.eq(&(CatenaFinitaCfg){.src = found->kind, .other = "math", .cap = CLI_CELLS_POOL})) ||
-                      (cellul.eq(&(CatenaFinitaCfg){.src = found->kind, .other = "barrier", .cap = CLI_CELLS_POOL}))) &&
-                     (found->line >= line) && (found->line < ends);
-        }
-        if (failed && all_gaps)
+        if (all_gaps && EMBED_CALL(report_failed, ValidateAxiomsCtx, .line = line, .ends = ends))
         {
             continue;
         }
