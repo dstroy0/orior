@@ -35,6 +35,8 @@ extern void test_curl_g_appends_the_data_in_the_address(void);
 extern void test_curl_u_is_basic_authorization(void);
 extern void test_curl_f_is_a_form_a_file_read_from_adjacent_it(void);
 extern void test_a_curl_line_copied_for_cmd_is_read(void);
+extern void test_curl_json_agent_referer_cookie_and_urlencoded_data_are_read(void);
+extern void test_curl_i_is_a_head_and_a_flag_with_no_value_is_refused(void);
 extern void test_another_programs_line_is_not_read(void);
 extern void test_a_request_becomes_a_curl_line(void);
 extern void test_a_curl_line_written_reads_back_as_the_request(void);
@@ -131,13 +133,15 @@ int main(void)
   run_test(test_curl_u_is_basic_authorization, "test_curl_u_is_basic_authorization", 440);
   run_test(test_curl_f_is_a_form_a_file_read_from_adjacent_it, "test_curl_f_is_a_form_a_file_read_from_adjacent_it", 446);
   run_test(test_a_curl_line_copied_for_cmd_is_read, "test_a_curl_line_copied_for_cmd_is_read", 452);
-  run_test(test_another_programs_line_is_not_read, "test_another_programs_line_is_not_read", 458);
-  run_test(test_a_request_becomes_a_curl_line, "test_a_request_becomes_a_curl_line", 463);
-  run_test(test_a_curl_line_written_reads_back_as_the_request, "test_a_curl_line_written_reads_back_as_the_request", 470);
-  run_test(test_a_request_stores_its_last_answers_the_last_first, "test_a_request_stores_its_last_answers_the_last_first", 478);
-  run_test(test_each_request_stores_its_own_answers, "test_each_request_stores_its_own_answers", 495);
-  run_test(test_a_request_with_no_answers_stored_lists_none, "test_a_request_with_no_answers_stored_lists_none", 502);
-  run_test(test_a_large_answers_body_is_stored_cut, "test_a_large_answers_body_is_stored_cut", 509);
+  run_test(test_curl_json_agent_referer_cookie_and_urlencoded_data_are_read, "test_curl_json_agent_referer_cookie_and_urlencoded_data_are_read", 458);
+  run_test(test_curl_i_is_a_head_and_a_flag_with_no_value_is_refused, "test_curl_i_is_a_head_and_a_flag_with_no_value_is_refused", 466);
+  run_test(test_another_programs_line_is_not_read, "test_another_programs_line_is_not_read", 473);
+  run_test(test_a_request_becomes_a_curl_line, "test_a_request_becomes_a_curl_line", 478);
+  run_test(test_a_curl_line_written_reads_back_as_the_request, "test_a_curl_line_written_reads_back_as_the_request", 485);
+  run_test(test_a_request_stores_its_last_answers_the_last_first, "test_a_request_stores_its_last_answers_the_last_first", 493);
+  run_test(test_each_request_stores_its_own_answers, "test_each_request_stores_its_own_answers", 510);
+  run_test(test_a_request_with_no_answers_stored_lists_none, "test_a_request_with_no_answers_stored_lists_none", 517);
+  run_test(test_a_large_answers_body_is_stored_cut, "test_a_large_answers_body_is_stored_cut", 524);
 
   return UNITY_END();
 }

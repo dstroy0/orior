@@ -455,6 +455,21 @@ void test_a_curl_line_copied_for_cmd_is_read(void)
     TEST_ASSERT_EQUAL_STRING("GET http://h/x\nA: b\n", s_out);
 }
 
+void test_curl_json_agent_referer_cookie_and_urlencoded_data_are_read(void)
+{
+    TEST_ASSERT_TRUE(curl_read("curl --json {} -A ua -e ref -b c=1 --data-urlencode 'q=a b' -H nocolon -F plain --url=http://h/x"));
+    TEST_ASSERT_EQUAL_STRING("POST http://h/x\nContent-Type: application/json\nAccept: application/json\nUser-Agent: ua\nReferer: ref\n"
+                             "Cookie: c=1\n\n{}&q=a%20b\n",
+                             s_out);
+}
+
+void test_curl_i_is_a_head_and_a_flag_with_no_value_is_refused(void)
+{
+    TEST_ASSERT_TRUE(curl_read("curl -I http://h/x"));
+    TEST_ASSERT_EQUAL_STRING("HEAD http://h/x\n", s_out);
+    TEST_ASSERT_FALSE(curl_read("curl http://h/x -H"));
+}
+
 void test_another_programs_line_is_not_read(void)
 {
     TEST_ASSERT_FALSE(curl_read("wget http://h"));

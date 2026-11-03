@@ -69,6 +69,9 @@ typedef struct
     const char *path;
     unsigned long long *start;
     unsigned long long *length;
+    const char *const *words;
+    unsigned int count;
+    int valued;
 } RequestsCurlCtx;
 // whether `size` bytes of `text` are `word`
 EMBED_INLINE int curl_is(const RequestsCurlCtx *args)
@@ -143,6 +146,200 @@ EMBED_INLINE void curl_data_begin(const RequestsCurlCtx *args)
     args->read_out->data += 1u;
 }
 
+// whether the flag `flag` is one of the `count` words of `words`
+EMBED_INLINE int curl_among(const RequestsCurlCtx *args)
+{
+    int among = 0;
+    unsigned int index = 0u;
+    while (!among && (index < args->count))
+    {
+        among = EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size,
+                           .word_text = args->words[index]);
+        index += 1u;
+    }
+    return among;
+}
+
+// the header `name: text` of a -H, `value_size` bytes of `value`, put on the line read with each side trimmed: 1, or 0
+// where the line contains the most headers; a value with no colon puts nothing
+EMBED_INLINE int curl_header_line(const RequestsCurlCtx *args)
+{
+    const char *const colon =
+        (args->value != NULL)
+            ? memor.chr(&(MemoriaCfg){.src = args->value, .val = ':', .bytes = (size_t)args->value_size})
+            : NULL;
+    if (colon == NULL)
+    {
+        return 1;
+    }
+    unsigned long long name_start = 0ULL;
+    unsigned long long name_end = (unsigned long long)(colon - args->value);
+    unsigned long long text_start = name_end + 1u;
+    unsigned long long text_end = args->value_size;
+    EMBED_CALL(cli_requests_text_start_internal.trim, CliRequestsTextStartCtx, .text = args->value,
+               .start = &name_start, .end = &name_end);
+    EMBED_CALL(cli_requests_text_start_internal.trim, CliRequestsTextStartCtx, .text = args->value,
+               .start = &text_start, .end = &text_end);
+    return EMBED_CALL(curl_header, RequestsCurlCtx, .read_out = args->read_out, .name = args->value + name_start,
+                      .name_size = name_end - name_start, .value = args->value + text_start,
+                      .value_size = text_end - text_start);
+}
+
+// a piece of data of a -d or its kin, `value_size` bytes of `value`, put on the body, and for --json the headers that
+// say the body and the answer are JSON where the line names neither: 1, or 0 where the line contains the most headers
+EMBED_INLINE int curl_data_put(const RequestsCurlCtx *args)
+{
+    static const char *const json[2] = {"Content-Type", "Accept"};
+    static const char *const json_lower[2] = {"content-type", "accept"};
+    curl_data_begin(args);
+    mmgr_line_put_n(&s_curl->body_line, args->value, args->value_size);
+    const int sent_json =
+        EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word_text = "--json");
+    int fits = 1;
+    unsigned int index = 0u;
+    while (fits && sent_json && (index < 2u))
+    {
+        fits = EMBED_CALL(curl_has, RequestsCurlCtx, .read = args->read_out, .lower = json_lower[index]) ||
+               EMBED_CALL(curl_header, RequestsCurlCtx, .read_out = args->read_out, .name = json[index],
+                          .name_size = cellul.len(&(CatenaFinitaCfg){.src = json[index], .cap = CLI_CELLS_POOL}),
+                          .value = "application/json", .value_size = 16u);
+        index += 1u;
+    }
+    return fits;
+}
+
+// a piece of data of a --data-urlencode, `value_size` bytes of `value`, put on the body: the name and its `=` where it
+// has one as they are, and the rest encoded as a form encodes it
+EMBED_INLINE void curl_urlencoded_put(const RequestsCurlCtx *args)
+{
+    curl_data_begin(args);
+    const char *const equals =
+        (args->value != NULL)
+            ? memor.chr(&(MemoriaCfg){.src = args->value, .val = '=', .bytes = (size_t)args->value_size})
+            : NULL;
+    const unsigned long long lead = (equals != NULL) ? ((unsigned long long)(equals - args->value) + 1u) : 0ULL;
+    mmgr_line_put_n(&s_curl->body_line, args->value, lead);
+    EMBED_CALL(curl_encode, RequestsCurlCtx, .text = args->value + lead, .size = args->value_size - lead,
+               .out = &s_curl->body_line);
+}
+
+// the form `name=text` of a -F, `value_size` bytes of `value`, put on the line read: 1, or 0 where the line contains
+// the most forms; a value with no `=` puts nothing
+EMBED_INLINE int curl_form_put(const RequestsCurlCtx *args)
+{
+    const char *const equals =
+        (args->value != NULL)
+            ? memor.chr(&(MemoriaCfg){.src = args->value, .val = '=', .bytes = (size_t)args->value_size})
+            : NULL;
+    if (equals == NULL)
+    {
+        return 1;
+    }
+    const int fits = (args->read_out->forms < CLI_REQUESTS_CURL_MAX);
+    if (fits)
+    {
+        const unsigned long long name = (unsigned long long)(equals - args->value);
+        args->read_out->form_name[args->read_out->forms] = (CurlText){args->value, name};
+        args->read_out->form_value[args->read_out->forms] = (CurlText){equals + 1, args->value_size - name - 1u};
+        args->read_out->forms += 1u;
+    }
+    return fits;
+}
+
+// the user and password of a -u, `value_size` bytes of `value`, put on the line read as its basic authorization
+// header: 1, or 0 where the line contains the most headers
+EMBED_INLINE int curl_user_put(const RequestsCurlCtx *args)
+{
+    const unsigned long long start = s_curl->created_line.at;
+    mmgr_line_put(&s_curl->created_line, "Basic ");
+    EMBED_CALL(cli_base64_table.base64, CliBase64Cfg, .out = &s_curl->created_line,
+               .bytes = (const unsigned char *)args->value, .size = args->value_size);
+    return EMBED_CALL(curl_header, RequestsCurlCtx, .read_out = args->read_out, .name = "Authorization",
+                      .name_size = 13u, .value = s_curl->made + start, .value_size = s_curl->created_line.at - start);
+}
+
+// the flag `flag` applied to the line read, `value_size` bytes of `value` its value, `valued` whether it is a flag that
+// takes one; a word that is no flag is the address: 1, or 0 where the line contains the most of what the flag puts
+EMBED_INLINE int curl_flag_applied(const RequestsCurlCtx *args)
+{
+    const CurlText flag = args->flag;
+    const CurlText value = {args->value, args->value_size};
+    int fits = 1;
+    if (EMBED_CALL(curl_among, RequestsCurlCtx, .flag = flag, .words = (const char *const[]){"-X", "--request"},
+                   .count = 2u))
+    {
+        args->read_out->method = value;
+    }
+    else if (EMBED_CALL(curl_among, RequestsCurlCtx, .flag = flag, .words = (const char *const[]){"-H", "--header"},
+                        .count = 2u))
+    {
+        fits = EMBED_CALL(curl_header_line, RequestsCurlCtx, .read_out = args->read_out, .value = value.at,
+                          .value_size = value.size);
+    }
+    else if (EMBED_CALL(curl_among, RequestsCurlCtx, .flag = flag,
+                        .words = (const char *const[]){"-d", "--data", "--data-raw", "--data-binary", "--data-ascii",
+                                                       "--json"},
+                        .count = 6u))
+    {
+        fits = EMBED_CALL(curl_data_put, RequestsCurlCtx, .read_out = args->read_out, .flag = flag, .value = value.at,
+                          .value_size = value.size);
+    }
+    else if (EMBED_CALL(curl_is, RequestsCurlCtx, .text = flag.at, .size = flag.size, .word_text = "--data-urlencode"))
+    {
+        EMBED_CALL(curl_urlencoded_put, RequestsCurlCtx, .read_out = args->read_out, .value = value.at,
+                   .value_size = value.size);
+    }
+    else if (EMBED_CALL(curl_among, RequestsCurlCtx, .flag = flag, .words = (const char *const[]){"-F", "--form"},
+                        .count = 2u))
+    {
+        fits = EMBED_CALL(curl_form_put, RequestsCurlCtx, .read_out = args->read_out, .value = value.at,
+                          .value_size = value.size);
+    }
+    else if (EMBED_CALL(curl_among, RequestsCurlCtx, .flag = flag, .words = (const char *const[]){"-u", "--user"},
+                        .count = 2u))
+    {
+        fits = EMBED_CALL(curl_user_put, RequestsCurlCtx, .read_out = args->read_out, .value = value.at,
+                          .value_size = value.size);
+    }
+    else if (EMBED_CALL(curl_among, RequestsCurlCtx, .flag = flag, .words = (const char *const[]){"-A", "--user-agent"},
+                        .count = 2u))
+    {
+        fits = EMBED_CALL(curl_header, RequestsCurlCtx, .read_out = args->read_out, .name = "User-Agent",
+                          .name_size = 10u, .value = value.at, .value_size = value.size);
+    }
+    else if (EMBED_CALL(curl_among, RequestsCurlCtx, .flag = flag, .words = (const char *const[]){"-e", "--referer"},
+                        .count = 2u))
+    {
+        fits = EMBED_CALL(curl_header, RequestsCurlCtx, .read_out = args->read_out, .name = "Referer", .name_size = 7u,
+                          .value = value.at, .value_size = value.size);
+    }
+    else if (EMBED_CALL(curl_among, RequestsCurlCtx, .flag = flag, .words = (const char *const[]){"-b", "--cookie"},
+                        .count = 2u))
+    {
+        fits = EMBED_CALL(curl_header, RequestsCurlCtx, .read_out = args->read_out, .name = "Cookie", .name_size = 6u,
+                          .value = value.at, .value_size = value.size);
+    }
+    else if (EMBED_CALL(curl_among, RequestsCurlCtx, .flag = flag, .words = (const char *const[]){"-G", "--get"},
+                        .count = 2u))
+    {
+        args->read_out->get = 1;
+    }
+    else if (EMBED_CALL(curl_among, RequestsCurlCtx, .flag = flag, .words = (const char *const[]){"-I", "--head"},
+                        .count = 2u))
+    {
+        args->read_out->method = EMBED_CALL(curl_init, RequestsCurlCtx, .bytes = "HEAD", .size = 4u);
+    }
+    else if (EMBED_CALL(curl_is, RequestsCurlCtx, .text = flag.at, .size = flag.size, .word_text = "--url"))
+    {
+        args->read_out->url = value;
+    }
+    else if (!args->valued && ((flag.size == 0u) || (flag.at[0] != '-')))
+    {
+        args->read_out->url = flag;
+    }
+    return fits;
+}
+
 // the flag `flag` of the word at `*at` read, its value `value` where it is joined to it by `=`, else the word after
 // it: 1, or 0 with why given
 EMBED_INLINE int curl_flag(const RequestsCurlCtx *args)
@@ -186,17 +383,9 @@ EMBED_INLINE int curl_flag(const RequestsCurlCtx *args)
                                          "--key",
                                          "-c",
                                          "--cookie-jar"};
-    int allocs = 0;
-    {
-        unsigned int index = 0u;
-        while (!allocs && (index < sizeof(valued) / sizeof(valued[0])))
-        {
-            allocs = EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size,
-                                .word_text = valued[index]);
-            index += 1u;
-        }
-    }
-    if (allocs && (value.at == NULL))
+    const int takes_value = EMBED_CALL(curl_among, RequestsCurlCtx, .flag = args->flag, .words = valued,
+                                       .count = sizeof(valued) / sizeof(valued[0]));
+    if (takes_value && (value.at == NULL))
     {
         *at += 1u;
         if (*at >= s_curl->words.count)
@@ -207,136 +396,8 @@ EMBED_INLINE int curl_flag(const RequestsCurlCtx *args)
         }
         value = (CurlText){s_curl->words.text + s_curl->words.word_text[*at].at, s_curl->words.word_text[*at].size};
     }
-    const char *const equals =
-        (value.at != NULL) ? memor.chr(&(MemoriaCfg){.src = value.at, .val = '=', .bytes = (size_t)value.size}) : NULL;
-    const char *const colon =
-        (value.at != NULL) ? memor.chr(&(MemoriaCfg){.src = value.at, .val = ':', .bytes = (size_t)value.size}) : NULL;
-    int fits = 1;
-    if (EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word_text = "-X") ||
-        EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word_text = "--request"))
-    {
-        args->read_out->method = value;
-    }
-    else if ((EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word_text = "-H") ||
-              EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size,
-                         .word_text = "--header")) &&
-             (colon != NULL))
-    {
-        unsigned long long name_start = 0ULL;
-        unsigned long long name_end = (unsigned long long)(colon - value.at);
-        unsigned long long text_start = name_end + 1u;
-        unsigned long long text_end = value.size;
-        EMBED_CALL(cli_requests_text_start_internal.trim, CliRequestsTextStartCtx, .text = value.at,
-                   .start = &name_start, .end = &name_end);
-        EMBED_CALL(cli_requests_text_start_internal.trim, CliRequestsTextStartCtx, .text = value.at,
-                   .start = &text_start, .end = &text_end);
-        fits = EMBED_CALL(curl_header, RequestsCurlCtx, .read_out = args->read_out, .name = value.at + name_start,
-                          .name_size = name_end - name_start, .value = value.at + text_start,
-                          .value_size = text_end - text_start);
-    }
-    else if (EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word_text = "-d") ||
-             EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size,
-                        .word_text = "--data") ||
-             EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size,
-                        .word_text = "--data-raw") ||
-             EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size,
-                        .word_text = "--data-binary") ||
-             EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size,
-                        .word_text = "--data-ascii") ||
-             EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size,
-                        .word_text = "--json"))
-    {
-        curl_data_begin(args);
-        mmgr_line_put_n(&s_curl->body_line, value.at, value.size);
-        static const char *const json[2] = {"Content-Type", "Accept"};
-        static const char *const json_lower[2] = {"content-type", "accept"};
-        for (unsigned int index = 0u; fits &&
-                                      EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at,
-                                                 .size = args->flag.size, .word_text = "--json") &&
-                                      (index < 2u);
-             index += 1u)
-        {
-            fits = EMBED_CALL(curl_has, RequestsCurlCtx, .read = args->read_out, .lower = json_lower[index]) ||
-                   EMBED_CALL(curl_header, RequestsCurlCtx, .read_out = args->read_out, .name = json[index],
-                              .name_size = cellul.len(&(CatenaFinitaCfg){.src = json[index], .cap = CLI_CELLS_POOL}),
-                              .value = "application/json", .value_size = 16u);
-        }
-    }
-    else if (EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size,
-                        .word_text = "--data-urlencode"))
-    {
-        curl_data_begin(args);
-        const unsigned long long name = (equals != NULL) ? (unsigned long long)(equals - value.at) : 0ULL;
-        mmgr_line_put_n(&s_curl->body_line, value.at, (equals != NULL) ? (name + 1u) : 0u);
-        EMBED_CALL(curl_encode, RequestsCurlCtx, .text = value.at + ((equals != NULL) ? (name + 1u) : 0u),
-                   .size = value.size - ((equals != NULL) ? (name + 1u) : 0u), .out = &s_curl->body_line);
-    }
-    else if ((EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word_text = "-F") ||
-              EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size,
-                         .word_text = "--form")) &&
-             (equals != NULL))
-    {
-        fits = (args->read_out->forms < CLI_REQUESTS_CURL_MAX);
-        if (fits)
-        {
-            const unsigned long long name = (unsigned long long)(equals - value.at);
-            args->read_out->form_name[args->read_out->forms] = (CurlText){value.at, name};
-            args->read_out->form_value[args->read_out->forms] = (CurlText){equals + 1, value.size - name - 1u};
-            args->read_out->forms += 1u;
-        }
-    }
-    else if (EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word_text = "-u") ||
-             EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size,
-                        .word_text = "--user"))
-    {
-        const unsigned long long start = s_curl->created_line.at;
-        mmgr_line_put(&s_curl->created_line, "Basic ");
-        EMBED_CALL(cli_base64_table.base64, CliBase64Cfg, .out = &s_curl->created_line,
-                   .bytes = (const unsigned char *)value.at, .size = value.size);
-        fits =
-            EMBED_CALL(curl_header, RequestsCurlCtx, .read_out = args->read_out, .name = "Authorization",
-                       .name_size = 13u, .value = s_curl->made + start, .value_size = s_curl->created_line.at - start);
-    }
-    else if (EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word_text = "-A") ||
-             EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size,
-                        .word_text = "--user-agent"))
-    {
-        fits = EMBED_CALL(curl_header, RequestsCurlCtx, .read_out = args->read_out, .name = "User-Agent",
-                          .name_size = 10u, .value = value.at, .value_size = value.size);
-    }
-    else if (EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word_text = "-e") ||
-             EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size,
-                        .word_text = "--referer"))
-    {
-        fits = EMBED_CALL(curl_header, RequestsCurlCtx, .read_out = args->read_out, .name = "Referer", .name_size = 7u,
-                          .value = value.at, .value_size = value.size);
-    }
-    else if (EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word_text = "-b") ||
-             EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size,
-                        .word_text = "--cookie"))
-    {
-        fits = EMBED_CALL(curl_header, RequestsCurlCtx, .read_out = args->read_out, .name = "Cookie", .name_size = 6u,
-                          .value = value.at, .value_size = value.size);
-    }
-    else if (EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word_text = "-G") ||
-             EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word_text = "--get"))
-    {
-        args->read_out->get = 1;
-    }
-    else if (EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word_text = "-I") ||
-             EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size,
-                        .word_text = "--head"))
-    {
-        args->read_out->method = EMBED_CALL(curl_init, RequestsCurlCtx, .bytes = "HEAD", .size = 4u);
-    }
-    else if (EMBED_CALL(curl_is, RequestsCurlCtx, .text = args->flag.at, .size = args->flag.size, .word_text = "--url"))
-    {
-        args->read_out->url = value;
-    }
-    else if (!allocs && ((args->flag.size == 0u) || (args->flag.at[0] != '-')))
-    {
-        args->read_out->url = args->flag;
-    }
+    const int fits = EMBED_CALL(curl_flag_applied, RequestsCurlCtx, .read_out = args->read_out, .flag = args->flag,
+                                .value = value.at, .value_size = value.size, .valued = takes_value);
     if (!fits)
     {
         mmgr_line_put(args->err_msg, "the curl line is larger than orior_cli supports");
