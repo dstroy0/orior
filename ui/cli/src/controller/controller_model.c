@@ -201,7 +201,7 @@ EMBED_INLINE void model_press(const ControllerModelCtx *args)
     EMBED_CALL(cli_model.panels_hide, CliModelCtx, .at = 0u);
     // a press on the terminal is the terminal's; one elsewhere takes the keys from it
     EMBED_CALL(cli_model_terminal.press, CliModelCtx, .input = input);
-    if ((input->hit >= CLI_HIT_TERMINAL) && (input->hit <= CLI_HIT_TERMINAL_SPLIT))
+    if ((input->hit >= CLI_HIT_TERMINAL) && (input->hit <= CLI_HIT_TERMINAL_PANEL))
     {
         return;
     }
@@ -462,6 +462,10 @@ void cli_controller_model_input(const CliInput *input, const char *bytes)
     case CLI_INPUT_TERMINAL_SIZE:
     case CLI_INPUT_TERMINAL_HEIGHT:
         EMBED_CALL(cli_model_terminal.size, CliModelCtx, .input = input);
+        break;
+    case CLI_INPUT_MENU:
+    case CLI_INPUT_MENU_AWAY:
+        EMBED_CALL(cli_model_commands.menu_open, CliModelCtx, .input = input);
         break;
     default:
         break;

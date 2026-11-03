@@ -119,7 +119,8 @@ typedef struct
 } CliMenuLevel;
 
 // The menu bar: every menu's title with where it stands among the menus, the title whose menu is open, -1 for none, the
-// first title folded into the last where a width folds them, and the menus open, one under another
+// menus open, one under another, and where the first of them stands where it was asked for at a place and not under a
+// title, its top left in the frame's pixels
 typedef struct
 {
     const char **title;
@@ -127,6 +128,8 @@ typedef struct
     int open;
     CliMenuLevel *level;
     unsigned int levels;
+    int x;
+    int y;
 } CliMenus;
 
 // One row of the explorer: the path from the tree's top, the name, how deep it stands, whether it is a folder, whether

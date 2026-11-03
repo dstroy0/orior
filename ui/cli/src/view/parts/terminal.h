@@ -54,7 +54,8 @@ typedef struct
 int gui_terminal_size(const GuiTerminalCfg *args);
 // what the pixel at x, y stands on in the panel: CLI_HIT_TERMINAL with the pane into `index` and the row and the
 // column the pixel stands nearest the left edge of into `row` and `column`, CLI_HIT_TERMINAL_TAB or
-// CLI_HIT_TERMINAL_TAB_CLOSE with the tab, CLI_HIT_TERMINAL_NEW or CLI_HIT_TERMINAL_SPLIT; CLI_HIT_NONE elsewhere
+// CLI_HIT_TERMINAL_TAB_CLOSE with the tab, CLI_HIT_TERMINAL_NEW or CLI_HIT_TERMINAL_SPLIT, CLI_HIT_TERMINAL_PANEL on
+// none of these, and CLI_HIT_NONE outside the panel or with it closed
 unsigned int gui_terminal_hit(const GuiTerminalCfg *args);
 // the row and the column of the pane `view` the pixel at x, y stands nearest, into `row` and `column`, a pixel outside
 // the pane taking the nearest of its rows and columns: 1, or 0 where the pane is not shown

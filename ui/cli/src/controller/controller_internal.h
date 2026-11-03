@@ -6,6 +6,7 @@
 #ifndef CONTROLLER_INTERNAL_H
 #define CONTROLLER_INTERNAL_H
 #include "../command_line/command_line.h"
+#include "../command_line/commands.h"
 #include "../editor/document.h"
 #include "../editor/watch.h"
 #include "../servers/servers.h"
@@ -118,7 +119,9 @@ void cli_model_session_save(const CliModelCtx *args);
 void cli_model_session_restore(const CliModelCtx *args);
 // the commands (controller_commands.c): the command `path` run, its keys `value`, whoever pressed what; the key `path`
 // taken: the menus', and where `on` is 0 a command's or a tool's, else the view's; the catalog read; a press and a move
-// on the menu bar or its menus; a menu's rest; and the snapshot of the menus
+// on the menu bar or its menus; a menu's rest; the snapshot of the menus; a part's menu asked for, `input` a CliInput
+// of the kind CLI_INPUT_MENU, every menu open closed and the part's opened at its place where the part has one, or the
+// right button pressed or the wheel turned away from the menus, of the kind CLI_INPUT_MENU_AWAY, which closes them
 int cli_model_catalog_read(const CliModelCtx *args);
 void cli_model_command_run(const CliModelCtx *args);
 // the command `path` run as the menus run it with its `at` `words`, whoever named it: `file` opening its first word, a
@@ -131,6 +134,7 @@ void cli_model_menu_bar_size(const CliModelCtx *args);
 unsigned long long cli_model_menu_due_ms(const CliModelCtx *args);
 int cli_model_menu_step(const CliModelCtx *args);
 void *cli_model_menus_alloc(const CliModelCtx *args);
+void cli_model_menu_open(const CliModelCtx *args);
 // the editor taking the keys or letting them go, `on` 1 or 0, which the window's claim follows; one CliViewInput,
 // `input`, handed to the view of the tab shown, and the parts it moves marked dirty; the strip's tool `at` shown or
 // closed, and the side told (controller_model.c)
@@ -192,8 +196,11 @@ void cli_model_watch_end(const CliModelCtx *args);
 // where `input` is a CLI_INPUT_TERMINAL_HEIGHT; every shell drained and the place stored once its time comes, 1 where
 // an xterm changed; the clock's reading of its next timer, 0 for none; its snapshot, and a snapshot's frames and cell
 // released; the place read back from the values `input` holds, a CliStateEntries or NULL for none, as the window
-// starts; the place stored, every shell hung up on and its tabs let go; and whether the terminal's state `path` is
-// on, terminal-split while a shell stands beside the one shown: 1, or 0 where it is off or none of the terminal's
+// starts; the place stored, every shell hung up on and its tabs let go; whether the terminal's state `path` is on,
+// terminal-split while a shell stands beside the one shown and terminal-chosen while text is chosen in the pane the
+// keys go to: 1, or 0 where it is off or none of the terminal's; and the panel's menu, its CLI_MODEL_TERMINAL_MENU_ROWS
+// rows as terminal.js gives them, which stand as long as the program runs
+#define CLI_MODEL_TERMINAL_MENU_ROWS 7u
 int cli_model_terminal_command(const CliModelCtx *args);
 int cli_model_terminal_key(const CliModelCtx *args);
 int cli_model_terminal_text(const CliModelCtx *args);
@@ -208,6 +215,7 @@ void cli_model_terminal_release(CliTerminalPanel *panel);
 void cli_model_terminal_restore(const CliModelCtx *args);
 void cli_model_terminal_end(const CliModelCtx *args);
 int cli_model_terminal_checked(const CliModelCtx *args);
+const CliItem *cli_model_terminal_menu(const CliModelCtx *args);
 
 struct CliModelCtx
 {
@@ -280,9 +288,10 @@ typedef struct
     unsigned long long (*menu_due_ms)(const CliModelCtx *args);
     int (*menu_step)(const CliModelCtx *args);
     void *(*menus_alloc)(const CliModelCtx *args);
+    void (*menu_open)(const CliModelCtx *args);
 } CliModelCommandsNs;
 EMBED_TABLE_LAYOUT(CliModelCommandsNs, catalog_read, command_run, command_named, key_take, preferences_key, menu_input,
-                   menu_due_ms, menu_step, menus_alloc);
+                   menu_due_ms, menu_step, menus_alloc, menu_open);
 EMBED_TABLE_STORAGE CliModelCommandsNs cli_model_commands EMBED_UNUSED = {
     .catalog_read = cli_model_catalog_read,
     .command_run = cli_model_command_run,
@@ -293,6 +302,7 @@ EMBED_TABLE_STORAGE CliModelCommandsNs cli_model_commands EMBED_UNUSED = {
     .menu_due_ms = cli_model_menu_due_ms,
     .menu_step = cli_model_menu_step,
     .menus_alloc = cli_model_menus_alloc,
+    .menu_open = cli_model_menu_open,
 };
 
 typedef struct
@@ -398,9 +408,10 @@ typedef struct
     void (*restore)(const CliModelCtx *args);
     void (*end)(const CliModelCtx *args);
     int (*checked)(const CliModelCtx *args);
+    const CliItem *(*menu)(const CliModelCtx *args);
 } CliModelTerminalNs;
 EMBED_TABLE_LAYOUT(CliModelTerminalNs, command, key, text, press, pointer, wheel, size, step, next_ms, alloc, restore,
-                   end, checked);
+                   end, checked, menu);
 EMBED_TABLE_STORAGE CliModelTerminalNs cli_model_terminal EMBED_UNUSED = {
     .command = cli_model_terminal_command,
     .key = cli_model_terminal_key,
@@ -415,6 +426,7 @@ EMBED_TABLE_STORAGE CliModelTerminalNs cli_model_terminal EMBED_UNUSED = {
     .restore = cli_model_terminal_restore,
     .end = cli_model_terminal_end,
     .checked = cli_model_terminal_checked,
+    .menu = cli_model_terminal_menu,
 };
 
 #endif

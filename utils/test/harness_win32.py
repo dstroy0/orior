@@ -433,23 +433,27 @@ KEY_EXTENDED, KEY_ALT_DOWN, KEY_WAS_DOWN, KEY_RELEASING = 1 << 24, 1 << 29, 1 <<
 WM_MOUSEMOVE, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOUSEWHEEL = 0x0200, 0x0201, 0x0202, 0x020A
 MK_LBUTTON = 0x0001
 WHEEL_DELTA = 120
+# each button's press and release, and its bit among the buttons down a move names
+BUTTON_MESSAGES = {"left": (WM_LBUTTONDOWN, WM_LBUTTONUP, MK_LBUTTON), "right": (0x0204, 0x0205, 0x0002),
+                   "middle": (0x0207, 0x0208, 0x0010)}
 
 
-def pointer_sent(handle, x, y, down, up, moved=()):
-    """A press at x, y of the window's client posted to its queue where `down`, the moves `moved` after it with the
-    button down, and the release where `up`."""
+def pointer_sent(handle, x, y, down, up, moved=(), button="left"):
+    """A press of `button`, left, right or middle, at x, y of the window's client posted to its queue where `down`, the
+    moves `moved` after it with the button down, and the release where `up`."""
     import time
 
+    pressed, released, down_bit = BUTTON_MESSAGES[button]
     place = (y << 16) | (x & 0xFFFF)
     if down:
-        user32.PostMessageW(handle, WM_LBUTTONDOWN, MK_LBUTTON, place)
+        user32.PostMessageW(handle, pressed, down_bit, place)
     for to_x, to_y in moved:
         time.sleep(0.02)
-        user32.PostMessageW(handle, WM_MOUSEMOVE, MK_LBUTTON, (to_y << 16) | (to_x & 0xFFFF))
+        user32.PostMessageW(handle, WM_MOUSEMOVE, down_bit, (to_y << 16) | (to_x & 0xFFFF))
         x, y = to_x, to_y
     if up:
         time.sleep(0.02)
-        user32.PostMessageW(handle, WM_LBUTTONUP, 0, (y << 16) | (x & 0xFFFF))
+        user32.PostMessageW(handle, released, 0, (y << 16) | (x & 0xFFFF))
 
 
 def pointer_moved(handle, places, pause):

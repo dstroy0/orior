@@ -265,7 +265,8 @@ def cmd_keymap(a):
 
 
 def cmd_click(a):
-    """A press at x, y of the window's client posted to its queue, dragged to --to where one is given, and released."""
+    """A press of --button at x, y of the window's client posted to its queue, dragged to --to where one is given, and
+    released."""
     if not windows_only():
         return 1
     import harness_win32 as win
@@ -276,8 +277,9 @@ def cmd_click(a):
     process_id, handle, _ = found
     moved = [(a.to[0], a.to[1])] if a.to else []
     for _ in range(a.count):
-        win.pointer_sent(handle, a.x, a.y, True, True, moved)
-    print("window %d pressed %d times at %d,%d%s" % (process_id, a.count, a.x, a.y, (" to %d,%d" % tuple(a.to)) if a.to else ""))
+        win.pointer_sent(handle, a.x, a.y, True, True, moved, a.button)
+    print("window %d pressed the %s button %d times at %d,%d%s" % (process_id, a.button, a.count, a.x, a.y,
+                                                                   (" to %d,%d" % tuple(a.to)) if a.to else ""))
     return 0
 
 
@@ -1264,6 +1266,7 @@ def register(sub):
     p.add_argument("y", type=int)
     p.add_argument("--to", type=int, nargs=2, metavar=("X", "Y"), help="where the press is dragged to before the release")
     p.add_argument("--count", type=int, default=1, help="how many presses in a row, two for a word, three for a line")
+    p.add_argument("--button", choices=("left", "right", "middle"), default="left", help="the button pressed")
     p.add_argument("--id", type=int, default=0, help="the window's process, the started one where 0")
     p.set_defaults(fn=cmd_click)
     p = window.add_parser("move", help="the pointer moved to a pixel of the window's client with no button down")

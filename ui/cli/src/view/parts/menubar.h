@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// menubar.h: the menu bar's titles across the bar and the menus open under them, as the controller publishes them:
-// those titles the window's width has capacity for, the rest folded into a last title, which the window tells the
-// controller. Where each stands and which pixel stands on what is worked out here; every press and key means what the
-// controller says it means (menubar.c)
+// menubar.h: the menu bar's titles across the bar and the menus open under them, or at the place a part's menu was
+// asked for, as the controller publishes them: those titles the window's width has capacity for, the rest folded into a
+// last title, which the window tells the controller. Where each stands and which pixel stands on what is worked out
+// here; every press and key means what the controller says it means (menubar.c)
 #ifndef GUI_PARTS_MENUBAR_H
 #define GUI_PARTS_MENUBAR_H
 #include "../../controller/controller.h"
@@ -77,8 +77,8 @@ typedef struct
 void gui_menubar_init(const GuiMenubarCfg *args);
 // the titles laid across the frame's bar, as many as the window's width shows, the rest folded into the last, the menus
 // open following them; the titles as a stage of the claim's movement laid them, `count` of them, the titles from
-// `folded_from` on folded, the menus open following the same way; and the menus open placed under their titles and
-// beside their items
+// `folded_from` on folded, the menus open following the same way; and the menus open placed under their titles, or the
+// first at the place it was asked for, and beside their items
 void gui_menubar_titles_layout(const GuiMenubarBarCfg *args);
 void gui_menubar_titles_alloc(const GuiMenubarFrameCfg *args);
 void gui_menubar_menus_layout(const GuiMenubarBarCfg *args);

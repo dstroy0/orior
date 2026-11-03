@@ -9,7 +9,8 @@
 typedef struct GuiInputEventCfg GuiInputEventCfg;
 
 // the types of input: the pointer moved, a button pressed, a button let go, the pointer gone off the window, the wheel
-// turned, a key pressed and text typed; and the modifier keys down, as bits
+// turned, a key pressed, text typed, and the system's gesture for a menu at the pointer, the right button let go on
+// Windows and pressed on X11 as a browser on each opens one; and the modifier keys down, as bits
 #define GUI_INPUT_MOVED 0u
 #define GUI_INPUT_DOWN 1u
 #define GUI_INPUT_UP 2u
@@ -17,13 +18,15 @@ typedef struct GuiInputEventCfg GuiInputEventCfg;
 #define GUI_INPUT_WHEEL 4u
 #define GUI_INPUT_KEY 5u
 #define GUI_INPUT_TEXT 6u
-#define GUI_INPUT_TYPES 7u
+#define GUI_INPUT_MENU 7u
+#define GUI_INPUT_TYPES 8u
 #define GUI_MOD_SHIFT 1u
 #define GUI_MOD_CONTROL 2u
 #define GUI_MOD_ALT 4u
-// the buttons a press names: the left and the middle
+// the buttons a press names: the left, the middle and the right
 #define GUI_BUTTON_LEFT 0u
 #define GUI_BUTTON_MIDDLE 1u
+#define GUI_BUTTON_RIGHT 2u
 
 // An input: the type; the pointer at x, y of the client; the button, 0 for the left; the modifier keys down; the
 // wheel's rows, down where positive; the key's name as the editor names a key, `Mod+Shift+Left`, Mod the control key,

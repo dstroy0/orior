@@ -777,6 +777,23 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM pixel_w
                                         .button = GUI_BUTTON_MIDDLE,
                                         .mods = EMBED_CALL(system_mods, SystemWindowsCtx, .system_read = system)});
         return 0;
+    case WM_RBUTTONDOWN:
+        EMBED_CALL(system->events->input, GuiEachInputCfg, .context = system->context,
+                   .input = &(GuiInput){.type = GUI_INPUT_DOWN,
+                                        .x = GET_X_LPARAM(low),
+                                        .y = GET_Y_LPARAM(low),
+                                        .button = GUI_BUTTON_RIGHT,
+                                        .mods = EMBED_CALL(system_mods, SystemWindowsCtx, .system_read = system)});
+        return 0;
+    case WM_RBUTTONUP:
+        // a browser on Windows opens a menu as the right button is let go
+        EMBED_CALL(system->events->input, GuiEachInputCfg, .context = system->context,
+                   .input = &(GuiInput){.type = GUI_INPUT_MENU,
+                                        .x = GET_X_LPARAM(low),
+                                        .y = GET_Y_LPARAM(low),
+                                        .button = GUI_BUTTON_RIGHT,
+                                        .mods = EMBED_CALL(system_mods, SystemWindowsCtx, .system_read = system)});
+        return 0;
     case WM_LBUTTONUP:
         ReleaseCapture();
         EMBED_CALL(system->events->input, GuiEachInputCfg, .context = system->context,

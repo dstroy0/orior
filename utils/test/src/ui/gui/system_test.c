@@ -23,6 +23,7 @@ typedef struct
     unsigned int pointers;
     unsigned int lefts;
     unsigned int pointer;
+    unsigned int button;
     int x;
     int y;
     unsigned int mods;
@@ -66,6 +67,7 @@ static void transferred_input(const GuiEachInputCfg *args)
     {
         transferred->pointers += 1u;
         transferred->pointer = args->input->type;
+        transferred->button = args->input->button;
         transferred->x = args->input->x;
         transferred->y = args->input->y;
         transferred->mods = args->input->mods;
@@ -204,6 +206,18 @@ int main(void)
     EMBED_CALL(gui_system_table.pumped, GuiSystemCfg, .system = system);
     cli_check((transferred.pointers == 2u) && (transferred.pointer == GUI_INPUT_UP) && (transferred.x == 50) && (transferred.y == 60),
               "the pointer's press and release come at their pixel");
+
+    // the right button's press comes as its press, and its release as the system's gesture for a menu at its pixel, a
+    // browser on this system opening one as the button is let go
+    PostMessageW(window, WM_RBUTTONDOWN, 0, (70 << 16) | 40);
+    EMBED_CALL(gui_system_table.pumped, GuiSystemCfg, .system = system);
+    cli_check((transferred.pointers == 3u) && (transferred.pointer == GUI_INPUT_DOWN) && (transferred.button == GUI_BUTTON_RIGHT) && (transferred.x == 40) &&
+                  (transferred.y == 70),
+              "a right press comes as the right button's press at its pixel");
+    PostMessageW(window, WM_RBUTTONUP, 0, (72 << 16) | 44);
+    EMBED_CALL(gui_system_table.pumped, GuiSystemCfg, .system = system);
+    cli_check((transferred.pointers == 4u) && (transferred.pointer == GUI_INPUT_MENU) && (transferred.x == 44) && (transferred.y == 72),
+              "its release asks for a menu at its pixel");
 
     // the pointer gone from the client is told only where it stands off the window altogether
     POINT cursor;

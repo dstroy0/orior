@@ -282,7 +282,7 @@ unsigned int gui_terminal_hit(const GuiTerminalCfg *args)
                        : CLI_HIT_TERMINAL_TAB;
         }
     }
-    return CLI_HIT_NONE;
+    return CLI_HIT_TERMINAL_PANEL;
 }
 
 // the baseline of text in `face` at `size`, from the top of a row `pixels` tall

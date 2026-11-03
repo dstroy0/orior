@@ -1546,6 +1546,24 @@ EMBED_INLINE unsigned int window_mods(const GuiInput *input)
     return ((input->mods & GUI_MOD_SHIFT) != 0u) ? CLI_INPUT_MOD_SHIFT : 0u;
 }
 
+// the right button pressed or the wheel turned at x, y: away from the menus open it closes them, as menu.js closes them
+// on any press or wheel outside them, and on a menu or on the bar's titles while the bar's menu is open it does nothing
+EMBED_INLINE void window_menus_away(const GuiWindowCtx *args)
+{
+    const CliMenus *const menus = args->window_read->menubar.menus;
+    if ((menus == NULL) || (menus->levels == 0u))
+    {
+        return;
+    }
+    CliInput pressed = {.kind = CLI_INPUT_MENU_AWAY};
+    EMBED_CALL(window_hit_read, GuiWindowCtx, .window_read = args->window_read, .x = args->x, .y = args->y,
+               .input = &pressed);
+    if ((pressed.hit != CLI_HIT_MENU_ROW) && ((pressed.hit != CLI_HIT_MENU_TITLE) || (menus->open < 0)))
+    {
+        cli_controller_input(&pressed, NULL);
+    }
+}
+
 static void window_wheel(const GuiInputHandlerCfg *args)
 {
     GuiWindow *window = args->window;
@@ -1554,6 +1572,7 @@ static void window_wheel(const GuiInputHandlerCfg *args)
     {
         return;
     }
+    EMBED_CALL(window_menus_away, GuiWindowCtx, .window_read = window, .x = args->input->x, .y = args->input->y);
     // the wheel over the side scrolls the rows, which is the window's own; over the completion's list its rows; over
     // the editor or the map, the text
     if (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = window->frame.side, .x = args->input->x,
@@ -1657,6 +1676,11 @@ static void window_press(const GuiInputHandlerCfg *args)
     if (input->button == GUI_BUTTON_MIDDLE)
     {
         EMBED_CALL(window_middle_press, GuiWindowCtx, .window_read = window, .x = input->x, .y = input->y);
+        return;
+    }
+    if (input->button == GUI_BUTTON_RIGHT)
+    {
+        EMBED_CALL(window_menus_away, GuiWindowCtx, .window_read = window, .x = input->x, .y = input->y);
         return;
     }
     if (EMBED_CALL(window_terminal_grip, GuiWindowCtx, .window_read = window, .x = input->x, .y = input->y))
@@ -1839,6 +1863,16 @@ static void window_key(const GuiInputHandlerCfg *args)
                .length = cellul.len(&(CatenaFinitaCfg){.src = args->input->name, .cap = 64ULL}) + 1ULL);
 }
 
+// the system's gesture for a menu: the menu of what stands at the pointer asked for there
+static void window_menu(const GuiInputHandlerCfg *args)
+{
+    CliInput asked = {
+        .kind = CLI_INPUT_MENU, .mods = window_mods(args->input), .x = args->input->x, .y = args->input->y};
+    EMBED_CALL(window_hit_read, GuiWindowCtx, .window_read = args->window, .x = args->input->x, .y = args->input->y,
+               .input = &asked);
+    cli_controller_input(&asked, NULL);
+}
+
 static void window_text(const GuiInputHandlerCfg *args)
 {
     // while the name's pane stands no view takes the text
@@ -1858,7 +1892,8 @@ static const GuiInputHandlers s_window_handlers = {{[GUI_INPUT_MOVED] = window_m
                                                     [GUI_INPUT_LEFT] = window_leave,
                                                     [GUI_INPUT_WHEEL] = window_wheel,
                                                     [GUI_INPUT_KEY] = window_key,
-                                                    [GUI_INPUT_TEXT] = window_text}};
+                                                    [GUI_INPUT_TEXT] = window_text,
+                                                    [GUI_INPUT_MENU] = window_menu}};
 static const GuiInputHandlers s_preferences_handlers = {{[GUI_INPUT_MOVED] = window_preferences_move,
                                                          [GUI_INPUT_DOWN] = window_preferences_press,
                                                          [GUI_INPUT_LEFT] = window_preferences_leave,

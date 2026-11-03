@@ -19,8 +19,10 @@
 // editor's size in rows and columns of its text, a file dropped on it, the system's close, a setting changed, its key
 // and its value in the bytes with a 0 between, the lines the minimap stands for, from `row` to `column`, a command
 // whose name is in the bytes, a key pressed in Preferences' window, taken only where it is that command's own, the size
-// in rows and columns of the terminal's view `index`, 0 the one shown and 1 the one beside it, and the terminal's
-// panel's height dragged to `rows` pixels at a scale of one
+// in rows and columns of the terminal's view `index`, 0 the one shown and 1 the one beside it, the terminal's panel's
+// height dragged to `rows` pixels at a scale of one, a part's menu asked for at x, y on what the window's layout found
+// there, as the system's gesture for one asks, and the right button pressed or the wheel turned away from the menus
+// open
 #define CLI_INPUT_KEY 0u
 #define CLI_INPUT_TEXT 1u
 #define CLI_INPUT_POINTER_DOWN 2u
@@ -36,9 +38,12 @@
 #define CLI_INPUT_PREFERENCES_KEY 12u
 #define CLI_INPUT_TERMINAL_SIZE 13u
 #define CLI_INPUT_TERMINAL_HEIGHT 14u
+#define CLI_INPUT_MENU 15u
+#define CLI_INPUT_MENU_AWAY 16u
 
 // what the pointer hit, as the window's layout places it; a key sent while the name's pane stands names the wordmark,
-// no view taking it. In the terminal: its view `index`, a tab, a tab's ×, New Terminal and Split
+// no view taking it. In the terminal: its view `index`, a tab, a tab's ×, New Terminal, Split, and the panel on none of
+// these
 #define CLI_HIT_NONE 0u
 #define CLI_HIT_MENU_TITLE 1u
 #define CLI_HIT_MENU_ROW 2u
@@ -61,6 +66,7 @@
 #define CLI_HIT_TERMINAL_TAB_CLOSE 19u
 #define CLI_HIT_TERMINAL_NEW 20u
 #define CLI_HIT_TERMINAL_SPLIT 21u
+#define CLI_HIT_TERMINAL_PANEL 22u
 
 // the modifier keys down on an input, as bits
 #define CLI_INPUT_MOD_SHIFT 1u
@@ -68,8 +74,9 @@
 #define CLI_INPUT_MOD_ALT 4u
 
 // One input: its kind; what the pointer hit, with the level and the row of what it hit; the cell it stands on in the
-// editor; how many presses in a row and the modifier keys; the wheel's rows; the window's rows and columns; and how
-// many bytes of a name, text or path follow it on the input's bytes
+// editor; how many presses in a row and the modifier keys; the wheel's rows; the window's rows and columns; how many
+// bytes of a name, text or path follow it on the input's bytes; and the pointer's place in the frame's pixels, where a
+// menu asked for at it opens
 typedef struct
 {
     unsigned int kind;
@@ -84,6 +91,8 @@ typedef struct
     unsigned int rows;
     unsigned int columns;
     unsigned int length;
+    int x;
+    int y;
 } CliInput;
 
 // the parts the controller publishes

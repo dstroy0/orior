@@ -423,6 +423,24 @@ static void system_event(const SystemX11Ctx *args)
                                             .mods = EMBED_CALL(system_mods, SystemX11Ctx,
                                                                .state = args->event_x_event_pointer->xbutton.state)});
         }
+        else if (args->event_x_event_pointer->xbutton.button == Button3)
+        {
+            // the right button's press, and a browser on X11 opens a menu as it is pressed
+            const unsigned int mods =
+                EMBED_CALL(system_mods, SystemX11Ctx, .state = args->event_x_event_pointer->xbutton.state);
+            EMBED_CALL(args->system->events->input, GuiEachInputCfg, .context = args->system->context,
+                       .input = &(GuiInput){.type = GUI_INPUT_DOWN,
+                                            .x = args->event_x_event_pointer->xbutton.x,
+                                            .y = args->event_x_event_pointer->xbutton.y,
+                                            .button = GUI_BUTTON_RIGHT,
+                                            .mods = mods});
+            EMBED_CALL(args->system->events->input, GuiEachInputCfg, .context = args->system->context,
+                       .input = &(GuiInput){.type = GUI_INPUT_MENU,
+                                            .x = args->event_x_event_pointer->xbutton.x,
+                                            .y = args->event_x_event_pointer->xbutton.y,
+                                            .button = GUI_BUTTON_RIGHT,
+                                            .mods = mods});
+        }
         else if ((args->event_x_event_pointer->xbutton.button == Button4) ||
                  (args->event_x_event_pointer->xbutton.button == Button5))
         {

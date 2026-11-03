@@ -968,10 +968,48 @@ int cli_model_terminal_command(const CliModelCtx *args)
     }
 }
 
+// the panel's menu as terminal.js gives it: Copy, which needs text chosen, Paste, a line, Clear, New Terminal, Split
+// Terminal, on while a shell stands beside the one shown, and Close
+static const CliItem s_terminal_menu[CLI_MODEL_TERMINAL_MENU_ROWS] = {
+    {.label = "Copy",
+     .command = "terminal-copy",
+     .keys = "Ctrl+Shift+C",
+     .args = "",
+     .needs = "terminal-chosen",
+     .checks = ""},
+    {.label = "Paste", .command = "terminal-paste", .keys = "Ctrl+Shift+V", .args = "", .needs = "", .checks = ""},
+    {.label = "", .command = "", .keys = "", .args = "", .needs = "", .checks = "", .line = 1},
+    {.label = "Clear", .command = "clear", .keys = "Ctrl+L", .args = "", .needs = "", .checks = ""},
+    {.label = "New Terminal", .command = "new", .keys = "Ctrl+Shift+`", .args = "", .needs = "", .checks = ""},
+    {.label = "Split Terminal", .command = "split", .keys = "", .args = "", .needs = "", .checks = "terminal-split"},
+    {.label = "Close", .command = "terminal-close", .keys = "Ctrl+`", .args = "", .needs = "", .checks = ""}};
+
+// whether text is chosen in the pane of the tab `tab`: its view's cursor and anchor apart
+EMBED_INLINE int terminal_chosen(const TerminalCtx *args)
+{
+    CliPosition cursor = {0ULL, 0ULL};
+    CliPosition anchor = {0ULL, 0ULL};
+    return (args->tab != NULL) && args->tab->stored &&
+           EMBED_CALL(cli_view_cursor_table.cursor, CliViewCursorCfg, .key = args->tab->key, .cursor = &cursor,
+                      .anchor = &anchor) &&
+           ((cursor.line != anchor.line) || (cursor.col != anchor.col));
+}
+
 int cli_model_terminal_checked(const CliModelCtx *args)
 {
+    const int at = terminal_target();
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->path, .other = "terminal-chosen", .cap = CLI_LABEL_MAX_LEN}))
+    {
+        return EMBED_CALL(terminal_chosen, TerminalCtx, .tab = (at >= 0) ? s_terminal.tab[at] : NULL);
+    }
     return cellul.eq(&(CatenaFinitaCfg){.src = args->path, .other = "terminal-split", .cap = CLI_LABEL_MAX_LEN}) &&
            (s_terminal.beside >= 0);
+}
+
+const CliItem *cli_model_terminal_menu(const CliModelCtx *args)
+{
+    (void)args;
+    return s_terminal_menu;
 }
 
 int cli_model_terminal_key(const CliModelCtx *args)

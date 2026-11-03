@@ -5,9 +5,11 @@
 // until one is. A title pressed opens its menu, the pointer moving onto another title while one is open opens that one,
 // the pointer on a row marks it and opens the items under it once it has rested there, the pointer resting on a sibling
 // closing them again, a press on a row chooses it or opens its items at once; Up and Down step the mark, Left and Right
-// step between the menus or out of and into the items under one, Enter chooses, Escape closes, a letter marks the next
-// row it begins, and Alt with a title's letter opens its menu. Where each menu stands on the window is the window's; it
-// hands this the title or the row it hit
+// step between the menus or out of and into the items under one, Enter chooses, Escape closes, Tab closes them all, a
+// letter marks the next row it begins, and Alt with a title's letter opens its menu. A part's menu asked for at a place
+// closes those open and opens the part's there, under no title, its first row that can be chosen marked; Left and Right
+// at its first level step to no title. Where each menu stands on the window is the window's; it hands this the title or
+// the row it hit
 #include "controller_internal.h"
 
 #include "../command_line/cells.h"
@@ -33,8 +35,9 @@ typedef struct
 
 // The menus: each menu's title and how many, those with a place on the bar and the menu each stands for; the rows with
 // keys; how many titles the window's width shows and whether the rest fold into a last one; the title open, -1 for
-// none; the menus open, one under another; and the rest the pointer is in: when it ends, 0 for none, the level of the
-// row it rests on, and the row whose items are to open, -1 where the rest closes the items open beside a sibling
+// none; the menus open, one under another, and where the first stands where it was asked for at a place; and the rest
+// the pointer is in: when it ends, 0 for none, the level of the row it rests on, and the row whose items are to open,
+// -1 where the rest closes the items open beside a sibling
 typedef struct
 {
     unsigned int menus;
@@ -48,6 +51,8 @@ typedef struct
     int open;
     ControllerMenu menu[CONTROLLER_MENU_LEVELS];
     unsigned int levels;
+    int x;
+    int y;
     unsigned long long rest_due_ms;
     unsigned int rest_level;
     int rest_index;
@@ -106,14 +111,19 @@ EMBED_INLINE int commands_by_name(const ControllerCommandsCtx *args)
     return cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = args->required, .cap = 32ULL});
 }
 
-// whether the item cannot be chosen: it needs a file open while none is, it is never chosen, or it has no command
+// whether the item cannot be chosen: it needs a file open while none is, or text chosen in the terminal while none is,
+// it is never chosen, or it has no command
 EMBED_INLINE int commands_item_disabled(const ControllerCommandsCtx *args)
 {
     const char *const needs = args->item->needs;
     const int needs_editor = cellul.eq(&(CatenaFinitaCfg){.src = needs, .other = "editor", .cap = CLI_LABEL_MAX_LEN}) ||
                              cellul.eq(&(CatenaFinitaCfg){.src = needs, .other = "tab", .cap = CLI_LABEL_MAX_LEN});
+    const int needs_chosen =
+        cellul.eq(&(CatenaFinitaCfg){.src = needs, .other = "terminal-chosen", .cap = CLI_LABEL_MAX_LEN});
     const int never = cellul.eq(&(CatenaFinitaCfg){.src = needs, .other = "never", .cap = CLI_LABEL_MAX_LEN});
-    return never || (needs_editor && (g_cli_model.tabs == 0u)) || (args->item->command[0] == '\0');
+    return never || (needs_editor && (g_cli_model.tabs == 0u)) ||
+           (needs_chosen && !EMBED_CALL(cli_model_terminal.checked, CliModelCtx, .path = needs)) ||
+           (args->item->command[0] == '\0');
 }
 
 // the state the item shows, by the name it gives it, as its part answers: 1 on and 0 off, a name no part answers for
@@ -522,6 +532,11 @@ EMBED_INLINE int commands_menu_key(const ControllerCommandsCtx *args)
         EMBED_CALL(commands_closed_from, ControllerCommandsCtx, .level = level);
         return 1;
     }
+    if (EMBED_CALL(commands_by_name, ControllerCommandsCtx, .name = name, .required = "Tab"))
+    {
+        EMBED_CALL(commands_closed_from, ControllerCommandsCtx, .level = 0u);
+        return 1;
+    }
     if (EMBED_CALL(commands_by_name, ControllerCommandsCtx, .name = name, .required = "Down") ||
         EMBED_CALL(commands_by_name, ControllerCommandsCtx, .name = name, .required = "Up"))
     {
@@ -551,7 +566,7 @@ EMBED_INLINE int commands_menu_key(const ControllerCommandsCtx *args)
             EMBED_CALL(commands_row_open, ControllerCommandsCtx, .level = level, .at = (unsigned int)menu->pointed,
                        .marked = 1);
         }
-        else if ((level == 0u) && (slots != 0u))
+        else if ((level == 0u) && (slots != 0u) && (s_menus.open >= 0))
         {
             // the title open is among the titles
             EMBED_CALL(commands_title_open, ControllerCommandsCtx, .at = ((unsigned int)s_menus.open + 1u) % slots,
@@ -565,8 +580,9 @@ EMBED_INLINE int commands_menu_key(const ControllerCommandsCtx *args)
         {
             EMBED_CALL(commands_closed_from, ControllerCommandsCtx, .level = level);
         }
-        else if (slots != 0u)
+        else if ((slots != 0u) && (s_menus.open >= 0))
         {
+            // the title open is among the titles
             EMBED_CALL(commands_title_open, ControllerCommandsCtx,
                        .at = ((unsigned int)s_menus.open + slots - 1u) % slots, .marked = 1);
         }
@@ -905,6 +921,40 @@ void cli_model_menu_input(const CliModelCtx *args)
     }
 }
 
+void cli_model_menu_open(const CliModelCtx *args)
+{
+    const CliInput *const input = (const CliInput *)args->input;
+    // a menu asked for on a menu open is none of a part's, and one asked for anywhere else closes those open first
+    const int asked = input->kind == CLI_INPUT_MENU;
+    if (asked && (input->hit == CLI_HIT_MENU_ROW))
+    {
+        return;
+    }
+    EMBED_CALL(commands_closed_from, ControllerCommandsCtx, .level = 0u);
+    // the terminal's panel answers for every place on it
+    if (!asked || (input->hit < CLI_HIT_TERMINAL) || (input->hit > CLI_HIT_TERMINAL_PANEL))
+    {
+        return;
+    }
+    ControllerMenu *const menu = &s_menus.menu[0];
+    menu->row =
+        g_cli_cells->persistent_buf_alloc(CLI_MODEL_TERMINAL_MENU_ROWS * sizeof(*menu->row), &g_cli_controller_cells);
+    if (menu->row == NULL)
+    {
+        return;
+    }
+    memor.cpy(&(MemoriaCfg){.dst = menu->row,
+                            .src = EMBED_CALL(cli_model_terminal.menu, CliModelCtx, .at = 0u),
+                            .bytes = CLI_MODEL_TERMINAL_MENU_ROWS * sizeof(*menu->row)});
+    menu->rows = CLI_MODEL_TERMINAL_MENU_ROWS;
+    s_menus.levels = 1u;
+    s_menus.open = -1;
+    s_menus.x = input->x;
+    s_menus.y = input->y;
+    menu->pointed = EMBED_CALL(commands_row_step, ControllerCommandsCtx, .level = 0u, .from = -1, .by = 1);
+    menu->opened = -1;
+}
+
 void cli_model_menu_bar_size(const CliModelCtx *args)
 {
     s_menus.shown = args->at;
@@ -973,6 +1023,8 @@ void *cli_model_menus_alloc(const CliModelCtx *args)
     menus->open = s_menus.open;
     menus->level = (CliMenuLevel *)(void *)(menus->title + s_menus.titles);
     menus->levels = s_menus.levels;
+    menus->x = s_menus.x;
+    menus->y = s_menus.y;
     CliMenuRow *row = (CliMenuRow *)(void *)(menus->level + s_menus.levels);
     char *text = (char *)(void *)(row + rows);
     for (unsigned int at = 0u; at < s_menus.titles; at += 1u)

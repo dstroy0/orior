@@ -187,19 +187,29 @@ void gui_menubar_menus_layout(const GuiMenubarBarCfg *args)
 {
     GuiMenubar *const menubar = args->menubar;
     const CliMenus *const menus = menubar->menus;
-    if ((menus == NULL) || (menus->levels == 0u) || (menus->open < 0) || (menubar->titles == 0u))
+    if ((menus == NULL) || (menus->levels == 0u) || ((menus->open >= 0) && (menubar->titles == 0u)))
     {
         return;
     }
-    // the open title is not negative past the test, and a title the bar no longer shows opens from the last it does
-    const unsigned int open =
-        ((unsigned int)menus->open < menubar->titles) ? (unsigned int)menus->open : (menubar->titles - 1u);
-    EMBED_CALL(menubar_menu_position, MenubarCtx, .menubar_out = menubar, .glyphs = args->glyphs, .frame = args->frame,
-               .level = 0u, .x = menubar->title[open].rect.x,
-               .y = args->frame->bar.y + args->frame->bar.height +
-                    EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_MENU_BELOW,
-                               .scale = args->frame->scale),
-               .adjacent = NULL);
+    if (menus->open < 0)
+    {
+        // a menu asked for at a place stands with its top left there
+        EMBED_CALL(menubar_menu_position, MenubarCtx, .menubar_out = menubar, .glyphs = args->glyphs,
+                   .frame = args->frame, .level = 0u, .x = menus->x, .y = menus->y, .adjacent = NULL);
+    }
+    else
+    {
+        // the open title is not negative past the test, and a title the bar no longer shows opens from the last it
+        // does
+        const unsigned int open =
+            ((unsigned int)menus->open < menubar->titles) ? (unsigned int)menus->open : (menubar->titles - 1u);
+        EMBED_CALL(menubar_menu_position, MenubarCtx, .menubar_out = menubar, .glyphs = args->glyphs,
+                   .frame = args->frame, .level = 0u, .x = menubar->title[open].rect.x,
+                   .y = args->frame->bar.y + args->frame->bar.height +
+                        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_MENU_BELOW,
+                                   .scale = args->frame->scale),
+                   .adjacent = NULL);
+    }
     for (unsigned int level = 1u; (level < menus->levels) && (level < GUI_MENU_LEVELS); level += 1u)
     {
         const int opened = menus->level[level - 1u].opened;

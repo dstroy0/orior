@@ -668,3 +668,82 @@ void test_the_terminal_menu_shows_split_terminal_on_while_a_shell_stands_beside_
     g_cli_cells->persistent_buf_release(split, &g_cli_controller_cells);
     EMBED_CALL(cli_model_terminal.end, CliModelCtx, .at = 0u);
 }
+
+// the menus as the controller publishes them, and the menu asked for on the terminal's pane `view` at x, y
+static CliMenus *menus_read(void)
+{
+    CliMenus *const menus = (CliMenus *)EMBED_CALL(cli_model_commands.menus_alloc, CliModelCtx, .at = 0u);
+    TEST_ASSERT_NOT_NULL(menus);
+    return menus;
+}
+
+static void terminal_menu_asked(unsigned int view, int x, int y)
+{
+    const CliInput asked = {.kind = CLI_INPUT_MENU, .hit = CLI_HIT_TERMINAL, .index = view, .x = x, .y = y};
+    EMBED_CALL(cli_model_commands.menu_open, CliModelCtx, .input = &asked);
+}
+
+void test_a_menu_asked_for_on_the_terminal_opens_its_items_where_it_was_asked_the_first_it_can_choose_marked(void)
+{
+#if defined(_WIN32)
+    TEST_ASSERT_EQUAL_INT(0, _putenv_s("ORIOR_HOME", "build/harness/terminal_home"));
+#else
+    TEST_ASSERT_EQUAL_INT(0, setenv("ORIOR_HOME", "build/harness/terminal_home", 1));
+#endif
+    EMBED_CALL(cli_model_terminal.restore, CliModelCtx, .input = NULL);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.command, CliModelCtx, .path = "toggle"));
+    terminal_menu_asked(0u, 300, 400);
+    CliMenus *const opened = menus_read();
+    TEST_ASSERT_EQUAL_UINT(1u, opened->levels);
+    TEST_ASSERT_EQUAL_INT_MESSAGE(-1, opened->open, "a menu asked for stands under no title of the bar");
+    TEST_ASSERT_EQUAL_INT(300, opened->x);
+    TEST_ASSERT_EQUAL_INT(400, opened->y);
+    static const char *const labels[7] = {"Copy", "Paste", "", "Clear", "New Terminal", "Split Terminal", "Close"};
+    static const char *const keys[7] = {"Ctrl+Shift+C", "Ctrl+Shift+V", "", "Ctrl+L", "Ctrl+Shift+`", "", "Ctrl+`"};
+    TEST_ASSERT_EQUAL_UINT(7u, opened->level[0].rows);
+    for (unsigned int at = 0u; at < 7u; at += 1u)
+    {
+        TEST_ASSERT_EQUAL_STRING(labels[at], opened->level[0].row[at].label);
+        TEST_ASSERT_EQUAL_STRING(keys[at], opened->level[0].row[at].keys);
+        TEST_ASSERT_EQUAL_INT_MESSAGE((at == 5u) ? 0 : -1, opened->level[0].row[at].checked,
+                                      "Split Terminal alone shows a state, off with one shell");
+    }
+    TEST_ASSERT_EQUAL_UINT(CLI_MENU_ROW_LINE, opened->level[0].row[2].kind);
+    TEST_ASSERT_TRUE_MESSAGE(opened->level[0].row[0].disabled, "Copy cannot be chosen while nothing is chosen");
+    TEST_ASSERT_EQUAL_INT_MESSAGE(1, opened->level[0].pointed, "the first row that can be chosen is marked");
+    g_cli_cells->persistent_buf_release(opened, &g_cli_controller_cells);
+    // Right opens no title of the bar from a menu asked for, Down marks the next row, and Enter chooses it
+    EMBED_CALL(cli_model_commands.key_take, CliModelCtx, .path = "Right");
+    EMBED_CALL(cli_model_commands.key_take, CliModelCtx, .path = "Down");
+    CliMenus *const stepped = menus_read();
+    TEST_ASSERT_EQUAL_INT(-1, stepped->open);
+    TEST_ASSERT_EQUAL_UINT(1u, stepped->levels);
+    TEST_ASSERT_EQUAL_INT(3, stepped->level[0].pointed);
+    g_cli_cells->persistent_buf_release(stepped, &g_cli_controller_cells);
+    EMBED_CALL(cli_model_commands.key_take, CliModelCtx, .path = "Down");
+    EMBED_CALL(cli_model_commands.key_take, CliModelCtx, .path = "Down");
+    EMBED_CALL(cli_model_commands.key_take, CliModelCtx, .path = "Enter");
+    CliMenus *const chosen = menus_read();
+    TEST_ASSERT_EQUAL_UINT_MESSAGE(0u, chosen->levels, "a row chosen closes the menu");
+    g_cli_cells->persistent_buf_release(chosen, &g_cli_controller_cells);
+    CliTerminalPanel *const panel = panel_read();
+    TEST_ASSERT_NOT_NULL(panel);
+    TEST_ASSERT_TRUE_MESSAGE(panel->beside >= 0, "Split Terminal chosen shows a shell beside the one shown");
+    cli_model_terminal_release(panel);
+    terminal_menu_asked(1u, 20, 30);
+    CliMenus *const split = menus_read();
+    TEST_ASSERT_EQUAL_INT(1, split->level[0].row[5].checked);
+    g_cli_cells->persistent_buf_release(split, &g_cli_controller_cells);
+    // Tab closes it, and a right press away from it closes it again once it is asked for again
+    EMBED_CALL(cli_model_commands.key_take, CliModelCtx, .path = "Tab");
+    CliMenus *const tabbed = menus_read();
+    TEST_ASSERT_EQUAL_UINT(0u, tabbed->levels);
+    g_cli_cells->persistent_buf_release(tabbed, &g_cli_controller_cells);
+    terminal_menu_asked(0u, 20, 30);
+    const CliInput away = {.kind = CLI_INPUT_MENU_AWAY};
+    EMBED_CALL(cli_model_commands.menu_open, CliModelCtx, .input = &away);
+    CliMenus *const closed = menus_read();
+    TEST_ASSERT_EQUAL_UINT(0u, closed->levels);
+    g_cli_cells->persistent_buf_release(closed, &g_cli_controller_cells);
+    EMBED_CALL(cli_model_terminal.end, CliModelCtx, .at = 0u);
+}
