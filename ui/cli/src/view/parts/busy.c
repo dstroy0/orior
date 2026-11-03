@@ -58,6 +58,10 @@ typedef struct
     const unsigned char *glow;
     const unsigned char *sector;
     GuiRaster *raster;
+    unsigned int at;
+    int head_x;
+    int head_y;
+    unsigned int level;
 } BusyCtx;
 // the sine of the stage `turn` round the ring, read from the quarter's table
 EMBED_INLINE int busy_sine(const BusyCtx *args)
@@ -264,6 +268,65 @@ EMBED_INLINE unsigned int busy_along(const BusyCtx *args)
     return (args->sine < 0) ? args->half - 1u - exists : args->half + exists;
 }
 
+// the trail at the pixel `at` laid on `pixel`, `share` of 255 its heat there: the burn's color glowing about the ring
+// by the pixel's share of the glow, and the ring's color, from the ash through the burn to the fire as the heat rises,
+// by its share of the ring
+EMBED_INLINE void busy_trail_layout(const BusyCtx *args)
+{
+    const unsigned int heat = args->share;
+    const unsigned int at = args->at;
+    if (args->glow[at] != 0u)
+    {
+        EMBED_CALL(busy_layout_over, BusyCtx, .pixel = args->pixel, .color = args->palette->fuse_burn,
+                   .share = (args->glow[at] * heat) / (255u * 4u));
+    }
+    if (args->ring[at] != 0u)
+    {
+        const GuiColor color = (heat < 128u) ? EMBED_CALL(busy_between, BusyCtx, .from = args->palette->fuse_ash,
+                                                          .to = args->palette->fuse_burn, .share = heat * 2u)
+                                             : EMBED_CALL(busy_between, BusyCtx, .from = args->palette->fuse_burn,
+                                                          .to = args->palette->fuse_fire, .share = (heat - 128u) * 2u);
+        EMBED_CALL(busy_layout_over, BusyCtx, .pixel = args->pixel, .color = color,
+                   .share = (args->ring[at] * (BUSY_SHARE_ASH + ((BUSY_SHARE_TRAIL * heat) / 255u))) / 255u);
+    }
+}
+
+// the burn laid on `pixel`, `across` pixels from the picture's left and `down` from its top, its middle cell at
+// `head_x` and `head_y` and each cell `cell` pixels wide: the cell at its middle and one to each side of it, two lines
+// of three crossing. The `level` against the ordered threshold lights the pixel or lets it stand dim
+EMBED_INLINE void busy_burn_layout(const BusyCtx *args)
+{
+    // a cell's place and a pixel's inside a picture are far inside what an int represents
+    const int reach_cell = (int)args->cell;
+    const int column = (int)args->across;
+    const int row = (int)args->down;
+    const int from_x = column - args->head_x;
+    const int from_y = row - args->head_y;
+    const int cell_x = (from_x >= 0) ? from_x / reach_cell : -1 - ((-1 - from_x) / reach_cell);
+    const int cell_y = (from_y >= 0) ? from_y / reach_cell : -1 - ((-1 - from_y) / reach_cell);
+    const int on_line =
+        ((cell_x == 0) && (cell_y >= -1) && (cell_y <= 1)) || ((cell_y == 0) && (cell_x >= -1) && (cell_x <= 1));
+    if (!on_line)
+    {
+        return;
+    }
+    const int lit =
+        args->level > ((EMBED_CALL(gui_raster_rect.order, GuiRasterRectCfg, .x = column, .y = row) * 16u) + 8u);
+    if ((cell_x == 0) && (cell_y == 0))
+    {
+        EMBED_CALL(busy_layout_over, BusyCtx, .pixel = args->pixel,
+                   .color = lit ? args->palette->fuse_core : args->palette->fuse_fire, .share = 255u);
+    }
+    else if (lit)
+    {
+        EMBED_CALL(busy_layout_over, BusyCtx, .pixel = args->pixel, .color = args->palette->fuse_fire, .share = 255u);
+    }
+    else
+    {
+        EMBED_CALL(busy_layout_over, BusyCtx, .pixel = args->pixel, .color = args->palette->fuse_burn, .share = 128u);
+    }
+}
+
 // the picture of `stage`, its pixels gathered from the ring, the trail's glow about it and the burn at its head; the
 // ring's reaches and each pixel's stage of the turn read from what the cell holds for the picture's making
 EMBED_INLINE void busy_stage_init(const BusyCtx *args)
@@ -304,51 +367,10 @@ EMBED_INLINE void busy_stage_init(const BusyCtx *args)
             const unsigned int behind = (args->stage - args->sector[at]) & (GUI_BUSY_STAGES - 1u);
             const unsigned int left = (behind < BUSY_TRAIL) ? BUSY_TRAIL - behind : 0u;
             const unsigned int heat = (left * left * 255u) / (BUSY_TRAIL * BUSY_TRAIL);
-            if (args->glow[at] != 0u)
-            {
-                EMBED_CALL(busy_layout_over, BusyCtx, .pixel = &pixel, .color = args->palette->fuse_burn,
-                           .share = (args->glow[at] * heat) / (255u * 4u));
-            }
-            if (args->ring[at] != 0u)
-            {
-                const GuiColor color = (heat < 128u)
-                                           ? EMBED_CALL(busy_between, BusyCtx, .from = args->palette->fuse_ash,
-                                                        .to = args->palette->fuse_burn, .share = heat * 2u)
-                                           : EMBED_CALL(busy_between, BusyCtx, .from = args->palette->fuse_burn,
-                                                        .to = args->palette->fuse_fire, .share = (heat - 128u) * 2u);
-                EMBED_CALL(busy_layout_over, BusyCtx, .pixel = &pixel, .color = color,
-                           .share = (args->ring[at] * (BUSY_SHARE_ASH + ((BUSY_SHARE_TRAIL * heat) / 255u))) / 255u);
-            }
-            // the burn: the cell at its middle and one to each side of it, two lines of three crossing; the level
-            // against the ordered threshold lights the pixel or lets it stand dim a pixel's place inside a picture is
-            // far inside what an int represents
-            const int from_x = (int)column - head_x;
-            const int from_y = (int)row - head_y;
-            const int cell_x = (from_x >= 0) ? from_x / reach_cell : -1 - ((-1 - from_x) / reach_cell);
-            const int cell_y = (from_y >= 0) ? from_y / reach_cell : -1 - ((-1 - from_y) / reach_cell);
-            const int on_line = ((cell_x == 0) && (cell_y >= -1) && (cell_y <= 1)) ||
-                                ((cell_y == 0) && (cell_x >= -1) && (cell_x <= 1));
-            if (on_line)
-            {
-                const int lit =
-                    level >
-                    ((EMBED_CALL(gui_raster_rect.order, GuiRasterRectCfg, .x = (int)column, .y = (int)row) * 16u) + 8u);
-                if ((cell_x == 0) && (cell_y == 0))
-                {
-                    EMBED_CALL(busy_layout_over, BusyCtx, .pixel = &pixel,
-                               .color = lit ? args->palette->fuse_core : args->palette->fuse_fire, .share = 255u);
-                }
-                else if (lit)
-                {
-                    EMBED_CALL(busy_layout_over, BusyCtx, .pixel = &pixel, .color = args->palette->fuse_fire,
-                               .share = 255u);
-                }
-                else
-                {
-                    EMBED_CALL(busy_layout_over, BusyCtx, .pixel = &pixel, .color = args->palette->fuse_burn,
-                               .share = 128u);
-                }
-            }
+            EMBED_CALL(busy_trail_layout, BusyCtx, .pixel = &pixel, .at = at, .share = heat, .glow = args->glow,
+                       .ring = args->ring, .palette = args->palette);
+            EMBED_CALL(busy_burn_layout, BusyCtx, .pixel = &pixel, .across = column, .down = row, .head_x = head_x,
+                       .head_y = head_y, .cell = args->cell, .level = level, .palette = args->palette);
             // rounding in the gathering is not to take the pixel past the whole of 255 with what the ground adds
             const unsigned int most = 255u - pixel.rest;
             const unsigned int red = (pixel.red > most) ? most : pixel.red;
@@ -410,7 +432,7 @@ EMBED_INLINE int busy_pictures_init(const BusyCtx *args)
             ring[at] = (unsigned char)on_ring;
             glow[at] = (unsigned char)((about > on_ring) ? about - on_ring : 0u);
             // the pixel's stage of the turn: the one whose way round from the top it lies along most, twice its place
-            // from the center saving the middle of a pixel whole a place inside a picture is far inside what an int
+            // from the center saving the middle of a pixel whole. A place inside a picture is far inside what an int
             // represents
             const int from_x = (2 * (int)column) + 1 - (int)side;
             const int from_y = (2 * (int)row) + 1 - (int)side;
