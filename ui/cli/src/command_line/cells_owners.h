@@ -61,8 +61,10 @@
                                                                         "cli_state") owner_(g_cli_templates_cells,     \
                                                                                             "cli_templates")           \
                                                     owner_(g_cli_test_report_cells, "cli_test_report") owner_(         \
-                                                        g_cli_tests_cells, "cli_tests") owner_(g_cli_text_cells,       \
-                                                                                               "cli_text")             \
+                                                        g_cli_tests_cells,                                             \
+                                                        "cli_tests") owner_(g_cli_text_cells,                          \
+                                                                            "cli_text") owner_(g_cli_terminal_cells,   \
+                                                                                               "cli_terminal")         \
                                                         owner_(g_cli_tls_cells, "cli_tls") owner_(                     \
                                                             g_cli_toolchains_cells,                                    \
                                                             "cli_toolchains") owner_(g_cli_toolchains_found_cells,     \
