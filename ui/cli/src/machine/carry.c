@@ -76,6 +76,7 @@ typedef struct
     unsigned int nodes_more;
     unsigned long long text_more;
     const char *folder;
+    unsigned int object;
 } CarryCtx;
 // the cells a carry's work took given back, its paths and its work state, and its lock
 EMBED_INLINE void machine_transfer_release(const CarryCtx *args)
@@ -374,6 +375,24 @@ void cli_machine_transfer_files(const CliMachineTransferFolderCtx *args)
     }
 }
 
+// each key of the settings `object` that belongs to one machine alone taken out of it
+EMBED_INLINE void carry_machine_keys_remove(const CarryCtx *args)
+{
+    CliJson *const json = &args->work_state->json;
+    for (unsigned int member = (args->object != CLI_JSON_NONE) ? json->node[args->object].first : CLI_JSON_NONE;
+         member != CLI_JSON_NONE;)
+    {
+        const unsigned int next = json->node[member].next;
+        const char *const key = json->text + json->node[member].key;
+        if (EMBED_CALL(cli_machine_transfer_internal.machine, CliMachineTransferCtx, .key = key))
+        {
+            EMBED_CALL(cli_json_tree_object_name.json_remove, CliJsonTreeObjectNameCfg, .json = json,
+                       .object = args->object, .name = key);
+        }
+        member = next;
+    }
+}
+
 int cli_machine_transfer_pack(const CliMachineTransferCfg *args)
 {
     static CliTransferred s_paths;
@@ -410,18 +429,7 @@ int cli_machine_transfer_pack(const CliMachineTransferCfg *args)
             const unsigned int object =
                 EMBED_CALL(cli_machine_transfer_capacity_internal.settings_get, CliMachineTransferWorkStateCtx,
                            .work_state = &s_work_state, .text = (const char *)bytes, .size = size, .adjacent = 0ULL);
-            for (unsigned int member = (object != CLI_JSON_NONE) ? s_work_state.json.node[object].first : CLI_JSON_NONE;
-                 member != CLI_JSON_NONE;)
-            {
-                const unsigned int next = s_work_state.json.node[member].next;
-                const char *const key = s_work_state.json.text + s_work_state.json.node[member].key;
-                if (EMBED_CALL(cli_machine_transfer_internal.machine, CliMachineTransferCtx, .key = key))
-                {
-                    EMBED_CALL(cli_json_tree_object_name.json_remove, CliJsonTreeObjectNameCfg,
-                               .json = &s_work_state.json, .object = object, .name = key);
-                }
-                member = next;
-            }
+            EMBED_CALL(carry_machine_keys_remove, CarryCtx, .work_state = &s_work_state, .object = object);
             const unsigned long long written_capacity =
                 EMBED_CALL(cli_json_tree_node_out.json_pretty_capacity, CliJsonTreeNodeOutCfg,
                            .json_read = &s_work_state.json, .indent = 2u);

@@ -412,6 +412,20 @@ EMBED_INLINE int unread_on_skip(const InspectPyUnreadCtx *args)
     return 0;
 }
 
+// each name the `global` or `nonlocal` statement of `count` tokens at `toks` declares, put among the declared
+EMBED_INLINE void unread_declared(const InspectPyUnreadCtx *args)
+{
+    for (unsigned int name = 1u; name < args->count; name += 1u)
+    {
+        if (args->toks[name].kind == CLI_PY_NAME)
+        {
+            EMBED_CALL(cli_inspect_set_internal.set_append, CliInspectSetCtx, .set = &s_declared,
+                       .at = args->src + args->toks[name].start,
+                       .size_u32 = args->toks[name].end - args->toks[name].start);
+        }
+    }
+}
+
 // each statement of a line read: the names it declares global or nonlocal, those it sets, and those it reads
 EMBED_INLINE void unread_line(const InspectPyUnreadCtx *args)
 {
@@ -445,15 +459,7 @@ EMBED_INLINE void unread_line(const InspectPyUnreadCtx *args)
             EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = &statement[0],
                        .word_text = "nonlocal"))
         {
-            for (unsigned int name = 1u; name < count; name += 1u)
-            {
-                if (statement[name].kind == CLI_PY_NAME)
-                {
-                    EMBED_CALL(cli_inspect_set_internal.set_append, CliInspectSetCtx, .set = &s_declared,
-                               .at = src + statement[name].start,
-                               .size_u32 = statement[name].end - statement[name].start);
-                }
-            }
+            EMBED_CALL(unread_declared, InspectPyUnreadCtx, .src = src, .toks = statement, .count = count);
             continue;
         }
         EMBED_CALL(unread_setting, InspectPyUnreadCtx, .src = src, .size = size, .toks = statement, .count = count,

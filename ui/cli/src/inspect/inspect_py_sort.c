@@ -117,18 +117,20 @@ int cli_inspect_py_sort_methods(const CliInspectSizeSrcCtx *args)
         if (EMBED_CALL(cli_inspect_py_src_line.py_head_is, CliInspectPySrcLineCfg, .src = args->src, .line = defined,
                        .word_text = "def"))
         {
-            for (unsigned int part = 0u; part + 1u < defined->count; part += 1u)
-            {
-                if (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = args->src,
+            unsigned int part = 0u;
+            while ((part + 1u < defined->count) &&
+                   !EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = args->src,
                                .tok = EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = defined, .at = part),
                                .word_text = "def"))
-                {
-                    const CliInspectTok *const name =
-                        EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = defined, .at = part + 1u);
-                    s_names[members] = args->src + name->start;
-                    s_name_sizes[members] = name->end - name->start;
-                    break;
-                }
+            {
+                part += 1u;
+            }
+            if (part + 1u < defined->count)
+            {
+                const CliInspectTok *const name =
+                    EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = defined, .at = part + 1u);
+                s_names[members] = args->src + name->start;
+                s_name_sizes[members] = name->end - name->start;
             }
         }
         s_firsts[members] = first;

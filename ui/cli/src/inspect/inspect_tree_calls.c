@@ -45,6 +45,7 @@ typedef struct
     CliInspectReached each;
     void *context;
     unsigned int other;
+    CliInspectSpan *grouped;
 } InspectTreeCallsCtx;
 // the functions of the tree's files, and the most calls one function makes
 EMBED_INLINE void calls_count(const InspectTreeCallsCtx *args)
@@ -314,6 +315,26 @@ EMBED_INLINE int calls_reaches(const InspectTreeCallsCtx *args)
     return (args->other != args->file) && (CLI_TREE_FILE(args->other).python == CLI_TREE_FILE(args->file).python);
 }
 
+// the calls `function` of `facts` makes to the `size` bytes of `name`, their spans into `grouped`: their count
+EMBED_INLINE unsigned int calls_sites(const InspectTreeCallsCtx *args)
+{
+    const CliFacts *const read = args->facts;
+    unsigned int sites = 0u;
+    for (unsigned int call = 0u; call < args->function->calls; call += 1u)
+    {
+        const CliInspectName *const one = &read->name[args->function->call_first + call];
+        if ((one->name.size == args->size) &&
+            (memor.cmp(&(MemoriaCfg){
+                 .src = read->text + one->name.at, .other = args->name, .bytes = (size_t)args->size}) == 0))
+        {
+            args->grouped[sites].from = one->from;
+            args->grouped[sites].to = one->to;
+            sites += 1u;
+        }
+    }
+    return sites;
+}
+
 void cli_inspect_tree_callers(const CliInspectTreePathCfg *args)
 {
     const unsigned int file =
@@ -359,20 +380,9 @@ void cli_inspect_tree_callers(const CliInspectTreePathCfg *args)
             EMBED_CALL(calls_reaches, InspectTreeCallsCtx, .other = other, .file = file, .name = name, .size = size);
         for (unsigned int index = 0u; reaches && (index < read->functions); index += 1u)
         {
-            const CliInspectFunction *const caller = &read->function[index];
-            unsigned int sites = 0u;
-            for (unsigned int call = 0u; call < caller->calls; call += 1u)
-            {
-                const CliInspectName *const one = &read->name[caller->call_first + call];
-                if ((one->name.size == size) &&
-                    (memor.cmp(&(MemoriaCfg){.src = read->text + one->name.at, .other = name, .bytes = (size_t)size}) ==
-                     0))
-                {
-                    grouped[sites].from = one->from;
-                    grouped[sites].to = one->to;
-                    sites += 1u;
-                }
-            }
+            const unsigned int sites =
+                EMBED_CALL(calls_sites, InspectTreeCallsCtx, .facts = read, .function = &read->function[index],
+                           .name = name, .size = size, .grouped = grouped);
             if (sites > 0u)
             {
                 EMBED_CALL(args->each, CliInspectReachedCfg, .context = args->context,

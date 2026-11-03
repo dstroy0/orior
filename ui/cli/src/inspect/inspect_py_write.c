@@ -181,17 +181,17 @@ EMBED_INLINE void write_header(const InspectPyWriteCtx *args)
             EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word_text = "}"))
         {
             depth -= 1;
-            if (depth == 0)
+            if (depth != 0)
             {
-                close = offset;
-                if (offset > part_first)
-                {
-                    EMBED_CALL(write_parameter, InspectPyWriteCtx, .src = src, .header = args->header,
-                               .first = part_first, .end = offset, .index = index);
-                }
-                break;
+                continue;
             }
-            continue;
+            close = offset;
+            if (offset > part_first)
+            {
+                EMBED_CALL(write_parameter, InspectPyWriteCtx, .src = src, .header = args->header, .first = part_first,
+                           .end = offset, .index = index);
+            }
+            break;
         }
         if ((depth == 1) &&
             EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word_text = ","))
@@ -268,18 +268,19 @@ EMBED_INLINE void write_signature(const InspectPyWriteCtx *args)
             (line->count > 1u) && (s_sign.raises < CLI_PY_PARAMS))
         {
             VerbaLinea raised = {s_sign.raised[s_sign.raises], CLI_NAME_MAX_LEN, 0ULL};
-            for (unsigned int part = 1u; part < line->count; part += 1u)
+            unsigned int part = 1u;
+            while ((part < line->count) &&
+                   !EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src,
+                               .tok = EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = line, .at = part),
+                               .word_text = "(") &&
+                   !EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src,
+                               .tok = EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = line, .at = part),
+                               .word_text = "from"))
             {
                 const CliInspectTok *const word_text =
                     EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = line, .at = part);
-                if (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = word_text,
-                               .word_text = "(") ||
-                    EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = word_text,
-                               .word_text = "from"))
-                {
-                    break;
-                }
                 mmgr_line_put_n(&raised, src + word_text->start, word_text->end - word_text->start);
+                part += 1u;
             }
             int known = (mmgr_line_finish(&raised) == 0ULL) || (raised.at == 0u);
             for (unsigned int one = 0u; !known && (one < s_sign.raises); one += 1u)

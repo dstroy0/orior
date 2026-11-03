@@ -84,6 +84,9 @@ typedef struct
     unsigned int buckets;
     unsigned int round;
     unsigned int size_u32;
+    CliInspectSupplied supplied;
+    const char *path;
+    const char *class_name;
 } InspectTreeFamilyCtx;
 // the class numbered `number`
 EMBED_INLINE const CliInspectClass *family_class(const InspectTreeFamilyCtx *args)
@@ -526,6 +529,29 @@ EMBED_INLINE int family_supplied_append(const InspectTreeFamilyCtx *args)
     return 1;
 }
 
+// what each class the class `number` comes from sets, each attribute first stored in `table` this `round` handed to
+// `supplied` with the `path` and `class_name` of the class it is supplied to
+EMBED_INLINE void family_supplied_above(const InspectTreeFamilyCtx *args)
+{
+    const unsigned int below = args->number;
+    for (unsigned int up = 0u; up < s_family.ancestors[below]; up += 1u)
+    {
+        const unsigned int one = s_family.ancestor[s_family.ancestor_first[below] + up];
+        const CliFacts *const facts = EMBED_CALL(family_facts, InspectTreeFamilyCtx, .number = one);
+        const CliInspectClass *const sets = EMBED_CALL(family_class, InspectTreeFamilyCtx, .number = one);
+        for (unsigned int at = 0u; at < sets->has; at += 1u)
+        {
+            const CliInspectText name = facts->name[sets->has_first + at].name;
+            if (EMBED_CALL(family_supplied_append, InspectTreeFamilyCtx, .table = args->table, .buckets = args->buckets,
+                           .round = args->round, .name = facts->text + name.at, .size_u32 = name.size))
+            {
+                EMBED_CALL(args->supplied, CliInspectSuppliedCfg, .context = args->context, .path = args->path,
+                           .class_name = args->class_name, .attribute = facts->text + name.at);
+            }
+        }
+    }
+}
+
 void cli_inspect_tree_supplied(const CliInspectTreeContextEachSuppliedCfg *args)
 {
     cli_tree_families();
@@ -562,23 +588,10 @@ void cli_inspect_tree_supplied(const CliInspectTreeContextEachSuppliedCfg *args)
                                        EMBED_CALL(family_class, InspectTreeFamilyCtx, .number = key)->name.at;
         for (unsigned int lower = 0u; lower < s_family.descendants[key]; lower += 1u)
         {
-            const unsigned int below = s_family.descendant[s_family.descendant_first[key] + lower];
-            for (unsigned int up = 0u; up < s_family.ancestors[below]; up += 1u)
-            {
-                const unsigned int one = s_family.ancestor[s_family.ancestor_first[below] + up];
-                const CliFacts *const facts = EMBED_CALL(family_facts, InspectTreeFamilyCtx, .number = one);
-                const CliInspectClass *const sets = EMBED_CALL(family_class, InspectTreeFamilyCtx, .number = one);
-                for (unsigned int at = 0u; at < sets->has; at += 1u)
-                {
-                    const CliInspectText name = facts->name[sets->has_first + at].name;
-                    if (EMBED_CALL(family_supplied_append, InspectTreeFamilyCtx, .table = table, .buckets = buckets,
-                                   .round = round, .name = facts->text + name.at, .size_u32 = name.size))
-                    {
-                        EMBED_CALL(args->each_inspect_supplied, CliInspectSuppliedCfg, .context = args->context,
-                                   .path = path, .class_name = class_name, .attribute = facts->text + name.at);
-                    }
-                }
-            }
+            EMBED_CALL(family_supplied_above, InspectTreeFamilyCtx,
+                       .number = s_family.descendant[s_family.descendant_first[key] + lower], .table = table,
+                       .buckets = buckets, .round = round, .supplied = args->each_inspect_supplied,
+                       .context = args->context, .path = path, .class_name = class_name);
         }
     }
     g_cli_cells->persistent_buf_release(table, &g_cli_inspect_cells);

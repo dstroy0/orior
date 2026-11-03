@@ -118,13 +118,14 @@ void cli_inspect_paint_runs(const CliInspectSizeSrcParsedCtx *args)
         unsigned char class_of = 0u;
         for (unsigned long long col = 0ULL; col < s_line_width[line]; col += 1u)
         {
-            if (has_run && (class_of == columns[col]))
+            const int extends = has_run && (class_of == columns[col]);
+            if (extends && has_lines)
             {
-                if (has_lines)
-                {
-                    // a column of a line stored is at most 16M, which a run's ends count
-                    args->parsed->run[args->parsed->runs - 1u].to = (unsigned int)col + 1u;
-                }
+                // a column of a line stored is at most 16M, which a run's ends count
+                args->parsed->run[args->parsed->runs - 1u].to = (unsigned int)col + 1u;
+            }
+            if (extends)
+            {
                 continue;
             }
             if (args->parsed->runs == args->parsed->runs_max)

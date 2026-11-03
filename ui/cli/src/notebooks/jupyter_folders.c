@@ -15,6 +15,7 @@ typedef struct
     const char *name;
     const char *python;
     char *prefix;
+    const char *end;
 } JupyterFoldersCtx;
 
 // `name` joined under `folder` into the listing's next folder, where one is left: the count after
@@ -26,6 +27,29 @@ EMBED_INLINE unsigned int jupyter_folder_append(const JupyterFoldersCtx *args)
     }
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = args->folder, .relative = args->name,
                .joined = args->folders[args->count]);
+    return args->count + 1u;
+}
+
+// the path list's entry from `name` up to `end` into the listing's next folder, where one is left: the count after
+EMBED_INLINE unsigned int jupyter_entry_append(const JupyterFoldersCtx *args)
+{
+    if (args->count >= CLI_KERNEL_FOLDERS)
+    {
+        return args->count;
+    }
+    VerbaLinea line = {args->folders[args->count], CLI_PATH_MAX_LEN, 0ULL};
+    for (const char *letter = args->name; letter < args->end; letter += 1)
+    {
+#if defined(_WIN32)
+        // Windows takes quotes out of a path list's entries
+        if (*letter == '"')
+        {
+            continue;
+        }
+#endif
+        mmgr_line_ch(&line, *letter);
+    }
+    mmgr_line_finish(&line);
     return args->count + 1u;
 }
 
@@ -149,23 +173,8 @@ unsigned int cli_kernel_data_folders(const CliJupyterPythonsPythonCountCtx *args
             {
                 continue;
             }
-            if (count < CLI_KERNEL_FOLDERS)
-            {
-                VerbaLinea line = {folders[count], CLI_PATH_MAX_LEN, 0ULL};
-                for (const char *letter = from; letter < at; letter += 1)
-                {
-#if defined(_WIN32)
-                    // Windows takes quotes out of a path list's entries
-                    if (*letter == '"')
-                    {
-                        continue;
-                    }
-#endif
-                    mmgr_line_ch(&line, *letter);
-                }
-                mmgr_line_finish(&line);
-                count += 1u;
-            }
+            count = EMBED_CALL(jupyter_entry_append, JupyterFoldersCtx, .folders = folders, .count = count,
+                               .name = from, .end = at);
             if (*at == '\0')
             {
                 break;
