@@ -48,6 +48,10 @@ typedef struct
     VerbaLinea *line_verba_linea_pointer;
     const char **from_letters;
     const char *state;
+    const CliHighlightList *rules;
+    const CliHighlightList **rules_pointer;
+    unsigned long long *at_pointer;
+    unsigned int *stalled_pointer;
 } HighlightLineCtx;
 // the letters from `from` to `to` written in UTF-8 into `out`, sized for four bytes a letter, lower case where
 // `lower` is 1: their length
@@ -328,6 +332,104 @@ EMBED_INLINE void cli_line_indent(const HighlightLineCtx *args)
     }
 }
 
+// the end of the run of plain letters from `at` to before `to` that no rule of `rules` can start at, each an ASCII
+// letter the state's table names no rule for: `at` where none is plain there, or where a rule starts at a letter
+// outside ASCII or takes nothing
+EMBED_INLINE unsigned long long cli_plain_stride(const HighlightLineCtx *args)
+{
+    const CliHighlightList *const rules = args->rules;
+    if ((rules == NULL) || rules->starts.empty || rules->starts.other)
+    {
+        return args->at;
+    }
+    const unsigned int *const letters = t_work_state->letters;
+    const unsigned char *const starts_at = rules->starts_at;
+    unsigned long long stride = args->at;
+    while ((stride < args->to) && (letters[stride] < 128u) && (starts_at[letters[stride]] == 0u))
+    {
+        stride += 1ULL;
+    }
+    return stride;
+}
+
+// the first rule of `*rules_pointer` that matches at `*at_pointer` taken: its tokens put, `*at_pointer` moved past
+// what it matched, and the state it steps to entered, its rules into `*rules_pointer`; a rule that cannot start at the
+// letter is passed over before its pattern is made, and one that matches nothing is taken only where it steps and the
+// line has not stalled on such rules. Whether one is taken
+EMBED_INLINE int cli_rule_taken(const HighlightLineCtx *args)
+{
+    const CliHighlightList *const rules = *args->rules_pointer;
+    const unsigned int *const letters = t_work_state->letters;
+    const unsigned long long at = *args->at_pointer;
+    CliRegexpSpan *const found = args->found;
+    for (unsigned int each = 0u; (rules != NULL) && (each < rules->count); each += 1u)
+    {
+        const unsigned int index = args->grammar->list_entries[rules->first + each];
+        const CliHighlightRule *const rule = &args->grammar->rule[index];
+        if ((rule->anchored && (at != 0ULL)) ||
+            (!rule->first.empty &&
+             !EMBED_CALL(cli_regexp.allows, CliRegexpCfg, .first = &rule->first, .letter = letters[at])) ||
+            !EMBED_CALL(cli_try, HighlightLineCtx, .grammar = args->grammar, .rule = index,
+                        .coloring_read = args->coloring, .at = at, .found = found))
+        {
+            continue;
+        }
+        const unsigned long long size = found[0].set ? (found[0].to - found[0].from) : 0ULL;
+        if ((size == 0ULL) && ((rule->next == CLI_HIGHLIGHT_NONE) || (*args->stalled_pointer > 2u)))
+        {
+            continue;
+        }
+        EMBED_CALL(cli_on_alloc, HighlightLineCtx, .grammar = args->grammar, .rule_highlight_rule_pointer = rule,
+                   .coloring = args->coloring, .at = at, .found_read = found);
+        *args->stalled_pointer = (size > 0ULL) ? 0u : (*args->stalled_pointer + 1u);
+        *args->at_pointer = at + size;
+        if (rule->next != CLI_HIGHLIGHT_NONE)
+        {
+            EMBED_CALL(cli_step, HighlightLineCtx, .grammar = args->grammar, .coloring = args->coloring,
+                       .next = args->grammar->text + rule->next);
+            *args->rules_pointer = EMBED_CALL(cli_rules, HighlightLineCtx, .grammar = args->grammar,
+                                              .coloring_read = args->coloring, .or_root = 1);
+        }
+        return 1;
+    }
+    return 0;
+}
+
+// a rule of the state the line ends in that matches nothing at its end and changes the state or names a token applied
+// there, once: it is how a state that lasts to the end of its line ends, and a mark at a line's end is put
+EMBED_INLINE void cli_line_ending(const HighlightLineCtx *args)
+{
+    CliRegexpSpan *const found = args->found;
+    const CliHighlightList *const ending = EMBED_CALL(cli_rules, HighlightLineCtx, .grammar = args->grammar,
+                                                      .coloring_read = args->coloring, .or_root = 0);
+    for (unsigned int each = 0u; (ending != NULL) && (each < ending->count); each += 1u)
+    {
+        const unsigned int index = args->grammar->list_entries[ending->first + each];
+        const CliHighlightRule *const rule = &args->grammar->rule[index];
+        const unsigned int name =
+            EMBED_CALL(cli_resolve, HighlightLineCtx, .grammar = args->grammar, .token = rule->token,
+                       .from = args->coloring->letters, .to = args->coloring->letters);
+        if (((rule->next == CLI_HIGHLIGHT_NONE) && (name == 0u)) ||
+            !EMBED_CALL(cli_try, HighlightLineCtx, .grammar = args->grammar, .rule = index,
+                        .coloring_read = args->coloring, .at = args->coloring->letters, .found = found) ||
+            !found[0].set || (found[0].from != found[0].to))
+        {
+            continue;
+        }
+        if (name != 0u)
+        {
+            EMBED_CALL(cli_mark, HighlightLineCtx, .coloring = args->coloring,
+                       .col = t_work_state->cols[args->coloring->letters], .name = name);
+        }
+        if (rule->next != CLI_HIGHLIGHT_NONE)
+        {
+            EMBED_CALL(cli_step, HighlightLineCtx, .grammar = args->grammar, .coloring = args->coloring,
+                       .next = args->grammar->text + rule->next);
+        }
+        return;
+    }
+}
+
 // One line colored: its runs and the stack it ends with in the coloring
 static void cli_line(const HighlightLineCtx *args)
 {
@@ -353,7 +455,6 @@ static void cli_line(const HighlightLineCtx *args)
     CliRegexpSpan found[CLI_REGEXP_GROUPS + 1u];
     const CliHighlightList *rules = EMBED_CALL(cli_rules, HighlightLineCtx, .grammar = args->grammar,
                                                .coloring_read = args->coloring, .or_root = 1);
-    const unsigned int *const letters = t_work_state->letters;
     unsigned long long at = 0ULL;
     unsigned int stalled = 0u;
     while (at < length)
@@ -361,93 +462,23 @@ static void cli_line(const HighlightLineCtx *args)
         // the letters no rule of the state can start at are plain, taken in one stride, the state's table read once a
         // letter and no rule tried at any of them; where a rule starts at a letter outside ASCII, or takes nothing,
         // every letter is tried
-        if ((rules != NULL) && !rules->starts.empty && !rules->starts.other)
+        const unsigned long long stride =
+            EMBED_CALL(cli_plain_stride, HighlightLineCtx, .rules = rules, .at = at, .to = length);
+        if (stride > at)
         {
-            const unsigned char *const starts_at = rules->starts_at;
-            unsigned long long stride = at;
-            while ((stride < length) && (letters[stride] < 128u) && (starts_at[letters[stride]] == 0u))
-            {
-                stride += 1ULL;
-            }
-            if (stride > at)
-            {
-                EMBED_CALL(cli_push, HighlightLineCtx, .coloring = args->coloring, .at = at, .name = 0u);
-                at = stride;
-                stalled = 0u;
-                continue;
-            }
+            EMBED_CALL(cli_push, HighlightLineCtx, .coloring = args->coloring, .at = at, .name = 0u);
+            at = stride;
+            stalled = 0u;
         }
-        int reserved = 0;
-        for (unsigned int each = 0u; (rules != NULL) && !reserved && (each < rules->count); each += 1u)
-        {
-            const unsigned int index = args->grammar->list_entries[rules->first + each];
-            const CliHighlightRule *const rule = &args->grammar->rule[index];
-            // a rule that cannot start at this letter is passed over before its pattern is made
-            if ((rule->anchored && (at != 0ULL)) ||
-                (!rule->first.empty &&
-                 !EMBED_CALL(cli_regexp.allows, CliRegexpCfg, .first = &rule->first, .letter = letters[at])))
-            {
-                continue;
-            }
-            if (!EMBED_CALL(cli_try, HighlightLineCtx, .grammar = args->grammar, .rule = index,
-                            .coloring_read = args->coloring, .at = at, .found = found))
-            {
-                continue;
-            }
-            const unsigned long long size = found[0].set ? (found[0].to - found[0].from) : 0ULL;
-            if ((size == 0ULL) && ((rule->next == CLI_HIGHLIGHT_NONE) || (stalled > 2u)))
-            {
-                continue;
-            }
-            EMBED_CALL(cli_on_alloc, HighlightLineCtx, .grammar = args->grammar, .rule_highlight_rule_pointer = rule,
-                       .coloring = args->coloring, .at = at, .found_read = found);
-            stalled = (size > 0ULL) ? 0u : (stalled + 1u);
-            at += size;
-            if (rule->next != CLI_HIGHLIGHT_NONE)
-            {
-                EMBED_CALL(cli_step, HighlightLineCtx, .grammar = args->grammar, .coloring = args->coloring,
-                           .next = args->grammar->text + rule->next);
-                rules = EMBED_CALL(cli_rules, HighlightLineCtx, .grammar = args->grammar,
-                                   .coloring_read = args->coloring, .or_root = 1);
-            }
-            reserved = 1;
-        }
-        if (!reserved)
+        else if (!EMBED_CALL(cli_rule_taken, HighlightLineCtx, .grammar = args->grammar, .coloring = args->coloring,
+                             .rules_pointer = &rules, .at_pointer = &at, .stalled_pointer = &stalled, .found = found))
         {
             EMBED_CALL(cli_push, HighlightLineCtx, .coloring = args->coloring, .at = at, .name = 0u);
             at += 1ULL;
             stalled = 0u;
         }
     }
-    // A rule that matches nothing at the line's end and changes the state or names a token still applies there, once:
-    // it is how a state that lasts to the end of its line ends, and a mark at a line's end is put
-    const CliHighlightList *const ending = EMBED_CALL(cli_rules, HighlightLineCtx, .grammar = args->grammar,
-                                                      .coloring_read = args->coloring, .or_root = 0);
-    for (unsigned int each = 0u; (ending != NULL) && (each < ending->count); each += 1u)
-    {
-        const unsigned int index = args->grammar->list_entries[ending->first + each];
-        const CliHighlightRule *const rule = &args->grammar->rule[index];
-        const unsigned int name =
-            EMBED_CALL(cli_resolve, HighlightLineCtx, .grammar = args->grammar, .token = rule->token,
-                       .from = args->coloring->letters, .to = args->coloring->letters);
-        if (((rule->next != CLI_HIGHLIGHT_NONE) || (name != 0u)) &&
-            EMBED_CALL(cli_try, HighlightLineCtx, .grammar = args->grammar, .rule = index,
-                       .coloring_read = args->coloring, .at = args->coloring->letters, .found = found) &&
-            found[0].set && (found[0].from == found[0].to))
-        {
-            if (name != 0u)
-            {
-                EMBED_CALL(cli_mark, HighlightLineCtx, .coloring = args->coloring,
-                           .col = t_work_state->cols[args->coloring->letters], .name = name);
-            }
-            if (rule->next != CLI_HIGHLIGHT_NONE)
-            {
-                EMBED_CALL(cli_step, HighlightLineCtx, .grammar = args->grammar, .coloring = args->coloring,
-                           .next = args->grammar->text + rule->next);
-            }
-            break;
-        }
-    }
+    EMBED_CALL(cli_line_ending, HighlightLineCtx, .grammar = args->grammar, .coloring = args->coloring, .found = found);
     if (args->coloring->runs == 0u)
     {
         EMBED_CALL(cli_push, HighlightLineCtx, .coloring = args->coloring, .at = 0u, .name = 0u);
