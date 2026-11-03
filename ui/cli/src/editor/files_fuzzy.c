@@ -20,6 +20,11 @@ typedef struct
 {
     unsigned int letter;
     int bytes;
+    const CliFilesBytesRequestedCtx *request;
+    unsigned int index;
+    unsigned int after;
+    int has_last;
+    unsigned int *found;
 } FilesFuzzyCtx;
 // whether a letter splits a text into words: whitespace, or of the bytes of a path all ASCII a space or a tab, and a
 // slash, a separator in a name, a dot, a colon or an at; and whether it is upper case
@@ -49,21 +54,10 @@ int cli_fuzzy_starts_word(const CliFilesTextU32sCtx *args)
             EMBED_CALL(cli_upper, FilesFuzzyCtx, .letter = args->text_u32s[args->at], .bytes = args->bytes_i32));
 }
 
-int cli_fuzzy_letters(const CliFilesBytesRequestedCtx *args)
+// the latest place in the text each requested letter can stand with the letters after it still fitting, into
+// `latest`: 1, or 0 where they do not all fit
+EMBED_INLINE int fuzzy_latest_found(const CliFilesBytesRequestedCtx *args)
 {
-    double *score = args->score;
-    unsigned int *hit_count = args->hit_count;
-    *score = 0.0;
-    *hit_count = 0u;
-    if (args->requested_count == 0u)
-    {
-        return 1;
-    }
-    if (args->requested_count > CLI_FUZZY_LETTERS)
-    {
-        return 0;
-    }
-    // the latest place each letter can stand with the letters after it still fitting
     unsigned int at = args->count_u32;
     for (unsigned int index = args->requested_count; index > 0u; index -= 1u)
     {
@@ -78,36 +72,79 @@ int cli_fuzzy_letters(const CliFilesBytesRequestedCtx *args)
         at -= 1u;
         args->latest[index - 1u] = at;
     }
+    return 1;
+}
+
+// the place of the `request`'s letter at `index`, from `after` on and no later than its latest, into `found`: right at
+// `after` where it `has_last` letter before it, else the first that starts a word, else the first; 1, or 0 where the
+// letter stands at none
+EMBED_INLINE int fuzzy_place_found(const FilesFuzzyCtx *args)
+{
+    const CliFilesBytesRequestedCtx *const request = args->request;
+    const unsigned int letter = request->required[args->index];
+    const unsigned int after = args->after;
+    if (args->has_last && (after < request->count_u32) && (request->lower[after] == letter))
+    {
+        *args->found = after;
+        return 1;
+    }
+    int has_first = 0;
+    unsigned int first = 0u;
+    for (unsigned int place = after; place <= request->latest[args->index]; place += 1u)
+    {
+        if (request->lower[place] != letter)
+        {
+            continue;
+        }
+        if (EMBED_CALL(cli_files_text_u_32s_internal.fuzzy_starts_word, CliFilesTextU32sCtx,
+                       .text_u32s = request->displayed, .at = place, .bytes_i32 = request->bytes_i32))
+        {
+            *args->found = place;
+            return 1;
+        }
+        first = has_first ? first : place;
+        has_first = 1;
+    }
+    *args->found = first;
+    return has_first;
+}
+
+// how many pieces the requested letters' hits stand in, each piece of places one after another
+EMBED_INLINE unsigned int fuzzy_runs(const CliFilesBytesRequestedCtx *args)
+{
+    unsigned int runs = 0u;
+    for (unsigned int index = 0u; index < args->requested_count; index += 1u)
+    {
+        runs += ((index == 0u) || (args->hits[index] != (args->hits[index - 1u] + 1u))) ? 1u : 0u;
+    }
+    return runs;
+}
+
+int cli_fuzzy_letters(const CliFilesBytesRequestedCtx *args)
+{
+    double *score = args->score;
+    unsigned int *hit_count = args->hit_count;
+    *score = 0.0;
+    *hit_count = 0u;
+    if (args->requested_count == 0u)
+    {
+        return 1;
+    }
+    if ((args->requested_count > CLI_FUZZY_LETTERS) || !fuzzy_latest_found(args))
+    {
+        return 0;
+    }
     int has_last = 0;
     unsigned int last = 0u;
     for (unsigned int index = 0u; index < args->requested_count; index += 1u)
     {
         const unsigned int letter = args->required[index];
-        const unsigned int after = has_last ? (last + 1u) : 0u;
-        // the letter right after the one before it, else the first that starts a word, else the first
-        int has_found = has_last && (after < args->count_u32) && (args->lower[after] == letter);
-        unsigned int found = after;
-        int has_first = 0;
-        unsigned int first = 0u;
-        for (unsigned int place = after; !has_found && (place <= args->latest[index]); place += 1u)
-        {
-            if (args->lower[place] == letter)
-            {
-                first = has_first ? first : place;
-                has_first = 1;
-                if (EMBED_CALL(cli_files_text_u_32s_internal.fuzzy_starts_word, CliFilesTextU32sCtx,
-                               .text_u32s = args->displayed, .at = place, .bytes_i32 = args->bytes_i32))
-                {
-                    found = place;
-                    has_found = 1;
-                }
-            }
-        }
-        if (!has_found && !has_first)
+        unsigned int found = 0u;
+        if (!EMBED_CALL(fuzzy_place_found, FilesFuzzyCtx, .request = args, .index = index,
+                        .after = has_last ? (last + 1u) : 0u, .has_last = has_last, .found = &found))
         {
             return 0;
         }
-        found = has_found ? found : first;
         *score += 1.0;
         *score += (has_last && (found == (last + 1u))) ? 5.0 : 0.0;
         *score += EMBED_CALL(cli_files_text_u_32s_internal.fuzzy_starts_word, CliFilesTextU32sCtx,
@@ -121,13 +158,8 @@ int cli_fuzzy_letters(const CliFilesBytesRequestedCtx *args)
         has_last = 1;
     }
     // a query torn into more pieces than half its letters reads as no match
-    unsigned int runs = 0u;
-    for (unsigned int index = 0u; index < args->requested_count; index += 1u)
-    {
-        runs += ((index == 0u) || (args->hits[index] != (args->hits[index - 1u] + 1u))) ? 1u : 0u;
-    }
     const unsigned int half = (args->requested_count + 1u) / 2u;
-    if (runs > ((half > 3u) ? half : 3u))
+    if (fuzzy_runs(args) > ((half > 3u) ? half : 3u))
     {
         return 0;
     }
