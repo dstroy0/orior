@@ -1,107 +1,115 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// files_search_hits.c: the lines a search finds, stored in one cell taken at their most, sorted by their files and
-// their places, the first CLI_HITS_MAX retained where more are found than are stored
+// files_search_hits.c: a worker's lines stored in cells taken as they are found, and the stores of every worker read
+// back as one list in the order of the files. Nothing here is shared while a store is written: only its worker writes
+// it, and only the search reads it, after that worker ends
 #include "files_search_hits.h"
+
+EMBED_STATIC_ASSERT((sizeof(CliHitCell) + sizeof(CliSearchHit) + CLI_HIT_BYTES + _Alignof(CliSearchHit)) <=
+                        CLI_HIT_CELL_BYTES,
+                    "CLI_HIT_CELL_BYTES must fit the longest line a search stores");
+EMBED_STATIC_ASSERT((sizeof(CliHitCell) % _Alignof(CliSearchHit)) == 0u,
+                    "the first line in a cell must stand on a line's alignment");
 
 typedef struct
 {
-    const CliSearchHits *hits;
-    unsigned int one;
-    unsigned int other;
+    CliSearchHits *hits;
+    unsigned long long need;
 } FilesSearchHitsCtx;
 
-// whether the line in entry `one` comes before the line in entry `other`: by its file, then its place in it
-EMBED_INLINE int hits_before(const FilesSearchHitsCtx *args)
+// the store's last cell where `need` bytes fit in it, or a new cell put after it: NULL where the cellblock refuses
+EMBED_INLINE CliHitCell *hits_cell(const FilesSearchHitsCtx *args)
 {
-    const CliSearchHit *const left = &args->hits->pool[args->one];
-    const CliSearchHit *const right = &args->hits->pool[args->other];
-    return (left->file < right->file) || ((left->file == right->file) && (left->order < right->order));
-}
-
-void cli_hits_sort(const CliFilesSearchHitsCfg *args)
-{
-    unsigned int *from = args->hits->live;
-    unsigned int *into = args->hits->reserve;
-    const unsigned int count = args->hits->lives;
-    for (unsigned int width = 1u; width < count; width *= 2u)
+    CliSearchHits *const hits = args->hits;
+    CliHitCell *const last = hits->cell_last;
+    if ((last != NULL) && ((CLI_HIT_CELL_BYTES - last->used) >= args->need))
     {
-        for (unsigned int start = 0u; start < count; start += 2u * width)
-        {
-            const unsigned int middle = ((start + width) < count) ? (start + width) : count;
-            const unsigned int end = ((middle + width) < count) ? (middle + width) : count;
-            unsigned int left = start;
-            unsigned int right = middle;
-            for (unsigned int at = start; at < end; at += 1u)
-            {
-                const int take_left =
-                    (left < middle) &&
-                    ((right >= end) || !EMBED_CALL(hits_before, FilesSearchHitsCtx, .hits = args->hits,
-                                                   .one = from[right], .other = from[left]));
-                into[at] = take_left ? from[left] : from[right];
-                left += take_left ? 1u : 0u;
-                right += take_left ? 0u : 1u;
-            }
-        }
-        unsigned int *const turned = from;
-        from = into;
-        into = turned;
+        return last;
     }
-    if (from != args->hits->live)
+    CliHitCell *const cell = g_cli_cells->temporary_buf_alloc(CLI_HIT_CELL_BYTES, &g_cli_search_cells);
+    if (cell == NULL)
     {
-        memor.cpy(&(MemoriaCfg){.dst = args->hits->live, .src = from, .bytes = count * sizeof(unsigned int)});
+        return NULL;
     }
+    *cell = (CliHitCell){NULL, sizeof(CliHitCell)};
+    if (last == NULL)
+    {
+        hits->cell_first = cell;
+    }
+    else
+    {
+        last->next = cell;
+    }
+    hits->cell_last = cell;
+    return cell;
 }
 
-void cli_hits_free(const CliFilesSearchHitsCfg *args)
+void cli_hits_put(const CliFilesSearchHitsCfg *args)
 {
-    CliSearchHits *hits = args->hits;
-    g_cli_cells->persistent_buf_release(hits->pool, &g_cli_search_cells);
-    *hits = (CliSearchHits){NULL, NULL, 0u, NULL, NULL, 0u};
-}
-
-void cli_hits_init(const CliFilesSearchHitsCfg *args)
-{
-    CliSearchHits *hits = args->hits;
-    const unsigned long long pool_bytes = (unsigned long long)CLI_POOL_MAX * sizeof(CliSearchHit);
-    const unsigned long long list_bytes = (unsigned long long)CLI_POOL_MAX * sizeof(unsigned int);
-    char *const cell = g_cli_cells->temporary_buf_alloc(pool_bytes + (3ULL * list_bytes), &g_cli_search_cells);
-    *hits = (CliSearchHits){NULL, NULL, 0u, NULL, NULL, 0u};
+    CliSearchHits *const hits = args->hits;
+    if (hits->lives >= CLI_HITS_MAX)
+    {
+        return;
+    }
+    // a line's bytes are at most CLI_HIT_BYTES, which an unsigned int stores
+    const unsigned int copied_len = (unsigned int)((args->size < CLI_HIT_BYTES) ? args->size : CLI_HIT_BYTES);
+    // the next line starts on the boundary a line is aligned to
+    const unsigned long long aligned = (unsigned long long)_Alignof(CliSearchHit) - 1ULL;
+    const unsigned long long need = (sizeof(CliSearchHit) + copied_len + aligned) & ~aligned;
+    CliHitCell *const cell = EMBED_CALL(hits_cell, FilesSearchHitsCtx, .hits = hits, .need = need);
     if (cell == NULL)
     {
         return;
     }
-    hits->pool = (CliSearchHit *)(void *)cell;
-    hits->live = (unsigned int *)(void *)(cell + pool_bytes);
-    hits->reserve = hits->live + CLI_POOL_MAX;
-    hits->free = hits->reserve + CLI_POOL_MAX;
-    // the entries are put free from the last, so the first is the next taken
-    for (unsigned int entry = CLI_POOL_MAX; entry > 0u; hits->frees += 1u)
+    // the cell's used bytes are a multiple of a line's alignment, so the place is aligned for a line
+    CliSearchHit *const hit = (CliSearchHit *)(void *)((unsigned char *)cell + cell->used);
+    unsigned char *const text = (unsigned char *)(hit + 1);
+    cell->used += need;
+    *hit = (CliSearchHit){NULL, text, args->line, args->col, args->file, copied_len};
+    memor.cpy(&(MemoriaCfg){.dst = text, .src = args->text, .bytes = copied_len});
+    if (hits->last == NULL)
     {
-        entry -= 1u;
-        hits->free[hits->frees] = entry;
+        hits->first = hit;
     }
+    else
+    {
+        hits->last->next = hit;
+    }
+    hits->last = hit;
+    hits->lives += 1u;
 }
 
-CliSearchHit *cli_hits_alloc(const CliFilesSearchHitsCfg *args)
+const CliSearchHit *cli_hits_next(const CliFilesSearchHitsCfg *args)
 {
-    if ((args->hits->frees == 0u) && (args->hits->lives > CLI_HITS_MAX))
+    CliSearchHits *least = NULL;
+    for (unsigned int store = 0u; store < args->stores; store += 1u)
     {
-        cli_files_search_hits.hits_sort(args);
-        for (unsigned int at = CLI_HITS_MAX; at < args->hits->lives; at += 1u)
+        CliSearchHits *const hits = &args->hits[store];
+        if ((hits->first != NULL) && ((least == NULL) || (hits->first->file < least->first->file)))
         {
-            args->hits->free[args->hits->frees] = args->hits->live[at];
-            args->hits->frees += 1u;
+            least = hits;
         }
-        args->hits->lives = CLI_HITS_MAX;
     }
-    if (args->hits->frees == 0u)
+    if (least == NULL)
     {
         return NULL;
     }
-    args->hits->frees -= 1u;
-    const unsigned int entry = args->hits->free[args->hits->frees];
-    args->hits->live[args->hits->lives] = entry;
-    args->hits->lives += 1u;
-    return &args->hits->pool[entry];
+    const CliSearchHit *const hit = least->first;
+    least->first = hit->next;
+    return hit;
+}
+
+void cli_hits_free(const CliFilesSearchHitsCfg *args)
+{
+    for (unsigned int store = 0u; store < args->stores; store += 1u)
+    {
+        CliHitCell *cell = args->hits[store].cell_first;
+        while (cell != NULL)
+        {
+            CliHitCell *const next = cell->next;
+            g_cli_cells->persistent_buf_release(cell, &g_cli_search_cells);
+            cell = next;
+        }
+        args->hits[store] = (CliSearchHits){NULL, NULL, 0u, NULL, NULL};
+    }
 }

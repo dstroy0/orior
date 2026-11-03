@@ -27,6 +27,8 @@ static unsigned char s_big[3u << 20u];
 static unsigned char s_read[(3u << 20u) + 1u];
 static unsigned char s_part[2u << 20u];
 static char s_out[1u << 16u];
+static char s_found[1u << 20u];
+static char s_needles[64u * 12u];
 static char s_there[CLI_PATH_MAX_LEN];
 static char s_written[4096];
 static char s_root[CLI_PATH_MAX_LEN];
@@ -178,6 +180,69 @@ void test_a_search_finds_every_line_in_cells_grown_end_their_first_capacity_each
     TEST_ASSERT_EQUAL_UINT(101u, hits);
     TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_search_cells.in_use));
     TEST_ASSERT_GREATER_THAN_UINT64(64ull * sizeof(CliSearchHit), embed_atomic_usize_load(&g_cli_search_cells.hw));
+}
+
+// the tree `s_root` written with `files` files named f00.txt, f01.txt and on, each of `lines` lines the needle stands in
+static void needle_files_written(unsigned int files, unsigned int lines)
+{
+    VerbaLinea text = {s_needles, sizeof(s_needles), 0ull};
+    for (unsigned int at = 0u; at < lines; at += 1u)
+    {
+        mmgr_line_put(&text, "a needle\n");
+    }
+    cli_unity_folder("files_search_workers", s_root);
+    for (unsigned int file = 0u; file < files; file += 1u)
+    {
+        char name[8] = {'f', (char)('0' + (file / 10u)), (char)('0' + (file % 10u)), '.', 't', 'x', 't', '\0'};
+        bytes_written(s_root, name, s_needles, text.at);
+    }
+    cli_tree_forgotten();
+}
+
+// the tree `s_root` searched for the needle, the lines returned counted, each file's together and the files in their
+// order, and the number of the last file among them into `last`
+static unsigned int needle_lines_found(unsigned int *last)
+{
+    const CliPatterns none = {0};
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
+    VerbaLinea out = {s_found, sizeof(s_found), 0ull};
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_files_root_out_err_msg.search, CliFilesRootOutErrMsgCfg, .root = s_root, .query = "needle", .how = (CliSearching){0, 0, 0}, .set = &none, .out = &out, .err_msg = &err_msg));
+    (void)mmgr_line_finish(&out);
+    unsigned int lines = 0u;
+    unsigned int number = 0u;
+    for (const char *at = cellul.find(&(CatenaFinitaCfg){.src = s_found, .cap = CLI_CELLS_POOL, .other = "\"path\":\"f", .other_cap = CLI_CELLS_POOL}); at != NULL; at = cellul.find(&(CatenaFinitaCfg){.src = at + 1, .cap = CLI_CELLS_POOL, .other = "\"path\":\"f", .other_cap = CLI_CELLS_POOL}))
+    {
+        const unsigned int read = ((unsigned int)(at[9] - '0') * 10u) + (unsigned int)(at[10] - '0');
+        TEST_ASSERT_GREATER_OR_EQUAL_UINT(number, read);
+        number = read;
+        lines += 1u;
+    }
+    *last = number;
+    return lines;
+}
+
+void test_workers_searching_many_files_lose_no_line_and_return_them_in_the_order_of_the_files(void)
+{
+    needle_files_written(64u, 16u);
+    for (unsigned int round = 0u; round < 32u; round += 1u)
+    {
+        unsigned int last = 0u;
+        TEST_ASSERT_EQUAL_UINT(64u * 16u, needle_lines_found(&last));
+        TEST_ASSERT_EQUAL_UINT(63u, last);
+        TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_search_cells.in_use));
+    }
+}
+
+void test_a_search_finding_more_lines_than_it_returns_returns_the_first_in_the_order_of_the_files(void)
+{
+    needle_files_written(64u, 64u);
+    for (unsigned int round = 0u; round < 8u; round += 1u)
+    {
+        unsigned int last = 0u;
+        TEST_ASSERT_EQUAL_UINT(CLI_HITS_MAX, needle_lines_found(&last));
+        TEST_ASSERT_EQUAL_UINT((CLI_HITS_MAX - 1u) / 64u, last);
+        TEST_ASSERT_EQUAL_UINT64(0ull, embed_atomic_usize_load(&g_cli_search_cells.in_use));
+    }
 }
 
 void test_a_tree_its_repository_ignores_lists_its_files_from_the_disk(void)

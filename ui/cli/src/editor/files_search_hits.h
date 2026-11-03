@@ -1,7 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// files_search_hits.h: the lines a search finds, stored until it ends in one cell taken at their most, the first
-// CLI_HITS_MAX in the order of the files and of the lines in each retained (files_search_hits.c)
+// files_search_hits.h: the lines a search's workers find, each worker's in a store only it writes until it ends, and
+// the stores read back as one list in the order of the files and of the lines in each (files_search_hits.c). A worker
+// takes its files in their order and reads each from its start, so the lines in its store stand in that order, and no
+// file's lines stand in two stores
 #ifndef FILES_SEARCH_HITS_H
 #define FILES_SEARCH_HITS_H
 #include "embed_dispatch_layout.h"
@@ -9,64 +11,73 @@
 
 typedef struct CliFilesSearchHitsCfg CliFilesSearchHitsCfg;
 
-// the most lines stored while a search runs
-#define CLI_POOL_MAX (CLI_HITS_MAX * 4u)
+// the bytes of each cell a store takes, which fits many lines of the most bytes one takes
+#define CLI_HIT_CELL_BYTES (64ULL * 1024ULL)
 
 // the cells the lines a search finds are stored in, counted, each given back as the search ends
 extern CellOwner g_cli_search_cells;
 
-// A line found, stored until the search ends: its file's place, its place among its file's, the line and column, and
-// its text's bytes
-typedef struct
+// A line found, stored until the search ends: the line its worker stored after it, the bytes of its text, which stand
+// in the cell directly after it, the line and column, its file's place, and its text's size
+typedef struct CliSearchHit CliSearchHit;
+struct CliSearchHit
 {
-    unsigned int file;
-    unsigned int order;
+    CliSearchHit *next;
+    const unsigned char *text;
     unsigned long long line;
     unsigned long long col;
+    unsigned int file;
     unsigned int size;
-    unsigned char text[CLI_HIT_BYTES];
-} CliSearchHit;
+};
 
-// The lines stored: each in a entry of `pool`, the entries in use in `live`, `lives` of them, the capacity they are
-// sorted through, and the entries free, `frees` of them; each list CLI_POOL_MAX entries
+// A cell of lines, which stand directly after this: the cell its store took after it and the cell's bytes in use
+typedef struct CliHitCell CliHitCell;
+struct CliHitCell
+{
+    CliHitCell *next;
+    unsigned long long used;
+};
+
+// One worker's lines: the first still to be read back, the last stored, how many were stored, and the cells they stand
+// in, first and last. All zero is an empty store
 typedef struct
 {
-    CliSearchHit *pool;
-    unsigned int *live;
+    CliSearchHit *first;
+    CliSearchHit *last;
     unsigned int lives;
-    unsigned int *reserve;
-    unsigned int *free;
-    unsigned int frees;
+    CliHitCell *cell_first;
+    CliHitCell *cell_last;
 } CliSearchHits;
 
-// the cell taken, every entry free, and none where it is refused
-void cli_hits_init(const CliFilesSearchHitsCfg *args);
-// a entry taken for one line more and put among the live, under the search's lock: the line's capacity, or NULL where
-// none is left. Where the lines stored are the most, those after the first CLI_HITS_MAX are let go first: no line found
-// later can bring one of them back among the first
-CliSearchHit *cli_hits_alloc(const CliFilesSearchHitsCfg *args);
-// the live entries sorted by their lines' files and places
-void cli_hits_sort(const CliFilesSearchHitsCfg *args);
-// the cells given back, the lines stored let go
+// a line stored last in the store `hits`, its text cut to CLI_HIT_BYTES. A store with CLI_HITS_MAX lines lets the line
+// go, since it comes after each of them, and so does a store whose take the cellblock refuses
+void cli_hits_put(const CliFilesSearchHitsCfg *args);
+// the first line left among the `stores` stores from `hits`, taken off its store: NULL where none is left
+const CliSearchHit *cli_hits_next(const CliFilesSearchHitsCfg *args);
+// the cells of the `stores` stores from `hits` given back, each store empty again
 void cli_hits_free(const CliFilesSearchHitsCfg *args);
 
 struct CliFilesSearchHitsCfg
 {
     CliSearchHits *hits;
+    unsigned int stores;
+    unsigned int file;
+    unsigned long long line;
+    unsigned long long col;
+    const unsigned char *text;
+    unsigned long long size;
 };
 
 typedef struct
 {
-    void (*hits_init)(const CliFilesSearchHitsCfg *args);
-    CliSearchHit *(*hits_alloc)(const CliFilesSearchHitsCfg *args);
-    void (*hits_sort)(const CliFilesSearchHitsCfg *args);
+    void (*hits_put)(const CliFilesSearchHitsCfg *args);
+    const CliSearchHit *(*hits_next)(const CliFilesSearchHitsCfg *args);
     void (*hits_free)(const CliFilesSearchHitsCfg *args);
 } CliFilesSearchHitsNs;
-EMBED_TABLE_LAYOUT(CliFilesSearchHitsNs, hits_init, hits_alloc, hits_sort, hits_free);
+EMBED_TABLE_LAYOUT(CliFilesSearchHitsNs, hits_put, hits_next, hits_free);
 EMBED_TABLE_STORAGE CliFilesSearchHitsNs cli_files_search_hits EMBED_UNUSED = {
-    .hits_init = cli_hits_init,
-    .hits_alloc = cli_hits_alloc,
-    .hits_sort = cli_hits_sort,
+    .hits_put = cli_hits_put,
+    .hits_next = cli_hits_next,
     .hits_free = cli_hits_free,
 };
 
