@@ -16,6 +16,15 @@ typedef struct
     const char *writer;
     const char *transport;
     const char *teacher;
+    char *machine;
+    char *costs;
+    char *record;
+    QueryRun *run;
+    QueryWords *words;
+    const char *cross;
+    const char *nvdisasm;
+    long long code;
+    unsigned int questions;
 } LearnStepsCtx;
 
 // `name` under the working folder into `path`
@@ -170,6 +179,185 @@ EMBED_INLINE int query_learn_pass(const LearnStepsCtx *args)
     return (int)code;
 }
 
+// the files an offline step reads into `machine`, `costs` and `record`: the tree's for rounds, else the working
+// folder's, the tree's copied there for a dry pass; 1, or 0 with why given
+EMBED_INLINE int query_offline_files(const LearnStepsCtx *args)
+{
+    const QueryFiles *const files = args->files;
+    memor.cpy(
+        &(MemoriaCfg){.dst = args->machine,
+                      .src = files->machine,
+                      .bytes = cellul.len(&(CatenaFinitaCfg){.src = files->machine, .cap = CLI_CELLS_POOL}) + 1u});
+    memor.cpy(&(MemoriaCfg){.dst = args->costs,
+                            .src = files->costs,
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = files->costs, .cap = CLI_CELLS_POOL}) + 1u});
+    memor.cpy(&(MemoriaCfg){.dst = args->record,
+                            .src = files->record,
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = files->record, .cap = CLI_CELLS_POOL}) + 1u});
+    if (args->step->kind != QUERY_LEARN_ROUNDS)
+    {
+        EMBED_CALL(query_work_by_name, LearnStepsCtx, .context_read = args->context, .name = "sm_86.khw",
+                   .path = args->machine);
+        EMBED_CALL(query_work_by_name, LearnStepsCtx, .context_read = args->context, .name = "sm_86.ksc",
+                   .path = args->costs);
+        EMBED_CALL(query_work_by_name, LearnStepsCtx, .context_read = args->context, .name = "sm_86.kqr",
+                   .path = args->record);
+    }
+    if (args->step->kind != QUERY_LEARN_DRY)
+    {
+        return 1;
+    }
+    // the dry machine file, the costs and the record beside it under the working folder, each the tree's copied
+    // there so that the dry pass leaves the tree's as they are
+    const char *const from[3] = {files->machine, files->costs, files->record};
+    const char *const to[3] = {args->machine, args->costs, args->record};
+    for (unsigned int at = 0u; at < 3u; at += 1u)
+    {
+        if (!EMBED_CALL(query_from_internal.file_copy, QueryFromCtx, .from = from[at], .to = to[at]))
+        {
+            mmgr_line_put(args->err_msg, from[at]);
+            mmgr_line_put(args->err_msg, " could not be copied under the working folder");
+            return 0;
+        }
+    }
+    return 1;
+}
+
+// the teacher's words for an enumeration put after its own in `words`: the place, the forms of `run` it is seeded from
+// where it holds any, told, then `--` and dry
+EMBED_INLINE void query_enumerate_words(const LearnStepsCtx *args)
+{
+    QueryWords *const words = args->words;
+    const char *const forms =
+        (EMBED_CALL(query_learn_internal.lines, QueryLearnCtx, .run = args->run, .name = "forms_work.txt") != 0u)
+            ? "forms_work.txt"
+            : "forms.txt";
+    const unsigned int seeded = EMBED_CALL(query_learn_internal.lines, QueryLearnCtx, .run = args->run, .name = forms);
+    EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
+               .word_text = "--position");
+    EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
+               .word_text = args->step->word_text);
+    if (seeded != 0u)
+    {
+        EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
+                   .word_text = "--forms");
+        EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
+                   .word_text = forms);
+        char line[128];
+        VerbaLinea print_line = {line, sizeof(line), 0ULL};
+        mmgr_line_put(&print_line, "  seeding from the ");
+        mmgr_line_decimal(&print_line, seeded, 0u);
+        mmgr_line_put(&print_line, " forms in ");
+        mmgr_line_put(&print_line, forms);
+        if (mmgr_line_finish(&print_line) != 0ULL)
+        {
+            EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = args->context, .text = line);
+        }
+    }
+    EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
+               .word_text = "--");
+    EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
+               .word_text = "dry");
+}
+
+// the teacher's words for rounds or a dry pass put after its own in `words`: the rounds, `--`, dry for a dry pass, and
+// the carrier's, `cross`, `nvdisasm` and the `machine` file among them
+EMBED_INLINE void query_rounds_words(const LearnStepsCtx *args)
+{
+    QueryWords *const words = args->words;
+    char rounds[32];
+    VerbaLinea rounds_line = {rounds, sizeof(rounds), 0ULL};
+    mmgr_line_decimal(&rounds_line, args->step->rounds, 0u);
+    mmgr_line_finish(&rounds_line);
+    EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
+               .word_text = rounds);
+    EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
+               .word_text = "--");
+    if (args->step->kind == QUERY_LEARN_DRY)
+    {
+        EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
+                   .word_text = "dry");
+    }
+    EMBED_CALL(query_loops_words_words_transport.transport_words, QueryLoopsWordsWordsTransportCfg,
+               .words_words_pointer = words, .transport = args->transport, .cross = args->cross,
+               .nvdisasm = args->nvdisasm, .machine = args->machine, .layout = args->files->layout, .lessons = 0);
+}
+
+// the `questions` a dry pass put, told, carried by the carrier from their list with the part taken out, and the
+// verdicts printed; 1, or 0 with why given
+EMBED_INLINE int query_dry_carried(const LearnStepsCtx *args)
+{
+    const QueryFiles *const files = args->files;
+    char line[QUERY_PATH_MAX_LEN + 128u];
+    VerbaLinea print_line = {line, sizeof(line), 0ULL};
+    // the gate reads the list against the tree's machine file, whose forms stand whatever the dry pass wrote
+    mmgr_line_put(&print_line, "  the protocol put ");
+    mmgr_line_decimal(&print_line, args->questions, 0u);
+    mmgr_line_put(&print_line, " questions; each checked by cubin_safe with the part taken out:");
+    if (mmgr_line_finish(&print_line) != 0ULL)
+    {
+        EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = args->context, .text = line);
+    }
+    const char *const carried[7] = {args->transport, "--dry", files->machine, files->layout, "--list",
+                                    "questions.txt", NULL};
+    long long transferred_code = -1LL;
+    int whole = EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
+                           .context = args->context, .run = args->run, .name = "orior_cubin_run", .words = carried,
+                           .code = &transferred_code, .err_msg = args->err_msg);
+    if (whole && (transferred_code != 0LL))
+    {
+        mmgr_line_put(args->err_msg, "the carrier did not read the list");
+        whole = 0;
+    }
+    if (whole)
+    {
+        EMBED_CALL(query_learn_run_internal.verdicts_print, QueryLearnRunCtx, .context = args->context,
+                   .run = args->run);
+    }
+    return whole;
+}
+
+// a dry pass or an enumeration checked once the teacher ended with `code`: it ran and put questions, a dry pass's
+// carried and an enumeration's place told; 1, or 0 with why given
+EMBED_INLINE int query_offline_checked(const LearnStepsCtx *args)
+{
+    const int dry = args->step->kind == QUERY_LEARN_DRY;
+    if (args->code != 0LL)
+    {
+        mmgr_line_put(args->err_msg, dry ? "the protocol did not run dry" : "the enumerate did not run");
+        return 0;
+    }
+    const unsigned int questions =
+        EMBED_CALL(query_learn_internal.lines, QueryLearnCtx, .run = args->run, .name = "questions.txt");
+    if (questions == 0u)
+    {
+        mmgr_line_put(args->err_msg, dry ? "the protocol put no question" : "the enumerate put no question");
+        return 0;
+    }
+    if (dry)
+    {
+        return EMBED_CALL(query_dry_carried, LearnStepsCtx, .context = args->context, .files = args->files,
+                          .run = args->run, .transport = args->transport, .questions = questions,
+                          .err_msg = args->err_msg);
+    }
+    char line[QUERY_PATH_MAX_LEN + 128u];
+    VerbaLinea print_line = {line, sizeof(line), 0ULL};
+    mmgr_line_put(&print_line, "  the place");
+    mmgr_line_put(&print_line, args->step->word_text);
+    mmgr_line_put(&print_line, "'s questions: questions.txt of ");
+    mmgr_line_put(&print_line, args->run->writer.qry);
+    mmgr_line_put(&print_line, ", ");
+    mmgr_line_decimal(&print_line, questions, 0u);
+    mmgr_line_put(&print_line, " of them");
+    if (mmgr_line_finish(&print_line) != 0ULL)
+    {
+        EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = args->context, .text = line);
+    }
+    EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = args->context,
+               .text = "  cross-check them: orior_cli protocol cross [--base <cu>]");
+    return 1;
+}
+
 // rounds, dry or enumerate: the teacher's words before `--`, then the carrier's for rounds; `machine`, `costs` and
 // `record` the files the pass reads, the working folder's copies for a dry pass and an enumeration
 EMBED_INLINE int query_learn_offline(const LearnStepsCtx *args)
@@ -177,45 +365,16 @@ EMBED_INLINE int query_learn_offline(const LearnStepsCtx *args)
     QueryContext *context = args->context;
     const QueryFiles *files = args->files;
     const char *writer = args->writer;
-    const char *transport = args->transport;
     VerbaLinea *err_msg = args->err_msg;
     static char s_cross[QUERY_PATH_MAX_LEN];
     static char s_nvdisasm[QUERY_PATH_MAX_LEN];
     char machine[QUERY_PATH_MAX_LEN];
     char costs[QUERY_PATH_MAX_LEN];
     char record[QUERY_PATH_MAX_LEN];
-    const int copied = args->step->kind != QUERY_LEARN_ROUNDS;
-    memor.cpy(
-        &(MemoriaCfg){.dst = machine,
-                      .src = files->machine,
-                      .bytes = cellul.len(&(CatenaFinitaCfg){.src = files->machine, .cap = CLI_CELLS_POOL}) + 1u});
-    memor.cpy(&(MemoriaCfg){.dst = costs,
-                            .src = files->costs,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = files->costs, .cap = CLI_CELLS_POOL}) + 1u});
-    memor.cpy(&(MemoriaCfg){.dst = record,
-                            .src = files->record,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = files->record, .cap = CLI_CELLS_POOL}) + 1u});
-    if (copied)
+    if (!EMBED_CALL(query_offline_files, LearnStepsCtx, .context = context, .files = files, .step = args->step,
+                    .machine = machine, .costs = costs, .record = record, .err_msg = err_msg))
     {
-        EMBED_CALL(query_work_by_name, LearnStepsCtx, .context_read = context, .name = "sm_86.khw", .path = machine);
-        EMBED_CALL(query_work_by_name, LearnStepsCtx, .context_read = context, .name = "sm_86.ksc", .path = costs);
-        EMBED_CALL(query_work_by_name, LearnStepsCtx, .context_read = context, .name = "sm_86.kqr", .path = record);
-    }
-    if (args->step->kind == QUERY_LEARN_DRY)
-    {
-        // the dry machine file, the costs and the record beside it under the working folder, each the tree's copied
-        // there so that the dry pass leaves the tree's as they are
-        const char *const from[3] = {files->machine, files->costs, files->record};
-        const char *const to[3] = {machine, costs, record};
-        for (unsigned int at = 0u; at < 3u; at += 1u)
-        {
-            if (!EMBED_CALL(query_from_internal.file_copy, QueryFromCtx, .from = from[at], .to = to[at]))
-            {
-                mmgr_line_put(err_msg, from[at]);
-                mmgr_line_put(err_msg, " could not be copied under the working folder");
-                return -1;
-            }
-        }
+        return -1;
     }
     const int needs_cross = args->step->kind != QUERY_LEARN_ENUMERATE;
     static QueryRun s_run;
@@ -238,57 +397,15 @@ EMBED_INLINE int query_learn_offline(const LearnStepsCtx *args)
     memor.set(&(MemoriaCfg){.dst = &s_words, .val = 0, .bytes = sizeof(s_words)});
     EMBED_CALL(query_learn_words_words_internal.teacher_words, QueryLearnWordsWordsCtx, .words_words_pointer = &s_words,
                .machine = machine, .files = files, .writer = writer);
-    char rounds[32];
-    VerbaLinea rounds_line = {rounds, sizeof(rounds), 0ULL};
-    mmgr_line_decimal(&rounds_line, args->step->rounds, 0u);
-    mmgr_line_finish(&rounds_line);
     if (args->step->kind == QUERY_LEARN_ENUMERATE)
     {
-        const char *const forms =
-            (EMBED_CALL(query_learn_internal.lines, QueryLearnCtx, .run = &s_run, .name = "forms_work.txt") != 0u)
-                ? "forms_work.txt"
-                : "forms.txt";
-        const unsigned int seeded = EMBED_CALL(query_learn_internal.lines, QueryLearnCtx, .run = &s_run, .name = forms);
-        EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-                   .word_text = "--position");
-        EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-                   .word_text = args->step->word_text);
-        if (seeded != 0u)
-        {
-            EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-                       .word_text = "--forms");
-            EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-                       .word_text = forms);
-            char line[128];
-            VerbaLinea print_line = {line, sizeof(line), 0ULL};
-            mmgr_line_put(&print_line, "  seeding from the ");
-            mmgr_line_decimal(&print_line, seeded, 0u);
-            mmgr_line_put(&print_line, " forms in ");
-            mmgr_line_put(&print_line, forms);
-            if (mmgr_line_finish(&print_line) != 0ULL)
-            {
-                EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = line);
-            }
-        }
-        EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-                   .word_text = "--");
-        EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-                   .word_text = "dry");
+        EMBED_CALL(query_enumerate_words, LearnStepsCtx, .context = context, .step = args->step, .run = &s_run,
+                   .words = &s_words);
     }
     else
     {
-        EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-                   .word_text = rounds);
-        EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-                   .word_text = "--");
-        if (args->step->kind == QUERY_LEARN_DRY)
-        {
-            EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-                       .word_text = "dry");
-        }
-        EMBED_CALL(query_loops_words_words_transport.transport_words, QueryLoopsWordsWordsTransportCfg,
-                   .words_words_pointer = &s_words, .transport = transport, .cross = s_cross, .nvdisasm = s_nvdisasm,
-                   .machine = machine, .layout = files->layout, .lessons = 0);
+        EMBED_CALL(query_rounds_words, LearnStepsCtx, .files = files, .step = args->step, .words = &s_words,
+                   .transport = args->transport, .cross = s_cross, .nvdisasm = s_nvdisasm, .machine = machine);
     }
     static const char *s_teacher[QUERY_WORDS_MAX + 2u];
     s_teacher[0] = args->teacher;
@@ -301,65 +418,8 @@ EMBED_INLINE int query_learn_offline(const LearnStepsCtx *args)
                                 .code = &code, .err_msg = err_msg);
     if (whole && (args->step->kind != QUERY_LEARN_ROUNDS))
     {
-        if (code != 0LL)
-        {
-            mmgr_line_put(err_msg, (args->step->kind == QUERY_LEARN_DRY) ? "the protocol did not run dry"
-                                                                         : "the enumerate did not run");
-            whole = 0;
-        }
-        const unsigned int questions =
-            whole ? EMBED_CALL(query_learn_internal.lines, QueryLearnCtx, .run = &s_run, .name = "questions.txt") : 0u;
-        if (whole && (questions == 0u))
-        {
-            mmgr_line_put(err_msg, (args->step->kind == QUERY_LEARN_DRY) ? "the protocol put no question"
-                                                                         : "the enumerate put no question");
-            whole = 0;
-        }
-        char line[QUERY_PATH_MAX_LEN + 128u];
-        VerbaLinea print_line = {line, sizeof(line), 0ULL};
-        if (whole && (args->step->kind == QUERY_LEARN_DRY))
-        {
-            // the gate reads the list against the tree's machine file, whose forms stand whatever the dry pass wrote
-            mmgr_line_put(&print_line, "  the protocol put ");
-            mmgr_line_decimal(&print_line, questions, 0u);
-            mmgr_line_put(&print_line, " questions; each checked by cubin_safe with the part taken out:");
-            if (mmgr_line_finish(&print_line) != 0ULL)
-            {
-                EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = line);
-            }
-            const char *const carried[7] = {transport,       "--dry", files->machine, files->layout, "--list",
-                                            "questions.txt", NULL};
-            long long transferred_code = -1LL;
-            whole = EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
-                               .context = context, .run = &s_run, .name = "orior_cubin_run", .words = carried,
-                               .code = &transferred_code, .err_msg = err_msg);
-            if (whole && (transferred_code != 0LL))
-            {
-                mmgr_line_put(err_msg, "the carrier did not read the list");
-                whole = 0;
-            }
-            if (whole)
-            {
-                EMBED_CALL(query_learn_run_internal.verdicts_print, QueryLearnRunCtx, .context = context,
-                           .run = &s_run);
-            }
-        }
-        else if (whole)
-        {
-            mmgr_line_put(&print_line, "  the place");
-            mmgr_line_put(&print_line, args->step->word_text);
-            mmgr_line_put(&print_line, "'s questions: questions.txt of ");
-            mmgr_line_put(&print_line, s_run.writer.qry);
-            mmgr_line_put(&print_line, ", ");
-            mmgr_line_decimal(&print_line, questions, 0u);
-            mmgr_line_put(&print_line, " of them");
-            if (mmgr_line_finish(&print_line) != 0ULL)
-            {
-                EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = line);
-            }
-            EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context,
-                       .text = "  cross-check them: orior_cli protocol cross [--base <cu>]");
-        }
+        whole = EMBED_CALL(query_offline_checked, LearnStepsCtx, .context = context, .files = files, .step = args->step,
+                           .run = &s_run, .transport = args->transport, .code = code, .err_msg = err_msg);
         code = 0LL;
     }
     if (!EMBED_CALL(query_loops_context_run.context_end, QueryLoopsContextRunCfg, .context = context, .run_out = &s_run,
