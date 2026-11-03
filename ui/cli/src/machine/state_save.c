@@ -23,6 +23,9 @@ typedef struct
     unsigned int object;
     unsigned long long length;
     const char *key;
+    unsigned int *map;
+    unsigned int nodes_more;
+    unsigned long long text_more;
 } StateSaveCtx;
 // `name` under `folder` into `out`, sized for CLI_PATH_MAX_LEN
 EMBED_INLINE void cli_in(const StateSaveCtx *args)
@@ -309,6 +312,95 @@ EMBED_INLINE int cli_themes_save(const StateSaveCtx *args)
     return 1;
 }
 
+// the change of `key` to `length` bytes of `text`, or its removal where `text` is NULL, made in the map `*map` of
+// `json`, the file `name` in `folder` read into it first where it is not yet, `nodes_more` nodes and `text_more` bytes
+// to spare: 1, or 0 with why given where the file's entries cannot be read whole
+EMBED_INLINE int cli_map_changed(const StateSaveCtx *args)
+{
+    CliJson *const json = args->json;
+    unsigned int *const map = args->map;
+    char path[CLI_PATH_MAX_LEN];
+    EMBED_CALL(cli_in, StateSaveCtx, .folder = args->folder, .name = args->name, .out = path);
+    if (*map == CLI_JSON_NONE)
+    {
+        *map = EMBED_CALL(cli_state_json_internal.map_read, CliStateJsonCtx, .json = json, .path = path,
+                          .nodes_more = args->nodes_more, .text_more = args->text_more);
+        // a file there holding more than an empty object that reads as holding nothing was not read whole: it is too
+        // large for its cell, no cell was left for it, or its text is not a JSON object; a save over it would drop
+        // every entry it holds, and is refused
+        unsigned long long stored = 0ULL;
+        if ((*map != CLI_JSON_NONE) && (json->node[*map].count == 0u) &&
+            EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = path, .size_pointer = &stored) &&
+            (stored > 3ULL))
+        {
+            mmgr_line_put(args->err_msg, path);
+            mmgr_line_put(args->err_msg, ": its entries could not be read whole, and a save over them would lose them");
+            return 0;
+        }
+    }
+    if (*map == CLI_JSON_NONE)
+    {
+        mmgr_line_put(args->err_msg, path);
+        mmgr_line_put(args->err_msg, ": the cells it is read into could not be taken");
+        return 0;
+    }
+    if (args->text != NULL)
+    {
+        EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = *map,
+                   .name = args->key,
+                   .value =
+                       EMBED_CALL(cli_write, StateSaveCtx, .json = json, .text = args->text, .length = args->length));
+    }
+    else
+    {
+        EMBED_CALL(cli_json_tree_object_name.json_remove, CliJsonTreeObjectNameCfg, .json = json, .object = *map,
+                   .name = args->key);
+    }
+    return 1;
+}
+
+// the change of `key` not saved stored in `folder`'s backups, in the file its key's hash names: `length` bytes of
+// `text` written there with the key, or the file removed where `text` is NULL: 1, or 0 with why given
+EMBED_INLINE int cli_backup_saved(const StateSaveCtx *args)
+{
+    char file[24];
+    char backups[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
+    EMBED_CALL(cli_backup_file, StateSaveCtx, .key = args->key, .out = file);
+    EMBED_CALL(cli_in, StateSaveCtx, .folder = args->folder, .name = "backups", .out = backups);
+    EMBED_CALL(cli_in, StateSaveCtx, .folder = backups, .name = file, .out = path);
+    if (args->text == NULL)
+    {
+        EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = path);
+        return 1;
+    }
+    // the backup: an object of two members, its key and its text, and their names
+    CliJson backup;
+    const unsigned long long key_length = cellul.len(&(CatenaFinitaCfg){.src = args->key, .cap = CLI_CELLS_POOL});
+    if (!EMBED_CALL(cli_json_tree_nodes_max.json_reserve, CliJsonTreeNodesMaxCfg, .json = &backup, .nodes_max = 8u,
+                    .text_max = key_length + args->length + 16ULL, .what = "a change not saved",
+                    .owner = &g_cli_state_cells))
+    {
+        mmgr_line_put(args->err_msg, path);
+        mmgr_line_put(args->err_msg, ": the cells it is written from could not be taken");
+        return 0;
+    }
+    const unsigned int object =
+        EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = &backup, .kind = CFG_JSON_OBJECT);
+    EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = &backup, .object = object,
+               .name = "key",
+               .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
+                                   .json = &backup, .text = args->key, .length = key_length));
+    EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = &backup, .object = object,
+               .name = "text",
+               .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
+                                   .json = &backup, .text = args->text, .length = args->length));
+    const int done = EMBED_CALL(cli_map_write, StateSaveCtx, .path = path, .json = &backup, .object = object,
+                                .err_msg = args->err_msg);
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &backup);
+    return done;
+}
+
 int cli_state_save(const CliStateFolderCfg *args)
 {
     CliJson supplied;
@@ -349,48 +441,11 @@ int cli_state_save(const CliStateFolderCfg *args)
         if ((place == CLI_STATE_SETTINGS) || (place == CLI_STATE_FILE))
         {
             const int is_settings = place == CLI_STATE_SETTINGS;
-            CliJson *const json = is_settings ? &settings : &state;
-            unsigned int *const map = is_settings ? &settings_map : &state_map;
-            if (*map == CLI_JSON_NONE)
-            {
-                EMBED_CALL(cli_in, StateSaveCtx, .folder = args->folder,
-                           .name = is_settings ? "settings.json" : "state.json", .out = path);
-                *map = EMBED_CALL(cli_state_json_internal.map_read, CliStateJsonCtx, .json = json, .path = path,
-                                  .nodes_more = nodes_more, .text_more = text_more);
-                // a file there holding more than an empty object that reads as holding nothing was not read whole: it
-                // is too large for its cell, no cell was left for it, or its text is not a JSON object; a save over it
-                // would drop every entry it holds, and is refused
-                unsigned long long stored = 0ULL;
-                if ((*map != CLI_JSON_NONE) && (json->node[*map].count == 0u) &&
-                    EMBED_CALL(cli_path_size_internal.file_size, CliPathSizeCtx, .path = path,
-                               .size_pointer = &stored) &&
-                    (stored > 3ULL))
-                {
-                    mmgr_line_put(args->err_msg, path);
-                    mmgr_line_put(args->err_msg,
-                                  ": its entries could not be read whole, and a save over them would lose them");
-                    done = 0;
-                    continue;
-                }
-            }
-            if (*map == CLI_JSON_NONE)
-            {
-                mmgr_line_put(args->err_msg, path);
-                mmgr_line_put(args->err_msg, ": the cells it is read into could not be taken");
-                done = 0;
-            }
-            else if (text != NULL)
-            {
-                EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = *map,
-                           .name = key,
-                           .value =
-                               EMBED_CALL(cli_write, StateSaveCtx, .json = json, .text = text, .length = text_length));
-            }
-            else
-            {
-                EMBED_CALL(cli_json_tree_object_name.json_remove, CliJsonTreeObjectNameCfg, .json = json,
-                           .object = *map, .name = key);
-            }
+            done = EMBED_CALL(cli_map_changed, StateSaveCtx, .json = is_settings ? &settings : &state,
+                              .map = is_settings ? &settings_map : &state_map, .folder = args->folder,
+                              .name = is_settings ? "settings.json" : "state.json", .key = key, .text = text,
+                              .length = text_length, .nodes_more = nodes_more, .text_more = text_more,
+                              .err_msg = args->err_msg);
         }
         else if (place == CLI_STATE_THEMES)
         {
@@ -401,45 +456,8 @@ int cli_state_save(const CliStateFolderCfg *args)
         }
         else
         {
-            char file[24];
-            char backups[CLI_PATH_MAX_LEN];
-            EMBED_CALL(cli_backup_file, StateSaveCtx, .key = key, .out = file);
-            EMBED_CALL(cli_in, StateSaveCtx, .folder = args->folder, .name = "backups", .out = backups);
-            EMBED_CALL(cli_in, StateSaveCtx, .folder = backups, .name = file, .out = path);
-            if (text != NULL)
-            {
-                // the backup: an object of two members, its key and its text, and their names
-                CliJson backup;
-                const unsigned long long key_length = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL});
-                if (!EMBED_CALL(cli_json_tree_nodes_max.json_reserve, CliJsonTreeNodesMaxCfg, .json = &backup,
-                                .nodes_max = 8u, .text_max = key_length + text_length + 16ULL,
-                                .what = "a change not saved", .owner = &g_cli_state_cells))
-                {
-                    mmgr_line_put(args->err_msg, path);
-                    mmgr_line_put(args->err_msg, ": the cells it is written from could not be taken");
-                    done = 0;
-                    continue;
-                }
-                const unsigned int object = EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg,
-                                                       .json = &backup, .kind = CFG_JSON_OBJECT);
-                EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = &backup,
-                           .object = object, .name = "key",
-                           .value =
-                               EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
-                                          .json = &backup, .text = key, .length = key_length));
-                EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = &backup,
-                           .object = object, .name = "text",
-                           .value =
-                               EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
-                                          .json = &backup, .text = text, .length = text_length));
-                done = EMBED_CALL(cli_map_write, StateSaveCtx, .path = path, .json = &backup, .object = object,
-                                  .err_msg = args->err_msg);
-                EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &backup);
-            }
-            else
-            {
-                EMBED_CALL(query_path_seconds_internal.remove, QueryPathSecondsCtx, .path = path);
-            }
+            done = EMBED_CALL(cli_backup_saved, StateSaveCtx, .folder = args->folder, .key = key, .text = text,
+                              .length = text_length, .err_msg = args->err_msg);
         }
     }
     if (done && (settings_map != CLI_JSON_NONE))
