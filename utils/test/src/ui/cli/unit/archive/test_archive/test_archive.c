@@ -269,6 +269,21 @@ static void nested_written(void)
     bytes_written("outer.zip", s_zip, zip_written(&outer, 1u));
 }
 
+// a tar whose first member's name a GNU long name member gives and whose second's a pax extended header gives, written
+// at long.tar in a fresh folder
+static void long_named_written(void)
+{
+    static const char *const s_entries[4][2] = {{"././@LongLink", "deep/long/name.txt"},
+                                                {"short.txt", "one"},
+                                                {"PaxHeader", "21 path=pax/name.txt\n"},
+                                                {"other.txt", "two"}};
+    cli_unity_folder("archive_long", s_dir);
+    const unsigned long long size = tar_written(s_entries, 4u);
+    s_tar[156] = 'L';
+    s_tar[2048u + 156u] = 'x';
+    bytes_written("long.tar", s_tar, size);
+}
+
 // a gzipped tar and a gzipped file written in a fresh folder
 static void gzipped_written(void)
 {
@@ -520,6 +535,15 @@ void test_a_gzipped_tar_opens(void)
     gzipped_written();
     TEST_ASSERT_TRUE(folder_listing("src.tgz"));
     TEST_ASSERT_EQUAL_STRING("a 1 0|c.txt 0 0", s_list_result);
+}
+
+void test_a_tar_member_named_by_a_long_name_or_a_pax_header_goes_by_that_name(void)
+{
+    long_named_written();
+    TEST_ASSERT_TRUE(folder_listing("long.tar"));
+    TEST_ASSERT_EQUAL_STRING("deep 1 0|pax 1 0", s_list_result);
+    assert_file_reads("long.tar/deep/long/name.txt", "one");
+    assert_file_reads("long.tar/pax/name.txt", "two");
 }
 
 void test_a_gzipped_tar_saves_back_and_the_other_file_is_unchanged(void)

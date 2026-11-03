@@ -10,6 +10,11 @@ typedef struct
     const unsigned char *field;
     unsigned int length;
     VerbaLinea *out;
+    unsigned long long size;
+    unsigned char kind;
+    unsigned long long at;
+    const char *long_name;
+    CliMembers *members;
 } ArchiveTarCtx;
 
 // a tar member's size, in octal, or in base 256 where its first byte's top bit is set
@@ -51,6 +56,93 @@ EMBED_INLINE void cli_tar_text(const ArchiveTarCtx *args)
                .length = end);
 }
 
+// whether the `length` bytes at `field` are each 0
+EMBED_INLINE int cli_tar_zeros(const ArchiveTarCtx *args)
+{
+    for (unsigned int byte = 0u; byte < args->length; byte += 1u)
+    {
+        if (args->field[byte] != 0u)
+        {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+// the path a pax extended header gives, the `size` bytes at `field`: each `size path=value` record's value read into
+// `out` over the one before it; 1 where a record gives one
+EMBED_INLINE int cli_tar_pax_path(const ArchiveTarCtx *args)
+{
+    int found = 0;
+    const unsigned char *record = args->field;
+    const unsigned char *const end = args->field + args->size;
+    while (record < end)
+    {
+        const unsigned char *stop = record;
+        stop += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = (const char *)stop,
+                           .at = 0ULL, .size = (unsigned long long)(end - stop), .set = "\n");
+        const unsigned char *space = record;
+        space += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = (const char *)space,
+                            .at = 0ULL, .size = (unsigned long long)(stop - space), .set = " ");
+        if (((space + 6) <= stop) && (memor.cmp(&(MemoriaCfg){.src = space + 1, .other = "path=", .bytes = 5u}) == 0))
+        {
+            args->out->at = 0ULL;
+            EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = args->out,
+                       .text_bytes = space + 6, .length = (unsigned long long)(stop - (space + 6)));
+            mmgr_line_finish(args->out);
+            found = 1;
+        }
+        record = (stop < end) ? (stop + 1) : stop;
+    }
+    return found;
+}
+
+// the name the next member goes by, read into `out` from the `size` bytes at `field` of a GNU long name member, `kind`
+// 'L', or of a pax extended header, `kind` 'x': 1 where it gives one
+EMBED_INLINE int cli_tar_long_read(const ArchiveTarCtx *args)
+{
+    if (args->kind == 'L')
+    {
+        EMBED_CALL(cli_tar_text, ArchiveTarCtx, .field = args->field,
+                   .length = (args->size < 0xffffffffULL) ? (unsigned int)args->size : 0xffffffffu, .out = args->out);
+        mmgr_line_finish(args->out);
+        return 1;
+    }
+    return EMBED_CALL(cli_tar_pax_path, ArchiveTarCtx, .field = args->field, .size = args->size, .out = args->out);
+}
+
+// the member whose header is at `field`, of `kind`, `size` bytes, the header `at` its place in the tar, put among
+// `members`: named `long_name` where one went before it, else by its header, behind the ustar prefix it gives
+EMBED_INLINE void cli_tar_member_put(const ArchiveTarCtx *args)
+{
+    const unsigned char *const header = args->field;
+    char name[CLI_PATH_MAX_LEN * 4u];
+    VerbaLinea line = {name, sizeof(name), 0ULL};
+    if (args->long_name != NULL)
+    {
+        mmgr_line_put(&line, args->long_name);
+    }
+    else
+    {
+        char prefix[CLI_PATH_MAX_LEN];
+        VerbaLinea prefixed = {prefix, sizeof(prefix), 0ULL};
+        EMBED_CALL(cli_tar_text, ArchiveTarCtx, .field = header + 345, .length = 155u, .out = &prefixed);
+        mmgr_line_finish(&prefixed);
+        if ((memor.cmp(&(MemoriaCfg){.src = header + 257, .other = "ustar", .bytes = 5u}) == 0) && (prefix[0] != '\0'))
+        {
+            mmgr_line_put(&line, prefix);
+            mmgr_line_ch(&line, '/');
+        }
+        EMBED_CALL(cli_tar_text, ArchiveTarCtx, .field = header, .length = 100u, .out = &line);
+    }
+    const unsigned long long name_length = mmgr_line_finish(&line);
+    const int dir = (args->kind == '5') || ((name_length > 0ULL) && (name[name_length - 1ULL] == '/'));
+    EMBED_CALL(cli_archive_size_internal.member_append, CliArchiveSizeCtx, .members = args->members,
+               .name_u32 = EMBED_CALL(cli_archive_members_internal.name_store, CliArchiveMembersCtx,
+                                      .members = args->members, .name = name, .length = name_length),
+               .raw = 0u, .has_raw = 0, .dir = dir, .size = args->size, .at = args->at);
+}
+
 int cli_tar_members(const CliArchiveBytesSizeErrMsgCtx *args)
 {
     const unsigned char *bytes = args->bytes;
@@ -60,14 +152,7 @@ int cli_tar_members(const CliArchiveBytesSizeErrMsgCtx *args)
     while ((at + 512ULL) <= args->size)
     {
         const unsigned char *const header = bytes + at;
-        int zeros = 1;
-        unsigned int byte = 0u;
-        while (zeros && (byte < 512u))
-        {
-            zeros = header[byte] == 0u;
-            byte += 1u;
-        }
-        if (zeros)
+        if (EMBED_CALL(cli_tar_zeros, ArchiveTarCtx, .field = header, .length = 512u))
         {
             break;
         }
@@ -75,79 +160,24 @@ int cli_tar_members(const CliArchiveBytesSizeErrMsgCtx *args)
         const unsigned char kind = header[156];
         const unsigned long long data = at + 512ULL;
         const unsigned long long next = data + (((length + 511ULL) / 512ULL) * 512ULL);
-        if ((kind == 'L') || (kind == 'x'))
+        const int naming = (kind == 'L') || (kind == 'x');
+        if (naming && ((data > args->size) || (length > (args->size - data))))
         {
-            if ((data > args->size) || (length > (args->size - data)))
-            {
-                mmgr_line_put(args->err_msg,
-                              (kind == 'L') ? "a tar's long name is cut" : "a tar's extended header is cut");
-                return 0;
-            }
-            if (kind == 'L')
-            {
-                VerbaLinea line = {s_long, sizeof(s_long), 0ULL};
-                EMBED_CALL(cli_tar_text, ArchiveTarCtx, .field = bytes + data,
-                           .length = (length < 0xffffffffULL) ? (unsigned int)length : 0xffffffffu, .out = &line);
-                mmgr_line_finish(&line);
-                has_long = 1;
-            }
-            else
-            {
-                // each `size path=value` record of the extended header, the path the next member's name
-                const unsigned char *record = bytes + data;
-                const unsigned char *const end = bytes + data + length;
-                while (record < end)
-                {
-                    const unsigned char *stop = record;
-                    stop +=
-                        EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = (const char *)stop,
-                                   .at = 0ULL, .size = (unsigned long long)(end - stop), .set = "\n");
-                    const unsigned char *space = record;
-                    space += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
-                                        .text = (const char *)space, .at = 0ULL,
-                                        .size = (unsigned long long)(stop - space), .set = " ");
-                    if (((space + 6) <= stop) &&
-                        (memor.cmp(&(MemoriaCfg){.src = space + 1, .other = "path=", .bytes = 5u}) == 0))
-                    {
-                        VerbaLinea line = {s_long, sizeof(s_long), 0ULL};
-                        EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &line,
-                                   .text_bytes = space + 6, .length = (unsigned long long)(stop - (space + 6)));
-                        mmgr_line_finish(&line);
-                        has_long = 1;
-                    }
-                    record = (stop < end) ? (stop + 1) : stop;
-                }
-            }
+            mmgr_line_put(args->err_msg, (kind == 'L') ? "a tar's long name is cut" : "a tar's extended header is cut");
+            return 0;
+        }
+        if (naming)
+        {
+            VerbaLinea line = {s_long, sizeof(s_long), 0ULL};
+            has_long = EMBED_CALL(cli_tar_long_read, ArchiveTarCtx, .kind = kind, .field = bytes + data, .size = length,
+                                  .out = &line) ||
+                       has_long;
         }
         else if ((kind == '0') || (kind == 0u) || (kind == '5') || (kind == '7'))
         {
-            char name[CLI_PATH_MAX_LEN * 4u];
-            VerbaLinea line = {name, sizeof(name), 0ULL};
-            if (has_long)
-            {
-                mmgr_line_put(&line, s_long);
-                has_long = 0;
-            }
-            else
-            {
-                char prefix[CLI_PATH_MAX_LEN];
-                VerbaLinea prefixed = {prefix, sizeof(prefix), 0ULL};
-                EMBED_CALL(cli_tar_text, ArchiveTarCtx, .field = header + 345, .length = 155u, .out = &prefixed);
-                mmgr_line_finish(&prefixed);
-                if ((memor.cmp(&(MemoriaCfg){.src = header + 257, .other = "ustar", .bytes = 5u}) == 0) &&
-                    (prefix[0] != '\0'))
-                {
-                    mmgr_line_put(&line, prefix);
-                    mmgr_line_ch(&line, '/');
-                }
-                EMBED_CALL(cli_tar_text, ArchiveTarCtx, .field = header, .length = 100u, .out = &line);
-            }
-            const unsigned long long name_length = mmgr_line_finish(&line);
-            const int dir = (kind == '5') || ((name_length > 0ULL) && (name[name_length - 1ULL] == '/'));
-            EMBED_CALL(cli_archive_size_internal.member_append, CliArchiveSizeCtx, .members = args->members,
-                       .name_u32 = EMBED_CALL(cli_archive_members_internal.name_store, CliArchiveMembersCtx,
-                                              .members = args->members, .name = name, .length = name_length),
-                       .raw = 0u, .has_raw = 0, .dir = dir, .size = length, .at = at);
+            EMBED_CALL(cli_tar_member_put, ArchiveTarCtx, .field = header, .kind = kind, .size = length, .at = at,
+                       .members = args->members, .long_name = has_long ? s_long : NULL);
+            has_long = 0;
         }
         else
         {
