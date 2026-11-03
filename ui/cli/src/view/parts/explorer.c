@@ -278,7 +278,19 @@ int gui_explorer_wheel(const GuiExplorerFrameCfg *args)
         (int)EMBED_CALL(gui_explorer_frame_xy.rows, GuiExplorerFrameXYCfg, .explorer_read = args->explorer);
     const int most = (count > displayed) ? count - displayed : 0;
     const int required = (int)args->explorer->scroll + args->rows;
-    const int clamped = (required < 0) ? 0 : ((required > most) ? most : required);
+    int clamped;
+    if (required < 0)
+    {
+        clamped = 0;
+    }
+    else if (required > most)
+    {
+        clamped = most;
+    }
+    else
+    {
+        clamped = required;
+    }
     // the scroll clamped is not negative
     if ((unsigned int)clamped == args->explorer->scroll)
     {
@@ -471,8 +483,19 @@ EMBED_INLINE void explorer_row_draw(const ExplorerCtx *args)
     x += icon + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_EXPLORER_ICON_GAP, .scale = scale);
     const unsigned int size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                        .pixels = (int)GUI_EXPLORER_ROW_SIZE, .scale = scale);
-    const GuiColor color =
-        node->dir ? args->palette->text : (node->ignored ? args->palette->text_3 : args->palette->text_2);
+    GuiColor color;
+    if (node->dir)
+    {
+        color = args->palette->text;
+    }
+    else if (node->ignored)
+    {
+        color = args->palette->text_3;
+    }
+    else
+    {
+        color = args->palette->text_2;
+    }
     (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
                      .face = GUI_FACE_HEAD, .size = size, .x_f32 = (float)x,
                      .y = EMBED_CALL(explorer_baseline, ExplorerCtx, .glyphs = glyphs, .face = GUI_FACE_HEAD,

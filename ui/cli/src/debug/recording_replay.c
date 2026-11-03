@@ -188,14 +188,27 @@ const char *cli_replay_go(const CliRecordingHowCtx *args)
         const unsigned int at = forward ? one : one - 1u;
         const int same = (EMBED_CALL(cli_recording_serial_step_internal.replay_thread_get, CliRecordingSerialStepCtx,
                                      .step = at) == thread);
-        const int hit = continues ? EMBED_CALL(replay_stops, RecordingReplayCtx, .step = at)
-                        : (cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = "next", .cap = CLI_CELLS_POOL}))
-                            ? (same && (steps[at].depth <= depth))
-                        : (cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = "stepIn", .cap = CLI_CELLS_POOL}))
-                            ? same
-                        : (cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = "stepOut", .cap = CLI_CELLS_POOL}))
-                            ? (same && (steps[at].depth < depth))
-                            : (same && (steps[at].depth <= depth));
+        int hit;
+        if (continues)
+        {
+            hit = EMBED_CALL(replay_stops, RecordingReplayCtx, .step = at);
+        }
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = "next", .cap = CLI_CELLS_POOL}))
+        {
+            hit = same && (steps[at].depth <= depth);
+        }
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = "stepIn", .cap = CLI_CELLS_POOL}))
+        {
+            hit = same;
+        }
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = args->how, .other = "stepOut", .cap = CLI_CELLS_POOL}))
+        {
+            hit = same && (steps[at].depth < depth);
+        }
+        else
+        {
+            hit = same && (steps[at].depth <= depth);
+        }
         if (hit)
         {
             *step = at;

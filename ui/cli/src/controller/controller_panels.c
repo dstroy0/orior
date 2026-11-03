@@ -283,7 +283,21 @@ void cli_model_panels_pointer(const CliModelCtx *args)
         (input->hit == CLI_HIT_EDITOR) && (EMBED_CALL(panels_viewed_key, ControllerPanelsCtx, .at = 0u) != NULL);
     const int moved =
         !s_panels.pointer_in_text || (input->row != s_panels.pointer_row) || (input->column != s_panels.pointer_column);
-    s_panels.hover_due_ms = in_text ? (moved ? (now_ms + CLI_PANELS_HOVER_REST_MS) : s_panels.hover_due_ms) : 0ULL;
+    if (in_text)
+    {
+        if (moved)
+        {
+            s_panels.hover_due_ms = now_ms + CLI_PANELS_HOVER_REST_MS;
+        }
+        else
+        {
+            s_panels.hover_due_ms = s_panels.hover_due_ms;
+        }
+    }
+    else
+    {
+        s_panels.hover_due_ms = 0ULL;
+    }
     s_panels.hover_ask += (moved || !in_text) ? 1ULL : 0ULL;
     s_panels.pointer_in_text = in_text;
     s_panels.pointer_row = in_text ? input->row : s_panels.pointer_row;

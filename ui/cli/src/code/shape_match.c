@@ -45,7 +45,15 @@ EMBED_INLINE const char *match_text(const ShapeMatchCtx *args)
 EMBED_INLINE int match_depth_get(const ShapeMatchCtx *args)
 {
     const unsigned char role = args->matcher->tokens->role[args->at];
-    return ((role & CLI_SHAPE_OPENS) != 0u) ? 1 : ((role & CLI_SHAPE_CLOSES) != 0u) ? -1 : 0;
+    if ((role & CLI_SHAPE_OPENS) != 0u)
+    {
+        return 1;
+    }
+    if ((role & CLI_SHAPE_CLOSES) != 0u)
+    {
+        return -1;
+    }
+    return 0;
 }
 
 // whether the code's token at `at` ends a statement where it stands outside brackets

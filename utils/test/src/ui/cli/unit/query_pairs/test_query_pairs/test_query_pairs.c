@@ -17,7 +17,7 @@ static const char *words_joined(unsigned int from, char *out, unsigned long long
     for (unsigned int at = from; at < s_words.count; at += 1u)
     {
         mmgr_line_put(&line, (at > from) ? " " : "");
-        mmgr_line_put(&line, s_words.word[at]);
+        mmgr_line_put(&line, s_words.word_text[at]);
     }
     (void)mmgr_line_finish(&line);
     return out;
@@ -147,12 +147,12 @@ void test_the_kernels_words(void)
     memor.set(&(MemoriaCfg){.dst = &s_words, .val = 0, .bytes = sizeof(s_words)});
     EMBED_CALL(query_pairs_part_internal.kernel_words, QueryPairsPartCtx, .words = &s_words, .part = "sm_86", .files = &s_files);
     TEST_ASSERT_EQUAL_UINT(6u, s_words.count);
-    TEST_ASSERT_EQUAL_STRING("sm_86", s_words.word[0]);
-    CLI_TEST_ASSERT_CONTAINS("/table/sm_86.khw", s_words.word[1]);
-    CLI_TEST_ASSERT_CONTAINS("/nvidia/elf64_nvidia.tsv", s_words.word[2]);
-    CLI_TEST_ASSERT_CONTAINS("/nvidia/mnemonic_nvidia.tsv", s_words.word[3]);
-    TEST_ASSERT_EQUAL_STRING("kernel.bin", s_words.word[4]);
-    TEST_ASSERT_EQUAL_STRING("kernel", s_words.word[5]);
+    TEST_ASSERT_EQUAL_STRING("sm_86", s_words.word_text[0]);
+    CLI_TEST_ASSERT_CONTAINS("/table/sm_86.khw", s_words.word_text[1]);
+    CLI_TEST_ASSERT_CONTAINS("/nvidia/elf64_nvidia.tsv", s_words.word_text[2]);
+    CLI_TEST_ASSERT_CONTAINS("/nvidia/mnemonic_nvidia.tsv", s_words.word_text[3]);
+    TEST_ASSERT_EQUAL_STRING("kernel.bin", s_words.word_text[4]);
+    TEST_ASSERT_EQUAL_STRING("kernel", s_words.word_text[5]);
 }
 
 void test_the_kernel_is_transferred_before_the_frame_the_fixed_and_the_pairs(void)

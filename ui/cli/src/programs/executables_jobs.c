@@ -114,22 +114,39 @@ typedef struct
 // sized for CLI_NAME_MAX_LEN: 1, or 0 where Zig has none
 EMBED_INLINE int cli_zig_target(const ExecutablesJobsCtx *args)
 {
-    const char *const zig_processor =
-        ((cellul.eq(&(CatenaFinitaCfg){.src = args->processor, .other = "amd64", .cap = CLI_CELLS_POOL})) ||
-         (cellul.eq(&(CatenaFinitaCfg){.src = args->processor, .other = "x86_64", .cap = CLI_CELLS_POOL})))
-            ? "x86_64"
-        : ((cellul.eq(&(CatenaFinitaCfg){.src = args->processor, .other = "arm64", .cap = CLI_CELLS_POOL})) ||
-           (cellul.eq(&(CatenaFinitaCfg){.src = args->processor, .other = "aarch64", .cap = CLI_CELLS_POOL})))
-            ? "aarch64"
-            : NULL;
-    const char *const zig_system =
-        (cellul.eq(&(CatenaFinitaCfg){.src = args->system, .other = "linux", .cap = CLI_CELLS_POOL})) ? "linux-musl"
-        : (cellul.eq(&(CatenaFinitaCfg){.src = args->system, .other = "windows", .cap = CLI_CELLS_POOL}))
-            ? "windows-gnu"
-        : ((cellul.eq(&(CatenaFinitaCfg){.src = args->system, .other = "darwin", .cap = CLI_CELLS_POOL})) ||
-           (cellul.eq(&(CatenaFinitaCfg){.src = args->system, .other = "macos", .cap = CLI_CELLS_POOL})))
-            ? "macos"
-            : NULL;
+    const char *zig_processor;
+    if ((cellul.eq(&(CatenaFinitaCfg){.src = args->processor, .other = "amd64", .cap = CLI_CELLS_POOL})) ||
+        (cellul.eq(&(CatenaFinitaCfg){.src = args->processor, .other = "x86_64", .cap = CLI_CELLS_POOL})))
+    {
+        zig_processor = "x86_64";
+    }
+    else if ((cellul.eq(&(CatenaFinitaCfg){.src = args->processor, .other = "arm64", .cap = CLI_CELLS_POOL})) ||
+             (cellul.eq(&(CatenaFinitaCfg){.src = args->processor, .other = "aarch64", .cap = CLI_CELLS_POOL})))
+    {
+        zig_processor = "aarch64";
+    }
+    else
+    {
+        zig_processor = NULL;
+    }
+    const char *zig_system;
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->system, .other = "linux", .cap = CLI_CELLS_POOL}))
+    {
+        zig_system = "linux-musl";
+    }
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->system, .other = "windows", .cap = CLI_CELLS_POOL}))
+    {
+        zig_system = "windows-gnu";
+    }
+    else if ((cellul.eq(&(CatenaFinitaCfg){.src = args->system, .other = "darwin", .cap = CLI_CELLS_POOL})) ||
+             (cellul.eq(&(CatenaFinitaCfg){.src = args->system, .other = "macos", .cap = CLI_CELLS_POOL})))
+    {
+        zig_system = "macos";
+    }
+    else
+    {
+        zig_system = NULL;
+    }
     if ((zig_processor == NULL) || (zig_system == NULL))
     {
         return 0;
@@ -249,17 +266,26 @@ void cli_executables_cross_env(const CliExecutablesKindCfg *args)
     VerbaLinea part = {processor, sizeof(processor), 0ULL};
     mmgr_line_put_n(&part, rust, (dash != NULL) ? (unsigned long long)(dash - rust) : length);
     mmgr_line_finish(&part);
-    const char *const system =
-        (cellul.find(&(CatenaFinitaCfg){
-             .src = rust, .cap = CLI_CELLS_POOL, .other = "linux", .other_cap = CLI_CELLS_POOL}) != NULL)
-            ? "linux"
-        : (cellul.find(&(CatenaFinitaCfg){
-               .src = rust, .cap = CLI_CELLS_POOL, .other = "windows-gnu", .other_cap = CLI_CELLS_POOL}) != NULL)
-            ? "windows"
-        : (cellul.find(&(CatenaFinitaCfg){
-               .src = rust, .cap = CLI_CELLS_POOL, .other = "apple", .other_cap = CLI_CELLS_POOL}) != NULL)
-            ? "darwin"
-            : "";
+    const char *system;
+    if (cellul.find(&(CatenaFinitaCfg){
+            .src = rust, .cap = CLI_CELLS_POOL, .other = "linux", .other_cap = CLI_CELLS_POOL}) != NULL)
+    {
+        system = "linux";
+    }
+    else if (cellul.find(&(CatenaFinitaCfg){
+                 .src = rust, .cap = CLI_CELLS_POOL, .other = "windows-gnu", .other_cap = CLI_CELLS_POOL}) != NULL)
+    {
+        system = "windows";
+    }
+    else if (cellul.find(&(CatenaFinitaCfg){
+                 .src = rust, .cap = CLI_CELLS_POOL, .other = "apple", .other_cap = CLI_CELLS_POOL}) != NULL)
+    {
+        system = "darwin";
+    }
+    else
+    {
+        system = "";
+    }
     if (has_zig &&
         EMBED_CALL(cli_zig_target, ExecutablesJobsCtx, .system = system, .processor = processor, .out = target))
     {

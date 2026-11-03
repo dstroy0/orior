@@ -252,7 +252,19 @@ EMBED_INLINE void cli_padded_block(const DigestCtx *args)
     for (unsigned int at = 0u; at < 64u; at += 1u)
     {
         const unsigned long long byte = (args->index * 64ULL) + at;
-        unsigned char value = (byte < args->size_u64) ? args->bytes[byte] : ((byte == args->size_u64) ? 0x80u : 0u);
+        unsigned char value;
+        if (byte < args->size_u64)
+        {
+            value = args->bytes[byte];
+        }
+        else if (byte == args->size_u64)
+        {
+            value = 0x80u;
+        }
+        else
+        {
+            value = 0u;
+        }
         if ((args->index == (blocks - 1u)) && (at >= 56u))
         {
             const unsigned int shift = args->big ? (8u * (63u - at)) : (8u * (at - 56u));
@@ -290,14 +302,40 @@ void cli_sha1_bytes(const CliDigestBytesSizeCfg *args)
         unsigned int e = state[4];
         for (unsigned int at = 0u; at < 80u; at += 1u)
         {
-            const unsigned int mixed = (at < 20u)   ? ((b & c) | (~b & d))
-                                       : (at < 40u) ? (b ^ c ^ d)
-                                       : (at < 60u) ? ((b & c) | (b & d) | (c & d))
-                                                    : (b ^ c ^ d);
-            const unsigned int constant = (at < 20u)   ? 0x5a827999u
-                                          : (at < 40u) ? 0x6ed9eba1u
-                                          : (at < 60u) ? 0x8f1bbcdcu
-                                                       : 0xca62c1d6u;
+            unsigned int mixed;
+            if (at < 20u)
+            {
+                mixed = (b & c) | (~b & d);
+            }
+            else if (at < 40u)
+            {
+                mixed = b ^ c ^ d;
+            }
+            else if (at < 60u)
+            {
+                mixed = (b & c) | (b & d) | (c & d);
+            }
+            else
+            {
+                mixed = b ^ c ^ d;
+            }
+            unsigned int constant;
+            if (at < 20u)
+            {
+                constant = 0x5a827999u;
+            }
+            else if (at < 40u)
+            {
+                constant = 0x6ed9eba1u;
+            }
+            else if (at < 60u)
+            {
+                constant = 0x8f1bbcdcu;
+            }
+            else
+            {
+                constant = 0xca62c1d6u;
+            }
             const unsigned int next =
                 EMBED_CALL(cli_leave, DigestCtx, .word_text = a, .count = 5u) + mixed + e + constant + words[at];
             e = d;
@@ -355,14 +393,40 @@ void cli_md5_text(const CliDigestBytesCfg *args)
         for (unsigned int at = 0u; at < 64u; at += 1u)
         {
             const unsigned int quarter = at / 16u;
-            const unsigned int mixed = (quarter == 0u)   ? ((b & c) | (~b & d))
-                                       : (quarter == 1u) ? ((d & b) | (~d & c))
-                                       : (quarter == 2u) ? (b ^ c ^ d)
-                                                         : (c ^ (b | ~d));
-            const unsigned int word_text = (quarter == 0u)   ? at
-                                           : (quarter == 1u) ? (((5u * at) + 1u) % 16u)
-                                           : (quarter == 2u) ? (((3u * at) + 5u) % 16u)
-                                                             : ((7u * at) % 16u);
+            unsigned int mixed;
+            if (quarter == 0u)
+            {
+                mixed = (b & c) | (~b & d);
+            }
+            else if (quarter == 1u)
+            {
+                mixed = (d & b) | (~d & c);
+            }
+            else if (quarter == 2u)
+            {
+                mixed = b ^ c ^ d;
+            }
+            else
+            {
+                mixed = c ^ (b | ~d);
+            }
+            unsigned int word_text;
+            if (quarter == 0u)
+            {
+                word_text = at;
+            }
+            else if (quarter == 1u)
+            {
+                word_text = ((5u * at) + 1u) % 16u;
+            }
+            else if (quarter == 2u)
+            {
+                word_text = ((3u * at) + 5u) % 16u;
+            }
+            else
+            {
+                word_text = (7u * at) % 16u;
+            }
             const unsigned int turned =
                 EMBED_CALL(cli_leave, DigestCtx, .word_text = a + mixed + s_md5_round[at] + words[word_text],
                            .count = s_md5_shift[(quarter * 4u) + (at % 4u)]);

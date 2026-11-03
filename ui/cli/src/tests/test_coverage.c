@@ -431,7 +431,15 @@ static int cover_line_order(const void *left, const void *right)
     {
         return (one->could < other->could) ? -1 : 1;
     }
-    return (one->line < other->line) ? -1 : (one->line > other->line) ? 1 : 0;
+    if (one->line < other->line)
+    {
+        return -1;
+    }
+    if (one->line > other->line)
+    {
+        return 1;
+    }
+    return 0;
 }
 
 static int cover_file_order(const void *left, const void *right)

@@ -1158,8 +1158,19 @@ EMBED_INLINE unsigned int branch_found_append(const DocumentBranchCtx *args)
 EMBED_INLINE unsigned int branch_batch_color(const DocumentBranchCtx *args)
 {
     unsigned int to = args->to;
-    const unsigned int most =
-        args->stopping ? CLI_DOC_BATCH : ((args->range->bytes != CLI_DOC_ALL_BYTES) ? CLI_DOC_STEP : CLI_DOC_RUN);
+    unsigned int most;
+    if (args->stopping)
+    {
+        most = CLI_DOC_BATCH;
+    }
+    else if (args->range->bytes != CLI_DOC_ALL_BYTES)
+    {
+        most = CLI_DOC_STEP;
+    }
+    else
+    {
+        most = CLI_DOC_RUN;
+    }
     const unsigned int end = ((to - args->first) > most) ? (args->first + most) : to;
     // what the bundle reads with the lock given back, copied as its lines are claimed: the text's serial, its key and
     // its grammar's, whether it is paged and whether its last line ends it, and how many lines it counts
@@ -1382,7 +1393,21 @@ EMBED_INLINE void branch_bounds(const DocumentBranchCtx *args)
     unsigned int *high = args->high_pointer;
     const unsigned int lines = args->one_read->lines.lines;
     *high = (args->one_read->paged && (args->one_read->cached_to < lines)) ? args->one_read->cached_to : lines;
-    *low = args->one_read->paged ? ((args->one_read->cached_from < *high) ? args->one_read->cached_from : *high) : 0u;
+    if (args->one_read->paged)
+    {
+        if (args->one_read->cached_from < *high)
+        {
+            *low = args->one_read->cached_from;
+        }
+        else
+        {
+            *low = *high;
+        }
+    }
+    else
+    {
+        *low = 0u;
+    }
 }
 
 // a run of lines handed on in `out` begun: their runs written as `{"from", "runs"}`, after a comma where `*any` is set,
@@ -1434,7 +1459,19 @@ EMBED_INLINE int branch_step(const DocumentBranchCtx *args)
     {
         return 0;
     }
-    const unsigned int origin = (one->origin < low) ? low : ((one->origin < high) ? one->origin : (high - 1u));
+    unsigned int origin;
+    if (one->origin < low)
+    {
+        origin = low;
+    }
+    else if (one->origin < high)
+    {
+        origin = one->origin;
+    }
+    else
+    {
+        origin = high - 1u;
+    }
     unsigned int at = CLI_DOC_NONE;
     int down = 1;
     unsigned int distance = 0u;
@@ -1500,10 +1537,23 @@ EMBED_INLINE unsigned int branch_fold_get(const DocumentBranchCtx *args)
     const int mark = (args->regions & CLI_DOC_REGION_MARK) != 0u;
     const int led = args->close >= ((args->regions >> CLI_DOC_REGION_UNLED_AT) & CLI_DOC_REGION_COUNT);
     const int displayed = !mark && !led && ((args->regions & CLI_DOC_REGION_CLOSERS) != 0u);
-    const unsigned int last = (mark && led) ? args->line
-                              : mark        ? args->filled
-                              : displayed   ? args->line
-                                            : (args->line - 1u);
+    unsigned int last;
+    if (mark && led)
+    {
+        last = args->line;
+    }
+    else if (mark)
+    {
+        last = args->filled;
+    }
+    else if (displayed)
+    {
+        last = args->line;
+    }
+    else
+    {
+        last = args->line - 1u;
+    }
     // a line shown on the fold's first line is no line hidden
     const unsigned int hidden = displayed ? (last - 1u) : last;
     if ((last == CLI_DOC_NONE) || (hidden <= args->opened))
@@ -1596,7 +1646,22 @@ int cli_document_folds_each(const CliDocumentContextCfg *args)
 unsigned int cli_document_openers(const CliDocumentKeyLineCfg *args)
 {
     const CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
-    const unsigned int end = (one != NULL) ? ((args->line < one->lines.lines) ? args->line : one->lines.lines) : 0u;
+    unsigned int end;
+    if (one != NULL)
+    {
+        if (args->line < one->lines.lines)
+        {
+            end = args->line;
+        }
+        else
+        {
+            end = one->lines.lines;
+        }
+    }
+    else
+    {
+        end = 0u;
+    }
     // the regions open above the line, no more than those the lines above it open
     unsigned long long opening = 0ULL;
     for (unsigned int at = 0u; at < end; at += 1u)
@@ -1717,7 +1782,18 @@ void cli_document_colors_to(const CliDocumentColoredCfg *args)
     const unsigned int reserve = cli_processors() - 1u;
     s_colored = args->colored;
     s_threaded = args->threaded;
-    s_walkers_max = (reserve == 0u) ? 1u : ((reserve < CLI_DOC_WALKERS) ? reserve : CLI_DOC_WALKERS);
+    if (reserve == 0u)
+    {
+        s_walkers_max = 1u;
+    }
+    else if (reserve < CLI_DOC_WALKERS)
+    {
+        s_walkers_max = reserve;
+    }
+    else
+    {
+        s_walkers_max = CLI_DOC_WALKERS;
+    }
 }
 
 int cli_document_colored_by(const CliDocumentKeyGrammarCfg *args)

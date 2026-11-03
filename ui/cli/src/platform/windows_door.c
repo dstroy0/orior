@@ -57,9 +57,19 @@ static int ipc_overlap(const WindowsDoorCtx *args)
     {
         return 0;
     }
-    const BOOL started = (args->kind == 0)   ? ReadFile(args->handle, bytes, args->size, NULL, &work)
-                         : (args->kind == 1) ? WriteFile(args->handle, bytes, args->size, NULL, &work)
-                                             : ConnectNamedPipe(args->handle, &work);
+    BOOL started;
+    if (args->kind == 0)
+    {
+        started = ReadFile(args->handle, bytes, args->size, NULL, &work);
+    }
+    else if (args->kind == 1)
+    {
+        started = WriteFile(args->handle, bytes, args->size, NULL, &work);
+    }
+    else
+    {
+        started = ConnectNamedPipe(args->handle, &work);
+    }
     if (!started)
     {
         const DWORD error = GetLastError();

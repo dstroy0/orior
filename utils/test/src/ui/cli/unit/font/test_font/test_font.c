@@ -25,7 +25,7 @@ static void square_rasterized(float left, float bottom, float right, float top, 
     s_contours.y[2] = top;
     s_contours.x[3] = left;
     s_contours.y[3] = top;
-    EMBED_CALL(cli_font_contours.rasterize, CliFontContoursCfg, .contours = &s_contours, .mask = mask, .cover = s_cover, .capacity = sizeof(s_cover) / sizeof(s_cover[0]));
+    EMBED_CALL(cli_font_contours.rasterize, CliFontContoursCfg, .contours = &s_contours, .mask_bits = mask, .cover = s_cover, .capacity = sizeof(s_cover) / sizeof(s_cover[0]));
 }
 
 // the system's monospace font read into s_font, the test ignored where the system has none
@@ -107,7 +107,7 @@ void test_h_draws_ink_and_not_everywhere(void)
     outlined(EMBED_CALL(cli_font.glyph, CliFontCfg, .font = &s_font, .letter = 'H'));
     TEST_ASSERT_GREATER_OR_EQUAL_UINT(1u, s_contours.contours);
     CliMask mask;
-    EMBED_CALL(cli_font_contours.rasterize, CliFontContoursCfg, .contours = &s_contours, .mask = &mask, .cover = s_cover, .capacity = sizeof(s_cover) / sizeof(s_cover[0]));
+    EMBED_CALL(cli_font_contours.rasterize, CliFontContoursCfg, .contours = &s_contours, .mask_bits = &mask, .cover = s_cover, .capacity = sizeof(s_cover) / sizeof(s_cover[0]));
     unsigned long long painted = 0ull;
     for (unsigned long long at = 0ull; at < mask.width * mask.height; at += 1ull)
     {

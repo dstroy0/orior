@@ -33,7 +33,19 @@ void cli_utf8_append(const CliLineLetterCtx *args)
         mmgr_line_ch(args->line, (char)args->letter);
         return;
     }
-    const unsigned int bytes = (args->letter < 0x800u) ? 2u : (args->letter < 0x10000u) ? 3u : 4u;
+    unsigned int bytes;
+    if (args->letter < 0x800u)
+    {
+        bytes = 2u;
+    }
+    else if (args->letter < 0x10000u)
+    {
+        bytes = 3u;
+    }
+    else
+    {
+        bytes = 4u;
+    }
     static const unsigned int s_marks[5] = {0x00u, 0x00u, 0xc0u, 0xe0u, 0xf0u};
     // each byte is the letter's bits in turn under its UTF-8 mark, which a char stores
     mmgr_line_ch(args->line, (char)(s_marks[bytes] | (args->letter >> (6u * (bytes - 1u)))));

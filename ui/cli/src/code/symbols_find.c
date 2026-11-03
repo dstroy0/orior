@@ -107,7 +107,19 @@ EMBED_INLINE int find_text_order(const SymbolsFindCtx *args)
     // a stored text is below what an unsigned int counts
     const int order = EMBED_CALL(find_bytes_order, SymbolsFindCtx, .one = args->one, .one_at = args->one_at,
                                  .other = args->other, .other_at = args->other_at, .bytes = (unsigned int)shorter);
-    return (order != 0) ? order : ((measured < theirs) ? -1 : ((measured > theirs) ? 1 : 0));
+    if (order != 0)
+    {
+        return order;
+    }
+    if (measured < theirs)
+    {
+        return -1;
+    }
+    if (measured > theirs)
+    {
+        return 1;
+    }
+    return 0;
 }
 
 // whether one found ranks before another: more points, then by name, path, kind and line
@@ -126,7 +138,22 @@ EMBED_INLINE int cli_ranks_before(const SymbolsFindCtx *args)
     const unsigned int shorter = (left.length < right.length) ? left.length : right.length;
     int order = EMBED_CALL(find_bytes_order, SymbolsFindCtx, .one = one_file, .one_at = left.name, .other = other_file,
                            .other_at = right.name, .bytes = shorter);
-    order = (order != 0) ? order : ((left.length < right.length) ? -1 : (left.length > right.length) ? 1 : 0);
+    if (order != 0)
+    {
+        order = order;
+    }
+    else if (left.length < right.length)
+    {
+        order = -1;
+    }
+    else if (left.length > right.length)
+    {
+        order = 1;
+    }
+    else
+    {
+        order = 0;
+    }
     order = (order != 0) ? order
                          : EMBED_CALL(find_text_order, SymbolsFindCtx, .one = one_file, .one_at = one_file->path,
                                       .other = other_file, .other_at = other_file->path);

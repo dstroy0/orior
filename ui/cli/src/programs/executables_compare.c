@@ -114,22 +114,29 @@ void cli_executables_compare_build(const CliExecutablesCfg *args)
     mmgr_line_put(&line, args->root);
     mmgr_line_put(&line, "/build/orior/builds/");
     mmgr_line_put(&line, slug);
-    const char *const name =
-        (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
-                    .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
-                    .byte = '/') != NULL)
-            ? (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
+    const char *name;
+    if (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
+                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
+                   .byte = '/') != NULL)
+    {
+        name = EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
                           .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
                           .byte = '/') +
-               1)
-        : (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
-                      .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
-                      .byte = '\\') != NULL)
-            ? (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
+               1;
+    }
+    else if (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
+                        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
+                        .byte = '\\') != NULL)
+    {
+        name = EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
                           .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
                           .byte = '\\') +
-               1)
-            : args->file;
+               1;
+    }
+    else
+    {
+        name = args->file;
+    }
     if ((mmgr_line_finish(&line) == 0ULL) ||
         !EMBED_CALL(cli_executables_name_out_folder_internal.join, CliExecutablesNameOutFolderCtx, .folder = folder,
                     .name = commit, .out = folder_buf) ||
@@ -387,22 +394,29 @@ void cli_executables_run_command(const CliExecutablesValuesCfg *args)
     else
     {
         char config[CLI_PATH_MAX_LEN];
-        const char *const name =
-            (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
-                        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
-                        .byte = '/') != NULL)
-                ? (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
+        const char *name;
+        if (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
+                       .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
+                       .byte = '/') != NULL)
+        {
+            name = EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
                               .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
                               .byte = '/') +
-                   1)
-            : (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
-                          .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
-                          .byte = '\\') != NULL)
-                ? (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
+                   1;
+        }
+        else if (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
+                            .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
+                            .byte = '\\') != NULL)
+        {
+            name = EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
                               .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
                               .byte = '\\') +
-                   1)
-                : args->file;
+                   1;
+        }
+        else
+        {
+            name = args->file;
+        }
         const char *const dot =
             (name[0] != '\0')
                 ? EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = name + 1,

@@ -58,7 +58,15 @@ EMBED_INLINE int position_inside(const ControllerPlaceCtx *args)
 {
     // a monitor's span and a size cut to it are below what an int counts, and the size is at most the span
     const int last = args->start + (int)(args->span - args->size);
-    return (args->at < args->start) ? args->start : ((args->at > last) ? last : args->at);
+    if (args->at < args->start)
+    {
+        return args->start;
+    }
+    if (args->at > last)
+    {
+        return last;
+    }
+    return args->at;
 }
 
 // `place` fitted to the monitors `areas`, `count` of them, the first the system's main one: saved on the monitor its

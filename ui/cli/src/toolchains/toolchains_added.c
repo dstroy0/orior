@@ -184,9 +184,19 @@ EMBED_INLINE void cli_groups_get(const ToolchainsAddedCtx *args)
     for (unsigned int list = 0u; list < 3u; list += 1u)
     {
         const CliJson *const in = (list == 0u) ? args->bundled : json;
-        const unsigned int array = (list == 0u)   ? args->tools_value
-                                   : (list == 1u) ? args->added_tools
-                                                  : args->added_groups;
+        unsigned int array;
+        if (list == 0u)
+        {
+            array = args->tools_value;
+        }
+        else if (list == 1u)
+        {
+            array = args->added_tools;
+        }
+        else
+        {
+            array = args->added_groups;
+        }
         for (unsigned int item = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = in,
                                             .node = array, .kind = CFG_JSON_ARRAY)
                                      ? in->node[array].first
@@ -452,7 +462,19 @@ int cli_toolchains_add(const CliToolchainsErrMsgCfg *args)
                  (cellul.eq(&(CatenaFinitaCfg){.src = named, .other = "group", .cap = CLI_CELLS_POOL})) ||
                  (cellul.eq(&(CatenaFinitaCfg){.src = named, .other = "for", .cap = CLI_CELLS_POOL})))
         {
-            const char *const text = (named[0] == 'n') ? name : (named[0] == 'g') ? group : uses;
+            const char *text;
+            if (named[0] == 'n')
+            {
+                text = name;
+            }
+            else if (named[0] == 'g')
+            {
+                text = group;
+            }
+            else
+            {
+                text = uses;
+            }
             value =
                 EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg, .json = &json,
                            .text = text, .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));

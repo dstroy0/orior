@@ -589,7 +589,18 @@ EMBED_INLINE int cli_edit_position(const DocumentStoreCtx *args)
                          .text_bytes = (const unsigned char *)args->edit->text, .length = args->edit->length, .at = at,
                          .letter = &letter);
         breaks += (letter == '\n') ? 1ULL : 0ULL;
-        units += (letter == '\n') ? 0ULL : ((letter > 0xffffu) ? 2ULL : 1ULL);
+        if (letter == '\n')
+        {
+            units += 0ULL;
+        }
+        else if (letter > 0xffffu)
+        {
+            units += 2ULL;
+        }
+        else
+        {
+            units += 1ULL;
+        }
     }
     const unsigned long long from = args->now->start[args->edit->from.line] + args->edit->from.col;
     const unsigned long long to = args->now->start[args->edit->to.line] + args->edit->to.col;

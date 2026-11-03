@@ -282,7 +282,19 @@ EMBED_INLINE void pen_capsule(const IconsCtx *args)
             const float from_x = ((float)x + 0.5f) - args->x0;
             const float from_y = ((float)y + 0.5f) - args->y0;
             const float along = (length_sq > 0.0f) ? ((from_x * run_x) + (from_y * run_y)) / length_sq : 0.0f;
-            const float clamped = (along < 0.0f) ? 0.0f : ((along > 1.0f) ? 1.0f : along);
+            float clamped;
+            if (along < 0.0f)
+            {
+                clamped = 0.0f;
+            }
+            else if (along > 1.0f)
+            {
+                clamped = 1.0f;
+            }
+            else
+            {
+                clamped = along;
+            }
             const float away = hypotf(from_x - (clamped * run_x), from_y - (clamped * run_y));
             const float share = args->radius + 0.5f - away;
             // the pixel lies on the square: its place is not negative
@@ -492,7 +504,19 @@ EMBED_INLINE float pen_angle(const IconsCtx *args)
     const float dot = (args->ux * args->vx) + (args->uy * args->vy);
     const float lengths = hypotf(args->ux, args->uy) * hypotf(args->vx, args->vy);
     const float ratio = (lengths > 0.0f) ? dot / lengths : 1.0f;
-    const float clamped = (ratio < -1.0f) ? -1.0f : ((ratio > 1.0f) ? 1.0f : ratio);
+    float clamped;
+    if (ratio < -1.0f)
+    {
+        clamped = -1.0f;
+    }
+    else if (ratio > 1.0f)
+    {
+        clamped = 1.0f;
+    }
+    else
+    {
+        clamped = ratio;
+    }
     const float angle = acosf(clamped);
     return (((args->ux * args->vy) - (args->uy * args->vx)) < 0.0f) ? -angle : angle;
 }
@@ -744,7 +768,18 @@ EMBED_INLINE void pen_path(const IconsCtx *args)
             return;
         }
         // the pairs after a move are lines, relative where the move was
-        command = (command == 'M') ? 'L' : ((command == 'm') ? 'l' : command);
+        if (command == 'M')
+        {
+            command = 'L';
+        }
+        else if (command == 'm')
+        {
+            command = 'l';
+        }
+        else
+        {
+            command = command;
+        }
     }
 }
 

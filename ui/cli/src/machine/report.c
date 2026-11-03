@@ -86,13 +86,19 @@ EMBED_INLINE unsigned int cli_settings(const ReportCtx *args)
             : 0u;
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea reason = {why, sizeof(why), 0ULL};
-    const unsigned int read = (bytes != NULL)
-                                  ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
-                                               .json = json, .text = text, .size = size,
-                                               .nodes_more = args->copied ? (tokens + CLI_REPORT_ANSWER_NODES) : 0u,
-                                               .text_more = args->copied ? (size + CLI_REPORT_ANSWER_TEXT) : 0ULL,
-                                               .err_msg = &reason, .owner = &g_cli_machine_cells)
-                                  : CLI_JSON_NONE;
+    unsigned int read;
+    if (bytes != NULL)
+    {
+        read =
+            EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg, .json = json,
+                       .text = text, .size = size, .nodes_more = args->copied ? (tokens + CLI_REPORT_ANSWER_NODES) : 0u,
+                       .text_more = args->copied ? (size + CLI_REPORT_ANSWER_TEXT) : 0ULL, .err_msg = &reason,
+                       .owner = &g_cli_machine_cells);
+    }
+    else
+    {
+        read = CLI_JSON_NONE;
+    }
     EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_machine_cells);
     const unsigned int root = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
                                          .node = read, .kind = CFG_JSON_OBJECT)

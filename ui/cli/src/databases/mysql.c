@@ -139,9 +139,9 @@ void cli_mysql_failure_get(const CliMysqlFailureCtx *args)
     if (has_state)
     {
         mmgr_line_ch(&code_line, ' ');
+        const unsigned long long after_code = (args->size > 4u) ? args->size - 4u : 0ULL;
         EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &code_line,
-                   .text_bytes = args->payload + 4u,
-                   .length = (args->size >= 9u) ? 5ULL : ((args->size > 4u) ? args->size - 4u : 0ULL));
+                   .text_bytes = args->payload + 4u, .length = (args->size >= 9u) ? 5ULL : after_code);
     }
     mmgr_line_finish(&code_line);
 }
@@ -156,7 +156,23 @@ int cli_mysql_lenenc(const CliMysqlSizeBytesAtCtx *args)
     }
     const unsigned char first = args->bytes[*at];
     *at += 1u;
-    const unsigned int width = (first == 0xfcu) ? 2u : (first == 0xfdu) ? 3u : (first == 0xfeu) ? 8u : 0u;
+    unsigned int width;
+    if (first == 0xfcu)
+    {
+        width = 2u;
+    }
+    else if (first == 0xfdu)
+    {
+        width = 3u;
+    }
+    else if (first == 0xfeu)
+    {
+        width = 8u;
+    }
+    else
+    {
+        width = 0u;
+    }
     if (first == 0xfbu)
     {
         return 0;

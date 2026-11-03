@@ -484,8 +484,9 @@ unsigned int cli_plugins_draft(const CliPluginsErrMsgJsonSpecKindCfg *args)
                    .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                       .json_read = args->json_out, .object = args->spec, .name = "id"),
                    .length_pointer = NULL);
-    EMBED_CALL(cli_plugins_id_name.slug, CliPluginsIdNameCfg,
-               .name = (supplied[0] == '\0') ? ((raw_name != NULL) ? raw_name : "") : ((raw_id != NULL) ? raw_id : ""),
+    const char *const named_text = (raw_name != NULL) ? raw_name : "";
+    const char *const id_text = (raw_id != NULL) ? raw_id : "";
+    EMBED_CALL(cli_plugins_id_name.slug, CliPluginsIdNameCfg, .name = (supplied[0] == '\0') ? named_text : id_text,
                .id_out = id);
     if (id[0] == '\0')
     {

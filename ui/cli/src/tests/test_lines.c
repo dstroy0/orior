@@ -135,7 +135,18 @@ int cli_test_unittest_line(const CliTestRunsSizeLineCtx *args)
     {
         return 0;
     }
-    *outcome = ok ? "passed" : failed ? "failed" : "skipped";
+    if (ok)
+    {
+        *outcome = "passed";
+    }
+    else if (failed)
+    {
+        *outcome = "failed";
+    }
+    else
+    {
+        *outcome = "skipped";
+    }
     return EMBED_CALL(cli_test_runs_length_internal.test_unittest_id, CliTestRunsLengthCtx,
                       .dotted = args->line + open + 2ULL, .length = dotted_size, .id_out = args->id_out,
                       .capacity = args->capacity);

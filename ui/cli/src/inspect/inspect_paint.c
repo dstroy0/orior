@@ -73,8 +73,22 @@ void cli_inspect_paint(const CliInspectFromToCtx *args)
     {
         const unsigned long long width = s_line_width[line];
         const unsigned long long start = (line == args->from.line) ? args->from.col : 0ULL;
-        const unsigned long long end =
-            (line == args->to.line) ? ((args->to.col < width) ? args->to.col : width) : width;
+        unsigned long long end;
+        if (line == args->to.line)
+        {
+            if (args->to.col < width)
+            {
+                end = args->to.col;
+            }
+            else
+            {
+                end = width;
+            }
+        }
+        else
+        {
+            end = width;
+        }
         const unsigned long long begin = (start < end) ? start : end;
         memor.set(&(MemoriaCfg){
             .dst = s_column + s_line_start[line] + begin, .val = args->class_of, .bytes = (size_t)(end - begin)});
@@ -170,7 +184,15 @@ static int paint_fold_order(const void *one, const void *other)
     {
         return (left->first < right->first) ? -1 : 1;
     }
-    return (left->last < right->last) ? -1 : (left->last > right->last) ? 1 : 0;
+    if (left->last < right->last)
+    {
+        return -1;
+    }
+    if (left->last > right->last)
+    {
+        return 1;
+    }
+    return 0;
 }
 
 unsigned int cli_inspect_folds_get(const CliInspectCountCfg *args)

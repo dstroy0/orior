@@ -41,13 +41,27 @@ int query_pairs_read(const QueryPairsErrMsgCtx *args)
     for (unsigned int at = 1u; at < args->count; at += 1u)
     {
         const char *const word_text = args->words_letters[at];
-        const char **const field =
-            (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--part", .cap = CLI_CELLS_POOL}))   ? &mode->part
-            : (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--to", .cap = CLI_CELLS_POOL}))   ? &mode->to
-            : (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--seed", .cap = CLI_CELLS_POOL})) ? &mode->seed
-            : (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--trace", .cap = CLI_CELLS_POOL}))
-                ? &mode->trace
-                : NULL;
+        const char **field;
+        if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--part", .cap = CLI_CELLS_POOL}))
+        {
+            field = &mode->part;
+        }
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--to", .cap = CLI_CELLS_POOL}))
+        {
+            field = &mode->to;
+        }
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--seed", .cap = CLI_CELLS_POOL}))
+        {
+            field = &mode->seed;
+        }
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--trace", .cap = CLI_CELLS_POOL}))
+        {
+            field = &mode->trace;
+        }
+        else
+        {
+            field = NULL;
+        }
         if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--dry", .cap = CLI_CELLS_POOL}))
         {
             mode->dry = 1;

@@ -14,7 +14,19 @@ typedef struct
 // the bytes a letter takes in UTF-8
 EMBED_INLINE unsigned long long cli_bytes_get(const SymbolsScoreCtx *args)
 {
-    return (args->letter < 0x80u) ? 1ULL : (args->letter < 0x800u) ? 2ULL : (args->letter < 0x10000u) ? 3ULL : 4ULL;
+    if (args->letter < 0x80u)
+    {
+        return 1ULL;
+    }
+    if (args->letter < 0x800u)
+    {
+        return 2ULL;
+    }
+    if (args->letter < 0x10000u)
+    {
+        return 3ULL;
+    }
+    return 4ULL;
 }
 
 int cli_symbols_score(const CliSymbolsQueryCfg *args)

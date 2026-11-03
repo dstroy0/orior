@@ -165,8 +165,19 @@ EMBED_INLINE int head_is(const RequestsHeadCtx *args)
 // is smaller: 1, or 0 with why given where the cell is refused
 EMBED_INLINE int head_unpacked_capacity(const RequestsHeadCtx *args)
 {
-    const unsigned long long required =
-        (args->bytes < 1ULL) ? 1ULL : ((args->bytes > CLI_REQUESTS_BODY) ? CLI_REQUESTS_BODY : args->bytes);
+    unsigned long long required;
+    if (args->bytes < 1ULL)
+    {
+        required = 1ULL;
+    }
+    else if (args->bytes > CLI_REQUESTS_BODY)
+    {
+        required = CLI_REQUESTS_BODY;
+    }
+    else
+    {
+        required = args->bytes;
+    }
     if ((args->work_state->unpacked != NULL) && (args->work_state->unpacked_capacity >= required))
     {
         return 1;

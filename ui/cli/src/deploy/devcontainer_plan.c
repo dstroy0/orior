@@ -46,8 +46,22 @@ int cli_plan_description_read(const CliDevcontainerCtx *args)
         mmgr_line_ok(&plain)
             ? EMBED_CALL(cli_json_tree_text.json_tokens_count, CliJsonTreeTextCfg, .text = s_plain, .size = plain.at)
             : 0u;
-    const unsigned int tokens =
-        (counted < CLI_DESCRIPTION_TOKENS) ? ((counted != 0u) ? counted : 1u) : CLI_DESCRIPTION_TOKENS;
+    unsigned int tokens;
+    if (counted < CLI_DESCRIPTION_TOKENS)
+    {
+        if (counted != 0u)
+        {
+            tokens = counted;
+        }
+        else
+        {
+            tokens = 1u;
+        }
+    }
+    else
+    {
+        tokens = CLI_DESCRIPTION_TOKENS;
+    }
     s_tokens = mmgr_line_ok(&plain)
                    ? g_cli_cells->persistent_buf_alloc(tokens * sizeof(*s_tokens), &g_cli_devcontainer_cells)
                    : NULL;

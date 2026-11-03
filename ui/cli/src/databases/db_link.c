@@ -178,7 +178,15 @@ const char *cli_db_link_transaction(const CliDbCtx *args)
     if (args->link_read->kind == CLI_DB_LINK_PG)
     {
         const char status = EMBED_CALL(cli_pg_cancel.status, CliPgCancelCfg, .pg_read = args->link_read->pg);
-        return (status == 'T') ? "open" : (status == 'E') ? "failed" : "idle";
+        if (status == 'T')
+        {
+            return "open";
+        }
+        if (status == 'E')
+        {
+            return "failed";
+        }
+        return "idle";
     }
     if (args->link_read->kind == CLI_DB_LINK_MY)
     {

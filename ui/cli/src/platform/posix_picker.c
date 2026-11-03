@@ -309,12 +309,20 @@ EMBED_INLINE unsigned int dbus_u32_get(const PosixPickerCtx *args)
 // the bytes a value of the type `code` aligns to
 EMBED_INLINE unsigned long long dbus_alignment_get(const PosixPickerCtx *args)
 {
-    return ((args->code_letter == 'y') || (args->code_letter == 'g') || (args->code_letter == 'v')) ? 1ULL
-           : ((args->code_letter == 'n') || (args->code_letter == 'q'))                             ? 2ULL
-           : ((args->code_letter == 'x') || (args->code_letter == 't') || (args->code_letter == 'd') ||
-              (args->code_letter == '(') || (args->code_letter == '{'))
-               ? 8ULL
-               : 4ULL;
+    if ((args->code_letter == 'y') || (args->code_letter == 'g') || (args->code_letter == 'v'))
+    {
+        return 1ULL;
+    }
+    if ((args->code_letter == 'n') || (args->code_letter == 'q'))
+    {
+        return 2ULL;
+    }
+    if ((args->code_letter == 'x') || (args->code_letter == 't') || (args->code_letter == 'd') ||
+        (args->code_letter == '(') || (args->code_letter == '{'))
+    {
+        return 8ULL;
+    }
+    return 4ULL;
 }
 
 // the one complete type at `*type` in a signature passed over, its end into `*type`: 1, or 0 where it does not close
@@ -358,11 +366,26 @@ static int dbus_value_pass(const PosixPickerCtx *args)
     }
     if ((code == 's') || (code == 'o') || (code == 'g'))
     {
-        const unsigned long long length =
-            (code == 'g') ? ((*at < args->size) ? args->bytes_read[*at] : 0ULL)
-                          : ((*at + 4ULL <= args->size)
-                                 ? EMBED_CALL(dbus_u32_get, PosixPickerCtx, .bytes_read = args->bytes_read, .at = *at)
-                                 : 0ULL);
+        unsigned long long length;
+        if (code == 'g')
+        {
+            if (*at < args->size)
+            {
+                length = args->bytes_read[*at];
+            }
+            else
+            {
+                length = 0ULL;
+            }
+        }
+        else if (*at + 4ULL <= args->size)
+        {
+            length = EMBED_CALL(dbus_u32_get, PosixPickerCtx, .bytes_read = args->bytes_read, .at = *at);
+        }
+        else
+        {
+            length = 0ULL;
+        }
         *at += ((code == 'g') ? 1ULL : 4ULL) + length + 1ULL;
         *type += 1;
         return *at <= args->size;
@@ -527,7 +550,19 @@ static int dbus_connect(void)
             cellul.find(&(CatenaFinitaCfg){.src = address, .cap = sizeof(address), .other = "path=", .other_cap = 8u});
         const char *const at_abstract = cellul.find(
             &(CatenaFinitaCfg){.src = address, .cap = sizeof(address), .other = "abstract=", .other_cap = 16u});
-        const char *const from = (at_path != NULL) ? at_path + 5 : ((at_abstract != NULL) ? at_abstract + 9 : NULL);
+        const char *from;
+        if (at_path != NULL)
+        {
+            from = at_path + 5;
+        }
+        else if (at_abstract != NULL)
+        {
+            from = at_abstract + 9;
+        }
+        else
+        {
+            from = NULL;
+        }
         abstract = (at_path == NULL) && (at_abstract != NULL);
         if (from != NULL)
         {
@@ -711,9 +746,9 @@ int cli_file_pick(const CliPathCapacityCtx *args)
                .body_length_at = &body_at);
     head = message.at;
     EMBED_CALL(dbus_string, PosixPickerCtx, .message = &message, .text = "");
+    const char *const file_title = (args->kind == CLI_PICK_SAVE) ? "Save" : "Open";
     EMBED_CALL(dbus_string, PosixPickerCtx, .message = &message,
-               .text = (args->kind == CLI_PICK_FOLDER) ? "Choose a folder"
-                                                       : ((args->kind == CLI_PICK_SAVE) ? "Save" : "Open"));
+               .text = (args->kind == CLI_PICK_FOLDER) ? "Choose a folder" : file_title);
     const unsigned long long options_at = message.at;
     EMBED_CALL(dbus_u32, PosixPickerCtx, .message = &message, .value = 0u);
     EMBED_CALL(dbus_align, PosixPickerCtx, .message = &message, .alignment = 8ULL);

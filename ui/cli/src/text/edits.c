@@ -47,7 +47,23 @@ unsigned long long cli_text_byte_get(const CliEditsLineCfg *args)
             return at;
         }
         const unsigned char lead = (unsigned char)args->line[at];
-        const unsigned long long letter = (lead < 0xc0u) ? 1u : (lead < 0xe0u) ? 2u : (lead < 0xf0u) ? 3u : 4u;
+        unsigned long long letter;
+        if (lead < 0xc0u)
+        {
+            letter = 1u;
+        }
+        else if (lead < 0xe0u)
+        {
+            letter = 2u;
+        }
+        else if (lead < 0xf0u)
+        {
+            letter = 3u;
+        }
+        else
+        {
+            letter = 4u;
+        }
         units += (letter == 4u) ? 2u : 1u;
         at += letter;
     }
@@ -59,7 +75,15 @@ static int edits_by_line(const void *one, const void *other)
 {
     const unsigned int left = s_position[*(const unsigned int *)one].line;
     const unsigned int right = s_position[*(const unsigned int *)other].line;
-    return (left < right) ? -1 : (left > right) ? 1 : 0;
+    if (left < right)
+    {
+        return -1;
+    }
+    if (left > right)
+    {
+        return 1;
+    }
+    return 0;
 }
 
 // two edits in the order of their spans' bytes, then of their places among the edits
@@ -79,7 +103,15 @@ static int edits_by_span(const void *one, const void *other)
     {
         return (left_to < right_to) ? -1 : 1;
     }
-    return (left < right) ? -1 : (left > right) ? 1 : 0;
+    if (left < right)
+    {
+        return -1;
+    }
+    if (left > right)
+    {
+        return 1;
+    }
+    return 0;
 }
 
 typedef struct

@@ -383,12 +383,18 @@ EMBED_INLINE int cli_pe_read(const BinaryCtx *args)
         else if (EMBED_CALL(cli_in_folders, BinaryCtx, .folders_callback = (const char (*)[CLI_PATH_MAX_LEN])windows,
                             .count = system, .name = one->name, .at = library->at))
         {
-            library->found =
-                EMBED_CALL(cli_on_list, BinaryCtx, .lower = lower, .names = s_debug_runtime, .count = 7u)
-                    ? CLI_FOUND_DEBUG_RUNTIME
-                : EMBED_CALL(cli_on_list, BinaryCtx, .lower = lower, .names = s_redistributable, .count = 9u)
-                    ? CLI_FOUND_REDISTRIBUTABLE
-                    : CLI_FOUND_SYSTEM;
+            if (EMBED_CALL(cli_on_list, BinaryCtx, .lower = lower, .names = s_debug_runtime, .count = 7u))
+            {
+                library->found = CLI_FOUND_DEBUG_RUNTIME;
+            }
+            else if (EMBED_CALL(cli_on_list, BinaryCtx, .lower = lower, .names = s_redistributable, .count = 9u))
+            {
+                library->found = CLI_FOUND_REDISTRIBUTABLE;
+            }
+            else
+            {
+                library->found = CLI_FOUND_SYSTEM;
+            }
         }
         else if (EMBED_CALL(cli_in_folders, BinaryCtx,
                             .folders_callback = (const char (*)[CLI_PATH_MAX_LEN])s_system_path, .count = system_count,

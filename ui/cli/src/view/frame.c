@@ -59,7 +59,19 @@ EMBED_INLINE void frame_band_edges(const FrameCtx *args)
     int *to = args->to;
     const int middle = (args->first + args->end) / 2;
     const int required = (args->pulled < 0) ? middle : args->pulled;
-    const int at = (required < args->first) ? args->first : ((required > args->end) ? args->end : required);
+    int at;
+    if (required < args->first)
+    {
+        at = args->first;
+    }
+    else if (required > args->end)
+    {
+        at = args->end;
+    }
+    else
+    {
+        at = required;
+    }
     *from = at - EMBED_CALL(frame_part, FrameCtx, .share = args->grown, .pixels = at - args->first);
     *to = at + EMBED_CALL(frame_part, FrameCtx, .share = args->grown, .pixels = args->end - at);
 }
@@ -82,7 +94,19 @@ EMBED_INLINE void frame_band(const FrameCtx *args)
     int *to = args->to;
     const int middle = (args->first + args->end) / 2;
     const int required = (args->pulled < 0) ? middle : args->pulled;
-    const int at = (required < args->first) ? args->first : ((required > args->end) ? args->end : required);
+    int at;
+    if (required < args->first)
+    {
+        at = args->first;
+    }
+    else if (required > args->end)
+    {
+        at = args->end;
+    }
+    else
+    {
+        at = required;
+    }
     *from = at - EMBED_CALL(frame_share, FrameCtx, .share = args->grown, .pixels = at - args->first);
     *to = at + EMBED_CALL(frame_share, FrameCtx, .share = args->grown, .pixels = args->end - at);
 }
@@ -111,14 +135,44 @@ EMBED_INLINE void frame_inside_layout(const FrameCtx *args)
         .pixels = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TABS_HEIGHT, .scale = scale));
     const int inner_width = args->frame->work.width - pad_left - pad_right;
     const int inner_height = args->frame->work.height - pad_top - pad_bottom;
-    const int side = (args->side_width > inner_width) ? ((inner_width > 0) ? inner_width : 0) : args->side_width;
+    int side;
+    if (args->side_width > inner_width)
+    {
+        if (inner_width > 0)
+        {
+            side = inner_width;
+        }
+        else
+        {
+            side = 0;
+        }
+    }
+    else
+    {
+        side = args->side_width;
+    }
     const int rest = inner_width - side;
     const int map_width = EMBED_CALL(
         frame_share, FrameCtx,
         .share = GUI_FIXED_ONE - EMBED_CALL(frame_share, FrameCtx, .share = claim->claim,
                                             .pixels = GUI_FIXED_ONE - claim->reveal_right),
         .pixels = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_MAP_WIDTH, .scale = scale));
-    const int map = (map_width > rest) ? ((rest > 0) ? rest : 0) : map_width;
+    int map;
+    if (map_width > rest)
+    {
+        if (rest > 0)
+        {
+            map = rest;
+        }
+        else
+        {
+            map = 0;
+        }
+    }
+    else
+    {
+        map = map_width;
+    }
     args->frame->inside =
         (GuiRect){args->frame->work.x + pad_left, args->frame->work.y + pad_top, inner_width, inner_height};
     args->frame->side = (GuiRect){args->frame->inside.x, args->frame->inside.y, side, inner_height};
@@ -220,8 +274,18 @@ static void frame_layout(const FrameCtx *args)
         (GuiRect){args->frame->controls.x - bevel, controls_y, controls_width + bevel, bar_height};
     const int pane_share =
         EMBED_CALL(frame_share, FrameCtx, .share = c, .pixels = claim->reveal_down - claim->reveal_top);
-    args->frame->controls_pane_share =
-        (pane_share < 0) ? 0 : ((pane_share > GUI_FIXED_ONE) ? GUI_FIXED_ONE : pane_share);
+    if (pane_share < 0)
+    {
+        args->frame->controls_pane_share = 0;
+    }
+    else if (pane_share > GUI_FIXED_ONE)
+    {
+        args->frame->controls_pane_share = GUI_FIXED_ONE;
+    }
+    else
+    {
+        args->frame->controls_pane_share = pane_share;
+    }
     args->frame->controls_alpha = claim->controls_alpha;
     // the slats: the head's and the left's span from the work's own edge, the wordmark's corner theirs; the foot's
     // from the status bar's own ends

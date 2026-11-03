@@ -109,13 +109,17 @@ EMBED_INLINE int cli_slice_bracket(const SymbolsSliceCtx *args)
 {
     const CliLeafRead *read = args->read;
     unsigned int leaf = args->leaf;
-    return EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = read, .leaf = leaf,
-                      .roles = CLI_LEAF_OPEN)
-               ? 1
-               : (EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = read, .leaf = leaf,
-                             .roles = CLI_LEAF_CLOSE)
-                      ? -1
-                      : 0);
+    if (EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = read, .leaf = leaf,
+                   .roles = CLI_LEAF_OPEN))
+    {
+        return 1;
+    }
+    if (EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = read, .leaf = leaf,
+                   .roles = CLI_LEAF_CLOSE))
+    {
+        return -1;
+    }
+    return 0;
 }
 
 // the name `text`, `length` bytes, put among those the slice follows where it is new
@@ -199,7 +203,18 @@ EMBED_INLINE unsigned int cli_slice_statement(const SymbolsSliceCtx *args)
                     EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = read, .leaf = leaf,
                                .roles = CLI_LEAF_REGION | CLI_LEAF_OPEN);
         const int bracket = EMBED_CALL(cli_slice_bracket, SymbolsSliceCtx, .read = read, .leaf = leaf);
-        depth = (bracket > 0) ? (depth + 1u) : (((bracket < 0) && (depth > 0u)) ? (depth - 1u) : depth);
+        if (bracket > 0)
+        {
+            depth = depth + 1u;
+        }
+        else if ((bracket < 0) && (depth > 0u))
+        {
+            depth = depth - 1u;
+        }
+        else
+        {
+            depth = depth;
+        }
         const int closed = *defined && (bracket < 0);
         if ((depth == 0u) &&
             (closed || (!*defined && EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx,
@@ -297,7 +312,18 @@ EMBED_INLINE unsigned int cli_slice_head(const SymbolsSliceCtx *args)
             return leaf + 1u;
         }
         const int bracket = EMBED_CALL(cli_slice_bracket, SymbolsSliceCtx, .read = read, .leaf = leaf);
-        depth = (bracket > 0) ? (depth + 1u) : (((bracket < 0) && (depth > 0u)) ? (depth - 1u) : depth);
+        if (bracket > 0)
+        {
+            depth = depth + 1u;
+        }
+        else if ((bracket < 0) && (depth > 0u))
+        {
+            depth = depth - 1u;
+        }
+        else
+        {
+            depth = depth;
+        }
     }
     return EMBED_CALL(cli_slice_line_first, SymbolsSliceCtx, .read = read, .line = args->line + 1u);
 }
@@ -488,7 +514,18 @@ EMBED_INLINE unsigned int cli_slice_closer(const SymbolsSliceCtx *args)
         {
             return leaf;
         }
-        depth = (bracket > 0) ? (depth + 1u) : (((bracket < 0) && (depth > 0u)) ? (depth - 1u) : depth);
+        if (bracket > 0)
+        {
+            depth = depth + 1u;
+        }
+        else if ((bracket < 0) && (depth > 0u))
+        {
+            depth = depth - 1u;
+        }
+        else
+        {
+            depth = depth;
+        }
     }
     return args->read->count;
 }

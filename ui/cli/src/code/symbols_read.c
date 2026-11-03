@@ -56,11 +56,40 @@ unsigned long long cli_symbols_byte_at(const CliSymbolsSizeCtx *args)
     while ((*at < args->col) && (*byte < args->size))
     {
         const unsigned char lead = (unsigned char)args->line[*byte];
-        const unsigned int length = (lead < 0x80u) ? 1u : (lead < 0xe0u) ? 2u : (lead < 0xf0u) ? 3u : 4u;
-        unsigned int letter = (length == 1u)   ? lead
-                              : (length == 2u) ? (lead & 0x1fu)
-                              : (length == 3u) ? (lead & 0x0fu)
-                                               : (lead & 0x07u);
+        unsigned int length;
+        if (lead < 0x80u)
+        {
+            length = 1u;
+        }
+        else if (lead < 0xe0u)
+        {
+            length = 2u;
+        }
+        else if (lead < 0xf0u)
+        {
+            length = 3u;
+        }
+        else
+        {
+            length = 4u;
+        }
+        unsigned int letter;
+        if (length == 1u)
+        {
+            letter = lead;
+        }
+        else if (length == 2u)
+        {
+            letter = lead & 0x1fu;
+        }
+        else if (length == 3u)
+        {
+            letter = lead & 0x0fu;
+        }
+        else
+        {
+            letter = lead & 0x07u;
+        }
         for (unsigned int more = 1u; (more < length) && ((*byte + more) < args->size); more += 1u)
         {
             letter = (letter << 6u) | ((unsigned char)args->line[*byte + more] & 0x3fu);

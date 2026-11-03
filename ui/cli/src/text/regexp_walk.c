@@ -124,9 +124,18 @@ static int cli_starts(const RegexpWalkCtx *args)
         for (unsigned int at = 0u; !*end && (at < node->count); at += 1u)
         {
             const CliRegexpItem *const item = &args->regexp->item[node->first + at];
-            *end = (item->kind == CLI_REGEXP_RANGE)   ? ((item->high >= 128u) || args->regexp->fold)
-                   : (item->kind == CLI_REGEXP_DIGIT) ? item->negated
-                                                      : 1;
+            if (item->kind == CLI_REGEXP_RANGE)
+            {
+                *end = (item->high >= 128u) || args->regexp->fold;
+            }
+            else if (item->kind == CLI_REGEXP_DIGIT)
+            {
+                *end = item->negated;
+            }
+            else
+            {
+                *end = 1;
+            }
         }
         return 1;
     case CLI_REGEXP_GROUP:

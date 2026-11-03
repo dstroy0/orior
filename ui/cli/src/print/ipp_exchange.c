@@ -186,10 +186,23 @@ EMBED_INLINE int cli_chunk_size(const IppExchangeCtx *args)
     const unsigned char *const digits = at;
     for (; (at < args->to_bytes) && (at[0] != ';') && (at[0] != ' '); at += 1)
     {
-        const unsigned int digit = ((at[0] >= '0') && (at[0] <= '9'))   ? (unsigned int)(at[0] - '0')
-                                   : ((at[0] >= 'a') && (at[0] <= 'f')) ? (unsigned int)(at[0] - 'a') + 10u
-                                   : ((at[0] >= 'A') && (at[0] <= 'F')) ? (unsigned int)(at[0] - 'A') + 10u
-                                                                        : 16u;
+        unsigned int digit;
+        if ((at[0] >= '0') && (at[0] <= '9'))
+        {
+            digit = (unsigned int)(at[0] - '0');
+        }
+        else if ((at[0] >= 'a') && (at[0] <= 'f'))
+        {
+            digit = (unsigned int)(at[0] - 'a') + 10u;
+        }
+        else if ((at[0] >= 'A') && (at[0] <= 'F'))
+        {
+            digit = (unsigned int)(at[0] - 'A') + 10u;
+        }
+        else
+        {
+            digit = 16u;
+        }
         if ((digit == 16u) || (value > (CLI_IPP_ANSWER >> 4u)))
         {
             return 0;

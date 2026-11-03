@@ -276,7 +276,23 @@ void cli_test_rules_get(const CliTestingRulesCfg *args)
 EMBED_INLINE unsigned long long testing_letter(const TestingCtx *args)
 {
     const unsigned char lead = (unsigned char)args->text[0];
-    const unsigned long long want = (lead < 0xc0u) ? 1u : (lead < 0xe0u) ? 2u : (lead < 0xf0u) ? 3u : 4u;
+    unsigned long long want;
+    if (lead < 0xc0u)
+    {
+        want = 1u;
+    }
+    else if (lead < 0xe0u)
+    {
+        want = 2u;
+    }
+    else if (lead < 0xf0u)
+    {
+        want = 3u;
+    }
+    else
+    {
+        want = 4u;
+    }
     return (want < args->size) ? want : args->size;
 }
 

@@ -62,10 +62,23 @@ static DWORD WINAPI cli_thread_entry(LPVOID supplied)
 
 void cli_priority_own(const CliWordsErrMsgCtx *args)
 {
-    const int level = (args->priority == CLI_PRIORITY_RUN)     ? THREAD_PRIORITY_ABOVE_NORMAL
-                      : (args->priority == CLI_PRIORITY_GUEST) ? THREAD_PRIORITY_BELOW_NORMAL
-                      : (args->priority == CLI_PRIORITY_IDLE)  ? THREAD_PRIORITY_IDLE
-                                                               : THREAD_PRIORITY_NORMAL;
+    int level;
+    if (args->priority == CLI_PRIORITY_RUN)
+    {
+        level = THREAD_PRIORITY_ABOVE_NORMAL;
+    }
+    else if (args->priority == CLI_PRIORITY_GUEST)
+    {
+        level = THREAD_PRIORITY_BELOW_NORMAL;
+    }
+    else if (args->priority == CLI_PRIORITY_IDLE)
+    {
+        level = THREAD_PRIORITY_IDLE;
+    }
+    else
+    {
+        level = THREAD_PRIORITY_NORMAL;
+    }
     SetThreadPriority(GetCurrentThread(), level);
 }
 

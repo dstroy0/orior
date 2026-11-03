@@ -276,7 +276,8 @@ EMBED_INLINE unsigned int wordmark_em(const WordmarkCtx *args)
     const int most =
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = WORDMARK_EM_MOST, .scale = args->frame->scale);
     // the em stands within its clamp, which is not negative
-    return (unsigned int)((required < min) ? min : ((required > most) ? most : required));
+    const int bounded = (required > most) ? most : required;
+    return (unsigned int)((required < min) ? min : bounded);
 }
 
 // the word's width as the page's box takes it, its letter spacing after every letter, in pixels at `em`
@@ -687,8 +688,19 @@ static int wordmark_pictures_init(const WordmarkCtx *args)
 // a share of the way, in the frame's words, eased to stand still at both ends, as the page's `smooth` does
 EMBED_INLINE int wordmark_smooth(const WordmarkCtx *args)
 {
-    const long long part =
-        (args->share < 0) ? 0LL : ((args->share > GUI_FIXED_ONE) ? (long long)GUI_FIXED_ONE : (long long)args->share);
+    long long part;
+    if (args->share < 0)
+    {
+        part = 0LL;
+    }
+    else if (args->share > GUI_FIXED_ONE)
+    {
+        part = (long long)GUI_FIXED_ONE;
+    }
+    else
+    {
+        part = (long long)args->share;
+    }
     // the result stands between 0 and a whole
     return (int)((((part * part) >> 16) * ((3LL * GUI_FIXED_ONE) - (2LL * part))) >> 16);
 }
@@ -1123,7 +1135,19 @@ GuiRect gui_wordmark_logo_square(const GuiWordmarkFrameCfg *args)
     // the share of the side saved, a number of GUI_FIXED_ONE: the claim takes it, the head's and the left's insets give
     // it back
     const long long shrunk = GUI_FIXED_ONE - ((claim * (GUI_FIXED_ONE - inset_sum)) / GUI_FIXED_ONE);
-    const long long saved = (shrunk < 0LL) ? 0LL : ((shrunk > GUI_FIXED_ONE) ? GUI_FIXED_ONE : shrunk);
+    long long saved;
+    if (shrunk < 0LL)
+    {
+        saved = 0LL;
+    }
+    else if (shrunk > GUI_FIXED_ONE)
+    {
+        saved = GUI_FIXED_ONE;
+    }
+    else
+    {
+        saved = shrunk;
+    }
     const long long gap = (long long)GUI_FRAME_GAP * claim;
     // the sizes in the page's pixels by sixteen bits of fraction, each rounded to a whole pixel, far inside what an int
     // represents

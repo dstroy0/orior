@@ -95,12 +95,20 @@ EMBED_INLINE int cli_cmap_read(const FontCtx *args)
         const unsigned int encoding = EMBED_CALL(cli_font_at.u16, CliFontAtCfg, .font = font, .at = at + 2u);
         const unsigned long long offset = cmap + EMBED_CALL(cli_u32, FontCtx, .font = font, .at = at + 4u);
         const unsigned int format = EMBED_CALL(cli_font_at.u16, CliFontAtCfg, .font = font, .at = offset);
-        const unsigned int rank =
-            (((platform == 3u) && (encoding == 10u) && (format == 12u)) ||
-             ((platform == 0u) && ((encoding == 4u) || (encoding == 6u)) && (format == 12u)))
-                ? 3u
-            : (((platform == 3u) && (encoding == 1u) && (format == 4u)) || ((platform == 0u) && (format == 4u))) ? 2u
-                                                                                                                 : 0u;
+        unsigned int rank;
+        if (((platform == 3u) && (encoding == 10u) && (format == 12u)) ||
+            ((platform == 0u) && ((encoding == 4u) || (encoding == 6u)) && (format == 12u)))
+        {
+            rank = 3u;
+        }
+        else if (((platform == 3u) && (encoding == 1u) && (format == 4u)) || ((platform == 0u) && (format == 4u)))
+        {
+            rank = 2u;
+        }
+        else
+        {
+            rank = 0u;
+        }
         if (rank > best_rank)
         {
             best_rank = rank;

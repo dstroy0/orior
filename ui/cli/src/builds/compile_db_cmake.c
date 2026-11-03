@@ -153,8 +153,8 @@ EMBED_INLINE void cli_group_flags(const CompileDbCmakeCtx *args)
                                         .key = "path"),
                        .out = path, .capacity = sizeof(path)))
         {
-            EMBED_CALL(cli_flag_init, CompileDbCmakeCtx, .lead = args->msvc ? "/I" : (system ? "-isystem" : "-I"),
-                       .text = path);
+            const char *const include_lead = system ? "-isystem" : "-I";
+            EMBED_CALL(cli_flag_init, CompileDbCmakeCtx, .lead = args->msvc ? "/I" : include_lead, .text = path);
         }
     }
     const unsigned long long defines = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = args->target,

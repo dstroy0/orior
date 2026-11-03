@@ -114,8 +114,19 @@ void gui_strip_draw(const GuiStripFrameRasterCfg *args)
                                                     .name = g_cli_tools[at].glyph, .size = icon, .stroke = stroke);
         if (mask_bits != NULL)
         {
-            const GuiColor color =
-                pointed ? args->palette->bar_bright : (displayed ? args->palette->signal : args->palette->status_text);
+            GuiColor color;
+            if (pointed)
+            {
+                color = args->palette->bar_bright;
+            }
+            else if (displayed)
+            {
+                color = args->palette->signal;
+            }
+            else
+            {
+                color = args->palette->status_text;
+            }
             // the icon's side is far inside what an int represents
             EMBED_CALL(gui_raster_xy_color.mask_bits, GuiRasterXYColorCfg, .raster = args->raster,
                        .mask_bits = mask_bits, .x = button.x + ((button.width - (int)icon) / 2),

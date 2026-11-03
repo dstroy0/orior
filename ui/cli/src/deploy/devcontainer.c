@@ -52,7 +52,18 @@ void cli_plain_json(const CliDevcontainerTextCfg *args)
             const unsigned long long closed =
                 EMBED_CALL(cli_text_at_size_first.to_pair, CliTextAtSizeFirstCfg, .text = args->text, .at = at,
                            .size = args->size, .first = '*', .second = '/');
-            at = (closed < args->size) ? closed : ((at > (args->size - 1ULL)) ? at : (args->size - 1ULL));
+            if (closed < args->size)
+            {
+                at = closed;
+            }
+            else if (at > (args->size - 1ULL))
+            {
+                at = at;
+            }
+            else
+            {
+                at = args->size - 1ULL;
+            }
             at += 2ULL;
         }
         else if (letter == ',')

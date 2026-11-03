@@ -465,13 +465,12 @@ EMBED_INLINE void unread_report(const InspectPyUnreadCtx *args)
     }
     char title[CLI_NAME_MAX_LEN * 2u];
     VerbaLinea titled = {title, sizeof(title), 0ULL};
-    mmgr_line_put(&titled, (args->set->fix == CLI_PY_FIX_AS)      ? "Take out `as "
-                           : (args->set->fix == CLI_PY_FIX_VALUE) ? "Take out `"
-                                                                  : "Take out the line that sets ");
+    const int by_value = args->set->fix == CLI_PY_FIX_VALUE;
+    const char *const taken_out = by_value ? "Take out `" : "Take out the line that sets ";
+    mmgr_line_put(&titled, (args->set->fix == CLI_PY_FIX_AS) ? "Take out `as " : taken_out);
     mmgr_line_put_n(&titled, name, length);
-    mmgr_line_put(&titled, (args->set->fix == CLI_PY_FIX_AS)      ? "`"
-                           : (args->set->fix == CLI_PY_FIX_VALUE) ? " =` and retain its value"
-                                                                  : "");
+    const char *const taken_after = by_value ? " =` and retain its value" : "";
+    mmgr_line_put(&titled, (args->set->fix == CLI_PY_FIX_AS) ? "`" : taken_after);
     EMBED_CALL(cli_inspect_facts_internal.fix_append, CliInspectFactsCtx, .facts = facts, .title = &titled);
     EMBED_CALL(cli_inspect_text_internal.edit_append, CliInspectTextCtx, .facts = facts, .from = args->set->from,
                .to = args->set->to, .text_text = "", .size = 0ULL);

@@ -57,11 +57,27 @@ typedef struct
 EMBED_INLINE unsigned int cli_sequence(const RunnerLinesCtx *args)
 {
     const unsigned char lead = args->at[0];
-    const unsigned int bytes = (lead < 0x80u)                         ? 1u
-                               : ((lead >= 0xc2u) && (lead <= 0xdfu)) ? 2u
-                               : ((lead >= 0xe0u) && (lead <= 0xefu)) ? 3u
-                               : ((lead >= 0xf0u) && (lead <= 0xf4u)) ? 4u
-                                                                      : 0u;
+    unsigned int bytes;
+    if (lead < 0x80u)
+    {
+        bytes = 1u;
+    }
+    else if ((lead >= 0xc2u) && (lead <= 0xdfu))
+    {
+        bytes = 2u;
+    }
+    else if ((lead >= 0xe0u) && (lead <= 0xefu))
+    {
+        bytes = 3u;
+    }
+    else if ((lead >= 0xf0u) && (lead <= 0xf4u))
+    {
+        bytes = 4u;
+    }
+    else
+    {
+        bytes = 0u;
+    }
     if ((bytes == 0u) || ((unsigned long long)(args->end - args->at) < bytes))
     {
         return 0u;

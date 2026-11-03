@@ -404,10 +404,19 @@ void cli_lsp_uri_get(const CliLspCapacityPathCfg *args)
 // a hex digit's value, or 16 where it is none
 EMBED_INLINE unsigned int wire_hex(const LspWireCtx *args)
 {
-    return ((args->letter >= '0') && (args->letter <= '9'))   ? (unsigned int)(args->letter - '0')
-           : ((args->letter >= 'a') && (args->letter <= 'f')) ? (unsigned int)(args->letter - 'a' + 10)
-           : ((args->letter >= 'A') && (args->letter <= 'F')) ? (unsigned int)(args->letter - 'A' + 10)
-                                                              : 16u;
+    if ((args->letter >= '0') && (args->letter <= '9'))
+    {
+        return (unsigned int)(args->letter - '0');
+    }
+    if ((args->letter >= 'a') && (args->letter <= 'f'))
+    {
+        return (unsigned int)(args->letter - 'a' + 10);
+    }
+    if ((args->letter >= 'A') && (args->letter <= 'F'))
+    {
+        return (unsigned int)(args->letter - 'A' + 10);
+    }
+    return 16u;
 }
 
 int cli_lsp_path_get(const CliLspLengthUriCfg *args)

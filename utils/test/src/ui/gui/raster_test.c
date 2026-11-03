@@ -61,15 +61,15 @@ static void pictures_checked(void)
     cli_check(EMBED_CALL(gui_raster_width_x.init, GuiRasterWidthXCfg, .raster = &picture, .width = 2u, .height = 1u), "a picture is made clear");
     unsigned char solid[2] = {255u, 255u};
     const GuiMask both = {2u, 1u, 0, 0, solid};
-    EMBED_CALL(gui_raster_xy.stenciled_over, GuiRasterXYCfg, .picture = &picture, .mask = &both, .x = 0, .y = 0, .color = GUI_RGBA(0x80u, 0u, 0u, 0x80u));
+    EMBED_CALL(gui_raster_xy.stenciled_over, GuiRasterXYCfg, .picture = &picture, .mask_bits = &both, .x = 0, .y = 0, .color = GUI_RGBA(0x80u, 0u, 0u, 0x80u));
     cli_check(picture.pixels[0] == GUI_RGBA(0x80u, 0u, 0u, 0x80u), "a mask over clear is its color straight");
     unsigned char whole[1] = {255u};
     const GuiMask one = {1u, 1u, 0, 0, whole};
-    EMBED_CALL(gui_raster_xy.stenciled_over, GuiRasterXYCfg, .picture = &picture, .mask = &one, .x = 1, .y = 0, .color = GUI_RGB(0u, 0u, 0xffu));
+    EMBED_CALL(gui_raster_xy.stenciled_over, GuiRasterXYCfg, .picture = &picture, .mask_bits = &one, .x = 1, .y = 0, .color = GUI_RGB(0u, 0u, 0xffu));
     cli_check(picture.pixels[1] == GUI_RGB(0u, 0u, 0xffu), "an opaque mask takes the pixel whole");
-    EMBED_CALL(gui_raster_xy.stenciled_over, GuiRasterXYCfg, .picture = &picture, .mask = &one, .x = 5, .y = 0, .color = GUI_RGB(0u, 0u, 0xffu));
+    EMBED_CALL(gui_raster_xy.stenciled_over, GuiRasterXYCfg, .picture = &picture, .mask_bits = &one, .x = 5, .y = 0, .color = GUI_RGB(0u, 0u, 0xffu));
     cli_check(picture.pixels[0] == GUI_RGBA(0x80u, 0u, 0u, 0x80u), "a mask off the picture lays nothing");
-    EMBED_CALL(gui_raster_xy.stenciled_over, GuiRasterXYCfg, .picture = &picture, .mask = &one, .x = 0, .y = 0, .color = GUI_RGBA(0u, 0xffu, 0u, 0x80u));
+    EMBED_CALL(gui_raster_xy.stenciled_over, GuiRasterXYCfg, .picture = &picture, .mask_bits = &one, .x = 0, .y = 0, .color = GUI_RGBA(0u, 0xffu, 0u, 0x80u));
     cli_check((GUI_ALPHA_OF(picture.pixels[0]) >= 0xbfu) && (GUI_ALPHA_OF(picture.pixels[0]) <= 0xc1u) &&
                   (GUI_GREEN_OF(picture.pixels[0]) > GUI_RED_OF(picture.pixels[0])),
               "a mask over part of an alpha adds to the alpha and leads the color");
@@ -154,15 +154,15 @@ int main(void)
     const GuiColor white = GUI_RGB(0xffu, 0xffu, 0xffu);
     const GuiRect whole = {0, 0, 8, 4};
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = whole, .color = black);
-    EMBED_CALL(gui_raster_xy_color.mask, GuiRasterXYColorCfg, .raster = &raster, .mask = &mask, .x = 3, .y = 1, .color = white, .clip = whole);
+    EMBED_CALL(gui_raster_xy_color.mask_bits, GuiRasterXYColorCfg, .raster = &raster, .mask_bits = &mask, .x = 3, .y = 1, .color = white, .clip = whole);
     cli_check(raster.pixels[(1u * 8u) + 3u] == 0xffffffffu, "a pixel a mask covers whole takes the color whole");
     cli_check(raster.pixels[(1u * 8u) + 4u] == 0xff000000u, "a pixel a mask leaves bare keeps its ground");
     cli_check(red_of(raster.pixels[(2u * 8u) + 3u]) == 0x80u, "a pixel a mask covers by half takes half the color");
     EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = &raster, .rect = whole, .color = black);
-    EMBED_CALL(gui_raster_xy_color.mask, GuiRasterXYColorCfg, .raster = &raster, .mask = &mask, .x = 3, .y = 1, .color = white, .clip = (GuiRect){4, 0, 4, 4});
+    EMBED_CALL(gui_raster_xy_color.mask_bits, GuiRasterXYColorCfg, .raster = &raster, .mask_bits = &mask, .x = 3, .y = 1, .color = white, .clip = (GuiRect){4, 0, 4, 4});
     cli_check(raster.pixels[(1u * 8u) + 3u] == 0xff000000u, "a mask draws nothing outside the clip");
     cli_check(raster.pixels[(1u * 8u) + 4u] == 0xff000000u, "a mask's bare pixel inside the clip stays bare");
-    EMBED_CALL(gui_raster_xy_color.mask, GuiRasterXYColorCfg, .raster = &raster, .mask = &mask, .x = -1, .y = -1, .color = white, .clip = whole);
+    EMBED_CALL(gui_raster_xy_color.mask_bits, GuiRasterXYColorCfg, .raster = &raster, .mask_bits = &mask, .x = -1, .y = -1, .color = white, .clip = whole);
     cli_check(red_of(raster.pixels[0]) == 0x40u, "a mask partly off the raster draws the pixel of it that is on");
 
     GuiRect met = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = whole, .other = (GuiRect){5, 2, 10, 10});
@@ -233,7 +233,7 @@ int main(void)
 
     const unsigned char stencil_cover[32] = {0u, 255u, 128u, 0u};
     const GuiMask stencil = {8u, 4u, 0, 0, (unsigned char *)stencil_cover};
-    EMBED_CALL(gui_raster_xy_color.stencil, GuiRasterXYColorCfg, .raster = &raster, .mask = &stencil, .color = GUI_RGB(0x10u, 0x20u, 0x30u));
+    EMBED_CALL(gui_raster_xy_color.stencil, GuiRasterXYColorCfg, .raster = &raster, .mask_bits = &stencil, .color = GUI_RGB(0x10u, 0x20u, 0x30u));
     cli_check((raster.pixels[0] == 0x00102030u) && (raster.pixels[1u] == 0xff102030u) && (raster.pixels[2u] == 0x80102030u),
               "a stencil lays the color with the mask's cover as each pixel's alpha");
 

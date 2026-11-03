@@ -416,8 +416,26 @@ int cli_checkers_check_file(const CliCheckersOutCfg *args)
                                             ? EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = args->path,
                                                          .size_pointer = &size, .owner = &g_cli_toolchains_cells)
                                             : NULL;
-    const char *const input =
-        stdin_read ? ((args->text != NULL) ? args->text : ((mapped != NULL) ? (const char *)mapped : "")) : NULL;
+    const char *input;
+    if (stdin_read)
+    {
+        if (args->text != NULL)
+        {
+            input = args->text;
+        }
+        else if (mapped != NULL)
+        {
+            input = (const char *)mapped;
+        }
+        else
+        {
+            input = "";
+        }
+    }
+    else
+    {
+        input = NULL;
+    }
     const unsigned long long input_length = (args->text != NULL) ? args->length : size;
     const int checked =
         EMBED_CALL(cli_on_check, CheckersCtx, .tool = tool, .args_key = "args", .file = args->path, .root = args->root,

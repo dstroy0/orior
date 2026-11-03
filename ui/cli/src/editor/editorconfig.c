@@ -165,14 +165,23 @@ EMBED_INLINE void cli_sections_read(const EditorconfigCtx *args)
         const char *value_end = to;
         EMBED_CALL(cli_trim, EditorconfigCtx, .from_pointer = &key, .to_pointer = &key_end);
         EMBED_CALL(cli_trim, EditorconfigCtx, .from_pointer = &value, .to_pointer = &value_end);
-        CliValue *const target =
-            EMBED_CALL(cli_folded_is, EditorconfigCtx, .from = key, .to = key_end, .word_text = "indent_style")
-                ? args->style
-            : EMBED_CALL(cli_folded_is, EditorconfigCtx, .from = key, .to = key_end, .word_text = "indent_size")
-                ? args->size_value
-            : EMBED_CALL(cli_folded_is, EditorconfigCtx, .from = key, .to = key_end, .word_text = "tab_width")
-                ? args->width
-                : NULL;
+        CliValue *target;
+        if (EMBED_CALL(cli_folded_is, EditorconfigCtx, .from = key, .to = key_end, .word_text = "indent_style"))
+        {
+            target = args->style;
+        }
+        else if (EMBED_CALL(cli_folded_is, EditorconfigCtx, .from = key, .to = key_end, .word_text = "indent_size"))
+        {
+            target = args->size_value;
+        }
+        else if (EMBED_CALL(cli_folded_is, EditorconfigCtx, .from = key, .to = key_end, .word_text = "tab_width"))
+        {
+            target = args->width;
+        }
+        else
+        {
+            target = NULL;
+        }
         if (target != NULL)
         {
             EMBED_CALL(cli_value_store, EditorconfigCtx, .value = target, .from = value, .to = value_end);
@@ -300,11 +309,22 @@ EMBED_INLINE void cli_indent_resolve(const EditorconfigCtx *args)
                        .relative = relative, .name = name, .style = &style, .size_value = &size_value, .width = &width);
         }
     }
-    args->indent->tabs = (style.set != 1) ? -1
-                         : (cellul.eq(&(CatenaFinitaCfg){.src = style.text, .other = "tab", .cap = CLI_CELLS_POOL})) ? 1
-                         : (cellul.eq(&(CatenaFinitaCfg){.src = style.text, .other = "space", .cap = CLI_CELLS_POOL}))
-                             ? 0
-                             : -1;
+    if (style.set != 1)
+    {
+        args->indent->tabs = -1;
+    }
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = style.text, .other = "tab", .cap = CLI_CELLS_POOL}))
+    {
+        args->indent->tabs = 1;
+    }
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = style.text, .other = "space", .cap = CLI_CELLS_POOL}))
+    {
+        args->indent->tabs = 0;
+    }
+    else
+    {
+        args->indent->tabs = -1;
+    }
     unsigned int tab_width = 0u;
     const int has_width = EMBED_CALL(cli_value_number, EditorconfigCtx, .value_read = &width, .number = &tab_width);
     unsigned int number = 0u;

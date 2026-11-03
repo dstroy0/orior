@@ -50,10 +50,23 @@ typedef struct
 EMBED_INLINE int cli_cut_short(const FilesReadCtx *args)
 {
     const unsigned char lead = args->rest[0];
-    const unsigned long long need = ((lead >= 0xc2u) && (lead <= 0xdfu))   ? 2ULL
-                                    : ((lead >= 0xe0u) && (lead <= 0xefu)) ? 3ULL
-                                    : ((lead >= 0xf0u) && (lead <= 0xf4u)) ? 4ULL
-                                                                           : 0ULL;
+    unsigned long long need;
+    if ((lead >= 0xc2u) && (lead <= 0xdfu))
+    {
+        need = 2ULL;
+    }
+    else if ((lead >= 0xe0u) && (lead <= 0xefu))
+    {
+        need = 3ULL;
+    }
+    else if ((lead >= 0xf0u) && (lead <= 0xf4u))
+    {
+        need = 4ULL;
+    }
+    else
+    {
+        need = 0ULL;
+    }
     if ((need == 0ULL) || (args->size >= need))
     {
         return 0;
@@ -234,5 +247,13 @@ unsigned int cli_files_open(const CliFilesOpenCfg *args)
         mmgr_line_put(args->err_msg, args->file);
         mmgr_line_put(args->err_msg, ": the cells cannot meet its text");
     }
-    return !text ? CLI_FILES_OPEN_NOT_TEXT : (stored ? CLI_FILES_OPEN_WHOLE : CLI_FILES_OPEN_REFUSED);
+    if (!text)
+    {
+        return CLI_FILES_OPEN_NOT_TEXT;
+    }
+    if (stored)
+    {
+        return CLI_FILES_OPEN_WHOLE;
+    }
+    return CLI_FILES_OPEN_REFUSED;
 }

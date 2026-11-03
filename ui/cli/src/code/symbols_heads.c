@@ -38,13 +38,17 @@ EMBED_INLINE int cli_type_bracket(const SymbolsHeadsCtx *args)
     {
         return 0;
     }
-    return EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = read, .leaf = leaf,
-                      .roles = CLI_LEAF_OPEN)
-               ? 1
-               : (EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = read, .leaf = leaf,
-                             .roles = CLI_LEAF_CLOSE)
-                      ? -1
-                      : 0);
+    if (EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = read, .leaf = leaf,
+                   .roles = CLI_LEAF_OPEN))
+    {
+        return 1;
+    }
+    if (EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = read, .leaf = leaf,
+                   .roles = CLI_LEAF_CLOSE))
+    {
+        return -1;
+    }
+    return 0;
 }
 
 // whether the leaf bounds a type at the depth it starts at, as its grammar names it: a separator, a statement's end,
@@ -103,7 +107,18 @@ EMBED_INLINE void cli_type_between(const SymbolsHeadsCtx *args)
         {
             continue;
         }
-        depth = opens ? (depth + 1u) : (closes && (depth > 0u)) ? (depth - 1u) : depth;
+        if (opens)
+        {
+            depth = depth + 1u;
+        }
+        else if (closes && (depth > 0u))
+        {
+            depth = depth - 1u;
+        }
+        else
+        {
+            depth = depth;
+        }
         const int names = (is & CLI_LEAF_TYPE) != 0u;
         EMBED_CALL(cli_type_append, SymbolsHeadsCtx, .read = read, .leaf = leaf, .spaced = named && names,
                    .type = args->type, .at = &at);
@@ -358,7 +373,23 @@ EMBED_INLINE void cli_head_label(const SymbolsHeadsCtx *args)
             continue;
         }
         const unsigned char lead = (unsigned char)text[byte];
-        const unsigned int length = (lead < 0x80u) ? 1u : (lead < 0xe0u) ? 2u : (lead < 0xf0u) ? 3u : 4u;
+        unsigned int length;
+        if (lead < 0x80u)
+        {
+            length = 1u;
+        }
+        else if (lead < 0xe0u)
+        {
+            length = 2u;
+        }
+        else if (lead < 0xf0u)
+        {
+            length = 3u;
+        }
+        else
+        {
+            length = 4u;
+        }
         unsigned int more = 0u;
         while ((more < length) && (byte < to))
         {

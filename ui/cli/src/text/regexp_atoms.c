@@ -46,7 +46,8 @@ EMBED_INLINE int cli_hex(const RegexpAtomsCtx *args)
             reader->at = start;
             return 0;
         }
-        value = (value << 4u) | (decimal ? (digit - '0') : lower ? (digit - 'a' + 10u) : (digit - 'A' + 10u));
+        const unsigned int letter_value = lower ? (digit - 'a' + 10u) : (digit - 'A' + 10u);
+        value = (value << 4u) | (decimal ? (digit - '0') : letter_value);
         reader->at += 1u;
     }
     *letter = value;
@@ -409,10 +410,9 @@ unsigned int cli_atom(const CliRegexpReadCtx *args)
     }
     if ((letter == '.') || (letter == '^') || (letter == '$'))
     {
+        const unsigned int anchor_kind = (letter == '^') ? CLI_REGEXP_START : CLI_REGEXP_END;
         return EMBED_CALL(cli_regexp_read_kind_internal.node, CliRegexpReadKindCtx, .reader = args->reader,
-                          .kind = (letter == '.')   ? CLI_REGEXP_ANY
-                                  : (letter == '^') ? CLI_REGEXP_START
-                                                    : CLI_REGEXP_END);
+                          .kind = (letter == '.') ? CLI_REGEXP_ANY : anchor_kind);
     }
     if (letter == '[')
     {

@@ -138,7 +138,7 @@ void test_no_patterns_name_the_complete_tree(void)
     s_words.used = 0u;
     EMBED_CALL(cli_patterns.pathspecs, CliPatternsCfg, .patterns = patterns_read(NULL, 0u), .words = &s_words);
     TEST_ASSERT_EQUAL_UINT(1u, s_words.count);
-    TEST_ASSERT_EQUAL_STRING(".", s_words.word[0]);
+    TEST_ASSERT_EQUAL_STRING(".", s_words.word_text[0]);
 }
 
 void test_the_pathspecs_name_what_the_patterns_name(void)
@@ -151,6 +151,6 @@ void test_the_pathspecs_name_what_the_patterns_name(void)
     TEST_ASSERT_EQUAL_UINT(5u, s_words.count);
     for (unsigned int at = 0u; at < 5u; at += 1u)
     {
-        TEST_ASSERT_EQUAL_STRING(s_requested[at], s_words.word[at]);
+        TEST_ASSERT_EQUAL_STRING(s_requested[at], s_words.word_text[at]);
     }
 }

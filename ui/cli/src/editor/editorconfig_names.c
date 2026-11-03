@@ -256,7 +256,18 @@ static int cli_brace(const EditorconfigNamesCtx *args)
     int parts = 1;
     for (unsigned long long step = 0ULL; step < inner_length; step += 1ULL)
     {
-        depth += (inner[step] == '{') ? 1LL : (inner[step] == '}') ? -1LL : 0LL;
+        if (inner[step] == '{')
+        {
+            depth += 1LL;
+        }
+        else if (inner[step] == '}')
+        {
+            depth += -1LL;
+        }
+        else
+        {
+            depth += 0LL;
+        }
         parts += ((inner[step] == ',') && (depth == 0LL)) ? 1 : 0;
     }
     if (parts == 1)
@@ -272,7 +283,18 @@ static int cli_brace(const EditorconfigNamesCtx *args)
         const int ends = (step == inner_length) || ((inner[step] == ',') && (depth == 0LL));
         if (step < inner_length)
         {
-            depth += (inner[step] == '{') ? 1LL : (inner[step] == '}') ? -1LL : 0LL;
+            if (inner[step] == '{')
+            {
+                depth += 1LL;
+            }
+            else if (inner[step] == '}')
+            {
+                depth += -1LL;
+            }
+            else
+            {
+                depth += 0LL;
+            }
         }
         if (ends)
         {

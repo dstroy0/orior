@@ -228,12 +228,17 @@ EMBED_INLINE void cli_flags_define(const CompileDbFlagsCtx *args)
     name_length = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->define,
                              .at = name_length, .size = args->length, .set = "=");
     const int valued = name_length < args->length;
-    const unsigned int id =
-        (name_length != 0ULL)
-            ? EMBED_CALL(cli_flags_word, CompileDbFlagsCtx, .name = args->define, .name_length = name_length,
-                         .value = valued ? (args->define + name_length + 1u) : "1",
-                         .value_length = valued ? (args->length - name_length - 1ULL) : 1ULL)
-            : CLI_JSON_NONE;
+    unsigned int id;
+    if (name_length != 0ULL)
+    {
+        id = EMBED_CALL(cli_flags_word, CompileDbFlagsCtx, .name = args->define, .name_length = name_length,
+                        .value = valued ? (args->define + name_length + 1u) : "1",
+                        .value_length = valued ? (args->length - name_length - 1ULL) : 1ULL);
+    }
+    else
+    {
+        id = CLI_JSON_NONE;
+    }
     if (id != CLI_JSON_NONE)
     {
         EMBED_CALL(cli_flags_id_append, CompileDbFlagsCtx, .read_state = args->read_state,

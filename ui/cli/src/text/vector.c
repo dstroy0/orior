@@ -52,9 +52,15 @@ unsigned short cli_vector_fold(const CliVectorUnitCfg *args)
         // a capital and its small letter differ in the one bit 0x20
         return (unsigned short)(args->unit | 0x20u);
     }
-    return (args->unit == CLI_LONG_S)   ? (unsigned short)'s'
-           : (args->unit == CLI_KELVIN) ? (unsigned short)'k'
-                                        : args->unit;
+    if (args->unit == CLI_LONG_S)
+    {
+        return (unsigned short)'s';
+    }
+    if (args->unit == CLI_KELVIN)
+    {
+        return (unsigned short)'k';
+    }
+    return args->unit;
 }
 
 int cli_vector_exists_at(const CliVectorTextNeedleCfg *args)

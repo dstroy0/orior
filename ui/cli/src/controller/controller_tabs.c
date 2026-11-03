@@ -330,9 +330,18 @@ void cli_model_tab_close(const CliModelCtx *args)
     g_cli_model.tabs -= 1u;
     // the tabs are fewer than an int counts
     const int closed = (int)args->at;
-    g_cli_model.last_active = (g_cli_model.last_active > closed)    ? g_cli_model.last_active - 1
-                              : (g_cli_model.last_active == closed) ? -1
-                                                                    : g_cli_model.last_active;
+    if (g_cli_model.last_active > closed)
+    {
+        g_cli_model.last_active = g_cli_model.last_active - 1;
+    }
+    else if (g_cli_model.last_active == closed)
+    {
+        g_cli_model.last_active = -1;
+    }
+    else
+    {
+        g_cli_model.last_active = g_cli_model.last_active;
+    }
     if (g_cli_model.tabs == 0u)
     {
         g_cli_model.active = -1;

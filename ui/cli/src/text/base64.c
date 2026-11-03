@@ -40,7 +40,15 @@ EMBED_INLINE unsigned int cli_sextet(const Base64Ctx *args)
     {
         return (unsigned int)(args->letter - '0') + 52u;
     }
-    return (args->letter == '+') ? 62u : ((args->letter == '/') ? 63u : 64u);
+    if (args->letter == '+')
+    {
+        return 62u;
+    }
+    if (args->letter == '/')
+    {
+        return 63u;
+    }
+    return 64u;
 }
 
 int cli_unbase64(const CliBase64TextCfg *args)

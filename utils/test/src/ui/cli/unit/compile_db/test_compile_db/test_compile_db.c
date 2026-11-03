@@ -40,7 +40,7 @@ static int words_contain(const char *word)
 {
     for (unsigned int at = 0u; at < s_words.count; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = s_words.word[at], .other = word, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = s_words.word_text[at], .other = word, .cap = CLI_CELLS_POOL}))
         {
             return 1;
         }
@@ -143,7 +143,7 @@ static void word_recorded(const CliEachWordSizeCfg *args)
 {
     VerbaLinea *const line = args->context;
     mmgr_line_put(line, (line->at > 0ull) ? "|" : "");
-    mmgr_line_put_n(line, args->word, args->size);
+    mmgr_line_put_n(line, args->word_text, args->size);
 }
 
 void setUp(void)

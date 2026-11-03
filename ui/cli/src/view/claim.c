@@ -82,7 +82,19 @@ void gui_ease_table_init(const GuiAutohideTableCfg *args)
 
 int gui_ease_table_read(const GuiAutohideShareCfg *args)
 {
-    const int required = (args->share < 0) ? 0 : ((args->share > GUI_FIXED_ONE) ? GUI_FIXED_ONE : args->share);
+    int required;
+    if (args->share < 0)
+    {
+        required = 0;
+    }
+    else if (args->share > GUI_FIXED_ONE)
+    {
+        required = GUI_FIXED_ONE;
+    }
+    else
+    {
+        required = args->share;
+    }
     // a step of the table is GUI_FIXED_ONE over the steps, 1024; the way between two entries is laid straight
     const int step = required / (GUI_FIXED_ONE / (int)GUI_EASE_STEPS);
     const int within = required % (GUI_FIXED_ONE / (int)GUI_EASE_STEPS);

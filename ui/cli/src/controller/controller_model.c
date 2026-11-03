@@ -250,11 +250,19 @@ EMBED_INLINE void model_wheel(const ControllerModelCtx *args)
     EMBED_CALL(cli_model.panels_hide, CliModelCtx, .at = 0u);
     const unsigned long long top = cli_view_top(key);
     // a wheel's rows are far inside what a long long represents, and a top above the first line stops at it
-    const unsigned long long moved = (input->rows_moved >= 0)
-                                         ? (top + (unsigned long long)input->rows_moved)
-                                         : ((top > (unsigned long long)(-(long long)input->rows_moved))
-                                                ? (top - (unsigned long long)(-(long long)input->rows_moved))
-                                                : 0ULL);
+    unsigned long long moved;
+    if (input->rows_moved >= 0)
+    {
+        moved = top + (unsigned long long)input->rows_moved;
+    }
+    else if (top > (unsigned long long)(-(long long)input->rows_moved))
+    {
+        moved = top - (unsigned long long)(-(long long)input->rows_moved);
+    }
+    else
+    {
+        moved = 0ULL;
+    }
     const CliViewInput scrolled = {.kind = CLI_VIEW_SCROLL, .top = moved};
     EMBED_CALL(cli_model.view_input, CliModelCtx, .input = &scrolled, .on = 0);
 }

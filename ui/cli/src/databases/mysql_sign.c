@@ -94,8 +94,19 @@ EMBED_INLINE int sign_greeting(const MysqlSignCtx *args)
     }
     const unsigned char *const plugin_end =
         (at < size) ? memor.chr(&(MemoriaCfg){.src = hello + at, .val = 0, .bytes = (size_t)(size - at)}) : NULL;
-    const unsigned long long plugin_size =
-        (plugin_end != NULL) ? (unsigned long long)(plugin_end - hello) - at : ((at < size) ? size - at : 0ULL);
+    unsigned long long plugin_size;
+    if (plugin_end != NULL)
+    {
+        plugin_size = (unsigned long long)(plugin_end - hello) - at;
+    }
+    else if (at < size)
+    {
+        plugin_size = size - at;
+    }
+    else
+    {
+        plugin_size = 0ULL;
+    }
     VerbaLinea plugin_line = {args->plugin, CLI_NAME_MAX_LEN, 0ULL};
     if ((capabilities & CLI_MYSQL_PLUGIN_AUTH) != 0u)
     {

@@ -224,7 +224,19 @@ static unsigned char s_arc_created[RASTER_ARC_MOST + 1u];
 EMBED_INLINE unsigned int raster_arc_work(const GuiRasterCtx *args)
 {
     const float inside = (float)args->reach + 0.5f - hypotf((float)args->across + 0.5f, (float)args->down + 0.5f);
-    const float saved = (inside < 0.0f) ? 0.0f : ((inside > 1.0f) ? 1.0f : inside);
+    float saved;
+    if (inside < 0.0f)
+    {
+        saved = 0.0f;
+    }
+    else if (inside > 1.0f)
+    {
+        saved = 1.0f;
+    }
+    else
+    {
+        saved = inside;
+    }
     // a share of 255 by a factor from 0 to 1, rounded, is a byte
     return (unsigned int)((255.0f * saved) + 0.5f);
 }
@@ -750,13 +762,26 @@ static void raster_edge_line(const GuiRasterCtx *args)
     unsigned int spans = 0u;
     for (unsigned int hole = 0u; (hole < args->count) && (spans < 4u); hole += 1u)
     {
-        const int reaches =
-            args->across_i32 ? ((args->at == args->work.y) ? args->holes[hole].y <= args->work.y
-                                                           : args->holes[hole].y + args->holes[hole].height >=
-                                                                 args->work.y + args->work.height)
-                             : ((args->at == args->work.x)
-                                    ? args->holes[hole].x <= args->work.x
-                                    : args->holes[hole].x + args->holes[hole].width >= args->work.x + args->work.width);
+        int reaches;
+        if (args->across_i32)
+        {
+            if (args->at == args->work.y)
+            {
+                reaches = args->holes[hole].y <= args->work.y;
+            }
+            else
+            {
+                reaches = args->holes[hole].y + args->holes[hole].height >= args->work.y + args->work.height;
+            }
+        }
+        else if (args->at == args->work.x)
+        {
+            reaches = args->holes[hole].x <= args->work.x;
+        }
+        else
+        {
+            reaches = args->holes[hole].x + args->holes[hole].width >= args->work.x + args->work.width;
+        }
         if (!reaches)
         {
             continue;
@@ -1242,9 +1267,33 @@ unsigned int gui_raster_order(const GuiRasterRectCfg *args)
 EMBED_INLINE unsigned int raster_dot_channel(const GuiRasterCtx *args)
 {
     const float laid = ((float)args->color_u32 * args->share_f32) + args->threshold;
-    const float within = (laid < 0.0f) ? 0.0f : ((laid > 255.0f) ? 255.0f : laid);
+    float within;
+    if (laid < 0.0f)
+    {
+        within = 0.0f;
+    }
+    else if (laid > 255.0f)
+    {
+        within = 255.0f;
+    }
+    else
+    {
+        within = laid;
+    }
     const float alpha = (args->share_f32 * 255.0f) + args->threshold;
-    const float rest = (alpha < 0.0f) ? 1.0f : ((alpha > 255.0f) ? 0.0f : 1.0f - (alpha / 255.0f));
+    float rest;
+    if (alpha < 0.0f)
+    {
+        rest = 1.0f;
+    }
+    else if (alpha > 255.0f)
+    {
+        rest = 0.0f;
+    }
+    else
+    {
+        rest = 1.0f - (alpha / 255.0f);
+    }
     const float out = within + ((float)args->background_u32 * rest);
     // a channel from 0 to 255, rounded, is a byte
     return (out >= 255.0f) ? 255u : (unsigned int)(out + 0.5f);

@@ -222,9 +222,19 @@ static int children_row(const CliDbRowCfg *args)
             mmgr_line_put(&detail_line, second);
         }
         mmgr_line_finish(&detail_line);
-        const char *const kind = (how == CHILDREN_LITE_KEY) ? "key"
-                                 : (children->kind != NULL) ? children->kind
-                                                            : second;
+        const char *kind;
+        if (how == CHILDREN_LITE_KEY)
+        {
+            kind = "key";
+        }
+        else if (children->kind != NULL)
+        {
+            kind = children->kind;
+        }
+        else
+        {
+            kind = second;
+        }
         EMBED_CALL(children_node, DbChildrenCtx, .children = children, .label = first, .kind = kind,
                    .detail_text = detail, .leaf = 1, .at_letters = NULL, .count = 0u);
         return 1;
@@ -232,12 +242,19 @@ static int children_row(const CliDbRowCfg *args)
     // a column: its type, whether it may not be NULL, its default, and what else its database reports of it
     EMBED_CALL(children_word, DbChildrenCtx, .detail = &detail_line, .word_text = second,
                .size = cellul.len(&(CatenaFinitaCfg){.src = second, .cap = CLI_CELLS_POOL}));
-    const int not_null =
-        (how == CHILDREN_PG_COLUMN)
-            ? EMBED_CALL(children_equal, DbChildrenCtx, .values = values, .count = count, .at = 2u, .text = "t")
-        : (how == CHILDREN_MY_COLUMN)
-            ? EMBED_CALL(children_equal, DbChildrenCtx, .values = values, .count = count, .at = 2u, .text = "NO")
-            : EMBED_CALL(children_equal, DbChildrenCtx, .values = values, .count = count, .at = 2u, .text = "1");
+    int not_null;
+    if (how == CHILDREN_PG_COLUMN)
+    {
+        not_null = EMBED_CALL(children_equal, DbChildrenCtx, .values = values, .count = count, .at = 2u, .text = "t");
+    }
+    else if (how == CHILDREN_MY_COLUMN)
+    {
+        not_null = EMBED_CALL(children_equal, DbChildrenCtx, .values = values, .count = count, .at = 2u, .text = "NO");
+    }
+    else
+    {
+        not_null = EMBED_CALL(children_equal, DbChildrenCtx, .values = values, .count = count, .at = 2u, .text = "1");
+    }
     EMBED_CALL(children_word, DbChildrenCtx, .detail = &detail_line, .word_text = "not null",
                .size = not_null ? 8ULL : 0ULL);
     const int has_default = (how == CHILDREN_PG_COLUMN)

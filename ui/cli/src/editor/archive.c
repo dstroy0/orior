@@ -209,11 +209,19 @@ int cli_data_get(const CliArchiveBytesCtx *args)
     CliByteBuffer *out = args->out_buffer_pointer;
     unsigned long long *out_size = args->out_size;
     const char *const name = args->members_read->text + args->member->name;
-    const unsigned long long length =
-        (args->kind == CLI_ARCHIVE_GZ) ? args->unpacked_size_value
-        : (args->kind == CLI_ARCHIVE_QRY)
-            ? EMBED_CALL(cli_qry_out.member_size, CliQryOutCfg, .data = bytes, .size = size, .name = name)
-            : args->member->size;
+    unsigned long long length;
+    if (args->kind == CLI_ARCHIVE_GZ)
+    {
+        length = args->unpacked_size_value;
+    }
+    else if (args->kind == CLI_ARCHIVE_QRY)
+    {
+        length = EMBED_CALL(cli_qry_out.member_size, CliQryOutCfg, .data = bytes, .size = size, .name = name);
+    }
+    else
+    {
+        length = args->member->size;
+    }
     if (!EMBED_CALL(cli_archive_err_msg_buffer_internal.capacity, CliArchiveErrMsgBufferCtx, .buffer_pointer = out,
                     .need = length + 1ULL, .what = "a member of an archive", .err_msg = args->err_msg))
     {

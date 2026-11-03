@@ -186,10 +186,15 @@ void cli_validate_messages_get(const CliValidateSizeCtx *args)
         CliProverMessage message;
         message.line = (unsigned int)((line > 1ULL) ? line : 1ULL) - 1u;
         message.col = (unsigned int)col;
-        message.end_line = EMBED_CALL(messages_position, ValidateMessagesCtx, .json = &json, .object = value,
-                                      .key = "endPos", .part = "line", .value = &end_line)
-                               ? (unsigned int)((end_line > 1ULL) ? end_line : 1ULL) - 1u
-                               : message.line;
+        if (EMBED_CALL(messages_position, ValidateMessagesCtx, .json = &json, .object = value, .key = "endPos",
+                       .part = "line", .value = &end_line))
+        {
+            message.end_line = (unsigned int)((end_line > 1ULL) ? end_line : 1ULL) - 1u;
+        }
+        else
+        {
+            message.end_line = message.line;
+        }
         message.end_col = EMBED_CALL(messages_position, ValidateMessagesCtx, .json = &json, .object = value,
                                      .key = "endPos", .part = "column", .value = &end_col)
                               ? (unsigned int)end_col
@@ -199,11 +204,22 @@ void cli_validate_messages_get(const CliValidateSizeCtx *args)
                        .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &json,
                                           .object = value, .name = "severity"),
                        .length_pointer = NULL);
-        message.severity =
-            (severity == NULL)                                                                            ? 3u
-            : (cellul.eq(&(CatenaFinitaCfg){.src = severity, .other = "error", .cap = CLI_CELLS_POOL}))   ? 1u
-            : (cellul.eq(&(CatenaFinitaCfg){.src = severity, .other = "warning", .cap = CLI_CELLS_POOL})) ? 2u
-                                                                                                          : 3u;
+        if (severity == NULL)
+        {
+            message.severity = 3u;
+        }
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = severity, .other = "error", .cap = CLI_CELLS_POOL}))
+        {
+            message.severity = 1u;
+        }
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = severity, .other = "warning", .cap = CLI_CELLS_POOL}))
+        {
+            message.severity = 2u;
+        }
+        else
+        {
+            message.severity = 3u;
+        }
         unsigned long long text_size = 0ULL;
         unsigned long long kind_size = 0ULL;
         const char *const text =

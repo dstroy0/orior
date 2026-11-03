@@ -35,7 +35,21 @@ int cli_debug_sign(const CliDebugJsonNodeCtx *args)
     }
     read = read && (whole <= (negative ? 9223372036854775808ULL : 9223372036854775807ULL));
     // the least number is its own negative's bits, as two's complement writes it
-    *value = read ? (negative ? (long long)(0ULL - whole) : (long long)whole) : 0LL;
+    if (read)
+    {
+        if (negative)
+        {
+            *value = (long long)(0ULL - whole);
+        }
+        else
+        {
+            *value = (long long)whole;
+        }
+    }
+    else
+    {
+        *value = 0LL;
+    }
     return read;
 }
 
@@ -123,12 +137,31 @@ unsigned long long cli_debug_base64(const CliDebugTextCtx *args)
     for (unsigned long long at = 0ULL; at < args->size; at += 1ULL)
     {
         const char one = args->text[at];
-        const int value = ((one >= 'A') && (one <= 'Z'))   ? (one - 'A')
-                          : ((one >= 'a') && (one <= 'z')) ? (one - 'a' + 26)
-                          : ((one >= '0') && (one <= '9')) ? (one - '0' + 52)
-                          : ((one == '+') || (one == '-')) ? 62
-                          : ((one == '/') || (one == '_')) ? 63
-                                                           : -1;
+        int value;
+        if ((one >= 'A') && (one <= 'Z'))
+        {
+            value = one - 'A';
+        }
+        else if ((one >= 'a') && (one <= 'z'))
+        {
+            value = one - 'a' + 26;
+        }
+        else if ((one >= '0') && (one <= '9'))
+        {
+            value = one - '0' + 52;
+        }
+        else if ((one == '+') || (one == '-'))
+        {
+            value = 62;
+        }
+        else if ((one == '/') || (one == '_'))
+        {
+            value = 63;
+        }
+        else
+        {
+            value = -1;
+        }
         if (value < 0)
         {
             continue;

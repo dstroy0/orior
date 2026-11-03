@@ -84,11 +84,27 @@ unsigned int cli_view_hit_of(const CliViewHits *hits, int x, int y)
     const int bottom = y >= (int)hits->height - hits->border;
     if (top)
     {
-        return left ? GUI_HIT_TOP_LEFT : (right ? GUI_HIT_TOP_RIGHT : GUI_HIT_TOP);
+        if (left)
+        {
+            return GUI_HIT_TOP_LEFT;
+        }
+        if (right)
+        {
+            return GUI_HIT_TOP_RIGHT;
+        }
+        return GUI_HIT_TOP;
     }
     if (bottom)
     {
-        return left ? GUI_HIT_BOTTOM_LEFT : (right ? GUI_HIT_BOTTOM_RIGHT : GUI_HIT_BOTTOM);
+        if (left)
+        {
+            return GUI_HIT_BOTTOM_LEFT;
+        }
+        if (right)
+        {
+            return GUI_HIT_BOTTOM_RIGHT;
+        }
+        return GUI_HIT_BOTTOM;
     }
     if (left || right)
     {
@@ -144,10 +160,32 @@ void cli_view_event(const CliViewEvent *event)
 {
     const int keyed = (event->kind == CLI_VIEW_EVENT_INPUT) && (event->input.type == GUI_INPUT_KEY);
     const int typed = (event->kind == CLI_VIEW_EVENT_INPUT) && (event->input.type == GUI_INPUT_TEXT);
-    const char *const bytes = keyed ? event->input.name : (typed ? event->input.text : NULL);
-    const unsigned long long length =
-        keyed ? cellul.len(&(CatenaFinitaCfg){.src = bytes, .cap = CLI_VIEW_EVENT_TEXT - 1ULL}) + 1ULL
-              : (typed ? event->input.size : 0ULL);
+    const char *bytes;
+    if (keyed)
+    {
+        bytes = event->input.name;
+    }
+    else if (typed)
+    {
+        bytes = event->input.text;
+    }
+    else
+    {
+        bytes = NULL;
+    }
+    unsigned long long length;
+    if (keyed)
+    {
+        length = cellul.len(&(CatenaFinitaCfg){.src = bytes, .cap = CLI_VIEW_EVENT_TEXT - 1ULL}) + 1ULL;
+    }
+    else if (typed)
+    {
+        length = event->input.size;
+    }
+    else
+    {
+        length = 0ULL;
+    }
     size_t at = 0u;
     // the bytes a name or a typing takes are far inside what a size_t counts
     if ((length < CLI_VIEW_EVENT_TEXT) &&
@@ -225,10 +263,9 @@ static void view_input(const GuiInput *input)
     if (released && (pressed != GUI_HIT_CLIENT) &&
         (EMBED_CALL(cli_window_input.hit, GuiWindowInputCfg, .window_read = window, .input = input) == pressed))
     {
+        const unsigned int other_act = (pressed == GUI_HIT_MAXIMIZE) ? GUI_ACT_MAXIMIZE : GUI_ACT_CLOSE;
         const CliViewOrder order = {.kind = CLI_VIEW_ORDER_ACT,
-                                    .act = (pressed == GUI_HIT_MINIMIZE)   ? GUI_ACT_MINIMIZE
-                                           : (pressed == GUI_HIT_MAXIMIZE) ? GUI_ACT_MAXIMIZE
-                                                                           : GUI_ACT_CLOSE};
+                                    .act = (pressed == GUI_HIT_MINIMIZE) ? GUI_ACT_MINIMIZE : other_act};
         (void)view_order_write(&order);
     }
 }

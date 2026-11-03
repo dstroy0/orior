@@ -590,7 +590,18 @@ int cli_highlight_has_word(const CliHighlightLengthCtx *args)
         // bytes orders a shorter stored word by its terminator, and a longer one by the byte after `length`
         const char *const word_at = args->grammar->text + args->grammar->word_text[args->list->first + middle];
         embed_iword order = memor.cmp(&(MemoriaCfg){.src = word_at, .other = args->word_text, .bytes = args->length});
-        order = (order != 0) ? order : ((word_at[args->length] != '\0') ? 1 : 0);
+        if (order != 0)
+        {
+            order = order;
+        }
+        else if (word_at[args->length] != '\0')
+        {
+            order = 1;
+        }
+        else
+        {
+            order = 0;
+        }
         if (order == 0)
         {
             return 1;

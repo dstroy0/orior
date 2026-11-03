@@ -141,10 +141,19 @@ EMBED_INLINE void shape_holes_find(const ShapeCtx *args)
 EMBED_INLINE unsigned char shape_kind_get(const ShapeCtx *args)
 {
     const unsigned long long is = args->read->leaf[args->leaf].is;
-    return ((is & CLI_LEAF_STRING) != 0u)                                      ? CLI_SHAPE_STR
-           : ((is & CLI_LEAF_NUMBER) != 0u)                                    ? CLI_SHAPE_NUMBER
-           : ((is & (CLI_LEAF_NAME | CLI_LEAF_KEYWORD | CLI_LEAF_TYPE)) != 0u) ? CLI_SHAPE_NAME
-                                                                               : CLI_SHAPE_PUNCT;
+    if ((is & CLI_LEAF_STRING) != 0u)
+    {
+        return CLI_SHAPE_STR;
+    }
+    if ((is & CLI_LEAF_NUMBER) != 0u)
+    {
+        return CLI_SHAPE_NUMBER;
+    }
+    if ((is & (CLI_LEAF_NAME | CLI_LEAF_KEYWORD | CLI_LEAF_TYPE)) != 0u)
+    {
+        return CLI_SHAPE_NAME;
+    }
+    return CLI_SHAPE_PUNCT;
 }
 
 // the roles the leaf `leaf` of `read` plays as a token, as its grammar names them

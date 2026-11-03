@@ -113,11 +113,19 @@ unsigned int cli_structure_renames_find(const CliStructureCompareRenamesCtx *arg
                                  : EMBED_CALL(cli_text_order, StructureMarksCtx, .one = &g_cli_structure->new,
                                               .at = g_cli_structure->became_to[before], .other = &g_cli_structure->new,
                                               .other_at = g_cli_structure->became_to[from]);
-            order = (order != 0) ? order
-                                 : (((g_cli_structure->became_count[before] & 0x7fffffffu) >
-                                     (g_cli_structure->became_count[from] & 0x7fffffffu))
-                                        ? 1
-                                        : 0);
+            if (order != 0)
+            {
+                order = order;
+            }
+            else if ((g_cli_structure->became_count[before] & 0x7fffffffu) >
+                     (g_cli_structure->became_count[from] & 0x7fffffffu))
+            {
+                order = 1;
+            }
+            else
+            {
+                order = 0;
+            }
             if (order <= 0)
             {
                 break;

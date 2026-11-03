@@ -264,7 +264,7 @@ void test_a_test_is_named_as_unittest_accepts_it(void)
     static CliWords s_words;
     EMBED_CALL(cli_test_runs_internal.test_dot, CliTestRunsCtx, .words = &s_words, .id = "pkg/test_b.py::Checks::test_three");
     TEST_ASSERT_EQUAL_UINT(1u, s_words.count);
-    TEST_ASSERT_EQUAL_STRING("pkg.test_b.Checks.test_three", s_words.word[0]);
+    TEST_ASSERT_EQUAL_STRING("pkg.test_b.Checks.test_three", s_words.word_text[0]);
 }
 
 void test_a_failure_has_its_message_and_the_line_it_failed_at(void)

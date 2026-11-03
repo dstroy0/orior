@@ -125,8 +125,18 @@ EMBED_INLINE void save_request(const ServersSaveCtx *args)
             one->requested[one->pending_requests % CLI_SERVERS_REQUESTS] = now;
             one->pending_requests += 1ULL;
         }
-        one->waits =
-            (waits > 0) ? (one->waits + 1u) : (((waits < 0) && (one->waits > 0u)) ? (one->waits - 1u) : one->waits);
+        if (waits > 0)
+        {
+            one->waits = one->waits + 1u;
+        }
+        else if ((waits < 0) && (one->waits > 0u))
+        {
+            one->waits = one->waits - 1u;
+        }
+        else
+        {
+            one->waits = one->waits;
+        }
         one->quiet_from = now;
     }
     if (at < CLI_SERVERS_MAX)

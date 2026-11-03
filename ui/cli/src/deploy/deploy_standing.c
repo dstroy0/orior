@@ -262,7 +262,8 @@ EMBED_INLINE void existing_remove(const DeployStandingCtx *args)
     mmgr_line_put(&print_line, " is at ");
     mmgr_line_put_n(&print_line, place, position_line.at);
     mmgr_line_put(&print_line, " and no longer in the tree, and is ");
-    mmgr_line_put(&print_line, !args->remove ? "retained" : args->releases ? "left out of the new release" : "deleted");
+    const char *const removed = args->releases ? "left out of the new release" : "deleted";
+    mmgr_line_put(&print_line, !args->remove ? "retained" : removed);
     EMBED_CALL(cli_deploy_internal.print, CliDeployCtx, .line = &print_line);
 }
 
@@ -386,11 +387,20 @@ void cli_deploy_record(const CliDeployErrMsgIndexCtx *args)
     int first = 1;
     while ((sent < run->sents) || (other < preserved_count))
     {
-        const int order = (sent == run->sents) ? 1
-                          : (other == preserved_count)
-                              ? -1
-                              : EMBED_CALL(cli_deploy_left_internal.order, CliDeployLeftCtx,
-                                           .left = run->sent[sent].path, .right = preserved[other].path);
+        int order;
+        if (sent == run->sents)
+        {
+            order = 1;
+        }
+        else if (other == preserved_count)
+        {
+            order = -1;
+        }
+        else
+        {
+            order = EMBED_CALL(cli_deploy_left_internal.order, CliDeployLeftCtx, .left = run->sent[sent].path,
+                               .right = preserved[other].path);
+        }
         const char *const name = (order <= 0) ? run->sent[sent].path : preserved[other].path;
         const char *const hash = (order < 0) ? run->sent[sent].hash : preserved[other].text;
         EMBED_CALL(existing_member, DeployStandingCtx, .path = name, .hash = hash, .first = first, .record = &record);

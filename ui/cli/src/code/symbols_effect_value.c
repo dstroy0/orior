@@ -68,11 +68,23 @@ EMBED_INLINE long long cli_effect_number(const SymbolsEffectValueCtx *args)
     for (unsigned long long at = 0ULL; at < args->token->length; at += 1ULL)
     {
         const char letter = args->token->text[at];
-        const unsigned long long digit =
-            ((letter >= '0') && (letter <= '9'))   ? (unsigned long long)(letter - '0')
-            : ((letter >= 'a') && (letter <= 'z')) ? (unsigned long long)(letter - 'a' + 10)
-            : ((letter >= 'A') && (letter <= 'Z')) ? (unsigned long long)(letter - 'A' + 10)
-                                                   : 64ULL;
+        unsigned long long digit;
+        if ((letter >= '0') && (letter <= '9'))
+        {
+            digit = (unsigned long long)(letter - '0');
+        }
+        else if ((letter >= 'a') && (letter <= 'z'))
+        {
+            digit = (unsigned long long)(letter - 'a' + 10);
+        }
+        else if ((letter >= 'A') && (letter <= 'Z'))
+        {
+            digit = (unsigned long long)(letter - 'A' + 10);
+        }
+        else
+        {
+            digit = 64ULL;
+        }
         if (digit < args->token->base)
         {
             value = (value * args->token->base) + digit;
@@ -173,7 +185,18 @@ EMBED_INLINE unsigned int cli_effect_arguments(const SymbolsEffectValueCtx *args
             }
             continue;
         }
-        depth = opens ? (depth + 1u) : (closes ? (depth - 1u) : depth);
+        if (opens)
+        {
+            depth = depth + 1u;
+        }
+        else if (closes)
+        {
+            depth = depth - 1u;
+        }
+        else
+        {
+            depth = depth;
+        }
     }
     return CLI_EFFECT_ARGUMENTS + 1u;
 }
@@ -362,10 +385,19 @@ static long long cli_effect_unary(const SymbolsEffectValueCtx *args)
         args->read_state->at += 1u;
         const long long value = cli_effect_unary(args);
         // before a value, an operator that subtracts negates it
-        return (token->does == CLI_DOES_NOT)          ? (long long)(value == 0LL)
-               : (token->does == CLI_DOES_COMPLEMENT) ? ~value
-               : (token->does == CLI_DOES_SUBTRACT)   ? -value
-                                                      : value;
+        if (token->does == CLI_DOES_NOT)
+        {
+            return (long long)(value == 0LL);
+        }
+        if (token->does == CLI_DOES_COMPLEMENT)
+        {
+            return ~value;
+        }
+        if (token->does == CLI_DOES_SUBTRACT)
+        {
+            return -value;
+        }
+        return value;
     }
     if ((token->is & CLI_LEAF_OPEN) != 0u)
     {
@@ -425,25 +457,110 @@ static long long cli_effect_binary(const SymbolsEffectValueCtx *args)
         // a shift past a long long's bits gives 0
         const int shifts = (right >= 0LL) && (right < 63LL);
         const unsigned char does = joined->does;
-        left = (does == CLI_DOES_MULTIPLY)     ? (left * right)
-               : (does == CLI_DOES_DIVIDE)     ? ((right != 0LL) ? (left / right) : 0LL)
-               : (does == CLI_DOES_REMAINDER)  ? ((right != 0LL) ? (left % right) : 0LL)
-               : (does == CLI_DOES_ADD)        ? (left + right)
-               : (does == CLI_DOES_SUBTRACT)   ? (left - right)
-               : (does == CLI_DOES_SHIFTLEFT)  ? (shifts ? (left << right) : 0LL)
-               : (does == CLI_DOES_SHIFTRIGHT) ? (shifts ? (left >> right) : 0LL)
-               : (does == CLI_DOES_LESS)       ? (long long)(left < right)
-               : (does == CLI_DOES_ATMOST)     ? (long long)(left <= right)
-               : (does == CLI_DOES_GREATER)    ? (long long)(left > right)
-               : (does == CLI_DOES_ATLEAST)    ? (long long)(left >= right)
-               : (does == CLI_DOES_EQUAL)      ? (long long)(left == right)
-               : (does == CLI_DOES_UNEQUAL)    ? (long long)(left != right)
-               : (does == CLI_DOES_AND)        ? (long long)((left != 0LL) && (right != 0LL))
-               : (does == CLI_DOES_OR)         ? (long long)((left != 0LL) || (right != 0LL))
-               : (does == CLI_DOES_BITAND)     ? (left & right)
-               : (does == CLI_DOES_BITXOR)     ? (left ^ right)
-               : (does == CLI_DOES_BITOR)      ? (left | right)
-                                               : 0LL;
+        if (does == CLI_DOES_MULTIPLY)
+        {
+            left = left * right;
+        }
+        else if (does == CLI_DOES_DIVIDE)
+        {
+            if (right != 0LL)
+            {
+                left = left / right;
+            }
+            else
+            {
+                left = 0LL;
+            }
+        }
+        else if (does == CLI_DOES_REMAINDER)
+        {
+            if (right != 0LL)
+            {
+                left = left % right;
+            }
+            else
+            {
+                left = 0LL;
+            }
+        }
+        else if (does == CLI_DOES_ADD)
+        {
+            left = left + right;
+        }
+        else if (does == CLI_DOES_SUBTRACT)
+        {
+            left = left - right;
+        }
+        else if (does == CLI_DOES_SHIFTLEFT)
+        {
+            if (shifts)
+            {
+                left = left << right;
+            }
+            else
+            {
+                left = 0LL;
+            }
+        }
+        else if (does == CLI_DOES_SHIFTRIGHT)
+        {
+            if (shifts)
+            {
+                left = left >> right;
+            }
+            else
+            {
+                left = 0LL;
+            }
+        }
+        else if (does == CLI_DOES_LESS)
+        {
+            left = (long long)(left < right);
+        }
+        else if (does == CLI_DOES_ATMOST)
+        {
+            left = (long long)(left <= right);
+        }
+        else if (does == CLI_DOES_GREATER)
+        {
+            left = (long long)(left > right);
+        }
+        else if (does == CLI_DOES_ATLEAST)
+        {
+            left = (long long)(left >= right);
+        }
+        else if (does == CLI_DOES_EQUAL)
+        {
+            left = (long long)(left == right);
+        }
+        else if (does == CLI_DOES_UNEQUAL)
+        {
+            left = (long long)(left != right);
+        }
+        else if (does == CLI_DOES_AND)
+        {
+            left = (long long)((left != 0LL) && (right != 0LL));
+        }
+        else if (does == CLI_DOES_OR)
+        {
+            left = (long long)((left != 0LL) || (right != 0LL));
+        }
+        else if (does == CLI_DOES_BITAND)
+        {
+            left = left & right;
+        }
+        else if (does == CLI_DOES_BITXOR)
+        {
+            left = left ^ right;
+        }
+        else if (does == CLI_DOES_BITOR)
+        {
+            left = left | right;
+        }
+        else
+        {
+            left = 0LL;
+        }
     }
     return left;
 }

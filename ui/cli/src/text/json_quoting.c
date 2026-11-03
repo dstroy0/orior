@@ -13,10 +13,19 @@ typedef struct
 // the bytes a UTF-8 letter takes, by its first byte; a byte that starts none takes one
 EMBED_INLINE unsigned long long json_letter_bytes(const JsonQuotingCtx *args)
 {
-    return ((args->lead >= 0xc0u) && (args->lead <= 0xdfu))   ? 2ULL
-           : ((args->lead >= 0xe0u) && (args->lead <= 0xefu)) ? 3ULL
-           : ((args->lead >= 0xf0u) && (args->lead <= 0xf7u)) ? 4ULL
-                                                              : 1ULL;
+    if ((args->lead >= 0xc0u) && (args->lead <= 0xdfu))
+    {
+        return 2ULL;
+    }
+    if ((args->lead >= 0xe0u) && (args->lead <= 0xefu))
+    {
+        return 3ULL;
+    }
+    if ((args->lead >= 0xf0u) && (args->lead <= 0xf7u))
+    {
+        return 4ULL;
+    }
+    return 1ULL;
 }
 
 // `size` bytes of a piece escaped into the quoting's line, the letter the last piece ended inside of made whole from

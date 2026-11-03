@@ -33,11 +33,27 @@ EMBED_INLINE unsigned int cli_letter(const StructureCtx *args)
 {
     unsigned int *bytes = args->bytes;
     const unsigned char lead = (unsigned char)args->at[0];
-    const unsigned int length = (lead < 0x80u)          ? 1u
-                                : ((lead >> 5u) == 6u)  ? 2u
-                                : ((lead >> 4u) == 14u) ? 3u
-                                : ((lead >> 3u) == 30u) ? 4u
-                                                        : 0u;
+    unsigned int length;
+    if (lead < 0x80u)
+    {
+        length = 1u;
+    }
+    else if ((lead >> 5u) == 6u)
+    {
+        length = 2u;
+    }
+    else if ((lead >> 4u) == 14u)
+    {
+        length = 3u;
+    }
+    else if ((lead >> 3u) == 30u)
+    {
+        length = 4u;
+    }
+    else
+    {
+        length = 0u;
+    }
     if ((length == 0u) || ((unsigned long long)(args->end - args->at) < length))
     {
         *bytes = 1u;
@@ -143,10 +159,23 @@ int cli_structure_lex(const CliStructureTextCtx *args)
         const unsigned int start = (unsigned int)(at - text);
         column += EMBED_CALL(cli_units, StructureCtx, .letter = letter);
         at += bytes;
-        const unsigned int take = EMBED_CALL(cli_starts_name_letter, StructureCtx, .letter = letter) ? CLI_ALLOC_NAME
-                                  : ((letter >= '0') && (letter <= '9'))                             ? CLI_ALLOC_NUMBER
-                                  : ((letter == '"') || (letter == '\'') || (letter == '`'))         ? CLI_ALLOC_STRING
-                                                                                                     : CLI_ALLOC_SIGN;
+        unsigned int take;
+        if (EMBED_CALL(cli_starts_name_letter, StructureCtx, .letter = letter))
+        {
+            take = CLI_ALLOC_NAME;
+        }
+        else if ((letter >= '0') && (letter <= '9'))
+        {
+            take = CLI_ALLOC_NUMBER;
+        }
+        else if ((letter == '"') || (letter == '\'') || (letter == '`'))
+        {
+            take = CLI_ALLOC_STRING;
+        }
+        else
+        {
+            take = CLI_ALLOC_SIGN;
+        }
         int escaped = 0;
         int closed = 0;
         while ((take != CLI_ALLOC_SIGN) && (at < end))

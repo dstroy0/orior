@@ -129,9 +129,31 @@ static void cli_version_each(const CliEachNameIsFolderCfg *args)
     int order = 0;
     for (unsigned int at = 0u; (order == 0) && (at < count) && (at < framework->requested_count); at += 1u)
     {
-        order = (have[at] < framework->required[at]) ? -1 : (have[at] > framework->required[at]) ? 1 : 0;
+        if (have[at] < framework->required[at])
+        {
+            order = -1;
+        }
+        else if (have[at] > framework->required[at])
+        {
+            order = 1;
+        }
+        else
+        {
+            order = 0;
+        }
     }
-    order = (order != 0) ? order : ((count < framework->requested_count) ? -1 : 0);
+    if (order != 0)
+    {
+        order = order;
+    }
+    else if (count < framework->requested_count)
+    {
+        order = -1;
+    }
+    else
+    {
+        order = 0;
+    }
     framework->satisfied = framework->satisfied || (order >= 0);
 }
 
@@ -174,22 +196,29 @@ static void cli_framework_check_print(const ExecutablesDotnetCtx *args)
     {
         return;
     }
-    const char *const base =
-        (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
-                    .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
-                    .byte = '/') != NULL)
-            ? (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
+    const char *base;
+    if (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
+                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
+                   .byte = '/') != NULL)
+    {
+        base = EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
                           .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
                           .byte = '/') +
-               1)
-        : (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
-                      .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
-                      .byte = '\\') != NULL)
-            ? (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
+               1;
+    }
+    else if (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
+                        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
+                        .byte = '\\') != NULL)
+    {
+        base = EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
                           .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
                           .byte = '\\') +
-               1)
-            : args->file;
+               1;
+    }
+    else
+    {
+        base = args->file;
+    }
     char print_buf[CLI_PATH_MAX_LEN * (CLI_DOTNET_POSITIONS + 2u)];
     VerbaLinea line = {print_buf, sizeof(print_buf), 0ULL};
     mmgr_line_put(&line, base);
@@ -216,22 +245,29 @@ EMBED_INLINE void cli_dotnet_missing(const ExecutablesDotnetCtx *args)
 {
     // the program's path with its extension put as runtimeconfig.json
     char config[CLI_PATH_MAX_LEN];
-    const char *const base =
-        (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
-                    .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
-                    .byte = '/') != NULL)
-            ? (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
+    const char *base;
+    if (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
+                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
+                   .byte = '/') != NULL)
+    {
+        base = EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
                           .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
                           .byte = '/') +
-               1)
-        : (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
-                      .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
-                      .byte = '\\') != NULL)
-            ? (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
+               1;
+    }
+    else if (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
+                        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
+                        .byte = '\\') != NULL)
+    {
+        base = EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
                           .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
                           .byte = '\\') +
-               1)
-            : args->file;
+               1;
+    }
+    else
+    {
+        base = args->file;
+    }
     const char *const dot =
         (base[0] != '\0')
             ? EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = base + 1,

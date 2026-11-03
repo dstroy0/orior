@@ -1593,7 +1593,18 @@ EMBED_INLINE unsigned long long view_span_bytes(const ViewCtx *args)
         for (unsigned long long at = start; at < end; at += 1ULL)
         {
             const unsigned int unit = args->view->line_units[at];
-            bytes += (unit < 0x80u) ? 1ULL : ((unit < 0x800u) ? 2ULL : 3ULL);
+            if (unit < 0x80u)
+            {
+                bytes += 1ULL;
+            }
+            else if (unit < 0x800u)
+            {
+                bytes += 2ULL;
+            }
+            else
+            {
+                bytes += 3ULL;
+            }
         }
         bytes += (line < args->to.line) ? 1ULL : 0ULL;
     }
@@ -2166,8 +2177,22 @@ EMBED_INLINE void view_span_write(const ViewCtx *args)
     {
         const unsigned long long line_length = EMBED_CALL(view_length, ViewCtx, .view = args->view, .line = line);
         const unsigned long long start = (line == args->from.line) ? args->from.col : 0ULL;
-        const unsigned long long end =
-            (line == args->to.line) ? ((args->to.col < line_length) ? args->to.col : line_length) : line_length;
+        unsigned long long end;
+        if (line == args->to.line)
+        {
+            if (args->to.col < line_length)
+            {
+                end = args->to.col;
+            }
+            else
+            {
+                end = line_length;
+            }
+        }
+        else
+        {
+            end = line_length;
+        }
         if (start < end)
         {
             EMBED_CALL(cli_document_units_count.units_utf8, CliDocumentUnitsCountCfg, .out = out,
@@ -2774,9 +2799,19 @@ EMBED_INLINE int view_lines_comment(const ViewCtx *args)
         {
             // the blanks are a byte a unit: a place among them is their count
             const unsigned long long place = marked ? blanks - read : lead;
-            const unsigned long long cut = (marked && (blanks + token < end) && (consumed[blanks + token] == ' '))
-                                               ? token + 1ULL
-                                               : (marked ? token : 0ULL);
+            unsigned long long cut;
+            if (marked && (blanks + token < end) && (consumed[blanks + token] == ' '))
+            {
+                cut = token + 1ULL;
+            }
+            else if (marked)
+            {
+                cut = token;
+            }
+            else
+            {
+                cut = 0ULL;
+            }
             const CliPosition from = {line, place};
             const CliPosition to = {line, place + (marked ? (cut - token) + token_units : 0ULL)};
             const CliPosition ends = {line, marked ? place : place + token_units + 1ULL};
@@ -3254,7 +3289,15 @@ EMBED_INLINE unsigned int view_unit_case(const ViewCtx *args)
     if (even_run || odd_run)
     {
         const int capital = even_run ? ((args->unit & 1u) == 0u) : ((args->unit & 1u) == 1u);
-        return (args->upper && !capital) ? args->unit - 1u : ((!args->upper && capital) ? args->unit + 1u : args->unit);
+        if (args->upper && !capital)
+        {
+            return args->unit - 1u;
+        }
+        if (!args->upper && capital)
+        {
+            return args->unit + 1u;
+        }
+        return args->unit;
     }
     return args->unit;
 }
@@ -3309,10 +3352,10 @@ EMBED_INLINE int view_case_change(const ViewCtx *args)
         {
             const int begins = !in_word && EMBED_CALL(view_unit_letter, ViewCtx, .unit = unit);
             in_word = begins || (in_word && EMBED_CALL(view_unit_word_on, ViewCtx, .unit = unit));
+            const unsigned int inside_unit =
+                in_word ? EMBED_CALL(view_unit_case, ViewCtx, .unit = unit, .upper = 0) : unit;
             EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &cased,
-                       .letter =
-                           begins ? EMBED_CALL(view_unit_case, ViewCtx, .unit = unit, .upper = 1)
-                                  : (in_word ? EMBED_CALL(view_unit_case, ViewCtx, .unit = unit, .upper = 0) : unit));
+                       .letter = begins ? EMBED_CALL(view_unit_case, ViewCtx, .unit = unit, .upper = 1) : inside_unit);
         }
         else
         {
@@ -3457,9 +3500,18 @@ static int view_command_run(const ViewCtx *args)
     int *reserved = args->reserved;
     if (EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "comment"))
     {
-        *reserved = (args->view->comment_line[0] != '\0')
-                        ? view_lines_comment(args)
-                        : ((args->view->comment_open[0] != '\0') ? view_block_comment(args) : 1);
+        if (args->view->comment_line[0] != '\0')
+        {
+            *reserved = view_lines_comment(args);
+        }
+        else if (args->view->comment_open[0] != '\0')
+        {
+            *reserved = view_block_comment(args);
+        }
+        else
+        {
+            *reserved = 1;
+        }
     }
     else if (EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "select-line"))
     {
@@ -3486,11 +3538,11 @@ static int view_command_run(const ViewCtx *args)
              EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "lower-case") ||
              EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "title-case"))
     {
+        const unsigned int title_mode =
+            EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "title-case") ? 2u : 0u;
         *reserved = EMBED_CALL(
             view_case_change, ViewCtx, .view = args->view,
-            .mode = EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "upper-case")
-                        ? 1u
-                        : (EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "title-case") ? 2u : 0u),
+            .mode = EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "upper-case") ? 1u : title_mode,
             .err_msg = args->err_msg);
     }
     else if (EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "copy-line-up") ||
@@ -3712,11 +3764,19 @@ EMBED_INLINE int view_on_key(const ViewCtx *args)
         CliPosition from;
         CliPosition to;
         EMBED_CALL(view_selection, ViewCtx, .view_read = args->view, .from_pointer = &from, .to_pointer = &to);
-        const CliPosition place =
-            mod ? EMBED_CALL(view_word_leave, ViewCtx, .view = args->view, .place = args->view->cursor)
-                : ((!shift && EMBED_CALL(view_select, ViewCtx, .view_read = args->view))
-                       ? from
-                       : EMBED_CALL(view_leave, ViewCtx, .view = args->view, .place = args->view->cursor));
+        CliPosition place;
+        if (mod)
+        {
+            place = EMBED_CALL(view_word_leave, ViewCtx, .view = args->view, .place = args->view->cursor);
+        }
+        else if (!shift && EMBED_CALL(view_select, ViewCtx, .view_read = args->view))
+        {
+            place = from;
+        }
+        else
+        {
+            place = EMBED_CALL(view_leave, ViewCtx, .view = args->view, .place = args->view->cursor);
+        }
         EMBED_CALL(view_move, ViewCtx, .view = args->view, .place = place, .extend = shift, .saved = 0);
     }
     else if (EMBED_CALL(view_by_name, ViewCtx, .name = name, .required = "Right"))
@@ -3724,11 +3784,19 @@ EMBED_INLINE int view_on_key(const ViewCtx *args)
         CliPosition from;
         CliPosition to;
         EMBED_CALL(view_selection, ViewCtx, .view_read = args->view, .from_pointer = &from, .to_pointer = &to);
-        const CliPosition place =
-            mod ? EMBED_CALL(view_word_right, ViewCtx, .view = args->view, .place = args->view->cursor)
-                : ((!shift && EMBED_CALL(view_select, ViewCtx, .view_read = args->view))
-                       ? to
-                       : EMBED_CALL(view_right, ViewCtx, .view = args->view, .place = args->view->cursor));
+        CliPosition place;
+        if (mod)
+        {
+            place = EMBED_CALL(view_word_right, ViewCtx, .view = args->view, .place = args->view->cursor);
+        }
+        else if (!shift && EMBED_CALL(view_select, ViewCtx, .view_read = args->view))
+        {
+            place = to;
+        }
+        else
+        {
+            place = EMBED_CALL(view_right, ViewCtx, .view = args->view, .place = args->view->cursor);
+        }
         EMBED_CALL(view_move, ViewCtx, .view = args->view, .place = place, .extend = shift, .saved = 0);
     }
     else if (EMBED_CALL(view_by_name, ViewCtx, .name = name, .required = "Up"))
@@ -3901,8 +3969,19 @@ int cli_view_input(const CliViewInputCfg *args)
         const int blank =
             (args->input->length != 0ULL) &&
             ((args->input->text[0] == ' ') || (args->input->text[0] == '\t') || (args->input->text[0] == '\n'));
-        const unsigned int kind =
-            (one && !blank) ? CLI_VIEW_KIND_TYPE : (one ? CLI_VIEW_KIND_SPACE : CLI_VIEW_KIND_NONE);
+        unsigned int kind;
+        if (one && !blank)
+        {
+            kind = CLI_VIEW_KIND_TYPE;
+        }
+        else if (one)
+        {
+            kind = CLI_VIEW_KIND_SPACE;
+        }
+        else
+        {
+            kind = CLI_VIEW_KIND_NONE;
+        }
         unsigned long long consumed = 0ULL;
         const unsigned int letter = one ? EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = args->input->text,
                                                      .size = args->input->length, .at = 0ULL, .length = &consumed)
@@ -3969,8 +4048,19 @@ int cli_view_input(const CliViewInputCfg *args)
     {
         // the cursor placed at the line `row` and the unit `column`, each cut to the text, the top following it
         const unsigned long long lines = EMBED_CALL(view_lines, ViewCtx, .view_read = view);
-        const unsigned long long line =
-            (args->input->row < lines) ? args->input->row : ((lines > 0ULL) ? lines - 1ULL : 0ULL);
+        unsigned long long line;
+        if (args->input->row < lines)
+        {
+            line = args->input->row;
+        }
+        else if (lines > 0ULL)
+        {
+            line = lines - 1ULL;
+        }
+        else
+        {
+            line = 0ULL;
+        }
         const unsigned long long length = EMBED_CALL(view_length, ViewCtx, .view = view, .line = line);
         EMBED_CALL(view_move, ViewCtx, .view = view,
                    .place = (CliPosition){line, (args->input->column < length) ? args->input->column : length},
@@ -4079,8 +4169,9 @@ CliViewFrame *cli_view_frame_alloc(const char *key)
     view->seq += 1ULL;
     EMBED_CALL(view_folds_refresh, ViewCtx, .view = view);
     const unsigned long long lines = EMBED_CALL(view_lines, ViewCtx, .view_read = view);
-    view->top = EMBED_CALL(view_displayed_up, ViewCtx, .view_read = view,
-                           .line = (view->top < lines) ? view->top : ((lines != 0ULL) ? lines - 1ULL : 0ULL));
+    const unsigned long long last_line = (lines != 0ULL) ? lines - 1ULL : 0ULL;
+    view->top =
+        EMBED_CALL(view_displayed_up, ViewCtx, .view_read = view, .line = (view->top < lines) ? view->top : last_line);
     const unsigned long long from = view->top;
     const unsigned long long rows = (view->rows != 0u) ? view->rows : 1u;
     if (view->find_open)
@@ -4227,7 +4318,18 @@ CliViewFrame *cli_view_frame_alloc(const char *key)
     frame->cursor = view->cursor;
     frame->anchor = view->anchor;
     frame->has_pair = EMBED_CALL(view_pair, ViewCtx, .view_read = view, .pair = frame->pair);
-    frame->indent_tabs = (view->indent.tabs == 1) ? 1 : ((view->indent.tabs == 0) ? 0 : -1);
+    if (view->indent.tabs == 1)
+    {
+        frame->indent_tabs = 1;
+    }
+    else if (view->indent.tabs == 0)
+    {
+        frame->indent_tabs = 0;
+    }
+    else
+    {
+        frame->indent_tabs = -1;
+    }
     frame->indent_size = EMBED_CALL(view_tab, ViewCtx, .view_read = view);
     frame->find.open = view->find_open;
     frame->find.current = -1LL;

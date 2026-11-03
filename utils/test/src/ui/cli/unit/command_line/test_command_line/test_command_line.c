@@ -307,9 +307,9 @@ void test_the_words_after_a_double_dash_come_back_complete(void)
     TEST_ASSERT_NOT_NULL(after);
     TEST_ASSERT_TRUE(EMBED_CALL(cli_runner_text.shell_words, CliRunnerTextCfg, .text = after, .words = &s_words, .err_msg = &err_msg));
     TEST_ASSERT_EQUAL_UINT(3u, s_words.count);
-    TEST_ASSERT_EQUAL_STRING("--steps", s_words.word[0]);
-    TEST_ASSERT_EQUAL_STRING("a b", s_words.word[1]);
-    TEST_ASSERT_EQUAL_STRING("echo \"hi\"", s_words.word[2]);
+    TEST_ASSERT_EQUAL_STRING("--steps", s_words.word_text[0]);
+    TEST_ASSERT_EQUAL_STRING("a b", s_words.word_text[1]);
+    TEST_ASSERT_EQUAL_STRING("echo \"hi\"", s_words.word_text[2]);
 }
 
 void test_a_key_the_job_does_not_accept_is_refused(void)

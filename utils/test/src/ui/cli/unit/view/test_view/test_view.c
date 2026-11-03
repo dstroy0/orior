@@ -644,7 +644,7 @@ void test_the_word_at_a_position_is_the_word_the_position_touches(void)
     unsigned long long to = 0ull;
     char word[64];
     words_view();
-    const int found = EMBED_CALL(cli_view_line.word_at, CliViewLineCfg, .key = s_key2, .line_value = 0ull, .col_value = 7ull, .from = &from, .to = &to, .word = word, .capacity = sizeof(word));
+    const int found = EMBED_CALL(cli_view_line.word_at, CliViewLineCfg, .key = s_key2, .line_value = 0ull, .col_value = 7ull, .from = &from, .to = &to, .word_text = word, .capacity = sizeof(word));
     EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key2);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key2);
     TEST_ASSERT_TRUE(found);
@@ -659,8 +659,8 @@ void test_a_position_at_a_words_end_touches_it(void)
     unsigned long long to = 0ull;
     char word[64];
     words_view();
-    const int found = EMBED_CALL(cli_view_line.word_at, CliViewLineCfg, .key = s_key2, .line_value = 0ull, .col_value = 10ull, .from = &from, .to = &to, .word = word, .capacity = sizeof(word));
-    const int found_first = EMBED_CALL(cli_view_line.word_at, CliViewLineCfg, .key = s_key2, .line_value = 0ull, .col_value = 5ull, .from = &from, .to = &to, .word = word, .capacity = sizeof(word));
+    const int found = EMBED_CALL(cli_view_line.word_at, CliViewLineCfg, .key = s_key2, .line_value = 0ull, .col_value = 10ull, .from = &from, .to = &to, .word_text = word, .capacity = sizeof(word));
+    const int found_first = EMBED_CALL(cli_view_line.word_at, CliViewLineCfg, .key = s_key2, .line_value = 0ull, .col_value = 5ull, .from = &from, .to = &to, .word_text = word, .capacity = sizeof(word));
     EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key2);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key2);
     TEST_ASSERT_TRUE(found);
@@ -675,7 +675,7 @@ void test_an_empty_line_has_no_word(void)
     unsigned long long to = 0ull;
     char word[64];
     words_view();
-    const int found = EMBED_CALL(cli_view_line.word_at, CliViewLineCfg, .key = s_key2, .line_value = 2ull, .col_value = 0ull, .from = &from, .to = &to, .word = word, .capacity = sizeof(word));
+    const int found = EMBED_CALL(cli_view_line.word_at, CliViewLineCfg, .key = s_key2, .line_value = 2ull, .col_value = 0ull, .from = &from, .to = &to, .word_text = word, .capacity = sizeof(word));
     EMBED_CALL(cli_view_table.close, CliViewCfg, .key = s_key2);
     EMBED_CALL(cli_document.release, CliDocumentCfg, .key = s_key2);
     TEST_ASSERT_FALSE(found);

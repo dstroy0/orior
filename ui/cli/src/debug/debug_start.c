@@ -171,11 +171,19 @@ EMBED_INLINE int start_adapter(const DebugStartCtx *args)
         args->plan->program[0] = '\0';
         return 1;
     }
-    const char *const ahead =
-        !args->plan->has_created ? ""
-        : (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->made.compiler, .other = "GNU", .cap = CLI_CELLS_POOL}))
-            ? "gcc"
-            : "llvm";
+    const char *ahead;
+    if (!args->plan->has_created)
+    {
+        ahead = "";
+    }
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->plan->made.compiler, .other = "GNU", .cap = CLI_CELLS_POOL}))
+    {
+        ahead = "gcc";
+    }
+    else
+    {
+        ahead = "llvm";
+    }
     return EMBED_CALL(cli_debug_err_msg_internal.adapter, CliDebugErrMsgCtx, .language = args->plan->language,
                       .ahead = ahead, .json_out = to, .spec = &args->plan->spec, .tool = args->plan->tool,
                       .tool_id = args->plan->tool_id, .program = args->plan->program, .err_msg = err_msg);

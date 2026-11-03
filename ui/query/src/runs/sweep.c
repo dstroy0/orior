@@ -198,7 +198,8 @@ EMBED_INLINE void sweep_on_write(const SweepCtx *args)
     VerbaLinea line = {print_buf, sizeof(print_buf), 0ULL};
     mmgr_line_put(&line, "  ");
     mmgr_line_put(&line, args->relative);
-    mmgr_line_put(&line, same ? " stays as it was" : (written ? " written" : " could not be written"));
+    const char *const outcome = written ? " written" : " could not be written";
+    mmgr_line_put(&line, same ? " stays as it was" : outcome);
     (void)mmgr_line_finish(&line);
     EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = print_buf);
 }

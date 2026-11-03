@@ -20,7 +20,15 @@ char cli_git_state_get(const CliGitIndexCtx *args)
     {
         return 'D';
     }
-    return (args->index_value == 'R') ? 'R' : (args->index_value == 'A') ? 'A' : 'M';
+    if (args->index_value == 'R')
+    {
+        return 'R';
+    }
+    if (args->index_value == 'A')
+    {
+        return 'A';
+    }
+    return 'M';
 }
 
 int cli_git_head(const CliGitRootCommitCfg *args)

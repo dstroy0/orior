@@ -135,10 +135,19 @@ EMBED_INLINE void clipboard_uri_write(const PosixClipboardCtx *args)
 EMBED_INLINE unsigned int clipboard_hex_get(const PosixClipboardCtx *args)
 {
     // a digit's distance from the first of its run is below 16 where the digit is one
-    return ((args->digit >= '0') && (args->digit <= '9'))   ? (unsigned int)(args->digit - '0')
-           : ((args->digit >= 'a') && (args->digit <= 'f')) ? (unsigned int)(args->digit - 'a') + 10u
-           : ((args->digit >= 'A') && (args->digit <= 'F')) ? (unsigned int)(args->digit - 'A') + 10u
-                                                            : 16u;
+    if ((args->digit >= '0') && (args->digit <= '9'))
+    {
+        return (unsigned int)(args->digit - '0');
+    }
+    if ((args->digit >= 'a') && (args->digit <= 'f'))
+    {
+        return (unsigned int)(args->digit - 'a') + 10u;
+    }
+    if ((args->digit >= 'A') && (args->digit <= 'F'))
+    {
+        return (unsigned int)(args->digit - 'A') + 10u;
+    }
+    return 16u;
 }
 
 // each file of a list of URIs, `size` bytes of `list`, one to a line, its comments passed over, handed to `each` as a
@@ -1048,10 +1057,23 @@ EMBED_INLINE unsigned int owner_content_get(const PosixClipboardCtx *args)
     const unsigned int *const atom = s_owner.x11.atom;
     const int text = (args->target == atom[CLI_X11_UTF8]) || (args->target == atom[CLI_X11_TEXT]) ||
                      (args->target == CLI_X11_ATOM_STRING);
-    const unsigned int place = text                                     ? CLI_X11_OWNER_TEXT
-                               : (args->target == atom[CLI_X11_URIS])   ? CLI_X11_OWNER_URIS
-                               : (args->target == atom[CLI_X11_COPIED]) ? CLI_X11_OWNER_COPIED
-                                                                        : 3u;
+    unsigned int place;
+    if (text)
+    {
+        place = CLI_X11_OWNER_TEXT;
+    }
+    else if (args->target == atom[CLI_X11_URIS])
+    {
+        place = CLI_X11_OWNER_URIS;
+    }
+    else if (args->target == atom[CLI_X11_COPIED])
+    {
+        place = CLI_X11_OWNER_COPIED;
+    }
+    else
+    {
+        place = 3u;
+    }
     return ((place < 3u) && (s_owner.content[place] != NULL)) ? place : 3u;
 }
 

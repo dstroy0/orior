@@ -422,10 +422,12 @@ EMBED_INLINE void report_case_emit(const TestReportsCtx *args)
         const int found =
             !supplied && EMBED_CALL(cli_test_runs_text_internal.report_last_line, CliTestRunsTextCtx, .text = text.out,
                                     .size = text.at, .skip_rules = 0, .last = &last, .last_size = &last_size);
+        const char *const found_text = found ? text.out + last : "";
+        const unsigned long long found_size = found ? last_size : 0ULL;
         EMBED_CALL(cli_test_runs_outcome_internal.test_result_emit, CliTestRunsOutcomeCtx, .worker = worker, .id = id,
-                   .outcome = s_outcomes[tag], .message = supplied ? message : (found ? text.out + last : ""),
-                   .message_size = supplied ? cellul.len(&(CatenaFinitaCfg){.src = message, .cap = CLI_CELLS_POOL})
-                                            : (found ? last_size : 0ULL),
+                   .outcome = s_outcomes[tag], .message = supplied ? message : found_text,
+                   .message_size =
+                       supplied ? cellul.len(&(CatenaFinitaCfg){.src = message, .cap = CLI_CELLS_POOL}) : found_size,
                    .file = required, .line_i64 = line, .seconds = reserved);
         g_cli_cells->persistent_buf_release(text_cell, &g_cli_test_report_cells);
         return;
@@ -458,7 +460,19 @@ void cli_test_report_emit(const CliTestRunsWorkerCtx *args)
             lone ? 0ULL
                  : EMBED_CALL(cli_test_runs_text_length_needle_internal.report_find, CliTestRunsTextLengthNeedleCtx,
                               .text = at, .length = length, .needle = "</testcase>");
-        const unsigned long long close = lone ? (open_end + 1ULL) : ((closing < length) ? closing + 11ULL : length);
+        unsigned long long close;
+        if (lone)
+        {
+            close = open_end + 1ULL;
+        }
+        else if (closing < length)
+        {
+            close = closing + 11ULL;
+        }
+        else
+        {
+            close = length;
+        }
         const unsigned long long body = (open_end < close) ? open_end : close;
         EMBED_CALL(report_case_emit, TestReportsCtx, .worker = args->worker, .open = at, .open_size = open_end,
                    .body = at + body, .body_size = close - body);

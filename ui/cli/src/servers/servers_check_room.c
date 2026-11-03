@@ -79,7 +79,15 @@ static int capacity_order(const void *one, const void *other)
     const unsigned long long right = EMBED_CALL(cli_servers_queue_at_internal.check_queued_at, CliServersQueueAtCtx,
                                                 .queue_read = s_ordering, .at = *(const unsigned int *)other)
                                          ->path;
-    return (left < right) ? -1 : (left > right) ? 1 : 0;
+    if (left < right)
+    {
+        return -1;
+    }
+    if (left > right)
+    {
+        return 1;
+    }
+    return 0;
 }
 
 typedef struct

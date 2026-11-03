@@ -227,10 +227,19 @@ int cli_spawn_share(const CliWordsErrMsgSettingsCtx *args)
 // the priority class a process of `priority` is made in
 EMBED_INLINE DWORD cli_spawn_class(const WindowsSpawnCtx *args)
 {
-    return (args->priority == CLI_PRIORITY_RUN)     ? ABOVE_NORMAL_PRIORITY_CLASS
-           : (args->priority == CLI_PRIORITY_GUEST) ? BELOW_NORMAL_PRIORITY_CLASS
-           : (args->priority == CLI_PRIORITY_IDLE)  ? IDLE_PRIORITY_CLASS
-                                                    : 0u;
+    if (args->priority == CLI_PRIORITY_RUN)
+    {
+        return ABOVE_NORMAL_PRIORITY_CLASS;
+    }
+    if (args->priority == CLI_PRIORITY_GUEST)
+    {
+        return BELOW_NORMAL_PRIORITY_CLASS;
+    }
+    if (args->priority == CLI_PRIORITY_IDLE)
+    {
+        return IDLE_PRIORITY_CLASS;
+    }
+    return 0u;
 }
 
 static int cli_spawn_with(const WindowsSpawnCtx *args)
@@ -280,7 +289,19 @@ static int cli_spawn_with(const WindowsSpawnCtx *args)
     const DWORD error = GetLastError();
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
-        const HANDLE closed = (at == 0u) ? input : (at == 1u) ? out_write : err_write;
+        HANDLE closed;
+        if (at == 0u)
+        {
+            closed = input;
+        }
+        else if (at == 1u)
+        {
+            closed = out_write;
+        }
+        else
+        {
+            closed = err_write;
+        }
         if ((closed != NULL) && (closed != INVALID_HANDLE_VALUE))
         {
             CloseHandle(closed);
@@ -367,7 +388,8 @@ int cli_spawn_piped_as(const CliWordsErrMsgCtx *args)
 EMBED_INLINE SHORT cli_terminal_extent(const WindowsSpawnCtx *args)
 {
     // a count saved between 2 and the console's most is what a SHORT stores
-    return (SHORT)((args->count < 2u) ? 2u : ((args->count > 0x7fffu) ? 0x7fffu : args->count));
+    const unsigned int bounded = (args->count > 0x7fffu) ? 0x7fffu : args->count;
+    return (SHORT)((args->count < 2u) ? 2u : bounded);
 }
 
 int cli_spawn_terminal(const CliWordsErrMsgSpawnedCtx *args)

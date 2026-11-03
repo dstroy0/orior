@@ -114,7 +114,19 @@ unsigned int cli_settings_file_parts(const CliSettingsLayersCtx *args)
             *values = EMBED_CALL(cli_value_append, SettingsPartsCtx, .values = *values, .key = key, .value = member);
         }
     }
-    const unsigned int rank = args->of_tree ? CLI_RANK_OVER : (args->own ? CLI_RANK_OWN : CLI_RANK_UNDER);
+    unsigned int rank;
+    if (args->of_tree)
+    {
+        rank = CLI_RANK_OVER;
+    }
+    else if (args->own)
+    {
+        rank = CLI_RANK_OWN;
+    }
+    else
+    {
+        rank = CLI_RANK_UNDER;
+    }
     parts = EMBED_CALL(cli_part_append, SettingsPartsCtx, .parts = parts, .chain = args->chain, .file_u32 = args->file,
                        .part = NULL, .first_u32 = first, .values = *values, .rank = rank);
     const unsigned int set = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,

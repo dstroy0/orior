@@ -58,12 +58,17 @@ EMBED_INLINE int binary_is(const CargoBinaryCtx *args)
         is_bin = is_bin || (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "bin", .cap = CLI_CELLS_POOL}));
         is_test = is_test || (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "test", .cap = CLI_CELLS_POOL}));
     }
-    return (args->target->kind == CLI_CARGO_LIB) ? is_lib
-           : (args->target->kind == CLI_CARGO_BIN)
-               ? (is_bin && (cellul.eq(&(CatenaFinitaCfg){
-                                .src = args->target->name, .other = args->name, .cap = CLI_CELLS_POOL})))
-               : (is_test && (cellul.eq(&(CatenaFinitaCfg){
-                                 .src = args->target->name, .other = args->name, .cap = CLI_CELLS_POOL})));
+    if (args->target->kind == CLI_CARGO_LIB)
+    {
+        return is_lib;
+    }
+    if (args->target->kind == CLI_CARGO_BIN)
+    {
+        return is_bin &&
+               (cellul.eq(&(CatenaFinitaCfg){.src = args->target->name, .other = args->name, .cap = CLI_CELLS_POOL}));
+    }
+    return is_test &&
+           (cellul.eq(&(CatenaFinitaCfg){.src = args->target->name, .other = args->name, .cap = CLI_CELLS_POOL}));
 }
 
 // the program one line of Cargo's words, `size` bytes of `line`, names for the test into `program`, the line read
@@ -160,9 +165,18 @@ EMBED_INLINE int binary_build(const CargoBinaryCtx *args)
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = args->one->manifest, .joined = manifest);
     const char *words[12] = {cargo, "test", "--no-run", "--message-format=json", "--package", args->one->package};
     unsigned int count = 6u;
-    words[count] = (args->one->target.kind == CLI_CARGO_LIB)   ? "--lib"
-                   : (args->one->target.kind == CLI_CARGO_BIN) ? "--bin"
-                                                               : "--test";
+    if (args->one->target.kind == CLI_CARGO_LIB)
+    {
+        words[count] = "--lib";
+    }
+    else if (args->one->target.kind == CLI_CARGO_BIN)
+    {
+        words[count] = "--bin";
+    }
+    else
+    {
+        words[count] = "--test";
+    }
     count += 1u;
     if (args->one->target.kind != CLI_CARGO_LIB)
     {

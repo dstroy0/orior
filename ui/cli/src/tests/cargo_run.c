@@ -269,10 +269,11 @@ EMBED_INLINE void run_build_fail(const CargoRunCtx *args)
     {
         EMBED_CALL(cli_test_runs_run_length_internal.test_outcome_count, CliTestRunsRunLengthCtx, .run = run,
                    .outcome = "failed");
+        const long long line_from_zero = (line > 0LL) ? line - 1LL : 0LL;
         EMBED_CALL(cli_test_runs_outcome_internal.test_result_emit, CliTestRunsOutcomeCtx, .worker = worker,
                    .id = run->named[at].id, .outcome = "failed", .message = message, .message_size = length,
-                   .file = (path[0] != '\0') ? file : NULL,
-                   .line_i64 = (path[0] != '\0') ? ((line > 0LL) ? line - 1LL : 0LL) : -1LL, .seconds = 0.0);
+                   .file = (path[0] != '\0') ? file : NULL, .line_i64 = (path[0] != '\0') ? line_from_zero : -1LL,
+                   .seconds = 0.0);
     }
     EMBED_CALL(cli_test_runs_run_text_internal.test_message_set, CliTestRunsRunTextCtx, .run = run, .text = message,
                .length = length);
@@ -314,10 +315,9 @@ static void run_worker(void *context)
 EMBED_INLINE void run_target_words(const CargoRunCtx *args)
 {
     CliWords *words = args->words;
+    const char *const program_word = (args->target->kind == CLI_CARGO_BIN) ? "--bin" : "--test";
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
-               .word_text = (args->target->kind == CLI_CARGO_LIB)   ? "--lib"
-                            : (args->target->kind == CLI_CARGO_BIN) ? "--bin"
-                                                                    : "--test");
+               .word_text = (args->target->kind == CLI_CARGO_LIB) ? "--lib" : program_word);
     if (args->target->kind != CLI_CARGO_LIB)
     {
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,

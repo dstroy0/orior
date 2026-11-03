@@ -202,7 +202,18 @@ EMBED_INLINE unsigned int spans_statement_first(const SymbolsSpansCtx *args)
                                      .leaf = one, .roles = CLI_LEAF_OPEN);
         const int closes = EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = read,
                                       .leaf = one, .roles = CLI_LEAF_CLOSE);
-        depth = opens ? (depth + 1u) : ((closes && (depth > 0u)) ? (depth - 1u) : depth);
+        if (opens)
+        {
+            depth = depth + 1u;
+        }
+        else if (closes && (depth > 0u))
+        {
+            depth = depth - 1u;
+        }
+        else
+        {
+            depth = depth;
+        }
         if ((depth > 0u) || opens)
         {
             continue;
@@ -471,9 +482,19 @@ int cli_symbols_pair(const CliSymbolsPathTextSizeStateCfg *args)
                : read.count;
     const int opens = (bracket < read.count) && EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx,
                                                            .read_read = &read, .leaf = bracket, .roles = CLI_LEAF_OPEN);
-    const unsigned int peer = (bracket >= read.count) ? read.count
-                              : opens ? EMBED_CALL(spans_closing, SymbolsSpansCtx, .read = &read, .open = bracket)
-                                      : EMBED_CALL(spans_opening, SymbolsSpansCtx, .read = &read, .leaf = bracket);
+    unsigned int peer;
+    if (bracket >= read.count)
+    {
+        peer = read.count;
+    }
+    else if (opens)
+    {
+        peer = EMBED_CALL(spans_closing, SymbolsSpansCtx, .read = &read, .open = bracket);
+    }
+    else
+    {
+        peer = EMBED_CALL(spans_opening, SymbolsSpansCtx, .read = &read, .leaf = bracket);
+    }
     const int paired = EMBED_CALL(spans_bracket, SymbolsSpansCtx, .read = &read, .leaf = peer);
     if (paired)
     {

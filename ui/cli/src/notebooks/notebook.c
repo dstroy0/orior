@@ -476,11 +476,23 @@ EMBED_INLINE unsigned int cli_script_read(const NotebookCtx *args)
         at = next;
     }
     const unsigned int header = EMBED_CALL(cli_pieces_init, NotebookCtx, .json = json, .start = start);
-    const char *const language =
-        (cellul.eq(&(CatenaFinitaCfg){.src = comment, .other = "//", .cap = CLI_CELLS_POOL}))   ? "javascript"
-        : (cellul.eq(&(CatenaFinitaCfg){.src = comment, .other = "%", .cap = CLI_CELLS_POOL}))  ? "matlab"
-        : (cellul.eq(&(CatenaFinitaCfg){.src = comment, .other = "--", .cap = CLI_CELLS_POOL})) ? "lua"
-                                                                                                : "python";
+    const char *language;
+    if (cellul.eq(&(CatenaFinitaCfg){.src = comment, .other = "//", .cap = CLI_CELLS_POOL}))
+    {
+        language = "javascript";
+    }
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = comment, .other = "%", .cap = CLI_CELLS_POOL}))
+    {
+        language = "matlab";
+    }
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = comment, .other = "--", .cap = CLI_CELLS_POOL}))
+    {
+        language = "lua";
+    }
+    else
+    {
+        language = "python";
+    }
     const unsigned int metadata =
         EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = json, .kind = CFG_JSON_OBJECT);
     EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = metadata,

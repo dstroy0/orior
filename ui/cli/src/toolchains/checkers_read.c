@@ -407,11 +407,23 @@ EMBED_INLINE void cli_shellcheck_read(const CheckersReadCtx *args)
         unsigned long long length = 0ULL;
         const char *const level =
             EMBED_CALL(cli_text, CheckersReadCtx, .node = one, .key = "level", .otherwise_text = "", .length = &length);
-        const unsigned int severity =
-            (cellul.eq(&(CatenaFinitaCfg){.src = level, .other = "error", .cap = CLI_CELLS_POOL}))     ? 1u
-            : (cellul.eq(&(CatenaFinitaCfg){.src = level, .other = "warning", .cap = CLI_CELLS_POOL})) ? 2u
-            : (cellul.eq(&(CatenaFinitaCfg){.src = level, .other = "info", .cap = CLI_CELLS_POOL}))    ? 3u
-                                                                                                       : 4u;
+        unsigned int severity;
+        if (cellul.eq(&(CatenaFinitaCfg){.src = level, .other = "error", .cap = CLI_CELLS_POOL}))
+        {
+            severity = 1u;
+        }
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = level, .other = "warning", .cap = CLI_CELLS_POOL}))
+        {
+            severity = 2u;
+        }
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = level, .other = "info", .cap = CLI_CELLS_POOL}))
+        {
+            severity = 3u;
+        }
+        else
+        {
+            severity = 4u;
+        }
         char code[32] = "";
         if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
                        .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,

@@ -238,8 +238,9 @@ static int config_read(const DbConfigCtx *args)
 // a member's name written, after the one before it
 EMBED_INLINE void config_member(const DbConfigCtx *args)
 {
-    mmgr_line_put(args->writing->out,
-                  args->writing->written ? (args->writing->pretty ? ",\n" : ",") : (args->writing->pretty ? "\n" : ""));
+    const char *const after_value = args->writing->pretty ? ",\n" : ",";
+    const char *const after_open = args->writing->pretty ? "\n" : "";
+    mmgr_line_put(args->writing->out, args->writing->written ? after_value : after_open);
     mmgr_line_put(args->writing->out, args->writing->pretty ? args->writing->indent : "");
     mmgr_line_put(args->writing->out, args->writing->pretty ? "  \"" : "\"");
     mmgr_line_put(args->writing->out, args->name);

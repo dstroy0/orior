@@ -56,14 +56,31 @@ EMBED_INLINE void cli_status_err_write(const TlsWindowsCtx *args)
     // a status is read as its bit pattern
     const unsigned long code = (unsigned long)args->status;
     mmgr_line_put(args->err_msg, "TLS: ");
-    mmgr_line_put(args->err_msg, (code == 0x80090325ul)
-                                     ? "the server's certificate is not signed by a root this system trusts"
-                                 : (code == 0x80090322ul) ? "the server's certificate names another host"
-                                 : (code == 0x80090328ul) ? "the server's certificate has expired"
-                                 : (code == 0x80090331ul) ? "the server and this system share no TLS version or cipher"
-                                 : (code == 0x80090326ul) ? "the server sent a message TLS does not allow"
-                                 : (code == 0x80090327ul) ? "the server's certificate could not be read"
-                                                          : "Schannel reported 0x");
+    const char *reason = "Schannel reported 0x";
+    switch (code)
+    {
+    case 0x80090325ul:
+        reason = "the server's certificate is not signed by a root this system trusts";
+        break;
+    case 0x80090322ul:
+        reason = "the server's certificate names another host";
+        break;
+    case 0x80090328ul:
+        reason = "the server's certificate has expired";
+        break;
+    case 0x80090331ul:
+        reason = "the server and this system share no TLS version or cipher";
+        break;
+    case 0x80090326ul:
+        reason = "the server sent a message TLS does not allow";
+        break;
+    case 0x80090327ul:
+        reason = "the server's certificate could not be read";
+        break;
+    default:
+        break;
+    }
+    mmgr_line_put(args->err_msg, reason);
     if ((code != 0x80090325ul) && (code != 0x80090322ul) && (code != 0x80090328ul) && (code != 0x80090331ul) &&
         (code != 0x80090326ul) && (code != 0x80090327ul))
     {

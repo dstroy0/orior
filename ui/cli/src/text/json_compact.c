@@ -47,10 +47,23 @@ EMBED_INLINE unsigned int cli_compact_hex(const JsonCompactCtx *args)
     for (unsigned long long digit = args->at; digit < args->at + 4ULL; digit += 1ULL)
     {
         const char letter = args->read_read->text[digit];
-        const unsigned int part = ((letter >= '0') && (letter <= '9'))   ? (unsigned int)(letter - '0')
-                                  : ((letter >= 'a') && (letter <= 'f')) ? (unsigned int)(letter - 'a' + 10)
-                                  : ((letter >= 'A') && (letter <= 'F')) ? (unsigned int)(letter - 'A' + 10)
-                                                                         : 16u;
+        unsigned int part;
+        if ((letter >= '0') && (letter <= '9'))
+        {
+            part = (unsigned int)(letter - '0');
+        }
+        else if ((letter >= 'a') && (letter <= 'f'))
+        {
+            part = (unsigned int)(letter - 'a' + 10);
+        }
+        else if ((letter >= 'A') && (letter <= 'F'))
+        {
+            part = (unsigned int)(letter - 'A' + 10);
+        }
+        else
+        {
+            part = 16u;
+        }
         if (part > 15u)
         {
             return 0x10000u;
@@ -124,15 +137,43 @@ static int cli_compact_string(const JsonCompactCtx *args)
             return 0;
         }
         const char escape = args->read->text[args->read->at + 1ULL];
-        const char *const plain = (escape == '"')    ? "\""
-                                  : (escape == '\\') ? "\\"
-                                  : (escape == '/')  ? "/"
-                                  : (escape == 'b')  ? "\b"
-                                  : (escape == 'f')  ? "\f"
-                                  : (escape == 'n')  ? "\n"
-                                  : (escape == 'r')  ? "\r"
-                                  : (escape == 't')  ? "\t"
-                                                     : NULL;
+        const char *plain;
+        if (escape == '"')
+        {
+            plain = "\"";
+        }
+        else if (escape == '\\')
+        {
+            plain = "\\";
+        }
+        else if (escape == '/')
+        {
+            plain = "/";
+        }
+        else if (escape == 'b')
+        {
+            plain = "\b";
+        }
+        else if (escape == 'f')
+        {
+            plain = "\f";
+        }
+        else if (escape == 'n')
+        {
+            plain = "\n";
+        }
+        else if (escape == 'r')
+        {
+            plain = "\r";
+        }
+        else if (escape == 't')
+        {
+            plain = "\t";
+        }
+        else
+        {
+            plain = NULL;
+        }
         if (plain != NULL)
         {
             EMBED_CALL(cli_json_tree_length_out.json_escaped_lossy, CliJsonTreeLengthOutCfg, .out = out,

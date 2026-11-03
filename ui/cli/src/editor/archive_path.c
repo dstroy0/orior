@@ -27,10 +27,19 @@ typedef struct
 EMBED_INLINE CliByteBuffer *cli_archive_buffers(const ArchivePathCtx *args)
 {
     CliLevels *const levels = g_cli_archive_levels;
-    return (args->at < CLI_ARCHIVE_DEPTH)                 ? &levels->unpacked[args->at]
-           : (args->at < ((2u * CLI_ARCHIVE_DEPTH) - 1u)) ? &levels->inner[args->at - CLI_ARCHIVE_DEPTH]
-           : (args->at < ((3u * CLI_ARCHIVE_DEPTH) - 1u)) ? &levels->written[args->at - ((2u * CLI_ARCHIVE_DEPTH) - 1u)]
-                                                          : &levels->tar;
+    if (args->at < CLI_ARCHIVE_DEPTH)
+    {
+        return &levels->unpacked[args->at];
+    }
+    if (args->at < ((2u * CLI_ARCHIVE_DEPTH) - 1u))
+    {
+        return &levels->inner[args->at - CLI_ARCHIVE_DEPTH];
+    }
+    if (args->at < ((3u * CLI_ARCHIVE_DEPTH) - 1u))
+    {
+        return &levels->written[args->at - ((2u * CLI_ARCHIVE_DEPTH) - 1u)];
+    }
+    return &levels->tar;
 }
 
 int cli_archive_lock(const CliArchiveErrMsgPartsCtx *args)
@@ -161,22 +170,29 @@ int cli_archive_split(const CliArchiveRootCfg *args)
                                 .src = above,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = above, .cap = CLI_CELLS_POOL}) + 1u});
     }
-    const char *const base =
-        (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
-                    .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
-                    .byte = '/') != NULL)
-            ? (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
+    const char *base;
+    if (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
+                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
+                   .byte = '/') != NULL)
+    {
+        base = EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
                           .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
                           .byte = '/') +
-               1)
-        : (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
-                      .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
-                      .byte = '\\') != NULL)
-            ? (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
+               1;
+    }
+    else if (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
+                        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
+                        .byte = '\\') != NULL)
+    {
+        base = EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->file,
                           .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->file, .cap = CLI_CELLS_POOL}),
                           .byte = '\\') +
-               1)
-            : args->file;
+               1;
+    }
+    else
+    {
+        base = args->file;
+    }
     if (!EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = args->file) ||
         (EMBED_CALL(cli_archive.kind_get, CliArchiveCfg, .name = base) == CLI_ARCHIVE_NONE))
     {
@@ -419,22 +435,29 @@ int cli_archive_open(const CliArchiveErrMsgCtx *args)
         mmgr_line_put(args->err_msg, args->missing);
         return 0;
     }
-    const char *const base =
-        (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = file,
-                    .length_value = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}),
-                    .byte = '/') != NULL)
-            ? (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = file,
+    const char *base;
+    if (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = file,
+                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}),
+                   .byte = '/') != NULL)
+    {
+        base = EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = file,
                           .length_value = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}),
                           .byte = '/') +
-               1)
-        : (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = file,
-                      .length_value = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}),
-                      .byte = '\\') != NULL)
-            ? (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = file,
+               1;
+    }
+    else if (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = file,
+                        .length_value = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}),
+                        .byte = '\\') != NULL)
+    {
+        base = EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = file,
                           .length_value = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}),
                           .byte = '\\') +
-               1)
-            : file;
+               1;
+    }
+    else
+    {
+        base = file;
+    }
     args->descent->kind = EMBED_CALL(cli_archive.kind_get, CliArchiveCfg, .name = base);
     args->descent->bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = file,
                                       .size_pointer = &args->descent->size, .owner = &g_cli_editor_cells);

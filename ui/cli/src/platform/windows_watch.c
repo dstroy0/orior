@@ -68,10 +68,19 @@ EMBED_INLINE void cli_records_emit(const WindowsWatchCtx *args)
         path[(made > 0) ? made : 0] = '\0';
         EMBED_CALL(cli_text_size_from.swap, CliTextSizeFromCfg, .text_out = path,
                    .size = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), .from = '\\', .to = '/');
-        const unsigned int kind =
-            ((action == FILE_ACTION_ADDED) || (action == FILE_ACTION_RENAMED_NEW_NAME))     ? CLI_CHANGE_ADDED
-            : ((action == FILE_ACTION_REMOVED) || (action == FILE_ACTION_RENAMED_OLD_NAME)) ? CLI_CHANGE_REMOVED
-                                                                                            : CLI_CHANGE_MODIFIED;
+        unsigned int kind;
+        if ((action == FILE_ACTION_ADDED) || (action == FILE_ACTION_RENAMED_NEW_NAME))
+        {
+            kind = CLI_CHANGE_ADDED;
+        }
+        else if ((action == FILE_ACTION_REMOVED) || (action == FILE_ACTION_RENAMED_OLD_NAME))
+        {
+            kind = CLI_CHANGE_REMOVED;
+        }
+        else
+        {
+            kind = CLI_CHANGE_MODIFIED;
+        }
         EMBED_CALL(s_watch.emit, CliEachPathKindCfg, .context = s_watch.context, .path = path, .kind = kind);
         if (next == 0u)
         {

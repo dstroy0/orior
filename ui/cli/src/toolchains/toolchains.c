@@ -355,7 +355,15 @@ int cli_toolchains_natural(const CliToolchainsACtx *args)
     {
         if ((a[0] == '\0') || (b[0] == '\0'))
         {
-            return (a[0] == '\0') ? ((b[0] == '\0') ? 0 : -1) : 1;
+            if (a[0] == '\0')
+            {
+                if (b[0] == '\0')
+                {
+                    return 0;
+                }
+                return -1;
+            }
+            return 1;
         }
         const int a_digit = (a[0] >= '0') && (a[0] <= '9');
         const int b_digit = (b[0] >= '0') && (b[0] <= '9');
@@ -384,9 +392,21 @@ int cli_toolchains_natural(const CliToolchainsACtx *args)
                             .size = (unsigned long long)(b_end - b), .set = "0");
             const long long a_size = a_end - a;
             const long long b_size = b_end - b;
-            order = (a_size != b_size)
-                        ? ((a_size < b_size) ? -1 : 1)
-                        : memor.cmp(&(MemoriaCfg){.src = a, .other = b, .bytes = (unsigned long long)a_size});
+            if (a_size != b_size)
+            {
+                if (a_size < b_size)
+                {
+                    order = -1;
+                }
+                else
+                {
+                    order = 1;
+                }
+            }
+            else
+            {
+                order = memor.cmp(&(MemoriaCfg){.src = a, .other = b, .bytes = (unsigned long long)a_size});
+            }
         }
         else
         {

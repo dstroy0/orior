@@ -212,10 +212,9 @@ static void resolve_join(const SchemaResolveCtx *args)
         (void)mmgr_line_finish(&line);
         return;
     }
-    mmgr_line_put_n(&line, args->base,
-                    (cut != NULL)
-                        ? (unsigned long long)(cut - args->base)
-                        : (url ? cellul.len(&(CatenaFinitaCfg){.src = args->base, .cap = CLI_CELLS_POOL}) : 0u));
+    const unsigned long long whole_base =
+        url ? cellul.len(&(CatenaFinitaCfg){.src = args->base, .cap = CLI_CELLS_POOL}) : 0u;
+    mmgr_line_put_n(&line, args->base, (cut != NULL) ? (unsigned long long)(cut - args->base) : whole_base);
     unsigned int parts = 0u;
     for (unsigned long long at = 0ULL; at < line.at; at += 1u)
     {

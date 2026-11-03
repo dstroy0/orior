@@ -323,7 +323,7 @@ void test_a_merged_branch_has_its_own_column(void)
     graph_laid_out();
     for (unsigned int at = 0u; at < 6u; at += 1u)
     {
-        TEST_ASSERT_EQUAL_UINT(s_lanes[at], s_graph.item[at].lane);
+        TEST_ASSERT_EQUAL_UINT(s_lanes[at], s_graph.item[at].lane_at);
     }
 }
 

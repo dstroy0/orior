@@ -454,10 +454,19 @@ unsigned int cli_print_ranges(const CliPrintLayoutLowCfg *args)
 // a hex digit's value, or 16 where the byte is none
 EMBED_INLINE unsigned int cli_hex(const PageCtx *args)
 {
-    return ((args->digit >= '0') && (args->digit <= '9'))   ? (unsigned int)(args->digit - '0')
-           : ((args->digit >= 'a') && (args->digit <= 'f')) ? (unsigned int)(args->digit - 'a') + 10u
-           : ((args->digit >= 'A') && (args->digit <= 'F')) ? (unsigned int)(args->digit - 'A') + 10u
-                                                            : 16u;
+    if ((args->digit >= '0') && (args->digit <= '9'))
+    {
+        return (unsigned int)(args->digit - '0');
+    }
+    if ((args->digit >= 'a') && (args->digit <= 'f'))
+    {
+        return (unsigned int)(args->digit - 'a') + 10u;
+    }
+    if ((args->digit >= 'A') && (args->digit <= 'F'))
+    {
+        return (unsigned int)(args->digit - 'A') + 10u;
+    }
+    return 16u;
 }
 
 void cli_print_color(const CliPrintTextCfg *args)
@@ -605,8 +614,19 @@ const CliPrintLaid *cli_print_lay_out(const CliPrintLayoutListingOutCfg *args)
             {
                 const unsigned int letter = letters[at];
                 const int control = (letter < 0x20u) || ((letter >= 0x7fu) && (letter <= 0x9fu));
-                const unsigned long long spaces =
-                    (letter == '\t') ? (tab - (column % ((tab > 1ULL) ? tab : 1ULL))) : (control ? 0ULL : 1ULL);
+                unsigned long long spaces;
+                if (letter == '\t')
+                {
+                    spaces = tab - (column % ((tab > 1ULL) ? tab : 1ULL));
+                }
+                else if (control)
+                {
+                    spaces = 0ULL;
+                }
+                else
+                {
+                    spaces = 1ULL;
+                }
                 for (unsigned long long one = 0ULL; one < spaces; one += 1ULL)
                 {
                     if (column == columns)

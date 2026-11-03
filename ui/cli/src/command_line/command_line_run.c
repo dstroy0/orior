@@ -350,7 +350,19 @@ EMBED_INLINE int run_own(const CommandLineRunCtx *args)
     if ((cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "--completions", .cap = CLI_CELLS_POOL})) ||
         (cellul.starts(&(CatenaFinitaCfg){.src = first, .other = "--completions=", .cap = CLI_CELLS_POOL})))
     {
-        const char *const shell = (first[13] == '=') ? first + 14 : ((count > 1u) ? words[1] : "");
+        const char *shell;
+        if (first[13] == '=')
+        {
+            shell = first + 14;
+        }
+        else if (count > 1u)
+        {
+            shell = words[1];
+        }
+        else
+        {
+            shell = "";
+        }
         static char s_script[1u << 14u];
         VerbaLinea script = {s_script, sizeof(s_script), 0ULL};
         VerbaLinea err_msg = {s_msg_buf, sizeof(s_msg_buf), 0ULL};

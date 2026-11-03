@@ -152,7 +152,21 @@ void cli_test_shares(const CliTestRunsRunCountCtx *args)
         s_by_size[place] = file;
     }
     unsigned int shares = (args->most < 1u) ? 1u : args->most;
-    shares = (shares > ((files > 1u) ? files : 1u)) ? ((files > 1u) ? files : 1u) : shares;
+    if (shares > ((files > 1u) ? files : 1u))
+    {
+        if (files > 1u)
+        {
+            shares = files;
+        }
+        else
+        {
+            shares = 1u;
+        }
+    }
+    else
+    {
+        shares = shares;
+    }
     shares = (shares > CLI_TEST_WORKERS) ? CLI_TEST_WORKERS : shares;
     unsigned int share_of[CLI_TEST_NAMED];
     unsigned int sizes[CLI_TEST_WORKERS];

@@ -146,7 +146,8 @@ static void export_line(const DbExportCtx *args)
         (cellul.eq(&(CatenaFinitaCfg){.src = args->export->format, .other = "tsv", .cap = CLI_CELLS_POOL}));
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        EMBED_CALL(export_append, DbExportCtx, .export = args->export, .text = (at > 0u) ? (tabs ? "\t" : ",") : "",
+        const char *const parting = tabs ? "\t" : ",";
+        EMBED_CALL(export_append, DbExportCtx, .export = args->export, .text = (at > 0u) ? parting : "",
                    .size = (at > 0u) ? 1ULL : 0ULL);
         if (!tabs)
         {

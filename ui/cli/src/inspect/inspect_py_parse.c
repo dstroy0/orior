@@ -335,14 +335,21 @@ EMBED_INLINE void parse_line(const InspectPyParseCtx *args)
                                .first = opened->from.line, .last = tok->to.line);
                 }
             }
-            class_of = (decorated && (depth == 0) &&
-                        ((offset == 0u) || EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src,
-                                                      .tok = tok, .word_text = ".")))
-                           ? CLI_INSPECT_ATTRIBUTE
-                       : EMBED_CALL(parse_one_get, InspectPyParseCtx, .src = src, .tok = tok, .words = s_delimiters,
-                                    .count = 9u)
-                           ? CLI_INSPECT_DELIMITER
-                           : CLI_INSPECT_OPERATOR;
+            if (decorated && (depth == 0) &&
+                ((offset == 0u) || EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src,
+                                              .tok = tok, .word_text = ".")))
+            {
+                class_of = CLI_INSPECT_ATTRIBUTE;
+            }
+            else if (EMBED_CALL(parse_one_get, InspectPyParseCtx, .src = src, .tok = tok, .words = s_delimiters,
+                                .count = 9u))
+            {
+                class_of = CLI_INSPECT_DELIMITER;
+            }
+            else
+            {
+                class_of = CLI_INSPECT_OPERATOR;
+            }
         }
         EMBED_CALL(cli_inspect_from_to_internal.paint, CliInspectFromToCtx, .from = tok->from, .to = tok->to,
                    .class_of = class_of);

@@ -19,7 +19,19 @@ typedef struct
 // the bytes of a UTF-8 letter
 EMBED_INLINE unsigned long long answer_letter_size(const RequestsAnswerCtx *args)
 {
-    return (args->letter < 0x80u) ? 1u : (args->letter < 0x800u) ? 2u : (args->letter < 0x10000u) ? 3u : 4u;
+    if (args->letter < 0x80u)
+    {
+        return 1u;
+    }
+    if (args->letter < 0x800u)
+    {
+        return 2u;
+    }
+    if (args->letter < 0x10000u)
+    {
+        return 3u;
+    }
+    return 4u;
 }
 
 // the body written as a JSON string, its text cut to `most` bytes at a letter's start: 1 where it was cut

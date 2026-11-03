@@ -717,11 +717,20 @@ static void cli_effect_directive(const SymbolsEffectCtx *args)
         const int defined =
             (length != 0ULL) && (EMBED_CALL(cli_symbols_name_internal.effect_macro, CliSymbolsNameCtx,
                                             .effect_read = effect, .name = name, .length = length) != CLI_JSON_NONE);
-        const int holds = ((is & CLI_LEAF_IF) != 0u)
-                              ? (EMBED_CALL(cli_effect_judged, SymbolsEffectCtx, .effect = effect, .read = read,
-                                            .from = args->role + 1u, .to = args->end) != 0LL)
-                          : ((is & CLI_LEAF_IFDEF) != 0u) ? defined
-                                                          : !defined;
+        int holds;
+        if ((is & CLI_LEAF_IF) != 0u)
+        {
+            holds = EMBED_CALL(cli_effect_judged, SymbolsEffectCtx, .effect = effect, .read = read,
+                               .from = args->role + 1u, .to = args->end) != 0LL;
+        }
+        else if ((is & CLI_LEAF_IFDEF) != 0u)
+        {
+            holds = defined;
+        }
+        else
+        {
+            holds = !defined;
+        }
         if (args->branch->open < CLI_EFFECT_DEPTH)
         {
             args->branch->condition[args->branch->open] = (CliEffectCondition){active && holds, holds, active};
@@ -833,12 +842,21 @@ EMBED_INLINE void cli_effect_noted_line(const SymbolsEffectCtx *args)
         }
         const unsigned int macro = EMBED_CALL(cli_symbols_name_internal.effect_macro, CliSymbolsNameCtx,
                                               .effect_read = effect, .name = effect->name, .length = effect->length);
-        const char *const defined =
-            (macro != CLI_JSON_NONE) ? EMBED_CALL(cli_symbols_internal.effect_text, CliSymbolsCtx,
-                                                  .effect_read = effect, .at_value = effect->macro[macro].path)
-            : effect->first_found ? EMBED_CALL(cli_symbols_internal.effect_text, CliSymbolsCtx, .effect_read = effect,
-                                               .at_value = effect->first_path)
-                                  : NULL;
+        const char *defined;
+        if (macro != CLI_JSON_NONE)
+        {
+            defined = EMBED_CALL(cli_symbols_internal.effect_text, CliSymbolsCtx, .effect_read = effect,
+                                 .at_value = effect->macro[macro].path);
+        }
+        else if (effect->first_found)
+        {
+            defined = EMBED_CALL(cli_symbols_internal.effect_text, CliSymbolsCtx, .effect_read = effect,
+                                 .at_value = effect->first_path);
+        }
+        else
+        {
+            defined = NULL;
+        }
         const unsigned int line = (macro != CLI_JSON_NONE) ? effect->macro[macro].line : effect->first_line;
         EMBED_CALL(effect->noted, CliEffectNotedCfg, .context = effect->noted_context, .read = read, .leaf = leaf,
                    .path = defined, .line = line);
@@ -866,10 +884,20 @@ static void cli_effect_walk(const SymbolsEffectCtx *args)
     const int from_disk = (effect->start_text == NULL) ||
                           !cellul.eq(&(CatenaFinitaCfg){.src = path, .other = effect->start, .cap = CLI_CELLS_POOL});
     unsigned long long size = from_disk ? 0ULL : effect->start_size;
-    const unsigned char *const bytes = (branch == NULL) ? NULL
-                                       : from_disk ? EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = full,
-                                                                .size_pointer = &size, .owner = &g_cli_code_cells)
-                                                   : (const unsigned char *)effect->start_text;
+    const unsigned char *bytes;
+    if (branch == NULL)
+    {
+        bytes = NULL;
+    }
+    else if (from_disk)
+    {
+        bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = full, .size_pointer = &size,
+                           .owner = &g_cli_code_cells);
+    }
+    else
+    {
+        bytes = (const unsigned char *)effect->start_text;
+    }
     if (bytes == NULL)
     {
         effect->refused |= branch == NULL;

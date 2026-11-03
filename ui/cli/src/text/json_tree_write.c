@@ -27,14 +27,39 @@ typedef struct
 EMBED_INLINE int json_letter_escape(const JsonTreeWriteCtx *args)
 {
     static const char s_hex[17] = "0123456789abcdef";
-    const char *const escape = (args->letter == '"')     ? "\\\""
-                               : (args->letter == '\\')  ? "\\\\"
-                               : (args->letter == '\n')  ? "\\n"
-                               : (args->letter == '\r')  ? "\\r"
-                               : (args->letter == '\t')  ? "\\t"
-                               : (args->letter == 0x08u) ? "\\b"
-                               : (args->letter == 0x0cu) ? "\\f"
-                                                         : NULL;
+    const char *escape;
+    if (args->letter == '"')
+    {
+        escape = "\\\"";
+    }
+    else if (args->letter == '\\')
+    {
+        escape = "\\\\";
+    }
+    else if (args->letter == '\n')
+    {
+        escape = "\\n";
+    }
+    else if (args->letter == '\r')
+    {
+        escape = "\\r";
+    }
+    else if (args->letter == '\t')
+    {
+        escape = "\\t";
+    }
+    else if (args->letter == 0x08u)
+    {
+        escape = "\\b";
+    }
+    else if (args->letter == 0x0cu)
+    {
+        escape = "\\f";
+    }
+    else
+    {
+        escape = NULL;
+    }
     if (escape != NULL)
     {
         mmgr_line_put(args->out, escape);
@@ -75,11 +100,27 @@ void cli_json_quote(const CliJsonTreeTextLengthCfg *args)
 EMBED_INLINE unsigned long long cli_sequence(const JsonTreeWriteCtx *args)
 {
     const unsigned char lead = args->text[args->at];
-    const unsigned long long bytes = (lead < 0x80u)                         ? 1ULL
-                                     : ((lead >= 0xc2u) && (lead <= 0xdfu)) ? 2ULL
-                                     : ((lead >= 0xe0u) && (lead <= 0xefu)) ? 3ULL
-                                     : ((lead >= 0xf0u) && (lead <= 0xf4u)) ? 4ULL
-                                                                            : 0ULL;
+    unsigned long long bytes;
+    if (lead < 0x80u)
+    {
+        bytes = 1ULL;
+    }
+    else if ((lead >= 0xc2u) && (lead <= 0xdfu))
+    {
+        bytes = 2ULL;
+    }
+    else if ((lead >= 0xe0u) && (lead <= 0xefu))
+    {
+        bytes = 3ULL;
+    }
+    else if ((lead >= 0xf0u) && (lead <= 0xf4u))
+    {
+        bytes = 4ULL;
+    }
+    else
+    {
+        bytes = 0ULL;
+    }
     if ((bytes == 0ULL) || ((args->at + bytes) > args->length))
     {
         return 0ULL;

@@ -290,7 +290,19 @@ LatticeStageAt *lattice_stage(double seconds)
 // a channel from 0 to 1 as the byte it puts down, a share outside it taken as its end
 static uint32_t lattice_byte(double share)
 {
-    const double within = share < 0.0 ? 0.0 : (share > 1.0 ? 1.0 : share);
+    double within;
+    if (share < 0.0)
+    {
+        within = 0.0;
+    }
+    else if (share > 1.0)
+    {
+        within = 1.0;
+    }
+    else
+    {
+        within = share;
+    }
     // a share from 0 to 1 is a byte from 0 to 255
     return (uint32_t)(within * 255.0 + 0.5);
 }
@@ -353,7 +365,15 @@ static LatticePlane lattice_plane(const LatticeStageAt *at)
 static double lattice_loose(const LatticePlane *plane, double u, double v)
 {
     const double loose = plane->across * u + plane->down * v + plane->start;
-    return loose < plane->least ? plane->least : (loose > 1.0 ? 1.0 : loose);
+    if (loose < plane->least)
+    {
+        return plane->least;
+    }
+    if (loose > 1.0)
+    {
+        return 1.0;
+    }
+    return loose;
 }
 
 // places every point of `slot`'s lattice, `width` by `height`, with the loop at `seconds`: moved by its share of the
@@ -450,7 +470,19 @@ uint32_t lattice_dots_moved(LatticeSlot *lattice, double width, double height, d
         {
             const float x = (float)(lattice->half + column * lattice->step);
             const float plain = across * x + down * y + start;
-            const float loose = plain < least ? least : (plain > 1.0f ? 1.0f : plain);
+            float loose;
+            if (plain < least)
+            {
+                loose = least;
+            }
+            else if (plain > 1.0f)
+            {
+                loose = 1.0f;
+            }
+            else
+            {
+                loose = plain;
+            }
             const float shift = loose * loose * reach;
             // the shade is a whole step from 0 to LATTICE_SHADES less one
             const uint32_t shade = (uint32_t)(loose * steps + 0.5f);

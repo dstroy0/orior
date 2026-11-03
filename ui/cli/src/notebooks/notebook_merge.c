@@ -294,12 +294,19 @@ static void cli_align(const NotebookMergeCtx *args)
         {
             const unsigned int down = CLI_RUN(i, j - 1u);
             const unsigned int across = CLI_RUN(i - 1u, j);
-            CLI_RUN(i - 1u, j - 1u) =
-                EMBED_CALL(cli_same_cell, NotebookMergeCtx, .json = args->json, .one = args->base_pointer[i - 1u],
-                           .other = args->other_pointer[j - 1u])
-                    ? (CLI_RUN(i, j) + 1u)
-                : (down > across) ? down
-                                  : across;
+            if (EMBED_CALL(cli_same_cell, NotebookMergeCtx, .json = args->json, .one = args->base_pointer[i - 1u],
+                           .other = args->other_pointer[j - 1u]))
+            {
+                CLI_RUN(i - 1u, j - 1u) = CLI_RUN(i, j) + 1u;
+            }
+            else if (down > across)
+            {
+                CLI_RUN(i - 1u, j - 1u) = down;
+            }
+            else
+            {
+                CLI_RUN(i - 1u, j - 1u) = across;
+            }
         }
     }
     unsigned int i = 0u;

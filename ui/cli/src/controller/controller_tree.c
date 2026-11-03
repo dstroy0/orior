@@ -70,9 +70,19 @@ void cli_controller_tree_begin(void)
     // every process the window starts stands under it, and ends with it
     (void)cli_container_init();
     char found[CLI_PATH_MAX_LEN];
-    const char *const root = s_outcome.has_root                                                   ? s_outcome.root
-                             : EMBED_CALL(cli_tree_internal.tree_find, CliTreeCtx, .tree = found) ? found
-                                                                                                  : NULL;
+    const char *root;
+    if (s_outcome.has_root)
+    {
+        root = s_outcome.root;
+    }
+    else if (EMBED_CALL(cli_tree_internal.tree_find, CliTreeCtx, .tree = found))
+    {
+        root = found;
+    }
+    else
+    {
+        root = NULL;
+    }
     if (root != NULL)
     {
         const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_PATH_MAX_LEN}) + 1ULL;

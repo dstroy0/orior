@@ -195,15 +195,12 @@ static int results_row(const CliDbRowCfg *args)
         const int integer = EMBED_CALL(results_integer, DbResultsCtx, .text = values[at].text, .size = values[at].size);
         const int real =
             !integer && EMBED_CALL(results_real, DbResultsCtx, .text = values[at].text, .size = values[at].size);
-        memor.cpy(&(MemoriaCfg){.dst = column->kind,
-                                .src = integer ? "integer"
-                                       : real  ? "real"
-                                               : "text",
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = integer ? "integer"
-                                                                              : real  ? "real"
-                                                                                      : "text",
-                                                                       .cap = CLI_CELLS_POOL}) +
-                                         1u});
+        const char *const other_kind = real ? "real" : "text";
+        const char *const column_kind = integer ? "integer" : other_kind;
+        memor.cpy(
+            &(MemoriaCfg){.dst = column->kind,
+                          .src = column_kind,
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = column_kind, .cap = CLI_CELLS_POOL}) + 1u});
         column->numeric = integer || real;
         reader->kinded[at] = 1;
     }

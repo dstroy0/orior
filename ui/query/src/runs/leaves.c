@@ -470,11 +470,20 @@ int query_leaves_settle(const QueryContextErrMsgCtx *args)
                 EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = args->context, .text = text);
             }
             g_cli_cells->persistent_buf_release(text, &g_query_cells);
-            const QueryAnswer answer = (existing == QUERY_LEAVE_ALL) ? QUERY_ANSWER_YES
-                                       : (existing == QUERY_LEAVE_NONE)
-                                           ? QUERY_ANSWER_NO
-                                           : EMBED_CALL(args->prompter.prompt, CliEachPathCfg,
-                                                        .context = args->prompter.context, .path = path);
+            QueryAnswer answer;
+            if (existing == QUERY_LEAVE_ALL)
+            {
+                answer = QUERY_ANSWER_YES;
+            }
+            else if (existing == QUERY_LEAVE_NONE)
+            {
+                answer = QUERY_ANSWER_NO;
+            }
+            else
+            {
+                answer =
+                    EMBED_CALL(args->prompter.prompt, CliEachPathCfg, .context = args->prompter.context, .path = path);
+            }
             existing = (answer == QUERY_ANSWER_ALL) ? QUERY_LEAVE_ALL : existing;
             existing = (answer == QUERY_ANSWER_NONE) ? QUERY_LEAVE_NONE : existing;
             if ((answer == QUERY_ANSWER_NO) || (answer == QUERY_ANSWER_NONE))

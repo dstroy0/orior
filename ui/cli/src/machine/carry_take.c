@@ -121,17 +121,22 @@ EMBED_INLINE int cli_settings_differ(const CarryTakeCtx *args)
                     : "",
         .size = (args->ours_at < s_alloc.here.count) ? s_alloc.here.size[args->ours_at] : 0ULL,
         .adjacent = theirs_size);
-    const unsigned int theirs =
-        (ours_index != CLI_JSON_NONE)
-            ? EMBED_CALL(cli_machine_transfer_capacity_internal.settings_adjacent, CliMachineTransferWorkStateCtx,
-                         .work_state = &s_alloc.work_state,
-                         .text = (args->theirs_at < args->there->count)
-                                     ? EMBED_CALL(cli_machine_transfer_transferred_at_internal.transferred_value,
-                                                  CliMachineTransferTransferredAtCtx, .carried = args->there,
-                                                  .at = args->theirs_at)
-                                     : "",
-                         .size = theirs_size)
-            : CLI_JSON_NONE;
+    unsigned int theirs;
+    if (ours_index != CLI_JSON_NONE)
+    {
+        theirs = EMBED_CALL(cli_machine_transfer_capacity_internal.settings_adjacent, CliMachineTransferWorkStateCtx,
+                            .work_state = &s_alloc.work_state,
+                            .text = (args->theirs_at < args->there->count)
+                                        ? EMBED_CALL(cli_machine_transfer_transferred_at_internal.transferred_value,
+                                                     CliMachineTransferTransferredAtCtx, .carried = args->there,
+                                                     .at = args->theirs_at)
+                                        : "",
+                            .size = theirs_size);
+    }
+    else
+    {
+        theirs = CLI_JSON_NONE;
+    }
     if (theirs == CLI_JSON_NONE)
     {
         return 0;
@@ -193,17 +198,25 @@ void cli_machine_transfer_differences(const CliMachineTransferHomeCfg *args)
     {
         const int has_ours = ours_at < s_alloc.here.count;
         const int has_theirs = theirs_at < args->there->count;
-        const int order =
-            !has_ours ? 1
-            : !has_theirs
-                ? -1
-                : EMBED_CALL(
-                      cli_text_size_one.order, CliTextSizeOneCfg,
-                      .one = EMBED_CALL(cli_machine_transfer_transferred_at_internal.transferred_position,
-                                        CliMachineTransferTransferredAtCtx, .carried = &s_alloc.here, .at = ours_at),
-                      .other_pointer =
-                          EMBED_CALL(cli_machine_transfer_transferred_at_internal.transferred_position,
-                                     CliMachineTransferTransferredAtCtx, .carried = args->there, .at = theirs_at));
+        int order;
+        if (!has_ours)
+        {
+            order = 1;
+        }
+        else if (!has_theirs)
+        {
+            order = -1;
+        }
+        else
+        {
+            order = EMBED_CALL(
+                cli_text_size_one.order, CliTextSizeOneCfg,
+                .one = EMBED_CALL(cli_machine_transfer_transferred_at_internal.transferred_position,
+                                  CliMachineTransferTransferredAtCtx, .carried = &s_alloc.here, .at = ours_at),
+                .other_pointer =
+                    EMBED_CALL(cli_machine_transfer_transferred_at_internal.transferred_position,
+                               CliMachineTransferTransferredAtCtx, .carried = args->there, .at = theirs_at));
+        }
         const unsigned int ours_index = (order <= 0) ? ours_at : s_alloc.here.count;
         const unsigned int theirs = (order >= 0) ? theirs_at : args->there->count;
         const char *const place =
@@ -290,17 +303,22 @@ EMBED_INLINE int cli_settings_alloc(const CarryTakeCtx *args)
     const unsigned int ours_index = EMBED_CALL(
         cli_machine_transfer_capacity_internal.settings_get, CliMachineTransferWorkStateCtx,
         .work_state = &s_alloc.work_state, .text = args->before, .size = args->before_size, .adjacent = theirs_size);
-    const unsigned int theirs =
-        (ours_index != CLI_JSON_NONE)
-            ? EMBED_CALL(cli_machine_transfer_capacity_internal.settings_adjacent, CliMachineTransferWorkStateCtx,
-                         .work_state = &s_alloc.work_state,
-                         .text = (theirs_at < args->there->count)
-                                     ? EMBED_CALL(cli_machine_transfer_transferred_at_internal.transferred_value,
-                                                  CliMachineTransferTransferredAtCtx, .carried = args->there,
-                                                  .at = theirs_at)
-                                     : "",
-                         .size = theirs_size)
-            : CLI_JSON_NONE;
+    unsigned int theirs;
+    if (ours_index != CLI_JSON_NONE)
+    {
+        theirs = EMBED_CALL(cli_machine_transfer_capacity_internal.settings_adjacent, CliMachineTransferWorkStateCtx,
+                            .work_state = &s_alloc.work_state,
+                            .text = (theirs_at < args->there->count)
+                                        ? EMBED_CALL(cli_machine_transfer_transferred_at_internal.transferred_value,
+                                                     CliMachineTransferTransferredAtCtx, .carried = args->there,
+                                                     .at = theirs_at)
+                                        : "",
+                            .size = theirs_size);
+    }
+    else
+    {
+        theirs = CLI_JSON_NONE;
+    }
     if (theirs == CLI_JSON_NONE)
     {
         return 0;

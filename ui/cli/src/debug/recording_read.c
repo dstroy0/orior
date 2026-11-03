@@ -377,9 +377,19 @@ EMBED_INLINE void read_raise(const RecordingReadCtx *args)
     CliRecording *const recording = &g_cli_replay->recording;
     const unsigned long long serial = EMBED_CALL(read_number, RecordingReadCtx, .record = args->record, .at_u32 = 1u);
     const CliRecordedFrame *const frame = (serial < recording->frame_max) ? &recording->frames[serial] : NULL;
-    const unsigned int step = ((frame != NULL) && frame->seen && (frame->last != CLI_RECORDING_NO_STEP))
-                                  ? frame->last
-                                  : ((recording->step_count > 0u) ? recording->step_count - 1u : 0u);
+    unsigned int step;
+    if ((frame != NULL) && frame->seen && (frame->last != CLI_RECORDING_NO_STEP))
+    {
+        step = frame->last;
+    }
+    else if (recording->step_count > 0u)
+    {
+        step = recording->step_count - 1u;
+    }
+    else
+    {
+        step = 0u;
+    }
     const unsigned int kind =
         EMBED_CALL(read_by_name, RecordingReadCtx, .record = args->record, .at_u32 = 3u, .slashed = 0);
     const unsigned int message =

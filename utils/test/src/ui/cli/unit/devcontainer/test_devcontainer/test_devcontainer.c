@@ -42,7 +42,7 @@ static int words_pair(const char *first, const char *second)
 {
     for (unsigned int at = 0u; at + 1u < s_words.count; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = s_words.word[at], .other = first, .cap = CLI_CELLS_POOL}) && cellul.eq(&(CatenaFinitaCfg){.src = s_words.word[at + 1u], .other = second, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = s_words.word_text[at], .other = first, .cap = CLI_CELLS_POOL}) && cellul.eq(&(CatenaFinitaCfg){.src = s_words.word_text[at + 1u], .other = second, .cap = CLI_CELLS_POOL}))
         {
             return 1;
         }
@@ -169,7 +169,7 @@ void test_the_descriptions_own_run_arguments_are_used(void)
     int ptrace = 0;
     for (unsigned int at = 0u; at < s_words.count; at += 1u)
     {
-        ptrace |= cellul.eq(&(CatenaFinitaCfg){.src = s_words.word[at], .other = "--cap-add=SYS_PTRACE", .cap = CLI_CELLS_POOL});
+        ptrace |= cellul.eq(&(CatenaFinitaCfg){.src = s_words.word_text[at], .other = "--cap-add=SYS_PTRACE", .cap = CLI_CELLS_POOL});
     }
     TEST_ASSERT_TRUE(ptrace);
 }
@@ -179,9 +179,9 @@ void test_a_command_line_runs_in_the_shell(void)
     image_planned();
     EMBED_CALL(cli_devcontainer_plan_table.plan_exec_words, CliDevcontainerPlanCfg, .plan = &s_plan, .container = EMBED_CALL(cli_devcontainer_plan_at.plan_text, CliDevcontainerPlanAtCfg, .plan = &s_plan, .at = s_plan.name), .command = &s_plan.on_create[0], .words = words_emptied());
     TEST_ASSERT_EQUAL_UINT(7u, s_words.count);
-    TEST_ASSERT_EQUAL_STRING("/bin/sh", s_words.word[4]);
-    TEST_ASSERT_EQUAL_STRING("-c", s_words.word[5]);
-    TEST_ASSERT_EQUAL_STRING("pip install -e .", s_words.word[6]);
+    TEST_ASSERT_EQUAL_STRING("/bin/sh", s_words.word_text[4]);
+    TEST_ASSERT_EQUAL_STRING("-c", s_words.word_text[5]);
+    TEST_ASSERT_EQUAL_STRING("pip install -e .", s_words.word_text[6]);
 }
 
 void test_a_command_of_words_runs_as_it_is(void)
@@ -189,8 +189,8 @@ void test_a_command_of_words_runs_as_it_is(void)
     image_planned();
     EMBED_CALL(cli_devcontainer_plan_table.plan_exec_words, CliDevcontainerPlanCfg, .plan = &s_plan, .container = EMBED_CALL(cli_devcontainer_plan_at.plan_text, CliDevcontainerPlanAtCfg, .plan = &s_plan, .at = s_plan.name), .command = &s_plan.on_start[0], .words = words_emptied());
     TEST_ASSERT_EQUAL_UINT(6u, s_words.count);
-    TEST_ASSERT_EQUAL_STRING("git", s_words.word[4]);
-    TEST_ASSERT_EQUAL_STRING("status", s_words.word[5]);
+    TEST_ASSERT_EQUAL_STRING("git", s_words.word_text[4]);
+    TEST_ASSERT_EQUAL_STRING("status", s_words.word_text[5]);
 }
 
 void test_the_window_opens_the_tree_in_the_container(void)
@@ -228,9 +228,9 @@ void test_the_image_is_built_from_its_dockerfile(void)
     build_planned(image);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_dir, .relative = "Dockerfile", .joined = path);
     TEST_ASSERT_GREATER_THAN_UINT(3u, s_words.count);
-    TEST_ASSERT_EQUAL_STRING("build", s_words.word[0]);
-    TEST_ASSERT_EQUAL_STRING("-f", s_words.word[1]);
-    TEST_ASSERT_TRUE(same_path(s_words.word[2], path));
+    TEST_ASSERT_EQUAL_STRING("build", s_words.word_text[0]);
+    TEST_ASSERT_EQUAL_STRING("-f", s_words.word_text[1]);
+    TEST_ASSERT_TRUE(same_path(s_words.word_text[2], path));
 }
 
 void test_the_image_is_built_with_its_args(void)
@@ -253,7 +253,7 @@ void test_the_image_is_built_in_its_context(void)
     char path[CLI_PATH_MAX_LEN];
     build_planned(image);
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_dir, .relative = "..", .joined = path);
-    TEST_ASSERT_TRUE(same_path(s_words.word[s_words.count - 1u], path));
+    TEST_ASSERT_TRUE(same_path(s_words.word_text[s_words.count - 1u], path));
 }
 
 void test_the_tree_is_in_the_folder_the_description_names(void)
@@ -269,15 +269,15 @@ void test_a_compose_description_names_its_files_adjacent_it(void)
     compose_planned();
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_dir, .relative = ".devcontainer/compose.yml", .joined = path);
     TEST_ASSERT_GREATER_THAN_UINT(3u, s_words.count);
-    TEST_ASSERT_EQUAL_STRING("compose", s_words.word[0]);
-    TEST_ASSERT_TRUE(same_path(s_words.word[2], path));
+    TEST_ASSERT_EQUAL_STRING("compose", s_words.word_text[0]);
+    TEST_ASSERT_TRUE(same_path(s_words.word_text[2], path));
 }
 
 void test_a_compose_description_names_its_project(void)
 {
     compose_planned();
-    TEST_ASSERT_EQUAL_STRING("-p", s_words.word[s_words.count - 2u]);
-    TEST_ASSERT_EQUAL_STRING(EMBED_CALL(cli_devcontainer_plan_at.plan_text, CliDevcontainerPlanAtCfg, .plan = &s_plan, .at = s_plan.name), s_words.word[s_words.count - 1u]);
+    TEST_ASSERT_EQUAL_STRING("-p", s_words.word_text[s_words.count - 2u]);
+    TEST_ASSERT_EQUAL_STRING(EMBED_CALL(cli_devcontainer_plan_at.plan_text, CliDevcontainerPlanAtCfg, .plan = &s_plan, .at = s_plan.name), s_words.word_text[s_words.count - 1u]);
 }
 
 void test_a_compose_description_fetches_up_its_service(void)

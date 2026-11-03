@@ -34,10 +34,19 @@ int cli_requests_number(const CliRequestsTextSizeBaseCtx *args)
     for (; at < args->size; at += 1u)
     {
         const char letter = EMBED_CALL(url_lower, RequestsUrlCtx, .letter = args->text[at]);
-        const unsigned int digit = ((letter >= '0') && (letter <= '9')) ? (unsigned int)(letter - '0')
-                                   : ((args->base == 16u) && (letter >= 'a') && (letter <= 'f'))
-                                       ? (unsigned int)(letter - 'a' + 10)
-                                       : 16u;
+        unsigned int digit;
+        if ((letter >= '0') && (letter <= '9'))
+        {
+            digit = (unsigned int)(letter - '0');
+        }
+        else if ((args->base == 16u) && (letter >= 'a') && (letter <= 'f'))
+        {
+            digit = (unsigned int)(letter - 'a' + 10);
+        }
+        else
+        {
+            digit = 16u;
+        }
         if ((digit >= args->base) || (*value > (args->most - digit) / args->base))
         {
             return 0;

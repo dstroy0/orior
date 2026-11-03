@@ -87,7 +87,7 @@ static char s_maria_after_value[MYSQL_VALUE];
 // whether two numbers are the same
 static int numbers_same(const CliBig *one, const CliBig *other)
 {
-    return (one->count == other->count) && (memor.cmp(&(MemoriaCfg){.src = one->word, .other = other->word, .bytes = one->count * sizeof(one->word[0])}) == 0);
+    return (one->count == other->count) && (memor.cmp(&(MemoriaCfg){.src = one->word_text, .other = other->word_text, .bytes = one->count * sizeof(one->word_text[0])}) == 0);
 }
 
 // a row recorded, its first MYSQL_VALUES values

@@ -25,13 +25,30 @@ unsigned int cli_text_letter(const CliTextAtCfg *args)
 {
     unsigned long long *length = args->length;
     const unsigned char lead = (unsigned char)args->text[args->at];
-    const unsigned long long want = (lead < 0xc0u) ? 1u : (lead < 0xe0u) ? 2u : (lead < 0xf0u) ? 3u : 4u;
+    unsigned long long want;
+    if (lead < 0xc0u)
+    {
+        want = 1u;
+    }
+    else if (lead < 0xe0u)
+    {
+        want = 2u;
+    }
+    else if (lead < 0xf0u)
+    {
+        want = 3u;
+    }
+    else
+    {
+        want = 4u;
+    }
     if ((want == 1u) || (args->at + want > args->size))
     {
         *length = 1u;
         return lead;
     }
-    unsigned int letter = lead & ((want == 2u) ? 0x1fu : (want == 3u) ? 0x0fu : 0x07u);
+    const unsigned int long_lead_bits = (want == 3u) ? 0x0fu : 0x07u;
+    unsigned int letter = lead & ((want == 2u) ? 0x1fu : long_lead_bits);
     for (unsigned long long next = 1ULL; next < want; next += 1u)
     {
         const unsigned char more = (unsigned char)args->text[args->at + next];
@@ -606,10 +623,19 @@ void cli_text_append_save(const CliTextClassesCfg *args)
 // the value of a hexadecimal digit, 16 where the byte is none
 EMBED_INLINE unsigned int text_hex_get(const TextCtx *args)
 {
-    return ((args->byte >= '0') && (args->byte <= '9'))   ? (unsigned int)(args->byte - '0')
-           : ((args->byte >= 'a') && (args->byte <= 'f')) ? ((unsigned int)(args->byte - 'a') + 10u)
-           : ((args->byte >= 'A') && (args->byte <= 'F')) ? ((unsigned int)(args->byte - 'A') + 10u)
-                                                          : 16u;
+    if ((args->byte >= '0') && (args->byte <= '9'))
+    {
+        return (unsigned int)(args->byte - '0');
+    }
+    if ((args->byte >= 'a') && (args->byte <= 'f'))
+    {
+        return (unsigned int)(args->byte - 'a') + 10u;
+    }
+    if ((args->byte >= 'A') && (args->byte <= 'F'))
+    {
+        return (unsigned int)(args->byte - 'A') + 10u;
+    }
+    return 16u;
 }
 
 void cli_text_append_unescaped(const CliTextSizeSetCfg *args)

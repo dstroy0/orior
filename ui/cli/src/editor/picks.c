@@ -85,7 +85,19 @@ EMBED_INLINE void *picks_part(const PicksCtx *args)
 EMBED_INLINE int picks_work_state_alloc(const PicksCtx *args)
 {
     const unsigned int cores = cli_cores_for_work();
-    const unsigned int parts = (cores < 1u) ? 1u : ((cores > CLI_PICKS_PARTS) ? CLI_PICKS_PARTS : cores);
+    unsigned int parts;
+    if (cores < 1u)
+    {
+        parts = 1u;
+    }
+    else if (cores > CLI_PICKS_PARTS)
+    {
+        parts = CLI_PICKS_PARTS;
+    }
+    else
+    {
+        parts = cores;
+    }
     const unsigned long long bytes =
         ((unsigned long long)args->rows * (sizeof(double) + 1ULL + (2ULL * sizeof(unsigned int)))) +
         ((unsigned long long)parts * sizeof(CliPickPart)) + (5ULL * 8ULL);

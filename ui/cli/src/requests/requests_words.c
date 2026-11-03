@@ -82,11 +82,27 @@ EMBED_INLINE int words_dollar(const RequestsWordsCtx *args)
         {
             *at += 1u;
             const char letter = args->line[*at];
-            const char plain = (letter == 'n')   ? '\n'
-                               : (letter == 't') ? '\t'
-                               : (letter == 'r') ? '\r'
-                               : (letter == '0') ? '\0'
-                                                 : letter;
+            char plain;
+            if (letter == 'n')
+            {
+                plain = '\n';
+            }
+            else if (letter == 't')
+            {
+                plain = '\t';
+            }
+            else if (letter == 'r')
+            {
+                plain = '\r';
+            }
+            else if (letter == '0')
+            {
+                plain = '\0';
+            }
+            else
+            {
+                plain = letter;
+            }
             unsigned int whole = 0u;
             const unsigned long long reserved =
                 EMBED_CALL(words_letter, RequestsWordsCtx, .line = args->line, .size = args->size, .at_value = *at,

@@ -46,7 +46,19 @@ int query_bridge(const QueryLoopsContextErrMsgRulesetsCfg *args)
     VerbaLinea *err_msg = args->err_msg;
     static const char *const s_default[3] = {"cu.krs", "sass.krs", "openqasm2_0.krs"};
     const char *const *supplied = (count == 0u) ? s_default : args->rulesets;
-    const unsigned int input_count = (count == 0u) ? 3u : ((count < QUERY_RULESETS_MAX) ? count : QUERY_RULESETS_MAX);
+    unsigned int input_count;
+    if (count == 0u)
+    {
+        input_count = 3u;
+    }
+    else if (count < QUERY_RULESETS_MAX)
+    {
+        input_count = count;
+    }
+    else
+    {
+        input_count = QUERY_RULESETS_MAX;
+    }
     static char s_klq_write[QUERY_PATH_MAX_LEN];
     static QueryRun s_run;
     if (!EMBED_CALL(query_loops_err_msg_context.context_tool, QueryLoopsErrMsgContextCfg, .context_read = context,
@@ -251,11 +263,23 @@ int query_query_words(const QueryLoopsErrMsgContextWordsCfg *args)
                 mmgr_line_put(args->err_msg, s_usage);
                 return 0;
             }
-            const char **const field =
-                (cellul.eq(&(CatenaFinitaCfg){.src = plain[at], .other = "--from", .cap = CLI_CELLS_POOL}))   ? &from
-                : (cellul.eq(&(CatenaFinitaCfg){.src = plain[at], .other = "--to", .cap = CLI_CELLS_POOL}))   ? &to
-                : (cellul.eq(&(CatenaFinitaCfg){.src = plain[at], .other = "--part", .cap = CLI_CELLS_POOL})) ? &part
-                                                                                                              : NULL;
+            const char **field;
+            if (cellul.eq(&(CatenaFinitaCfg){.src = plain[at], .other = "--from", .cap = CLI_CELLS_POOL}))
+            {
+                field = &from;
+            }
+            else if (cellul.eq(&(CatenaFinitaCfg){.src = plain[at], .other = "--to", .cap = CLI_CELLS_POOL}))
+            {
+                field = &to;
+            }
+            else if (cellul.eq(&(CatenaFinitaCfg){.src = plain[at], .other = "--part", .cap = CLI_CELLS_POOL}))
+            {
+                field = &part;
+            }
+            else
+            {
+                field = NULL;
+            }
             if (field == NULL)
             {
                 mmgr_line_put(args->err_msg, s_usage);

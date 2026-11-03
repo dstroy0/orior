@@ -29,7 +29,7 @@ static const char *words_joined(void)
     for (unsigned int at = 0u; at < s_words.count; at += 1u)
     {
         mmgr_line_put(&line, (at > 0u) ? " " : "");
-        mmgr_line_put(&line, s_words.word[at]);
+        mmgr_line_put(&line, s_words.word_text[at]);
     }
     (void)mmgr_line_finish(&line);
     return s_joined;
@@ -135,7 +135,7 @@ void test_a_pass_is_read(void)
 {
     TEST_ASSERT_TRUE(step_read(s_turns, 1u));
     TEST_ASSERT_EQUAL_INT(QUERY_LEARN_PASS, s_step.kind);
-    TEST_ASSERT_EQUAL_STRING("turns", s_step.word);
+    TEST_ASSERT_EQUAL_STRING("turns", s_step.word_text);
     TEST_ASSERT_NULL(s_step.base);
 }
 
@@ -151,7 +151,7 @@ void test_the_costs_pass_is_read(void)
     static const char *const s_costs[1] = {"costs"};
     TEST_ASSERT_TRUE(step_read(s_costs, 1u));
     TEST_ASSERT_EQUAL_INT(QUERY_LEARN_PASS, s_step.kind);
-    TEST_ASSERT_EQUAL_STRING("costs", s_step.word);
+    TEST_ASSERT_EQUAL_STRING("costs", s_step.word_text);
 }
 
 void test_a_seeded_discover_is_read(void)
@@ -159,7 +159,7 @@ void test_a_seeded_discover_is_read(void)
     static const char *const s_seed[2] = {"seed", "listing.sass"};
     TEST_ASSERT_TRUE(step_read(s_seed, 2u));
     TEST_ASSERT_EQUAL_INT(QUERY_LEARN_SEED, s_step.kind);
-    TEST_ASSERT_EQUAL_STRING("listing.sass", s_step.word);
+    TEST_ASSERT_EQUAL_STRING("listing.sass", s_step.word_text);
 }
 
 void test_rounds_through_the_airlock_are_read(void)
@@ -188,7 +188,7 @@ void test_the_clock_with_no_span_uses_its_default(void)
 {
     TEST_ASSERT_TRUE(step_read(s_clock, 1u));
     TEST_ASSERT_EQUAL_INT(QUERY_LEARN_CLOCK, s_step.kind);
-    TEST_ASSERT_EQUAL_STRING(QUERY_CLOCK_FROM, s_step.word);
+    TEST_ASSERT_EQUAL_STRING(QUERY_CLOCK_FROM, s_step.word_text);
     TEST_ASSERT_EQUAL_STRING(QUERY_CLOCK_WORDS, s_step.base);
 }
 
@@ -196,7 +196,7 @@ void test_the_clock_reads_a_input_span(void)
 {
     TEST_ASSERT_TRUE(step_read(s_clock, 3u));
     TEST_ASSERT_EQUAL_INT(QUERY_LEARN_CLOCK, s_step.kind);
-    TEST_ASSERT_EQUAL_STRING("0", s_step.word);
+    TEST_ASSERT_EQUAL_STRING("0", s_step.word_text);
     TEST_ASSERT_EQUAL_STRING("4000", s_step.base);
 }
 
@@ -205,7 +205,7 @@ void test_one_positions_questions_are_read(void)
     static const char *const s_enumerate[2] = {"enumerate", "loop_back_if"};
     TEST_ASSERT_TRUE(step_read(s_enumerate, 2u));
     TEST_ASSERT_EQUAL_INT(QUERY_LEARN_ENUMERATE, s_step.kind);
-    TEST_ASSERT_EQUAL_STRING("loop_back_if", s_step.word);
+    TEST_ASSERT_EQUAL_STRING("loop_back_if", s_step.word_text);
 }
 
 void test_an_enumerate_with_no_position_is_refused(void)

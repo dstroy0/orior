@@ -116,7 +116,15 @@ static int calls_reached_order(const void *one, const void *other)
     {
         return paths;
     }
-    return (s_reached_at[left] < s_reached_at[right]) ? -1 : (s_reached_at[left] > s_reached_at[right]) ? 1 : 0;
+    if (s_reached_at[left] < s_reached_at[right])
+    {
+        return -1;
+    }
+    if (s_reached_at[left] > s_reached_at[right])
+    {
+        return 1;
+    }
+    return 0;
 }
 
 // two files in the order of their paths

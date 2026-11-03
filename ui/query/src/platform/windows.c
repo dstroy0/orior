@@ -120,9 +120,18 @@ int query_process_start(const QueryStartedCtx *args)
     startup.dwFlags = STARTF_USESTDHANDLES;
     startup.hStdInput = input;
     startup.hStdOutput = (output == QUERY_OUTPUT_OWN) ? GetStdHandle(STD_OUTPUT_HANDLE) : write_end;
-    startup.hStdError = (output == QUERY_OUTPUT_OWN)           ? GetStdHandle(STD_ERROR_HANDLE)
-                        : (output == QUERY_OUTPUT_PIPED_ALONE) ? nowhere
-                                                               : write_end;
+    if (output == QUERY_OUTPUT_OWN)
+    {
+        startup.hStdError = GetStdHandle(STD_ERROR_HANDLE);
+    }
+    else if (output == QUERY_OUTPUT_PIPED_ALONE)
+    {
+        startup.hStdError = nowhere;
+    }
+    else
+    {
+        startup.hStdError = write_end;
+    }
     PROCESS_INFORMATION process;
     memor.set(&(MemoriaCfg){.dst = &process, .val = 0, .bytes = sizeof(process)});
     const BOOL made =

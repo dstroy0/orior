@@ -188,22 +188,29 @@ char *cli_pyinstaller_warn(const CliExecutablesSpecCtx *args)
                                 .src = ".",
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = ".", .cap = CLI_CELLS_POOL}) + 1u});
     }
-    const char *const base =
-        (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->spec,
-                    .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->spec, .cap = CLI_CELLS_POOL}),
-                    .byte = '/') != NULL)
-            ? (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->spec,
+    const char *base;
+    if (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->spec,
+                   .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->spec, .cap = CLI_CELLS_POOL}),
+                   .byte = '/') != NULL)
+    {
+        base = EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->spec,
                           .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->spec, .cap = CLI_CELLS_POOL}),
                           .byte = '/') +
-               1)
-        : (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->spec,
-                      .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->spec, .cap = CLI_CELLS_POOL}),
-                      .byte = '\\') != NULL)
-            ? (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->spec,
+               1;
+    }
+    else if (EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->spec,
+                        .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->spec, .cap = CLI_CELLS_POOL}),
+                        .byte = '\\') != NULL)
+    {
+        base = EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = args->spec,
                           .length_value = cellul.len(&(CatenaFinitaCfg){.src = args->spec, .cap = CLI_CELLS_POOL}),
                           .byte = '\\') +
-               1)
-            : args->spec;
+               1;
+    }
+    else
+    {
+        base = args->spec;
+    }
     const char *dot = NULL;
     const unsigned long long dot_end =
         (base[0] != '\0')
@@ -376,12 +383,24 @@ void cli_executables_run_result_advice(const CliExecutablesRootCfg *args)
 #if defined(_WIN32)
     // the exit code read as the unsigned number Windows writes it as
     const unsigned int status = args->has_code ? (unsigned int)args->code : 0u;
-    const char *const reason =
-        (status == 0xC0000135u)   ? "a DLL it loads was found nowhere (0xC0000135)"
-        : (status == 0xC000007Bu) ? "a DLL it loads is built for another processor, or is damaged (0xC000007B)"
-        : (status == 0xC0000139u) ? "a DLL it loads lacks a function it calls, another version than the one it was "
-                                    "built with (0xC0000139)"
-                                  : NULL;
+    const char *reason;
+    if (status == 0xC0000135u)
+    {
+        reason = "a DLL it loads was found nowhere (0xC0000135)";
+    }
+    else if (status == 0xC000007Bu)
+    {
+        reason = "a DLL it loads is built for another processor, or is damaged (0xC000007B)";
+    }
+    else if (status == 0xC0000139u)
+    {
+        reason = "a DLL it loads lacks a function it calls, another version than the one it was "
+                 "built with (0xC0000139)";
+    }
+    else
+    {
+        reason = NULL;
+    }
     if (reason != NULL)
     {
         VerbaLinea line = {print_buf, sizeof(print_buf), 0ULL};

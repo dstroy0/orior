@@ -88,7 +88,18 @@ EMBED_INLINE unsigned int cli_words_get(const SqlDoesCtx *args)
         const unsigned long long size = token.end - token.start;
         if ((token.kind == CLI_SQL_MARK) && (size == 1u))
         {
-            depth += (args->statement[token.start] == '(') ? 1LL : (args->statement[token.start] == ')') ? -1LL : 0LL;
+            if (args->statement[token.start] == '(')
+            {
+                depth += 1LL;
+            }
+            else if (args->statement[token.start] == ')')
+            {
+                depth += -1LL;
+            }
+            else
+            {
+                depth += 0LL;
+            }
         }
         else if (token.kind == CLI_SQL_WORD)
         {

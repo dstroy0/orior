@@ -262,7 +262,18 @@ void cli_recording_on_record(const CliRecordingDapJsonCtx *args)
         has_code = (written[at] >= '0') && (written[at] <= '9');
         code = (code * 10LL) + (long long)(written[at] - '0');
     }
-    code = recording->has_code ? recording->code : (negative ? -code : code);
+    if (recording->has_code)
+    {
+        code = recording->code;
+    }
+    else if (negative)
+    {
+        code = -code;
+    }
+    else
+    {
+        code = code;
+    }
     char line_buf[512];
     VerbaLinea line = {line_buf, sizeof(line_buf), 0ULL};
     if (recording->step_count == 0u)
@@ -315,13 +326,21 @@ void cli_recording_on_record(const CliRecordingDapJsonCtx *args)
                 : first;
     }
     g_cli_replay->at = (first < recording->step_count) ? first : 0u;
-    const char *const reason =
-        (first == recording->step_count) ? "start"
-        : (EMBED_CALL(cli_recording_serial_step_internal.replay_at_raise, CliRecordingSerialStepCtx, .step = first) &&
-           !EMBED_CALL(cli_recording_serial_step_internal.replay_at_breakpoint, CliRecordingSerialStepCtx,
-                       .step = first))
-            ? "exception"
-            : "breakpoint";
+    const char *reason;
+    if (first == recording->step_count)
+    {
+        reason = "start";
+    }
+    else if (EMBED_CALL(cli_recording_serial_step_internal.replay_at_raise, CliRecordingSerialStepCtx, .step = first) &&
+             !EMBED_CALL(cli_recording_serial_step_internal.replay_at_breakpoint, CliRecordingSerialStepCtx,
+                         .step = first))
+    {
+        reason = "exception";
+    }
+    else
+    {
+        reason = "breakpoint";
+    }
     EMBED_CALL(cli_recording_dap_reason_internal.replay_stopped_send, CliRecordingDapReasonCtx, .dap = dap,
                .reason = reason);
 }

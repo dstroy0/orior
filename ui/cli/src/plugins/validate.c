@@ -416,9 +416,19 @@ EMBED_INLINE int validate_text(const ValidateCtx *args)
     const char *const named_back =
         EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = path,
                    .length_value = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), .byte = '\\');
-    const char *const base = ((named_back != NULL) && ((named == NULL) || (named_back > named))) ? named_back + 1
-                             : (named != NULL)                                                   ? named + 1
-                                                                                                 : path;
+    const char *base;
+    if ((named_back != NULL) && ((named == NULL) || (named_back > named)))
+    {
+        base = named_back + 1;
+    }
+    else if (named != NULL)
+    {
+        base = named + 1;
+    }
+    else
+    {
+        base = path;
+    }
 #else
     const char *const base = (named != NULL) ? named + 1 : path;
 #endif

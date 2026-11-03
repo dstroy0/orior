@@ -146,7 +146,15 @@ EMBED_INLINE int edits_position_order(const ServersEditsCtx *args)
     {
         return (args->one.line < args->other.line) ? -1 : 1;
     }
-    return (args->one.col < args->other.col) ? -1 : (args->one.col > args->other.col) ? 1 : 0;
+    if (args->one.col < args->other.col)
+    {
+        return -1;
+    }
+    if (args->one.col > args->other.col)
+    {
+        return 1;
+    }
+    return 0;
 }
 
 // two edits by their file, then their span, then the order they were given in

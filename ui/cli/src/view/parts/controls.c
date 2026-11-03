@@ -59,7 +59,8 @@ EMBED_INLINE void controls_box_blur(const ControlsCtx *args)
     unsigned int sum = 0u;
     for (unsigned int at = 0u; at < args->box; at += 1u)
     {
-        sum += args->line[((at > half) ? ((at - half < args->count) ? at - half : args->count - 1u) : 0u) * args->step];
+        const unsigned int past_half = (at - half < args->count) ? at - half : args->count - 1u;
+        sum += args->line[((at > half) ? past_half : 0u) * args->step];
     }
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
@@ -83,14 +84,32 @@ EMBED_INLINE int controls_in_round(const ControlsCtx *args)
     {
         return 0;
     }
-    const int across =
-        (args->x < args->radius)
-            ? args->radius - args->x
-            : ((args->x >= args->pixel_width - args->radius) ? args->x - (args->pixel_width - args->radius) + 1 : 0);
-    const int down =
-        (args->y < args->radius)
-            ? args->radius - args->y
-            : ((args->y >= args->pixel_height - args->radius) ? args->y - (args->pixel_height - args->radius) + 1 : 0);
+    int across;
+    if (args->x < args->radius)
+    {
+        across = args->radius - args->x;
+    }
+    else if (args->x >= args->pixel_width - args->radius)
+    {
+        across = args->x - (args->pixel_width - args->radius) + 1;
+    }
+    else
+    {
+        across = 0;
+    }
+    int down;
+    if (args->y < args->radius)
+    {
+        down = args->radius - args->y;
+    }
+    else if (args->y >= args->pixel_height - args->radius)
+    {
+        down = args->y - (args->pixel_height - args->radius) + 1;
+    }
+    else
+    {
+        down = 0;
+    }
     return (across == 0) || (down == 0) || (((across * across) + (down * down)) <= (args->radius * args->radius));
 }
 
@@ -178,7 +197,19 @@ void gui_controls_shadow_free(const GuiChromeRasterCfg *args)
 // `color` at `share`, a number of GUI_FIXED_ONE, of its alpha
 EMBED_INLINE GuiColor controls_fade(const ControlsCtx *args)
 {
-    const int within = (args->share < 0) ? 0 : ((args->share > GUI_FIXED_ONE) ? GUI_FIXED_ONE : args->share);
+    int within;
+    if (args->share < 0)
+    {
+        within = 0;
+    }
+    else if (args->share > GUI_FIXED_ONE)
+    {
+        within = GUI_FIXED_ONE;
+    }
+    else
+    {
+        within = args->share;
+    }
     // an alpha by a share of GUI_FIXED_ONE, rounded, is a byte
     return (args->color & 0x00ffffffu) |
            ((GuiColor)((((int)GUI_ALPHA_OF(args->color) * within) + (GUI_FIXED_ONE / 2)) / GUI_FIXED_ONE) << 24u);

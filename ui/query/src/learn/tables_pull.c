@@ -217,9 +217,18 @@ int query_read_state(const QueryLoopsErrMsgWordsCountModeCfg *args)
     {
         return 0;
     }
-    *mode = (cellul.eq(&(CatenaFinitaCfg){.src = args->words[0], .other = "read", .cap = CLI_CELLS_POOL}))     ? "class"
-            : (cellul.eq(&(CatenaFinitaCfg){.src = args->words[0], .other = "fields", .cap = CLI_CELLS_POOL})) ? "spans"
-                                                                                                               : NULL;
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->words[0], .other = "read", .cap = CLI_CELLS_POOL}))
+    {
+        *mode = "class";
+    }
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = args->words[0], .other = "fields", .cap = CLI_CELLS_POOL}))
+    {
+        *mode = "spans";
+    }
+    else
+    {
+        *mode = NULL;
+    }
     if (*mode == NULL)
     {
         return 0;
@@ -242,7 +251,19 @@ int query_read_state(const QueryLoopsErrMsgWordsCountModeCfg *args)
         const int banked =
             (tail != 0u) &&
             (cellul.eq(&(CatenaFinitaCfg){.src = args->words[2], .other = "--bank", .cap = CLI_CELLS_POOL}));
-        const unsigned int encodings = (banked && (tail >= 2u)) ? (tail - 2u) : (banked ? 0u : tail);
+        unsigned int encodings;
+        if (banked && (tail >= 2u))
+        {
+            encodings = tail - 2u;
+        }
+        else if (banked)
+        {
+            encodings = 0u;
+        }
+        else
+        {
+            encodings = tail;
+        }
         if ((banked && (tail < 2u)) || (encodings < 2u) || ((encodings % 2u) != 0u))
         {
             mmgr_line_put(args->err_msg,

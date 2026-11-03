@@ -152,12 +152,19 @@ CliDbOpen *cli_db_connect(const CliDbRootCfg *args)
         EMBED_CALL(cli_db_err_msg.close, CliDbErrMsgCfg, .open = open);
         return NULL;
     }
-    const char *const version =
-        (open->query.kind == CLI_DB_LINK_PG)
-            ? EMBED_CALL(cli_pg_name.parameter, CliPgNameCfg, .pg_read = open->query.pg, .name = "server_version")
-        : (open->query.kind == CLI_DB_LINK_MY)
-            ? EMBED_CALL(cli_mysql_cancel.version, CliMysqlCancelCfg, .mysql = open->query.my)
-            : open->query.lite->version;
+    const char *version;
+    if (open->query.kind == CLI_DB_LINK_PG)
+    {
+        version = EMBED_CALL(cli_pg_name.parameter, CliPgNameCfg, .pg_read = open->query.pg, .name = "server_version");
+    }
+    else if (open->query.kind == CLI_DB_LINK_MY)
+    {
+        version = EMBED_CALL(cli_mysql_cancel.version, CliMysqlCancelCfg, .mysql = open->query.my);
+    }
+    else
+    {
+        version = open->query.lite->version;
+    }
     (void)cellul.copy(&(CatenaFinitaCfg){
         .dst = open->version, .src = (version != NULL) ? version : "", .cap = sizeof(open->version)});
     open->has_stop =

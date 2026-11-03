@@ -426,10 +426,22 @@ int cli_deploy_run(const CliDeployRootCfg *args)
             int clean = 0;
             const unsigned long long now = cli_wall_milliseconds() / 1000u;
             // a commit's time before 1970 is taken as 1970
-            s_time = EMBED_CALL(cli_git_root_commit.head, CliGitRootCommitCfg, .root = root, .commit = commit,
-                                .when = &when, .clean = &clean)
-                         ? ((when > 0) ? (unsigned long long)when : 0ULL)
-                         : now;
+            if (EMBED_CALL(cli_git_root_commit.head, CliGitRootCommitCfg, .root = root, .commit = commit, .when = &when,
+                           .clean = &clean))
+            {
+                if (when > 0)
+                {
+                    s_time = (unsigned long long)when;
+                }
+                else
+                {
+                    s_time = 0ULL;
+                }
+            }
+            else
+            {
+                s_time = now;
+            }
             char release[32];
             VerbaLinea release_line = {release, sizeof(release), 0ULL};
             EMBED_CALL(cli_deploy_out_seconds_internal.release_name, CliDeployOutSecondsCtx, .seconds = now,

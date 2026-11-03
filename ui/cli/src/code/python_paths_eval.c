@@ -84,7 +84,19 @@ void cli_py_parent(const CliPythonPathsOutCtx *args)
     }
     // the slash lies in the path, at or past its start
     const unsigned long long at = (unsigned long long)(last - args->path);
-    const unsigned long long length = (at == 0ULL) ? 1ULL : (((at == 2ULL) && (args->path[1] == ':')) ? 3ULL : at);
+    unsigned long long length;
+    if (at == 0ULL)
+    {
+        length = 1ULL;
+    }
+    else if ((at == 2ULL) && (args->path[1] == ':'))
+    {
+        length = 3ULL;
+    }
+    else
+    {
+        length = at;
+    }
     mmgr_line_put_n(args->out, args->path, length);
 }
 

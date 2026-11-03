@@ -140,7 +140,19 @@ int gui_problems_wheel(const GuiProblemsRowFrameCfg *args)
         (int)EMBED_CALL(gui_problems_row_frame.rows, GuiProblemsRowFrameCfg, .problems = args->problems_out);
     const int most = (count > displayed) ? count - displayed : 0;
     const int required = (int)args->problems_out->scroll + args->rows;
-    const int clamped = (required < 0) ? 0 : ((required > most) ? most : required);
+    int clamped;
+    if (required < 0)
+    {
+        clamped = 0;
+    }
+    else if (required > most)
+    {
+        clamped = most;
+    }
+    else
+    {
+        clamped = required;
+    }
     // the scroll clamped is not negative
     if ((unsigned int)clamped == args->problems_out->scroll)
     {

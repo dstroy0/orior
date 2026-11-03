@@ -223,8 +223,9 @@ EMBED_INLINE unsigned int cli_string(const PythonPathsParseCtx *args)
             {
                 const unsigned int escaped = g_cli_py.letter[g_cli_py.at];
                 g_cli_py.at += 1u;
+                const int unescaped = (escaped == 't') ? '\t' : escaped;
                 EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &line,
-                           .letter = (escaped == 'n') ? '\n' : ((escaped == 't') ? '\t' : escaped));
+                           .letter = (escaped == 'n') ? '\n' : unescaped);
             }
             continue;
         }

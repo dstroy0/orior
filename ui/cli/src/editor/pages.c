@@ -796,7 +796,19 @@ EMBED_INLINE CliPagesPositioned pages_move_position(const PagesCtx *args)
                                               .other = (args->total != 0ULL) ? (args->total - 1ULL) : 0ULL);
     const unsigned long long down = (args->follows && (top > args->last)) ? (top - args->last) : 0ULL;
     const unsigned long long up = (args->follows && (top < args->last)) ? (args->last - top) : 0ULL;
-    const unsigned long long ahead = (down != 0ULL) ? (top + down) : ((top > up) ? (top - up) : 0ULL);
+    unsigned long long ahead;
+    if (down != 0ULL)
+    {
+        ahead = top + down;
+    }
+    else if (top > up)
+    {
+        ahead = top - up;
+    }
+    else
+    {
+        ahead = 0ULL;
+    }
     const int far = (down + up) > args->view->rows;
     const unsigned long long low = (far || (ahead < top)) ? ahead : top;
     const unsigned long long high = (far || (ahead > top)) ? ahead : top;

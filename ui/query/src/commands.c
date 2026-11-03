@@ -280,7 +280,18 @@ int query_run(const QueryCfg *args)
     }
     else
     {
-        s_context.leave = supplied ? leave : (query_terminal_is() ? QUERY_LEAVE_PROMPT : QUERY_LEAVE_ALL);
+        if (supplied)
+        {
+            s_context.leave = leave;
+        }
+        else if (query_terminal_is())
+        {
+            s_context.leave = QUERY_LEAVE_PROMPT;
+        }
+        else
+        {
+            s_context.leave = QUERY_LEAVE_ALL;
+        }
         // the loop's own lines go to its run as `<loop>.console`
         VerbaLinea console = {s_console, sizeof(s_console), 0ULL};
         mmgr_line_put(&console, s_words[0]);

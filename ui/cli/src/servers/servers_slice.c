@@ -354,13 +354,18 @@ int cli_servers_slice_send(const CliServersPathSizeRootCtx *args)
             : (EMBED_CALL(cli_lsp_path_out.version, CliLspPathOutCfg, .lsp = args->server, .path = path) + 1ULL);
     int fresh = 0;
     unsigned long long slice_size = 0ULL;
-    char *const slice =
-        ((args->root != NULL) || known)
-            ? EMBED_CALL(slice_cut, ServersSliceCtx, .root = (args->root != NULL) ? args->root : stored_root,
-                         .path = path, .key = key, .head = &head, .opener = opener, .text = text, .size = args->size,
-                         .version = version, .always = args->id != NULL, .fresh = &fresh, .slice_size = &slice_size,
-                         .err_msg = err_msg)
-            : NULL;
+    char *slice;
+    if ((args->root != NULL) || known)
+    {
+        slice = EMBED_CALL(slice_cut, ServersSliceCtx, .root = (args->root != NULL) ? args->root : stored_root,
+                           .path = path, .key = key, .head = &head, .opener = opener, .text = text, .size = args->size,
+                           .version = version, .always = args->id != NULL, .fresh = &fresh, .slice_size = &slice_size,
+                           .err_msg = err_msg);
+    }
+    else
+    {
+        slice = NULL;
+    }
     const int sent =
         (slice != NULL) &&
         (!fresh || ((args->id != NULL)
@@ -668,7 +673,18 @@ int cli_servers_slice_out(const CliServersPathLineFromCtx *args)
             (*line < head.lines)
                 ? EMBED_CALL(slice_line_at, ServersSliceCtx, .stored = stored, .head_read = &head, .at = *line)
                 : (CliServersSliceLine){CLI_JSON_NONE, 0u};
-        moved = (one.path == CLI_JSON_NONE) ? 0 : ((one.path == 0u) ? 1 : 2);
+        if (one.path == CLI_JSON_NONE)
+        {
+            moved = 0;
+        }
+        else if (one.path == 0u)
+        {
+            moved = 1;
+        }
+        else
+        {
+            moved = 2;
+        }
         *line = one.line;
         if (moved == 2)
         {

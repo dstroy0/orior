@@ -88,7 +88,19 @@ static int cli_settings_off(void)
 
 int cli_net_is_disable(void)
 {
-    const int disabled = (s_disabled == 1) ? 0 : (s_disabled == 2) ? 1 : cli_settings_off();
+    int disabled;
+    if (s_disabled == 1)
+    {
+        disabled = 0;
+    }
+    else if (s_disabled == 2)
+    {
+        disabled = 1;
+    }
+    else
+    {
+        disabled = cli_settings_off();
+    }
     return disabled;
 }
 

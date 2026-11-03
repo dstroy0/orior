@@ -427,11 +427,23 @@ static unsigned int system_mods_of_keyboard(void)
 // a modifier key's message applied to the modifier keys down: 1 where the key is a modifier, else 0
 EMBED_INLINE int system_modifier_key(const SystemWindowsCtx *args)
 {
-    const unsigned int bit =
-        ((args->key == VK_SHIFT) || (args->key == VK_LSHIFT) || (args->key == VK_RSHIFT))         ? GUI_MOD_SHIFT
-        : ((args->key == VK_CONTROL) || (args->key == VK_LCONTROL) || (args->key == VK_RCONTROL)) ? GUI_MOD_CONTROL
-        : ((args->key == VK_MENU) || (args->key == VK_LMENU) || (args->key == VK_RMENU))          ? GUI_MOD_ALT
-                                                                                                  : 0u;
+    unsigned int bit;
+    if ((args->key == VK_SHIFT) || (args->key == VK_LSHIFT) || (args->key == VK_RSHIFT))
+    {
+        bit = GUI_MOD_SHIFT;
+    }
+    else if ((args->key == VK_CONTROL) || (args->key == VK_LCONTROL) || (args->key == VK_RCONTROL))
+    {
+        bit = GUI_MOD_CONTROL;
+    }
+    else if ((args->key == VK_MENU) || (args->key == VK_LMENU) || (args->key == VK_RMENU))
+    {
+        bit = GUI_MOD_ALT;
+    }
+    else
+    {
+        bit = 0u;
+    }
     if (bit == 0u)
     {
         return 0;

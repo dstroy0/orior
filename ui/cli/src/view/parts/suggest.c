@@ -119,7 +119,18 @@ void gui_suggest_draw(const GuiSuggestRasterCfg *args)
     int list_width = (int)(widest + 0.5f) + (2 * pad_x) + mark + gap;
     const int min = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_SUGGEST_MIN, .scale = scale);
     const int most = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_SUGGEST_MAX, .scale = scale);
-    list_width = (list_width < min) ? min : ((list_width > most) ? most : list_width);
+    if (list_width < min)
+    {
+        list_width = min;
+    }
+    else if (list_width > most)
+    {
+        list_width = most;
+    }
+    else
+    {
+        list_width = list_width;
+    }
     // the rows are few: their height is far inside what an int represents
     const int list_height = ((int)rows * row_height) + (2 * pad_y);
     // the row chosen is always among the rows shown

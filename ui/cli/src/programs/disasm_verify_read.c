@@ -389,12 +389,17 @@ int cli_disasm_ghidra_read(const CliDisasmVerifySizeCfg *args)
                         EMBED_CALL(read_word, DisasmVerifyReadCtx, .text = args->text, .end = end, .at = &cursor);
                     // a raw run is "?" then its bytes as one hex string, read as a unit with no mnemonic
                     const int raw = (word_length == 1ULL) && (args->text[word_text] == '?');
-                    CliDisasmInstruction *const unit =
-                        (word_length > 0ULL)
-                            ? EMBED_CALL(read_append, DisasmVerifyReadCtx, .read_state = args->read_state,
-                                         .address = address, .mnemonic = args->text + word_text,
-                                         .length = raw ? 0ULL : word_length)
-                            : NULL;
+                    CliDisasmInstruction *unit;
+                    if (word_length > 0ULL)
+                    {
+                        unit = EMBED_CALL(read_append, DisasmVerifyReadCtx, .read_state = args->read_state,
+                                          .address = address, .mnemonic = args->text + word_text,
+                                          .length = raw ? 0ULL : word_length);
+                    }
+                    else
+                    {
+                        unit = NULL;
+                    }
                     if ((word_length > 0ULL) && (unit == NULL))
                     {
                         return found;

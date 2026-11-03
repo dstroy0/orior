@@ -219,7 +219,8 @@ int cli_spawn_piped_as(const CliWordsErrMsgCtx *args)
 EMBED_INLINE unsigned short cli_terminal_extent(const PosixSpawnCtx *args)
 {
     // a count saved between 2 and the most a short counts is what an unsigned short stores
-    return (unsigned short)((args->count < 2u) ? 2u : ((args->count > 0x7fffu) ? 0x7fffu : args->count));
+    const unsigned int bounded = (args->count > 0x7fffu) ? 0x7fffu : args->count;
+    return (unsigned short)((args->count < 2u) ? 2u : bounded);
 }
 
 // the name of the terminal the pseudo-terminal `leader` leads into `name`, sized for `capacity`: 1, or 0 where the

@@ -305,14 +305,21 @@ const char *cli_latex_engine_get(const CliLatexCfg *args)
                 fits = 0;
             }
         }
-        const unsigned long long head =
-            ((len >= 12ULL) &&
-             EMBED_CALL(latex_by_name, LatexTextCtx, .text = engine_name, .length = 12ULL, .with = "!texprogram="))
-                ? 12ULL
-            : ((len >= 15ULL) &&
-               EMBED_CALL(latex_by_name, LatexTextCtx, .text = engine_name, .length = 15ULL, .with = "!texts-program="))
-                ? 15ULL
-                : 0ULL;
+        unsigned long long head;
+        if ((len >= 12ULL) &&
+            EMBED_CALL(latex_by_name, LatexTextCtx, .text = engine_name, .length = 12ULL, .with = "!texprogram="))
+        {
+            head = 12ULL;
+        }
+        else if ((len >= 15ULL) && EMBED_CALL(latex_by_name, LatexTextCtx, .text = engine_name, .length = 15ULL,
+                                              .with = "!texts-program="))
+        {
+            head = 15ULL;
+        }
+        else
+        {
+            head = 0ULL;
+        }
         if (!fits || (head == 0ULL))
         {
             continue;

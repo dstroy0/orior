@@ -968,10 +968,8 @@ void *cli_model_menus_alloc(const CliModelCtx *args)
                 cellul.len(&(CatenaFinitaCfg){.src = item->keys, .cap = CLI_LABEL_MAX_LEN}) + 1ULL;
             memor.cpy(&(MemoriaCfg){.dst = text, .src = item->label, .bytes = label});
             memor.cpy(&(MemoriaCfg){.dst = text + label, .src = item->keys, .bytes = keys});
-            row[at] = (CliMenuRow){item->line           ? CLI_MENU_ROW_LINE
-                                   : (item->list != 0u) ? CLI_MENU_ROW_MORE
-                                                        : CLI_MENU_ROW_ITEM,
-                                   text, text + label,
+            const unsigned int listed_kind = (item->list != 0u) ? CLI_MENU_ROW_MORE : CLI_MENU_ROW_ITEM;
+            row[at] = (CliMenuRow){item->line ? CLI_MENU_ROW_LINE : listed_kind, text, text + label,
                                    !item->line && (item->list == 0u) &&
                                        EMBED_CALL(commands_item_disabled, ControllerCommandsCtx, .item = item)};
             text += label + keys;

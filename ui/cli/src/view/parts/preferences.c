@@ -111,11 +111,20 @@ void gui_preference_sentence(const GuiPreferencesValuesCfg *args)
     }
     else
     {
-        const unsigned int percent =
-            (args->row == GUI_PREFERENCE_ZOOM)
-                ? EMBED_CALL(gui_preferences_step.preference_zoom_percent, GuiPreferencesStepCfg,
-                             .step = args->values->zoom_step)
-                : ((args->row == GUI_PREFERENCE_BAR) ? args->values->bar_percent : args->values->editor_percent);
+        unsigned int percent;
+        if (args->row == GUI_PREFERENCE_ZOOM)
+        {
+            percent = EMBED_CALL(gui_preferences_step.preference_zoom_percent, GuiPreferencesStepCfg,
+                                 .step = args->values->zoom_step);
+        }
+        else if (args->row == GUI_PREFERENCE_BAR)
+        {
+            percent = args->values->bar_percent;
+        }
+        else
+        {
+            percent = args->values->editor_percent;
+        }
         mmgr_line_decimal(&line, percent, 1u);
         mmgr_line_ch(&line, '%');
     }
@@ -557,7 +566,19 @@ int gui_preferences_wheel(const GuiPreferencesPaletteCfg *args)
     const unsigned int most = (total > in_view) ? total - in_view : 0u;
     // the first row and the rows moved are far inside what an int represents
     const int required = (int)args->preferences->top + args->rows;
-    const unsigned int top = (required < 0) ? 0u : (((unsigned int)required > most) ? most : (unsigned int)required);
+    unsigned int top;
+    if (required < 0)
+    {
+        top = 0u;
+    }
+    else if ((unsigned int)required > most)
+    {
+        top = most;
+    }
+    else
+    {
+        top = (unsigned int)required;
+    }
     const int moved = top != args->preferences->top;
     args->preferences->top = top;
     return moved;

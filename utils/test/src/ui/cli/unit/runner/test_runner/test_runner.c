@@ -93,7 +93,7 @@ static int words_split(const char *text)
     for (unsigned int at = 0u; at < s_words.count; at += 1u)
     {
         mmgr_line_put(&line, (at > 0u) ? "|" : "");
-        mmgr_line_put(&line, s_words.word[at]);
+        mmgr_line_put(&line, s_words.word_text[at]);
     }
     (void)mmgr_line_finish(&line);
     return (s_words.count > 0u) ? 1 : -1;
