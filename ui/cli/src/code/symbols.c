@@ -835,15 +835,9 @@ void cli_tree_branches_walk(const CliSymbolsRootCfg *args)
         EMBED_CALL(cli_symbols.languages_free, CliSymbolsCfg, .read = languages);
         return;
     }
-    walk->languages = languages;
-    walk->mounts = 0u;
-    walk->read_text = NULL;
-    walk->text_capacity = 0u;
-    walk->read_symbols = NULL;
-    walk->symbol_capacity = 0u;
-    walk->read_count = 0u;
-    walk->read_used = 0u;
-    walk->kinds = 0u;
+    // a temporary cell is handed out as the last cell there left it, and every member the walk does not set reads 0:
+    // no mounts, and nothing of theirs for the walk's free to release
+    *walk = (CliTreeWalk){.languages = languages};
     walk->file_bytes = g_cli_cells->temporary_buf_alloc(CLI_SYMBOLS_LARGEST + CLI_FILE_SLACK, &g_cli_code_cells);
     for (unsigned int at = 0u; (s_generation == generation) && (at < args->count); at += 1u)
     {

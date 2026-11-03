@@ -320,3 +320,22 @@ void test_a_file_added_to_a_walked_tree_joins_unless_a_walk_skips_its_folder(voi
     TEST_ASSERT_FALSE(EMBED_CALL(cli_symbols_path_name.tree_has_file, CliSymbolsPathNameCfg, .path = "target/more.c"));
 }
 
+void test_a_changed_branch_walked_releases_no_cell_it_did_not_take(void)
+{
+    static const char *const s_changed[1] = {"src/a.c"};
+    const unsigned long long words = 1ull << 22u;
+    repository_listing("trunk_walked");
+    void *const standing = g_cli_cells->persistent_buf_alloc(64u, &g_cli_code_cells);
+    TEST_ASSERT_NOT_NULL(standing);
+    void **const stale = g_cli_cells->temporary_buf_alloc(words * sizeof(*stale), &g_cli_code_cells);
+    TEST_ASSERT_NOT_NULL(stale);
+    for (unsigned long long at = 0ull; at < words; at += 1ull)
+    {
+        stale[at] = standing;
+    }
+    g_cli_cells->persistent_buf_release(stale, &g_cli_code_cells);
+    EMBED_CALL(cli_symbols_root.tree_branches_walk, CliSymbolsRootCfg, .root = s_root, .paths = s_changed, .count = 1u);
+    TEST_ASSERT_EQUAL_PTR(&g_cli_code_cells, EMBED_CALL(cli_cells_table.cell_owner, CliCellsCfg, .cell = standing));
+    g_cli_cells->persistent_buf_release(standing, &g_cli_code_cells);
+}
+

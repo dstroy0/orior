@@ -36,6 +36,7 @@ extern void test_changed_rules_remove_what_they_now_leave_out(void);
 extern void test_changed_rules_leave_what_remains_in_its_cell(void);
 extern void test_a_tree_git_cannot_read_is_walked_end_the_folders_a_walk_skips(void);
 extern void test_a_file_added_to_a_walked_tree_joins_unless_a_walk_skips_its_folder(void);
+extern void test_a_changed_branch_walked_releases_no_cell_it_did_not_take(void);
 
 
 /*=======Mock Management=====*/
@@ -122,6 +123,7 @@ int main(void)
   run_test(test_changed_rules_leave_what_remains_in_its_cell, "test_changed_rules_leave_what_remains_in_its_cell", 285);
   run_test(test_a_tree_git_cannot_read_is_walked_end_the_folders_a_walk_skips, "test_a_tree_git_cannot_read_is_walked_end_the_folders_a_walk_skips", 296);
   run_test(test_a_file_added_to_a_walked_tree_joins_unless_a_walk_skips_its_folder, "test_a_file_added_to_a_walked_tree_joins_unless_a_walk_skips_its_folder", 308);
+  run_test(test_a_changed_branch_walked_releases_no_cell_it_did_not_take, "test_a_changed_branch_walked_releases_no_cell_it_did_not_take", 323);
 
   return UNITY_END();
 }
