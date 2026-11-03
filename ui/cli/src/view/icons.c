@@ -707,7 +707,6 @@ EMBED_INLINE int pen_command(const IconsCtx *args)
                    .x2 = base_x + values[2], .y2 = base_y + values[3], .x = base_x + values[4],
                    .y = base_y + values[5]);
         return 1;
-        break;
     }
     case 'S': {
         if (!EMBED_CALL(icons_numbers, IconsCtx, .at = args->at, .values = values, .count = 4u))
@@ -719,7 +718,6 @@ EMBED_INLINE int pen_command(const IconsCtx *args)
         EMBED_CALL(pen_curve, IconsCtx, .pen = args->pen, .x1 = x1, .y1 = y1, .x2 = base_x + values[0],
                    .y2 = base_y + values[1], .x = base_x + values[2], .y = base_y + values[3]);
         return 1;
-        break;
     }
     case 'A': {
         if (!EMBED_CALL(icons_numbers, IconsCtx, .at = args->at, .values = values, .count = 7u))
@@ -733,7 +731,6 @@ EMBED_INLINE int pen_command(const IconsCtx *args)
     }
     default: {
         return 0;
-        break;
     }
     }
     args->pen->has_control = 0;
@@ -778,10 +775,6 @@ EMBED_INLINE void pen_path(const IconsCtx *args)
         else if (command == 'm')
         {
             command = 'l';
-        }
-        else
-        {
-            command = command;
         }
     }
 }

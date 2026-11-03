@@ -270,10 +270,6 @@ void cli_recording_on_record(const CliRecordingDapJsonCtx *args)
     {
         code = -code;
     }
-    else
-    {
-        code = code;
-    }
     char line_buf[512];
     VerbaLinea line = {line_buf, sizeof(line_buf), 0ULL};
     if (recording->step_count == 0u)

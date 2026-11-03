@@ -303,18 +303,17 @@ static void complete_schemas_at(const SchemaCompleteCtx *args)
                                     .name = "prefixItems");
     const unsigned int items =
         EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json, .map = args->schema, .name = "items");
-    if (tuple != CLI_JSON_NONE)
+    if (tuple == CLI_JSON_NONE)
     {
-        tuple = tuple;
-    }
-    else if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = items,
-                        .kind = CFG_JSON_ARRAY))
-    {
-        tuple = items;
-    }
-    else
-    {
-        tuple = CLI_JSON_NONE;
+        if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = items,
+                       .kind = CFG_JSON_ARRAY))
+        {
+            tuple = items;
+        }
+        else
+        {
+            tuple = CLI_JSON_NONE;
+        }
     }
     const unsigned int positioned = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                                .json_read = json, .array = tuple, .index = step->index);

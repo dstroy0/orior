@@ -231,7 +231,7 @@ int cli_program_own(const CliPathCapacityCtx *args)
 {
 #if defined(__linux__)
     // readlink ends nothing with a 0, and the capacity's last byte stays the 0 written here
-    memor.set(&(MemoriaCfg){.dst = args->path_out, .val = 0, .bytes = (size_t)args->capacity_bytes});
+    memor.set(&(MemoriaCfg){.dst = args->path_out, .val = 0, .bytes = args->capacity_bytes});
     return readlink("/proc/self/exe", args->path_out, args->capacity_bytes - 1u) > 0;
 #elif defined(__APPLE__)
     // a capacity is far below what a uint32_t counts

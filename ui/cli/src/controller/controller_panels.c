@@ -820,12 +820,14 @@ EMBED_INLINE ControllerCompletion *panels_completion_alloc(const ControllerPanel
             const char *const label = args->words->text + args->words->at[at];
             const unsigned long long label_length = args->words->length[at];
             int supplied_already = 0;
-            for (unsigned int other = 0u; !supplied_already && (other < supplied); other += 1u)
+            unsigned int other = 0u;
+            while (!supplied_already && (other < supplied))
             {
                 supplied_already =
                     (list->item[other].label_length == label_length) &&
                     (memor.cmp(&(MemoriaCfg){.src = list->item[other].label, .other = label, .bytes = label_length}) ==
                      0);
+                other += 1u;
             }
             if (supplied_already)
             {

@@ -243,7 +243,11 @@ archived() {
     shift
     rm -f "$archive"
     listed_into "$archive.objects" "$@"
-    ( cd "$TOP" && "$AR" rcs "${archive#"$TOP/"}" "@${archive#"$TOP/"}.objects" )
+    # Apple's ar takes no list file, and on Windows the words would not fit a command line
+    case "$(uname -s)" in
+        Darwin) ( cd "$TOP" && xargs "$AR" rcs "${archive#"$TOP/"}" < "${archive#"$TOP/"}.objects" ) ;;
+        *) ( cd "$TOP" && "$AR" rcs "${archive#"$TOP/"}" "@${archive#"$TOP/"}.objects" ) ;;
+    esac
 }
 
 OUT="$TOP/build/cli/$TARGET$BUILD_SUFFIX"

@@ -210,10 +210,6 @@ EMBED_INLINE unsigned int spans_statement_first(const SymbolsSpansCtx *args)
         {
             depth = depth - 1u;
         }
-        else
-        {
-            depth = depth;
-        }
         if ((depth > 0u) || opens)
         {
             continue;

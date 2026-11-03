@@ -266,11 +266,11 @@ EMBED_INLINE unsigned long long found_against(const ToolchainsChosenCtx *args)
                              .changed = &stamp[1]);
         }
         // each number's bytes taken low to high
-        for (unsigned int word = 0u; word < 2u; word += 1u)
+        for (unsigned int number = 0u; number < 2u; number += 1u)
         {
             for (unsigned int shift = 0u; shift < 64u; shift += 8u)
             {
-                hash = (hash ^ ((stamp[word] >> shift) & 0xffULL)) * 1099511628211ULL;
+                hash = (hash ^ ((stamp[number] >> shift) & 0xffULL)) * 1099511628211ULL;
             }
         }
     }

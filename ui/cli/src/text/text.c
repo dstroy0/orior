@@ -729,20 +729,23 @@ unsigned long long cli_text_prefix(const CliTextSizeFromU64sCfg *args)
 unsigned long long cli_text_trimmed_end(const CliTextSizeByteCfg *args)
 {
     unsigned long long end = args->size;
-    while (end > 0u)
+    int going = 1;
+    while (going && (end > 0u))
     {
         end = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = args->text, .at = end,
                          .set = CLI_TEXT_WHITE);
         if (end == 0ULL)
         {
-            break;
+            going = 0;
+            continue;
         }
         unsigned long long length = 0ULL;
         if (!EMBED_CALL(cli_text_table.white, CliTextCfg,
                         .letter = EMBED_CALL(cli_text_length.letter_before, CliTextLengthCfg, .text = args->text,
                                              .end_value = end, .length = &length)))
         {
-            break;
+            going = 0;
+            continue;
         }
         end -= length;
     }

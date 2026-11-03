@@ -115,10 +115,6 @@ EMBED_INLINE void cli_type_between(const SymbolsHeadsCtx *args)
         {
             depth = depth - 1u;
         }
-        else
-        {
-            depth = depth;
-        }
         const int names = (is & CLI_LEAF_TYPE) != 0u;
         EMBED_CALL(cli_type_append, SymbolsHeadsCtx, .read = read, .leaf = leaf, .spaced = named && names,
                    .type = args->type, .at = &at);

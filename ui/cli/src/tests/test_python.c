@@ -163,10 +163,6 @@ void cli_test_shares(const CliTestRunsRunCountCtx *args)
             shares = 1u;
         }
     }
-    else
-    {
-        shares = shares;
-    }
     shares = (shares > CLI_TEST_WORKERS) ? CLI_TEST_WORKERS : shares;
     unsigned int share_of[CLI_TEST_NAMED];
     unsigned int sizes[CLI_TEST_WORKERS];

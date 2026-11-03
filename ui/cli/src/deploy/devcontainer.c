@@ -56,11 +56,7 @@ void cli_plain_json(const CliDevcontainerTextCfg *args)
             {
                 at = closed;
             }
-            else if (at > (args->size - 1ULL))
-            {
-                at = at;
-            }
-            else
+            else if (at <= (args->size - 1ULL))
             {
                 at = args->size - 1ULL;
             }

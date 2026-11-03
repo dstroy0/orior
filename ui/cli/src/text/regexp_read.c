@@ -235,7 +235,6 @@ EMBED_INLINE unsigned int cli_quantified(const RegexpReadCtx *args)
     }
     default: {
         return args->atom;
-        break;
     }
     }
     reader->at += 1u;

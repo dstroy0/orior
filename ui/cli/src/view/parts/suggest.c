@@ -127,10 +127,6 @@ void gui_suggest_draw(const GuiSuggestRasterCfg *args)
     {
         list_width = most;
     }
-    else
-    {
-        list_width = list_width;
-    }
     // the rows are few: their height is far inside what an int represents
     const int list_height = ((int)rows * row_height) + (2 * pad_y);
     // the row chosen is always among the rows shown

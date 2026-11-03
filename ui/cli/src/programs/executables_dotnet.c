@@ -142,17 +142,16 @@ static void cli_version_each(const CliEachNameIsFolderCfg *args)
             order = 0;
         }
     }
-    if (order != 0)
+    if (order == 0)
     {
-        order = order;
-    }
-    else if (count < framework->requested_count)
-    {
-        order = -1;
-    }
-    else
-    {
-        order = 0;
+        if (count < framework->requested_count)
+        {
+            order = -1;
+        }
+        else
+        {
+            order = 0;
+        }
     }
     framework->satisfied = framework->satisfied || (order >= 0);
 }

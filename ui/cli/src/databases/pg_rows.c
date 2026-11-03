@@ -217,7 +217,6 @@ int cli_pg_start(const CliPgFailureSqlCfg *args)
                               .bytes = cellul.len(&(CatenaFinitaCfg){.src = "text", .cap = CLI_CELLS_POOL}) + 1u});
             args->pg->head.columns[0].numeric = 0;
             return 1;
-            break;
         }
         case 'Z': {
             args->pg->status = (args->pg->size > 0u) ? (char)args->pg->message[0] : 'I';
@@ -228,7 +227,6 @@ int cli_pg_start(const CliPgFailureSqlCfg *args)
                 return 0;
             }
             return 1;
-            break;
         }
         default: {
             break;
@@ -314,7 +312,6 @@ int cli_pg_rows(const CliPgFailureCfg *args)
             }
             *done = 1;
             return 1;
-            break;
         }
         default: {
             break;

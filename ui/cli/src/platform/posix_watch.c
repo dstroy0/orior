@@ -289,9 +289,9 @@ EMBED_INLINE void inotify_record_emit(const PosixWatchCtx *args)
         EMBED_CALL(s_watch.emit, CliEachPathKindCfg, .context = s_watch.context, .path = "", .kind = CLI_CHANGE_LOST);
         return;
     }
-    // a number from the system is not negative
+    // a number from the system is not negative, and the test here bounds the place it names
     const unsigned int at = (unsigned int)args->record->wd;
-    if ((at == 0u) || (at >= CLI_INOTIFY_FOLDERS) || !s_watch.folder[at].used)
+    if ((at == 0u) || (at >= CLI_INOTIFY_FOLDERS) || !s_watch.folder[at].used) // NOSONAR
     {
         return;
     }

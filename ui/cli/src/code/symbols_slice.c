@@ -211,10 +211,6 @@ EMBED_INLINE unsigned int cli_slice_statement(const SymbolsSliceCtx *args)
         {
             depth = depth - 1u;
         }
-        else
-        {
-            depth = depth;
-        }
         const int closed = *defined && (bracket < 0);
         if ((depth == 0u) &&
             (closed || (!*defined && EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx,
@@ -319,10 +315,6 @@ EMBED_INLINE unsigned int cli_slice_head(const SymbolsSliceCtx *args)
         else if ((bracket < 0) && (depth > 0u))
         {
             depth = depth - 1u;
-        }
-        else
-        {
-            depth = depth;
         }
     }
     return EMBED_CALL(cli_slice_line_first, SymbolsSliceCtx, .read = read, .line = args->line + 1u);
@@ -521,10 +513,6 @@ EMBED_INLINE unsigned int cli_slice_closer(const SymbolsSliceCtx *args)
         else if ((bracket < 0) && (depth > 0u))
         {
             depth = depth - 1u;
-        }
-        else
-        {
-            depth = depth;
         }
     }
     return args->read->count;

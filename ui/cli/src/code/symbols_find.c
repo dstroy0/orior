@@ -138,21 +138,20 @@ EMBED_INLINE int cli_ranks_before(const SymbolsFindCtx *args)
     const unsigned int shorter = (left.length < right.length) ? left.length : right.length;
     int order = EMBED_CALL(find_bytes_order, SymbolsFindCtx, .one = one_file, .one_at = left.name, .other = other_file,
                            .other_at = right.name, .bytes = shorter);
-    if (order != 0)
+    if (order == 0)
     {
-        order = order;
-    }
-    else if (left.length < right.length)
-    {
-        order = -1;
-    }
-    else if (left.length > right.length)
-    {
-        order = 1;
-    }
-    else
-    {
-        order = 0;
+        if (left.length < right.length)
+        {
+            order = -1;
+        }
+        else if (left.length > right.length)
+        {
+            order = 1;
+        }
+        else
+        {
+            order = 0;
+        }
     }
     order = (order != 0) ? order
                          : EMBED_CALL(find_text_order, SymbolsFindCtx, .one = one_file, .one_at = one_file->path,

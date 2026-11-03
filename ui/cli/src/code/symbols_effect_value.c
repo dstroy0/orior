@@ -193,10 +193,6 @@ EMBED_INLINE unsigned int cli_effect_arguments(const SymbolsEffectValueCtx *args
         {
             depth = depth - 1u;
         }
-        else
-        {
-            depth = depth;
-        }
     }
     return CLI_EFFECT_ARGUMENTS + 1u;
 }

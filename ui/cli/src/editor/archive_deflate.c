@@ -338,11 +338,13 @@ EMBED_INLINE int cli_lengths_read(const ArchiveDeflateCtx *args)
         {
             return 0;
         }
-        for (unsigned int time = 0u; (time < times) && (count < 320u); time += 1u)
+        unsigned int time = 0u;
+        while ((time < times) && (count < 320u))
         {
             // a code length is below 16, a byte
             args->lengths_out[count] = (unsigned char)value;
             count += 1u;
+            time += 1u;
         }
         if (count > whole)
         {

@@ -72,11 +72,15 @@ void cli_temp_folder(const CliFolderCtx *args)
 {
     static const char *const s_named[2] = {"TMPDIR", "XDG_RUNTIME_DIR"};
     int found = 0;
-    for (unsigned int at = 0u; !found && (at < 2u); at += 1u)
     {
-        found = EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = s_named[at],
-                           .value_out = args->folder_out, .capacity = CLI_PATH_MAX_LEN) &&
-                (args->folder_out[0] != '\0');
+        unsigned int at = 0u;
+        while (!found && (at < 2u))
+        {
+            found = EMBED_CALL(query_name_value_internal.environment_read, QueryNameValueCtx, .name = s_named[at],
+                               .value_out = args->folder_out, .capacity = CLI_PATH_MAX_LEN) &&
+                    (args->folder_out[0] != '\0');
+            at += 1u;
+        }
     }
     if (!found)
     {
