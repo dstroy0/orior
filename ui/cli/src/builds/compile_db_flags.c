@@ -780,13 +780,13 @@ EMBED_INLINE void cli_flags_define_dispatch(const CompileDbFlagsCtx *args)
     char named[CLI_NAME_MAX_LEN];
     char params[CLI_NAME_MAX_LEN];
     CliDefineInput define = {named, 0, {NULL}, 0u, 0, args->value, args->node_text};
-    unsigned long long at = 0ULL;
-    at = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->name, .at = 0ULL,
-                    .size = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}), .set = "(");
-    at = (at < sizeof(named)) ? at : (sizeof(named) - 1u);
-    memor.cpy(&(MemoriaCfg){.dst = named, .src = args->name, .bytes = (size_t)at});
-    named[at] = '\0';
-    define.called = args->name[at] == '(';
+    const unsigned long long at =
+        EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->name, .at = 0ULL,
+                   .size = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL}), .set = "(");
+    const unsigned long long copied = (at < sizeof(named)) ? at : (sizeof(named) - 1u);
+    memor.cpy(&(MemoriaCfg){.dst = named, .src = args->name, .bytes = (size_t)copied});
+    named[copied] = '\0';
+    define.called = (at < sizeof(named)) && (args->name[at] == '(');
     unsigned long long put = 0ULL;
     const char *from = define.called ? (args->name + at + 1u) : "";
     while ((*from != '\0') && (*from != ')') && (define.params < CLI_DEFINE_PARAMS))
@@ -824,18 +824,18 @@ void cli_compile_db_defines_get(const CliCompileDbRootCfg *args)
     unsigned long long cut = 0ULL;
     for (int done = 0; !done && (s_saved.text.out != NULL);)
     {
+        const char *const texts = s_saved.text.out;
         for (unsigned int at = 0u; at < s_saved.givens; at += 1u)
         {
-            const char *const node = EMBED_CALL(cli_flags_text, CompileDbFlagsCtx, .at = s_saved.supplied[at].node);
+            const char *const node = texts + s_saved.supplied[at].node;
             if ((cellul.len(&(CatenaFinitaCfg){.src = node, .cap = CLI_CELLS_POOL}) == cut) &&
                 EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = node, .other_pointer = args->path,
                            .size = cut))
             {
                 const CliDefineWord *const word_text = &s_saved.word_text[s_saved.supplied[at].define];
-                EMBED_CALL(cli_flags_define_dispatch, CompileDbFlagsCtx,
-                           .name = EMBED_CALL(cli_flags_text, CompileDbFlagsCtx, .at = word_text->name),
-                           .value = EMBED_CALL(cli_flags_text, CompileDbFlagsCtx, .at = word_text->value),
-                           .node_text = node, .each = args->each_define_each, .context = args->context);
+                EMBED_CALL(cli_flags_define_dispatch, CompileDbFlagsCtx, .name = texts + word_text->name,
+                           .value = texts + word_text->value, .node_text = node, .each = args->each_define_each,
+                           .context = args->context);
             }
         }
         done = cut >= length;
