@@ -87,7 +87,22 @@ typedef struct
     unsigned int share;
     const char *extension;
     char *path;
+    unsigned int count;
+    unsigned int files;
+    unsigned int file;
+    unsigned int before;
+    unsigned int shares;
+    const unsigned int *share_of;
+    const unsigned int *sizes;
+    CliTestRun *run_out;
 } TestPythonCtx;
+
+// the files of a run's supplied tests: the file each test is of, each file's first test and how many tests it has, and
+// the files in the order the shares take them
+static unsigned int s_file_of[CLI_TEST_NAMED];
+static unsigned int s_file_first[CLI_TEST_NAMED];
+static unsigned int s_file_size[CLI_TEST_NAMED];
+static unsigned int s_by_size[CLI_TEST_NAMED];
 // the length of the file part of a test's name, before its first `::`
 EMBED_INLINE unsigned long long test_file_length(const TestPythonCtx *args)
 {
@@ -97,12 +112,10 @@ EMBED_INLINE unsigned long long test_file_length(const TestPythonCtx *args)
                           : cellul.len(&(CatenaFinitaCfg){.src = args->id, .cap = CLI_CELLS_POOL});
 }
 
-void cli_test_shares(const CliTestRunsRunCountCtx *args)
+// the `count` supplied tests of `run` grouped by the file their names begin with, into s_file_of, s_file_first and
+// s_file_size, the files in the order their first tests come: how many files
+EMBED_INLINE unsigned int test_files_grouped(const TestPythonCtx *args)
 {
-    static unsigned int s_file_of[CLI_TEST_NAMED];
-    static unsigned int s_file_first[CLI_TEST_NAMED];
-    static unsigned int s_file_size[CLI_TEST_NAMED];
-    static unsigned int s_by_size[CLI_TEST_NAMED];
     unsigned int files = 0u;
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
@@ -125,44 +138,78 @@ void cli_test_shares(const CliTestRunsRunCountCtx *args)
         s_file_of[at] = file;
         s_file_size[file] += 1u;
     }
-    for (unsigned int file = 0u; file < files; file += 1u)
+    return files;
+}
+
+// whether the file `file` of `run`'s tests comes ahead of the file `before`: it has more tests, or as many and a name
+// that sorts ahead of the other's
+EMBED_INLINE int test_file_ahead(const TestPythonCtx *args)
+{
+    const char *const before_name = args->run->supplied[s_file_first[args->before]];
+    const char *const name = args->run->supplied[s_file_first[args->file]];
+    const unsigned long long before_length = EMBED_CALL(test_file_length, TestPythonCtx, .id = before_name);
+    const unsigned long long length = EMBED_CALL(test_file_length, TestPythonCtx, .id = name);
+    const embed_iword named_after = memor.cmp(&(MemoriaCfg){
+        .src = before_name, .other = name, .bytes = (size_t)((before_length < length) ? before_length : length)});
+    return (s_file_size[args->before] < s_file_size[args->file]) ||
+           ((s_file_size[args->before] == s_file_size[args->file]) &&
+            ((named_after > 0) || ((named_after == 0) && (before_length > length))));
+}
+
+// the `files` of `run`'s tests put into s_by_size, those with the most tests first and those with as many by name
+EMBED_INLINE void test_files_sorted(const TestPythonCtx *args)
+{
+    for (unsigned int file = 0u; file < args->files; file += 1u)
     {
         unsigned int place = file;
-        while (place > 0u)
+        while ((place > 0u) && EMBED_CALL(test_file_ahead, TestPythonCtx, .run = args->run, .file = file,
+                                          .before = s_by_size[place - 1u]))
         {
-            const unsigned int before = s_by_size[place - 1u];
-            const unsigned long long before_length =
-                EMBED_CALL(test_file_length, TestPythonCtx, .id = args->run->supplied[s_file_first[before]]);
-            const unsigned long long length =
-                EMBED_CALL(test_file_length, TestPythonCtx, .id = args->run->supplied[s_file_first[file]]);
-            const embed_iword named_after =
-                memor.cmp(&(MemoriaCfg){.src = args->run->supplied[s_file_first[before]],
-                                        .other = args->run->supplied[s_file_first[file]],
-                                        .bytes = (size_t)((before_length < length) ? before_length : length)});
-            const int after = (s_file_size[before] < s_file_size[file]) ||
-                              ((s_file_size[before] == s_file_size[file]) &&
-                               ((named_after > 0) || ((named_after == 0) && (before_length > length))));
-            if (!after)
-            {
-                break;
-            }
-            s_by_size[place] = before;
+            s_by_size[place] = s_by_size[place - 1u];
             place -= 1u;
         }
         s_by_size[place] = file;
     }
-    unsigned int shares = (args->most < 1u) ? 1u : args->most;
-    if (shares > ((files > 1u) ? files : 1u))
+}
+
+// the `count` tests of `run_out` laid in its order share by share: each of the `shares` that `sizes` gives a test, its
+// first place and size, its tests those of the `files` that `share_of` gives it, file after file in s_by_size's order
+EMBED_INLINE void test_shares_laid(const TestPythonCtx *args)
+{
+    CliTestRun *const run = args->run_out;
+    run->shares = 0u;
+    unsigned int positioned = 0u;
+    for (unsigned int share = 0u; share < args->shares; share += 1u)
     {
-        if (files > 1u)
+        if (args->sizes[share] == 0u)
         {
-            shares = files;
+            continue;
         }
-        else
+        run->share_from[run->shares] = positioned;
+        for (unsigned int at = 0u; at < args->files; at += 1u)
         {
-            shares = 1u;
+            const unsigned int file = s_by_size[at];
+            for (unsigned int one = 0u; (args->share_of[file] == share) && (one < args->count); one += 1u)
+            {
+                if (s_file_of[one] == file)
+                {
+                    run->order[positioned] = one;
+                    positioned += 1u;
+                }
+            }
         }
+        run->share_size[run->shares] = positioned - run->share_from[run->shares];
+        run->shares += 1u;
     }
+}
+
+void cli_test_shares(const CliTestRunsRunCountCtx *args)
+{
+    const unsigned int files = EMBED_CALL(test_files_grouped, TestPythonCtx, .run = args->run, .count = args->count);
+    EMBED_CALL(test_files_sorted, TestPythonCtx, .run = args->run, .files = files);
+    const unsigned int most_shares = (files > 1u) ? files : 1u;
+    unsigned int shares = (args->most < 1u) ? 1u : args->most;
+    shares = (shares > most_shares) ? most_shares : shares;
     shares = (shares > CLI_TEST_WORKERS) ? CLI_TEST_WORKERS : shares;
     unsigned int share_of[CLI_TEST_NAMED];
     unsigned int sizes[CLI_TEST_WORKERS];
@@ -178,30 +225,8 @@ void cli_test_shares(const CliTestRunsRunCountCtx *args)
         share_of[file] = min;
         sizes[min] += s_file_size[file];
     }
-    args->run->shares = 0u;
-    unsigned int positioned = 0u;
-    for (unsigned int share = 0u; share < shares; share += 1u)
-    {
-        if (sizes[share] == 0u)
-        {
-            continue;
-        }
-        args->run->share_from[args->run->shares] = positioned;
-        for (unsigned int at = 0u; at < files; at += 1u)
-        {
-            const unsigned int file = s_by_size[at];
-            for (unsigned int one = 0u; (share_of[file] == share) && (one < args->count); one += 1u)
-            {
-                if (s_file_of[one] == file)
-                {
-                    args->run->order[positioned] = one;
-                    positioned += 1u;
-                }
-            }
-        }
-        args->run->share_size[args->run->shares] = positioned - args->run->share_from[args->run->shares];
-        args->run->shares += 1u;
-    }
+    EMBED_CALL(test_shares_laid, TestPythonCtx, .run_out = args->run, .count = args->count, .files = files,
+               .shares = shares, .share_of = share_of, .sizes = sizes);
 }
 
 // a result received of a Python process: counted where it is new, and reported
