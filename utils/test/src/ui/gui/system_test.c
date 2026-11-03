@@ -193,13 +193,17 @@ int main(void)
     EMBED_CALL(gui_system_table.pumped, GuiSystemCfg, .system = system);
     cli_check((transferred.keys == 4u) && same(transferred.key, "Q"), "a letter's key goes by its capital");
 
+    posted(window, NULL, 0u, VK_APPS);
+    EMBED_CALL(gui_system_table.pumped, GuiSystemCfg, .system = system);
+    cli_check((transferred.keys == 5u) && same(transferred.key, "ContextMenu"), "the menu key goes by the name a browser gives it");
+
     // Alt+F4 is the system's, as a browser leaves it to the system: it asks the window to close and is handed on as no
     // key
     PostMessageW(window, WM_SYSKEYDOWN, VK_F4, (LPARAM)KF_ALTDOWN << 16);
     PostMessageW(window, WM_SYSKEYUP, VK_F4, (LPARAM)KF_ALTDOWN << 16);
     EMBED_CALL(gui_system_table.pumped, GuiSystemCfg, .system = system);
     cli_check(transferred.closings == 1u, "Alt+F4 asks the window to close");
-    cli_check(transferred.keys == 4u, "and is handed on as no key");
+    cli_check(transferred.keys == 5u, "and is handed on as no key");
 
     PostMessageW(window, WM_LBUTTONDOWN, 0, (60 << 16) | 50);
     PostMessageW(window, WM_LBUTTONUP, 0, (60 << 16) | 50);

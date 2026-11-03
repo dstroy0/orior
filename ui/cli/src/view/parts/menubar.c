@@ -193,9 +193,12 @@ void gui_menubar_menus_layout(const GuiMenubarBarCfg *args)
     }
     if (menus->open < 0)
     {
-        // a menu asked for at a place stands with its top left there
+        // a menu asked for stands with its top left at its point, or at the terminal's key field, the panel's foot at
+        // its left, as the page's stands at the one-pixel field it gives the keys
+        const int keys = menus->place == CLI_MENU_PLACE_TERMINAL_KEYS;
         EMBED_CALL(menubar_menu_position, MenubarCtx, .menubar_out = menubar, .glyphs = args->glyphs,
-                   .frame = args->frame, .level = 0u, .x = menus->x, .y = menus->y, .adjacent = NULL);
+                   .frame = args->frame, .level = 0u, .x = keys ? args->frame->terminal.x : menus->x,
+                   .y = keys ? (args->frame->terminal.y + args->frame->terminal.height) : menus->y, .adjacent = NULL);
     }
     else
     {

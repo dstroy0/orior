@@ -462,13 +462,13 @@ EMBED_INLINE int system_key_by_name(const SystemWindowsCtx *args)
     {
         WPARAM key;
         const char *name;
-    } s_named[] = {{VK_LEFT, "Left"},      {VK_RIGHT, "Right"},   {VK_UP, "Up"},         {VK_DOWN, "Down"},
-                   {VK_HOME, "Home"},      {VK_END, "End"},       {VK_PRIOR, "PageUp"},  {VK_NEXT, "PageDown"},
-                   {VK_BACK, "Backspace"}, {VK_DELETE, "Delete"}, {VK_RETURN, "Enter"},  {VK_TAB, "Tab"},
-                   {VK_ESCAPE, "Escape"},  {VK_SPACE, "Space"},   {VK_INSERT, "Insert"}, {VK_OEM_4, "["},
-                   {VK_OEM_6, "]"},        {VK_OEM_2, "/"},       {VK_OEM_5, "\\"},      {VK_OEM_PERIOD, "."},
-                   {VK_OEM_COMMA, ","},    {VK_OEM_1, ";"},       {VK_OEM_7, "'"},       {VK_OEM_3, "`"},
-                   {VK_OEM_MINUS, "-"},    {VK_OEM_PLUS, "="}};
+    } s_named[] = {{VK_LEFT, "Left"},      {VK_RIGHT, "Right"},   {VK_UP, "Up"},           {VK_DOWN, "Down"},
+                   {VK_HOME, "Home"},      {VK_END, "End"},       {VK_PRIOR, "PageUp"},    {VK_NEXT, "PageDown"},
+                   {VK_BACK, "Backspace"}, {VK_DELETE, "Delete"}, {VK_RETURN, "Enter"},    {VK_TAB, "Tab"},
+                   {VK_ESCAPE, "Escape"},  {VK_SPACE, "Space"},   {VK_INSERT, "Insert"},   {VK_OEM_4, "["},
+                   {VK_OEM_6, "]"},        {VK_OEM_2, "/"},       {VK_OEM_5, "\\"},        {VK_OEM_PERIOD, "."},
+                   {VK_OEM_COMMA, ","},    {VK_OEM_1, ";"},       {VK_OEM_7, "'"},         {VK_OEM_3, "`"},
+                   {VK_OEM_MINUS, "-"},    {VK_OEM_PLUS, "="},    {VK_APPS, "ContextMenu"}};
     VerbaLinea line = {name, args->capacity, 0ull};
     for (unsigned int at = 0u; at < sizeof(s_named) / sizeof(s_named[0]); at += 1u)
     {

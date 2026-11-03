@@ -1002,6 +1002,10 @@ int cli_model_terminal_checked(const CliModelCtx *args)
     {
         return EMBED_CALL(terminal_chosen, TerminalCtx, .tab = (at >= 0) ? s_terminal.tab[at] : NULL);
     }
+    if (cellul.eq(&(CatenaFinitaCfg){.src = args->path, .other = "terminal-keys", .cap = CLI_LABEL_MAX_LEN}))
+    {
+        return s_terminal.open && s_terminal.keys;
+    }
     return cellul.eq(&(CatenaFinitaCfg){.src = args->path, .other = "terminal-split", .cap = CLI_LABEL_MAX_LEN}) &&
            (s_terminal.beside >= 0);
 }

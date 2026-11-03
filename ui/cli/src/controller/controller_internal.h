@@ -197,9 +197,10 @@ void cli_model_watch_end(const CliModelCtx *args);
 // an xterm changed; the clock's reading of its next timer, 0 for none; its snapshot, and a snapshot's frames and cell
 // released; the place read back from the values `input` holds, a CliStateEntries or NULL for none, as the window
 // starts; the place stored, every shell hung up on and its tabs let go; whether the terminal's state `path` is on,
-// terminal-split while a shell stands beside the one shown and terminal-chosen while text is chosen in the pane the
-// keys go to: 1, or 0 where it is off or none of the terminal's; and the panel's menu, its CLI_MODEL_TERMINAL_MENU_ROWS
-// rows as terminal.js gives them, which stand as long as the program runs
+// terminal-split while a shell stands beside the one shown, terminal-chosen while text is chosen in the pane the keys
+// go to and terminal-keys while the panel takes the keys: 1, or 0 where it is off or none of the terminal's; and the
+// panel's menu, its CLI_MODEL_TERMINAL_MENU_ROWS rows as terminal.js gives them, which stand as long as the program
+// runs
 #define CLI_MODEL_TERMINAL_MENU_ROWS 7u
 int cli_model_terminal_command(const CliModelCtx *args);
 int cli_model_terminal_key(const CliModelCtx *args);

@@ -185,7 +185,7 @@ EMBED_INLINE void system_key_press(const SystemX11Ctx *args)
                    {XK_Page_Up, "PageUp"}, {XK_Page_Down, "PageDown"}, {XK_BackSpace, "Backspace"},
                    {XK_Delete, "Delete"},  {XK_Return, "Enter"},       {XK_KP_Enter, "Enter"},
                    {XK_Tab, "Tab"},        {XK_ISO_Left_Tab, "Tab"},   {XK_Escape, "Escape"},
-                   {XK_space, "Space"},    {XK_Insert, "Insert"}};
+                   {XK_space, "Space"},    {XK_Insert, "Insert"},      {XK_Menu, "ContextMenu"}};
     char text[32];
     KeySym key = NoSymbol;
     const int wrote = XLookupString(args->event, text, sizeof(text) - 1, &key, NULL);

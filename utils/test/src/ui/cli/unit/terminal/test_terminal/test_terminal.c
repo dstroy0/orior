@@ -747,3 +747,36 @@ void test_a_menu_asked_for_on_the_terminal_opens_its_items_where_it_was_asked_th
     g_cli_cells->persistent_buf_release(closed, &g_cli_controller_cells);
     EMBED_CALL(cli_model_terminal.end, CliModelCtx, .at = 0u);
 }
+
+void test_the_menu_key_opens_the_terminal_menu_at_its_key_field_while_the_panel_takes_the_keys(void)
+{
+#if defined(_WIN32)
+    TEST_ASSERT_EQUAL_INT(0, _putenv_s("ORIOR_HOME", "build/harness/terminal_home"));
+#else
+    TEST_ASSERT_EQUAL_INT(0, setenv("ORIOR_HOME", "build/harness/terminal_home", 1));
+#endif
+    EMBED_CALL(cli_model_terminal.restore, CliModelCtx, .input = NULL);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.command, CliModelCtx, .path = "toggle"));
+    EMBED_CALL(cli_model_commands.key_take, CliModelCtx, .path = "ContextMenu");
+    CliMenus *const opened = menus_read();
+    TEST_ASSERT_EQUAL_UINT(1u, opened->levels);
+    TEST_ASSERT_EQUAL_INT(-1, opened->open);
+    TEST_ASSERT_EQUAL_UINT_MESSAGE(CLI_MENU_PLACE_TERMINAL_KEYS, opened->place,
+                                   "the menu stands at the terminal's key field, as the page's stands at its box");
+    TEST_ASSERT_EQUAL_STRING("Copy", opened->level[0].row[0].label);
+    TEST_ASSERT_EQUAL_INT(1, opened->level[0].pointed);
+    g_cli_cells->persistent_buf_release(opened, &g_cli_controller_cells);
+    // the menu key on a menu open does nothing, and a menu asked for at a point stands at its point
+    EMBED_CALL(cli_model_commands.key_take, CliModelCtx, .path = "Down");
+    EMBED_CALL(cli_model_commands.key_take, CliModelCtx, .path = "ContextMenu");
+    CliMenus *const again = menus_read();
+    TEST_ASSERT_EQUAL_UINT(1u, again->levels);
+    TEST_ASSERT_EQUAL_INT(3, again->level[0].pointed);
+    g_cli_cells->persistent_buf_release(again, &g_cli_controller_cells);
+    terminal_menu_asked(0u, 20, 30);
+    CliMenus *const pointed = menus_read();
+    TEST_ASSERT_EQUAL_UINT(CLI_MENU_PLACE_POINT, pointed->place);
+    g_cli_cells->persistent_buf_release(pointed, &g_cli_controller_cells);
+    EMBED_CALL(cli_model_commands.key_take, CliModelCtx, .path = "Escape");
+    EMBED_CALL(cli_model_terminal.end, CliModelCtx, .at = 0u);
+}

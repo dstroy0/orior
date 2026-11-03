@@ -35,7 +35,7 @@ typedef struct
 
 // The menus: each menu's title and how many, those with a place on the bar and the menu each stands for; the rows with
 // keys; how many titles the window's width shows and whether the rest fold into a last one; the title open, -1 for
-// none; the menus open, one under another, and where the first stands where it was asked for at a place; and the rest
+// none; the menus open, one under another, and the place the first stands at where it was asked for; and the rest
 // the pointer is in: when it ends, 0 for none, the level of the row it rests on, and the row whose items are to open,
 // -1 where the rest closes the items open beside a sibling
 typedef struct
@@ -51,6 +51,7 @@ typedef struct
     int open;
     ControllerMenu menu[CONTROLLER_MENU_LEVELS];
     unsigned int levels;
+    unsigned int place;
     int x;
     int y;
     unsigned long long rest_due_ms;
@@ -90,6 +91,9 @@ typedef struct
     int *modded;
     unsigned long long *number;
     unsigned long long *colon;
+    unsigned int place;
+    int x;
+    int y;
 } ControllerCommandsCtx;
 
 // whether `name` is among `count` names
@@ -674,6 +678,31 @@ void cli_model_command_run(const CliModelCtx *args)
     }
 }
 
+// the terminal's menu opened at the place `place` names, at x, y where that is its point, its first row that can be
+// chosen marked
+EMBED_INLINE void commands_terminal_menu_open(const ControllerCommandsCtx *args)
+{
+    ControllerMenu *const menu = &s_menus.menu[0];
+    menu->row =
+        g_cli_cells->persistent_buf_alloc(CLI_MODEL_TERMINAL_MENU_ROWS * sizeof(*menu->row), &g_cli_controller_cells);
+    if (menu->row == NULL)
+    {
+        return;
+    }
+    memor.cpy(&(MemoriaCfg){.dst = menu->row,
+                            .src = EMBED_CALL(cli_model_terminal.menu, CliModelCtx, .at = 0u),
+                            .bytes = CLI_MODEL_TERMINAL_MENU_ROWS * sizeof(*menu->row)});
+    menu->rows = CLI_MODEL_TERMINAL_MENU_ROWS;
+    s_menus.levels = 1u;
+    s_menus.open = -1;
+    s_menus.place = args->place;
+    s_menus.x = args->x;
+    s_menus.y = args->y;
+    menu->pointed = EMBED_CALL(commands_row_step, ControllerCommandsCtx, .level = 0u, .from = -1, .by = 1);
+    menu->opened = -1;
+    g_cli_model.dirty |= CLI_MODEL_DIRTY(CLI_SNAPSHOT_MENUS);
+}
+
 // the keyed row whose command is `name`, NULL for none
 EMBED_INLINE const CliItem *commands_keyed_named(const ControllerCommandsCtx *args)
 {
@@ -805,6 +834,15 @@ EMBED_INLINE int commands_tool_key(const ControllerCommandsCtx *args)
 void cli_model_key_take(const CliModelCtx *args)
 {
     const char *const name = args->path;
+    // the menu key opens the menu of what takes the keys, at its place, as a browser opens it, and does nothing on a
+    // menu open
+    if ((s_menus.levels == 0u) && !args->on &&
+        EMBED_CALL(commands_by_name, ControllerCommandsCtx, .name = name, .required = "ContextMenu") &&
+        EMBED_CALL(cli_model_terminal.checked, CliModelCtx, .path = "terminal-keys"))
+    {
+        EMBED_CALL(commands_terminal_menu_open, ControllerCommandsCtx, .place = CLI_MENU_PLACE_TERMINAL_KEYS);
+        return;
+    }
     // the terminal's panel, where it takes the keys, takes them ahead of the window while no menu is open
     if ((s_menus.levels == 0u) && !args->on && EMBED_CALL(cli_model_terminal.key, CliModelCtx, .path = name))
     {
@@ -932,27 +970,11 @@ void cli_model_menu_open(const CliModelCtx *args)
     }
     EMBED_CALL(commands_closed_from, ControllerCommandsCtx, .level = 0u);
     // the terminal's panel answers for every place on it
-    if (!asked || (input->hit < CLI_HIT_TERMINAL) || (input->hit > CLI_HIT_TERMINAL_PANEL))
+    if (asked && (input->hit >= CLI_HIT_TERMINAL) && (input->hit <= CLI_HIT_TERMINAL_PANEL))
     {
-        return;
+        EMBED_CALL(commands_terminal_menu_open, ControllerCommandsCtx, .place = CLI_MENU_PLACE_POINT, .x = input->x,
+                   .y = input->y);
     }
-    ControllerMenu *const menu = &s_menus.menu[0];
-    menu->row =
-        g_cli_cells->persistent_buf_alloc(CLI_MODEL_TERMINAL_MENU_ROWS * sizeof(*menu->row), &g_cli_controller_cells);
-    if (menu->row == NULL)
-    {
-        return;
-    }
-    memor.cpy(&(MemoriaCfg){.dst = menu->row,
-                            .src = EMBED_CALL(cli_model_terminal.menu, CliModelCtx, .at = 0u),
-                            .bytes = CLI_MODEL_TERMINAL_MENU_ROWS * sizeof(*menu->row)});
-    menu->rows = CLI_MODEL_TERMINAL_MENU_ROWS;
-    s_menus.levels = 1u;
-    s_menus.open = -1;
-    s_menus.x = input->x;
-    s_menus.y = input->y;
-    menu->pointed = EMBED_CALL(commands_row_step, ControllerCommandsCtx, .level = 0u, .from = -1, .by = 1);
-    menu->opened = -1;
 }
 
 void cli_model_menu_bar_size(const CliModelCtx *args)
@@ -1023,6 +1045,7 @@ void *cli_model_menus_alloc(const CliModelCtx *args)
     menus->open = s_menus.open;
     menus->level = (CliMenuLevel *)(void *)(menus->title + s_menus.titles);
     menus->levels = s_menus.levels;
+    menus->place = s_menus.place;
     menus->x = s_menus.x;
     menus->y = s_menus.y;
     CliMenuRow *row = (CliMenuRow *)(void *)(menus->level + s_menus.levels);

@@ -118,9 +118,14 @@ typedef struct
     int opened;
 } CliMenuLevel;
 
+// where a menu asked for and not opened under a title stands: at its point, or at the terminal's key field, the panel's
+// foot at its left, as the page's stands at the box of what has the keys
+#define CLI_MENU_PLACE_POINT 0u
+#define CLI_MENU_PLACE_TERMINAL_KEYS 1u
+
 // The menu bar: every menu's title with where it stands among the menus, the title whose menu is open, -1 for none, the
-// menus open, one under another, and where the first of them stands where it was asked for at a place and not under a
-// title, its top left in the frame's pixels
+// menus open, one under another, and where the first of them stands where it was asked for and not under a title: at
+// the place `place` names, its top left at x, y in the frame's pixels where that is its point
 typedef struct
 {
     const char **title;
@@ -128,6 +133,7 @@ typedef struct
     int open;
     CliMenuLevel *level;
     unsigned int levels;
+    unsigned int place;
     int x;
     int y;
 } CliMenus;
