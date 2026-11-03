@@ -96,6 +96,18 @@ void cli_run_result_free(const CliWordsCtx *args)
     }
 }
 
+// what is left in `pipe` read into a piece of the stack's and dropped, so that the program does not stand blocked on a
+// full pipe
+EMBED_INLINE void cli_pipe_drain(const RanCtx *args)
+{
+    char reserve[4096];
+    while (EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx, .pipe_handle = args->pipe,
+                      .piece = reserve, .capacity = sizeof(reserve)) != 0ULL)
+    {
+        // each piece read is dropped
+    }
+}
+
 // what `pipe` gives read until it ends, a piece at a time, then joined in one cell of its size with a 0 after: the
 // text into `text`, the empty one where nothing came, its size into `size`, and 0 into `whole` where a cell could not
 // be taken and what came is not all stored
@@ -116,14 +128,8 @@ static void cli_pipe_read(const RanCtx *args)
                 g_cli_cells->persistent_buf_alloc(sizeof(CliRunResultPiece) + CLI_RUN_RESULT_PIECE, &g_cli_runs_cells);
             if (piece == NULL)
             {
-                // the pipe drained into a piece of the stack's, and the program is not blocked writing
-                char reserve[4096];
                 *whole = 0;
-                while (EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_read, CliCapacityPipeHandleCtx,
-                                  .pipe_handle = args->pipe, .piece = reserve, .capacity = sizeof(reserve)) != 0ULL)
-                {
-                    // the rest read and dropped, so that the program does not stand on a full pipe
-                }
+                EMBED_CALL(cli_pipe_drain, RanCtx, .pipe = args->pipe);
                 going = 0;
                 continue;
             }

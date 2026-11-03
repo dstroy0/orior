@@ -19,6 +19,8 @@ typedef struct
     unsigned char *head;
     unsigned int at;
     unsigned long long value;
+    unsigned long long width;
+    VerbaLinea *out;
 } RasterWriteCtx;
 // whether the pixels at `a` and `b` of a row are the same
 EMBED_INLINE int cli_same_pixel(const RasterWriteCtx *args)
@@ -26,6 +28,44 @@ EMBED_INLINE int cli_same_pixel(const RasterWriteCtx *args)
     return memor.cmp(&(MemoriaCfg){.src = args->row + (args->a * args->pixel),
                                    .other = args->row + (args->b * args->pixel),
                                    .bytes = args->pixel}) == 0;
+}
+
+// a row of `width` pixels of `pixel` bytes written as its runs: a run of one pixel as its count less one and the pixel,
+// a run of different pixels as 257 less its length and the pixels
+EMBED_INLINE void cli_row_compress(const RasterWriteCtx *args)
+{
+    const unsigned char *const row = args->row;
+    const unsigned long long pixel = args->pixel;
+    const unsigned long long width = args->width;
+    unsigned long long x = 0ULL;
+    while (x < width)
+    {
+        if (((x + 1ULL) < width) &&
+            EMBED_CALL(cli_same_pixel, RasterWriteCtx, .row = row, .a = x, .b = x + 1ULL, .pixel = pixel))
+        {
+            unsigned long long run = 2ULL;
+            while (((x + run) < width) && (run < 128ULL) &&
+                   EMBED_CALL(cli_same_pixel, RasterWriteCtx, .row = row, .a = x + run, .b = x, .pixel = pixel))
+            {
+                run += 1ULL;
+            }
+            mmgr_line_ch(args->out, (char)(unsigned char)(run - 1ULL));
+            mmgr_line_put_n(args->out, (const char *)(row + (x * pixel)), pixel);
+            x += run;
+            continue;
+        }
+        unsigned long long run = 1ULL;
+        while (((x + run) < width) && (run < 128ULL) &&
+               !(((x + run + 1ULL) < width) && EMBED_CALL(cli_same_pixel, RasterWriteCtx, .row = row, .a = x + run,
+                                                          .b = x + run + 1ULL, .pixel = pixel)))
+        {
+            run += 1ULL;
+        }
+        // a run of different pixels written as 257 less its length, a byte
+        mmgr_line_ch(args->out, (char)(unsigned char)((run == 1ULL) ? 0ULL : (257ULL - run)));
+        mmgr_line_put_n(args->out, (const char *)(row + (x * pixel)), run * pixel);
+        x += run;
+    }
 }
 
 void cli_print_compress(const CliPrintLayoutCfg *args)
@@ -45,38 +85,8 @@ void cli_print_compress(const CliPrintLayoutCfg *args)
         }
         // a count of at most 256 written less one as a byte
         mmgr_line_ch(args->out, (char)(unsigned char)(repeat - 1ULL));
-        unsigned long long x = 0ULL;
-        while (x < args->page->width)
-        {
-            if (((x + 1ULL) < args->page->width) &&
-                EMBED_CALL(cli_same_pixel, RasterWriteCtx, .row = row, .a = x, .b = x + 1ULL, .pixel = pixel))
-            {
-                unsigned long long run = 2ULL;
-                while (((x + run) < args->page->width) && (run < 128ULL) &&
-                       EMBED_CALL(cli_same_pixel, RasterWriteCtx, .row = row, .a = x + run, .b = x, .pixel = pixel))
-                {
-                    run += 1ULL;
-                }
-                mmgr_line_ch(args->out, (char)(unsigned char)(run - 1ULL));
-                mmgr_line_put_n(args->out, (const char *)(row + (x * pixel)), pixel);
-                x += run;
-            }
-            else
-            {
-                unsigned long long run = 1ULL;
-                while (((x + run) < args->page->width) && (run < 128ULL) &&
-                       !(((x + run + 1ULL) < args->page->width) &&
-                         EMBED_CALL(cli_same_pixel, RasterWriteCtx, .row = row, .a = x + run, .b = x + run + 1ULL,
-                                    .pixel = pixel)))
-                {
-                    run += 1ULL;
-                }
-                // a run of different pixels written as 257 less its length, a byte
-                mmgr_line_ch(args->out, (char)(unsigned char)((run == 1ULL) ? 0ULL : (257ULL - run)));
-                mmgr_line_put_n(args->out, (const char *)(row + (x * pixel)), run * pixel);
-                x += run;
-            }
-        }
+        EMBED_CALL(cli_row_compress, RasterWriteCtx, .row = row, .pixel = pixel, .width = args->page->width,
+                   .out = args->out);
         y += repeat;
     }
 }

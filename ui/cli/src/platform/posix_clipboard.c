@@ -306,21 +306,22 @@ unsigned int cli_clipboard_files_read(const CliEachCtx *args)
     {
         for (unsigned long long at = 0ULL; at < paths.at;)
         {
-            unsigned long long end = at;
-            end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = paths.out, .at = end,
-                             .size = paths.at, .set = "\n");
-            if (end > at)
-            {
-                char path[CLI_PATH_MAX_LEN];
-                VerbaLinea line = {path, sizeof(path), 0ULL};
-                mmgr_line_put_n(&line, paths.out + at, end - at);
-                if (mmgr_line_finish(&line) != 0ULL)
-                {
-                    EMBED_CALL(args->each, CliEachPathCfg, .context = args->context, .path = path);
-                    count += 1u;
-                }
-            }
+            const unsigned long long from = at;
+            const unsigned long long end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
+                                                      .text = paths.out, .at = from, .size = paths.at, .set = "\n");
             at = end + 1ULL;
+            if (end <= from)
+            {
+                continue;
+            }
+            char path[CLI_PATH_MAX_LEN];
+            VerbaLinea line = {path, sizeof(path), 0ULL};
+            mmgr_line_put_n(&line, paths.out + from, end - from);
+            if (mmgr_line_finish(&line) != 0ULL)
+            {
+                EMBED_CALL(args->each, CliEachPathCfg, .context = args->context, .path = path);
+                count += 1u;
+            }
         }
     }
     g_cli_cells->persistent_buf_release(paths.out, &g_cli_platform_cells);

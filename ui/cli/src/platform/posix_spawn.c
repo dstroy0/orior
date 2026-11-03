@@ -107,15 +107,12 @@ static int cli_spawn_with(const PosixSpawnCtx *args)
     int in[2] = {-1, -1};
     if ((pipe(out) != 0) || (pipe(err) != 0) || (args->stdin_written && (pipe(in) != 0)))
     {
-        for (unsigned int at = 0u; at < 2u; at += 1u)
+        const int ends[6] = {out[0], err[0], in[0], out[1], err[1], in[1]};
+        for (unsigned int end = 0u; end < 6u; end += 1u)
         {
-            const int ends[3] = {out[at], err[at], in[at]};
-            for (unsigned int end = 0u; end < 3u; end += 1u)
+            if (ends[end] >= 0)
             {
-                if (ends[end] >= 0)
-                {
-                    close(ends[end]);
-                }
+                close(ends[end]);
             }
         }
         mmgr_line_put(args->err_msg, "no pipe could be made");

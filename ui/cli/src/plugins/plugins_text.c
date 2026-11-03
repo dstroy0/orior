@@ -83,12 +83,9 @@ static void cli_write(const PluginsTextCtx *args)
                 mmgr_line_put(out, ", ");
                 line += 2ULL;
             }
-            if (line == 0ULL)
+            for (unsigned long long space = 0ULL; (line == 0ULL) && (space < inner); space += 1ULL)
             {
-                for (unsigned long long space = 0ULL; space < inner; space += 1ULL)
-                {
-                    mmgr_line_ch(out, ' ');
-                }
+                mmgr_line_ch(out, ' ');
             }
             EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out,
                        .text = json->text + json->node[item].text, .length = json->node[item].length);

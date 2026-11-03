@@ -196,34 +196,35 @@ int cli_pe_imports(const CliBinaryErrMsgCfg *args)
             {
                 break;
             }
+            at += step;
             unsigned long long name_at = 0ULL;
             char name[CLI_NAME_MAX_LEN];
-            if (EMBED_CALL(cli_offset, BinaryCtx, .bytes = bytes, .size = size, .table = table, .sections = sections,
-                           .rva = name_rva, .offset = &name_at) &&
-                EMBED_CALL(cli_binary_bytes.text, CliBinaryBytesCfg, .bytes = bytes, .size = size, .at = name_at,
-                           .out = name, .capacity = sizeof(name)))
+            if (!EMBED_CALL(cli_offset, BinaryCtx, .bytes = bytes, .size = size, .table = table, .sections = sections,
+                            .rva = name_rva, .offset = &name_at) ||
+                !EMBED_CALL(cli_binary_bytes.text, CliBinaryBytesCfg, .bytes = bytes, .size = size, .at = name_at,
+                            .out = name, .capacity = sizeof(name)))
             {
-                char lower[CLI_NAME_MAX_LEN];
-                EMBED_CALL(cli_lower, BinaryCtx, .name = name, .out = lower);
-                int known = 0;
-                int index = 0;
-                while (!known && (index < count))
-                {
-                    char other[CLI_NAME_MAX_LEN];
-                    EMBED_CALL(cli_lower, BinaryCtx, .name = args->names[index], .out = other);
-                    known = cellul.eq(&(CatenaFinitaCfg){.src = other, .other = lower, .cap = CLI_CELLS_POOL});
-                    index += 1;
-                }
-                if (!known && ((unsigned int)count < capacity))
-                {
-                    memor.cpy(&(MemoriaCfg){
-                        .dst = args->names[count],
-                        .src = name,
-                        .bytes = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) + 1u});
-                    count += 1;
-                }
+                continue;
             }
-            at += step;
+            char lower[CLI_NAME_MAX_LEN];
+            EMBED_CALL(cli_lower, BinaryCtx, .name = name, .out = lower);
+            int known = 0;
+            int index = 0;
+            while (!known && (index < count))
+            {
+                char other[CLI_NAME_MAX_LEN];
+                EMBED_CALL(cli_lower, BinaryCtx, .name = args->names[index], .out = other);
+                known = cellul.eq(&(CatenaFinitaCfg){.src = other, .other = lower, .cap = CLI_CELLS_POOL});
+                index += 1;
+            }
+            if (!known && ((unsigned int)count < capacity))
+            {
+                memor.cpy(
+                    &(MemoriaCfg){.dst = args->names[count],
+                                  .src = name,
+                                  .bytes = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) + 1u});
+                count += 1;
+            }
         }
     }
     return count;

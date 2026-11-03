@@ -561,11 +561,10 @@ EMBED_INLINE int cli_tables_rules_write(const PluginsTablesCtx *args)
                                          : CLI_JSON_NONE;
                  rule != CLI_JSON_NONE; rule = json->node[rule].next)
             {
-                if (EMBED_CALL(cli_tables_rule_write, PluginsTablesCtx, .json = json, .grammar = args->grammar,
-                               .rule = rule, .written = written, .out = out, .failed = &failed))
-                {
-                    written += 1u;
-                }
+                written += EMBED_CALL(cli_tables_rule_write, PluginsTablesCtx, .json = json, .grammar = args->grammar,
+                                      .rule = rule, .written = written, .out = out, .failed = &failed)
+                               ? 1u
+                               : 0u;
             }
             mmgr_line_ch(out, ']');
         }

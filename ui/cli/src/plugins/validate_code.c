@@ -49,25 +49,27 @@ int cli_validate_code_get(const CliValidateTextCtx *args)
             out[used] = blank;
             used += 1ULL;
         }
+        else if (in_string && (c == '\\'))
+        {
+            out[used] = ' ';
+            used += 1ULL;
+            const int escapes = at + 1ULL < args->size;
+            unsigned int escaped = 0u;
+            const unsigned long long skipped =
+                escapes ? EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
+                                     .text_bytes = (const unsigned char *)args->text, .length = args->size,
+                                     .at = at + 1ULL, .letter = &escaped)
+                        : 0ULL;
+            if (escapes)
+            {
+                out[used] = (next == '\n') ? '\n' : ' ';
+                used += 1ULL;
+            }
+            at += 1ULL + skipped;
+            continue;
+        }
         else if (in_string)
         {
-            if (c == '\\')
-            {
-                out[used] = ' ';
-                used += 1ULL;
-                unsigned long long skipped = 1ULL;
-                if (at + 1ULL < args->size)
-                {
-                    unsigned int escaped = 0u;
-                    skipped += EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg,
-                                          .text_bytes = (const unsigned char *)args->text, .length = args->size,
-                                          .at = at + 1ULL, .letter = &escaped);
-                    out[used] = (next == '\n') ? '\n' : ' ';
-                    used += 1ULL;
-                }
-                at += skipped;
-                continue;
-            }
             in_string = (c != '"');
             out[used] = blank;
             used += 1ULL;

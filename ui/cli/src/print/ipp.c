@@ -159,6 +159,34 @@ EMBED_INLINE void cli_bytes_get(const IppCtx *args)
     }
 }
 
+// the length and bytes of `value`, whose message's bytes start at `bytes_bytes`, written to `out`
+EMBED_INLINE void cli_value_encode(const IppCtx *args)
+{
+    const CliIppValue *const value = args->value;
+    // a number's bits are written as the 32 bits they are
+    switch (value->kind)
+    {
+    case CLI_IPP_INTEGER:
+    case CLI_IPP_ENUM:
+        EMBED_CALL(cli_bytes_get, IppCtx, .value_u64 = 4u, .count = 2u, .out = args->out);
+        EMBED_CALL(cli_bytes_get, IppCtx, .value_u64 = (unsigned int)value->low, .count = 4u, .out = args->out);
+        break;
+    case CLI_IPP_BOOLEAN:
+        EMBED_CALL(cli_bytes_get, IppCtx, .value_u64 = 1u, .count = 2u, .out = args->out);
+        mmgr_line_ch(args->out, (char)(value->low ? 1 : 0));
+        break;
+    case CLI_IPP_RANGE:
+        EMBED_CALL(cli_bytes_get, IppCtx, .value_u64 = 8u, .count = 2u, .out = args->out);
+        EMBED_CALL(cli_bytes_get, IppCtx, .value_u64 = (unsigned int)value->low, .count = 4u, .out = args->out);
+        EMBED_CALL(cli_bytes_get, IppCtx, .value_u64 = (unsigned int)value->high, .count = 4u, .out = args->out);
+        break;
+    default:
+        EMBED_CALL(cli_bytes_get, IppCtx, .value_u64 = value->length, .count = 2u, .out = args->out);
+        mmgr_line_put_n(args->out, (const char *)(args->bytes_bytes + value->bytes), value->length);
+        break;
+    }
+}
+
 void cli_ipp_encode(const CliIppMessageOutVerbaLineaCfg *args)
 {
     mmgr_line_ch(args->out_verba_linea_pointer, 2);
@@ -184,36 +212,8 @@ void cli_ipp_encode(const CliIppMessageOutVerbaLineaCfg *args)
                            .out = args->out_verba_linea_pointer);
                 mmgr_line_put_n(args->out_verba_linea_pointer,
                                 (const char *)(args->message_read->bytes + attribute->name), named);
-                // a number's bits are written as the 32 bits they are
-                switch (value->kind)
-                {
-                case CLI_IPP_INTEGER:
-                case CLI_IPP_ENUM:
-                    EMBED_CALL(cli_bytes_get, IppCtx, .value_u64 = 4u, .count = 2u,
-                               .out = args->out_verba_linea_pointer);
-                    EMBED_CALL(cli_bytes_get, IppCtx, .value_u64 = (unsigned int)value->low, .count = 4u,
-                               .out = args->out_verba_linea_pointer);
-                    break;
-                case CLI_IPP_BOOLEAN:
-                    EMBED_CALL(cli_bytes_get, IppCtx, .value_u64 = 1u, .count = 2u,
-                               .out = args->out_verba_linea_pointer);
-                    mmgr_line_ch(args->out_verba_linea_pointer, (char)(value->low ? 1 : 0));
-                    break;
-                case CLI_IPP_RANGE:
-                    EMBED_CALL(cli_bytes_get, IppCtx, .value_u64 = 8u, .count = 2u,
-                               .out = args->out_verba_linea_pointer);
-                    EMBED_CALL(cli_bytes_get, IppCtx, .value_u64 = (unsigned int)value->low, .count = 4u,
-                               .out = args->out_verba_linea_pointer);
-                    EMBED_CALL(cli_bytes_get, IppCtx, .value_u64 = (unsigned int)value->high, .count = 4u,
-                               .out = args->out_verba_linea_pointer);
-                    break;
-                default:
-                    EMBED_CALL(cli_bytes_get, IppCtx, .value_u64 = value->length, .count = 2u,
-                               .out = args->out_verba_linea_pointer);
-                    mmgr_line_put_n(args->out_verba_linea_pointer,
-                                    (const char *)(args->message_read->bytes + value->bytes), value->length);
-                    break;
-                }
+                EMBED_CALL(cli_value_encode, IppCtx, .value = value, .bytes_bytes = args->message_read->bytes,
+                           .out = args->out_verba_linea_pointer);
             }
         }
     }
