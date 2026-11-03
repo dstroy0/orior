@@ -16,7 +16,9 @@ static const char s_schema[] = "{\n  \"$schema\": \"http://json-schema.org/draft
                                "    \"tags\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}, \"uniqueItems\": true},\n"
                                "    \"old\": {\"type\": \"boolean\", \"deprecated\": true},\n"
                                "    \"server\": {\"type\": \"object\", \"properties\": {\"port\": {\"type\": \"integer\"}, \"host\": {\"type\": "
-                               "\"string\"}}, \"required\": [\"port\"]}\n  }\n}";
+                               "\"string\"}}, \"required\": [\"port\"]},\n"
+                               "    \"pairs\": {\"type\": \"array\", \"prefixItems\": [{\"enum\": [\"one\", \"two\"]}], \"items\": {\"enum\": [\"rest\"]}},\n"
+                               "    \"named\": {\"type\": \"object\", \"patternProperties\": {\"^x_\": {\"enum\": [\"px\"]}}}\n  }\n}";
 static const char s_faulty_text[] = "{\n  \"a\": [1, 2,],\n  \"b\": tru,\n  // a comment\n  \"a\": {}\n}";
 static const char s_file_text[] = "{\n  \"$schema\": \"./schema.json\",\n  \"name\": \"x\",\n  \"version\": \"1.0\",\n  \"count\": 12,\n"
                                   "  \"level\": \"loud\",\n  \"tags\": [\"a\", \"a\"],\n  \"old\": true,\n  \"server\": {\"host\": 1},\n"
@@ -257,6 +259,23 @@ void test_an_inner_objects_keys_complete(void)
 void test_a_value_completes_from_its_enum(void)
 {
     assert_labels("low|medium|high", completed("{\"$schema\": \"./schema.json\", \"level\": \""));
+}
+
+void test_a_value_after_a_comment_completes_as_though_the_comment_were_not_there(void)
+{
+    assert_labels("low|medium|high", completed("{\"$schema\": \"./schema.json\", // \"server\": {\n\"level\": \""));
+    assert_labels("low|medium|high", completed("{\"$schema\": \"./schema.json\", /* \"server\": { */ \"level\": \""));
+}
+
+void test_an_items_value_completes_from_the_schema_at_its_place(void)
+{
+    assert_labels("one|two", completed("{\"$schema\": \"./schema.json\", \"pairs\": [\""));
+    assert_labels("rest", completed("{\"$schema\": \"./schema.json\", \"pairs\": [\"one\", \""));
+}
+
+void test_a_value_completes_from_the_pattern_its_key_matches(void)
+{
+    assert_labels("px", completed("{\"$schema\": \"./schema.json\", \"named\": {\"x_a\": \""));
 }
 
 void test_a_boolean_completes(void)
