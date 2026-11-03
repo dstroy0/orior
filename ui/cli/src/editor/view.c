@@ -3956,13 +3956,14 @@ int cli_view_input(const CliViewInputCfg *args)
     }
     int reserved = 1;
     EMBED_CALL(view_folds_refresh, ViewCtx, .view = view);
-    if (args->input->kind == CLI_VIEW_KEY)
+    switch (args->input->kind)
     {
+    case CLI_VIEW_KEY: {
         reserved =
             EMBED_CALL(view_on_key, ViewCtx, .view = view, .supplied = args->input->name, .err_msg = args->err_msg);
+        break;
     }
-    else if (args->input->kind == CLI_VIEW_TEXT)
-    {
+    case CLI_VIEW_TEXT: {
         const int one = (args->input->length != 0ULL) &&
                         (EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = args->input->text,
                                     .size = args->input->length) == 1ULL);
@@ -4009,22 +4010,22 @@ int cli_view_input(const CliViewInputCfg *args)
                            : EMBED_CALL(view_type, ViewCtx, .view = view, .text = args->input->text,
                                         .length = args->input->length, .kind = kind, .err_msg = args->err_msg);
         }
+        break;
     }
-    else if (args->input->kind == CLI_VIEW_POINTER)
-    {
+    case CLI_VIEW_POINTER: {
         EMBED_CALL(view_point, ViewCtx, .view = view, .input = args->input);
+        break;
     }
-    else if (args->input->kind == CLI_VIEW_SCROLL)
-    {
+    case CLI_VIEW_SCROLL: {
         const unsigned long long lines = EMBED_CALL(view_lines, ViewCtx, .view_read = view);
         const unsigned long long last = (lines != 0ULL) ? lines - 1ULL : 0ULL;
         const unsigned long long top = (args->input->top > last) ? last : args->input->top;
         // a top a closed fold hides goes past the fold the way the view scrolls
         view->top = (top > view->top) ? EMBED_CALL(view_displayed_down, ViewCtx, .view_read = view, .line = top)
                                       : EMBED_CALL(view_displayed_up, ViewCtx, .view_read = view, .line = top);
+        break;
     }
-    else if (args->input->kind == CLI_VIEW_SIZE)
-    {
+    case CLI_VIEW_SIZE: {
         // a size the same as the view's changes nothing; one changed moves the top so the cursor stays in view
         const int changed = (view->rows != args->input->rows) || (view->columns != args->input->columns);
         view->rows = args->input->rows;
@@ -4033,9 +4034,9 @@ int cli_view_input(const CliViewInputCfg *args)
         {
             EMBED_CALL(view_follow, ViewCtx, .view = view);
         }
+        break;
     }
-    else if (args->input->kind == CLI_VIEW_COMPLETE)
-    {
+    case CLI_VIEW_COMPLETE: {
         // the completion's text written over the units before the cursor it replaces, no more than stand before it
         const unsigned long long back =
             (args->input->column < view->cursor.col) ? args->input->column : view->cursor.col;
@@ -4043,9 +4044,9 @@ int cli_view_input(const CliViewInputCfg *args)
         reserved =
             EMBED_CALL(view_edit, ViewCtx, .view = view, .from = from, .to = view->cursor, .text = args->input->text,
                        .length = args->input->length, .kind = CLI_VIEW_KIND_NONE, .err_msg = args->err_msg);
+        break;
     }
-    else if (args->input->kind == CLI_VIEW_POSITION)
-    {
+    case CLI_VIEW_POSITION: {
         // the cursor placed at the line `row` and the unit `column`, each cut to the text, the top following it
         const unsigned long long lines = EMBED_CALL(view_lines, ViewCtx, .view_read = view);
         unsigned long long line;
@@ -4065,6 +4066,11 @@ int cli_view_input(const CliViewInputCfg *args)
         EMBED_CALL(view_move, ViewCtx, .view = view,
                    .place = (CliPosition){line, (args->input->column < length) ? args->input->column : length},
                    .extend = 0, .saved = 0);
+        break;
+    }
+    default: {
+        break;
+    }
     }
     // a paged text's pages are told where the view stands and cache the lines about it
     if (view->paged)

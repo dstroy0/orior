@@ -469,33 +469,34 @@ void cli_executables_steps(const CliExecutablesRootCtx *args)
     EMBED_CALL(cli_script_get, ExecutablesStepsCtx, .root = args->root, .exe = args->exe, .out = script);
     EMBED_CALL(cli_executables_out_internal.folder_get, CliExecutablesOutCtx, .root = args->root,
                .script = args->exe->script, .out = folder);
-    if (args->exe->kind == CLI_KIND_CARGO)
+    switch (args->exe->kind)
     {
+    case CLI_KIND_CARGO: {
         EMBED_CALL(cli_cargo_steps, ExecutablesStepsCtx, .root = args->root, .exe = args->exe, .folder = folder,
                    .catalog = args->catalog);
+        break;
     }
-    else if (args->exe->kind == CLI_KIND_CMAKE)
-    {
+    case CLI_KIND_CMAKE: {
         EMBED_CALL(cli_cmake_steps, ExecutablesStepsCtx, .root = args->root, .exe = args->exe, .folder = folder,
                    .catalog = args->catalog);
+        break;
     }
-    else if (args->exe->kind == CLI_KIND_MESON)
-    {
+    case CLI_KIND_MESON: {
         EMBED_CALL(cli_meson_steps, ExecutablesStepsCtx, .root = args->root, .exe = args->exe, .folder = folder,
                    .vsenv = cli_needs_vsenv(), .catalog = args->catalog);
+        break;
     }
-    else if (args->exe->kind == CLI_KIND_GO)
-    {
+    case CLI_KIND_GO: {
         EMBED_CALL(cli_go_steps, ExecutablesStepsCtx, .root = args->root, .exe = args->exe, .folder = folder,
                    .catalog = args->catalog);
+        break;
     }
-    else if (args->exe->kind == CLI_KIND_DOTNET)
-    {
+    case CLI_KIND_DOTNET: {
         EMBED_CALL(cli_dotnet_steps, ExecutablesStepsCtx, .script = script, .catalog = args->catalog,
                    .runtime = cli_dotnet_runtime());
+        break;
     }
-    else if (args->exe->kind == CLI_KIND_ZIG)
-    {
+    case CLI_KIND_ZIG: {
         EMBED_CALL(cli_tool, ExecutablesStepsCtx, .catalog = args->catalog, .tool = "zig", .program = "zig");
         EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = args->catalog, .text = "build");
         EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = args->catalog, .text = "--build-file");
@@ -508,9 +509,9 @@ void cli_executables_steps(const CliExecutablesRootCtx *args)
         }
         EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = args->catalog, .kind_u32 = CLI_ARG_SOURCE_DATE,
                    .a = NULL, .b = NULL, .c = NULL, .d = NULL, .separated = 0);
+        break;
     }
-    else if (args->exe->kind == CLI_KIND_PYINSTALLER)
-    {
+    case CLI_KIND_PYINSTALLER: {
         char dist[CLI_PATH_MAX_LEN];
         char work[CLI_PATH_MAX_LEN];
         EMBED_CALL(cli_under_folder, ExecutablesStepsCtx, .folder = folder, .inner = "dist", .out = dist);
@@ -528,10 +529,15 @@ void cli_executables_steps(const CliExecutablesRootCtx *args)
         EMBED_CALL(cli_lit, ExecutablesStepsCtx, .catalog = args->catalog, .text = script);
         EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = args->catalog, .kind_u32 = CLI_ARG_SOURCE_DATE,
                    .a = NULL, .b = NULL, .c = NULL, .d = NULL, .separated = 0);
+        break;
     }
-    else if (args->exe->kind == CLI_KIND_NPM)
-    {
+    case CLI_KIND_NPM: {
         EMBED_CALL(cli_npm_steps, ExecutablesStepsCtx, .exe = args->exe, .catalog = args->catalog);
+        break;
+    }
+    default: {
+        break;
+    }
     }
     EMBED_CALL(cli_catalog_text_program.step, CliCatalogTextProgramCfg, .catalog = args->catalog,
                .program = CLI_PROGRAM_CREATED, .text = NULL, .tool_program = NULL, .system = 0);

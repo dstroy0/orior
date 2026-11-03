@@ -125,25 +125,28 @@ void cli_pg_failure_get(const CliPgCtx *args)
         if (end > at)
         {
             char *field;
-            if (args->body[at] == 'M')
+            switch (args->body[at])
             {
+            case 'M': {
                 field = args->failure->message;
+                break;
             }
-            else if (args->body[at] == 'C')
-            {
+            case 'C': {
                 field = args->failure->code;
+                break;
             }
-            else if (args->body[at] == 'D')
-            {
+            case 'D': {
                 field = args->failure->detail;
+                break;
             }
-            else if (args->body[at] == 'H')
-            {
+            case 'H': {
                 field = args->failure->hint;
+                break;
             }
-            else
-            {
+            default: {
                 field = NULL;
+                break;
+            }
             }
             const unsigned long long capacity =
                 (args->body[at] == 'C') ? sizeof(args->failure->code) : sizeof(args->failure->message);

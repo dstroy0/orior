@@ -370,28 +370,29 @@ EMBED_INLINE void cli_script_text_read(const ExecutablesReadCtx *args)
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
     }
     int module = 0;
-    if (args->kind == CLI_KIND_CARGO)
+    switch (args->kind)
     {
+    case CLI_KIND_CARGO: {
         EMBED_CALL(cli_executables_names_internal.cargo_bins, CliExecutablesNamesCtx, .manifest = script, .text = text,
                    .names = &s_scripts->names);
+        break;
     }
-    else if (args->kind == CLI_KIND_GO)
-    {
+    case CLI_KIND_GO: {
         EMBED_CALL(cli_executables_text_module_internal.go_mains, CliExecutablesTextModuleCtx, .module_text = script,
                    .text = text, .mains = &s_scripts->names);
+        break;
     }
-    else if (args->kind == CLI_KIND_ZIG)
-    {
+    case CLI_KIND_ZIG: {
         EMBED_CALL(cli_executables_names_internal.zig_exes, CliExecutablesNamesCtx, .text = text,
                    .names = &s_scripts->names);
+        break;
     }
-    else if (args->kind == CLI_KIND_NPM)
-    {
+    case CLI_KIND_NPM: {
         EMBED_CALL(cli_executables_names_text_module_internal.npm_bins, CliExecutablesNamesTextModuleCtx, .text = text,
                    .names = &s_scripts->names, .module = &module);
+        break;
     }
-    else
-    {
+    default: {
         s_scripts->names.count = 0u;
         char name[CLI_NAME_MAX_LEN];
         char path[CLI_PATH_MAX_LEN];
@@ -407,6 +408,8 @@ EMBED_INLINE void cli_script_text_read(const ExecutablesReadCtx *args)
                        .length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}),
                        .value = (args->kind == CLI_KIND_DOTNET) ? NULL : path);
         }
+        break;
+    }
     }
     const int optimize =
         cellul.find(&(CatenaFinitaCfg){

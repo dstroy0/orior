@@ -59,25 +59,31 @@ void cli_build_check(const CliBuildsPathCfg *args)
     unsigned int *const starts = EMBED_CALL(cli_builds_text_size.build_lines_alloc, CliBuildsTextSizeCfg,
                                             .text = args->text, .size = args->size, .lines_out = &lines);
     const unsigned int kind = cli_builds_path.build_kind_get(args);
-    if (kind == CLI_BUILD_GRADLE)
+    switch (kind)
     {
+    case CLI_BUILD_GRADLE: {
         EMBED_CALL(cli_gradle_text_size_internal.check, CliGradleTextSizeCtx, .root = args->root, .path = args->path,
                    .text = args->text, .size = args->size, .lines = &lines, .found = &s_found);
+        break;
     }
-    else if (kind == CLI_BUILD_CATALOG)
-    {
+    case CLI_BUILD_CATALOG: {
         EMBED_CALL(cli_version_catalog_text_internal.versions_check, CliVersionCatalogTextCtx, .root = args->root,
                    .path = args->path, .text = args->text, .size = args->size, .lines = &lines, .found = &s_found);
+        break;
     }
-    else if (kind == CLI_BUILD_MAVEN)
-    {
+    case CLI_BUILD_MAVEN: {
         EMBED_CALL(cli_maven_text_internal.check, CliMavenTextCtx, .root = args->root, .path = args->path,
                    .text = args->text, .size = args->size, .lines = &lines, .found = &s_found);
+        break;
     }
-    else if (kind == CLI_BUILD_SCONS)
-    {
+    case CLI_BUILD_SCONS: {
         EMBED_CALL(cli_scons_text_internal.check, CliSconsTextCtx, .root = args->root, .path = args->path,
                    .text = args->text, .size = args->size, .lines = &lines, .found = &s_found);
+        break;
+    }
+    default: {
+        break;
+    }
     }
     EMBED_CALL(cli_builds_table.build_findings_write, CliBuildsCfg, .found_read = &s_found, .out = args->out);
     EMBED_CALL(cli_builds_lines.build_findings_free, CliBuildsLinesCfg, .found = &s_found);
@@ -88,25 +94,31 @@ void cli_build_complete(const CliBuildsPathCfg *args)
 {
     const unsigned long long at = cli_builds_path.build_byte_at(args);
     const unsigned int kind = cli_builds_path.build_kind_get(args);
-    if (kind == CLI_BUILD_GRADLE)
+    switch (kind)
     {
+    case CLI_BUILD_GRADLE: {
         EMBED_CALL(cli_gradle_text_internal.complete, CliGradleTextCtx, .root = args->root, .path = args->path,
                    .text = args->text, .size = args->size, .at = at, .items = args->items);
+        break;
     }
-    else if (kind == CLI_BUILD_CATALOG)
-    {
+    case CLI_BUILD_CATALOG: {
         EMBED_CALL(cli_version_catalog_text_size_at_internal.versions_complete, CliVersionCatalogTextSizeAtCtx,
                    .text = args->text, .size = args->size, .at_u64 = at, .items = args->items);
+        break;
     }
-    else if (kind == CLI_BUILD_MAVEN)
-    {
+    case CLI_BUILD_MAVEN: {
         EMBED_CALL(cli_maven_text_size_internal.complete, CliMavenTextSizeCtx, .path = args->path, .text = args->text,
                    .size = args->size, .at_u64 = at, .items = args->items);
+        break;
     }
-    else if (kind == CLI_BUILD_SCONS)
-    {
+    case CLI_BUILD_SCONS: {
         EMBED_CALL(cli_scons_text_size_internal.complete, CliSconsTextSizeCtx, .text = args->text, .size = args->size,
                    .at = at, .items = args->items);
+        break;
+    }
+    default: {
+        break;
+    }
     }
     EMBED_CALL(cli_edits_items.completions_unique, CliEditsItemsCfg, .items = args->items);
 }

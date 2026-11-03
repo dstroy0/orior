@@ -265,21 +265,32 @@ LatticeStageAt *lattice_stage(double seconds)
         }
         const double part = lattice_ease(left / one->seconds);
         *at = (LatticeStageAt){LATTICE_SIDED, 0.0, 0.0, part};
-        if (one->name == LATTICE_SPREADS)
+        switch (one->name)
+        {
+        case LATTICE_SPREADS:
         {
             *at = (LatticeStageAt){LATTICE_SPREAD, 0.0, LATTICE_ORDERED + (1.0 - LATTICE_ORDERED) * part, part};
+            break;
         }
-        else if (one->name == LATTICE_INVERT)
+        case LATTICE_INVERT:
         {
             *at = (LatticeStageAt){LATTICE_WHOLE, 0.0, 0.0, part};
+            break;
         }
-        else if (one->name == LATTICE_GATHERS)
+        case LATTICE_GATHERS:
         {
             *at = (LatticeStageAt){LATTICE_GATHER, LATTICE_PI / 2.0, 0.0, part};
+            break;
         }
-        else if (one->name == LATTICE_TURN)
+        case LATTICE_TURN:
         {
             *at = (LatticeStageAt){LATTICE_SIDED, (LATTICE_PI / 2.0) * (1.0 + turns + part), 0.0, part};
+            break;
+        }
+        default:
+        {
+            break;
+        }
         }
         return at;
     }

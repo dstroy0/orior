@@ -457,12 +457,13 @@ static long long cli_effect_binary(const SymbolsEffectValueCtx *args)
         // a shift past a long long's bits gives 0
         const int shifts = (right >= 0LL) && (right < 63LL);
         const unsigned char does = joined->does;
-        if (does == CLI_DOES_MULTIPLY)
+        switch (does)
         {
+        case CLI_DOES_MULTIPLY: {
             left = left * right;
+            break;
         }
-        else if (does == CLI_DOES_DIVIDE)
-        {
+        case CLI_DOES_DIVIDE: {
             if (right != 0LL)
             {
                 left = left / right;
@@ -471,9 +472,9 @@ static long long cli_effect_binary(const SymbolsEffectValueCtx *args)
             {
                 left = 0LL;
             }
+            break;
         }
-        else if (does == CLI_DOES_REMAINDER)
-        {
+        case CLI_DOES_REMAINDER: {
             if (right != 0LL)
             {
                 left = left % right;
@@ -482,17 +483,17 @@ static long long cli_effect_binary(const SymbolsEffectValueCtx *args)
             {
                 left = 0LL;
             }
+            break;
         }
-        else if (does == CLI_DOES_ADD)
-        {
+        case CLI_DOES_ADD: {
             left = left + right;
+            break;
         }
-        else if (does == CLI_DOES_SUBTRACT)
-        {
+        case CLI_DOES_SUBTRACT: {
             left = left - right;
+            break;
         }
-        else if (does == CLI_DOES_SHIFTLEFT)
-        {
+        case CLI_DOES_SHIFTLEFT: {
             if (shifts)
             {
                 left = left << right;
@@ -501,9 +502,9 @@ static long long cli_effect_binary(const SymbolsEffectValueCtx *args)
             {
                 left = 0LL;
             }
+            break;
         }
-        else if (does == CLI_DOES_SHIFTRIGHT)
-        {
+        case CLI_DOES_SHIFTRIGHT: {
             if (shifts)
             {
                 left = left >> right;
@@ -512,54 +513,56 @@ static long long cli_effect_binary(const SymbolsEffectValueCtx *args)
             {
                 left = 0LL;
             }
+            break;
         }
-        else if (does == CLI_DOES_LESS)
-        {
+        case CLI_DOES_LESS: {
             left = (long long)(left < right);
+            break;
         }
-        else if (does == CLI_DOES_ATMOST)
-        {
+        case CLI_DOES_ATMOST: {
             left = (long long)(left <= right);
+            break;
         }
-        else if (does == CLI_DOES_GREATER)
-        {
+        case CLI_DOES_GREATER: {
             left = (long long)(left > right);
+            break;
         }
-        else if (does == CLI_DOES_ATLEAST)
-        {
+        case CLI_DOES_ATLEAST: {
             left = (long long)(left >= right);
+            break;
         }
-        else if (does == CLI_DOES_EQUAL)
-        {
+        case CLI_DOES_EQUAL: {
             left = (long long)(left == right);
+            break;
         }
-        else if (does == CLI_DOES_UNEQUAL)
-        {
+        case CLI_DOES_UNEQUAL: {
             left = (long long)(left != right);
+            break;
         }
-        else if (does == CLI_DOES_AND)
-        {
+        case CLI_DOES_AND: {
             left = (long long)((left != 0LL) && (right != 0LL));
+            break;
         }
-        else if (does == CLI_DOES_OR)
-        {
+        case CLI_DOES_OR: {
             left = (long long)((left != 0LL) || (right != 0LL));
+            break;
         }
-        else if (does == CLI_DOES_BITAND)
-        {
+        case CLI_DOES_BITAND: {
             left = left & right;
+            break;
         }
-        else if (does == CLI_DOES_BITXOR)
-        {
+        case CLI_DOES_BITXOR: {
             left = left ^ right;
+            break;
         }
-        else if (does == CLI_DOES_BITOR)
-        {
+        case CLI_DOES_BITOR: {
             left = left | right;
+            break;
         }
-        else
-        {
+        default: {
             left = 0LL;
+            break;
+        }
         }
     }
     return left;

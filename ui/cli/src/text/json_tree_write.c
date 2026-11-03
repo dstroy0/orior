@@ -28,37 +28,40 @@ EMBED_INLINE int json_letter_escape(const JsonTreeWriteCtx *args)
 {
     static const char s_hex[17] = "0123456789abcdef";
     const char *escape;
-    if (args->letter == '"')
+    switch (args->letter)
     {
+    case '"': {
         escape = "\\\"";
+        break;
     }
-    else if (args->letter == '\\')
-    {
+    case '\\': {
         escape = "\\\\";
+        break;
     }
-    else if (args->letter == '\n')
-    {
+    case '\n': {
         escape = "\\n";
+        break;
     }
-    else if (args->letter == '\r')
-    {
+    case '\r': {
         escape = "\\r";
+        break;
     }
-    else if (args->letter == '\t')
-    {
+    case '\t': {
         escape = "\\t";
+        break;
     }
-    else if (args->letter == 0x08u)
-    {
+    case 0x08u: {
         escape = "\\b";
+        break;
     }
-    else if (args->letter == 0x0cu)
-    {
+    case 0x0cu: {
         escape = "\\f";
+        break;
     }
-    else
-    {
+    default: {
         escape = NULL;
+        break;
+    }
     }
     if (escape != NULL)
     {

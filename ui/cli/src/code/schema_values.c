@@ -349,27 +349,28 @@ static void values_write(const SchemaValuesCtx *args)
     VerbaLinea *out = args->out;
     const CliSchemaNode *const one = &read->node[args->node_u32];
     const unsigned char kind = EMBED_CALL(values_kind, SchemaValuesCtx, .node = one);
-    if (kind == CLI_SCHEMA_NUMBER)
+    switch (kind)
     {
+    case CLI_SCHEMA_NUMBER: {
         EMBED_CALL(cli_json_tree_out_value.json_double, CliJsonTreeOutValueCfg, .out = out, .value_f64 = one->number);
+        break;
     }
-    else if (kind == CLI_SCHEMA_TEXT)
-    {
+    case CLI_SCHEMA_TEXT: {
         EMBED_CALL(
             cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out,
             .text = EMBED_CALL(cli_schema_read_at_internal.text, CliSchemaReadAtCtx, .read = read, .at = one->text_at),
             .length = one->text_size);
+        break;
     }
-    else if (kind == CLI_SCHEMA_BOOL)
-    {
+    case CLI_SCHEMA_BOOL: {
         mmgr_line_put(out, one->truth ? "true" : "false");
+        break;
     }
-    else if (kind == CLI_SCHEMA_NULL)
-    {
+    case CLI_SCHEMA_NULL: {
         mmgr_line_put(out, "null");
+        break;
     }
-    else if (kind == CLI_SCHEMA_ARRAY)
-    {
+    case CLI_SCHEMA_ARRAY: {
         mmgr_line_ch(out, '[');
         for (unsigned int at = one->first; at != CLI_SCHEMA_NONE; at = read->node[at].next)
         {
@@ -377,9 +378,9 @@ static void values_write(const SchemaValuesCtx *args)
             EMBED_CALL(values_write, SchemaValuesCtx, .read = read, .node_u32 = at, .out = out);
         }
         mmgr_line_ch(out, ']');
+        break;
     }
-    else
-    {
+    default: {
         mmgr_line_ch(out, '{');
         const char *previous = NULL;
         unsigned int previous_size = 0u;
@@ -421,6 +422,8 @@ static void values_write(const SchemaValuesCtx *args)
             EMBED_CALL(values_write, SchemaValuesCtx, .read = read, .node_u32 = member->value, .out = out);
         }
         mmgr_line_ch(out, '}');
+        break;
+    }
     }
 }
 

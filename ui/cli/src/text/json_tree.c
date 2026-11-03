@@ -436,8 +436,9 @@ static unsigned int cli_convert(const JsonTreeCtx *args)
     {
         return made;
     }
-    if (at->kind == CFG_JSON_STRING)
+    switch (at->kind)
     {
+    case CFG_JSON_STRING: {
         // a string's letters as stored are at most its letters as written
         if (!EMBED_CALL(cli_json_tree_nodes.json_capacity, CliJsonTreeNodesCfg, .json = json, .nodes = 0u,
                         .text_u64 = (unsigned long long)(at->end - at->start) + 1ULL))
@@ -455,15 +456,15 @@ static unsigned int cli_convert(const JsonTreeCtx *args)
         json->node[made].text = json->used;
         json->node[made].length = length;
         json->used += length + 1ULL;
+        break;
     }
-    else if (at->kind == CFG_JSON_NUMBER)
-    {
+    case CFG_JSON_NUMBER: {
         json->node[made].text = EMBED_CALL(cli_text_store, JsonTreeCtx, .json = json, .text = text + at->start,
                                            .length = at->end - at->start);
         json->node[made].length = at->end - at->start;
+        break;
     }
-    else if (at->kind == CFG_JSON_OBJECT)
-    {
+    case CFG_JSON_OBJECT: {
         unsigned int key = args->token + 1u;
         for (unsigned int member = 0u; member < at->count; member += 1u)
         {
@@ -481,9 +482,9 @@ static unsigned int cli_convert(const JsonTreeCtx *args)
             json->nodes -= (named == (json->nodes - 1u)) ? 1u : 0u;
             key = args->tokens[key + 1u].next;
         }
+        break;
     }
-    else if (at->kind == CFG_JSON_ARRAY)
-    {
+    case CFG_JSON_ARRAY: {
         unsigned int item = args->token + 1u;
         for (unsigned int each = 0u; each < at->count; each += 1u)
         {
@@ -496,6 +497,11 @@ static unsigned int cli_convert(const JsonTreeCtx *args)
             EMBED_CALL(cli_append_last, JsonTreeCtx, .json = json, .parent = made, .value = value);
             item = args->tokens[item].next;
         }
+        break;
+    }
+    default: {
+        break;
+    }
     }
     return made;
 }

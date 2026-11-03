@@ -12,6 +12,43 @@
 #define CLI_LEAVES_MARKS 256ULL
 #define CLI_LEAVES_MAX (1u << 19u)
 
+// what each segment of a leaf's name says the leaf is, by where in the name it stands: the first, one after
+// `directive`, or any other; and those that say so of a type alone
+typedef struct
+{
+    const char *segment;
+    unsigned long long is;
+} CliLeafSegment;
+#define CLI_LEAF_TABLE_COUNT(table_) ((unsigned int)(sizeof(table_) / sizeof((table_)[0])))
+static const CliLeafSegment s_kind_segments[] = {
+    {"string", CLI_LEAF_STRING},   {"comment", CLI_LEAF_COMMENT}, {"number", CLI_LEAF_NUMBER},
+    {"identifier", CLI_LEAF_NAME}, {"predefined", CLI_LEAF_NAME}, {"keyword", CLI_LEAF_KEYWORD},
+    {"type", CLI_LEAF_TYPE},
+};
+static const CliLeafSegment s_directive_segments[] = {
+    {"include", CLI_LEAF_INCLUDE}, {"define", CLI_LEAF_DEFINE},       {"undef", CLI_LEAF_UNDEF},
+    {"if", CLI_LEAF_IF},           {"ifdef", CLI_LEAF_IFDEF},         {"ifndef", CLI_LEAF_IFNDEF},
+    {"elif", CLI_LEAF_ELIF},       {"else", CLI_LEAF_ELSE},           {"endif", CLI_LEAF_ENDIF},
+    {"defined", CLI_LEAF_DEFINED}, {"continued", CLI_LEAF_CONTINUED},
+};
+static const CliLeafSegment s_role_segments[] = {
+    {"parameter", CLI_LEAF_PARAMETER}, {"memory", CLI_LEAF_MEMORY},
+    {"local", CLI_LEAF_LOCAL},         {"declaration", CLI_LEAF_DECLARES},
+    {"rest", CLI_LEAF_REMAINDER},      {"join", CLI_LEAF_JOIN},
+    {"quote", CLI_LEAF_QUOTE},         {"unary", CLI_LEAF_UNARY},
+    {"choice", CLI_LEAF_CHOICE},       {"otherwise", CLI_LEAF_OTHERWISE},
+    {"prefix", CLI_LEAF_PREFIX},       {"include", CLI_LEAF_INCLUDED},
+    {"beside", CLI_LEAF_ADJACENT},     {"open", CLI_LEAF_OPEN},
+    {"close", CLI_LEAF_CLOSE},         {"region", CLI_LEAF_REGION},
+    {"statement", CLI_LEAF_STATEMENT}, {"separator", CLI_LEAF_SEPARATOR},
+    {"call", CLI_LEAF_CALL},           {"assign", CLI_LEAF_ASSIGN},
+    {"function", CLI_LEAF_FUNCTION},   {"depth", CLI_LEAF_DEPTH},
+};
+static const CliLeafSegment s_typed_segments[] = {
+    {"number", CLI_LEAF_OF_NUMBER},
+    {"string", CLI_LEAF_OF_STRING},
+};
+
 typedef struct
 {
     const char *name;
@@ -22,6 +59,8 @@ typedef struct
     unsigned long long size;
     CliLeaf *leaf;
     CliLeafRead *read;
+    const CliLeafSegment *table;
+    unsigned int table_count;
 } SymbolsLeavesCtx;
 // whether the segment of `name` from `from`, `length` bytes, is `segment`
 EMBED_INLINE int cli_leaf_segment_is(const SymbolsLeavesCtx *args)
@@ -30,6 +69,20 @@ EMBED_INLINE int cli_leaf_segment_is(const SymbolsLeavesCtx *args)
     return (args->length == size) &&
            EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = args->name + args->from,
                       .other_pointer = args->segment, .size = size);
+}
+
+// what the first entry of `table` that the segment is says, 0 where the segment is none of them
+EMBED_INLINE unsigned long long cli_leaf_bits(const SymbolsLeavesCtx *args)
+{
+    for (unsigned int at = 0u; at < args->table_count; at += 1u)
+    {
+        if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = args->from,
+                       .length = args->length, .segment = args->table[at].segment))
+        {
+            return args->table[at].is;
+        }
+    }
+    return 0ULL;
 }
 
 // the operations a segment of an operator's name names, each at the place its CLI_DOES_ number counts from 1
@@ -111,255 +164,37 @@ static void cli_leaf_get(const SymbolsLeavesCtx *args)
         {
             operating = EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from,
                                    .length = size, .segment = "operator");
-            if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                           .segment = "string"))
-            {
-                is |= CLI_LEAF_STRING;
-            }
-            else if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                                .segment = "comment"))
-            {
-                is |= CLI_LEAF_COMMENT;
-            }
-            else if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                                .segment = "number"))
-            {
-                is |= CLI_LEAF_NUMBER;
-            }
-            else if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                                .segment = "identifier"))
-            {
-                is |= CLI_LEAF_NAME;
-            }
-            else if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                                .segment = "predefined"))
-            {
-                is |= CLI_LEAF_NAME;
-            }
-            else if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                                .segment = "keyword"))
-            {
-                is |= CLI_LEAF_KEYWORD;
-            }
-            else if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                                .segment = "type"))
-            {
-                is |= CLI_LEAF_TYPE;
-            }
-            else
-            {
-                is |= 0u;
-            }
+            is |= EMBED_CALL(cli_leaf_bits, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
+                             .table = s_kind_segments, .table_count = CLI_LEAF_TABLE_COUNT(s_kind_segments));
         }
         else if (directive)
         {
-            if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                           .segment = "include"))
-            {
-                is |= CLI_LEAF_INCLUDE;
-            }
-            else if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                                .segment = "define"))
-            {
-                is |= CLI_LEAF_DEFINE;
-            }
-            else if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                                .segment = "undef"))
-            {
-                is |= CLI_LEAF_UNDEF;
-            }
-            else if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                                .segment = "if"))
-            {
-                is |= CLI_LEAF_IF;
-            }
-            else if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                                .segment = "ifdef"))
-            {
-                is |= CLI_LEAF_IFDEF;
-            }
-            else if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                                .segment = "ifndef"))
-            {
-                is |= CLI_LEAF_IFNDEF;
-            }
-            else if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                                .segment = "elif"))
-            {
-                is |= CLI_LEAF_ELIF;
-            }
-            else if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                                .segment = "else"))
-            {
-                is |= CLI_LEAF_ELSE;
-            }
-            else if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                                .segment = "endif"))
-            {
-                is |= CLI_LEAF_ENDIF;
-            }
-            else if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                                .segment = "defined"))
-            {
-                is |= CLI_LEAF_DEFINED;
-            }
-            else if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                                .segment = "continued"))
-            {
-                is |= CLI_LEAF_CONTINUED;
-            }
-            else
-            {
-                is |= 0u;
-            }
+            is |= EMBED_CALL(cli_leaf_bits, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
+                             .table = s_directive_segments, .table_count = CLI_LEAF_TABLE_COUNT(s_directive_segments));
         }
         else
         {
-            const int typed = (is & CLI_LEAF_TYPE) != 0u;
             const unsigned char operation = operating ? EMBED_CALL(cli_leaf_operation, SymbolsLeavesCtx,
                                                                    .name = args->name, .from = from, .length = size)
                                                       : 0u;
             args->leaf->does = (operation != 0u) ? operation : args->leaf->does;
             directive = (segment == 1u) && EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name,
                                                       .from = from, .length = size, .segment = "directive");
-            if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                           .segment = "binds"))
-            {
-                counts = 1u;
-            }
-            else if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                                .segment = "base"))
-            {
-                counts = 2u;
-            }
-            else
-            {
-                counts = 0u;
-            }
-            if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                           .segment = "parameter"))
-            {
-                is |= CLI_LEAF_PARAMETER;
-            }
-            else if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                                .segment = "memory"))
-            {
-                is |= CLI_LEAF_MEMORY;
-            }
-            else if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                                .segment = "local"))
-            {
-                is |= CLI_LEAF_LOCAL;
-            }
-            else if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                                .segment = "declaration"))
-            {
-                is |= CLI_LEAF_DECLARES;
-            }
-            else if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                                .segment = "rest"))
-            {
-                is |= CLI_LEAF_REMAINDER;
-            }
-            else if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                                .segment = "join"))
-            {
-                is |= CLI_LEAF_JOIN;
-            }
-            else if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                                .segment = "quote"))
-            {
-                is |= CLI_LEAF_QUOTE;
-            }
-            else if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                                .segment = "unary"))
-            {
-                is |= CLI_LEAF_UNARY;
-            }
-            else if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                                .segment = "choice"))
-            {
-                is |= CLI_LEAF_CHOICE;
-            }
-            else if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                                .segment = "otherwise"))
-            {
-                is |= CLI_LEAF_OTHERWISE;
-            }
-            else if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                                .segment = "prefix"))
-            {
-                is |= CLI_LEAF_PREFIX;
-            }
-            else if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                                .segment = "include"))
-            {
-                is |= CLI_LEAF_INCLUDED;
-            }
-            else if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                                .segment = "beside"))
-            {
-                is |= CLI_LEAF_ADJACENT;
-            }
-            else if (typed && EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from,
-                                         .length = size, .segment = "number"))
-            {
-                is |= CLI_LEAF_OF_NUMBER;
-            }
-            else if (typed && EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from,
-                                         .length = size, .segment = "string"))
-            {
-                is |= CLI_LEAF_OF_STRING;
-            }
-            else if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                                .segment = "open"))
-            {
-                is |= CLI_LEAF_OPEN;
-            }
-            else if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                                .segment = "close"))
-            {
-                is |= CLI_LEAF_CLOSE;
-            }
-            else if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                                .segment = "region"))
-            {
-                is |= CLI_LEAF_REGION;
-            }
-            else if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                                .segment = "statement"))
-            {
-                is |= CLI_LEAF_STATEMENT;
-            }
-            else if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                                .segment = "separator"))
-            {
-                is |= CLI_LEAF_SEPARATOR;
-            }
-            else if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                                .segment = "call"))
-            {
-                is |= CLI_LEAF_CALL;
-            }
-            else if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                                .segment = "assign"))
-            {
-                is |= CLI_LEAF_ASSIGN;
-            }
-            else if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                                .segment = "function"))
-            {
-                is |= CLI_LEAF_FUNCTION;
-            }
-            else if (EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
-                                .segment = "depth"))
-            {
-                is |= CLI_LEAF_DEPTH;
-            }
-            else
-            {
-                is |= 0u;
-            }
+            counts = EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
+                                .segment = "binds")
+                         ? 1u
+                         : 0u;
+            counts = EMBED_CALL(cli_leaf_segment_is, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
+                                .segment = "base")
+                         ? 2u
+                         : counts;
+            is |= EMBED_CALL(cli_leaf_bits, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
+                             .table = s_role_segments, .table_count = CLI_LEAF_TABLE_COUNT(s_role_segments));
+            // a segment that says what a type names, where the leaf is a type
+            is |= ((is & CLI_LEAF_TYPE) != 0u)
+                      ? EMBED_CALL(cli_leaf_bits, SymbolsLeavesCtx, .name = args->name, .from = from, .length = size,
+                                   .table = s_typed_segments, .table_count = CLI_LEAF_TABLE_COUNT(s_typed_segments))
+                      : 0ULL;
         }
         segment += 1u;
         from = to + 1ULL;

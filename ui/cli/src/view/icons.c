@@ -664,40 +664,41 @@ EMBED_INLINE int pen_command(const IconsCtx *args)
     const float base_y = relative ? args->pen->y : 0.0f;
     const char upper = relative ? (char)(args->command - 'a' + 'A') : args->command;
     float values[7];
-    if (upper == 'M')
+    switch (upper)
     {
+    case 'M': {
         if (!EMBED_CALL(icons_numbers, IconsCtx, .at = args->at, .values = values, .count = 2u))
         {
             return 0;
         }
         EMBED_CALL(pen_move, IconsCtx, .pen = args->pen, .x = base_x + values[0], .y = base_y + values[1]);
+        break;
     }
-    else if (upper == 'L')
-    {
+    case 'L': {
         if (!EMBED_CALL(icons_numbers, IconsCtx, .at = args->at, .values = values, .count = 2u))
         {
             return 0;
         }
         EMBED_CALL(pen_draw, IconsCtx, .pen = args->pen, .x = base_x + values[0], .y = base_y + values[1]);
+        break;
     }
-    else if (upper == 'H')
-    {
+    case 'H': {
         if (!EMBED_CALL(icons_numbers, IconsCtx, .at = args->at, .values = values, .count = 1u))
         {
             return 0;
         }
         EMBED_CALL(pen_draw, IconsCtx, .pen = args->pen, .x = base_x + values[0], .y = args->pen->y);
+        break;
     }
-    else if (upper == 'V')
-    {
+    case 'V': {
         if (!EMBED_CALL(icons_numbers, IconsCtx, .at = args->at, .values = values, .count = 1u))
         {
             return 0;
         }
         EMBED_CALL(pen_draw, IconsCtx, .pen = args->pen, .x = args->pen->x, .y = base_y + values[0]);
+        break;
     }
-    else if (upper == 'C')
-    {
+    case 'C': {
         if (!EMBED_CALL(icons_numbers, IconsCtx, .at = args->at, .values = values, .count = 6u))
         {
             return 0;
@@ -706,9 +707,9 @@ EMBED_INLINE int pen_command(const IconsCtx *args)
                    .x2 = base_x + values[2], .y2 = base_y + values[3], .x = base_x + values[4],
                    .y = base_y + values[5]);
         return 1;
+        break;
     }
-    else if (upper == 'S')
-    {
+    case 'S': {
         if (!EMBED_CALL(icons_numbers, IconsCtx, .at = args->at, .values = values, .count = 4u))
         {
             return 0;
@@ -718,9 +719,9 @@ EMBED_INLINE int pen_command(const IconsCtx *args)
         EMBED_CALL(pen_curve, IconsCtx, .pen = args->pen, .x1 = x1, .y1 = y1, .x2 = base_x + values[0],
                    .y2 = base_y + values[1], .x = base_x + values[2], .y = base_y + values[3]);
         return 1;
+        break;
     }
-    else if (upper == 'A')
-    {
+    case 'A': {
         if (!EMBED_CALL(icons_numbers, IconsCtx, .at = args->at, .values = values, .count = 7u))
         {
             return 0;
@@ -728,10 +729,12 @@ EMBED_INLINE int pen_command(const IconsCtx *args)
         EMBED_CALL(pen_arc, IconsCtx, .pen = args->pen, .rx = values[0], .ry = values[1], .turn = values[2],
                    .large = values[3] != 0.0f, .sweep = values[4] != 0.0f, .x = base_x + values[5],
                    .y = base_y + values[6]);
+        break;
     }
-    else
-    {
+    default: {
         return 0;
+        break;
+    }
     }
     args->pen->has_control = 0;
     return 1;

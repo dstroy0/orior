@@ -415,26 +415,32 @@ void cli_schema_node(const CliSchemaBaseCtx *args)
     {
         EMBED_CALL(check_values, SchemaCheckCtx, .check = args->check, .node = args->node, .map = args->schema);
         const unsigned char kind = args->check->read->node[args->node].kind;
-        if (kind == CLI_SCHEMA_NUMBER)
+        switch (kind)
         {
+        case CLI_SCHEMA_NUMBER: {
             EMBED_CALL(cli_schema_base_map_internal.number_check, CliSchemaBaseMapCtx, .check = args->check,
                        .node = args->node, .map = args->schema);
+            break;
         }
-        else if (kind == CLI_SCHEMA_TEXT)
-        {
+        case CLI_SCHEMA_TEXT: {
             EMBED_CALL(cli_schema_base_map_internal.text_check, CliSchemaBaseMapCtx, .check = args->check,
                        .node = args->node, .map = args->schema);
+            break;
         }
-        else if (kind == CLI_SCHEMA_ARRAY)
-        {
+        case CLI_SCHEMA_ARRAY: {
             EMBED_CALL(cli_schema_base_map_internal.array_check, CliSchemaBaseMapCtx, .check = args->check,
                        .node = args->node, .map = args->schema, .base = here, .depth = args->depth);
+            break;
         }
-        else if (kind == CLI_SCHEMA_OBJECT)
-        {
+        case CLI_SCHEMA_OBJECT: {
             EMBED_CALL(cli_schema_base_map_internal.object_check, CliSchemaBaseMapCtx, .check = args->check,
                        .node = args->node, .map = args->schema, .base = here, .key_schema_key = args->key_schema_key,
                        .depth = args->depth);
+            break;
+        }
+        default: {
+            break;
+        }
         }
         const unsigned int all = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json,
                                             .map = args->schema, .name = "allOf");

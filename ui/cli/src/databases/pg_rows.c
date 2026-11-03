@@ -171,27 +171,28 @@ int cli_pg_start(const CliPgFailureSqlCfg *args)
             EMBED_CALL(rows_columns, PgRowsCtx, .pg = args->pg);
             return 1;
         }
-        if (kind == 'C')
+        switch (kind)
         {
+        case 'C': {
             EMBED_CALL(rows_tag, PgRowsCtx, .pg_read = args->pg, .tag = args->pg->head.tag);
+            break;
         }
-        else if (kind == 'E')
-        {
+        case 'E': {
             EMBED_CALL(cli_pg_internal.failure_get, CliPgCtx, .body = args->pg->message, .size = args->pg->size,
                        .failure = &args->pg->failed);
             args->pg->has_failed = 1;
+            break;
         }
-        else if (kind == 'N')
-        {
+        case 'N': {
             EMBED_CALL(cli_pg_failure_password_internal.notice_store, CliPgFailurePasswordCtx, .pg = args->pg);
+            break;
         }
-        else if (kind == 'S')
-        {
+        case 'S': {
             EMBED_CALL(cli_pg_body_internal.parameter_store, CliPgBodyCtx, .pg = args->pg, .body = args->pg->message,
                        .size = args->pg->size);
+            break;
         }
-        else if (kind == 'G')
-        {
+        case 'G': {
             static const char s_reason[] = "orior_cli sends no data to COPY FROM STDIN";
             const void *const reason[1] = {s_reason};
             const unsigned long long reason_size[1] = {sizeof(s_reason)};
@@ -200,9 +201,9 @@ int cli_pg_start(const CliPgFailureSqlCfg *args)
             {
                 return 0;
             }
+            break;
         }
-        else if (kind == 'H')
-        {
+        case 'H': {
             args->pg->read_state = 1;
             args->pg->head.rows = 1;
             args->pg->head.column_count = 1u;
@@ -216,9 +217,9 @@ int cli_pg_start(const CliPgFailureSqlCfg *args)
                               .bytes = cellul.len(&(CatenaFinitaCfg){.src = "text", .cap = CLI_CELLS_POOL}) + 1u});
             args->pg->head.columns[0].numeric = 0;
             return 1;
+            break;
         }
-        else if (kind == 'Z')
-        {
+        case 'Z': {
             args->pg->status = (args->pg->size > 0u) ? (char)args->pg->message[0] : 'I';
             if (args->pg->has_failed)
             {
@@ -227,6 +228,11 @@ int cli_pg_start(const CliPgFailureSqlCfg *args)
                 return 0;
             }
             return 1;
+            break;
+        }
+        default: {
+            break;
+        }
         }
     }
 }
@@ -252,8 +258,9 @@ int cli_pg_rows(const CliPgFailureCfg *args)
         {
             return 0;
         }
-        if (kind == 'D')
+        switch (kind)
         {
+        case 'D': {
             const unsigned int values = EMBED_CALL(rows_row, PgRowsCtx, .pg = args->pg);
             read += 1ULL;
             if (!EMBED_CALL(args->each_row, CliDbRowCfg, .context = args->context, .values = args->pg->row,
@@ -261,9 +268,9 @@ int cli_pg_rows(const CliPgFailureCfg *args)
             {
                 return 1;
             }
+            break;
         }
-        else if (kind == 'd')
-        {
+        case 'd': {
             unsigned long long size = args->pg->size;
             size = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = args->pg->message,
                               .at = size, .set = "\n");
@@ -274,29 +281,29 @@ int cli_pg_rows(const CliPgFailureCfg *args)
             {
                 return 1;
             }
+            break;
         }
-        else if (kind == 'C')
-        {
+        case 'C': {
             EMBED_CALL(rows_tag, PgRowsCtx, .pg_read = args->pg, .tag = args->tag);
             has_tag = 1;
+            break;
         }
-        else if (kind == 'E')
-        {
+        case 'E': {
             EMBED_CALL(cli_pg_internal.failure_get, CliPgCtx, .body = args->pg->message, .size = args->pg->size,
                        .failure = &args->pg->failed);
             args->pg->has_failed = 1;
+            break;
         }
-        else if (kind == 'N')
-        {
+        case 'N': {
             EMBED_CALL(cli_pg_failure_password_internal.notice_store, CliPgFailurePasswordCtx, .pg = args->pg);
+            break;
         }
-        else if (kind == 'S')
-        {
+        case 'S': {
             EMBED_CALL(cli_pg_body_internal.parameter_store, CliPgBodyCtx, .pg = args->pg, .body = args->pg->message,
                        .size = args->pg->size);
+            break;
         }
-        else if (kind == 'Z')
-        {
+        case 'Z': {
             args->pg->status = (args->pg->size > 0u) ? (char)args->pg->message[0] : 'I';
             args->pg->read_state = 0;
             if (args->pg->has_failed)
@@ -307,6 +314,11 @@ int cli_pg_rows(const CliPgFailureCfg *args)
             }
             *done = 1;
             return 1;
+            break;
+        }
+        default: {
+            break;
+        }
         }
     }
     return 1;

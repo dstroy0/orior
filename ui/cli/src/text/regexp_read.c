@@ -191,20 +191,21 @@ EMBED_INLINE unsigned int cli_quantified(const RegexpReadCtx *args)
     {
         return args->atom;
     }
-    if (letter == '*')
+    switch (letter)
     {
+    case '*': {
         min = 0u;
+        break;
     }
-    else if (letter == '+')
-    {
+    case '+': {
         min = 1u;
+        break;
     }
-    else if (letter == '?')
-    {
+    case '?': {
         max = 1u;
+        break;
     }
-    else if (letter == '{')
-    {
+    case '{': {
         const unsigned long long back = reader->at;
         reader->at += 1u;
         if (!EMBED_CALL(cli_regexp_read_value_internal.number, CliRegexpReadValueCtx, .reader = reader, .value = &min))
@@ -230,10 +231,12 @@ EMBED_INLINE unsigned int cli_quantified(const RegexpReadCtx *args)
             return args->atom;
         }
         reader->at -= 1u;
+        break;
     }
-    else
-    {
+    default: {
         return args->atom;
+        break;
+    }
     }
     reader->at += 1u;
     const unsigned int kind = reader->regexp->node[args->atom].kind;

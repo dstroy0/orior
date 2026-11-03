@@ -138,41 +138,44 @@ static int cli_compact_string(const JsonCompactCtx *args)
         }
         const char escape = args->read->text[args->read->at + 1ULL];
         const char *plain;
-        if (escape == '"')
+        switch (escape)
         {
+        case '"': {
             plain = "\"";
+            break;
         }
-        else if (escape == '\\')
-        {
+        case '\\': {
             plain = "\\";
+            break;
         }
-        else if (escape == '/')
-        {
+        case '/': {
             plain = "/";
+            break;
         }
-        else if (escape == 'b')
-        {
+        case 'b': {
             plain = "\b";
+            break;
         }
-        else if (escape == 'f')
-        {
+        case 'f': {
             plain = "\f";
+            break;
         }
-        else if (escape == 'n')
-        {
+        case 'n': {
             plain = "\n";
+            break;
         }
-        else if (escape == 'r')
-        {
+        case 'r': {
             plain = "\r";
+            break;
         }
-        else if (escape == 't')
-        {
+        case 't': {
             plain = "\t";
+            break;
         }
-        else
-        {
+        default: {
             plain = NULL;
+            break;
+        }
         }
         if (plain != NULL)
         {
