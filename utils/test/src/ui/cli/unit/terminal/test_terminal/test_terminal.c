@@ -11,6 +11,7 @@
 // Terminal shown on while a shell stands beside the one shown
 #include "ui/cli/src/command_line/cells.h"
 #include "ui/cli/src/controller/controller_internal.h"
+#include "ui/cli/src/controller/controller_work.h"
 #include "ui/cli/src/machine/state.h"
 #include "ui/cli/src/terminal/keys.h"
 
@@ -89,9 +90,26 @@ static int key_sent(const char *name, unsigned int mods, int application_cursor)
     return sends;
 }
 
+// whether the controller's lanes run, which the terminal's saves are posted to
+static int s_lanes;
+
 void setUp(void)
 {
     cli_unity_begun();
+    if (!s_lanes)
+    {
+        TEST_ASSERT_TRUE(cli_controller_work_begin());
+        s_lanes = 1;
+    }
+}
+
+// the terminal ended as the window ends it, then the lanes once every piece it posted finished, as the window's end
+// waits on them, and the lanes begun again for the tests after
+static void terminal_ended(void)
+{
+    EMBED_CALL(cli_model_terminal.end, CliModelCtx, .at = 0u);
+    cli_controller_work_end();
+    TEST_ASSERT_TRUE(cli_controller_work_begin());
 }
 
 void test_the_cursor_keys_send_plain_application_and_modified_sequences(void)
@@ -477,7 +495,7 @@ void test_the_terminal_opens_on_a_tab_whose_shell_takes_what_is_typed_and_shows_
     TEST_ASSERT_NOT_NULL(ended);
     TEST_ASSERT_TRUE(ended->tab[0].exited);
     cli_model_terminal_release(ended);
-    EMBED_CALL(cli_model_terminal.end, CliModelCtx, .at = 0u);
+    terminal_ended();
 }
 
 // the values stored in orior's folder, read as the window reads them as it starts: NULL where none could be read
@@ -518,7 +536,7 @@ void test_the_terminal_place_is_stored_as_the_window_ends_and_read_back_as_it_st
     TEST_ASSERT_EQUAL_UINT(2u, before->tabs);
     TEST_ASSERT_TRUE((shown >= 0) && (beside >= 0) && (shown != beside));
     cli_model_terminal_release(before);
-    EMBED_CALL(cli_model_terminal.end, CliModelCtx, .at = 0u);
+    terminal_ended();
     place_restored();
     CliTerminalPanel *const after = panel_read();
     TEST_ASSERT_NOT_NULL(after);
@@ -532,7 +550,7 @@ void test_the_terminal_place_is_stored_as_the_window_ends_and_read_back_as_it_st
     TEST_ASSERT_EQUAL_STRING("1 shell", after->tab[0].label);
     TEST_ASSERT_EQUAL_STRING("2 shell", after->tab[1].label);
     cli_model_terminal_release(after);
-    EMBED_CALL(cli_model_terminal.end, CliModelCtx, .at = 0u);
+    terminal_ended();
 }
 
 void test_a_tab_read_back_starts_its_shell_in_its_folder_and_its_rows_reach_its_history_as_the_window_ends(void)
@@ -593,7 +611,7 @@ void test_a_tab_read_back_starts_its_shell_in_its_folder_and_its_rows_reach_its_
     TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.text, CliModelCtx, .path = asked, .length = asked_size));
     TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.key, CliModelCtx, .path = "Enter"));
     TEST_ASSERT_TRUE(model_until("place_folder"));
-    EMBED_CALL(cli_model_terminal.end, CliModelCtx, .at = 0u);
+    terminal_ended();
     unsigned long long size = 0ull;
     const unsigned char *const history = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = history_path,
                                                     .size_pointer = &size, .owner = &g_cli_terminal_cells);
@@ -666,7 +684,7 @@ void test_the_terminal_menu_shows_split_terminal_on_while_a_shell_stands_beside_
     TEST_ASSERT_NOT_NULL(split_beside);
     TEST_ASSERT_EQUAL_INT_MESSAGE(1, split_beside->checked, "Split Terminal is on while a shell stands beside");
     g_cli_cells->persistent_buf_release(split, &g_cli_controller_cells);
-    EMBED_CALL(cli_model_terminal.end, CliModelCtx, .at = 0u);
+    terminal_ended();
 }
 
 // the menus as the controller publishes them, and the menu asked for on the terminal's pane `view` at x, y
@@ -745,7 +763,7 @@ void test_a_menu_asked_for_on_the_terminal_opens_its_items_where_it_was_asked_th
     CliMenus *const closed = menus_read();
     TEST_ASSERT_EQUAL_UINT(0u, closed->levels);
     g_cli_cells->persistent_buf_release(closed, &g_cli_controller_cells);
-    EMBED_CALL(cli_model_terminal.end, CliModelCtx, .at = 0u);
+    terminal_ended();
 }
 
 void test_the_menu_key_opens_the_terminal_menu_at_its_key_field_while_the_panel_takes_the_keys(void)
@@ -778,5 +796,5 @@ void test_the_menu_key_opens_the_terminal_menu_at_its_key_field_while_the_panel_
     TEST_ASSERT_EQUAL_UINT(CLI_MENU_PLACE_POINT, pointed->place);
     g_cli_cells->persistent_buf_release(pointed, &g_cli_controller_cells);
     EMBED_CALL(cli_model_commands.key_take, CliModelCtx, .path = "Escape");
-    EMBED_CALL(cli_model_terminal.end, CliModelCtx, .at = 0u);
+    terminal_ended();
 }

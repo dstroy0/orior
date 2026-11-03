@@ -295,17 +295,14 @@ static char s_root[CLI_PATH_MAX_LEN];
 // what a file read back holds
 static unsigned char s_read[256];
 
-// the controller's work and its saves waiting for the files' lane stepped until the window has nothing it waits on,
-// ten seconds at the most
+// the controller's work stepped until the window has nothing it waits on, ten seconds at the most
 static void work_rested(void)
 {
     const unsigned long long until = cli_clock_milliseconds() + 10000ULL;
     (void)cli_controller_work_step();
-    (void)EMBED_CALL(cli_model_save.step, CliModelCtx, .at = 0u);
     while ((g_cli_model.busy != 0u) && (cli_clock_milliseconds() < until))
     {
         (void)cli_controller_work_step();
-        (void)EMBED_CALL(cli_model_save.step, CliModelCtx, .at = 0u);
     }
     TEST_ASSERT_EQUAL_UINT_MESSAGE(0u, g_cli_model.busy, "the work came back within ten seconds");
 }
@@ -331,13 +328,12 @@ static void lane_stopped_done(void *context)
     (void)context;
 }
 
-// the files' lane stopped on a piece it runs, and more posted behind it until `pieces` stand posted in all, as many as
-// its ring takes where `pieces` is 0: how many were posted
-static unsigned int lane_stopped_behind(unsigned int pieces)
+// the files' lane stopped on a piece it runs, and more posted behind it until `pieces` stand posted in all
+static void lane_stopped_behind(unsigned int pieces)
 {
     EMBED_ATOMIC_STORE(&s_lane_free, 0u);
     EMBED_ATOMIC_STORE(&s_lane_stopped, 0u);
-    TEST_ASSERT_TRUE(EMBED_CALL(cli_controller_work.try_post, CliControllerWorkCfg, .lane_at = CLI_WORK_FILES,
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_FILES,
                                 .run = lane_stopped, .done = lane_stopped_done, .context = NULL, .busy = 1));
     const unsigned long long until = cli_clock_milliseconds() + 10000ULL;
     CliWake pause = CLI_WAKE_INIT;
@@ -346,15 +342,16 @@ static unsigned int lane_stopped_behind(unsigned int pieces)
         (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &pause, .milliseconds_u64 = 1ull);
     }
     TEST_ASSERT_EQUAL_UINT_MESSAGE(1u, EMBED_ATOMIC_LOAD(&s_lane_stopped), "the lane runs the piece that stops it");
-    unsigned int posted = 1u;
-    while (((pieces == 0u) || (posted < pieces)) &&
-           EMBED_CALL(cli_controller_work.try_post, CliControllerWorkCfg, .lane_at = CLI_WORK_FILES,
-                      .run = lane_stopped, .done = lane_stopped_done, .context = NULL, .busy = 1))
+    for (unsigned int posted = 1u; posted < pieces; posted += 1u)
     {
-        posted += 1u;
+        TEST_ASSERT_TRUE_MESSAGE(EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_FILES,
+                                            .run = lane_stopped, .done = lane_stopped_done, .context = NULL, .busy = 1),
+                                 "a piece past the ring's segments waits for one");
     }
-    return posted;
 }
+
+// the files' lane's work ring holds this many pieces, and more than it does
+#define CONTROLLER_RING_PAST 400u
 
 // every tab closed, a changed one by the second close it waits on
 static void tabs_closed(void)
@@ -548,16 +545,40 @@ void test_save_and_save_all_can_be_chosen_only_while_a_text_is_changed(void)
     TEST_ASSERT_TRUE_MESSAGE(file_row_enabled("Save All"), "another tab is");
 }
 
+// whether the piece that marks it ran
+static embed_atomic_u32 s_piece_ran;
+
+static void piece_marks(void *context)
+{
+    (void)context;
+    EMBED_ATOMIC_STORE(&s_piece_ran, 1u);
+}
+
+void test_a_piece_posted_to_a_full_lane_waits_and_never_runs_on_the_controllers_thread(void)
+{
+    tree_made("saved.txt", "one\n", NULL, NULL);
+    lane_stopped_behind(CONTROLLER_RING_PAST);
+    EMBED_ATOMIC_STORE(&s_piece_ran, 0u);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_FILES,
+                                .run = piece_marks, .done = lane_stopped_done, .context = NULL, .busy = 1));
+    TEST_ASSERT_EQUAL_UINT_MESSAGE(0u, EMBED_ATOMIC_LOAD(&s_piece_ran), "the piece waits for the lane");
+    (void)cli_controller_work_step();
+    TEST_ASSERT_EQUAL_UINT_MESSAGE(0u, EMBED_ATOMIC_LOAD(&s_piece_ran), "a step runs no piece itself");
+    EMBED_ATOMIC_STORE(&s_lane_free, 1u);
+    work_rested();
+    TEST_ASSERT_EQUAL_UINT_MESSAGE(1u, EMBED_ATOMIC_LOAD(&s_piece_ran), "the lane ran it once segments freed");
+}
+
 void test_a_save_waits_for_a_full_files_lane_and_writes_nothing_on_the_controllers_thread(void)
 {
     tree_made("saved.txt", "one\n", NULL, NULL);
     const unsigned int at = tab_opened("saved.txt");
     typed("x");
-    TEST_ASSERT_NOT_EQUAL_UINT(0u, lane_stopped_behind(0u));
+    lane_stopped_behind(CONTROLLER_RING_PAST);
     EMBED_CALL(cli_model_commands.command_run, CliModelCtx, .path = "save");
+    TEST_ASSERT_TRUE_MESSAGE(changed(at) == 0, "the save is under way, its save point put");
+    (void)cli_controller_work_step();
     file_reads("saved.txt", "one\n");
-    TEST_ASSERT_FALSE_MESSAGE(EMBED_CALL(cli_model_save.step, CliModelCtx, .at = 0u),
-                              "the save waits while the lane's ring stands full");
     EMBED_ATOMIC_STORE(&s_lane_free, 1u);
     work_rested();
     file_reads("saved.txt", "xone\n");
@@ -569,7 +590,7 @@ void test_an_edit_after_a_save_begins_leaves_the_file_as_it_was_and_the_save_run
     tree_made("saved.txt", "one\n", NULL, NULL);
     const unsigned int at = tab_opened("saved.txt");
     typed("x");
-    TEST_ASSERT_EQUAL_UINT(1u, lane_stopped_behind(1u));
+    lane_stopped_behind(1u);
     EMBED_CALL(cli_model_commands.command_run, CliModelCtx, .path = "save");
     typed("y");
     EMBED_ATOMIC_STORE(&s_lane_free, 1u);

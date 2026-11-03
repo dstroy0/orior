@@ -185,12 +185,12 @@ static void explorer_list_done(void *context)
     g_cli_model.dirty |= CLI_MODEL_DIRTY(CLI_SNAPSHOT_EXPLORER);
 }
 
-// the folder `dir`, the top folder where empty, asked for on the files' lane
-EMBED_INLINE void explorer_list_post(const ControllerExplorerCtx *args)
+// the folder `dir`, the top folder where empty, asked for on the files' lane: 1, or 0 where it could not be asked
+EMBED_INLINE int explorer_list_post(const ControllerExplorerCtx *args)
 {
     if (g_cli_model.root == NULL)
     {
-        return;
+        return 0;
     }
     const unsigned long long root_size =
         cellul.len(&(CatenaFinitaCfg){.src = g_cli_model.root, .cap = CLI_PATH_MAX_LEN}) + 1ULL;
@@ -200,15 +200,20 @@ EMBED_INLINE void explorer_list_post(const ControllerExplorerCtx *args)
         g_cli_cells->persistent_buf_alloc(sizeof(*listing) + root_size + dir_size, &g_cli_controller_cells);
     if (listing == NULL)
     {
-        return;
+        return 0;
     }
     char *const root = (char *)(void *)(listing + 1);
     char *const dir = root + root_size;
     memor.cpy(&(MemoriaCfg){.dst = root, .src = g_cli_model.root, .bytes = root_size});
     memor.cpy(&(MemoriaCfg){.dst = dir, .src = args->dir, .bytes = dir_size});
     *listing = (ControllerListing){root, dir, NULL};
-    EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_FILES, .run = explorer_list_run,
-               .done = explorer_list_done, .context = listing);
+    const int posted = EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_FILES,
+                                  .run = explorer_list_run, .done = explorer_list_done, .context = listing);
+    if (!posted)
+    {
+        g_cli_cells->persistent_buf_release(listing, &g_cli_controller_cells);
+    }
+    return posted;
 }
 
 void cli_model_explorer_show(const CliModelCtx *args)
@@ -216,8 +221,7 @@ void cli_model_explorer_show(const CliModelCtx *args)
     (void)args;
     if ((g_cli_model.tool >= 0) && g_cli_tools[g_cli_model.tool].side && !s_explorer.root_asked)
     {
-        s_explorer.root_asked = 1;
-        EMBED_CALL(explorer_list_post, ControllerExplorerCtx, .dir = "");
+        s_explorer.root_asked = EMBED_CALL(explorer_list_post, ControllerExplorerCtx, .dir = "");
     }
 }
 
@@ -263,8 +267,7 @@ void cli_model_explorer_press(const CliModelCtx *args)
     node->open = !node->open;
     if (node->open && !node->listed && !node->asked)
     {
-        node->asked = 1;
-        EMBED_CALL(explorer_list_post, ControllerExplorerCtx, .dir = path);
+        node->asked = EMBED_CALL(explorer_list_post, ControllerExplorerCtx, .dir = path);
     }
     g_cli_model.dirty |= CLI_MODEL_DIRTY(CLI_SNAPSHOT_EXPLORER);
 }

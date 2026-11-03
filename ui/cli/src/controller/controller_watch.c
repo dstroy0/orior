@@ -156,7 +156,7 @@ static void watch_servers_run(void *context)
     }
 }
 
-// what comes back on the controller's thread: the work's cells released
+// what comes back on the controller's thread, and a work the servers' lane could not take: the work's cells released
 static void watch_servers_done(void *context)
 {
     ControllerWatchWork *const work = (ControllerWatchWork *)context;
@@ -175,8 +175,11 @@ static void watch_servers_done(void *context)
 // what comes back on the controller's thread: the files handed to the servers' lane
 static void watch_tree_done(void *context)
 {
-    EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_SERVERS, .run = watch_servers_run,
-               .done = watch_servers_done, .context = context);
+    if (!EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_SERVERS,
+                    .run = watch_servers_run, .done = watch_servers_done, .context = context))
+    {
+        watch_servers_done(context);
+    }
 }
 
 int cli_model_watch_step(const CliModelCtx *args)
@@ -197,10 +200,16 @@ int cli_model_watch_step(const CliModelCtx *args)
         if (work != NULL)
         {
             *work = (ControllerWatchWork){s_watch.waiting, NULL, 0u};
-            s_watch.waiting = NULL;
-            s_watch.working = 1;
-            EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_TREE, .run = watch_tree_run,
-                       .done = watch_tree_done, .context = work);
+            s_watch.working = EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_TREE,
+                                         .run = watch_tree_run, .done = watch_tree_done, .context = work);
+            if (s_watch.working)
+            {
+                s_watch.waiting = NULL;
+            }
+            else
+            {
+                g_cli_cells->persistent_buf_release(work, &g_cli_controller_cells);
+            }
         }
     }
     return took;

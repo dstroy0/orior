@@ -664,7 +664,7 @@ static void model_memory_done(void *context)
 int cli_controller_model_step(void)
 {
     int did = cli_controller_work_step();
-    did = EMBED_CALL(cli_model_save.step, CliModelCtx, .at = 0u) || did;
+    did = cli_document_released_free() || did;
     const unsigned long long now_ms = cli_clock_milliseconds();
     if ((EMBED_ATOMIC_LOAD(&s_colored) != 0u) && (g_cli_model.active >= 0))
     {
@@ -684,11 +684,12 @@ int cli_controller_model_step(void)
         unsigned long long *const reading =
             g_cli_cells->persistent_buf_alloc(sizeof(*reading), &g_cli_controller_cells);
         g_cli_model.memory_due_ms = now_ms + CLI_MODEL_MEMORY_MS;
-        if (reading != NULL)
+        s_memory_reading = (reading != NULL) &&
+                           EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_FILES,
+                                      .run = model_memory_run, .done = model_memory_done, .context = reading);
+        if ((reading != NULL) && !s_memory_reading)
         {
-            s_memory_reading = 1;
-            EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_FILES,
-                       .run = model_memory_run, .done = model_memory_done, .context = reading);
+            g_cli_cells->persistent_buf_release(reading, &g_cli_controller_cells);
         }
     }
     const unsigned int dirty = g_cli_model.dirty;
@@ -841,11 +842,11 @@ void cli_controller_model_begin(void)
 
 void cli_controller_model_end(void)
 {
-    EMBED_CALL(cli_model.session_save, CliModelCtx, .on = 1);
+    EMBED_CALL(cli_model.session_save, CliModelCtx, .at = 0u);
     EMBED_CALL(cli_model_terminal.end, CliModelCtx, .at = 0u);
     EMBED_CALL(cli_model_watch.end, CliModelCtx, .at = 0u);
-    EMBED_CALL(cli_model_save.end, CliModelCtx, .at = 0u);
     cli_controller_work_end();
     EMBED_CALL(cli_model_problems.end, CliModelCtx, .at = 0u);
     EMBED_CALL(cli_document_colored.colors_to, CliDocumentColoredCfg, .colored = NULL, .threaded = 0);
+    (void)cli_document_released_free();
 }

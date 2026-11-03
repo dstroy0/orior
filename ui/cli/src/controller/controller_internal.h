@@ -122,15 +122,11 @@ void cli_model_shown_dirty(const CliModelCtx *args);
 // the saves (controller_save.c): the tab `at`'s text written to its file on the files' lane through the file writer,
 // a paged text's through the pages, its view's save point put as the save is asked for and lost where the write fails,
 // and the file left as it was and the save asked again where the text moved while the lane read it; every tab with
-// changes not saved saved so; whether the save's need `path` is met, changed-active while the tab shown has changes not
-// saved and changed while any tab has: 1, or 0 where it is not or is none of these; the saves waiting for a segment of
-// the lane's ring posted as far as it has segments free: 1 where any was; and, as the window ends, each save under way
-// waited on until its file stands written or as it was
+// changes not saved saved so; and whether the save's need `path` is met, changed-active while the tab shown has changes
+// not saved and changed while any tab has: 1, or 0 where it is not or is none of these
 void cli_model_tab_save(const CliModelCtx *args);
 void cli_model_tabs_save(const CliModelCtx *args);
 int cli_model_save_needs(const CliModelCtx *args);
-int cli_model_save_step(const CliModelCtx *args);
-void cli_model_save_end(const CliModelCtx *args);
 // the notices (controller_notices.c), as the page's status bar shows them: the notice `path` posted, a failure's where
 // `on` is 1: one that answers a press or a key that gives a command within CLI_NOTICES_ANSWERS_MS shows at once, any
 // other waits for a break in the work, CLI_NOTICES_REST_MS of no input or a save, and Focus holds every one until it
@@ -154,9 +150,9 @@ void cli_model_notices_show_again(const CliModelCtx *args);
 int cli_model_notices_step(const CliModelCtx *args);
 unsigned long long cli_model_notices_due_ms(const CliModelCtx *args);
 void cli_model_notices_restore(const CliModelCtx *args);
-// orior's folder (controller_tabs.c): `value` saved under the key `path` on the files' lane, here where `on` is 1, the
-// window ending; the session as it stands saved the same way; and what `input`, a CliStateEntries, saves of the tree's
-// tabs and the strip's group taken as the window begins
+// orior's folder (controller_tabs.c): `value` saved under the key `path` on the files' lane, the window's end waiting
+// on it; the session as it stands saved the same way; and what `input`, a CliStateEntries, saves of the tree's tabs and
+// the strip's group taken as the window begins
 void cli_model_value_save(const CliModelCtx *args);
 void cli_model_session_save(const CliModelCtx *args);
 void cli_model_session_restore(const CliModelCtx *args);
@@ -354,16 +350,12 @@ typedef struct
     void (*tab_save)(const CliModelCtx *args);
     void (*tabs_save)(const CliModelCtx *args);
     int (*needs)(const CliModelCtx *args);
-    int (*step)(const CliModelCtx *args);
-    void (*end)(const CliModelCtx *args);
 } CliModelSaveNs;
-EMBED_TABLE_LAYOUT(CliModelSaveNs, tab_save, tabs_save, needs, step, end);
+EMBED_TABLE_LAYOUT(CliModelSaveNs, tab_save, tabs_save, needs);
 EMBED_TABLE_STORAGE CliModelSaveNs cli_model_save EMBED_UNUSED = {
     .tab_save = cli_model_tab_save,
     .tabs_save = cli_model_tabs_save,
     .needs = cli_model_save_needs,
-    .step = cli_model_save_step,
-    .end = cli_model_save_end,
 };
 
 typedef struct

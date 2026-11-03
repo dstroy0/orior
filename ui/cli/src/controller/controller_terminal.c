@@ -1234,7 +1234,7 @@ EMBED_INLINE void terminal_place_save(const TerminalCtx *args)
     }
     if (mmgr_line_ok(&out) && (mmgr_line_finish(&out) != 0ULL))
     {
-        EMBED_CALL(cli_model.value_save, CliModelCtx, .path = TERMINAL_PLACE_KEY, .value = text, .on = args->on);
+        EMBED_CALL(cli_model.value_save, CliModelCtx, .path = TERMINAL_PLACE_KEY, .value = text);
     }
     g_cli_cells->persistent_buf_release(text, &g_cli_terminal_cells);
 }

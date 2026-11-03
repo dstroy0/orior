@@ -2394,6 +2394,7 @@ int cli_document_reading_end(const CliDocumentReadingCfg *args)
     const int moved = one->serial != args->reading->serial;
     EMBED_CALL(cli_document_internal.holder_end, CliDocumentCtx, .one = one);
     args->reading->text = NULL;
+    (void)cli_document_released_free();
     return moved;
 }
 

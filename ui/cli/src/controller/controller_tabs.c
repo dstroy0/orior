@@ -305,8 +305,12 @@ void cli_model_file_open(const CliModelCtx *args)
     *opening = (CliModelOpening){copies, copies + length + 1ULL, root_copy, g_cli_model.rows, CLI_FILES_OPEN_REFUSED};
     EMBED_CALL(tabs_show, ControllerTabsCtx, .at = g_cli_model.tabs - 1u);
     EMBED_CALL(cli_model.session_save, CliModelCtx, .at = 0u);
-    EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_FILES, .run = tabs_open_run,
-               .done = tabs_open_done, .context = opening, .busy = 1);
+    // an open the lane cannot take comes back as a file refused, the tab standing with no view
+    if (!EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_FILES, .run = tabs_open_run,
+                    .done = tabs_open_done, .context = opening, .busy = 1))
+    {
+        tabs_open_done(opening);
+    }
 }
 
 void cli_model_tab_close(const CliModelCtx *args)
@@ -426,15 +430,11 @@ void cli_model_value_save(const CliModelCtx *args)
     memor.cpy(&(MemoriaCfg){.dst = key, .src = args->path, .bytes = key_size});
     memor.cpy(&(MemoriaCfg){.dst = value, .src = args->value, .bytes = value_size});
     *saving = (CliModelSaving){key, value};
-    if (args->on)
+    if (!EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_FILES, .run = tabs_save_run,
+                    .done = tabs_save_done, .context = saving))
     {
-        // the window is ending: saved here, the lanes having gone
-        tabs_save_run(saving);
         tabs_save_done(saving);
-        return;
     }
-    EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_FILES, .run = tabs_save_run,
-               .done = tabs_save_done, .context = saving);
 }
 
 // the session's text in a cell of the controller's, the tab shown's path and then every tab's, a line each; NULL where
@@ -480,13 +480,13 @@ void cli_model_session_save(const CliModelCtx *args)
     char *const session = EMBED_CALL(tabs_session_text, ControllerTabsCtx, .at = 0u);
     if ((session != NULL) && (mmgr_line_finish(&keyed) != 0ULL))
     {
-        EMBED_CALL(cli_model.value_save, CliModelCtx, .path = key, .value = session, .on = args->on);
+        EMBED_CALL(cli_model.value_save, CliModelCtx, .path = key, .value = session);
     }
     g_cli_cells->persistent_buf_release(session, &g_cli_controller_cells);
     const CliTool *const tool = (g_cli_model.tool >= 0) ? &g_cli_tools[g_cli_model.tool] : NULL;
     if ((tool != NULL) && tool->side)
     {
-        EMBED_CALL(cli_model.value_save, CliModelCtx, .path = CLI_MODEL_GROUP_KEY, .value = tool->name, .on = args->on);
+        EMBED_CALL(cli_model.value_save, CliModelCtx, .path = CLI_MODEL_GROUP_KEY, .value = tool->name);
     }
 }
 

@@ -7,9 +7,8 @@
 // stage, a paged text through its pages, the file it wrote read for its index. The second, where the text stood still,
 // puts what was written in the file's place: the file writer's on the lane, and a paged text's on the controller's
 // thread, its file moved and its new index stored in one step, so no line is read of the file between the two. Where
-// the text moved, the second removes what was written, the file stands as it was, and the save is asked again. A piece
-// the lane's ring has no segment for waits, in the order the saves were asked, for a later step to post it; no piece of
-// a save runs on the controller's thread
+// the text moved, the second removes what was written, the file stands as it was, and the save is asked again. No piece
+// of a save runs on the controller's thread; one the lane cannot take fails the save, the file standing as it was
 #include "controller_internal.h"
 #include "controller_work.h"
 
@@ -22,14 +21,12 @@
 #define CLI_SAVE_BESIDE 0
 #define CLI_SAVE_PLACE 1
 
-// A save under way: the next save waiting for a segment of the lane's ring; the tab's key and the file's whole path,
-// each after it in its cell; the text's reading; the file writer's file and whether it was begun; a paged text's index
-// read of the file written beside, NULL for a text read whole; whether the text is paged; the piece it runs next;
-// whether the text was written beside the file, moved while it was read, and was put in the file's place; and why not
-// where it was not
-typedef struct CliModelWriting
+// A save under way: the tab's key and the file's whole path, each after it in its cell; the text's reading; the file
+// writer's file and whether it was begun; a paged text's index read of the file written beside, NULL for a text read
+// whole; whether the text is paged; the piece it runs next; whether the text was written beside the file, moved while
+// it was read, and was put in the file's place; and why not where it was not
+typedef struct
 {
-    struct CliModelWriting *next;
     char *key;
     char *full;
     CliDocumentReading reading;
@@ -44,11 +41,8 @@ typedef struct CliModelWriting
     char why[CLI_ERR_MSG_MAX_LEN];
 } CliModelWriting;
 
-// the stage the file writer writes a text through, the files' lane running one piece at a time; on the controller's
-// thread, the first save waiting for a segment of the lane's ring, and how many saves are under way
+// the stage the file writer writes a text through, the files' lane running one piece at a time
 static char s_stage[CLI_STAGE_BYTES + 1u];
-static CliModelWriting *s_waiting;
-static unsigned int s_saving;
 
 typedef struct
 {
@@ -128,23 +122,24 @@ static void save_run(void *context)
 
 static void save_done(void *context);
 
-// `writing` posted to the files' lane for its next piece, after every save waiting before it, else set waiting where
-// the lane's ring has no segment free
-EMBED_INLINE void save_post(const ControllerSaveCtx *args)
+// `writing` posted to the files' lane for its next piece: 1, or 0 where the lane cannot take it
+EMBED_INLINE int save_post(const ControllerSaveCtx *args)
 {
-    args->writing->next = NULL;
-    if ((s_waiting == NULL) &&
-        EMBED_CALL(cli_controller_work.try_post, CliControllerWorkCfg, .lane_at = CLI_WORK_FILES, .run = save_run,
-                   .done = save_done, .context = args->writing, .busy = 1))
+    return EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_FILES, .run = save_run,
+                      .done = save_done, .context = args->writing, .busy = 1);
+}
+
+// the place of the tab whose text the save writes, g_cli_model.tabs where it was closed meanwhile
+EMBED_INLINE unsigned int save_tab_at(const ControllerSaveCtx *args)
+{
+    unsigned int at = 0u;
+    while ((at < g_cli_model.tabs) &&
+           !cellul.eq(&(CatenaFinitaCfg){
+               .src = g_cli_model.tab[at]->key, .other = args->writing->key, .cap = CLI_PATH_MAX_LEN}))
     {
-        return;
+        at += 1u;
     }
-    CliModelWriting **link = &s_waiting;
-    while (*link != NULL)
-    {
-        link = &(*link)->next;
-    }
-    *link = args->writing;
+    return at;
 }
 
 // a save ended: asked again of its tab where the text moved while it was read, the file standing as it was; else a
@@ -153,17 +148,12 @@ EMBED_INLINE void save_post(const ControllerSaveCtx *args)
 EMBED_INLINE void save_finish(const ControllerSaveCtx *args)
 {
     CliModelWriting *const writing = args->writing;
-    s_saving -= 1u;
+    const unsigned int at = EMBED_CALL(save_tab_at, ControllerSaveCtx, .writing = writing);
     if (writing->moved)
     {
-        for (unsigned int at = 0u; at < g_cli_model.tabs; at += 1u)
+        if (at < g_cli_model.tabs)
         {
-            if (cellul.eq(&(CatenaFinitaCfg){
-                    .src = g_cli_model.tab[at]->key, .other = writing->key, .cap = CLI_PATH_MAX_LEN}))
-            {
-                EMBED_CALL(cli_model_save.tab_save, CliModelCtx, .at = at);
-                break;
-            }
+            EMBED_CALL(cli_model_save.tab_save, CliModelCtx, .at = at);
         }
     }
     else if (writing->placed)
@@ -197,11 +187,32 @@ static void save_done(void *context)
                                          .whole = 1, .err_msg = &err_msg);
             writing->read = NULL;
             (void)mmgr_line_finish(&err_msg);
+            // a tab closed while its save ran leaves no view to read the pages stored in place
+            if (EMBED_CALL(save_tab_at, ControllerSaveCtx, .writing = writing) == g_cli_model.tabs)
+            {
+                EMBED_CALL(cli_pages.release, CliPagesCfg, .key = writing->key);
+            }
+        }
+        else if ((writing->begun || (writing->read != NULL)) &&
+                 EMBED_CALL(save_post, ControllerSaveCtx, .writing = writing))
+        {
+            return;
         }
         else if (writing->begun || (writing->read != NULL))
         {
-            EMBED_CALL(save_post, ControllerSaveCtx, .writing = writing);
-            return;
+            // the lane cannot take the second piece: what was written stands beside the file, the file as it was, and
+            // the save fails rather than run again into the same refusal
+            if (writing->read != NULL)
+            {
+                EMBED_CALL(cli_pages_place.read_free, CliPagesPlaceCfg, .read = writing->read);
+                writing->read = NULL;
+            }
+            writing->moved = 0;
+            writing->placed = 0;
+            VerbaLinea err_msg = EMBED_CALL(save_why, ControllerSaveCtx, .writing = writing);
+            mmgr_line_put(&err_msg, writing->full);
+            mmgr_line_put(&err_msg, ": it could not be put in its place, the files' lane taking no more work");
+            (void)mmgr_line_finish(&err_msg);
         }
     }
     EMBED_CALL(save_finish, ControllerSaveCtx, .writing = writing);
@@ -238,11 +249,17 @@ void cli_model_tab_save(const CliModelCtx *args)
     unsigned long long lines = 0ULL;
     int whole = 0;
     writing->paged = EMBED_CALL(cli_pages.count, CliPagesCfg, .key = writing->key, .lines = &lines, .whole = &whole);
+    if (!EMBED_CALL(save_post, ControllerSaveCtx, .writing = writing))
+    {
+        (void)EMBED_CALL(cli_document_reading.end, CliDocumentReadingCfg, .reading = &writing->reading);
+        g_cli_cells->persistent_buf_release(writing, &g_cli_controller_cells);
+        EMBED_CALL(cli_model_notices.post, CliModelCtx,
+                   .path = "The file could not be saved: the files' lane takes no more work.", .on = 1);
+        return;
+    }
     EMBED_CALL(cli_view_table.saved, CliViewCfg, .key = tab->key);
     tab->closing = 0;
     g_cli_model.dirty |= CLI_MODEL_DIRTY(CLI_SNAPSHOT_TABS);
-    s_saving += 1u;
-    EMBED_CALL(save_post, ControllerSaveCtx, .writing = writing);
 }
 
 void cli_model_tabs_save(const CliModelCtx *args)
@@ -270,34 +287,4 @@ int cli_model_save_needs(const CliModelCtx *args)
         changed = changed || EMBED_CALL(cli_view_table.modified, CliViewCfg, .key = g_cli_model.tab[at]->key);
     }
     return cellul.eq(&(CatenaFinitaCfg){.src = args->path, .other = "changed", .cap = CLI_LABEL_MAX_LEN}) && changed;
-}
-
-int cli_model_save_step(const CliModelCtx *args)
-{
-    (void)args;
-    int posted = 0;
-    while (s_waiting != NULL)
-    {
-        CliModelWriting *const writing = s_waiting;
-        CliModelWriting *const after = writing->next;
-        if (!EMBED_CALL(cli_controller_work.try_post, CliControllerWorkCfg, .lane_at = CLI_WORK_FILES,
-                        .run = save_run, .done = save_done, .context = writing, .busy = 1))
-        {
-            break;
-        }
-        s_waiting = after;
-        posted = 1;
-    }
-    return posted;
-}
-
-void cli_model_save_end(const CliModelCtx *args)
-{
-    CliWake pause = CLI_WAKE_INIT;
-    while (s_saving != 0u)
-    {
-        (void)cli_controller_work_step();
-        (void)EMBED_CALL(cli_model_save.step, CliModelCtx, .at = args->at);
-        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &pause, .milliseconds_u64 = 1ull);
-    }
 }

@@ -92,12 +92,14 @@ char *cli_pages_lines_alloc(const CliPagesFromCfg *args);
 // with why written into `err_msg` and nothing left beside the file. Then the text `read` put in its place: where
 // `whole` is 1, on the controller's thread, the file beside moved over the file and `read` stored in place of the text,
 // so no line is read of the file between; where it is 0, on the files' lane, the file beside removed, `read` let go and
-// the file left as it was: 1, or 0 with why written into `err_msg`, `read` let go (pages_edit.c)
+// the file left as it was: 1, or 0 with why written into `err_msg`, `read` let go. And `read` let go alone, its cells
+// freed and no file touched (pages_edit.c)
 int cli_pages_edit(const CliPagesOutErrMsgCfg *args);
 int cli_pages_change(const CliPagesPathCfg *args);
 int cli_pages_find(const CliPagesOutErrMsgNeedleCfg *args);
 struct CliPaged *cli_pages_save_beside_alloc(const CliPagesPathCfg *args);
 int cli_pages_save_place(const CliPagesPlaceCfg *args);
+void cli_pages_read_free(const CliPagesPlaceCfg *args);
 
 struct CliPagesOutCfg
 {
@@ -186,10 +188,12 @@ EMBED_TABLE_STORAGE CliPagesPathNs cli_pages_path EMBED_UNUSED = {
 typedef struct
 {
     int (*save_place)(const CliPagesPlaceCfg *args);
+    void (*read_free)(const CliPagesPlaceCfg *args);
 } CliPagesPlaceNs;
-EMBED_TABLE_LAYOUT(CliPagesPlaceNs, save_place);
+EMBED_TABLE_LAYOUT(CliPagesPlaceNs, save_place, read_free);
 EMBED_TABLE_STORAGE CliPagesPlaceNs cli_pages_place EMBED_UNUSED = {
     .save_place = cli_pages_save_place,
+    .read_free = cli_pages_read_free,
 };
 
 typedef struct

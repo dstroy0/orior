@@ -320,8 +320,8 @@ void cli_model_problems_check(const CliModelCtx *args)
     (void)args;
     if (g_cli_model.checking)
     {
-        EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_SERVERS,
-                   .run = problems_stop_run, .done = problems_ask_release, .context = NULL);
+        (void)EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_SERVERS,
+                         .run = problems_stop_run, .done = problems_ask_release, .context = NULL);
         return;
     }
     if (g_cli_model.root == NULL)
@@ -338,8 +338,11 @@ void cli_model_problems_check(const CliModelCtx *args)
     char *const root = (char *)(void *)(ask + 1);
     memor.cpy(&(MemoriaCfg){.dst = root, .src = g_cli_model.root, .bytes = size});
     ask->root = root;
-    EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_SERVERS, .run = problems_check_run,
-               .done = problems_ask_release, .context = ask, .busy = 1);
+    if (!EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_SERVERS,
+                    .run = problems_check_run, .done = problems_ask_release, .context = ask, .busy = 1))
+    {
+        g_cli_cells->persistent_buf_release(ask, &g_cli_controller_cells);
+    }
 }
 
 void *cli_model_problems_alloc(const CliModelCtx *args)

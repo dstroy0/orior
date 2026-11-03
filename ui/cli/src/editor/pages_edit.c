@@ -599,3 +599,8 @@ int cli_pages_save_place(const CliPagesPlaceCfg *args)
     }
     return placed || (beside && !args->whole);
 }
+
+void cli_pages_read_free(const CliPagesPlaceCfg *args)
+{
+    EMBED_CALL(cli_pages_one_internal.page_free, CliPagesOneCtx, .one = args->read);
+}

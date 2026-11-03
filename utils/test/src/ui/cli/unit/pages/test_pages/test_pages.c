@@ -443,3 +443,34 @@ void test_a_save_put_back_leaves_the_file_as_it_was_and_one_put_in_place_replace
     TEST_ASSERT_EQUAL_UINT64(3ull, shape.lines);
     EMBED_CALL(cli_pages.release, CliPagesCfg, .key = "placed");
 }
+
+// whether a paged text is stored under `key`
+static int paged_under(const char *key)
+{
+    unsigned long long lines = 0ull;
+    int whole = 0;
+    return EMBED_CALL(cli_pages.count, CliPagesCfg, .key = key, .lines = &lines, .whole = &whole);
+}
+
+void test_a_paged_text_released_with_its_tab_releases_its_pages_once_no_reading_holds_it(void)
+{
+    char path[CLI_PATH_MAX_LEN];
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
+    EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = s_folder, .relative = "closed.txt", .joined = path);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = path, .bytes = "a\nb\n", .size = 4ull, .fresh = 1));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_pages_path.open, CliPagesPathCfg, .key = "closed", .path = path, .out = &out, .err_msg = &err_msg));
+    TEST_ASSERT_TRUE(shape_indexed("closed").indexed);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_key_from.page, CliDocumentKeyFromCfg, .key = "closed", .from = 0ull, .to = 2ull));
+    EMBED_CALL(cli_document.release, CliDocumentCfg, .key = "closed");
+    TEST_ASSERT_FALSE_MESSAGE(paged_under("closed"), "the pages go with the branch where nothing reads it");
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_pages_path.open, CliPagesPathCfg, .key = "closed", .path = path, .out = &out, .err_msg = &err_msg));
+    TEST_ASSERT_TRUE(shape_indexed("closed").indexed);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_key_from.page, CliDocumentKeyFromCfg, .key = "closed", .from = 0ull, .to = 2ull));
+    CliDocumentReading reading;
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_document_reading.begin, CliDocumentReadingCfg, .key = "closed", .reading = &reading));
+    EMBED_CALL(cli_document.release, CliDocumentCfg, .key = "closed");
+    TEST_ASSERT_TRUE_MESSAGE(paged_under("closed"), "the pages stand while a reading holds the branch");
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_document_reading.end, CliDocumentReadingCfg, .reading = &reading));
+    TEST_ASSERT_FALSE_MESSAGE(paged_under("closed"), "the pages go as the last reading ends");
+}

@@ -216,6 +216,9 @@ typedef struct
 int cli_document_reading_begin(const CliDocumentReadingCfg *args);
 int cli_document_reading_put(const CliDocumentReadingCfg *args);
 int cli_document_reading_end(const CliDocumentReadingCfg *args);
+// on the controller's thread, each text released while a walk, a coloring or a reading had it freed once none reads
+// it, the pages of a paged text released with its tab with it: 1 where any was (document_store.c)
+int cli_document_released_free(void);
 // the lines from `from` to before `to` of the branch under `key` the page's mirror, those about its view: those it did
 // not mirror before handed on with the runs the walk saved for them, and colored again where they save none, and lines
 // outside them colored with no runs handed on: 1, or 0 where no text is stored under `key`. A text stored hands every

@@ -22,9 +22,11 @@
 #define CLI_DOC_RESERVE_LINES 64u
 #define CLI_DOC_RESERVE_SHARE 8ULL
 
-// the first of the texts stored, the lock they are read and written under, and the last serial a text took
+// the first of the texts stored, the lock they are read and written under, and the last serial a text took; and on the
+// controller's thread alone the first text let go while a reading had it
 static CliStoredText *s_stored;
 static unsigned long long s_serial;
+static CliStoredText *s_released;
 
 CliStoredText *cli_document_texts(void)
 {
@@ -247,8 +249,21 @@ EMBED_INLINE void stored_cells_free(const DocumentStoreCtx *args)
     g_cli_cells->persistent_buf_release(args->one, &g_cli_editor_cells);
 }
 
-// a text stored let go: taken off the texts stored, and its cells given back, at once where nothing holds it, else as
-// the last to hold it ends
+// a text let go freed, and the pages of a paged text released with its tab released with it
+EMBED_INLINE void stored_text_free(const DocumentStoreCtx *args)
+{
+    char key[CLI_NAME_MAX_LEN];
+    const int pages = args->one->pages_release;
+    memor.cpy(&(MemoriaCfg){.dst = key, .src = args->one->key, .bytes = sizeof(key)});
+    stored_cells_free(args);
+    if (pages)
+    {
+        EMBED_CALL(cli_pages.release, CliPagesCfg, .key = key);
+    }
+}
+
+// a text stored let go: taken off the texts stored, and freed at once where nothing reads it, else set among the texts
+// released while read, freed by the controller's thread once the last reading ends
 EMBED_INLINE void cli_stored_let_go(const DocumentStoreCtx *args)
 {
     CliStoredText **link = &s_stored;
@@ -263,18 +278,35 @@ EMBED_INLINE void cli_stored_let_go(const DocumentStoreCtx *args)
     args->one->let_go = 1;
     if (EMBED_ATOMIC_LOAD(&args->one->readers) == 0u)
     {
-        stored_cells_free(args);
+        stored_text_free(args);
+        return;
     }
+    args->one->released_next = s_released;
+    s_released = args->one;
 }
 
 void cli_document_holder_end(const CliDocumentCtx *args)
 {
-    // each end follows its own add, so the count before it is 1 at the least
-    const embed_u32 before = EMBED_ATOMIC_ADD_32(&args->one->readers, (embed_u32)-1);
-    if (args->one->let_go && (before == 1u))
+    (void)EMBED_ATOMIC_ADD_32(&args->one->readers, (embed_u32)-1);
+}
+
+int cli_document_released_free(void)
+{
+    int freed = 0;
+    CliStoredText **link = &s_released;
+    while (*link != NULL)
     {
-        EMBED_CALL(stored_cells_free, DocumentStoreCtx, .one = args->one);
+        CliStoredText *const one = *link;
+        if (EMBED_ATOMIC_LOAD(&one->readers) != 0u)
+        {
+            link = &one->released_next;
+            continue;
+        }
+        *link = one->released_next;
+        EMBED_CALL(stored_text_free, DocumentStoreCtx, .one = one);
+        freed = 1;
     }
+    return freed;
 }
 
 // `size` bytes of `text` made the lines of the text stored, in a capacity sized to them: 1, or 0 where the cells cannot
@@ -448,10 +480,14 @@ int cli_document_store(const CliDocumentTextCfg *args)
 void cli_document_release(const CliDocumentCfg *args)
 {
     CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
-    if (one != NULL)
+    if (one == NULL)
     {
-        EMBED_CALL(cli_stored_let_go, DocumentStoreCtx, .one = one);
+        // a paged text whose branch was never stored has its pages alone
+        EMBED_CALL(cli_pages.release, CliPagesCfg, .key = args->key);
+        return;
     }
+    one->pages_release = one->paged;
+    EMBED_CALL(cli_stored_let_go, DocumentStoreCtx, .one = one);
 }
 
 int cli_document_crlf(const CliDocumentCfg *args)

@@ -426,10 +426,10 @@ static void panels_hover_tree_done(void *context)
     }
     ask->text = NULL;
     ask->length = 0ULL;
-    if (current && (ask->full[0] != '\0'))
-    {
+    if (current && (ask->full[0] != '\0') &&
         EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_SERVERS,
-                   .run = panels_hover_server_run, .done = panels_hover_server_done, .context = ask, .busy = 1);
+                   .run = panels_hover_server_run, .done = panels_hover_server_done, .context = ask, .busy = 1))
+    {
         return;
     }
     g_cli_cells->persistent_buf_release(ask, &g_cli_controller_cells);
@@ -518,8 +518,11 @@ EMBED_INLINE void panels_hover_ask(const ControllerPanelsCtx *args)
     memor.cpy(&(MemoriaCfg){.dst = text + word_size + root_size, .src = full, .bytes = full_size});
     *ask = (ControllerHoverAsk){
         s_panels.hover_ask, text, text + word_size, text + word_size + root_size, line, col, from, to, NULL, 0ULL};
-    EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_TREE, .run = panels_hover_tree_run,
-               .done = panels_hover_tree_done, .context = ask, .busy = 1);
+    if (!EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_TREE,
+                    .run = panels_hover_tree_run, .done = panels_hover_tree_done, .context = ask, .busy = 1))
+    {
+        g_cli_cells->persistent_buf_release(ask, &g_cli_controller_cells);
+    }
 }
 
 // how the item scores against the prefix: 5 its label starts with it, 4 starts with it case aside, 3 holds it case
@@ -950,10 +953,14 @@ EMBED_INLINE void panels_items_post(const ControllerPanelsCtx *args)
     char *const copy = (char *)(void *)(ask + 1);
     memor.cpy(&(MemoriaCfg){.dst = copy, .src = full, .bytes = size});
     *ask = (ControllerItemsAsk){copy, s_panels.completion->line, s_panels.cursor.col, s_panels.completion->from, NULL};
-    s_panels.items_asking = 1;
+    s_panels.items_asking = EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_SERVERS,
+                                       .run = panels_items_run, .done = panels_items_done, .context = ask, .busy = 1);
+    if (!s_panels.items_asking)
+    {
+        g_cli_cells->persistent_buf_release(ask, &g_cli_controller_cells);
+        return;
+    }
     s_panels.items_again = 0;
-    EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_SERVERS, .run = panels_items_run,
-               .done = panels_items_done, .context = ask, .busy = 1);
 }
 
 // what runs on the servers' lane: the server's items
@@ -1298,10 +1305,15 @@ EMBED_INLINE void panels_signature_ask(const ControllerPanelsCtx *args)
     memor.cpy(&(MemoriaCfg){.dst = text + key_size, .src = path, .bytes = path_size});
     memor.cpy(&(MemoriaCfg){.dst = text + key_size + path_size, .src = full, .bytes = full_size});
     *ask = (ControllerSignatureAsk){text, text + key_size, text + key_size + path_size, cursor, NULL};
+    s_panels.signature_asking =
+        EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_TREE,
+                   .run = panels_signature_tree_run, .done = panels_signature_tree_done, .context = ask, .busy = 1);
+    if (!s_panels.signature_asking)
+    {
+        g_cli_cells->persistent_buf_release(ask, &g_cli_controller_cells);
+        return;
+    }
     s_panels.signature_position = cursor;
-    s_panels.signature_asking = 1;
-    EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_TREE,
-               .run = panels_signature_tree_run, .done = panels_signature_tree_done, .context = ask, .busy = 1);
 }
 
 // what runs on the tree's lane: the text's lines from as far above as CLI_PANELS_SIGNATURE_LINES reach to the cursor's,
@@ -1346,10 +1358,10 @@ static void panels_signature_tree_done(void *context)
     ask->panel = NULL;
     g_cli_model.dirty |= CLI_MODEL_DIRTY(CLI_SNAPSHOT_SIGNATURE);
     const int still = (s_panels.cursor.line == ask->cursor.line) && (s_panels.cursor.col == ask->cursor.col);
-    if (still && (ask->full[0] != '\0'))
-    {
+    if (still && (ask->full[0] != '\0') &&
         EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_SERVERS,
-                   .run = panels_signature_server_run, .done = panels_signature_server_done, .context = ask, .busy = 1);
+                   .run = panels_signature_server_run, .done = panels_signature_server_done, .context = ask, .busy = 1))
+    {
         return;
     }
     s_panels.signature_asking = 0;
@@ -1493,10 +1505,11 @@ void cli_model_server_serve(const CliModelCtx *args)
     }
     const CliModelTab *const tab = g_cli_model.tab[args->at];
     ControllerServeAsk *const ask = panels_serve_ask_alloc(tab->key, tab->path, g_cli_model.root, "");
-    if (ask != NULL)
+    if ((ask != NULL) &&
+        !EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_SERVERS,
+                    .run = panels_serve_run, .done = panels_serve_done, .context = ask, .busy = 1))
     {
-        EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_SERVERS, .run = panels_serve_run,
-                   .done = panels_serve_done, .context = ask, .busy = 1);
+        g_cli_cells->persistent_buf_release(ask, &g_cli_controller_cells);
     }
 }
 
@@ -1529,10 +1542,10 @@ void cli_model_server_close(const CliModelCtx *args)
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = g_cli_model.root,
                .relative = g_cli_model.tab[args->at]->path, .joined = full);
     ControllerServeAsk *const ask = panels_serve_ask_alloc("", "", "", full);
-    if (ask != NULL)
+    if ((ask != NULL) && !EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_SERVERS,
+                                     .run = panels_close_run, .done = panels_ask_release, .context = ask))
     {
-        EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_SERVERS, .run = panels_close_run,
-                   .done = panels_ask_release, .context = ask);
+        g_cli_cells->persistent_buf_release(ask, &g_cli_controller_cells);
     }
 }
 
@@ -1579,13 +1592,18 @@ static void panels_sync_post(const ControllerPanelsCtx *args)
         return;
     }
     ControllerServeAsk *const ask = panels_serve_ask_alloc(key, "", "", "");
-    if (ask != NULL)
+    if (ask == NULL)
     {
-        s_panels.changed = 0;
-        s_panels.syncing = 1;
-        EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_SERVERS, .run = panels_sync_run,
-                   .done = panels_sync_done, .context = ask);
+        return;
     }
+    s_panels.syncing = EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_SERVERS,
+                                  .run = panels_sync_run, .done = panels_sync_done, .context = ask);
+    if (!s_panels.syncing)
+    {
+        g_cli_cells->persistent_buf_release(ask, &g_cli_controller_cells);
+        return;
+    }
+    s_panels.changed = 0;
 }
 
 static void panels_sync_done(void *context)
@@ -1640,10 +1658,14 @@ EMBED_INLINE void panels_view_send(const ControllerPanelsCtx *args)
     }
     ask->first = first;
     ask->last = last;
-    s_panels.view_sent = 1;
+    s_panels.view_sent = EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_SERVERS,
+                                    .run = panels_view_run, .done = panels_ask_release, .context = ask);
+    if (!s_panels.view_sent)
+    {
+        g_cli_cells->persistent_buf_release(ask, &g_cli_controller_cells);
+        return;
+    }
     s_panels.view_rows = rows;
-    EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_SERVERS, .run = panels_view_run,
-               .done = panels_ask_release, .context = ask);
 }
 
 void cli_model_panels_frame(const CliModelCtx *args)

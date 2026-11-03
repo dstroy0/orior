@@ -22,6 +22,7 @@ extern void test_a_file_of_wide_lines_opens_and_is_indexed_complete(void);
 extern void test_find_reaches_the_line_end_a_block_wider_than_a_read_state(void);
 extern void test_a_save_writes_every_byte_of_every_wide_line(void);
 extern void test_a_save_put_back_leaves_the_file_as_it_was_and_one_put_in_place_replaces_it(void);
+extern void test_a_paged_text_released_with_its_tab_releases_its_pages_once_no_reading_holds_it(void);
 
 
 /*=======Mock Management=====*/
@@ -97,6 +98,7 @@ int main(void)
   run_test(test_find_reaches_the_line_end_a_block_wider_than_a_read_state, "test_find_reaches_the_line_end_a_block_wider_than_a_read_state", 393);
   run_test(test_a_save_writes_every_byte_of_every_wide_line, "test_a_save_writes_every_byte_of_every_wide_line", 399);
   run_test(test_a_save_put_back_leaves_the_file_as_it_was_and_one_put_in_place_replaces_it, "test_a_save_put_back_leaves_the_file_as_it_was_and_one_put_in_place_replaces_it", 414);
+  run_test(test_a_paged_text_released_with_its_tab_releases_its_pages_once_no_reading_holds_it, "test_a_paged_text_released_with_its_tab_releases_its_pages_once_no_reading_holds_it", 455);
 
   return UNITY_END();
 }
