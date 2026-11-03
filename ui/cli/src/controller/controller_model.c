@@ -96,6 +96,10 @@ void cli_controller_snapshot_release(unsigned int part, void *snapshot)
     {
         cli_view_map_release((CliDocumentMap *)snapshot);
     }
+    else if (part == CLI_SNAPSHOT_TERMINAL)
+    {
+        cli_model_terminal_release((CliTerminalPanel *)snapshot);
+    }
     else
     {
         g_cli_cells->persistent_buf_release(snapshot, &g_cli_controller_cells);
@@ -254,6 +258,11 @@ EMBED_INLINE void model_wheel(const ControllerModelCtx *args)
         EMBED_CALL(cli_model_panels.completion_wheel, CliModelCtx, .on = input->rows_moved);
         return;
     }
+    if (input->hit == CLI_HIT_TERMINAL)
+    {
+        EMBED_CALL(cli_model_terminal.wheel, CliModelCtx, .input = input);
+        return;
+    }
     const char *const key = EMBED_CALL(cli_model.key, CliModelCtx, .at = 0u);
     if (key == NULL)
     {
@@ -389,6 +398,10 @@ void cli_controller_model_input(const CliInput *input, const char *bytes)
         break;
     case CLI_INPUT_POINTER_MOVED:
         EMBED_CALL(cli_model_commands.menu_input, CliModelCtx, .input = input);
+        if (EMBED_CALL(cli_model_terminal.pointer, CliModelCtx, .input = input))
+        {
+            break;
+        }
         if (s_dragging)
         {
             EMBED_CALL(model_view_pointer, ControllerModelCtx, .input = input, .pointer = CLI_VIEW_POINTER_MOVED);
@@ -399,6 +412,7 @@ void cli_controller_model_input(const CliInput *input, const char *bytes)
         }
         break;
     case CLI_INPUT_POINTER_UP:
+        (void)EMBED_CALL(cli_model_terminal.pointer, CliModelCtx, .input = input);
         if (s_dragging)
         {
             s_dragging = 0;

@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// shells.c: a terminal's shell, a passthrough between its pseudo-terminal and its screen (shells.h)
+// shells.c: a terminal's shell, a passthrough between its pseudo-terminal and its xterm (shells.h)
 #include "shells.h"
 #include "../runs/runner.h"
 #include "../toolchains/toolchains.h"
@@ -14,7 +14,7 @@
 typedef struct
 {
     CliTerminalShell *shell;
-    CliTerminalScreen *screen;
+    CliTerminalXterm *xterm;
     const unsigned char *bytes;
     unsigned long long size;
     long long code;
@@ -153,7 +153,7 @@ int cli_terminal_shell_start(const CliTerminalShellCfg *args)
     CliSpawned spawned;
     if (!EMBED_CALL(cli_words_err_msg_spawned_internal.spawn_terminal, CliWordsErrMsgSpawnedCtx, .words = words,
                     .err_msg = args->err_msg, .spawned = &spawned, .folder = args->folder, .settings = settings,
-                    .count = setting_count, .cols = args->screen->columns, .rows = args->screen->rows))
+                    .count = setting_count, .cols = args->xterm->columns, .rows = args->xterm->rows))
     {
         return 0;
     }
@@ -187,8 +187,8 @@ void cli_terminal_shell_resize(const CliTerminalShellCfg *args)
     const CliTerminalShell *const shell = args->shell;
     if (shell->state == CLI_TERMINAL_SHELL_RUNNING)
     {
-        (void)EMBED_CALL(cli_cols_internal.spawn_terminal_resize, CliColsCtx, .cols = args->screen->columns,
-                         .rows = args->screen->rows, .spawned_read = &shell->spawned);
+        (void)EMBED_CALL(cli_cols_internal.spawn_terminal_resize, CliColsCtx, .cols = args->xterm->columns,
+                         .rows = args->xterm->rows, .spawned_read = &shell->spawned);
     }
 }
 
@@ -205,12 +205,12 @@ void cli_terminal_shell_end(const CliTerminalShellCfg *args)
     shell->waiting_size = 0u;
 }
 
-// what waits in the shell's pipe read onto the screen, or read past where there is none, each read no more than waits,
-// each answer the screen has for the shell sent back after the bytes that asked: 1 where any came
+// what waits in the shell's pipe read onto the xterm, or read past where there is none, each read no more than waits,
+// each answer the xterm has for the shell sent back after the bytes that asked: 1 where any came
 EMBED_INLINE int shells_pipe_read(const ShellsCtx *args)
 {
     CliTerminalShell *const shell = args->shell;
-    CliTerminalScreen *const screen = args->screen;
+    CliTerminalXterm *const xterm = args->xterm;
     int heard = 0;
     for (unsigned int pieces = 0u; pieces < SHELLS_PIECES; pieces += 1u)
     {
@@ -229,26 +229,26 @@ EMBED_INLINE int shells_pipe_read(const ShellsCtx *args)
             break;
         }
         heard = 1;
-        if (screen != NULL)
+        if (xterm != NULL)
         {
-            EMBED_CALL(cli_terminal_screen_bytes.write, CliTerminalScreenBytesCfg, .screen = screen, .bytes = piece,
+            EMBED_CALL(cli_terminal_xterm_bytes.write, CliTerminalXtermBytesCfg, .xterm = xterm, .bytes = piece,
                        .size = size);
-            EMBED_CALL(shells_send, ShellsCtx, .shell = shell, .bytes = screen->answer, .size = screen->answer_size);
-            screen->answer_size = 0u;
+            EMBED_CALL(shells_send, ShellsCtx, .shell = shell, .bytes = xterm->answer, .size = xterm->answer_size);
+            xterm->answer_size = 0u;
         }
     }
     return heard;
 }
 
-// the end of the shell printed on its screen, `[exited CODE]` with no code where a signal ended it, and its process
+// the end of the shell printed on its xterm, `[exited CODE]` with no code where a signal ended it, and its process
 // let go
 EMBED_INLINE void shells_exited(const ShellsCtx *args)
 {
     CliTerminalShell *const shell = args->shell;
     // a pseudo-console's last output comes once it is let go, and its pipe ends after it
     EMBED_CALL(cli_spawned_internal.spawn_terminal_close, CliSpawnedCtx, .spawned = &shell->spawned);
-    (void)EMBED_CALL(shells_pipe_read, ShellsCtx, .shell = shell, .screen = args->screen);
-    if (args->screen != NULL)
+    (void)EMBED_CALL(shells_pipe_read, ShellsCtx, .shell = shell, .xterm = args->xterm);
+    if (args->xterm != NULL)
     {
         char text[48];
         VerbaLinea line = {text, sizeof(text), 0ULL};
@@ -267,7 +267,7 @@ EMBED_INLINE void shells_exited(const ShellsCtx *args)
                 1u);
         }
         mmgr_line_put(&line, "]\r\n");
-        EMBED_CALL(cli_terminal_screen_bytes.write, CliTerminalScreenBytesCfg, .screen = args->screen,
+        EMBED_CALL(cli_terminal_xterm_bytes.write, CliTerminalXtermBytesCfg, .xterm = args->xterm,
                    .bytes = (const unsigned char *)text, .size = mmgr_line_ok(&line) ? line.at : 0ULL);
     }
     EMBED_CALL(cli_spawned_internal.spawn_close, CliSpawnedCtx, .spawned = &shell->spawned);
@@ -283,7 +283,7 @@ int cli_terminal_shell_drain(const CliTerminalShellCfg *args)
     {
         return 0;
     }
-    const int heard = EMBED_CALL(shells_pipe_read, ShellsCtx, .shell = shell, .screen = args->screen);
+    const int heard = EMBED_CALL(shells_pipe_read, ShellsCtx, .shell = shell, .xterm = args->xterm);
     if (heard)
     {
         shell->written = 1;
@@ -303,7 +303,7 @@ int cli_terminal_shell_drain(const CliTerminalShellCfg *args)
     long long code = 0LL;
     if (EMBED_CALL(cli_spawned_internal.spawn_poll, CliSpawnedCtx, .spawned = &shell->spawned, .code = &code))
     {
-        EMBED_CALL(shells_exited, ShellsCtx, .shell = shell, .screen = args->screen, .code = code);
+        EMBED_CALL(shells_exited, ShellsCtx, .shell = shell, .xterm = args->xterm, .code = code);
         return 1;
     }
     return heard;

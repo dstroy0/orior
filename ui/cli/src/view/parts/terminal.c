@@ -7,6 +7,7 @@
 
 #include "../../command_line/cli_internal.h"
 #include "../../controller/controller.h"
+#include "../../text/text.h"
 
 typedef struct
 {
@@ -23,6 +24,20 @@ typedef struct
     GuiRect *close;
     const char *text;
     unsigned int size;
+    int x;
+    int y;
+    unsigned long long *row;
+    unsigned long long *column;
+    const CliTerminalCell *cell;
+    GuiRect box;
+    GuiRect place;
+    int baseline;
+    int width;
+    int height;
+    int one;
+    int chosen;
+    int cursor;
+    int solid;
 } TerminalCtx;
 
 // `pixels` in the page's pixels at the frame's scale
@@ -185,6 +200,40 @@ EMBED_INLINE GuiRect terminal_view(const TerminalCtx *args)
                               : (GuiRect){views.x + width + line, views.y, views.width - width - line, views.height};
 }
 
+// the row of the pane `view` the pixel at x, y stands on and the column whose left edge it stands nearest, into `row`
+// and `column`, each clamped to the pane's rows and columns
+EMBED_INLINE void terminal_cell(const TerminalCtx *args)
+{
+    const CliTerminalView *const shown = &args->terminal_read->panel->view[args->view];
+    const GuiRect place = EMBED_CALL(terminal_view, TerminalCtx, .terminal_read = args->terminal_read,
+                                     .frame = args->frame, .view = args->view);
+    const int cell = EMBED_CALL(terminal_cell_width, TerminalCtx, .frame = args->frame, .glyphs = args->glyphs);
+    const int row = EMBED_CALL(terminal_scaled, TerminalCtx, .frame = args->frame, .pixels = GUI_TERMINAL_ROW);
+    const int left =
+        place.x + EMBED_CALL(terminal_scaled, TerminalCtx, .frame = args->frame, .pixels = GUI_TERMINAL_PAD_SIDE);
+    const int top =
+        place.y + EMBED_CALL(terminal_scaled, TerminalCtx, .frame = args->frame, .pixels = GUI_TERMINAL_PAD_TOP);
+    const int down = (args->y > top) ? ((args->y - top) / ((row > 0) ? row : 1)) : 0;
+    const int across = (args->x > left) ? (((args->x - left) + (cell / 2)) / cell) : 0;
+    // a pane's rows and columns are far inside what an int represents, and neither count is below one
+    const int last_row = (shown->rows > 0u) ? ((int)shown->rows - 1) : 0;
+    *args->row = (unsigned long long)((down < last_row) ? down : last_row);
+    *args->column = (unsigned long long)((across < (int)shown->columns) ? across : (int)shown->columns);
+}
+
+int gui_terminal_cell_at(const GuiTerminalCfg *args)
+{
+    const CliTerminalPanel *const panel = args->terminal_read->panel;
+    if ((panel == NULL) || !panel->open || (args->view >= panel->views))
+    {
+        return 0;
+    }
+    EMBED_CALL(terminal_cell, TerminalCtx, .terminal_read = args->terminal_read, .frame = args->frame,
+               .glyphs = args->glyphs, .view = args->view, .x = args->x, .y = args->y, .row = args->row,
+               .column = args->column);
+    return 1;
+}
+
 unsigned int gui_terminal_hit(const GuiTerminalCfg *args)
 {
     const CliTerminalPanel *const panel = args->terminal_read->panel;
@@ -202,6 +251,12 @@ unsigned int gui_terminal_hit(const GuiTerminalCfg *args)
                        .x = args->x, .y = args->y))
         {
             *args->index = view;
+            if ((args->row != NULL) && (args->column != NULL))
+            {
+                EMBED_CALL(terminal_cell, TerminalCtx, .terminal_read = args->terminal_read, .frame = args->frame,
+                           .glyphs = args->glyphs, .view = view, .x = args->x, .y = args->y, .row = args->row,
+                           .column = args->column);
+            }
             return CLI_HIT_TERMINAL;
         }
     }
@@ -330,8 +385,84 @@ EMBED_INLINE void terminal_strip_draw(const TerminalCtx *args)
     }
 }
 
-// the screen `view` drawn: each cell's ground where it has one of its own, its letter in its color, face and marks, and
-// the cursor
+// the cell `cell` drawn in `box`, clipped to `place`: its ground where it has one of its own, the selection's where it
+// is `chosen` and the signal's where the cursor stands on it `solid`; its letter in its color, face and marks; and the
+// cursor's outline where it stands on it and is not solid
+EMBED_INLINE void terminal_cell_draw(const TerminalCtx *args)
+{
+    const CliTerminalCell *const at = args->cell;
+    const GuiPalette *const palette = args->palette;
+    const GuiRect box = args->box;
+    const int width = args->width;
+    const int height = args->height;
+    const int one = args->one;
+    const int inverse = (at->marks & CLI_TERMINAL_INVERSE) != 0u;
+    const GuiColor foreground =
+        EMBED_CALL(terminal_color, TerminalCtx, .palette = palette, .value = at->foreground, .color = palette->text);
+    const GuiColor background = EMBED_CALL(terminal_color, TerminalCtx, .palette = palette, .value = at->background,
+                                           .color = inverse ? palette->well : 0u);
+    GuiColor ground =
+        inverse ? (at->foreground != CLI_TERMINAL_COLOR_DEFAULT ? foreground : palette->text) : background;
+    GuiColor ink = inverse ? background : foreground;
+    ground = args->chosen ? palette->selection : ground;
+    ground = (args->cursor && args->solid) ? palette->signal : ground;
+    ink = (args->cursor && args->solid) ? palette->well : ink;
+    // a dim letter is drawn at three fifths of its ink
+    ink =
+        ((at->marks & CLI_TERMINAL_DIM) != 0u) ? ((ink & 0x00ffffffu) | (((GUI_ALPHA_OF(ink) * 3u) / 5u) << 24u)) : ink;
+    const GuiRect on = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = box, .other = args->place);
+    if (GUI_ALPHA_OF(ground) != 0u)
+    {
+        EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster, .rect = on,
+                   .color = ground);
+    }
+    if (at->letter > (unsigned int)' ')
+    {
+        const unsigned int bold = ((at->marks & CLI_TERMINAL_BOLD) != 0u) ? 1u : 0u;
+        const unsigned int italic = ((at->marks & CLI_TERMINAL_ITALIC) != 0u) ? 2u : 0u;
+        float advance = 0.0f;
+        const GuiGlyphCell *const glyph =
+            EMBED_CALL(gui_glyphs_face_letter.glyph_cell, GuiGlyphsFaceLetterCfg, .glyphs = args->glyphs,
+                       .face = GUI_FACE_CODE + bold + italic, .letter = at->letter, .size = args->size, .color = ink,
+                       .advance = &advance);
+        if (glyph != NULL)
+        {
+            EMBED_CALL(gui_glyphs_raster.glyph_cell_layout, GuiGlyphsRasterCfg, .raster = args->raster, .cell = glyph,
+                       .x = box.x, .y = box.y + args->baseline, .clip = on);
+        }
+    }
+    if ((at->marks & CLI_TERMINAL_UNDERLINE) != 0u)
+    {
+        EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster,
+                   .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                                      .one = (GuiRect){box.x, box.y + args->baseline + one, width, one}, .other = on),
+                   .color = ink);
+    }
+    if ((at->marks & CLI_TERMINAL_STRIKE) != 0u)
+    {
+        EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster,
+                   .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                                      .one = (GuiRect){box.x, box.y + (height / 2), width, one}, .other = on),
+                   .color = ink);
+    }
+    if (args->cursor && !args->solid)
+    {
+        const GuiRect edges[4] = {{box.x, box.y, width, one},
+                                  {box.x, box.y + height - one, width, one},
+                                  {box.x, box.y, one, height},
+                                  {box.x + width - one, box.y, one, height}};
+        for (unsigned int edge = 0u; edge < 4u; edge += 1u)
+        {
+            EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster,
+                       .rect =
+                           EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = edges[edge], .other = on),
+                       .color = palette->signal);
+        }
+    }
+}
+
+// the pane `view` drawn: its view's rows of the text, the xterm's cells over the rows from the line they start on, each
+// cell with the selection's ground where the view chose it, and the cursor
 EMBED_INLINE void terminal_view_draw(const TerminalCtx *args)
 {
     const CliTerminalPanel *const panel = args->terminal_read->panel;
@@ -359,77 +490,53 @@ EMBED_INLINE void terminal_view_draw(const TerminalCtx *args)
     const int top =
         place.y + EMBED_CALL(terminal_scaled, TerminalCtx, .frame = args->frame, .pixels = GUI_TERMINAL_PAD_TOP);
     const int solid = panel->keys && shown->focused;
-    for (unsigned int y = 0u; y < shown->rows; y += 1u)
+    const CliViewFrame *const frame = shown->frame;
+    // the selection's ends in order, nothing chosen where they stand together
+    const int anchored =
+        (frame != NULL) && ((frame->anchor.line < frame->cursor.line) ||
+                            ((frame->anchor.line == frame->cursor.line) && (frame->anchor.col < frame->cursor.col)));
+    const CliPosition from = (frame == NULL) ? (CliPosition){0ULL, 0ULL} : (anchored ? frame->anchor : frame->cursor);
+    const CliPosition to = (frame == NULL) ? (CliPosition){0ULL, 0ULL} : (anchored ? frame->cursor : frame->anchor);
+    const int selected = (from.line != to.line) || (from.col != to.col);
+    const unsigned int count = (frame != NULL) ? frame->count : shown->rows;
+    for (unsigned int y = 0u; (y < count) && (y < shown->rows); y += 1u)
     {
+        const unsigned long long line = (frame != NULL) ? frame->row[y].number : (shown->xterm_line + y);
+        const int overlaid = (line >= shown->xterm_line) && (line < (shown->xterm_line + shown->rows));
+        // the xterm's row a line of its rows stands for, far inside what an unsigned int counts
+        const unsigned int xterm_row = overlaid ? (unsigned int)(line - shown->xterm_line) : 0u;
+        const char *const text = ((frame != NULL) && !overlaid) ? (frame->bytes + frame->row[y].text) : NULL;
+        const unsigned long long length = (text != NULL) ? frame->row[y].length : 0ULL;
+        const int on_chosen = selected && (line >= from.line) && (line <= to.line);
+        const unsigned long long chosen_from = (line == from.line) ? from.col : 0ULL;
+        const unsigned long long chosen_to = (line == to.line) ? to.col : ~0ULL;
+        unsigned long long units = 0ULL;
+        unsigned long long at = 0ULL;
         for (unsigned int x = 0u; x < shown->columns; x += 1u)
         {
-            const CliTerminalCell *const at = &shown->cell[((unsigned long long)y * shown->columns) + x];
-            // a screen's columns and rows are far inside what an int represents
-            const GuiRect box = {left + ((int)x * cell), top + ((int)y * row), cell, row};
-            const int cursor = shown->cursor_shown && (x == shown->cursor_x) && (y == shown->cursor_y);
-            const int inverse = (at->marks & CLI_TERMINAL_INVERSE) != 0u;
-            const GuiColor foreground = EMBED_CALL(terminal_color, TerminalCtx, .palette = palette,
-                                                   .value = at->foreground, .color = palette->text);
-            const GuiColor background = EMBED_CALL(terminal_color, TerminalCtx, .palette = palette,
-                                                   .value = at->background, .color = inverse ? palette->well : 0u);
-            GuiColor ground =
-                inverse ? (at->foreground != CLI_TERMINAL_COLOR_DEFAULT ? foreground : palette->text) : background;
-            GuiColor ink = inverse ? background : foreground;
-            ground = (cursor && solid) ? palette->signal : ground;
-            ink = (cursor && solid) ? palette->well : ink;
-            // a dim letter is drawn at three fifths of its ink
-            ink = ((at->marks & CLI_TERMINAL_DIM) != 0u)
-                      ? ((ink & 0x00ffffffu) | (((GUI_ALPHA_OF(ink) * 3u) / 5u) << 24u))
-                      : ink;
-            const GuiRect on = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = box, .other = place);
-            if (GUI_ALPHA_OF(ground) != 0u)
+            CliTerminalCell one_cell = {(unsigned int)' ', CLI_TERMINAL_COLOR_DEFAULT, CLI_TERMINAL_COLOR_DEFAULT, 0u};
+            if (overlaid)
             {
-                EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster, .rect = on,
-                           .color = ground);
+                one_cell = shown->cell[((unsigned long long)xterm_row * shown->columns) + x];
             }
-            if (at->letter > (unsigned int)' ')
+            else if (at < length)
             {
-                const unsigned int bold = ((at->marks & CLI_TERMINAL_BOLD) != 0u) ? 1u : 0u;
-                const unsigned int italic = ((at->marks & CLI_TERMINAL_ITALIC) != 0u) ? 2u : 0u;
-                float advance = 0.0f;
-                const GuiGlyphCell *const glyph =
-                    EMBED_CALL(gui_glyphs_face_letter.glyph_cell, GuiGlyphsFaceLetterCfg, .glyphs = args->glyphs,
-                               .face = GUI_FACE_CODE + bold + italic, .letter = at->letter, .size = size, .color = ink,
-                               .advance = &advance);
-                if (glyph != NULL)
-                {
-                    EMBED_CALL(gui_glyphs_raster.glyph_cell_layout, GuiGlyphsRasterCfg, .raster = args->raster,
-                               .cell = glyph, .x = box.x, .y = box.y + baseline, .clip = on);
-                }
+                unsigned long long consumed = 0ULL;
+                one_cell.letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = text, .size = length, .at = at,
+                                             .length = &consumed);
+                at += (consumed != 0ULL) ? consumed : 1ULL;
             }
-            if ((at->marks & CLI_TERMINAL_UNDERLINE) != 0u)
-            {
-                EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster,
-                           .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
-                                              .one = (GuiRect){box.x, box.y + baseline + one, cell, one}, .other = on),
-                           .color = ink);
-            }
-            if ((at->marks & CLI_TERMINAL_STRIKE) != 0u)
-            {
-                EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster,
-                           .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
-                                              .one = (GuiRect){box.x, box.y + (row / 2), cell, one}, .other = on),
-                           .color = ink);
-            }
-            if (cursor && !solid)
-            {
-                const GuiRect edges[4] = {{box.x, box.y, cell, one},
-                                          {box.x, box.y + row - one, cell, one},
-                                          {box.x, box.y, one, row},
-                                          {box.x + cell - one, box.y, one, row}};
-                for (unsigned int edge = 0u; edge < 4u; edge += 1u)
-                {
-                    EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = args->raster,
-                               .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = edges[edge],
-                                                  .other = on),
-                               .color = palette->signal);
-                }
-            }
+            // a column is counted in the units of the text the view chooses in, a letter past the basic plane two
+            const int chosen = on_chosen && (units >= chosen_from) && (units < chosen_to);
+            units += (one_cell.letter >= 0x10000u) ? 2ULL : 1ULL;
+            // a pane's columns and rows are far inside what an int represents
+            EMBED_CALL(terminal_cell_draw, TerminalCtx, .raster = args->raster, .glyphs = args->glyphs,
+                       .palette = palette, .cell = &one_cell,
+                       .box = (GuiRect){left + ((int)x * cell), top + ((int)y * row), cell, row}, .place = place,
+                       .size = size, .baseline = baseline, .width = cell, .height = row, .one = one, .chosen = chosen,
+                       .cursor =
+                           overlaid && shown->cursor_shown && (x == shown->cursor_x) && (xterm_row == shown->cursor_y),
+                       .solid = solid);
         }
     }
 }

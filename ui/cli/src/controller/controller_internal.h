@@ -186,18 +186,23 @@ void cli_model_watch_end(const CliModelCtx *args);
 // the terminal (controller_terminal.c): the terminal's command `path` run, `value` the words it is handed or NULL: 1,
 // or 0 where it is none of the terminal's; the key `path` taken where the panel takes the keys: 1, or 0 where it goes
 // on to the rest of the window; `length` bytes of text `path` typed where the panel takes the keys: 1, or 0 where it
-// does not; a press on the terminal, `input` a CliInput, or elsewhere, which takes the keys from it; the view `input`
-// names sized to its rows and columns, or the panel's height where `input` is a CLI_INPUT_TERMINAL_HEIGHT; every shell
-// drained, 1 where a screen changed; the clock's reading of its next
-// timer, 0 for none; its snapshot; and every shell hung up on and its tabs let go
+// does not; a press on the terminal, `input` a CliInput, or elsewhere, which takes the keys from it; the pointer moved
+// or let go after a press on a pane, handed to the pane's view: 1, or 0 where no press on a pane came before it; the
+// wheel over a pane, its view scrolled; the view `input` names sized to its rows and columns, or the panel's height
+// where `input` is a CLI_INPUT_TERMINAL_HEIGHT; every shell drained, 1 where an xterm changed; the clock's reading of
+// its next timer, 0 for none; its snapshot, and a snapshot's frames and cell released; and every shell hung up on and
+// its tabs let go
 int cli_model_terminal_command(const CliModelCtx *args);
 int cli_model_terminal_key(const CliModelCtx *args);
 int cli_model_terminal_text(const CliModelCtx *args);
 void cli_model_terminal_press(const CliModelCtx *args);
+int cli_model_terminal_pointer(const CliModelCtx *args);
+void cli_model_terminal_wheel(const CliModelCtx *args);
 void cli_model_terminal_size(const CliModelCtx *args);
 int cli_model_terminal_step(const CliModelCtx *args);
 unsigned long long cli_model_terminal_next_ms(const CliModelCtx *args);
 void *cli_model_terminal_alloc(const CliModelCtx *args);
+void cli_model_terminal_release(CliTerminalPanel *panel);
 void cli_model_terminal_end(const CliModelCtx *args);
 
 struct CliModelCtx
@@ -380,18 +385,22 @@ typedef struct
     int (*key)(const CliModelCtx *args);
     int (*text)(const CliModelCtx *args);
     void (*press)(const CliModelCtx *args);
+    int (*pointer)(const CliModelCtx *args);
+    void (*wheel)(const CliModelCtx *args);
     void (*size)(const CliModelCtx *args);
     int (*step)(const CliModelCtx *args);
     unsigned long long (*next_ms)(const CliModelCtx *args);
     void *(*alloc)(const CliModelCtx *args);
     void (*end)(const CliModelCtx *args);
 } CliModelTerminalNs;
-EMBED_TABLE_LAYOUT(CliModelTerminalNs, command, key, text, press, size, step, next_ms, alloc, end);
+EMBED_TABLE_LAYOUT(CliModelTerminalNs, command, key, text, press, pointer, wheel, size, step, next_ms, alloc, end);
 EMBED_TABLE_STORAGE CliModelTerminalNs cli_model_terminal EMBED_UNUSED = {
     .command = cli_model_terminal_command,
     .key = cli_model_terminal_key,
     .text = cli_model_terminal_text,
     .press = cli_model_terminal_press,
+    .pointer = cli_model_terminal_pointer,
+    .wheel = cli_model_terminal_wheel,
     .size = cli_model_terminal_size,
     .step = cli_model_terminal_step,
     .next_ms = cli_model_terminal_next_ms,

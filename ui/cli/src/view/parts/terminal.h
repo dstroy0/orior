@@ -3,9 +3,10 @@
 // terminal.h: the terminal's panel at the work's foot under both views, as the controller publishes it: its top line;
 // its strip of tabs, each its number and folder and a × that ends it, the tab shown on the ground with the signal
 // under it and an ended shell's quieter, then New Terminal and Split, Split in the signal while the panel is split; and
-// under the strip the screens shown, one or two side by side with a line between, the one the keys go to marked at its
-// top while there are two, each cell in its colors and weight, the cursor solid where the panel takes the keys and an
-// outline where it does not (terminal.c)
+// under the strip the panes shown, one or two side by side with a line between, the one the keys go to marked at its
+// top while there are two, each its view's rows of its text with the selection under them and the xterm's rows drawn
+// over the text's from the line they start on, each cell in its colors and weight, the cursor solid where the panel
+// takes the keys and an outline where it does not (terminal.c)
 #ifndef GUI_PARTS_TERMINAL_H
 #define GUI_PARTS_TERMINAL_H
 #include "../../controller/controller_parts.h"
@@ -48,12 +49,16 @@ typedef struct
     const CliTerminalPanel *panel;
 } GuiTerminal;
 
-// the columns and rows the screen `view` shows, 0 the one shown and 1 the one beside it, into `columns` and `rows`, two
+// the columns and rows the pane `view` shows, 0 the one shown and 1 the one beside it, into `columns` and `rows`, two
 // of each at the least: 1, or 0 where the panel is closed or the view not shown
 int gui_terminal_size(const GuiTerminalCfg *args);
-// what the pixel at x, y stands on in the panel: CLI_HIT_TERMINAL with the screen into `index`, CLI_HIT_TERMINAL_TAB or
+// what the pixel at x, y stands on in the panel: CLI_HIT_TERMINAL with the pane into `index` and the row and the
+// column the pixel stands nearest the left edge of into `row` and `column`, CLI_HIT_TERMINAL_TAB or
 // CLI_HIT_TERMINAL_TAB_CLOSE with the tab, CLI_HIT_TERMINAL_NEW or CLI_HIT_TERMINAL_SPLIT; CLI_HIT_NONE elsewhere
 unsigned int gui_terminal_hit(const GuiTerminalCfg *args);
+// the row and the column of the pane `view` the pixel at x, y stands nearest, into `row` and `column`, a pixel outside
+// the pane taking the nearest of its rows and columns: 1, or 0 where the pane is not shown
+int gui_terminal_cell_at(const GuiTerminalCfg *args);
 // the panel drawn in the frame's terminal, nothing while it is closed
 void gui_terminal_draw(const GuiTerminalCfg *args);
 struct GuiTerminalCfg
@@ -69,18 +74,22 @@ struct GuiTerminalCfg
     int x;
     int y;
     unsigned int *index;
+    unsigned long long *row;
+    unsigned long long *column;
 };
 
 typedef struct
 {
     int (*size)(const GuiTerminalCfg *args);
     unsigned int (*hit)(const GuiTerminalCfg *args);
+    int (*cell_at)(const GuiTerminalCfg *args);
     void (*draw)(const GuiTerminalCfg *args);
 } GuiTerminalNs;
-EMBED_TABLE_LAYOUT(GuiTerminalNs, size, hit, draw);
+EMBED_TABLE_LAYOUT(GuiTerminalNs, size, hit, cell_at, draw);
 EMBED_TABLE_STORAGE GuiTerminalNs gui_terminal EMBED_UNUSED = {
     .size = gui_terminal_size,
     .hit = gui_terminal_hit,
+    .cell_at = gui_terminal_cell_at,
     .draw = gui_terminal_draw,
 };
 

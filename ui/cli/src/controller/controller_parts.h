@@ -5,7 +5,8 @@
 // the map are the editor view's (editor/view.h, editor/document.h)
 #ifndef CONTROLLER_PARTS_H
 #define CONTROLLER_PARTS_H
-#include "../terminal/screen.h"
+#include "../editor/view.h"
+#include "../terminal/xterm.h"
 #include "../text/edits.h"
 
 // the groups a tool stands in
@@ -235,10 +236,14 @@ typedef struct
     int exited;
 } CliTerminalTab;
 
-// One screen the terminal's panel shows: its columns and rows, its cells row by row, the cursor's column and row and
-// whether it is shown, and whether its shell is the one the keys go to while the panel takes them
+// One pane the terminal's panel shows, a view of its tab's text as the editor's are: the view's frame, NULL for none,
+// the rows of the text from its top with the selection, the text's line the xterm's rows start on, and the xterm's rows
+// drawn over the text's from that line: their columns and count, their cells row by row, the cursor's column and row
+// and whether it is shown, and whether its shell is the one the keys go to while the panel takes them
 typedef struct
 {
+    const CliViewFrame *frame;
+    unsigned long long xterm_line;
     unsigned int columns;
     unsigned int rows;
     const CliTerminalCell *cell;
@@ -249,8 +254,8 @@ typedef struct
 } CliTerminalView;
 
 // The terminal: whether its panel is open and whether it takes the keys; its height in pixels at a scale of one; its
-// tabs, the tab shown and the one beside it, -1 for none; and the screens shown, the tab shown's then the one beside's,
-// a screen not yet sized having no rows
+// tabs, the tab shown and the one beside it, -1 for none; and the panes shown, the tab shown's then the one beside's, a
+// pane not yet sized having no rows
 typedef struct
 {
     int open;

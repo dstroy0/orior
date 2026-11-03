@@ -1481,9 +1481,9 @@ EMBED_INLINE void window_hit_read(const GuiWindowCtx *args)
     // the terminal's panel takes every press on it, those on none of its parts to nothing
     if (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = window->frame.terminal, .x = x, .y = y))
     {
-        input->hit =
-            EMBED_CALL(gui_terminal.hit, GuiTerminalCfg, .terminal_read = &window->terminal, .frame = &window->frame,
-                       .glyphs = (GuiGlyphs *)&window->glyphs, .x = x, .y = y, .index = &input->index);
+        input->hit = EMBED_CALL(gui_terminal.hit, GuiTerminalCfg, .terminal_read = &window->terminal,
+                                .frame = &window->frame, .glyphs = (GuiGlyphs *)&window->glyphs, .x = x, .y = y,
+                                .index = &input->index, .row = &input->row, .column = &input->column);
         return;
     }
     if (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = window->frame.side, .x = x, .y = y))
@@ -1572,6 +1572,17 @@ static void window_wheel(const GuiInputHandlerCfg *args)
                    .y = args->input->y))
     {
         const CliInput wheel = {.kind = CLI_INPUT_WHEEL, .hit = CLI_HIT_SUGGEST_LIST, .rows_moved = args->input->rows};
+        cli_controller_input(&wheel, NULL);
+        return;
+    }
+    // over a terminal's pane, its view
+    unsigned int pane = 0u;
+    if (EMBED_CALL(gui_terminal.hit, GuiTerminalCfg, .terminal_read = &window->terminal, .frame = &window->frame,
+                   .glyphs = (GuiGlyphs *)&window->glyphs, .x = args->input->x, .y = args->input->y,
+                   .index = &pane) == CLI_HIT_TERMINAL)
+    {
+        const CliInput wheel = {
+            .kind = CLI_INPUT_WHEEL, .hit = CLI_HIT_TERMINAL, .index = pane, .rows_moved = args->input->rows};
         cli_controller_input(&wheel, NULL);
         return;
     }
@@ -1687,6 +1698,8 @@ static void window_press(const GuiInputHandlerCfg *args)
     window->clicked_y = input->y;
     pressed.clicks = window->clicks;
     window->dragging = (pressed.hit == CLI_HIT_EDITOR) || (pressed.hit == CLI_HIT_GUTTER);
+    window->terminal_dragged = (pressed.hit == CLI_HIT_TERMINAL) ? (pressed.index + 1u) : 0u;
+    window->moved_sent = pressed;
     cli_controller_input(&pressed, NULL);
 }
 
@@ -1696,6 +1709,23 @@ static void window_move(const GuiInputHandlerCfg *args)
     if (window->terminal_gripped)
     {
         EMBED_CALL(window_terminal_drag, GuiWindowCtx, .window = window, .y = args->input->y);
+        return;
+    }
+    // a drag that began in a terminal's pane goes on choosing in it, the pointer clamped to its rows and columns
+    if (window->terminal_dragged != 0u)
+    {
+        CliInput moved = {.kind = CLI_INPUT_POINTER_MOVED,
+                          .hit = CLI_HIT_TERMINAL,
+                          .index = window->terminal_dragged - 1u,
+                          .clicks = window->clicks};
+        if (EMBED_CALL(gui_terminal.cell_at, GuiTerminalCfg, .terminal_read = &window->terminal,
+                       .frame = &window->frame, .glyphs = (GuiGlyphs *)&window->glyphs, .view = moved.index,
+                       .x = args->input->x, .y = args->input->y, .row = &moved.row, .column = &moved.column) &&
+            ((moved.row != window->moved_sent.row) || (moved.column != window->moved_sent.column)))
+        {
+            window->moved_sent = moved;
+            cli_controller_input(&moved, NULL);
+        }
         return;
     }
     if (window->claim.autohidden)
@@ -1774,6 +1804,18 @@ static void window_release(const GuiInputHandlerCfg *args)
 {
     GuiWindow *window = args->window;
     window->terminal_gripped = 0;
+    if (window->terminal_dragged != 0u)
+    {
+        CliInput released = {.kind = CLI_INPUT_POINTER_UP,
+                             .hit = CLI_HIT_TERMINAL,
+                             .index = window->terminal_dragged - 1u,
+                             .clicks = window->clicks};
+        (void)EMBED_CALL(gui_terminal.cell_at, GuiTerminalCfg, .terminal_read = &window->terminal,
+                         .frame = &window->frame, .glyphs = (GuiGlyphs *)&window->glyphs, .view = released.index,
+                         .x = args->input->x, .y = args->input->y, .row = &released.row, .column = &released.column);
+        window->terminal_dragged = 0u;
+        cli_controller_input(&released, NULL);
+    }
     if (window->minimap.dragging)
     {
         EMBED_CALL(gui_minimap.release, GuiMinimapCfg, .map = &window->minimap);
