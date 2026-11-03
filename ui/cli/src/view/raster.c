@@ -449,6 +449,27 @@ void gui_raster_pane(const GuiRasterRectRadiusBackgroundCfg *args)
     }
 }
 
+// the square `work` at a corner of `rect`, rounded by `radius`: the ground laid over what was drawn outside the arc
+EMBED_INLINE void raster_corner_cut(const GuiRasterCtx *args)
+{
+    const GuiRect square = args->work;
+    for (int y = square.y; y < square.y + square.height; y += 1)
+    {
+        for (int x = square.x; x < square.x + square.width; x += 1)
+        {
+            const unsigned int outside = 255u - EMBED_CALL(raster_corner_cover, GuiRasterCtx, .rect = args->rect,
+                                                           .radius = args->radius, .x = x, .y = y);
+            if (outside != 0u)
+            {
+                EMBED_CALL(raster_append, GuiRasterCtx, .raster = args->raster, .x = x, .y = y,
+                           .color = EMBED_CALL(raster_background_at, GuiRasterCtx,
+                                               .background_fill = args->background_fill, .x = x, .y = y),
+                           .share = outside);
+            }
+        }
+    }
+}
+
 void gui_raster_corners_cut(const GuiRasterRectRadiusBackgroundCfg *args)
 {
     const GuiRect on = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = args->rect,
@@ -466,23 +487,10 @@ void gui_raster_corners_cut(const GuiRasterRectRadiusBackgroundCfg *args)
         {args->rect.x + args->rect.width - reach, args->rect.y + args->rect.height - reach, reach, reach}};
     for (unsigned int corner = 0u; corner < 4u; corner += 1u)
     {
-        const GuiRect square =
-            EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = squares[corner], .other = on);
-        for (int y = square.y; y < square.y + square.height; y += 1)
-        {
-            for (int x = square.x; x < square.x + square.width; x += 1)
-            {
-                const unsigned int outside = 255u - EMBED_CALL(raster_corner_cover, GuiRasterCtx, .rect = args->rect,
-                                                               .radius = args->radius, .x = x, .y = y);
-                if (outside != 0u)
-                {
-                    EMBED_CALL(raster_append, GuiRasterCtx, .raster = args->raster, .x = x, .y = y,
-                               .color = EMBED_CALL(raster_background_at, GuiRasterCtx,
-                                                   .background_fill = args->background_fill, .x = x, .y = y),
-                               .share = outside);
-                }
-            }
-        }
+        EMBED_CALL(raster_corner_cut, GuiRasterCtx, .raster = args->raster, .rect = args->rect, .radius = args->radius,
+                   .work =
+                       EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = squares[corner], .other = on),
+                   .background_fill = args->background_fill);
     }
 }
 
@@ -583,6 +591,51 @@ unsigned int gui_raster_notch_fillets(const GuiRasterRadiusCfg *args)
     return count;
 }
 
+// the share of the ground the hole takes at `column`, `row`: all of it, or inside the arc alone where a pixel stands in
+// one of the `count` fillet squares `holes`, each arc of `reach` about its centre in `centre_x` and `centre_y`
+EMBED_INLINE unsigned int raster_hole_share(const GuiRasterCtx *args)
+{
+    unsigned int share = 255u;
+    for (unsigned int at = 0u; at < args->count; at += 1u)
+    {
+        if (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = args->holes[at], .x = args->column,
+                       .y = args->row))
+        {
+            share = EMBED_CALL(raster_arc_at, GuiRasterCtx, .centre_x_value = args->centre_x[at],
+                               .centre_y_value = args->centre_y[at], .reach = args->reach, .column = args->column,
+                               .row = args->row);
+        }
+    }
+    return share;
+}
+
+// the turn out at the notch's `corner`: the ground outside its arc laid over what was drawn
+EMBED_INLINE void raster_turn_cut(const GuiRasterCtx *args)
+{
+    int turn_x = 0;
+    int turn_y = 0;
+    const GuiRect square = EMBED_CALL(raster_turn_square, GuiRasterCtx, .notch = args->notch, .corner = args->corner,
+                                      .centre_x = &turn_x, .centre_y = &turn_y);
+    const GuiRect turn_on = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = square,
+                                       .other = EMBED_CALL(raster_rect, GuiRasterCtx, .raster_read = args->raster));
+    for (int row = turn_on.y; row < turn_on.y + turn_on.height; row += 1)
+    {
+        for (int column = turn_on.x; column < turn_on.x + turn_on.width; column += 1)
+        {
+            const unsigned int outside =
+                255u - EMBED_CALL(raster_arc_at, GuiRasterCtx, .centre_x_value = turn_x, .centre_y_value = turn_y,
+                                  .reach = args->notch->reach, .column = column, .row = row);
+            if (outside != 0u)
+            {
+                EMBED_CALL(raster_append, GuiRasterCtx, .raster = args->raster, .x = column, .y = row,
+                           .color = EMBED_CALL(raster_background_at, GuiRasterCtx,
+                                               .background_fill = args->background_fill, .x = column, .y = row),
+                           .share = outside);
+            }
+        }
+    }
+}
+
 void gui_raster_notch(const GuiRasterRadiusBackgroundCfg *args)
 {
     RasterNotch read;
@@ -612,16 +665,9 @@ void gui_raster_notch(const GuiRasterRadiusBackgroundCfg *args)
     {
         for (int column = on.x; column < on.x + on.width; column += 1)
         {
-            unsigned int share = 255u;
-            for (unsigned int at = 0u; at < fillets; at += 1u)
-            {
-                if (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = fillet[at], .x = column, .y = row))
-                {
-                    share =
-                        EMBED_CALL(raster_arc_at, GuiRasterCtx, .centre_x_value = centre_x[at],
-                                   .centre_y_value = centre_y[at], .reach = read.reach, .column = column, .row = row);
-                }
-            }
+            const unsigned int share =
+                EMBED_CALL(raster_hole_share, GuiRasterCtx, .holes = fillet, .count = fillets, .centre_x = centre_x,
+                           .centre_y = centre_y, .reach = read.reach, .column = column, .row = row);
             if (share != 0u)
             {
                 EMBED_CALL(raster_append, GuiRasterCtx, .raster = args->raster, .x = column, .y = row,
@@ -635,31 +681,10 @@ void gui_raster_notch(const GuiRasterRadiusBackgroundCfg *args)
     // away from the hole and in from the edge; a corner on two edges is the work's own, which the hole takes whole
     for (unsigned int corner = 0u; (read.reach > 0u) && (corner < 4u); corner += 1u)
     {
-        if (read.on_x[corner] == read.on_y[corner])
+        if (read.on_x[corner] != read.on_y[corner])
         {
-            continue;
-        }
-        int turn_x = 0;
-        int turn_y = 0;
-        const GuiRect square = EMBED_CALL(raster_turn_square, GuiRasterCtx, .notch = &read, .corner = corner,
-                                          .centre_x = &turn_x, .centre_y = &turn_y);
-        const GuiRect turn_on = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = square,
-                                           .other = EMBED_CALL(raster_rect, GuiRasterCtx, .raster_read = args->raster));
-        for (int row = turn_on.y; row < turn_on.y + turn_on.height; row += 1)
-        {
-            for (int column = turn_on.x; column < turn_on.x + turn_on.width; column += 1)
-            {
-                const unsigned int outside =
-                    255u - EMBED_CALL(raster_arc_at, GuiRasterCtx, .centre_x_value = turn_x, .centre_y_value = turn_y,
-                                      .reach = read.reach, .column = column, .row = row);
-                if (outside != 0u)
-                {
-                    EMBED_CALL(raster_append, GuiRasterCtx, .raster = args->raster, .x = column, .y = row,
-                               .color = EMBED_CALL(raster_background_at, GuiRasterCtx,
-                                                   .background_fill = args->background_fill, .x = column, .y = row),
-                               .share = outside);
-                }
-            }
+            EMBED_CALL(raster_turn_cut, GuiRasterCtx, .raster = args->raster, .notch = &read, .corner = corner,
+                       .background_fill = args->background_fill);
         }
     }
 }
@@ -749,6 +774,19 @@ EMBED_INLINE void raster_corner_outline(const GuiRasterCtx *args)
     }
 }
 
+// whether the hole `rect` reaches the work's edge at `at`, its head or its foot where `across_i32`, else its left or
+// its right
+EMBED_INLINE int raster_hole_reaches(const GuiRasterCtx *args)
+{
+    const GuiRect hole = args->rect;
+    const GuiRect work = args->work;
+    if (args->across_i32)
+    {
+        return (args->at == work.y) ? (hole.y <= work.y) : ((hole.y + hole.height) >= (work.y + work.height));
+    }
+    return (args->at == work.x) ? (hole.x <= work.x) : ((hole.x + hole.width) >= (work.x + work.width));
+}
+
 // the line of an edge laid along it between the work's corners, `from` to `to` along the edge, less the span of each
 // of the `count` holes reaching the edge grown by the radius on either side, where the line turns out round them
 static void raster_edge_line(const GuiRasterCtx *args)
@@ -762,27 +800,8 @@ static void raster_edge_line(const GuiRasterCtx *args)
     unsigned int spans = 0u;
     for (unsigned int hole = 0u; (hole < args->count) && (spans < 4u); hole += 1u)
     {
-        int reaches;
-        if (args->across_i32)
-        {
-            if (args->at == args->work.y)
-            {
-                reaches = args->holes[hole].y <= args->work.y;
-            }
-            else
-            {
-                reaches = args->holes[hole].y + args->holes[hole].height >= args->work.y + args->work.height;
-            }
-        }
-        else if (args->at == args->work.x)
-        {
-            reaches = args->holes[hole].x <= args->work.x;
-        }
-        else
-        {
-            reaches = args->holes[hole].x + args->holes[hole].width >= args->work.x + args->work.width;
-        }
-        if (!reaches)
+        if (!EMBED_CALL(raster_hole_reaches, GuiRasterCtx, .rect = args->holes[hole], .work = args->work,
+                        .at = args->at, .across_i32 = args->across_i32))
         {
             continue;
         }
@@ -819,6 +838,82 @@ static void raster_edge_line(const GuiRasterCtx *args)
     }
 }
 
+// the fillet at the notch's `corner` laid: the `table` inside its arc, and the line of `color`, `width_value` pixels
+// wide, outside it, the square grown by the line's width on its sides at the corner
+EMBED_INLINE void raster_fillet_outline(const GuiRasterCtx *args)
+{
+    GuiRaster *raster = args->raster;
+    const int pixel_width = args->width_value;
+    const unsigned int corner = args->corner;
+    int centre_x = 0;
+    int centre_y = 0;
+    const GuiRect square = EMBED_CALL(raster_fillet_square, GuiRasterCtx, .notch = args->notch, .corner = corner,
+                                      .centre_x = &centre_x, .centre_y = &centre_y);
+    const GuiRect grown = {(args->notch->into_x[corner] > 0) ? square.x - pixel_width : square.x,
+                           (args->notch->into_y[corner] > 0) ? square.y - pixel_width : square.y,
+                           square.width + pixel_width, square.height + pixel_width};
+    const GuiRect on =
+        EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                   .one = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = grown, .other = args->work),
+                   .other = EMBED_CALL(raster_rect, GuiRasterCtx, .raster_read = raster));
+    for (int y = on.y; y < on.y + on.height; y += 1)
+    {
+        for (int x = on.x; x < on.x + on.width; x += 1)
+        {
+            const unsigned int inside =
+                EMBED_CALL(raster_arc_at, GuiRasterCtx, .centre_x_value = centre_x, .centre_y_value = centre_y,
+                           .reach = args->notch->reach, .column = x, .row = y);
+            if (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = square, .x = x, .y = y))
+            {
+                EMBED_CALL(raster_append, GuiRasterCtx, .raster = raster, .x = x, .y = y,
+                           .color = EMBED_CALL(raster_background_at, GuiRasterCtx, .background_fill = args->table,
+                                               .x = x, .y = y),
+                           .share = inside);
+            }
+            // the line's width is far inside what an unsigned int represents, and the shares are bytes
+            EMBED_CALL(raster_line_append, GuiRasterCtx, .raster = raster, .x = x, .y = y, .color = args->color,
+                       .cover = (int)EMBED_CALL(
+                                    raster_arc_at, GuiRasterCtx, .centre_x_value = centre_x, .centre_y_value = centre_y,
+                                    .reach = args->notch->reach + (unsigned int)pixel_width, .column = x, .row = y) -
+                                (int)inside);
+        }
+    }
+}
+
+// the turn out at the notch's `corner` laid: the `table` outside its arc, and the line of `color` inside it, within
+// its width, `width_value` pixels, of it
+EMBED_INLINE void raster_turn_outline(const GuiRasterCtx *args)
+{
+    GuiRaster *raster = args->raster;
+    const int pixel_width = args->width_value;
+    int centre_x = 0;
+    int centre_y = 0;
+    const GuiRect square = EMBED_CALL(raster_turn_square, GuiRasterCtx, .notch = args->notch, .corner = args->corner,
+                                      .centre_x = &centre_x, .centre_y = &centre_y);
+    const GuiRect on = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = square,
+                                  .other = EMBED_CALL(raster_rect, GuiRasterCtx, .raster_read = raster));
+    const unsigned int inner =
+        (args->notch->reach > (unsigned int)pixel_width) ? args->notch->reach - (unsigned int)pixel_width : 0u;
+    for (int y = on.y; y < on.y + on.height; y += 1)
+    {
+        for (int x = on.x; x < on.x + on.width; x += 1)
+        {
+            const unsigned int inside =
+                EMBED_CALL(raster_arc_at, GuiRasterCtx, .centre_x_value = centre_x, .centre_y_value = centre_y,
+                           .reach = args->notch->reach, .column = x, .row = y);
+            EMBED_CALL(
+                raster_append, GuiRasterCtx, .raster = raster, .x = x, .y = y,
+                .color = EMBED_CALL(raster_background_at, GuiRasterCtx, .background_fill = args->table, .x = x, .y = y),
+                .share = 255u - inside);
+            // the shares are bytes
+            EMBED_CALL(raster_line_append, GuiRasterCtx, .raster = raster, .x = x, .y = y, .color = args->color,
+                       .cover = (int)inside - (int)EMBED_CALL(raster_arc_at, GuiRasterCtx, .centre_x_value = centre_x,
+                                                              .centre_y_value = centre_y, .reach = inner, .column = x,
+                                                              .row = y));
+        }
+    }
+}
+
 // the lines the hole of `notch` bends round laid: the table inside each fillet's arc and outside each turn's, and the
 // line of the edge the hole reaches along the hole's sides inside the work, round the fillets and the turns
 EMBED_INLINE void raster_notch_outline(const GuiRasterCtx *args)
@@ -832,73 +927,15 @@ EMBED_INLINE void raster_notch_outline(const GuiRasterCtx *args)
     const GuiRect hole = args->notch->hole;
     for (unsigned int corner = 0u; (args->notch->reach > 0u) && (corner < 4u); corner += 1u)
     {
-        int centre_x = 0;
-        int centre_y = 0;
         if (!args->notch->on_x[corner] && !args->notch->on_y[corner])
         {
-            // the fillet: the line lies outside the arc, the square grown by the line's width on its sides at the
-            // corner
-            const GuiRect square = EMBED_CALL(raster_fillet_square, GuiRasterCtx, .notch = args->notch,
-                                              .corner = corner, .centre_x = &centre_x, .centre_y = &centre_y);
-            const GuiRect grown = {(args->notch->into_x[corner] > 0) ? square.x - pixel_width : square.x,
-                                   (args->notch->into_y[corner] > 0) ? square.y - pixel_width : square.y,
-                                   square.width + pixel_width, square.height + pixel_width};
-            const GuiRect on = EMBED_CALL(
-                gui_raster_one.rect_intersect, GuiRasterOneCfg,
-                .one = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = grown, .other = args->work),
-                .other = EMBED_CALL(raster_rect, GuiRasterCtx, .raster_read = raster));
-            for (int y = on.y; y < on.y + on.height; y += 1)
-            {
-                for (int x = on.x; x < on.x + on.width; x += 1)
-                {
-                    const unsigned int inside =
-                        EMBED_CALL(raster_arc_at, GuiRasterCtx, .centre_x_value = centre_x, .centre_y_value = centre_y,
-                                   .reach = args->notch->reach, .column = x, .row = y);
-                    if (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = square, .x = x, .y = y))
-                    {
-                        EMBED_CALL(raster_append, GuiRasterCtx, .raster = raster, .x = x, .y = y,
-                                   .color = EMBED_CALL(raster_background_at, GuiRasterCtx,
-                                                       .background_fill = args->table, .x = x, .y = y),
-                                   .share = inside);
-                    }
-                    // the line's width is far inside what an unsigned int represents, and the shares are bytes
-                    EMBED_CALL(raster_line_append, GuiRasterCtx, .raster = raster, .x = x, .y = y, .color = color,
-                               .cover = (int)EMBED_CALL(raster_arc_at, GuiRasterCtx, .centre_x_value = centre_x,
-                                                        .centre_y_value = centre_y,
-                                                        .reach = args->notch->reach + (unsigned int)pixel_width,
-                                                        .column = x, .row = y) -
-                                        (int)inside);
-                }
-            }
+            EMBED_CALL(raster_fillet_outline, GuiRasterCtx, .raster = raster, .notch = args->notch, .corner = corner,
+                       .work = args->work, .table = args->table, .color = color, .width_value = pixel_width);
         }
         else if (args->notch->on_x[corner] != args->notch->on_y[corner])
         {
-            // the turn out: the line lies inside the arc, within its width of it
-            const GuiRect square = EMBED_CALL(raster_turn_square, GuiRasterCtx, .notch = args->notch, .corner = corner,
-                                              .centre_x = &centre_x, .centre_y = &centre_y);
-            const GuiRect on = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = square,
-                                          .other = EMBED_CALL(raster_rect, GuiRasterCtx, .raster_read = raster));
-            const unsigned int inner =
-                (args->notch->reach > (unsigned int)pixel_width) ? args->notch->reach - (unsigned int)pixel_width : 0u;
-            for (int y = on.y; y < on.y + on.height; y += 1)
-            {
-                for (int x = on.x; x < on.x + on.width; x += 1)
-                {
-                    const unsigned int inside =
-                        EMBED_CALL(raster_arc_at, GuiRasterCtx, .centre_x_value = centre_x, .centre_y_value = centre_y,
-                                   .reach = args->notch->reach, .column = x, .row = y);
-                    EMBED_CALL(raster_append, GuiRasterCtx, .raster = raster, .x = x, .y = y,
-                               .color = EMBED_CALL(raster_background_at, GuiRasterCtx, .background_fill = args->table,
-                                                   .x = x, .y = y),
-                               .share = 255u - inside);
-                    // the shares are bytes
-                    EMBED_CALL(raster_line_append, GuiRasterCtx, .raster = raster, .x = x, .y = y, .color = color,
-                               .cover =
-                                   (int)inside - (int)EMBED_CALL(raster_arc_at, GuiRasterCtx,
-                                                                 .centre_x_value = centre_x, .centre_y_value = centre_y,
-                                                                 .reach = inner, .column = x, .row = y));
-                }
-            }
+            EMBED_CALL(raster_turn_outline, GuiRasterCtx, .raster = raster, .notch = args->notch, .corner = corner,
+                       .table = args->table, .color = color, .width_value = pixel_width);
         }
     }
     // the hole's sides inside the work, each a stretch of the line just outside the hole between its corners' arcs
