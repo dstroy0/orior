@@ -176,7 +176,7 @@ mmgr_built() {
     fi
     { cmake -S "$TOP/src/cu" -B "$into" -G Ninja -DCMAKE_C_COMPILER="$CC" -DCMAKE_C_COMPILER_TARGET="$target" \
         -DCMAKE_BUILD_TYPE=Release -DORIOR_SKIP_CUDA=ON -DORIOR_MMGR_ONLY=ON -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
-        -DCMAKE_C_FLAGS="$MMGR_HIGH_WATER -DMMGR_ENABLE_HOST=1 ${VECTOR_WORDS[*]} ${LTO_WORDS[*]} ${SANITIZE_WORDS[*]}" \
+        -DCMAKE_C_FLAGS="$MMGR_HIGH_WATER -DMMGR_ENABLE_HOST=1 ${VECTOR_WORDS[*]:-} ${LTO_WORDS[*]:-} ${SANITIZE_WORDS[*]:-}" \
         && cmake --build "$into" --target orior_mmgr; } > "$into.log" 2>&1 || {
         echo "  build failed: MMgr did not build for $target"
         tail -20 "$into.log"
