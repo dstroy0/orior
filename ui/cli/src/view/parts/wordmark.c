@@ -188,6 +188,14 @@ typedef struct
     GuiRaster *raster;
     GuiColor color;
     unsigned long long through;
+    int from_row;
+    int to_row;
+    int first_fixed;
+    int last_fixed;
+    unsigned int from_x;
+    unsigned int end_x;
+    unsigned int *from_pointer;
+    unsigned int *end_pointer;
 } WordmarkCtx;
 // the flight's stages given back
 EMBED_INLINE void wordmark_flight_free(const WordmarkCtx *args)
@@ -872,6 +880,58 @@ unsigned long long gui_wordmark_next_deadline_ms(const GuiWordmarkReadCfg *args)
     return (args->wordmark_read->exit_start_ms != 0ULL) ? now_ms + GUI_WORDMARK_FRAME_MS : 0ULL;
 }
 
+// the ink's extent across the name's rows from `from_row` to before `to_row`, widened into `from_pointer` and
+// `end_pointer`
+EMBED_INLINE void wordmark_rows_ink(const WordmarkCtx *args)
+{
+    const unsigned short (*const text_color)[2] = (const unsigned short (*)[2])args->wordmark_read->text_color;
+    for (int row = args->from_row; row < args->to_row; row += 1)
+    {
+        if (text_color[row][0] < text_color[row][1])
+        {
+            *args->from_pointer = (text_color[row][0] < *args->from_pointer) ? text_color[row][0] : *args->from_pointer;
+            *args->end_pointer = (text_color[row][1] > *args->end_pointer) ? text_color[row][1] : *args->end_pointer;
+        }
+    }
+}
+
+// the name's rows from `from_row` to before `to_row`, which land on one row of the window that runs from `first_fixed`
+// to `last_fixed` in rows with sixteen bits of fraction, blended into the wordmark's row each by its share, their sums
+// cleared across their ink alone, from `from_x` to before `end_x`: the row's coverage from `from_x`
+EMBED_INLINE const unsigned char *wordmark_rows_blend(const WordmarkCtx *args)
+{
+    GuiWordmark *const wordmark = args->wordmark;
+    const unsigned short (*const text_color)[2] = (const unsigned short (*)[2])wordmark->text_color;
+    const unsigned int width = wordmark->name.width;
+    const int first = args->first_fixed;
+    const int last = args->last_fixed;
+    memor.set(&(MemoriaCfg){.dst = wordmark->row_sum + args->from_x,
+                            .val = 0,
+                            .bytes = (unsigned long long)(args->end_x - args->from_x) * sizeof(*wordmark->row_sum)});
+    const long long full_span = (long long)last - (long long)first;
+    for (int row = args->from_row; row < args->to_row; row += 1)
+    {
+        const int row_start = row * GUI_FIXED_ONE;
+        const int start = (first > row_start) ? first : row_start;
+        const int stop = (last < row_start + GUI_FIXED_ONE) ? last : row_start + GUI_FIXED_ONE;
+        // a share of a row by sixteen bits of fraction is a small word
+        const unsigned int weight =
+            (unsigned int)((((long long)(stop - start) * GUI_FIXED_ONE) + (full_span / 2LL)) / full_span);
+        const unsigned char *const row_cover = &wordmark->name.cover[(unsigned int)row * width];
+        for (unsigned int x = text_color[row][0]; x < text_color[row][1]; x += 1u)
+        {
+            wordmark->row_sum[x] += row_cover[x] * weight;
+        }
+    }
+    for (unsigned int x = args->from_x; x < args->end_x; x += 1u)
+    {
+        const unsigned int mean = (wordmark->row_sum[x] + (GUI_FIXED_ONE / 2u)) >> 16u;
+        // a mean of bytes, 255 at most, is a byte
+        wordmark->row[x] = (unsigned char)((mean > 255u) ? 255u : mean);
+    }
+    return wordmark->row + args->from_x;
+}
+
 // a stage of the flight at `part`, a share of it in the frame's words, walked: each row of the window from the tip down
 // takes what the tables say of the name, one row of it where a row of the window is a row of the name, the rows that
 // land on it by their shares where rows shorten, and only what has ink, stretched between the funnel's sides. With
@@ -935,14 +995,8 @@ static void wordmark_stage_walk(const WordmarkCtx *args)
         {
             // the rows that land on it: the ink's extent across them
             from_x = width;
-            for (int row = from_row; row < to_row; row += 1)
-            {
-                if (text_color[row][0] < text_color[row][1])
-                {
-                    from_x = (text_color[row][0] < from_x) ? text_color[row][0] : from_x;
-                    end_x = (text_color[row][1] > end_x) ? text_color[row][1] : end_x;
-                }
-            }
+            EMBED_CALL(wordmark_rows_ink, WordmarkCtx, .wordmark_read = args->wordmark, .from_row = from_row,
+                       .to_row = to_row, .from_pointer = &from_x, .end_pointer = &end_x);
         }
         if (from_x >= end_x)
         {
@@ -950,32 +1004,9 @@ static void wordmark_stage_walk(const WordmarkCtx *args)
         }
         if (!one_row && (args->span != NULL))
         {
-            // each row by its share: their sums cleared across their ink alone
-            memor.set(&(MemoriaCfg){.dst = args->wordmark->row_sum + from_x,
-                                    .val = 0,
-                                    .bytes = (unsigned long long)(end_x - from_x) * sizeof(*args->wordmark->row_sum)});
-            const long long full_span = (long long)last - (long long)first;
-            for (int row = from_row; row < to_row; row += 1)
-            {
-                const int row_start = row * GUI_FIXED_ONE;
-                const int start = (first > row_start) ? first : row_start;
-                const int stop = (last < row_start + GUI_FIXED_ONE) ? last : row_start + GUI_FIXED_ONE;
-                // a share of a row by sixteen bits of fraction is a small word
-                const unsigned int weight =
-                    (unsigned int)((((long long)(stop - start) * GUI_FIXED_ONE) + (full_span / 2LL)) / full_span);
-                const unsigned char *const row_cover = &args->wordmark->name.cover[(unsigned int)row * width];
-                for (unsigned int x = text_color[row][0]; x < text_color[row][1]; x += 1u)
-                {
-                    args->wordmark->row_sum[x] += row_cover[x] * weight;
-                }
-            }
-            for (unsigned int x = from_x; x < end_x; x += 1u)
-            {
-                const unsigned int mean = (args->wordmark->row_sum[x] + (GUI_FIXED_ONE / 2u)) >> 16u;
-                // a mean of bytes, 255 at most, is a byte
-                args->wordmark->row[x] = (unsigned char)((mean > 255u) ? 255u : mean);
-            }
-            cover = args->wordmark->row + from_x;
+            cover = EMBED_CALL(wordmark_rows_blend, WordmarkCtx, .wordmark = args->wordmark, .from_row = from_row,
+                               .to_row = to_row, .first_fixed = first, .last_fixed = last, .from_x = from_x,
+                               .end_x = end_x);
         }
         const long long bend = (forming * (long long)args->side_share_read[y]) >> 16;
         // the sides' places by sixteen bits of fraction are words: a window is far narrower than their range

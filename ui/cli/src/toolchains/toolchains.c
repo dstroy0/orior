@@ -27,6 +27,16 @@ typedef struct
     unsigned int tool;
     const char *text;
     char *out;
+    const char *a;
+    const char *a_end;
+    const char *b;
+    const char *b_end;
+    const char *path;
+    char separator;
+    char (*found_from)[CLI_PATH_MAX_LEN];
+    char (*found_into)[CLI_PATH_MAX_LEN];
+    unsigned int found;
+    char (*names)[CLI_NAME_MAX_LEN];
 } ToolchainsCtx;
 // whether a tool is for this system: it names none, or this one
 EMBED_INLINE int cli_for_here(const ToolchainsCtx *args)
@@ -346,86 +356,81 @@ int cli_toolchains_matches(const CliToolchainsPatternCtx *args)
     }
 }
 
+// whether the text's first letter is a digit
+EMBED_INLINE int cli_natural_digit(const ToolchainsCtx *args)
+{
+    return (args->text[0] >= '0') && (args->text[0] <= '9');
+}
+
+// the end of the run that starts `text`: of digits where it starts with one, else of what is no digit
+EMBED_INLINE const char *cli_natural_run(const ToolchainsCtx *args)
+{
+    const char *const text = args->text;
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
+    if (EMBED_CALL(cli_natural_digit, ToolchainsCtx, .text = text))
+    {
+        return text + EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = text, .at = 0ULL,
+                                 .size = size, .classes = CLI_TEXT_DIGITS, .set = "");
+    }
+    return text + EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = text, .at = 0ULL,
+                             .size = size, .set = "0123456789");
+}
+
+// two runs of digits, `a` to `a_end` and `b` to `b_end`, ordered by the numbers they write, their leading zeros passed
+// over: below 0 where `a`'s comes first, 0 where they are equal
+EMBED_INLINE embed_iword cli_natural_numbers(const ToolchainsCtx *args)
+{
+    const char *const a =
+        args->a + EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = args->a, .at = 0ULL,
+                             .size = (unsigned long long)(args->a_end - args->a), .set = "0");
+    const char *const b =
+        args->b + EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = args->b, .at = 0ULL,
+                             .size = (unsigned long long)(args->b_end - args->b), .set = "0");
+    const long long a_size = args->a_end - a;
+    const long long b_size = args->b_end - b;
+    if (a_size != b_size)
+    {
+        return (a_size < b_size) ? -1 : 1;
+    }
+    return memor.cmp(&(MemoriaCfg){.src = a, .other = b, .bytes = (unsigned long long)a_size});
+}
+
+// two runs, `a` to `a_end` and `b` to `b_end`, ordered by their letters without case: below 0 where `a`'s comes first,
+// 0 where they are equal
+EMBED_INLINE embed_iword cli_natural_letters(const ToolchainsCtx *args)
+{
+    const char *x = args->a;
+    const char *y = args->b;
+    while ((x < args->a_end) || (y < args->b_end))
+    {
+        const char left_read = (x < args->a_end) ? x[0] : '\0';
+        const char right_read = (y < args->b_end) ? y[0] : '\0';
+        const char left = ((left_read >= 'A') && (left_read <= 'Z')) ? (char)(left_read + 32) : left_read;
+        const char right = ((right_read >= 'A') && (right_read <= 'Z')) ? (char)(right_read + 32) : right_read;
+        if (left != right)
+        {
+            return (left < right) ? -1 : 1;
+        }
+        x += 1;
+        y += 1;
+    }
+    return 0;
+}
+
 // Orders names as their numbers read, so that Python314 comes after Python39: below 0 where `a` comes first
 int cli_toolchains_natural(const CliToolchainsACtx *args)
 {
     const char *a = args->a;
     const char *b = args->b;
-    for (;;)
+    while ((a[0] != '\0') && (b[0] != '\0'))
     {
-        if ((a[0] == '\0') || (b[0] == '\0'))
-        {
-            if (a[0] == '\0')
-            {
-                if (b[0] == '\0')
-                {
-                    return 0;
-                }
-                return -1;
-            }
-            return 1;
-        }
-        const int a_digit = (a[0] >= '0') && (a[0] <= '9');
-        const int b_digit = (b[0] >= '0') && (b[0] <= '9');
-        const char *a_end = a;
-        const char *b_end = b;
-        a_end += a_digit
-                     ? EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = a, .at = 0ULL,
-                                  .size = cellul.len(&(CatenaFinitaCfg){.src = a, .cap = CLI_CELLS_POOL}),
-                                  .classes = CLI_TEXT_DIGITS, .set = "")
-                     : EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = a, .at = 0ULL,
-                                  .size = cellul.len(&(CatenaFinitaCfg){.src = a, .cap = CLI_CELLS_POOL}),
-                                  .set = "0123456789");
-        b_end += b_digit
-                     ? EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = b, .at = 0ULL,
-                                  .size = cellul.len(&(CatenaFinitaCfg){.src = b, .cap = CLI_CELLS_POOL}),
-                                  .classes = CLI_TEXT_DIGITS, .set = "")
-                     : EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = b, .at = 0ULL,
-                                  .size = cellul.len(&(CatenaFinitaCfg){.src = b, .cap = CLI_CELLS_POOL}),
-                                  .set = "0123456789");
-        embed_iword order = 0;
-        if (a_digit && b_digit)
-        {
-            a += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = a, .at = 0ULL,
-                            .size = (unsigned long long)(a_end - a), .set = "0");
-            b += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = b, .at = 0ULL,
-                            .size = (unsigned long long)(b_end - b), .set = "0");
-            const long long a_size = a_end - a;
-            const long long b_size = b_end - b;
-            if (a_size != b_size)
-            {
-                if (a_size < b_size)
-                {
-                    order = -1;
-                }
-                else
-                {
-                    order = 1;
-                }
-            }
-            else
-            {
-                order = memor.cmp(&(MemoriaCfg){.src = a, .other = b, .bytes = (unsigned long long)a_size});
-            }
-        }
-        else
-        {
-            const char *x = a;
-            const char *y = b;
-            while ((order == 0) && ((x < a_end) || (y < b_end)))
-            {
-                const char left_read = (x < a_end) ? x[0] : '\0';
-                const char right_read = (y < b_end) ? y[0] : '\0';
-                const char left = ((left_read >= 'A') && (left_read <= 'Z')) ? (char)(left_read + 32) : left_read;
-                const char right = ((right_read >= 'A') && (right_read <= 'Z')) ? (char)(right_read + 32) : right_read;
-                if (left != right)
-                {
-                    order = (left < right) ? -1 : 1;
-                }
-                x += 1;
-                y += 1;
-            }
-        }
+        const char *const a_end = EMBED_CALL(cli_natural_run, ToolchainsCtx, .text = a);
+        const char *const b_end = EMBED_CALL(cli_natural_run, ToolchainsCtx, .text = b);
+        const int numbers = EMBED_CALL(cli_natural_digit, ToolchainsCtx, .text = a) &&
+                            EMBED_CALL(cli_natural_digit, ToolchainsCtx, .text = b);
+        const embed_iword order =
+            numbers ? EMBED_CALL(cli_natural_numbers, ToolchainsCtx, .a = a, .a_end = a_end, .b = b, .b_end = b_end)
+                    : EMBED_CALL(cli_natural_letters, ToolchainsCtx, .a = a, .a_end = a_end, .b = b, .b_end = b_end);
         if (order != 0)
         {
             return (order < 0) ? -1 : 1;
@@ -433,6 +438,11 @@ int cli_toolchains_natural(const CliToolchainsACtx *args)
         a = a_end;
         b = b_end;
     }
+    if (a[0] == b[0])
+    {
+        return 0;
+    }
+    return (a[0] == '\0') ? -1 : 1;
 }
 
 // A level's folders read: those whose names match the part, the newest first
@@ -470,6 +480,49 @@ static void cli_matching_each(const CliEachNameIsFolderCfg *args)
     matching->count += 1u;
 }
 
+// a path so far, `path`, followed by `name` and `separator`, written into `out`, CLI_PATH_MAX_LEN bytes: 1, or 0 where
+// it does not fit
+EMBED_INLINE int cli_folder_joined(const ToolchainsCtx *args)
+{
+    VerbaLinea joined = {args->out, CLI_PATH_MAX_LEN, 0ULL};
+    mmgr_line_put(&joined, args->path);
+    mmgr_line_put(&joined, args->text);
+    mmgr_line_ch(&joined, args->separator);
+    return mmgr_line_finish(&joined) != 0ULL;
+}
+
+// each of the `found` paths so far in `found_from` followed by the part `text` and `separator`, written into
+// `found_into`: the part as it is, or where it holds a *, each folder in the path whose name matches it, the newest
+// first, `names` holding them as they are read; how many paths are written, 64 at the most
+EMBED_INLINE unsigned int cli_folders_expanded(const ToolchainsCtx *args)
+{
+    const int pattern = cellul.chr(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL, .byte = '*'}) != NULL;
+    unsigned int next = 0u;
+    for (unsigned int at = 0u; at < args->found; at += 1u)
+    {
+        if (!pattern)
+        {
+            next += ((next < 64u) &&
+                     EMBED_CALL(cli_folder_joined, ToolchainsCtx, .path = args->found_from[at], .text = args->text,
+                                .separator = args->separator, .out = args->found_into[next]))
+                        ? 1u
+                        : 0u;
+            continue;
+        }
+        CliMatching matching = {args->text, args->names, 0u, 64u};
+        EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = args->found_from[at],
+                   .each = cli_matching_each, .context_bytess = &matching);
+        for (unsigned int each = 0u; (each < matching.count) && (next < 64u); each += 1u)
+        {
+            next += EMBED_CALL(cli_folder_joined, ToolchainsCtx, .path = args->found_from[at],
+                               .text = args->names[each], .separator = args->separator, .out = args->found_into[next])
+                        ? 1u
+                        : 0u;
+        }
+    }
+    return next;
+}
+
 unsigned int cli_toolchains_folders_get(const CliToolchainsCountCfg *args)
 {
     unsigned int count = args->count;
@@ -494,33 +547,10 @@ unsigned int cli_toolchains_folders_get(const CliToolchainsCountCfg *args)
         VerbaLinea line = {piece, sizeof(piece), 0ULL};
         mmgr_line_put_n(&line, part, (unsigned long long)(end - part));
         mmgr_line_finish(&line);
-        const char separator = (end[0] != '\0') ? end[0] : '/';
-        unsigned int next = 0u;
-        for (unsigned int at = 0u; at < found; at += 1u)
-        {
-            if (cellul.chr(&(CatenaFinitaCfg){.src = piece, .cap = CLI_CELLS_POOL, .byte = '*'}) == NULL)
-            {
-                VerbaLinea joined = {s_found[1u - now][next], CLI_PATH_MAX_LEN, 0ULL};
-                mmgr_line_put(&joined, s_found[now][at]);
-                mmgr_line_put(&joined, piece);
-                mmgr_line_ch(&joined, separator);
-                next += ((mmgr_line_finish(&joined) != 0ULL) && (next < 64u)) ? 1u : 0u;
-                continue;
-            }
-            CliMatching matching = {piece, s_names, 0u, 64u};
-            EMBED_CALL(query_folder_each_internal.folder_each, QueryFolderEachCtx, .folder = s_found[now][at],
-                       .each = cli_matching_each, .context_bytess = &matching);
-            for (unsigned int each = 0u; (each < matching.count) && (next < 64u); each += 1u)
-            {
-                VerbaLinea joined = {s_found[1u - now][next], CLI_PATH_MAX_LEN, 0ULL};
-                mmgr_line_put(&joined, s_found[now][at]);
-                mmgr_line_put(&joined, s_names[each]);
-                mmgr_line_ch(&joined, separator);
-                next += (mmgr_line_finish(&joined) != 0ULL) ? 1u : 0u;
-            }
-        }
+        found =
+            EMBED_CALL(cli_folders_expanded, ToolchainsCtx, .text = piece, .separator = (end[0] != '\0') ? end[0] : '/',
+                       .found_from = s_found[now], .found = found, .found_into = s_found[1u - now], .names = s_names);
         now = 1u - now;
-        found = next;
         part = (end[0] != '\0') ? (end + 1) : end;
     }
     for (unsigned int at = 0u; (at < found) && (count < args->capacity); at += 1u)
