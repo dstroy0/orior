@@ -2,10 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_terminal.c: a terminal's screen reads a shell's output as an xterm reads it: letters at the cursor in their
 // colors, the cursor moved, lines erased and scrolled into the scrollback, the second screen, the answers to where the
-// cursor is, the folder a shell reports, wrapping at the last column and letters past ASCII cut between two reads
+// cursor is, the folder a shell reports, wrapping at the last column and letters past ASCII cut between two reads; and
+// a shell started in a pseudo-terminal, what it writes drained onto its screen, text typed while it starts sent once it
+// settles, and its end printed
 #include "ui/cli/src/controller/controller.h"
 #include "ui/cli/src/terminal/keys.h"
 #include "ui/cli/src/terminal/screen.h"
+#include "ui/cli/src/terminal/shells.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
 static CliTerminalScreen s_screen;
@@ -246,4 +249,89 @@ void test_a_smaller_screen_sends_the_lines_above_the_cursor_to_the_scrollback(vo
     TEST_ASSERT_EQUAL_STRING("4", screen_row_text(1u));
     TEST_ASSERT_EQUAL_UINT(1u, s_screen.cursor.y);
     TEST_ASSERT_EQUAL_UINT(2u, s_screen.scrollback_count);
+}
+
+// the shell `words` started on an 80 by 24 screen, `typed` typed into it at once where it is not NULL, and drained
+// onto the screen until it stands exited or ten seconds pass, then hung up on and drained until it ends: 1 where it
+// ended of itself
+static int shell_run(const char *const *words, const char *typed)
+{
+    static CliTerminalShell s_shell;
+    static CliWake s_pause;
+    screen_open(80u, 24u);
+    char why[256];
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+    const int started = EMBED_CALL(cli_terminal_shell.start, CliTerminalShellCfg, .shell = &s_shell,
+                                   .screen = &s_screen, .words = words, .err_msg = &err_msg);
+    (void)mmgr_line_finish(&err_msg);
+    TEST_ASSERT_TRUE_MESSAGE(started, why);
+    unsigned long long typed_size = 0ULL;
+    while ((typed != NULL) && (typed[typed_size] != '\0'))
+    {
+        typed_size += 1ULL;
+    }
+    EMBED_CALL(cli_terminal_shell.write, CliTerminalShellCfg, .shell = &s_shell, .bytes = (const unsigned char *)typed,
+               .size = typed_size);
+    const unsigned long long last_ms = cli_clock_milliseconds() + 10000ULL;
+    while ((s_shell.state == CLI_TERMINAL_SHELL_RUNNING) && (cli_clock_milliseconds() < last_ms))
+    {
+        (void)EMBED_CALL(cli_terminal_shell.drain, CliTerminalShellCfg, .shell = &s_shell, .screen = &s_screen,
+                         .now_ms = cli_clock_milliseconds());
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &s_pause, .milliseconds_u64 = 5ULL);
+    }
+    const int ended = s_shell.state == CLI_TERMINAL_SHELL_EXITED;
+    EMBED_CALL(cli_terminal_shell.end, CliTerminalShellCfg, .shell = &s_shell, .now_ms = cli_clock_milliseconds());
+    while (s_shell.state == CLI_TERMINAL_SHELL_RUNNING)
+    {
+        (void)EMBED_CALL(cli_terminal_shell.drain, CliTerminalShellCfg, .shell = &s_shell, .screen = NULL,
+                         .now_ms = cli_clock_milliseconds());
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &s_pause, .milliseconds_u64 = 5ULL);
+    }
+    return ended;
+}
+
+// whether a row of the screen drawn on holds `text`, a C string
+static int screen_holds(const char *text)
+{
+    for (unsigned int y = 0u; y < s_screen.rows; y += 1u)
+    {
+        const char *const row = screen_row_text(y);
+        for (unsigned int from = 0u; row[from] != '\0'; from += 1u)
+        {
+            unsigned int at = 0u;
+            while ((text[at] != '\0') && (row[from + at] == text[at]))
+            {
+                at += 1u;
+            }
+            if (text[at] == '\0')
+            {
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
+void test_what_a_shell_writes_reaches_its_screen_and_its_end_is_printed_after_it(void)
+{
+#if defined(_WIN32)
+    const char *const words[4] = {"cmd.exe", "/c", "echo shell_heard", NULL};
+#else
+    const char *const words[4] = {"/bin/sh", "-c", "printf shell_heard", NULL};
+#endif
+    TEST_ASSERT_TRUE(shell_run(words, NULL));
+    TEST_ASSERT_TRUE(screen_holds("shell_heard"));
+    TEST_ASSERT_TRUE(screen_holds("[exited 0]"));
+}
+
+void test_text_typed_while_a_shell_starts_reaches_it_once_the_shell_settles(void)
+{
+#if defined(_WIN32)
+    const char *const words[5] = {"cmd.exe", "/v:on", "/c", "set /p line=? & echo got !line!", NULL};
+#else
+    const char *const words[4] = {"/bin/sh", "-c", "printf '? '; read line; printf 'got %s' \"$line\"", NULL};
+#endif
+    TEST_ASSERT_TRUE(shell_run(words, "abc\r"));
+    TEST_ASSERT_TRUE(screen_holds("got abc"));
+    TEST_ASSERT_TRUE(screen_holds("[exited 0]"));
 }
