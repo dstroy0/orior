@@ -455,10 +455,12 @@ EMBED_INLINE int commands_title_letter(const ControllerCommandsCtx *args)
     {
         const char *const text = s_menus.title[s_menus.title_menu[at]];
         char letter = '\0';
-        for (unsigned int byte = 0u; (letter == '\0') && (text[byte] != '\0'); byte += 1u)
+        unsigned int byte = 0u;
+        while ((letter == '\0') && (text[byte] != '\0'))
         {
             const char lower = commands_lower(text[byte]);
             letter = ((lower >= 'a') && (lower <= 'z') && !taken[lower - 'a']) ? lower : '\0';
+            byte += 1u;
         }
         if (letter == '\0')
         {

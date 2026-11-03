@@ -284,22 +284,22 @@ int cli_deploy_hashes(const CliDeployErrMsgIndexCtx *args)
             char *const end = (newline != NULL) ? (at + (newline - at)) : (s_listing + size);
             const int more = (newline != NULL);
             *end = '\0';
-            char *const line = at;
+            char *const entry = at;
             at = more ? (end + 1) : end;
             const char *const split_read = cellul.find(&(CatenaFinitaCfg){
-                .src = line, .cap = (size_t)(end - line) + 1u, .other = s_split, .other_cap = sizeof(s_split)});
+                .src = entry, .cap = (size_t)(end - entry) + 1u, .other = s_split, .other_cap = sizeof(s_split)});
             if (split_read == NULL)
             {
                 continue;
             }
-            char *const split = line + (split_read - line);
+            char *const split = entry + (split_read - entry);
             *split = '\0';
             const char *path = split + 2;
             while ((path[0] == '.') && (path[1] == '/'))
             {
                 path += 2;
             }
-            const char *hash = line;
+            const char *hash = entry;
             hash += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = hash, .at = 0ULL,
                                .size = cellul.len(&(CatenaFinitaCfg){.src = hash, .cap = CLI_CELLS_POOL}), .set = "\\");
             EMBED_CALL(there_pair_append, DeployThereCtx, .path = path, .hash = hash);
