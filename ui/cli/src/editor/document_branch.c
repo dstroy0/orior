@@ -217,6 +217,11 @@ typedef struct
     VerbaLinea *entered;
     unsigned long long first_u64;
     unsigned long long last_u64;
+    int mirrored;
+    CliDocumentRuns *runs_out;
+    unsigned int roles;
+    int renames;
+    unsigned int names;
 } DocumentBranchCtx;
 // the hash of `length` bytes of `text`, FNV-1a over its bytes
 EMBED_INLINE unsigned int branch_state_hash(const DocumentBranchCtx *args)
@@ -881,6 +886,75 @@ EMBED_INLINE unsigned int branch_scope_find(const DocumentBranchCtx *args)
 // scope's pairs and one it closes lets one go, each run that opens or closes one named by the depth it stands at, the
 // first of its names' `names` on, as `cli_document_names_write` writes them. The leaves with each run's name so
 // taken, in the work's capacity for them, the leaves as they came where the cells cannot meet that capacity
+// the scope moved by a run whose roles are `roles`: a region it opens entered, the names that wait for it entering
+// with it, or a region it closes left
+EMBED_INLINE void branch_scope_region(const DocumentBranchCtx *args)
+{
+    CliBranchScope *const scope = args->scope;
+    if ((args->roles & CLI_ROLE_REGION_OPENS) != 0u)
+    {
+        scope->depth += 1u;
+        scope->moved = 1;
+        for (unsigned int at = 0u; at < scope->count; at += 1u)
+        {
+            scope->waits[at] = (scope->belongs[at] == scope->depth) ? 0u : scope->waits[at];
+        }
+    }
+    else if (((args->roles & CLI_ROLE_REGION_CLOSES) != 0u) && (scope->depth > 0u))
+    {
+        scope->depth -= 1u;
+        scope->moved = 1;
+        EMBED_CALL(branch_scope_leave, DocumentBranchCtx, .scope = scope, .depth = scope->depth, .waiting = 0);
+    }
+}
+
+// a run named `named` whose roles are `roles`, its `size` bytes at `text`: a parameter put in the scope of the region
+// it opens, a local in the scope it stands in, and where `renames`, any other name read through the scope: the name
+// the run takes, `named` where the scope gives it none
+EMBED_INLINE unsigned int branch_scope_named(const DocumentBranchCtx *args)
+{
+    CliBranchScope *const scope = args->scope;
+    if ((args->roles & CLI_ROLE_PARAMETER) != 0u)
+    {
+        EMBED_CALL(branch_scope_append, DocumentBranchCtx, .scope = scope, .text = args->text, .size = args->size,
+                   .named = args->named, .belongs = scope->depth + 1u, .waits = 1);
+        return args->named;
+    }
+    if ((args->roles & CLI_ROLE_LOCAL) != 0u)
+    {
+        EMBED_CALL(branch_scope_append, DocumentBranchCtx, .scope = scope, .text = args->text, .size = args->size,
+                   .named = args->named, .belongs = scope->depth, .waits = 0);
+        return args->named;
+    }
+    if (!args->renames || ((args->roles & CLI_ROLE_NAME) == 0u))
+    {
+        return args->named;
+    }
+    const unsigned int declared = EMBED_CALL(branch_scope_by_name, DocumentBranchCtx, .scope_read = scope,
+                                             .text = args->text, .size_u64 = args->size);
+    return (declared != CLI_DOC_NONE) ? declared : args->named;
+}
+
+// the depth of the pairs moved by a run named `name` whose roles are `roles`: the name a pair takes after the `names`
+// the language gives, by its rank and its depth, where `renames` and the language ranks it, else CLI_DOC_NONE. A pair
+// that closes stands at the depth of the one it closes
+EMBED_INLINE unsigned int branch_pair_named(const DocumentBranchCtx *args)
+{
+    CliBranchScope *const scope = args->scope;
+    const int closes = (args->roles & CLI_ROLE_DEPTH_CLOSES) != 0u;
+    const int opens = (args->roles & CLI_ROLE_DEPTH_OPENS) != 0u;
+    scope->pairs -= (closes && (scope->pairs > 0u)) ? 1u : 0u;
+    const unsigned int rank = ((closes || opens) && args->renames)
+                                  ? EMBED_CALL(branch_depth_rank, DocumentBranchCtx, .finding = args->finding,
+                                               .leaves = args->leaves, .name = args->name)
+                                  : CLI_DOC_NONE;
+    const unsigned int paired =
+        (rank != CLI_DOC_NONE) ? args->names + (rank * CLI_DOC_DEPTHS) + (scope->pairs % CLI_DOC_DEPTHS) : CLI_DOC_NONE;
+    scope->pairs += opens ? 1u : 0u;
+    scope->moved = scope->moved || closes || opens;
+    return paired;
+}
+
 EMBED_INLINE CliLeaves branch_uses_by_name(const DocumentBranchCtx *args)
 {
     CliLeaves named = *args->leaves;
@@ -910,60 +984,22 @@ EMBED_INLINE CliLeaves branch_uses_by_name(const DocumentBranchCtx *args)
                                                  .size = size, .col = end, .byte = &byte, .at = &col);
         // a run's bytes lie within its line, which an unsigned int counts
         const unsigned int bytes = (unsigned int)(to - from);
-        if (renaming)
-        {
-            renamed[run] = name;
-        }
-        if ((roles & CLI_ROLE_REGION_OPENS) != 0u)
-        {
-            scope->depth += 1u;
-            scope->moved = 1;
-            for (unsigned int at = 0u; at < scope->count; at += 1u)
-            {
-                scope->waits[at] = (scope->belongs[at] == scope->depth) ? 0u : scope->waits[at];
-            }
-        }
-        else if (((roles & CLI_ROLE_REGION_CLOSES) != 0u) && (scope->depth > 0u))
-        {
-            scope->depth -= 1u;
-            scope->moved = 1;
-            EMBED_CALL(branch_scope_leave, DocumentBranchCtx, .scope = scope, .depth = scope->depth, .waiting = 0);
-        }
-        if ((roles & CLI_ROLE_PARAMETER) != 0u)
-        {
-            EMBED_CALL(branch_scope_append, DocumentBranchCtx, .scope = scope, .text = line + from, .size = bytes,
-                       .named = name, .belongs = scope->depth + 1u, .waits = 1);
-        }
-        else if ((roles & CLI_ROLE_LOCAL) != 0u)
-        {
-            EMBED_CALL(branch_scope_append, DocumentBranchCtx, .scope = scope, .text = line + from, .size = bytes,
-                       .named = name, .belongs = scope->depth, .waits = 0);
-        }
-        else if (renaming && !through && ((roles & CLI_ROLE_NAME) != 0u))
-        {
-            const unsigned int declared = EMBED_CALL(branch_scope_by_name, DocumentBranchCtx, .scope_read = scope,
-                                                     .text = line + from, .size_u64 = bytes);
-            renamed[run] = (declared != CLI_DOC_NONE) ? declared : name;
-        }
+        EMBED_CALL(branch_scope_region, DocumentBranchCtx, .scope = scope, .roles = roles);
+        const unsigned int as =
+            EMBED_CALL(branch_scope_named, DocumentBranchCtx, .scope = scope, .roles = roles, .text = line + from,
+                       .size = bytes, .named = name, .renames = renaming && !through);
         if ((roles & CLI_ROLE_ENDS) != 0u)
         {
             EMBED_CALL(branch_scope_leave, DocumentBranchCtx, .scope = scope, .depth = CLI_DOC_NONE, .waiting = 1);
             ended = 1;
         }
-        // a pair that closes stands at the depth of the one it closes
-        const int closes = (roles & CLI_ROLE_DEPTH_CLOSES) != 0u;
-        const int opens = (roles & CLI_ROLE_DEPTH_OPENS) != 0u;
-        scope->pairs -= (closes && (scope->pairs > 0u)) ? 1u : 0u;
-        const unsigned int rank = ((closes || opens) && renaming && (names != 0u))
-                                      ? EMBED_CALL(branch_depth_rank, DocumentBranchCtx, .finding = args->finding_out,
-                                                   .leaves = args->leaves, .name = name)
-                                      : CLI_DOC_NONE;
-        if (rank != CLI_DOC_NONE)
+        const unsigned int paired = EMBED_CALL(branch_pair_named, DocumentBranchCtx, .scope = scope, .roles = roles,
+                                               .renames = renaming && (names != 0u), .names = names,
+                                               .finding = args->finding_out, .leaves = args->leaves, .name = name);
+        if (renaming)
         {
-            renamed[run] = names + (rank * CLI_DOC_DEPTHS) + (scope->pairs % CLI_DOC_DEPTHS);
+            renamed[run] = (paired != CLI_DOC_NONE) ? paired : as;
         }
-        scope->pairs += opens ? 1u : 0u;
-        scope->moved = scope->moved || closes || opens;
     }
     if (ended)
     {
@@ -1922,29 +1958,24 @@ EMBED_INLINE unsigned long long branch_lines_following(const DocumentBranchCtx *
     return end + 1ULL;
 }
 
-CliDocumentRuns *cli_document_runs_alloc(const CliDocumentRunsCfg *args)
+// the `capacity` lines `number` names walked, those that follow one another together, each cut at `columns` where it
+// is not 0, the lines the frame mirrors widened to them where `mirrored`: the words their runs take, counted off the
+// records
+EMBED_INLINE unsigned long long branch_runs_walked(const DocumentBranchCtx *args)
 {
-    CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
-    if (one == NULL)
-    {
-        return NULL;
-    }
-    EMBED_CALL(cli_document_internal.holder_add, CliDocumentCtx, .one = one);
-    one->refused =
-        one->refused || (one->paged && !EMBED_CALL(cli_document_internal.paged_count, CliDocumentCtx, .one = one));
+    CliStoredText *const one = args->one;
     const CliLines *const lines = &one->lines;
-    const unsigned long long columns = args->mirrored ? one->columns : 0ULL;
-    // the lines walked, those that follow one another together, and the words their runs take counted off the records
     unsigned long long words = 0ULL;
-    for (unsigned long long at = 0ULL; at < args->count;)
+    for (unsigned long long at = 0ULL; at < args->capacity;)
     {
         const unsigned long long end = EMBED_CALL(branch_lines_following, DocumentBranchCtx, .number = args->number,
-                                                  .capacity = args->count, .word_at = at);
+                                                  .capacity = args->capacity, .word_at = at);
         // the lines of a text stand among those it counts, which an unsigned int counts
         const unsigned int from = (args->number[at] < lines->lines) ? (unsigned int)args->number[at] : lines->lines;
         const unsigned int to =
             (args->number[end - 1ULL] < lines->lines) ? ((unsigned int)args->number[end - 1ULL] + 1u) : lines->lines;
-        EMBED_CALL(branch_lines_walk, DocumentBranchCtx, .one = one, .first = from, .end = to, .columns = columns);
+        EMBED_CALL(branch_lines_walk, DocumentBranchCtx, .one = one, .first = from, .end = to,
+                   .columns = args->columns);
         for (unsigned int line = from; line < to; line += 1u)
         {
             words += (lines->runs[line] != CLI_DOC_NO_RUNS) ? (2ULL * one->run[lines->runs[line]]) : 0ULL;
@@ -1959,6 +1990,54 @@ CliDocumentRuns *cli_document_runs_alloc(const CliDocumentRunsCfg *args)
         }
         at = end;
     }
+    return words;
+}
+
+// the runs of the `capacity` lines `number` names put in `runs_out`, each line's columns, then its names, those at or
+// past `columns` left off where it is not 0
+EMBED_INLINE void branch_runs_put(const DocumentBranchCtx *args)
+{
+    const CliStoredText *const one = args->one_read;
+    const CliLines *const lines = &one->lines;
+    CliDocumentRuns *const read = args->runs_out;
+    unsigned int used = 0u;
+    for (unsigned long long at = 0ULL; at < args->capacity; at += 1ULL)
+    {
+        read->line[at] = (CliDocumentLineRuns){used, 0u};
+        const unsigned long long line = args->number[at];
+        if ((line >= lines->lines) || (lines->runs[line] == CLI_DOC_NO_RUNS))
+        {
+            continue;
+        }
+        const unsigned int *const record = one->run + lines->runs[line];
+        const unsigned int *const col = record + CLI_DOC_RECORD_HEAD;
+        unsigned int runs = record[0];
+        while ((args->columns != 0ULL) && (runs > 1u) && (col[runs - 1u] >= args->columns))
+        {
+            runs -= 1u;
+        }
+        memor.cpy(&(MemoriaCfg){.dst = read->word_text + used, .src = col, .bytes = runs * sizeof(*col)});
+        memor.cpy(
+            &(MemoriaCfg){.dst = read->word_text + used + runs, .src = col + record[0], .bytes = runs * sizeof(*col)});
+        read->line[at].runs = runs;
+        used += 2u * runs;
+    }
+}
+
+CliDocumentRuns *cli_document_runs_alloc(const CliDocumentRunsCfg *args)
+{
+    CliStoredText *const one = EMBED_CALL(cli_document_key_internal.store, CliDocumentKeyCtx, .key = args->key);
+    if (one == NULL)
+    {
+        return NULL;
+    }
+    EMBED_CALL(cli_document_internal.holder_add, CliDocumentCtx, .one = one);
+    one->refused =
+        one->refused || (one->paged && !EMBED_CALL(cli_document_internal.paged_count, CliDocumentCtx, .one = one));
+    const unsigned long long columns = args->mirrored ? one->columns : 0ULL;
+    const unsigned long long words =
+        EMBED_CALL(branch_runs_walked, DocumentBranchCtx, .one = one, .number = args->number, .capacity = args->count,
+                   .columns = columns, .mirrored = args->mirrored);
     const unsigned long long line_bytes = args->count * sizeof(CliDocumentLineRuns);
     CliDocumentRuns *const read =
         g_cli_cells->persistent_buf_alloc(sizeof(*read) + line_bytes + (words * sizeof(unsigned int)), args->owner);
@@ -1966,28 +2045,8 @@ CliDocumentRuns *cli_document_runs_alloc(const CliDocumentRunsCfg *args)
     {
         read->line = (CliDocumentLineRuns *)(void *)(read + 1);
         read->word_text = (unsigned int *)(void *)(read->line + args->count);
-        unsigned int used = 0u;
-        for (unsigned long long at = 0ULL; at < args->count; at += 1ULL)
-        {
-            read->line[at] = (CliDocumentLineRuns){used, 0u};
-            const unsigned long long line = args->number[at];
-            if ((line >= lines->lines) || (lines->runs[line] == CLI_DOC_NO_RUNS))
-            {
-                continue;
-            }
-            const unsigned int *const record = one->run + lines->runs[line];
-            const unsigned int *const col = record + CLI_DOC_RECORD_HEAD;
-            unsigned int runs = record[0];
-            while ((columns != 0ULL) && (runs > 1u) && (col[runs - 1u] >= columns))
-            {
-                runs -= 1u;
-            }
-            memor.cpy(&(MemoriaCfg){.dst = read->word_text + used, .src = col, .bytes = runs * sizeof(*col)});
-            memor.cpy(&(MemoriaCfg){
-                .dst = read->word_text + used + runs, .src = col + record[0], .bytes = runs * sizeof(*col)});
-            read->line[at].runs = runs;
-            used += 2u * runs;
-        }
+        EMBED_CALL(branch_runs_put, DocumentBranchCtx, .one_read = one, .runs_out = read, .number = args->number,
+                   .capacity = args->count, .columns = columns);
     }
     EMBED_CALL(cli_document_internal.holder_end, CliDocumentCtx, .one = one);
     return read;
