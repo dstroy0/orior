@@ -239,12 +239,12 @@ int cli_executables_sign_steps(const CliExecutablesErrMsgCfg *args)
     for (unsigned int at = 0u; s_codesign[at] != NULL; at += 1u)
     {
         EMBED_CALL(cli_runner_command_word.command_word, CliRunnerCommandWordCfg, .command = &args->commands[0],
-                   .word = s_codesign[at]);
+                   .word_text = s_codesign[at]);
     }
     EMBED_CALL(cli_runner_command_word.command_word, CliRunnerCommandWordCfg, .command = &args->commands[0],
-               .word = identity);
+               .word_text = identity);
     EMBED_CALL(cli_runner_command_word.command_word, CliRunnerCommandWordCfg, .command = &args->commands[0],
-               .word = args->file);
+               .word_text = args->file);
     VerbaLinea line = {displayed[0], CLI_PATH_MAX_LEN * 4u, 0ULL};
     mmgr_line_put(&line, "codesign --force --options runtime --timestamp --sign \"");
     mmgr_line_put(&line, identity);
@@ -263,12 +263,12 @@ int cli_executables_sign_steps(const CliExecutablesErrMsgCfg *args)
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
         EMBED_CALL(cli_runner_command_word.command_word, CliRunnerCommandWordCfg, .command = &args->commands[1],
-                   .word = s_ditto[at]);
+                   .word_text = s_ditto[at]);
     }
     EMBED_CALL(cli_runner_command_word.command_word, CliRunnerCommandWordCfg, .command = &args->commands[1],
-               .word = args->file);
+               .word_text = args->file);
     EMBED_CALL(cli_runner_command_word.command_word, CliRunnerCommandWordCfg, .command = &args->commands[1],
-               .word = zip);
+               .word_text = zip);
     VerbaLinea pack = {displayed[1], CLI_PATH_MAX_LEN * 4u, 0ULL};
     mmgr_line_put(&pack, "ditto -c -k --keepParent ");
     mmgr_line_put(&pack, args->file);
@@ -277,17 +277,17 @@ int cli_executables_sign_steps(const CliExecutablesErrMsgCfg *args)
     mmgr_line_finish(&pack);
     EMBED_CALL(cli_runner.command_begin, CliRunnerCfg, .command = &args->commands[2], .program = "xcrun");
     EMBED_CALL(cli_runner_command_word.command_word, CliRunnerCommandWordCfg, .command = &args->commands[2],
-               .word = "notarytool");
+               .word_text = "notarytool");
     EMBED_CALL(cli_runner_command_word.command_word, CliRunnerCommandWordCfg, .command = &args->commands[2],
-               .word = "submit");
+               .word_text = "submit");
     EMBED_CALL(cli_runner_command_word.command_word, CliRunnerCommandWordCfg, .command = &args->commands[2],
-               .word = zip);
+               .word_text = zip);
     EMBED_CALL(cli_runner_command_word.command_word, CliRunnerCommandWordCfg, .command = &args->commands[2],
-               .word = "--keychain-profile");
+               .word_text = "--keychain-profile");
     EMBED_CALL(cli_runner_command_word.command_word, CliRunnerCommandWordCfg, .command = &args->commands[2],
-               .word = profile);
+               .word_text = profile);
     EMBED_CALL(cli_runner_command_word.command_word, CliRunnerCommandWordCfg, .command = &args->commands[2],
-               .word = "--wait");
+               .word_text = "--wait");
     VerbaLinea send = {displayed[2], CLI_PATH_MAX_LEN * 4u, 0ULL};
     mmgr_line_put(&send, "xcrun notarytool submit ");
     mmgr_line_put(&send, zip);
