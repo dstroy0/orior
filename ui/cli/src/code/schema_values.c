@@ -342,6 +342,34 @@ void cli_schema_show(const CliSchemaJsonValueCtx *args)
     g_cli_cells->persistent_buf_release(written.out, &g_cli_schema_cells);
 }
 
+// the member of the object `node_u32`, `node` in `read`, whose key comes first after the key `text`, or first of all
+// where `text` is NULL, the last of a key counted: CLI_SCHEMA_NONE past the last
+EMBED_INLINE unsigned int values_key_next(const SchemaValuesCtx *args)
+{
+    const CliSchemaRead *const read = args->read;
+    unsigned int next = CLI_SCHEMA_NONE;
+    for (unsigned int at = args->node->first; at != CLI_SCHEMA_NONE; at = read->member[at].next)
+    {
+        const CliSchemaMember *const member = &read->member[at];
+        const char *const key =
+            EMBED_CALL(cli_schema_read_at_internal.text, CliSchemaReadAtCtx, .read = read, .at = member->key_at);
+        if ((member->value == CLI_SCHEMA_NONE) ||
+            (EMBED_CALL(values_member, SchemaValuesCtx, .read = read, .object = args->node_u32, .key = key,
+                        .size = member->key_size) != at))
+        {
+            continue;
+        }
+        const int after = (args->text == NULL) || (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = key,
+                                                              .other_pointer = args->text) > 0);
+        const int before = (next == CLI_SCHEMA_NONE) ||
+                           (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = key,
+                                       .other_pointer = EMBED_CALL(cli_schema_read_at_internal.text, CliSchemaReadAtCtx,
+                                                                   .read = read, .at = read->member[next].key_at)) < 0);
+        next = (after && before) ? at : next;
+    }
+    return next;
+}
+
 // a file's value written as serde_json writes the value it reads it as, an object's keys in order, the last of a key
 static void values_write(const SchemaValuesCtx *args)
 {
@@ -386,27 +414,8 @@ static void values_write(const SchemaValuesCtx *args)
         unsigned int previous_size = 0u;
         for (int first = 1;; first = 0)
         {
-            unsigned int next = CLI_SCHEMA_NONE;
-            for (unsigned int at = one->first; at != CLI_SCHEMA_NONE; at = read->member[at].next)
-            {
-                const CliSchemaMember *const member = &read->member[at];
-                const char *const key = EMBED_CALL(cli_schema_read_at_internal.text, CliSchemaReadAtCtx, .read = read,
-                                                   .at = member->key_at);
-                if ((member->value == CLI_SCHEMA_NONE) ||
-                    (EMBED_CALL(values_member, SchemaValuesCtx, .read = read, .object = args->node_u32, .key = key,
-                                .size = member->key_size) != at))
-                {
-                    continue;
-                }
-                const int after = (previous == NULL) || (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg,
-                                                                    .one = key, .other_pointer = previous) > 0);
-                const int before =
-                    (next == CLI_SCHEMA_NONE) ||
-                    (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = key,
-                                .other_pointer = EMBED_CALL(cli_schema_read_at_internal.text, CliSchemaReadAtCtx,
-                                                            .read = read, .at = read->member[next].key_at)) < 0);
-                next = (after && before) ? at : next;
-            }
+            const unsigned int next = EMBED_CALL(values_key_next, SchemaValuesCtx, .read = read,
+                                                 .node_u32 = args->node_u32, .node = one, .text = previous);
             if (next == CLI_SCHEMA_NONE)
             {
                 break;

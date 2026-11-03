@@ -213,10 +213,12 @@ EMBED_INLINE int curl_data_put(const RequestsCurlCtx *args)
 EMBED_INLINE void curl_urlencoded_put(const RequestsCurlCtx *args)
 {
     curl_data_begin(args);
+    if (args->value == NULL)
+    {
+        return;
+    }
     const char *const equals =
-        (args->value != NULL)
-            ? memor.chr(&(MemoriaCfg){.src = args->value, .val = '=', .bytes = (size_t)args->value_size})
-            : NULL;
+        memor.chr(&(MemoriaCfg){.src = args->value, .val = '=', .bytes = (size_t)args->value_size});
     const unsigned long long lead = (equals != NULL) ? ((unsigned long long)(equals - args->value) + 1u) : 0ULL;
     mmgr_line_put_n(&s_curl->body_line, args->value, lead);
     EMBED_CALL(curl_encode, RequestsCurlCtx, .text = args->value + lead, .size = args->value_size - lead,

@@ -282,9 +282,9 @@ EMBED_INLINE unsigned int tools_block_comment(const CommandLineToolsCtx *args)
     }
     const unsigned int block =
         EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = &s_json, .kind = CFG_JSON_ARRAY);
-    for (unsigned int word = 1u; word <= 2u; word += 1u)
+    for (unsigned int part = 1u; part <= 2u; part += 1u)
     {
-        const char *const text = args->words[args->at + word];
+        const char *const text = args->words[args->at + part];
         EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = &s_json, .array = block,
                    .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
                                        .json = &s_json, .text = text,

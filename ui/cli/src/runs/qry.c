@@ -299,7 +299,7 @@ void cli_qry_join_window(const CliQryPathPanickedCfg *args)
 int cli_qry_existing(const CliQryPathPanickedCfg *args)
 {
     unsigned long long *panicked = args->panicked;
-    QryShared *const run = EMBED_CALL(cli_view, QryCtx, .path = args->path);
+    const QryShared *const run = EMBED_CALL(cli_view, QryCtx, .path = args->path);
     *panicked = (run != NULL) ? qry_member_viewed_panicked(run) : 0ULL;
     return run != NULL;
 }

@@ -122,57 +122,59 @@ void cli_pg_failure_get(const CliPgCtx *args)
         const unsigned char *const nul =
             memor.chr(&(MemoriaCfg){.src = args->body + at, .val = 0, .bytes = (size_t)(args->size - at)});
         const unsigned long long end = (nul != NULL) ? (unsigned long long)(nul - args->body) : args->size;
-        if (end > at)
-        {
-            char *field;
-            switch (args->body[at])
-            {
-            case 'M': {
-                field = args->failure->message;
-                break;
-            }
-            case 'C': {
-                field = args->failure->code;
-                break;
-            }
-            case 'D': {
-                field = args->failure->detail;
-                break;
-            }
-            case 'H': {
-                field = args->failure->hint;
-                break;
-            }
-            default: {
-                field = NULL;
-                break;
-            }
-            }
-            const unsigned long long capacity =
-                (args->body[at] == 'C') ? sizeof(args->failure->code) : sizeof(args->failure->message);
-            if (field != NULL)
-            {
-                VerbaLinea line = {field, capacity, 0ULL};
-                EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &line,
-                           .text_bytes = args->body + at + 1u, .length = end - at - 1u);
-                mmgr_line_finish(&line);
-            }
-            if (args->body[at] == 'P')
-            {
-                // the place, where the field is a number alone, else 0
-                unsigned long long value = 0ULL;
-                int whole = (end > at + 1u) && (end - at - 1u <= 19ULL);
-                unsigned long long digit = at + 1u;
-                while (whole && (digit < end))
-                {
-                    whole = (args->body[digit] >= '0') && (args->body[digit] <= '9');
-                    value = (value * 10ULL) + (unsigned long long)(args->body[digit] - '0');
-                    digit += 1ULL;
-                }
-                args->failure->position = whole ? value : 0ULL;
-            }
-        }
+        const unsigned long long kind = at;
         at = end + 1ULL;
+        if (end <= kind)
+        {
+            continue;
+        }
+        char *field;
+        switch (args->body[kind])
+        {
+        case 'M': {
+            field = args->failure->message;
+            break;
+        }
+        case 'C': {
+            field = args->failure->code;
+            break;
+        }
+        case 'D': {
+            field = args->failure->detail;
+            break;
+        }
+        case 'H': {
+            field = args->failure->hint;
+            break;
+        }
+        default: {
+            field = NULL;
+            break;
+        }
+        }
+        const unsigned long long capacity =
+            (args->body[kind] == 'C') ? sizeof(args->failure->code) : sizeof(args->failure->message);
+        if (field != NULL)
+        {
+            VerbaLinea line = {field, capacity, 0ULL};
+            EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &line,
+                       .text_bytes = args->body + kind + 1u, .length = end - kind - 1u);
+            mmgr_line_finish(&line);
+        }
+        if (args->body[kind] == 'P')
+        {
+            // the place, where the field is a number alone, else 0
+            unsigned long long value = 0ULL;
+            int whole = (end > kind + 1u) && (end - kind - 1u <= 19ULL);
+            unsigned long long digit = kind + 1u;
+            while (whole && (digit < end))
+            {
+                whole = (args->body[digit] >= '0') && (args->body[digit] <= '9');
+                value = (value * 10ULL) + (unsigned long long)(args->body[digit] - '0');
+                digit += 1ULL;
+            }
+            args->failure->position = whole ? value : 0ULL;
+        }
     }
 }
 
