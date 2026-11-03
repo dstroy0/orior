@@ -29,6 +29,10 @@ typedef struct
     const CliDisasmInstruction *left;
     unsigned int left_offset;
     unsigned int raw_offset;
+    const CliDisasmReadState *one;
+    const CliDisasmReadState *other;
+    unsigned int *first_pointer;
+    unsigned int *second_pointer;
 } DisasmVerifyReadCtx;
 
 // the end of the line of `text` that contains `at`: its newline, or the text's end
@@ -266,6 +270,115 @@ EMBED_INLINE int read_pair(const DisasmVerifyReadCtx *args)
     return 1;
 }
 
+// an instruction's bytes from `*at`, hex pairs a space apart, put in `unit`: a pair is a byte only where a blank or the
+// end follows it, so a two-letter mnemonic is not read as one
+EMBED_INLINE void read_objdump_bytes(const DisasmVerifyReadCtx *args)
+{
+    const char *const text = args->text;
+    const unsigned long long end = args->end;
+    unsigned long long *const at = args->at;
+    int going = 1;
+    while (going &&
+           EMBED_CALL(read_pair, DisasmVerifyReadCtx, .text = text, .end = end, .at = at, .unit = args->unit) &&
+           ((*at == end) || (text[*at] == ' ') || (text[*at] == '\t')))
+    {
+        going = (*at < end) && (text[*at] == ' ') && (*at + 1ULL < end) && (text[*at + 1ULL] != ' ');
+        *at += going ? 1ULL : 0ULL;
+    }
+}
+
+// a line of llvm-objdump's from `*at` inside the function sought read: its address, its bytes, then blanks, then its
+// mnemonic past a prefix printed as a word of its own, put at the reading's end where it gives one; 1, or 0 where the
+// reading is cut
+EMBED_INLINE int read_objdump_instruction(const DisasmVerifyReadCtx *args)
+{
+    const char *const text = args->text;
+    const unsigned long long end = args->end;
+    unsigned long long cursor = *args->at;
+    unsigned long long address = 0ULL;
+    EMBED_CALL(read_blanks, DisasmVerifyReadCtx, .text = text, .end = end, .at = &cursor);
+    if (!EMBED_CALL(read_hex, DisasmVerifyReadCtx, .text = text, .end = end, .at = &cursor, .value = &address) ||
+        (cursor >= end) || (text[cursor] != ':'))
+    {
+        return 1;
+    }
+    cursor += 1ULL;
+    EMBED_CALL(read_blanks, DisasmVerifyReadCtx, .text = text, .end = end, .at = &cursor);
+    CliDisasmInstruction bytes = {0ULL, 0u, {0u}, {'\0'}};
+    EMBED_CALL(read_objdump_bytes, DisasmVerifyReadCtx, .text = text, .end = end, .at = &cursor, .unit = &bytes);
+    EMBED_CALL(read_blanks, DisasmVerifyReadCtx, .text = text, .end = end, .at = &cursor);
+    unsigned long long word_text = cursor;
+    unsigned long long word_length =
+        EMBED_CALL(read_word, DisasmVerifyReadCtx, .text = text, .end = end, .at = &cursor);
+    if (EMBED_CALL(read_prefix, DisasmVerifyReadCtx, .word_text = text + word_text, .length = word_length))
+    {
+        EMBED_CALL(read_blanks, DisasmVerifyReadCtx, .text = text, .end = end, .at = &cursor);
+        word_text = cursor;
+        word_length = EMBED_CALL(read_word, DisasmVerifyReadCtx, .text = text, .end = end, .at = &cursor);
+    }
+    if (word_length == 0ULL)
+    {
+        return 1;
+    }
+    CliDisasmInstruction *const unit =
+        EMBED_CALL(read_append, DisasmVerifyReadCtx, .read_state = args->read_state, .address = address,
+                   .mnemonic = text + word_text, .length = word_length);
+    if (unit == NULL)
+    {
+        return 0;
+    }
+    unit->length = bytes.length;
+    memor.cpy(&(MemoriaCfg){.dst = unit->byte, .src = bytes.byte, .bytes = CLI_DISASM_BYTES});
+    return 1;
+}
+
+// a row of Ghidra's from `*at` inside the function sought read: its address and its length in decimal, then its
+// mnemonic, or `?` and its bytes as one hex string for a raw run, read as a unit with no mnemonic, put at the
+// reading's end; 1, or 0 where the reading is cut
+EMBED_INLINE int read_ghidra_instruction(const DisasmVerifyReadCtx *args)
+{
+    const char *const text = args->text;
+    const unsigned long long end = args->end;
+    unsigned long long cursor = *args->at;
+    unsigned long long address = 0ULL;
+    unsigned long long bytes = 0ULL;
+    if (!EMBED_CALL(read_decimal, DisasmVerifyReadCtx, .text = text, .end = end, .at = &cursor, .value = &address) ||
+        (cursor >= end) || (text[cursor] != ' '))
+    {
+        return 1;
+    }
+    cursor += 1ULL;
+    if (!EMBED_CALL(read_decimal, DisasmVerifyReadCtx, .text = text, .end = end, .at = &cursor, .value = &bytes) ||
+        (cursor >= end) || (text[cursor] != ' '))
+    {
+        return 1;
+    }
+    cursor += 1ULL;
+    const unsigned long long word_text = cursor;
+    const unsigned long long word_length =
+        EMBED_CALL(read_word, DisasmVerifyReadCtx, .text = text, .end = end, .at = &cursor);
+    if (word_length == 0ULL)
+    {
+        return 1;
+    }
+    const int raw = (word_length == 1ULL) && (text[word_text] == '?');
+    CliDisasmInstruction *const unit =
+        EMBED_CALL(read_append, DisasmVerifyReadCtx, .read_state = args->read_state, .address = address,
+                   .mnemonic = text + word_text, .length = raw ? 0ULL : word_length);
+    if (unit == NULL)
+    {
+        return 0;
+    }
+    EMBED_CALL(read_blanks, DisasmVerifyReadCtx, .text = text, .end = end, .at = &cursor);
+    while (raw && EMBED_CALL(read_pair, DisasmVerifyReadCtx, .text = text, .end = end, .at = &cursor, .unit = unit))
+    {
+        // each pass reads one pair of the row's bytes
+    }
+    // the length the row states, where the row is an instruction's and carries no bytes
+    unit->length = raw ? unit->length : (unsigned int)bytes;
+    return 1;
+}
+
 int cli_disasm_objdump_read(const CliDisasmVerifySizeCfg *args)
 {
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->symbol, .cap = CLI_NAME_MAX_LEN});
@@ -292,57 +405,10 @@ int cli_disasm_objdump_read(const CliDisasmVerifySizeCfg *args)
                 cellul.starts(&(CatenaFinitaCfg){.src = args->text + cursor, .other = args->symbol, .cap = length});
             found = found || inside;
         }
-        else if (inside)
+        else if (inside && !EMBED_CALL(read_objdump_instruction, DisasmVerifyReadCtx, .text = args->text, .end = end,
+                                       .at = &cursor, .read_state = args->read_state))
         {
-            EMBED_CALL(read_blanks, DisasmVerifyReadCtx, .text = args->text, .end = end, .at = &cursor);
-            if (EMBED_CALL(read_hex, DisasmVerifyReadCtx, .text = args->text, .end = end, .at = &cursor,
-                           .value = &address) &&
-                (cursor < end) && (args->text[cursor] == ':'))
-            {
-                cursor += 1ULL;
-                EMBED_CALL(read_blanks, DisasmVerifyReadCtx, .text = args->text, .end = end, .at = &cursor);
-                // the instruction's bytes, hex pairs a space apart, then blanks, then its mnemonic; a pair is a byte
-                // only where a blank or the end follows it, so a two-letter mnemonic is not read as one
-                CliDisasmInstruction bytes = {0ULL, 0u, {0u}, {'\0'}};
-                while (EMBED_CALL(read_pair, DisasmVerifyReadCtx, .text = args->text, .end = end, .at = &cursor,
-                                  .unit = &bytes) &&
-                       ((cursor == end) || (args->text[cursor] == ' ') || (args->text[cursor] == '\t')))
-                {
-                    if ((cursor < end) && (args->text[cursor] == ' ') && (cursor + 1ULL < end) &&
-                        (args->text[cursor + 1ULL] != ' '))
-                    {
-                        cursor += 1ULL;
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-                EMBED_CALL(read_blanks, DisasmVerifyReadCtx, .text = args->text, .end = end, .at = &cursor);
-                unsigned long long word_text = cursor;
-                unsigned long long word_length =
-                    EMBED_CALL(read_word, DisasmVerifyReadCtx, .text = args->text, .end = end, .at = &cursor);
-                if (EMBED_CALL(read_prefix, DisasmVerifyReadCtx, .word_text = args->text + word_text,
-                               .length = word_length))
-                {
-                    EMBED_CALL(read_blanks, DisasmVerifyReadCtx, .text = args->text, .end = end, .at = &cursor);
-                    word_text = cursor;
-                    word_length =
-                        EMBED_CALL(read_word, DisasmVerifyReadCtx, .text = args->text, .end = end, .at = &cursor);
-                }
-                if (word_length > 0ULL)
-                {
-                    CliDisasmInstruction *const unit =
-                        EMBED_CALL(read_append, DisasmVerifyReadCtx, .read_state = args->read_state, .address = address,
-                                   .mnemonic = args->text + word_text, .length = word_length);
-                    if (unit == NULL)
-                    {
-                        return found;
-                    }
-                    unit->length = bytes.length;
-                    memor.cpy(&(MemoriaCfg){.dst = unit->byte, .src = bytes.byte, .bytes = CLI_DISASM_BYTES});
-                }
-            }
+            return found;
         }
         at = end + 1ULL;
     }
@@ -372,50 +438,10 @@ int cli_disasm_ghidra_read(const CliDisasmVerifySizeCfg *args)
         else if (inside)
         {
             unsigned long long cursor = at;
-            unsigned long long address = 0ULL;
-            unsigned long long bytes = 0ULL;
-            if (EMBED_CALL(read_decimal, DisasmVerifyReadCtx, .text = args->text, .end = end, .at = &cursor,
-                           .value = &address) &&
-                (cursor < end) && (args->text[cursor] == ' '))
+            if (!EMBED_CALL(read_ghidra_instruction, DisasmVerifyReadCtx, .text = args->text, .end = end, .at = &cursor,
+                            .read_state = args->read_state))
             {
-                cursor += 1ULL;
-                if (EMBED_CALL(read_decimal, DisasmVerifyReadCtx, .text = args->text, .end = end, .at = &cursor,
-                               .value = &bytes) &&
-                    (cursor < end) && (args->text[cursor] == ' '))
-                {
-                    cursor += 1ULL;
-                    const unsigned long long word_text = cursor;
-                    const unsigned long long word_length =
-                        EMBED_CALL(read_word, DisasmVerifyReadCtx, .text = args->text, .end = end, .at = &cursor);
-                    // a raw run is "?" then its bytes as one hex string, read as a unit with no mnemonic
-                    const int raw = (word_length == 1ULL) && (args->text[word_text] == '?');
-                    CliDisasmInstruction *unit;
-                    if (word_length > 0ULL)
-                    {
-                        unit = EMBED_CALL(read_append, DisasmVerifyReadCtx, .read_state = args->read_state,
-                                          .address = address, .mnemonic = args->text + word_text,
-                                          .length = raw ? 0ULL : word_length);
-                    }
-                    else
-                    {
-                        unit = NULL;
-                    }
-                    if ((word_length > 0ULL) && (unit == NULL))
-                    {
-                        return found;
-                    }
-                    if (unit != NULL)
-                    {
-                        EMBED_CALL(read_blanks, DisasmVerifyReadCtx, .text = args->text, .end = end, .at = &cursor);
-                        while (raw && EMBED_CALL(read_pair, DisasmVerifyReadCtx, .text = args->text, .end = end,
-                                                 .at = &cursor, .unit = unit))
-                        {
-                            // each pass reads one pair of the row's bytes
-                        }
-                        // the length the row states, where the row is an instruction's and carries no bytes
-                        unit->length = raw ? unit->length : (unsigned int)bytes;
-                    }
-                }
+                return found;
             }
         }
         at = end + 1ULL;
@@ -506,28 +532,26 @@ EMBED_INLINE int read_one_instruction(const DisasmVerifyReadCtx *args)
            cellul.eq(&(CatenaFinitaCfg){.src = left_spelled, .other = right_spelled, .cap = CLI_DISASM_MNEMONIC});
 }
 
-int cli_disasm_same(const CliDisasmVerifyOneCfg *args)
+// the two readings `one` and `other` walked side by side from their starts while their units are one, a raw run of
+// `other` read against as many of `one`'s instructions as its bytes cover: the places they stop at into `first_pointer`
+// and `second_pointer`
+EMBED_INLINE void read_side_by_side(const DisasmVerifyReadCtx *args)
 {
-    unsigned int *at = args->at;
-    unsigned int *other_at = args->other_at;
     unsigned int first = 0u;
     unsigned int second = 0u;
     unsigned int left_offset = 0u;
     unsigned int raw_offset = 0u;
     int going = 1;
-    while (going && ((first < args->one->count) && (second < args->other->count)))
+    while (going && (first < args->one->count) && (second < args->other->count))
     {
         const CliDisasmInstruction *const left = &args->one->instruction[first];
         const CliDisasmInstruction *const right = &args->other->instruction[second];
-        if (EMBED_CALL(read_raw, DisasmVerifyReadCtx, .right = right))
+        const int raw = EMBED_CALL(read_raw, DisasmVerifyReadCtx, .right = right);
+        const unsigned int same = raw ? EMBED_CALL(read_raw_against, DisasmVerifyReadCtx, .left = left,
+                                                   .left_offset = left_offset, .right = right, .raw_offset = raw_offset)
+                                      : 0u;
+        if (same != 0u)
         {
-            const unsigned int same = EMBED_CALL(read_raw_against, DisasmVerifyReadCtx, .left = left,
-                                                 .left_offset = left_offset, .right = right, .raw_offset = raw_offset);
-            if (same == 0u)
-            {
-                going = 0;
-                continue;
-            }
             left_offset += same;
             raw_offset += same;
             first += (left_offset == left->length) ? 1u : 0u;
@@ -535,7 +559,7 @@ int cli_disasm_same(const CliDisasmVerifyOneCfg *args)
             second += (raw_offset == right->length) ? 1u : 0u;
             raw_offset = (raw_offset == right->length) ? 0u : raw_offset;
         }
-        else if ((left_offset == 0u) && (raw_offset == 0u) &&
+        else if (!raw && (left_offset == 0u) && (raw_offset == 0u) &&
                  EMBED_CALL(read_one_instruction, DisasmVerifyReadCtx, .left = left, .right = right))
         {
             first += 1u;
@@ -544,9 +568,20 @@ int cli_disasm_same(const CliDisasmVerifyOneCfg *args)
         else
         {
             going = 0;
-            continue;
         }
     }
+    *args->first_pointer = first;
+    *args->second_pointer = second;
+}
+
+int cli_disasm_same(const CliDisasmVerifyOneCfg *args)
+{
+    unsigned int *at = args->at;
+    unsigned int *other_at = args->other_at;
+    unsigned int first = 0u;
+    unsigned int second = 0u;
+    EMBED_CALL(read_side_by_side, DisasmVerifyReadCtx, .one = args->one, .other = args->other, .first_pointer = &first,
+               .second_pointer = &second);
     *at = first;
     *other_at = second;
     if ((first < args->one->count) || ((first == 0u) && (args->other->count > 0u)))
