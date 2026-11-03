@@ -205,6 +205,91 @@ EMBED_INLINE void lex_punct(const InspectJsLexCtx *args)
 }
 
 // tokens read until the text ends or, `inside` a template's `${`, until its `}`
+static void lex(const InspectJsLexCtx *args);
+
+// the scan moved past a string that its quote `letter` opens, a backslash taking the letter after it, to its closing
+// quote or the line's end
+EMBED_INLINE void lex_string(const InspectJsLexCtx *args)
+{
+    CliInspectScan *scan = args->scan;
+    (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
+    for (unsigned int one = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan);
+         one != CLI_INSPECT_END;
+         one = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan))
+    {
+        (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
+        if (one == '\\')
+        {
+            (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
+        }
+        else if ((one == args->letter) || (one == '\n'))
+        {
+            return;
+        }
+    }
+}
+
+// the scan moved past a template that its backquote opens, a backslash taking the letter after it, and each `${`
+// lexed as code to the brace that closes it
+EMBED_INLINE void lex_template(const InspectJsLexCtx *args)
+{
+    CliInspectScan *scan = args->scan;
+    (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
+    for (unsigned int one = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan);
+         one != CLI_INSPECT_END;
+         one = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan))
+    {
+        (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
+        if (one == '`')
+        {
+            return;
+        }
+        if (one == '\\')
+        {
+            (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
+        }
+        else if ((one == '$') &&
+                 (EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan) == '{'))
+        {
+            (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
+            EMBED_CALL(lex, InspectJsLexCtx, .scan = scan, .inside = 1);
+        }
+    }
+}
+
+// the scan moved past a name's letters after its first
+EMBED_INLINE void lex_word(const InspectJsLexCtx *args)
+{
+    CliInspectScan *scan = args->scan;
+    (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
+    while (EMBED_CALL(lex_name, InspectJsLexCtx,
+                      .letter = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan)))
+    {
+        (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
+    }
+}
+
+// the scan moved past a number's letters, digits, letters, `_` and `.`
+EMBED_INLINE void lex_number(const InspectJsLexCtx *args)
+{
+    CliInspectScan *scan = args->scan;
+    for (unsigned int one = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan);
+         (one != CLI_INSPECT_END) &&
+         (EMBED_CALL(cli_inspect_internal.alphanumeric, CliInspectCtx, .letter = one) || (one == '_') || (one == '.'));
+         one = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan))
+    {
+        (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
+    }
+}
+
+// whether a letter is a bracket, round, square or curly, opening or closing
+EMBED_INLINE int lex_bracket(const InspectJsLexCtx *args)
+{
+    const unsigned int letter = args->letter;
+    return (letter == '(') || (letter == '[') || (letter == '{') || (letter == ')') || (letter == ']') ||
+           (letter == '}');
+}
+
 static void lex(const InspectJsLexCtx *args)
 {
     CliInspectScan *scan = args->scan;
@@ -232,55 +317,13 @@ static void lex(const InspectJsLexCtx *args)
         }
         else if ((letter == '\'') || (letter == '"'))
         {
-            (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
-            for (unsigned int one =
-                     EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan);
-                 one != CLI_INSPECT_END;
-                 one = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan))
-            {
-                (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
-                if (one == '\\')
-                {
-                    (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
-                }
-                else if ((one == letter) || (one == '\n'))
-                {
-                    break;
-                }
-            }
+            EMBED_CALL(lex_string, InspectJsLexCtx, .scan = scan, .letter = letter);
             EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .kind = CLI_JS_STR,
                        .start = start, .from = from, .field = 0);
         }
         else if (letter == '`')
         {
-            (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
-            for (unsigned int one =
-                     EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan);
-                 one != CLI_INSPECT_END;
-                 one = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan))
-            {
-                if (one == '\\')
-                {
-                    (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
-                    (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
-                }
-                else if (one == '`')
-                {
-                    (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
-                    break;
-                }
-                else if ((one == '$') && (EMBED_CALL(cli_inspect_scan_ahead_internal.peek_at, CliInspectScanAheadCtx,
-                                                     .scan = scan, .ahead = 1u) == '{'))
-                {
-                    (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
-                    (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
-                    EMBED_CALL(lex, InspectJsLexCtx, .scan = scan, .inside = 1);
-                }
-                else
-                {
-                    (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
-                }
-            }
+            EMBED_CALL(lex_template, InspectJsLexCtx, .scan = scan);
             EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .kind = CLI_JS_STR,
                        .start = start, .from = from, .field = 0);
         }
@@ -290,32 +333,17 @@ static void lex(const InspectJsLexCtx *args)
         }
         else if (EMBED_CALL(lex_name_start, InspectJsLexCtx, .letter = letter) || (letter == '#'))
         {
-            (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
-            while (EMBED_CALL(
-                lex_name, InspectJsLexCtx,
-                .letter = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan)))
-            {
-                (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
-            }
+            EMBED_CALL(lex_word, InspectJsLexCtx, .scan = scan);
             EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .kind = CLI_JS_NAME,
                        .start = start, .from = from, .field = 0);
         }
         else if (((letter >= '0') && (letter <= '9')) || ((letter == '.') && (next >= '0') && (next <= '9')))
         {
-            for (unsigned int one =
-                     EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan);
-                 (one != CLI_INSPECT_END) &&
-                 (EMBED_CALL(cli_inspect_internal.alphanumeric, CliInspectCtx, .letter = one) || (one == '_') ||
-                  (one == '.'));
-                 one = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan))
-            {
-                (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
-            }
+            EMBED_CALL(lex_number, InspectJsLexCtx, .scan = scan);
             EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .kind = CLI_JS_NUMBER,
                        .start = start, .from = from, .field = 0);
         }
-        else if ((letter == '(') || (letter == '[') || (letter == '{') || (letter == ')') || (letter == ']') ||
-                 (letter == '}'))
+        else if (EMBED_CALL(lex_bracket, InspectJsLexCtx, .letter = letter))
         {
             if (args->inside && (letter == '}') && (depth == 0))
             {
