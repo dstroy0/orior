@@ -207,6 +207,14 @@ void test_a_name_read_in_a_closure_an_fstring_or_with_locals_is_not_found(void)
     TEST_ASSERT_EQUAL_UINT(0u, s_facts.findings);
 }
 
+void test_an_fstrings_doubled_braces_escapes_and_triple_quotes_read_its_fields_alone(void)
+{
+    static const char s_read[] = "def f(a):\n    b = 1\n    c = 2\n    d = 3\n    e = 4\n    print(f\"{{b}} {c.real} \\\" {d!r}\")\n"
+                                 "    print(rf'''{e} '{a}' ''')\n    return a\n";
+    TEST_ASSERT_TRUE(facts_read("python", s_read));
+    TEST_ASSERT_EQUAL_STRING("b", findings_written(0));
+}
+
 void test_python_code_after_a_return_is_found(void)
 {
     unsigned int unreachable[4];
