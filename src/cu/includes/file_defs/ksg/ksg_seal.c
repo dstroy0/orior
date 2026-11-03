@@ -47,8 +47,8 @@ static int ksg_line_sealed(KsgSeal *seal)
         return 0;
     }
     seal->carried = 0u;
-    seal->leaves += 1ull;
-    for (unsigned long long count = seal->leaves; (count & 1ull) == 0ull; count >>= 1u)
+    seal->leaves += 1ULL;
+    for (unsigned long long count = seal->leaves; (count & 1ULL) == 0ULL; count >>= 1u)
     {
         seal->depth -= 1u;
         if (!ksg_joined(seal, seal->waiting[seal->depth], node, node))
@@ -76,7 +76,7 @@ int ksg_seal_begun(KsgSeal *seal, KsgLeaf leaf, void *context)
 int ksg_seal_bytes(KsgSeal *seal, const void *bytes, unsigned long long size)
 {
     const unsigned char *const from = (const unsigned char *)bytes;
-    for (unsigned long long at = 0ull; seal->whole && (at < size); at += 1ull)
+    for (unsigned long long at = 0ULL; seal->whole && (at < size); at += 1ULL)
     {
         seal->line[seal->carried] = from[at];
         seal->carried += 1u;
@@ -84,7 +84,7 @@ int ksg_seal_bytes(KsgSeal *seal, const void *bytes, unsigned long long size)
         if (line_ended || (seal->carried == KSG_LINE_MOST))
         {
             (void)ksg_line_sealed(seal);
-            seal->lines += line_ended ? 1ull : 0ull;
+            seal->lines += line_ended ? 1ULL : 0ULL;
         }
     }
     seal->size += size;
@@ -94,7 +94,7 @@ int ksg_seal_bytes(KsgSeal *seal, const void *bytes, unsigned long long size)
 int ksg_seal_ended(KsgSeal *seal, unsigned char *root, unsigned char *trailer)
 {
     // the bytes after the last line feed are a last line, and a file of no bytes is one line of none
-    if (((seal->carried > 0u) || (seal->leaves == 0ull)) && !ksg_line_sealed(seal))
+    if (((seal->carried > 0u) || (seal->leaves == 0ULL)) && !ksg_line_sealed(seal))
     {
         return 0;
     }
@@ -145,9 +145,11 @@ int ksg_kind_sealed(const char *path)
     }
     const size_t letters = strlen(dot + 1);
     int lower = (dot[1] == 'k') && (letters >= 3u) && (letters <= 6u);
-    for (size_t at = 1u; lower && (at <= letters); at += 1u)
+    size_t at = 1u;
+    while (lower && (at <= letters))
     {
         lower = (dot[at] >= 'a') && (dot[at] <= 'z');
+        at += 1u;
     }
     return lower;
 }

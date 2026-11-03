@@ -90,10 +90,10 @@ extern "C"
     int qry_member_viewed_read(QryShared *run, unsigned long long *at, const QryRecord **record);
 
     // 1 while the writer of the run `run` maps writes, not yet requested to stop
-    int qry_member_viewed_writing(QryShared *run);
+    int qry_member_viewed_writing(const QryShared *run);
 
     // the place plus 1 of the panic on the line of the run `run` maps, 0 while its line is quiet
-    unsigned long long qry_member_viewed_panicked(QryShared *run);
+    unsigned long long qry_member_viewed_panicked(const QryShared *run);
 
     // every record of `name` the run contains, the blobs joined into `gathered`, which has room for `room`, in the
     // order of the writer's schedule: their bytes, or QRY_MEMBER_UNREAD where they do not fit

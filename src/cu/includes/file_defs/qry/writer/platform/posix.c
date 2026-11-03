@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/mman.h>
@@ -24,15 +25,15 @@ static void qry_shared_named(const char *path, char *name)
 {
     static const char s_prefix[] = "/qry-";
     static const char s_digits[] = "0123456789abcdef";
-    unsigned long long hash = 0xcbf29ce484222325ull;
+    unsigned long long hash = 0xcbf29ce484222325ULL;
     for (const char *at = path; *at != '\0'; at += 1)
     {
-        hash = (hash ^ (unsigned char)*at) * 0x100000001b3ull;
+        hash = (hash ^ (unsigned char)*at) * 0x100000001b3ULL;
     }
     memcpy(name, s_prefix, sizeof(s_prefix) - 1u);
     for (unsigned int digit = 0u; digit < 16u; digit += 1u)
     {
-        name[sizeof(s_prefix) - 1u + digit] = s_digits[(hash >> (60u - (4u * digit))) & 0xfull];
+        name[sizeof(s_prefix) - 1u + digit] = s_digits[(hash >> (60u - (4u * digit))) & 0xfULL];
     }
     name[sizeof(s_prefix) - 1u + 16u] = '\0';
 }
@@ -63,12 +64,12 @@ void qry_writer_shared_released(QryShared *shared)
 
 long long qry_writer_file_made(const char *path)
 {
-    return (long long)open(path, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
+    return (long long)open(path, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0640);
 }
 
 int qry_writer_file_put(long long file, const unsigned char *bytes, unsigned long long size)
 {
-    unsigned long long done = 0ull;
+    unsigned long long done = 0ULL;
     while (done < size)
     {
         // a write is at most QRY_WRITER_PIECE_BYTES, at most a gibibyte, which a size_t counts
@@ -146,6 +147,7 @@ void qry_writer_paused(void)
 // Raising a process takes a privilege the writer does not request: it retains the level it was started at
 void qry_writer_raised(void)
 {
+    // nothing is raised: the writer runs at the level it was started at
 }
 
 // A process no signal reaches has ended; one the writer may not signal, or one ended and not yet waited on by its
@@ -170,7 +172,7 @@ unsigned long long qry_member_file_read(const char *path, unsigned char *bytes, 
     }
     // the file read to its end, since a file of /proc gives a length of 0 and contains its text all the same; one byte
     // more than `room` has room for leaves it unread
-    unsigned long long done = 0ull;
+    unsigned long long done = 0ULL;
     for (;;)
     {
         unsigned char past;
@@ -246,7 +248,7 @@ void qry_member_unshared(QryShared *run)
 
 unsigned long long qry_writer_input_read(unsigned char *bytes, unsigned long long room)
 {
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     for (;;)
     {
         // what is left of the room, which a size_t counts as it is in memory
@@ -271,7 +273,7 @@ unsigned long long qry_member_clock(void)
 {
     struct timespec moment;
     clock_gettime(CLOCK_MONOTONIC, &moment);
-    return ((unsigned long long)moment.tv_sec * 1000000000ull) + (unsigned long long)moment.tv_nsec;
+    return ((unsigned long long)moment.tv_sec * 1000000000ULL) + (unsigned long long)moment.tv_nsec;
 }
 
 unsigned long long qry_member_process(void)
@@ -294,23 +296,24 @@ const unsigned char *qry_member_file_mapped(const char *path, unsigned long long
     }
     // a file's size is not negative
     *size = (unsigned long long)st.st_size;
-    if (*size == 0ull)
+    if (*size == 0ULL)
     {
         close(file);
         return s_none;
     }
     // a file mapped whole is in memory, whose bytes a size_t counts
-    void *const view = mmap(NULL, (size_t)*size, PROT_READ, MAP_PRIVATE, file, 0);
+    const void *const view = mmap(NULL, (size_t)*size, PROT_READ, MAP_PRIVATE, file, 0);
     close(file);
     return (view == MAP_FAILED) ? NULL : (const unsigned char *)view;
 }
 
 void qry_member_file_unmapped(const unsigned char *bytes, unsigned long long size)
 {
-    if ((bytes != NULL) && (size != 0ull))
+    if ((bytes != NULL) && (size != 0ULL))
     {
-        // the bytes were mapped whole, their size a size_t counts
-        munmap((void *)bytes, (size_t)size);
+        // the bytes were mapped whole, their size a size_t counts; munmap writes nothing through the address it takes,
+        // which passes through an integer to reach its parameter
+        munmap((void *)(uintptr_t)bytes, (size_t)size);
     }
 }
 

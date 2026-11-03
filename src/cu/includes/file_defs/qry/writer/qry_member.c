@@ -13,12 +13,12 @@
 static QryShared *s_run = NULL;
 static int s_found = 0;
 static char s_path[QRY_WRITER_TOP_MAX_LEN];
-static unsigned long long s_joins = 0ull;
+static unsigned long long s_joins = 0ULL;
 
 // the ring a thread of this process took, a module of the run each, one producer each ring, and the join of the run
 // it was taken in
 static _Thread_local QryRing *s_ring = NULL;
-static _Thread_local unsigned long long s_ring_join = 0ull;
+static _Thread_local unsigned long long s_ring_join = 0ULL;
 
 // 1 once this process's exit is set to give its ring back (qry_member_exited)
 static _Atomic int s_exit_set = 0;
@@ -32,8 +32,9 @@ static void qry_member_exited(void)
     {
         while ((atomic_load(&s_ring->head) < atomic_load(&s_ring->tail)) && (atomic_load(&s_run->stop) != 2u))
         {
+            // the ring waits for the writer to take what it holds, or to end
         }
-        atomic_store(&s_ring->owner, 0ull);
+        atomic_store(&s_ring->owner, 0ULL);
         s_ring = NULL;
     }
     qry_member_parted();
@@ -60,7 +61,7 @@ QryShared *qry_member_joined(const char *path)
     }
     memcpy(s_path, path, length + 1u);
     s_run = qry_member_shared(s_path);
-    s_joins += (s_run != NULL) ? 1ull : 0ull;
+    s_joins += (s_run != NULL) ? 1ULL : 0ULL;
     return s_run;
 }
 
@@ -69,7 +70,7 @@ void qry_member_parted(void)
     if ((s_run != NULL) && (s_ring != NULL) && (s_ring_join == s_joins))
     {
         qry_member_settled();
-        atomic_store(&s_ring->owner, 0ull);
+        atomic_store(&s_ring->owner, 0ULL);
     }
     if (s_run != NULL)
     {
@@ -83,8 +84,8 @@ void qry_member_parted(void)
 unsigned long long qry_member_gathered(const char *name, unsigned char *gathered, unsigned long long room)
 {
     const size_t named = strlen(name);
-    unsigned long long at = 0ull;
-    unsigned long long size = 0ull;
+    unsigned long long at = 0ULL;
+    unsigned long long size = 0ULL;
     const QryRecord *record = NULL;
     while (qry_member_read(&at, &record))
     {
@@ -121,7 +122,7 @@ const char *qry_member_path(void)
 
 const char *qry_member_top(void)
 {
-    QryShared *const run = qry_member_run();
+    const QryShared *const run = qry_member_run();
     return (run != NULL) ? run->top : NULL;
 }
 
@@ -140,9 +141,9 @@ QryRing *qry_member_ring(void)
     s_ring_join = s_joins;
     s_ring = NULL;
     const unsigned long long self = qry_member_process();
-    for (unsigned long long place = 0ull; place < run->members; place += 1ull)
+    for (unsigned long long place = 0ULL; place < run->members; place += 1ULL)
     {
-        unsigned long long none = 0ull;
+        unsigned long long none = 0ULL;
         QryRing *const ring = qry_shared_ring(run, place);
         if (atomic_compare_exchange_strong(&ring->owner, &none, self))
         {
@@ -166,22 +167,23 @@ unsigned long long qry_member_append(const char *name, const void *blob, unsigne
     const size_t name_length = strlen(name);
     const unsigned long long bytes = QRY_RECORD_BYTES(name_length, blob_length);
     if ((ring == NULL) || (name_length == 0u) || (name_length > QRY_NAME_MAX_LEN) || (priority > QRY_ORDINARY) ||
-        (bytes > (QRY_WRITER_RING_BYTES / 2ull)))
+        (bytes > (QRY_WRITER_RING_BYTES / 2ULL)))
     {
-        return 0ull;
+        return 0ULL;
     }
     const unsigned long long tail = atomic_load(&ring->tail);
-    const unsigned long long place = tail & (QRY_WRITER_RING_BYTES - 1ull);
-    const unsigned long long left = ((QRY_WRITER_RING_BYTES - place) < bytes) ? (QRY_WRITER_RING_BYTES - place) : 0ull;
+    const unsigned long long place = tail & (QRY_WRITER_RING_BYTES - 1ULL);
+    const unsigned long long left = ((QRY_WRITER_RING_BYTES - place) < bytes) ? (QRY_WRITER_RING_BYTES - place) : 0ULL;
     while ((tail + left + bytes - atomic_load(&ring->head)) > QRY_WRITER_RING_BYTES)
     {
+        // the record waits for the writer to take enough of the ring to fit it
     }
-    if (left != 0ull)
+    if (left != 0ULL)
     {
         const unsigned long long wrap = QRY_WRITER_WRAP;
         memcpy(ring->bytes + place, &wrap, sizeof(wrap));
     }
-    unsigned char *const at = ring->bytes + ((tail + left) & (QRY_WRITER_RING_BYTES - 1ull));
+    unsigned char *const at = ring->bytes + ((tail + left) & (QRY_WRITER_RING_BYTES - 1ULL));
     // a name is at most QRY_NAME_MAX_LEN bytes, which an unsigned int counts
     const QryRecord record = {qry_member_clock(), blob_length, (unsigned int)name_length, priority};
     const unsigned long long filled = sizeof(record) + name_length + blob_length;
@@ -189,9 +191,9 @@ unsigned long long qry_member_append(const char *name, const void *blob, unsigne
     memcpy(at + sizeof(record), name, name_length);
     // a record fits half a ring, whose bytes a size_t counts
     memcpy(at + sizeof(record) + name_length, blob, (size_t)blob_length);
-    memset(at + filled, 0, (size_t)(bytes - 8ull - filled));
-    const unsigned long long crc = qry_record_crc(at, bytes - 8ull);
-    memcpy(at + bytes - 8ull, &crc, sizeof(crc));
+    memset(at + filled, 0, (size_t)(bytes - 8ULL - filled));
+    const unsigned long long crc = qry_record_crc(at, bytes - 8ULL);
+    memcpy(at + bytes - 8ULL, &crc, sizeof(crc));
     atomic_store(&ring->tail, tail + left + bytes);
     if (priority != QRY_ORDINARY)
     {
@@ -202,12 +204,13 @@ unsigned long long qry_member_append(const char *name, const void *blob, unsigne
 
 unsigned long long qry_member_settled(void)
 {
-    QryRing *const ring = qry_member_ring();
+    const QryRing *const ring = qry_member_ring();
     while ((ring != NULL) && (atomic_load(&ring->head) < atomic_load(&ring->tail)))
     {
+        // this thread waits for the writer to take what it handed
     }
-    QryShared *const run = qry_member_run();
-    return (run != NULL) ? atomic_load(&run->scheduled) : 0ull;
+    const QryShared *const run = qry_member_run();
+    return (run != NULL) ? atomic_load(&run->scheduled) : 0ULL;
 }
 
 unsigned long long qry_member_rings_settled(void)
@@ -216,55 +219,67 @@ unsigned long long qry_member_rings_settled(void)
     QryShared *const run = qry_member_run();
     if (run == NULL)
     {
-        return 0ull;
+        return 0ULL;
     }
-    for (unsigned long long place = 0ull; place < run->members; place += 1ull)
+    for (unsigned long long place = 0ULL; place < run->members; place += 1ULL)
     {
         tails[place] = atomic_load(&qry_shared_ring(run, place)->tail);
     }
-    for (unsigned long long place = 0ull; place < run->members; place += 1ull)
+    for (unsigned long long place = 0ULL; place < run->members; place += 1ULL)
     {
         while (atomic_load(&qry_shared_ring(run, place)->head) < tails[place])
         {
+            // each ring waits for the writer to take it as far as its tail stood
         }
     }
     return atomic_load(&run->scheduled);
 }
 
+// the places of `run`'s schedule its writer has filled, no more than the schedule holds: 0 where there is no run
+static unsigned long long qry_member_scheduled(const QryShared *run)
+{
+    if (run == NULL)
+    {
+        return 0ULL;
+    }
+    const unsigned long long scheduled = atomic_load(&run->scheduled);
+    return (scheduled < run->places) ? scheduled : run->places;
+}
+
 int qry_member_viewed_read(QryShared *run, unsigned long long *at, const QryRecord **record)
 {
-    if ((run == NULL) || (*at >= atomic_load(&run->scheduled)))
+    if ((run == NULL) || (*at >= qry_member_scheduled(run)))
     {
         return 0;
     }
     *record = (const QryRecord *)(qry_shared_records(run) + qry_shared_schedule(run)[*at]);
-    *at += 1ull;
+    *at += 1ULL;
     return 1;
 }
 
 int qry_member_read(unsigned long long *at, const QryRecord **record)
 {
     // a walk begins once what this thread handed is taken into the run, so that it reads what this thread wrote
-    if (*at == 0ull)
+    if (*at == 0ULL)
     {
         qry_member_settled();
     }
     return qry_member_viewed_read(qry_member_run(), at, record);
 }
 
-int qry_member_viewed_writing(QryShared *run)
+int qry_member_viewed_writing(const QryShared *run)
 {
     return (run != NULL) && (atomic_load(&run->stop) == 0u);
 }
 
-unsigned long long qry_member_viewed_panicked(QryShared *run)
+unsigned long long qry_member_viewed_panicked(const QryShared *run)
 {
     if (run == NULL)
     {
-        return 0ull;
+        return 0ULL;
     }
     const unsigned long long panic = atomic_load(&run->panicked);
-    return (panic != atomic_load(&run->closed)) ? panic : 0ull;
+    return (panic != atomic_load(&run->closed)) ? panic : 0ULL;
 }
 
 int qry_member_latest(const char *name, const QryRecord **record, unsigned long long *place)
@@ -273,16 +288,16 @@ int qry_member_latest(const char *name, const QryRecord **record, unsigned long 
     qry_member_settled();
     QryShared *const run = qry_member_run();
     const size_t length = strlen(name);
-    for (unsigned long long at = (run != NULL) ? atomic_load(&run->scheduled) : 0ull; at != 0ull; at -= 1ull)
+    for (unsigned long long at = qry_member_scheduled(run); at != 0ULL; at -= 1ULL)
     {
         const QryRecord *const latest =
-            (const QryRecord *)(qry_shared_records(run) + qry_shared_schedule(run)[at - 1ull]);
+            (const QryRecord *)(qry_shared_records(run) + qry_shared_schedule(run)[at - 1ULL]);
         if ((latest->name_length == length) && (memcmp(latest + 1, name, length) == 0))
         {
             *record = latest;
             if (place != NULL)
             {
-                *place = at - 1ull;
+                *place = at - 1ULL;
             }
             return 1;
         }
@@ -302,9 +317,9 @@ int qry_member_file(const char *path, const QryRecord **record)
     {
         return 1;
     }
-    unsigned long long size = 0ull;
+    unsigned long long size = 0ULL;
     const unsigned char *const bytes = qry_member_file_mapped(path, &size);
-    const int appended = (bytes != NULL) && (size <= (QRY_WRITER_RING_BYTES / 2ull)) &&
+    const int appended = (bytes != NULL) && (size <= (QRY_WRITER_RING_BYTES / 2ULL)) &&
                          qry_member_append(name, bytes, size, QRY_ORDINARY);
     if (bytes != NULL)
     {
@@ -355,7 +370,7 @@ int qry_member_blob(const char *name, const unsigned char **blob, unsigned long 
 
 const char *qry_member_file_name(const char *path)
 {
-    QryShared *const run = qry_member_run();
+    const QryShared *const run = qry_member_run();
     const size_t top = (run != NULL) ? strlen(run->top) : 0u;
     if ((top == 0u) || (strlen(path) <= (top + 1u)) || (memcmp(path, run->top, top) != 0) || (path[top] != '/'))
     {
@@ -385,7 +400,7 @@ int qry_member_file_blob(const char *path, const unsigned char **blob, unsigned 
 unsigned long long qry_member_filed(const char *path, const void *bytes, unsigned long long size)
 {
     const char *const name = qry_member_file_name(path);
-    return (name != NULL) ? qry_member_append(name, bytes, size, QRY_ORDINARY) : 0ull;
+    return (name != NULL) ? qry_member_append(name, bytes, size, QRY_ORDINARY) : 0ULL;
 }
 
 unsigned long long qry_member_streamed(const char *name, const void *bytes, unsigned long long size, char *path,
@@ -398,7 +413,7 @@ unsigned long long qry_member_streamed(const char *name, const void *bytes, unsi
     if ((qry == NULL) || (length == 0u) || (length >= QRY_NAME_MAX_LEN) || (strpbrk(name, "/\\:") != NULL) ||
         ((qry_length + 1u + length) >= room))
     {
-        return 0ull;
+        return 0ULL;
     }
     streamed[0] = ':';
     memcpy(streamed + 1u, name, length + 1u);

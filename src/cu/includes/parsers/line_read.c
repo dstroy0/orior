@@ -17,7 +17,7 @@ int line_read(const unsigned char *bytes, unsigned long long size, unsigned long
     const size_t copy_len = (length < room) ? length : (room - 1u);
     memcpy(line, bytes + *at, copy_len);
     line[copy_len] = '\0';
-    *at += (unsigned long long)length + 1ull;
+    *at += (unsigned long long)length + 1ULL;
     return 1;
 }
 
@@ -79,8 +79,8 @@ int line_number(const char **at, int hex, unsigned long long *value)
     {
         walk += 2;
     }
-    const unsigned long long base = hex ? 16ull : 10ull;
-    unsigned long long read = 0ull;
+    const unsigned long long base = hex ? 16ULL : 10ULL;
+    unsigned long long read = 0ULL;
     unsigned int digits = 0u;
     for (;; walk += 1)
     {
@@ -92,17 +92,17 @@ int line_number(const char **at, int hex, unsigned long long *value)
         }
         else if (hex && (letter >= 'a') && (letter <= 'f'))
         {
-            digit = (unsigned long long)(letter - 'a') + 10ull;
+            digit = (unsigned long long)(letter - 'a') + 10ULL;
         }
         else if (hex && (letter >= 'A') && (letter <= 'F'))
         {
-            digit = (unsigned long long)(letter - 'A') + 10ull;
+            digit = (unsigned long long)(letter - 'A') + 10ULL;
         }
         if (digit >= base)
         {
             break;
         }
-        if (read > ((~0ull - digit) / base))
+        if (read > ((~0ULL - digit) / base))
         {
             return 0;
         }
@@ -132,9 +132,9 @@ int line_letters(const char **at, const char *text)
 
 int line_unsigned(const char **at, unsigned int *value)
 {
-    unsigned long long read = 0ull;
+    unsigned long long read = 0ULL;
     const char *walk = *at;
-    if (!line_number(&walk, 0, &read) || (read > 0xffffffffull))
+    if (!line_number(&walk, 0, &read) || (read > 0xffffffffULL))
     {
         return 0;
     }
@@ -150,8 +150,8 @@ int line_signed(const char **at, int *value)
     const char *walk = *at;
     const int negative = (*walk == '-');
     walk += negative ? 1 : 0;
-    unsigned long long read = 0ull;
-    if (!line_number(&walk, 0, &read) || (read > (negative ? 0x80000000ull : 0x7fffffffull)))
+    unsigned long long read = 0ULL;
+    if (!line_number(&walk, 0, &read) || (read > (negative ? 0x80000000ULL : 0x7fffffffULL)))
     {
         return 0;
     }

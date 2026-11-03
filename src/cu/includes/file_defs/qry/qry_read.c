@@ -11,10 +11,10 @@ static const unsigned long long s_crc_table[256] = CRC_KEY_TABLE;
 
 unsigned long long qry_record_crc(const unsigned char *bytes, unsigned long long size)
 {
-    unsigned long long crc = ~0ull;
-    for (unsigned long long at = 0ull; at < size; at += 1ull)
+    unsigned long long crc = ~0ULL;
+    for (unsigned long long at = 0ULL; at < size; at += 1ULL)
     {
-        crc = s_crc_table[(crc ^ bytes[at]) & 0xffull] ^ (crc >> 8u);
+        crc = s_crc_table[(crc ^ bytes[at]) & 0xffULL] ^ (crc >> 8u);
     }
     return ~crc;
 }
@@ -34,9 +34,9 @@ int qry_record_read(const unsigned char *bytes, unsigned long long size, unsigne
     {
         return 0;
     }
-    unsigned long long stored_crc = 0ull;
-    memcpy(&stored_crc, bytes + *at + whole - 8ull, sizeof(stored_crc));
-    if (qry_record_crc(bytes + *at, whole - 8ull) != stored_crc)
+    unsigned long long stored_crc = 0ULL;
+    memcpy(&stored_crc, bytes + *at + whole - 8ULL, sizeof(stored_crc));
+    if (qry_record_crc(bytes + *at, whole - 8ULL) != stored_crc)
     {
         return 0;
     }

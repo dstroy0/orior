@@ -15,8 +15,8 @@
 // QRY_WRITER_PLACE_BYTES of it; and the rest the run's records. A writer started with no request takes
 // QRY_WRITER_RUN_DEFAULT
 #define QRY_WRITER_MEMBERS_MOST 256u
-#define QRY_WRITER_PLACE_BYTES 256ull
-#define QRY_WRITER_RUN_DEFAULT (1ull << 30u)
+#define QRY_WRITER_PLACE_BYTES 256ULL
+#define QRY_WRITER_RUN_DEFAULT (1ULL << 30u)
 
 // The host's own steps, the fastest its sweeps of timings found, stand in qry_host.h beside this file where a sweep has
 // written one (`orior protocol sweep`), and set those it names; the rest take the values below
@@ -28,15 +28,15 @@
 
 // the most bytes one write call puts in a file, at most a gibibyte, which a DWORD counts
 #ifndef QRY_WRITER_PIECE_BYTES
-#define QRY_WRITER_PIECE_BYTES (1ull << 30u)
+#define QRY_WRITER_PIECE_BYTES (1ULL << 30u)
 #endif
 
-_Static_assert((QRY_WRITER_PIECE_BYTES != 0ull) && (QRY_WRITER_PIECE_BYTES <= (1ull << 30u)),
+_Static_assert((QRY_WRITER_PIECE_BYTES != 0ULL) && (QRY_WRITER_PIECE_BYTES <= (1ULL << 30u)),
                "QRY_WRITER_PIECE_BYTES must be a write call's bytes, at most a gibibyte");
 
 // a ring's mark where a record would not fit before the ring's end: a time no clock gives, the ring going on at its
 // start
-#define QRY_WRITER_WRAP 0xffffffffffffffffull
+#define QRY_WRITER_WRAP 0xffffffffffffffffULL
 
 // A member's ring: the process that owns it, 0 where none does; the bytes the writer has taken from it and the bytes
 // its member has added, each counted from the run's start, a place in the ring the count's remainder; and the bytes.
@@ -83,12 +83,13 @@ struct QryShared
 static inline unsigned long long qry_shared_laid(unsigned long long requested, unsigned long long *members,
                                                  unsigned long long *places, unsigned long long *run_bytes)
 {
-    const unsigned long long head = (sizeof(QryShared) + 63ull) & ~63ull;
-    const unsigned long long rings = (requested / 2ull) / sizeof(QryRing);
-    *members = (rings == 0ull) ? 1ull : ((rings > QRY_WRITER_MEMBERS_MOST) ? QRY_WRITER_MEMBERS_MOST : rings);
-    *places = (requested / QRY_WRITER_PLACE_BYTES) + 1ull;
-    const unsigned long long laid = head + (*members * sizeof(QryRing)) + ((*places * 8ull + 63ull) & ~63ull);
-    *run_bytes = (requested > (laid + (1ull << 20u))) ? (requested - laid) : (1ull << 20u);
+    const unsigned long long head = (sizeof(QryShared) + 63ULL) & ~63ULL;
+    const unsigned long long rings = (requested / 2ULL) / sizeof(QryRing);
+    const unsigned long long fitted = (rings > QRY_WRITER_MEMBERS_MOST) ? QRY_WRITER_MEMBERS_MOST : rings;
+    *members = (rings == 0ULL) ? 1ULL : fitted;
+    *places = (requested / QRY_WRITER_PLACE_BYTES) + 1ULL;
+    const unsigned long long laid = head + (*members * sizeof(QryRing)) + ((*places * 8ULL + 63ULL) & ~63ULL);
+    *run_bytes = (requested > (laid + (1ULL << 20u))) ? (requested - laid) : (1ULL << 20u);
     return laid + *run_bytes;
 }
 
