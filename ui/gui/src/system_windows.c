@@ -794,6 +794,24 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM pixel_w
                                         .button = GUI_BUTTON_RIGHT,
                                         .mods = EMBED_CALL(system_mods, SystemWindowsCtx, .system_read = system)});
         return 0;
+    case WM_NCRBUTTONDOWN:
+    case WM_NCRBUTTONUP: {
+        // the right button on the bar the system moves the window by is the window's own, at the client's pixel, as
+        // the page's bar takes it: the system opens no window menu of its own there
+        if (pixel_width != HTCAPTION)
+        {
+            return DefWindowProcW(window, message, pixel_width, low);
+        }
+        POINT at = {GET_X_LPARAM(low), GET_Y_LPARAM(low)};
+        ScreenToClient(window, &at);
+        EMBED_CALL(system->events->input, GuiEachInputCfg, .context = system->context,
+                   .input = &(GuiInput){.type = (message == WM_NCRBUTTONDOWN) ? GUI_INPUT_DOWN : GUI_INPUT_MENU,
+                                        .x = at.x,
+                                        .y = at.y,
+                                        .button = GUI_BUTTON_RIGHT,
+                                        .mods = EMBED_CALL(system_mods, SystemWindowsCtx, .system_read = system)});
+        return 0;
+    }
     case WM_LBUTTONUP:
         ReleaseCapture();
         EMBED_CALL(system->events->input, GuiEachInputCfg, .context = system->context,

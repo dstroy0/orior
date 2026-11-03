@@ -228,6 +228,20 @@ int main(void)
     cli_check((transferred.pointers == 4u) && (transferred.pointer == GUI_INPUT_MENU) && (transferred.x == 44) && (transferred.y == 72),
               "its release asks for a menu at its pixel");
 
+    // the right button on the bar the system moves the window by comes as it does on the client, at the client's pixel,
+    // and opens no window menu of the system's: the page's bar answers it with no menu
+    POINT on_bar = {30, 20};
+    ClientToScreen(window, &on_bar);
+    PostMessageW(window, WM_NCRBUTTONDOWN, HTCAPTION, MAKELPARAM(on_bar.x, on_bar.y));
+    EMBED_CALL(gui_system_table.pumped, GuiSystemCfg, .system = system);
+    cli_check((transferred.pointers == 5u) && (transferred.pointer == GUI_INPUT_DOWN) && (transferred.button == GUI_BUTTON_RIGHT) && (transferred.x == 30) &&
+                  (transferred.y == 20),
+              "a right press on the bar comes as the right button's press at its client pixel");
+    PostMessageW(window, WM_NCRBUTTONUP, HTCAPTION, MAKELPARAM(on_bar.x, on_bar.y));
+    EMBED_CALL(gui_system_table.pumped, GuiSystemCfg, .system = system);
+    cli_check((transferred.pointers == 6u) && (transferred.pointer == GUI_INPUT_MENU) && (transferred.x == 30) && (transferred.y == 20),
+              "its release asks for a menu at its client pixel");
+
     // the keys gone to another window are told, as a page's window is blurred
     const unsigned int blurs_before = transferred.blurs;
     SendMessageW(window, WM_KILLFOCUS, 0, 0);
