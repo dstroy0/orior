@@ -172,6 +172,10 @@ int cli_view_served_set(const CliViewFullCfg *args);
 int cli_view_serve(const CliViewFullKindCfg *args);
 int cli_view_serving(const CliViewFullCfg *args);
 int cli_view_changed_alloc(const CliViewCfg *args);
+// the state the text of the view under `key` stands in, a number no other state of any view's takes, the same where
+// undo and redo come back to a state it stood in: the view as it opened, or after its last step done, each edit joined
+// to a step putting that step in a state of its own; 0 where no view is open under the key
+unsigned long long cli_view_state(const CliViewCfg *args);
 // the place of the cell `column` of the row `row` from the top of the view under `key`: its line into `line`, the
 // lines a closed fold hides stepped over, and its column in units into `col`, the line's end where the cell is past
 // it: 1, or 0 where no view is open under the key
@@ -266,12 +270,14 @@ typedef struct
     int (*open)(const CliViewCfg *args);
     void (*close)(const CliViewCfg *args);
     int (*changed_alloc)(const CliViewCfg *args);
+    unsigned long long (*state)(const CliViewCfg *args);
 } CliViewNs;
-EMBED_TABLE_LAYOUT(CliViewNs, open, close, changed_alloc);
+EMBED_TABLE_LAYOUT(CliViewNs, open, close, changed_alloc, state);
 EMBED_TABLE_STORAGE CliViewNs cli_view_table EMBED_UNUSED = {
     .open = cli_view_open,
     .close = cli_view_close,
     .changed_alloc = cli_view_changed_alloc,
+    .state = cli_view_state,
 };
 
 typedef struct

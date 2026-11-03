@@ -1,15 +1,17 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// tabs.c: the tabs row. Each tab is as wide as its name, its padding and its close mark, and the tabs stand in a row
-// from the row's left; tabs past the row's right edge are cut off at it
+// tabs.c: the tabs row. Each tab is as wide as its padding, the mark of changes not saved where it has them, its name
+// and its close mark, and the tabs stand in a row from the row's left; tabs past the row's right edge are cut off at it
 #include "tabs.h"
 
 #include "../../text/text.h"
 
 #include <math.h>
 
-// the close mark's text
+// the close mark's text, its text while the close waits on a second, and the mark of changes not saved
 static const char s_close[] = "\xc3\x97";
+static const char s_close_waiting[] = "\xc3\x97?";
+static const char s_changed[] = "\xe2\x97\x8f";
 
 const char *gui_tab_name(const GuiTabsCfg *args)
 {
@@ -23,8 +25,32 @@ typedef struct
     const CliTabRow *tab;
     unsigned int size;
     int scale;
+    unsigned long long *length;
 } TabsCtx;
-// a tab's width: its padding each side, its name, the gap and the close mark with its padding
+
+// the close mark `tab` shows, ×? while its close waits on a second, its length into `length`
+EMBED_INLINE const char *tabs_close_text(const TabsCtx *args)
+{
+    *args->length = args->tab->closing ? (sizeof(s_close_waiting) - 1u) : (sizeof(s_close) - 1u);
+    return args->tab->closing ? s_close_waiting : s_close;
+}
+
+// the width the mark of changes not saved and the gap after it take before `tab`'s name, 0 where it has none
+EMBED_INLINE int tabs_changed_width(const TabsCtx *args)
+{
+    if (!args->tab->changed)
+    {
+        return 0;
+    }
+    const float mark =
+        EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = args->glyphs, .face = GUI_FACE_CODE,
+                   .size = args->size, .text = s_changed, .length = sizeof(s_changed) - 1u);
+    return (int)roundf(mark) +
+           EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TAB_GAP, .scale = args->scale);
+}
+
+// a tab's width: its padding each side, the mark of changes not saved, its name, the gap and the close mark with its
+// padding
 EMBED_INLINE int tabs_width(const TabsCtx *args)
 {
     GuiGlyphs *glyphs = args->glyphs;
@@ -35,10 +61,12 @@ EMBED_INLINE int tabs_width(const TabsCtx *args)
     const char *const name = EMBED_CALL(gui_tabs.tab_name, GuiTabsCfg, .tab = tab, .length = &length);
     const float text = EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs,
                                   .face = GUI_FACE_CODE, .size = size, .text = name, .length = length);
-    const float close =
-        EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs, .face = GUI_FACE_CODE,
-                   .size = size, .text = s_close, .length = sizeof(s_close) - 1u);
+    unsigned long long close_length = 0ULL;
+    const char *const close_text = EMBED_CALL(tabs_close_text, TabsCtx, .tab = tab, .length = &close_length);
+    const float close = EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs,
+                                   .face = GUI_FACE_CODE, .size = size, .text = close_text, .length = close_length);
     return EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TAB_PAD_LEFT, .scale = scale) +
+           EMBED_CALL(tabs_changed_width, TabsCtx, .glyphs = glyphs, .tab = tab, .size = size, .scale = scale) +
            (int)roundf(text) +
            EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TAB_GAP, .scale = scale) +
            EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TAB_CLOSE_PAD, .scale = scale) +
@@ -73,9 +101,11 @@ GuiRect gui_tab_close_rect(const GuiTabsGlyphsCfg *args)
                                     .tab = args->tab, .count = args->count, .at = args->at);
     const unsigned int size = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                        .pixels = (int)GUI_TAB_SIZE, .scale = args->frame->scale);
-    const float close =
-        EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs, .face = GUI_FACE_CODE,
-                   .size = size, .text = s_close, .length = sizeof(s_close) - 1u);
+    unsigned long long close_length = 0ULL;
+    const char *const close_text =
+        EMBED_CALL(tabs_close_text, TabsCtx, .tab = &args->tab[args->at], .length = &close_length);
+    const float close = EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs,
+                                   .face = GUI_FACE_CODE, .size = size, .text = close_text, .length = close_length);
     const int pixel_width = (2 * EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TAB_CLOSE_PAD,
                                             .scale = args->frame->scale)) +
                             (int)roundf(close);
@@ -167,21 +197,34 @@ void gui_tabs_draw(const GuiTabsGlyphsFrameCfg *args)
                                       .other = args->frame->tabs),
                    .color = args->palette->line);
         const int baseline = rect.y + (int)((((float)rect.height - ascent - descent) / 2.0f) + ascent + 0.5f);
+        const int left =
+            rect.x + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TAB_PAD_LEFT, .scale = scale);
+        // the mark of changes not saved before the name, in the hover's color, as tabs.js draws its dot
+        if (args->tab[at].changed)
+        {
+            (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
+                             .face = GUI_FACE_CODE, .size = size, .x_f32 = (float)left, .y = baseline,
+                             .text = s_changed, .length = sizeof(s_changed) - 1u, .color = args->palette->hover,
+                             .clip = met);
+        }
         unsigned long long length = 0ULL;
         const char *const name = EMBED_CALL(gui_tabs.tab_name, GuiTabsCfg, .tab = &args->tab[at], .length = &length);
         (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
                          .face = GUI_FACE_CODE, .size = size,
-                         .x_f32 = (float)(rect.x + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
-                                                              .pixels = GUI_TAB_PAD_LEFT, .scale = scale)),
+                         .x_f32 = (float)(left + EMBED_CALL(tabs_changed_width, TabsCtx, .glyphs = glyphs,
+                                                            .tab = &args->tab[at], .size = size, .scale = scale)),
                          .y = baseline, .text = name, .length = length,
                          .color = displayed ? args->palette->text : args->palette->text_2, .clip = met);
         const GuiRect close = EMBED_CALL(gui_tabs_glyphs.tab_close_rect, GuiTabsGlyphsCfg, .glyphs = glyphs,
                                          .frame = args->frame, .tab = args->tab, .count = args->count, .at = at);
+        unsigned long long close_length = 0ULL;
+        const char *const close_text =
+            EMBED_CALL(tabs_close_text, TabsCtx, .tab = &args->tab[at], .length = &close_length);
         (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
                          .face = GUI_FACE_CODE, .size = size,
                          .x_f32 = (float)(close.x + EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                                .pixels = GUI_TAB_CLOSE_PAD, .scale = scale)),
-                         .y = baseline, .text = s_close, .length = sizeof(s_close) - 1u, .color = args->palette->text_3,
+                         .y = baseline, .text = close_text, .length = close_length, .color = args->palette->text_3,
                          .clip = met);
     }
 }

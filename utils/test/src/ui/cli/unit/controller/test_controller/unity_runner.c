@@ -3,12 +3,23 @@
 /*=======Automagically Detected Files To Include=====*/
 #include "unity.h"
 #include "ui/cli/src/controller/controller_internal.h"
+#include "ui/cli/src/controller/controller_work.h"
+#include "ui/cli/src/editor/view.h"
 
 /*=======External Functions This Runner Calls=====*/
 extern void setUp(void);
 extern void tearDown(void);
 extern void test_reduce_motion_shows_on_while_the_saved_setting_or_the_system_asks_for_less_motion(void);
 extern void test_a_menu_opened_anew_takes_a_new_serial_and_keeps_it_while_it_stands_open(void);
+extern void test_a_tab_is_changed_while_its_text_differs_from_the_file_and_not_once_the_letter_is_taken_out(void);
+extern void test_letters_moved_are_a_change_the_census_of_the_text_does_not_tell(void);
+extern void test_save_writes_the_text_to_its_file_and_the_tab_is_no_longer_changed(void);
+extern void test_a_file_whose_lines_end_in_a_carriage_return_saves_with_them(void);
+extern void test_a_changed_tab_closes_on_the_second_close_and_an_unchanged_one_on_the_first(void);
+extern void test_a_save_ends_the_wait_on_a_second_close(void);
+extern void test_close_all_closes_the_unchanged_tabs_and_marks_the_changed_ones(void);
+extern void test_save_all_writes_every_changed_tab(void);
+extern void test_save_and_save_all_can_be_chosen_only_while_a_text_is_changed(void);
 
 
 /*=======Mock Management=====*/
@@ -70,8 +81,17 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\controller\\test_controller\\test_controller.c");
-  run_test(test_reduce_motion_shows_on_while_the_saved_setting_or_the_system_asks_for_less_motion, "test_reduce_motion_shows_on_while_the_saved_setting_or_the_system_asks_for_less_motion", 87);
-  run_test(test_a_menu_opened_anew_takes_a_new_serial_and_keeps_it_while_it_stands_open, "test_a_menu_opened_anew_takes_a_new_serial_and_keeps_it_while_it_stands_open", 116);
+  run_test(test_reduce_motion_shows_on_while_the_saved_setting_or_the_system_asks_for_less_motion, "test_reduce_motion_shows_on_while_the_saved_setting_or_the_system_asks_for_less_motion", 97);
+  run_test(test_a_menu_opened_anew_takes_a_new_serial_and_keeps_it_while_it_stands_open, "test_a_menu_opened_anew_takes_a_new_serial_and_keeps_it_while_it_stands_open", 126);
+  run_test(test_a_tab_is_changed_while_its_text_differs_from_the_file_and_not_once_the_letter_is_taken_out, "test_a_tab_is_changed_while_its_text_differs_from_the_file_and_not_once_the_letter_is_taken_out", 271);
+  run_test(test_letters_moved_are_a_change_the_census_of_the_text_does_not_tell, "test_letters_moved_are_a_change_the_census_of_the_text_does_not_tell", 292);
+  run_test(test_save_writes_the_text_to_its_file_and_the_tab_is_no_longer_changed, "test_save_writes_the_text_to_its_file_and_the_tab_is_no_longer_changed", 305);
+  run_test(test_a_file_whose_lines_end_in_a_carriage_return_saves_with_them, "test_a_file_whose_lines_end_in_a_carriage_return_saves_with_them", 320);
+  run_test(test_a_changed_tab_closes_on_the_second_close_and_an_unchanged_one_on_the_first, "test_a_changed_tab_closes_on_the_second_close_and_an_unchanged_one_on_the_first", 329);
+  run_test(test_a_save_ends_the_wait_on_a_second_close, "test_a_save_ends_the_wait_on_a_second_close", 344);
+  run_test(test_close_all_closes_the_unchanged_tabs_and_marks_the_changed_ones, "test_close_all_closes_the_unchanged_tabs_and_marks_the_changed_ones", 354);
+  run_test(test_save_all_writes_every_changed_tab, "test_save_all_writes_every_changed_tab", 365);
+  run_test(test_save_and_save_all_can_be_chosen_only_while_a_text_is_changed, "test_save_and_save_all_can_be_chosen_only_while_a_text_is_changed", 379);
 
   return UNITY_END();
 }

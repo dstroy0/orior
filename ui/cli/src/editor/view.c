@@ -41,7 +41,7 @@ typedef struct CliViewEdit
     struct CliViewEdit *after;
 } CliViewEdit;
 // A step: its first and last edits, how many, the kind of edit it holds and when its last was
-// made, and where the cursor and the anchor stood before it and after it
+// written, the state the text stands in once it is done, and where the cursor and the anchor stood before it and after it
 typedef struct
 {
     CliViewEdit *first;
@@ -49,6 +49,7 @@ typedef struct
     unsigned int edits;
     unsigned int kind;
     unsigned long long at_ms;
+    unsigned long long state;
     CliPosition cursor_before;
     CliPosition anchor_before;
     CliPosition cursor_after;
@@ -67,7 +68,8 @@ typedef struct
 // columns; the cursor and the anchor; the column the cursor saves as it moves up and down, in cells; the selections
 // Expand Selection grew from, each its cursor and its anchor, how many, and the selection it last made; the
 // indentation; the frames written; the steps, in a cell of their own, how many are stored and how many of them are
-// done, those past the done ones being undone; the folds closed, in a cell of their own in the order of their first
+// done, those past the done ones being undone, and the state the text stands in with none of them done; the folds
+// closed, in a cell of their own in the order of their first
 // lines, how many and the work state; find: whether its bar is open and whether the keys are its own, its query in a
 // cell of its own, in units, its length, the work state and where its cursor stands, whether it seeks a pattern, with
 // case and whole words, whether the matches are to be found anew, the matches, each a line, a from and a to column, in
@@ -122,6 +124,7 @@ typedef struct
     unsigned int steps;
     unsigned int steps_capacity;
     unsigned int done;
+    unsigned long long base_state;
     CliViewFold *fold;
     unsigned int folds;
     unsigned int folds_capacity;
@@ -175,6 +178,8 @@ typedef struct
 #define CLI_VIEW_KIND_DELETE_FORWARD 4u
 
 static CliView *s_views;
+// the last state any view's text was put in, each new state the one after it; the views are the controller's thread's
+static unsigned long long s_state_last;
 
 typedef struct
 {
@@ -568,6 +573,8 @@ int cli_view_open(const CliViewCfg *args)
     (void)mmgr_line_finish(&pathed);
     view->rows = 1u;
     view->paged = paged;
+    s_state_last += 1ULL;
+    view->base_state = s_state_last;
     EMBED_CALL(cli_editorconfig.indent, CliEditorconfigCfg, .path = path, .indent = &view->indent);
     EMBED_CALL(view_language_read, ViewCtx, .view = view);
     return 1;
@@ -1724,9 +1731,11 @@ static int view_edit_cell_write(const ViewCtx *args)
             }
             args->view->steps_capacity = CLI_VIEW_STEPS;
         }
-        // the steps full, the oldest goes and those after it come down
+        // the steps full, the oldest goes and those after it come down, the state it left the text in standing for
+        // none of them done
         if (args->view->steps == args->view->steps_capacity)
         {
+            args->view->base_state = args->view->step[0].state;
             EMBED_CALL(view_step_free, ViewCtx, .step = &args->view->step[0]);
             memor.move_down(&(MemoriaCfg){.dst = &args->view->step[0],
                                           .src = &args->view->step[1],
@@ -1750,6 +1759,8 @@ static int view_edit_cell_write(const ViewCtx *args)
     step->last = args->made;
     step->edits += 1u;
     step->at_ms = now;
+    s_state_last += 1ULL;
+    step->state = s_state_last;
     args->view->done = args->view->steps;
     EMBED_CALL(view_move, ViewCtx, .view = args->view, .place = args->made->end, .extend = 0, .saved = 0);
     step->cursor_after = args->view->cursor;
@@ -4705,6 +4716,16 @@ int cli_view_changed_alloc(const CliViewCfg *args)
         view->changed = 0;
     }
     return changed;
+}
+
+unsigned long long cli_view_state(const CliViewCfg *args)
+{
+    const CliView *const view = EMBED_CALL(view_get, ViewCtx, .key = args->key);
+    if (view == NULL)
+    {
+        return 0ULL;
+    }
+    return (view->done != 0u) ? view->step[view->done - 1u].state : view->base_state;
 }
 
 // the span of the word the place at `line`, `col` touches, inside it or at either end: its first unit into `from` and

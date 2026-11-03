@@ -130,9 +130,12 @@ void cli_model_view_input(const CliModelCtx *args)
     g_cli_model.dirty |= CLI_MODEL_DIRTY(CLI_SNAPSHOT_FRAME);
     if (args->on)
     {
-        // the input may have edited the text, which the map's lines then no longer show and the server is told
+        // the input may have edited the text, which the map's lines then no longer show, the server is told and the
+        // tab compared with its file
         g_cli_model.dirty |= CLI_MODEL_DIRTY(CLI_SNAPSHOT_MAP);
         EMBED_CALL(cli_model.server_changed, CliModelCtx, .at = 0u);
+        // the tab shown is among the tabs
+        EMBED_CALL(cli_model_save.tab_compare, CliModelCtx, .at = (unsigned int)g_cli_model.active);
     }
 }
 
@@ -502,7 +505,7 @@ static void *model_tabs_alloc(void)
         memor.cpy(&(MemoriaCfg){.dst = text, .src = path, .bytes = size + 1ULL});
         const unsigned long long name_at = EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg,
                                                       .text = text, .at = size, .set = "/\\");
-        tabs->row[at] = (CliTabRow){text, text + name_at};
+        tabs->row[at] = (CliTabRow){text, text + name_at, g_cli_model.tab[at]->changed, g_cli_model.tab[at]->closing};
         text += size + 1ULL;
     }
     return tabs;

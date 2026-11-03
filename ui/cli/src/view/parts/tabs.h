@@ -1,8 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // tabs.h: the tabs row above the editor: a tab for each file open, its name in the code face with a close mark after
-// it, the one shown on its own ground with a line along its top and down its left; a press on a tab's name shows its
-// file and one on its close mark closes it (tabs.c)
+// it, ● before the name in the hover's color while its text has changes not saved and ×? for the mark while its close
+// waits on a second, the one shown on its own ground with a line along its top and down its left; a press on a tab's
+// name shows its file and one on its close mark closes it (tabs.c)
 #ifndef GUI_PARTS_TABS_H
 #define GUI_PARTS_TABS_H
 #include "../../controller/controller_parts.h"

@@ -30,11 +30,14 @@ typedef struct
 extern const CliTool g_cli_tools[];
 extern const unsigned int g_cli_tools_count;
 
-// One tab: the file's path from the tree's top and the name it shows, the last part of that path
+// One tab: the file's path from the tree's top and the name it shows, the last part of that path; whether its text
+// has changes not saved, and whether its close waits on a second
 typedef struct
 {
     const char *path;
     const char *name;
+    int changed;
+    int closing;
 } CliTabRow;
 
 // The files open: how many, the one shown, -1 for none

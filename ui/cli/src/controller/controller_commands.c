@@ -68,8 +68,9 @@ static const char *const s_view_commands[] = {"sort-ascending", "sort-descending
                                               "upper-case",     "lower-case",      "title-case"};
 // the commands that run here whatever else their keys might mean, the terminal's among them
 static const char *const s_own_commands[] = {
-    "exit", "close-editor", "close-all", "last-editor", "reduce-motion", "preferences",    "terminal-view", "toggle",
-    "new",  "split",        "clear",     "kill",        "terminal-copy", "terminal-paste", "terminal-close"};
+    "exit",           "close-editor", "close-all", "last-editor", "reduce-motion", "preferences",   "terminal-view",
+    "toggle",         "new",          "split",     "clear",       "kill",          "terminal-copy", "terminal-paste",
+    "terminal-close", "save",         "save-all"};
 
 typedef struct
 {
@@ -117,8 +118,8 @@ EMBED_INLINE int commands_by_name(const ControllerCommandsCtx *args)
     return cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = args->required, .cap = 32ULL});
 }
 
-// whether the item cannot be chosen: it needs a file open while none is, or text chosen in the terminal while none is,
-// it is never chosen, or it has no command
+// whether the item cannot be chosen: it needs a file open while none is, text chosen in the terminal while none is, the
+// tab shown changed while it is not or any tab changed while none is, it is never chosen, or it has no command
 EMBED_INLINE int commands_item_disabled(const ControllerCommandsCtx *args)
 {
     const char *const needs = args->item->needs;
@@ -126,9 +127,13 @@ EMBED_INLINE int commands_item_disabled(const ControllerCommandsCtx *args)
                              cellul.eq(&(CatenaFinitaCfg){.src = needs, .other = "tab", .cap = CLI_LABEL_MAX_LEN});
     const int needs_chosen =
         cellul.eq(&(CatenaFinitaCfg){.src = needs, .other = "terminal-chosen", .cap = CLI_LABEL_MAX_LEN});
+    const int needs_changed =
+        cellul.eq(&(CatenaFinitaCfg){.src = needs, .other = "changed-active", .cap = CLI_LABEL_MAX_LEN}) ||
+        cellul.eq(&(CatenaFinitaCfg){.src = needs, .other = "changed", .cap = CLI_LABEL_MAX_LEN});
     const int never = cellul.eq(&(CatenaFinitaCfg){.src = needs, .other = "never", .cap = CLI_LABEL_MAX_LEN});
     return never || (needs_editor && (g_cli_model.tabs == 0u)) ||
            (needs_chosen && !EMBED_CALL(cli_model_terminal.checked, CliModelCtx, .path = needs)) ||
+           (needs_changed && !EMBED_CALL(cli_model_save.needs, CliModelCtx, .path = needs)) ||
            (args->item->command[0] == '\0');
 }
 
@@ -667,6 +672,18 @@ void cli_model_command_run(const CliModelCtx *args)
     else if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "last-editor", .cap = CLI_LABEL_MAX_LEN}))
     {
         EMBED_CALL(cli_model.tab_last, CliModelCtx, .at = 0u);
+    }
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "save", .cap = CLI_LABEL_MAX_LEN}))
+    {
+        if (g_cli_model.active >= 0)
+        {
+            // the tab shown is among the tabs
+            EMBED_CALL(cli_model_save.tab_save, CliModelCtx, .at = (unsigned int)g_cli_model.active);
+        }
+    }
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "save-all", .cap = CLI_LABEL_MAX_LEN}))
+    {
+        EMBED_CALL(cli_model_save.tabs_save, CliModelCtx, .at = 0u);
     }
     else if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "reduce-motion", .cap = CLI_LABEL_MAX_LEN}))
     {
