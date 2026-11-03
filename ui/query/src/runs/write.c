@@ -21,6 +21,13 @@ typedef struct
     VerbaLinea *err_msg;
     int language;
     VerbaLinea *missing;
+    const char *const *plain;
+    unsigned int plains;
+    const char **names;
+    unsigned int *named;
+    int dry;
+    const char *const *words;
+    unsigned int count;
 } WriteCtx;
 // `name` under the bridge's folder into `path`
 EMBED_INLINE void query_table_by_name(const WriteCtx *args)
@@ -222,6 +229,104 @@ EMBED_INLINE void query_missing_files(const WriteCtx *args)
     }
 }
 
+// the names `--from <from> --to <to> [--part <part>]` gives in the `plains` words of `plain`, into `names`, in the
+// order from, to and part, their count into `named`; 1, or 0 where a flag is unknown or has no word after it
+EMBED_INLINE int query_flagged_names(const WriteCtx *args)
+{
+    static const char *const s_flags[3] = {"--from", "--to", "--part"};
+    const char *supplied[3] = {NULL, NULL, NULL};
+    for (unsigned int at = 0u; at < args->plains; at += 2u)
+    {
+        unsigned int flag = 0u;
+        while ((flag < 3u) &&
+               !cellul.eq(&(CatenaFinitaCfg){.src = args->plain[at], .other = s_flags[flag], .cap = CLI_CELLS_POOL}))
+        {
+            flag += 1u;
+        }
+        if (((at + 1u) >= args->plains) || (flag == 3u))
+        {
+            return 0;
+        }
+        supplied[flag] = args->plain[at + 1u];
+    }
+    for (unsigned int at = 0u; at < 3u; at += 1u)
+    {
+        if (supplied[at] != NULL)
+        {
+            args->names[*args->named] = supplied[at];
+            *args->named += 1u;
+        }
+    }
+    return 1;
+}
+
+// the names `--<from> --<to> [--<part>]` gives in the `plains` words of `plain`, into `names`, their count into
+// `named`; 1, or 0 where a word does not open with `--` or more than three are given
+EMBED_INLINE int query_bare_names(const WriteCtx *args)
+{
+    for (unsigned int at = 0u; at < args->plains; at += 1u)
+    {
+        if ((!cellul.starts(&(CatenaFinitaCfg){.src = args->plain[at], .other = "--", .cap = CLI_CELLS_POOL})) ||
+            (*args->named >= 3u))
+        {
+            return 0;
+        }
+        args->names[*args->named] = args->plain[at] + 2;
+        *args->named += 1u;
+    }
+    return 1;
+}
+
+// whether the `named` names in `names` make a query: two or three, each with letters and no `/`, `\` or `.`, and three
+// for a `dry` one
+EMBED_INLINE int query_names_usable(const WriteCtx *args)
+{
+    const unsigned int named = *args->named;
+    for (unsigned int at = 0u; at < named; at += 1u)
+    {
+        if ((args->names[at][0] == '\0') ||
+            (args->names[at][EMBED_CALL(cli_text_set_table.upto, CliTextSetCfg, .text = args->names[at],
+                                        .set = "/\\.")] != '\0'))
+        {
+            return 0;
+        }
+    }
+    return (named >= 2u) && (named <= 3u) && (!args->dry || (named == 3u));
+}
+
+// each file the `named` names in `names` and the L* query table need that the table does not contain, told after the
+// `count` `words` of the query; 1 where none is missing, else 0 with them given
+EMBED_INLINE int query_missing_told(const WriteCtx *args)
+{
+    char missing_text[QUERY_LINE_MAX_LEN];
+    VerbaLinea missing = {missing_text, sizeof(missing_text), 0ULL};
+    for (unsigned int at = 0u; at < *args->named; at += 1u)
+    {
+        EMBED_CALL(query_missing_files, WriteCtx, .context = args->context, .name = args->names[at],
+                   .language = at < 2u, .missing = &missing);
+    }
+    char klq[QUERY_PATH_MAX_LEN];
+    EMBED_CALL(query_table_by_name, WriteCtx, .context = args->context, .name = "Lstar.klq", .path = klq);
+    if (!EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = klq))
+    {
+        mmgr_line_put(&missing, (missing.at == 0ULL) ? "" : ", ");
+        mmgr_line_put(&missing, QUERY_TABLE "/Lstar.klq");
+    }
+    if (missing.at == 0ULL)
+    {
+        return 1;
+    }
+    mmgr_line_put(args->err_msg, "query ");
+    for (unsigned int at = 0u; at < args->count; at += 1u)
+    {
+        mmgr_line_put(args->err_msg, (at == 0u) ? "" : " ");
+        mmgr_line_put(args->err_msg, args->words[at]);
+    }
+    mmgr_line_put(args->err_msg, ": not in the tree: ");
+    mmgr_line_put_most(args->err_msg, missing_text, missing.at);
+    return 0;
+}
+
 // The query the words name, each checked against the files that make it whole: `--<from> --<to> [--<part>] [--dry]`, or
 // `--from <from> --to <to> [--part <part>] [--dry]` as the window's job specifies it. A name the table does not contain
 // whole is answered with each file missing. 1, or 0 with why given
@@ -251,108 +356,17 @@ int query_query_words(const QueryLoopsErrMsgContextWordsCfg *args)
         (plains != 0u) && ((cellul.eq(&(CatenaFinitaCfg){.src = plain[0], .other = "--from", .cap = CLI_CELLS_POOL})) ||
                            (cellul.eq(&(CatenaFinitaCfg){.src = plain[0], .other = "--to", .cap = CLI_CELLS_POOL})) ||
                            (cellul.eq(&(CatenaFinitaCfg){.src = plain[0], .other = "--part", .cap = CLI_CELLS_POOL})));
-    if (flagged)
-    {
-        const char *from = NULL;
-        const char *to = NULL;
-        const char *part = NULL;
-        for (unsigned int at = 0u; at < plains; at += 2u)
-        {
-            if ((at + 1u) >= plains)
-            {
-                mmgr_line_put(args->err_msg, s_usage);
-                return 0;
-            }
-            const char **field;
-            if (cellul.eq(&(CatenaFinitaCfg){.src = plain[at], .other = "--from", .cap = CLI_CELLS_POOL}))
-            {
-                field = &from;
-            }
-            else if (cellul.eq(&(CatenaFinitaCfg){.src = plain[at], .other = "--to", .cap = CLI_CELLS_POOL}))
-            {
-                field = &to;
-            }
-            else if (cellul.eq(&(CatenaFinitaCfg){.src = plain[at], .other = "--part", .cap = CLI_CELLS_POOL}))
-            {
-                field = &part;
-            }
-            else
-            {
-                field = NULL;
-            }
-            if (field == NULL)
-            {
-                mmgr_line_put(args->err_msg, s_usage);
-                return 0;
-            }
-            *field = plain[at + 1u];
-        }
-        const char *const supplied[3] = {from, to, part};
-        for (unsigned int at = 0u; at < 3u; at += 1u)
-        {
-            if (supplied[at] != NULL)
-            {
-                args->names_letters[*named] = supplied[at];
-                *named += 1u;
-            }
-        }
-    }
-    else
-    {
-        for (unsigned int at = 0u; at < plains; at += 1u)
-        {
-            if ((!cellul.starts(&(CatenaFinitaCfg){.src = plain[at], .other = "--", .cap = CLI_CELLS_POOL})) ||
-                (*named >= 3u))
-            {
-                mmgr_line_put(args->err_msg, s_usage);
-                return 0;
-            }
-            args->names_letters[*named] = plain[at] + 2;
-            *named += 1u;
-        }
-    }
-    for (unsigned int at = 0u; at < *named; at += 1u)
-    {
-        if ((args->names_letters[at][0] == '\0') ||
-            (args->names_letters[at][EMBED_CALL(cli_text_set_table.upto, CliTextSetCfg, .text = args->names_letters[at],
-                                                .set = "/\\.")] != '\0'))
-        {
-            mmgr_line_put(args->err_msg, s_usage);
-            return 0;
-        }
-    }
-    if ((*named < 2u) || (*named > 3u) || (*dry && (*named != 3u)))
+    const int read = flagged ? EMBED_CALL(query_flagged_names, WriteCtx, .plain = plain, .plains = plains,
+                                          .names = args->names_letters, .named = named)
+                             : EMBED_CALL(query_bare_names, WriteCtx, .plain = plain, .plains = plains,
+                                          .names = args->names_letters, .named = named);
+    if (!read || !EMBED_CALL(query_names_usable, WriteCtx, .names = args->names_letters, .named = named, .dry = *dry))
     {
         mmgr_line_put(args->err_msg, s_usage);
         return 0;
     }
-    char missing_text[QUERY_LINE_MAX_LEN];
-    VerbaLinea missing = {missing_text, sizeof(missing_text), 0ULL};
-    for (unsigned int at = 0u; at < *named; at += 1u)
-    {
-        EMBED_CALL(query_missing_files, WriteCtx, .context = args->context_read, .name = args->names_letters[at],
-                   .language = at < 2u, .missing = &missing);
-    }
-    char klq[QUERY_PATH_MAX_LEN];
-    EMBED_CALL(query_table_by_name, WriteCtx, .context = args->context_read, .name = "Lstar.klq", .path = klq);
-    if (!EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = klq))
-    {
-        mmgr_line_put(&missing, (missing.at == 0ULL) ? "" : ", ");
-        mmgr_line_put(&missing, QUERY_TABLE "/Lstar.klq");
-    }
-    if (missing.at != 0ULL)
-    {
-        mmgr_line_put(args->err_msg, "query ");
-        for (unsigned int at = 0u; at < args->count; at += 1u)
-        {
-            mmgr_line_put(args->err_msg, (at == 0u) ? "" : " ");
-            mmgr_line_put(args->err_msg, args->words[at]);
-        }
-        mmgr_line_put(args->err_msg, ": not in the tree: ");
-        mmgr_line_put_most(args->err_msg, missing_text, missing.at);
-        return 0;
-    }
-    return 1;
+    return EMBED_CALL(query_missing_told, WriteCtx, .context = args->context_read, .names = args->names_letters,
+                      .named = named, .words = args->words, .count = args->count, .err_msg = args->err_msg);
 }
 
 int query_query_run(const QueryLoopCfg *args)
