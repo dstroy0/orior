@@ -48,6 +48,25 @@ static void sample_scanned(void)
     s_scanned_mods_size = mod_line.at;
 }
 
+// the `count` files, each a path and its text, written in a fresh folder `folder_name`, and its tests searched into s_tests
+static void files_found(const char *const (*files)[2], unsigned int count, const char *folder_name)
+{
+    char dir[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
+    char folder[CLI_PATH_MAX_LEN];
+    cli_unity_folder(folder_name, dir);
+    for (unsigned int at = 0u; at < count; at += 1u)
+    {
+        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = dir, .relative = files[at][0], .joined = path);
+        if (EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = path, .out = folder))
+        {
+            TEST_ASSERT_TRUE(EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = folder));
+        }
+        cli_unity_file(dir, files[at][0], files[at][1]);
+    }
+    EMBED_CALL(cli_cargo_tests_table.cargo_find, CliCargoTestsCfg, .root = dir, .tests = &s_tests);
+}
+
 // a package of a library, a binary, an integration test and a named test searched into s_tests
 static void package_found(void)
 {
@@ -60,20 +79,7 @@ static void package_found(void)
                                               {"crate/src/main.rs", "#[test]\nfn in_main() {}\n"},
                                               {"crate/tests/whole.rs", "#[test]\nfn integration() {}\n"},
                                               {"crate/checks/named.rs", "#[test]\nfn listed() {}\n"}};
-    char dir[CLI_PATH_MAX_LEN];
-    char path[CLI_PATH_MAX_LEN];
-    char folder[CLI_PATH_MAX_LEN];
-    cli_unity_folder("cargo_found", dir);
-    for (unsigned int at = 0u; at < 9u; at += 1u)
-    {
-        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = dir, .relative = s_files[at][0], .joined = path);
-        if (EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = path, .out = folder))
-        {
-            TEST_ASSERT_TRUE(EMBED_CALL(query_folder_context_internal.folder_init, QueryFolderContextCtx, .folder = folder));
-        }
-        cli_unity_file(dir, s_files[at][0], s_files[at][1]);
-    }
-    EMBED_CALL(cli_cargo_tests_table.cargo_find, CliCargoTestsCfg, .root = dir, .tests = &s_tests);
+    files_found(s_files, 9u, "cargo_found");
 }
 
 // a target written as `kind` or `kind:name`
@@ -86,6 +92,26 @@ static void target_written(VerbaLinea *out, const CliCargoTarget *target)
         mmgr_line_ch(out, ':');
         mmgr_line_put(out, target->name);
     }
+}
+
+// each test s_tests holds written `id target full class` on a line of its own into s_out, the tests then released: the bytes written
+static unsigned long long found_written(void)
+{
+    VerbaLinea line = {s_out, sizeof(s_out), 0ull};
+    for (unsigned int at = 0u; at < s_tests.count; at += 1u)
+    {
+        const CliCargoFound *const one = &s_tests.found[at];
+        mmgr_line_put(&line, (at > 0u) ? "\n" : "");
+        mmgr_line_put(&line, one->test.id);
+        mmgr_line_ch(&line, ' ');
+        target_written(&line, &one->target);
+        mmgr_line_ch(&line, ' ');
+        mmgr_line_put(&line, one->full);
+        mmgr_line_ch(&line, ' ');
+        mmgr_line_put(&line, (one->test.class_name != NULL) ? one->test.class_name : "-");
+    }
+    EMBED_CALL(cli_cargo_tests_table.free, CliCargoTestsCfg, .tests = &s_tests);
+    return line.at;
 }
 
 // the result `line` reads as, `name outcome`, into s_out, or "-" where it is none
@@ -166,25 +192,26 @@ void test_every_cell_of_the_scan_is_released(void)
 void test_a_packages_targets_and_modules_name_each_test(void)
 {
     package_found();
-    VerbaLinea line = {s_out, sizeof(s_out), 0ull};
-    for (unsigned int at = 0u; at < s_tests.count; at += 1u)
-    {
-        const CliCargoFound *const one = &s_tests.found[at];
-        mmgr_line_put(&line, (at > 0u) ? "\n" : "");
-        mmgr_line_put(&line, one->test.id);
-        mmgr_line_ch(&line, ' ');
-        target_written(&line, &one->target);
-        mmgr_line_ch(&line, ' ');
-        mmgr_line_put(&line, one->full);
-        mmgr_line_ch(&line, ' ');
-        mmgr_line_put(&line, (one->test.class_name != NULL) ? one->test.class_name : "-");
-    }
-    EMBED_CALL(cli_cargo_tests_table.free, CliCargoTestsCfg, .tests = &s_tests);
+    const unsigned long long size = found_written();
     CLI_TEST_ASSERT_TEXT("crate/src/lib.rs::at_top lib at_top -\ncrate/src/parts/inner.rs::checks::deep lib "
                          "parts::inner::checks::deep checks\ncrate/src/flat/below.rs::under_flat lib flat::below::under_flat "
                          "-\ncrate/checks/named.rs::listed test:named listed -\ncrate/src/main.rs::in_main bin:thing in_main "
                          "-\ncrate/tests/whole.rs::integration test:whole integration -",
-                         s_out, line.at);
+                         s_out, size);
+}
+
+void test_a_manifests_lib_path_listed_binaries_and_autotests_choose_the_targets(void)
+{
+    static const char *const s_files[5][2] = {{"crate/Cargo.toml", "[package]\nname = \"tool\"\nautotests = false # none sought\n\n[lib]\npath = \"core/root.rs\"\n\n[[bin]]\nname = \"tool\"\n\n[[bin]]\nname = 'extra'\n"},
+                                              {"crate/core/root.rs", "#[test]\nfn in_root() {}\n"},
+                                              {"crate/src/main.rs", "#[test]\nfn in_main() {}\n"},
+                                              {"crate/src/bin/extra.rs", "#[test]\nfn in_extra() {}\n"},
+                                              {"crate/tests/skipped.rs", "#[test]\nfn skipped() {}\n"}};
+    files_found(s_files, 5u, "cargo_listed");
+    const unsigned long long size = found_written();
+    CLI_TEST_ASSERT_TEXT("crate/core/root.rs::in_root lib in_root -\ncrate/src/main.rs::in_main bin:tool in_main -\n"
+                         "crate/src/bin/extra.rs::in_extra bin:extra in_extra -",
+                         s_out, size);
 }
 
 void test_a_found_test_reports_its_line(void)
