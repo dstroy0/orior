@@ -411,9 +411,8 @@ EMBED_INLINE void polygon_sample_row(const IconsCtx *args)
 {
     float cross_x[ICONS_CORNERS];
     int cross_way[ICONS_CORNERS];
-    const unsigned int crossings =
-        EMBED_CALL(polygon_crossings, IconsCtx, .corner = args->corner, .saved = args->saved,
-                   .sample_y = args->sample_y, .cross_x = cross_x, .cross_way = cross_way);
+    const unsigned int crossings = EMBED_CALL(polygon_crossings, IconsCtx, .corner = args->corner, .saved = args->saved,
+                                              .sample_y = args->sample_y, .cross_x = cross_x, .cross_way = cross_way);
     int winding = 0;
     float run_from = 0.0f;
     for (unsigned int at = 0u; at < crossings; at += 1u)

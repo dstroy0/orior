@@ -180,6 +180,7 @@ EMBED_INLINE void cli_item_read(const CommandsCtx *args)
     args->item->keys = EMBED_CALL(cli_member_string, CommandsCtx, .object = args->at, .name = "keys");
     args->item->args = EMBED_CALL(cli_member_string, CommandsCtx, .object = args->at, .name = "args");
     args->item->needs = EMBED_CALL(cli_member_string, CommandsCtx, .object = args->at, .name = "needs");
+    args->item->checks = EMBED_CALL(cli_member_string, CommandsCtx, .object = args->at, .name = "checks");
     const unsigned int console = cfg_json_member(s_text, s_tokens, args->at, "console");
     args->item->console = (console != 0u) && (s_tokens[console].kind == CFG_JSON_TRUE);
     const unsigned int hidden = cfg_json_member(s_text, s_tokens, args->at, "hidden");
@@ -269,6 +270,7 @@ unsigned int cli_menu_rows(unsigned int list, CliItem *items, unsigned int capac
             item->keys = "";
             item->args = "";
             item->needs = "";
+            item->checks = "";
             item->line = 1;
             count += 1u;
         }

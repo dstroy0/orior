@@ -87,6 +87,20 @@ EMBED_INLINE int menubar_row_height(const MenubarCtx *args)
                       .scale = scale);
 }
 
+// a row's label's start from its left at the scale: further in where any row of the open menu at `level` shows a
+// state on or off, which sets every label in
+EMBED_INLINE int menubar_label_x(const MenubarCtx *args)
+{
+    const CliMenuLevel *const level = &args->menubar->menus->level[args->level];
+    int checks = 0;
+    for (unsigned int at = 0u; (at < level->rows) && !checks; at += 1u)
+    {
+        checks = level->row[at].checked >= 0;
+    }
+    return EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                      .pixels = checks ? GUI_ITEM_CHECKS_PAD_X : GUI_ITEM_PAD_X, .scale = args->scale);
+}
+
 // the rectangle of the row `index` of the open menu at `level`
 EMBED_INLINE GuiRect menubar_row_rect(const MenubarCtx *args)
 {
@@ -120,6 +134,8 @@ static void menubar_menu_position(const MenubarCtx *args)
     const int pad = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_MENU_PAD, .scale = scale);
     const int item_pad =
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_ITEM_PAD_X, .scale = scale);
+    const int label_x =
+        EMBED_CALL(menubar_label_x, MenubarCtx, .menubar = menubar, .level = args->level, .scale = scale);
     const int gap = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_ITEM_GAP, .scale = scale);
     int pixel_width =
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_MENU_WIDTH_MIN, .scale = scale);
@@ -142,7 +158,7 @@ static void menubar_menu_position(const MenubarCtx *args)
                 : EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs,
                              .face = GUI_FACE_CODE, .size = keys_size, .text = row->keys,
                              .length = cellul.len(&(CatenaFinitaCfg){.src = row->keys, .cap = CLI_CELLS_POOL}));
-        const int needed = (int)roundf(label + (float)gap + right) + (2 * item_pad) + (2 * pad);
+        const int needed = (int)roundf(label + (float)gap + right) + label_x + item_pad + (2 * pad);
         pixel_width = (needed > pixel_width) ? needed : pixel_width;
     }
     const int edge = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_MENU_EDGE, .scale = scale);
@@ -443,10 +459,14 @@ void gui_menubar_menus_draw(const GuiMenubarGlyphsFrameCfg *args)
                                      .face = GUI_FACE_HEAD, .size = size);
     const int item_pad =
         EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_ITEM_PAD_X, .scale = scale);
+    const int check_x =
+        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_ITEM_CHECK_X, .scale = scale);
     for (unsigned int level = 0u; (level < menus->levels) && (level < GUI_MENU_LEVELS); level += 1u)
     {
         const CliMenuLevel *const menu = &menus->level[level];
         const GuiRect menu_rect = args->menubar_read->menu_rect[level];
+        const int label_x =
+            EMBED_CALL(menubar_label_x, MenubarCtx, .menubar = args->menubar_read, .level = level, .scale = scale);
         EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster, .rect = menu_rect,
                    .radius = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                       .pixels = GUI_MENU_RADIUS, .scale = scale),
@@ -486,8 +506,15 @@ void gui_menubar_menus_draw(const GuiMenubarGlyphsFrameCfg *args)
             }
             const int baseline = rect.y + (int)((((float)rect.height - ascent - descent) / 2.0f) + ascent + 0.5f);
             const GuiColor color = row->disabled ? args->palette->text_3 : args->palette->text;
+            if (row->checked > 0)
+            {
+                (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster,
+                                 .glyphs = glyphs, .face = GUI_FACE_HEAD, .size = size,
+                                 .x_f32 = (float)(rect.x + check_x), .y = baseline, .text = "\xe2\x9c\x93",
+                                 .length = 3ULL, .color = args->palette->signal, .clip = rect);
+            }
             (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
-                             .face = GUI_FACE_HEAD, .size = size, .x_f32 = (float)(rect.x + item_pad), .y = baseline,
+                             .face = GUI_FACE_HEAD, .size = size, .x_f32 = (float)(rect.x + label_x), .y = baseline,
                              .text = row->label,
                              .length = cellul.len(&(CatenaFinitaCfg){.src = row->label, .cap = CLI_CELLS_POOL}),
                              .color = color, .clip = rect);

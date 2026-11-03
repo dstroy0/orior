@@ -11,6 +11,7 @@ extern void test_no_two_menus_share_a_word(void);
 extern void test_no_menu_lists_a_command_twice(void);
 extern void test_every_command_is_one_word(void);
 extern void test_no_command_of_a_job_menu_is_a_job_path(void);
+extern void test_an_item_that_is_on_or_off_reads_the_name_of_its_state_and_every_other_none(void);
 extern void test_arguments_outside_brackets_are_required(void);
 extern void test_arguments_inside_brackets_are_optional(void);
 extern void test_a_choice_counts_as_one_argument(void);
@@ -80,10 +81,11 @@ int main(void)
   run_test(test_no_menu_lists_a_command_twice, "test_no_menu_lists_a_command_twice", 43);
   run_test(test_every_command_is_one_word, "test_every_command_is_one_word", 58);
   run_test(test_no_command_of_a_job_menu_is_a_job_path, "test_no_command_of_a_job_menu_is_a_job_path", 70);
-  run_test(test_arguments_outside_brackets_are_required, "test_arguments_outside_brackets_are_required", 87);
-  run_test(test_arguments_inside_brackets_are_optional, "test_arguments_inside_brackets_are_optional", 92);
-  run_test(test_a_choice_counts_as_one_argument, "test_a_choice_counts_as_one_argument", 97);
-  run_test(test_a_required_argument_after_an_optional_group_is_required, "test_a_required_argument_after_an_optional_group_is_required", 102);
+  run_test(test_an_item_that_is_on_or_off_reads_the_name_of_its_state_and_every_other_none, "test_an_item_that_is_on_or_off_reads_the_name_of_its_state_and_every_other_none", 87);
+  run_test(test_arguments_outside_brackets_are_required, "test_arguments_outside_brackets_are_required", 110);
+  run_test(test_arguments_inside_brackets_are_optional, "test_arguments_inside_brackets_are_optional", 115);
+  run_test(test_a_choice_counts_as_one_argument, "test_a_choice_counts_as_one_argument", 120);
+  run_test(test_a_required_argument_after_an_optional_group_is_required, "test_a_required_argument_after_an_optional_group_is_required", 125);
 
   return UNITY_END();
 }

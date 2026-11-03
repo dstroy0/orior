@@ -116,6 +116,19 @@ EMBED_INLINE int commands_item_disabled(const ControllerCommandsCtx *args)
     return never || (needs_editor && (g_cli_model.tabs == 0u)) || (args->item->command[0] == '\0');
 }
 
+// the state the item shows, by the name it gives it, as its part answers: 1 on and 0 off, a name no part answers for
+// off, and -1 where the item shows none
+EMBED_INLINE int commands_item_checked(const ControllerCommandsCtx *args)
+{
+    const char *const checks = args->item->checks;
+    if (checks[0] == '\0')
+    {
+        return -1;
+    }
+    const int motion = cellul.eq(&(CatenaFinitaCfg){.src = checks, .other = "reduce-motion", .cap = CLI_LABEL_MAX_LEN});
+    return (motion && g_cli_model.motion_saved) || EMBED_CALL(cli_model_terminal.checked, CliModelCtx, .path = checks);
+}
+
 // whether the row `at` of the menu at `level` can be marked
 EMBED_INLINE int commands_row_selectable(const ControllerCommandsCtx *args)
 {
@@ -205,6 +218,7 @@ EMBED_INLINE void commands_folded_read(const ControllerCommandsCtx *args)
         item->keys = "";
         item->args = "";
         item->needs = "";
+        item->checks = "";
         item->list = cli_menu_list(menu_at);
         menu->rows += 1u;
     }
@@ -985,7 +999,8 @@ void *cli_model_menus_alloc(const CliModelCtx *args)
             const unsigned int listed_kind = (item->list != 0u) ? CLI_MENU_ROW_MORE : CLI_MENU_ROW_ITEM;
             row[at] = (CliMenuRow){item->line ? CLI_MENU_ROW_LINE : listed_kind, text, text + label,
                                    !item->line && (item->list == 0u) &&
-                                       EMBED_CALL(commands_item_disabled, ControllerCommandsCtx, .item = item)};
+                                       EMBED_CALL(commands_item_disabled, ControllerCommandsCtx, .item = item),
+                                   EMBED_CALL(commands_item_checked, ControllerCommandsCtx, .item = item)};
             text += label + keys;
         }
         row += menu->rows;

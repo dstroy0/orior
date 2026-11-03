@@ -24,9 +24,10 @@ typedef struct GuiMenubarCfg GuiMenubarCfg;
 // titles start after the bar's left edge, the bar's padding of 16 less the eye's negative margin of 4.4, the capacity
 // the eye takes before them while the claim does not hold, its width and the gap of .7rem after it, the capacity saved
 // at the bar's right for the tree's name, a menu's least width, its padding and corner radius, an item's padding
-// across, its height, the least gap between a label and its keys, a line's height with its margins, how far a menu
-// opens below its title, how far a menu of items opens beside and above its item, how far a menu saves from the
-// window's edges, and the keys' size
+// across, its padding at its left in a menu with rows on or off and where the mark of one that is on stands from its
+// left, its height, the least gap between a label and its keys, a line's height with its margins, how far a menu opens
+// below its title, how far a menu of items opens beside and above its item, how far a menu saves from the window's
+// edges, and the keys' size
 #define GUI_MENUBAR_TITLES 40u
 #define GUI_MENU_LEVELS 4u
 #define GUI_TITLE_PAD 12
@@ -40,6 +41,8 @@ typedef struct GuiMenubarCfg GuiMenubarCfg;
 #define GUI_MENU_PAD 5
 #define GUI_MENU_RADIUS 7
 #define GUI_ITEM_PAD_X 11
+#define GUI_ITEM_CHECKS_PAD_X 28
+#define GUI_ITEM_CHECK_X 10
 #define GUI_ITEM_HEIGHT 27
 #define GUI_ITEM_GAP 26
 #define GUI_MENU_LINE_HEIGHT 11

@@ -152,8 +152,10 @@ EMBED_INLINE void cargo_key_read(const ExecutablesCargoCtx *args)
     char value[CLI_PATH_MAX_LEN];
     EMBED_CALL(cli_executables_length_value_internal.toml_value, CliExecutablesLengthValueCtx, .value = equals + 1,
                .length = (unsigned long long)((from + length) - (equals + 1)), .out = value, .capacity = sizeof(value));
-    const int is_name = (key_length == 4ULL) && (memor.cmp(&(MemoriaCfg){.src = key, .other = "name", .bytes = 4u}) == 0);
-    const int is_path = (key_length == 4ULL) && (memor.cmp(&(MemoriaCfg){.src = key, .other = "path", .bytes = 4u}) == 0);
+    const int is_name =
+        (key_length == 4ULL) && (memor.cmp(&(MemoriaCfg){.src = key, .other = "name", .bytes = 4u}) == 0);
+    const int is_path =
+        (key_length == 4ULL) && (memor.cmp(&(MemoriaCfg){.src = key, .other = "path", .bytes = 4u}) == 0);
     const int in_package = cellul.eq(&(CatenaFinitaCfg){.src = args->table, .other = "package", .cap = CLI_CELLS_POOL});
     const unsigned long long value_bytes = cellul.len(&(CatenaFinitaCfg){.src = value, .cap = CLI_CELLS_POOL}) + 1u;
     if (in_package && is_name)
@@ -170,7 +172,8 @@ EMBED_INLINE void cargo_key_read(const ExecutablesCargoCtx *args)
              (bins->count > 0u) && (is_name || is_path))
     {
         const unsigned int last = bins->count - 1u;
-        memor.cpy(&(MemoriaCfg){.dst = is_name ? bins->name[last] : bins->path[last], .src = value, .bytes = value_bytes});
+        memor.cpy(
+            &(MemoriaCfg){.dst = is_name ? bins->name[last] : bins->path[last], .src = value, .bytes = value_bytes});
         *(is_name ? &bins->has_name[last] : &bins->has_path[last]) = 1;
     }
 }
@@ -236,9 +239,9 @@ EMBED_INLINE int cargo_more_after(const ExecutablesCargoCtx *args)
     const unsigned int place = args->place;
     const int order = EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = more->name[place - 1u],
                                  .other_pointer = more->name[place]);
-    return (order > 0) || ((order == 0) && (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg,
-                                                       .one = more->value[place - 1u],
-                                                       .other_pointer = more->value[place]) > 0));
+    return (order > 0) ||
+           ((order == 0) && (EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg, .one = more->value[place - 1u],
+                                        .other_pointer = more->value[place]) > 0));
 }
 
 // src/bin's binary at `place` and the one before it each put in the other's place

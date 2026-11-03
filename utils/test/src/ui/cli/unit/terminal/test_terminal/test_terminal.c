@@ -6,8 +6,9 @@
 // pseudo-terminal, what it writes drained onto its xterm, text typed while it starts sent once it settles, and its end
 // printed; and the terminal's model, its panel opened on a tab whose shell starts as its pane is sized, the keys it
 // takes and those it lets go to the window, what it publishes, and the lines that leave the xterm's top in the tab's
-// text and its history's file; and the panel's place stored as the window ends and read back as it starts, a tab's
-// shell started in its folder and the rows standing at the end written to its history
+// text and its history's file; the panel's place stored as the window ends and read back as it starts, a tab's
+// shell started in its folder and the rows standing at the end written to its history; and the Terminal menu's Split
+// Terminal shown on while a shell stands beside the one shown
 #include "ui/cli/src/command_line/cells.h"
 #include "ui/cli/src/controller/controller_internal.h"
 #include "ui/cli/src/machine/state.h"
@@ -604,4 +605,66 @@ void test_a_tab_read_back_starts_its_shell_in_its_folder_and_its_rows_reach_its_
     }
     EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .owner = &g_cli_terminal_cells, .bytes_bytes_other = history);
     TEST_ASSERT_TRUE_MESSAGE(found, "the rows standing as the window ended are in the tab's history");
+}
+
+// the row of the first open menu of `menus` whose label is `label`, a C string: NULL where none is
+static const CliMenuRow *menu_row(const CliMenus *menus, const char *label)
+{
+    for (unsigned int at = 0u; (menus->levels != 0u) && (at < menus->level[0].rows); at += 1u)
+    {
+        if (strcmp(menus->level[0].row[at].label, label) == 0)
+        {
+            return &menus->level[0].row[at];
+        }
+    }
+    return NULL;
+}
+
+// the Terminal menu opened on the bar, its menus as the controller publishes them
+static CliMenus *terminal_menu_read(void)
+{
+    CliMenus *const bar = (CliMenus *)EMBED_CALL(cli_model_commands.menus_alloc, CliModelCtx, .at = 0u);
+    TEST_ASSERT_NOT_NULL(bar);
+    unsigned int title = 0u;
+    while ((title < bar->titles) && (strcmp(bar->title[title], "Terminal") != 0))
+    {
+        title += 1u;
+    }
+    TEST_ASSERT_LESS_THAN_UINT(bar->titles, title);
+    g_cli_cells->persistent_buf_release(bar, &g_cli_controller_cells);
+    const CliInput pressed = {.kind = CLI_INPUT_POINTER_DOWN, .hit = CLI_HIT_MENU_TITLE, .index = title};
+    EMBED_CALL(cli_model_commands.menu_input, CliModelCtx, .input = &pressed);
+    CliMenus *const menus = (CliMenus *)EMBED_CALL(cli_model_commands.menus_alloc, CliModelCtx, .at = 0u);
+    TEST_ASSERT_NOT_NULL(menus);
+    // a press away from the menus closes them again
+    const CliInput away = {.kind = CLI_INPUT_POINTER_DOWN, .hit = CLI_HIT_NONE};
+    EMBED_CALL(cli_model_commands.menu_input, CliModelCtx, .input = &away);
+    return menus;
+}
+
+void test_the_terminal_menu_shows_split_terminal_on_while_a_shell_stands_beside_the_one_shown(void)
+{
+#if defined(_WIN32)
+    TEST_ASSERT_EQUAL_INT(0, _putenv_s("ORIOR_HOME", "build/harness/terminal_home"));
+#else
+    TEST_ASSERT_EQUAL_INT(0, setenv("ORIOR_HOME", "build/harness/terminal_home", 1));
+#endif
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_commands.catalog_read, CliModelCtx, .at = 0u));
+    EMBED_CALL(cli_model_terminal.restore, CliModelCtx, .input = NULL);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.command, CliModelCtx, .path = "toggle"));
+    CliMenus *const alone = terminal_menu_read();
+    const CliMenuRow *const split_alone = menu_row(alone, "Split Terminal");
+    const CliMenuRow *const toggle = menu_row(alone, "Toggle Terminal");
+    TEST_ASSERT_NOT_NULL(split_alone);
+    TEST_ASSERT_NOT_NULL(toggle);
+    TEST_ASSERT_EQUAL_INT_MESSAGE(0, split_alone->checked, "Split Terminal is off with one shell shown");
+    TEST_ASSERT_EQUAL_INT_MESSAGE(-1, toggle->checked, "Toggle Terminal is neither on nor off");
+    g_cli_cells->persistent_buf_release(alone, &g_cli_controller_cells);
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.command, CliModelCtx, .path = "split"));
+    CliMenus *const split = terminal_menu_read();
+    const CliMenuRow *const split_beside = menu_row(split, "Split Terminal");
+    TEST_ASSERT_NOT_NULL(split_beside);
+    TEST_ASSERT_EQUAL_INT_MESSAGE(1, split_beside->checked, "Split Terminal is on while a shell stands beside");
+    g_cli_cells->persistent_buf_release(split, &g_cli_controller_cells);
+    EMBED_CALL(cli_model_terminal.end, CliModelCtx, .at = 0u);
 }

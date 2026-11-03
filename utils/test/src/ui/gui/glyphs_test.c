@@ -58,6 +58,18 @@ int main(void)
     }
     cli_check((EMBED_CALL(gui_glyphs_face.face_had, GuiGlyphsFaceCfg, .glyphs_read = &glyphs, .face = GUI_FACE_HEAD_BOLD) != GUI_FACE_HEAD_BOLD) && (glyphs.data[GUI_FACE_HEAD_BOLD] == NULL), "given back it holds no file");
 
+    // a check mark, which the interface face has none of, is drawn from the symbol face, read the first time a letter
+    // needs it
+    cli_check(!glyphs.symbol_looked && !glyphs.has[GUI_FACE_SYMBOL], "the symbol face is not looked for until a letter needs it");
+    float mark_advance = 0.0f;
+    const GuiMask *const mark = EMBED_CALL(gui_glyphs_face_letter.glyph, GuiGlyphsFaceLetterCfg, .glyphs = &glyphs, .face = GUI_FACE_HEAD, .letter = 0x2713u, .size = 13u, .advance = &mark_advance);
+#if defined(_WIN32)
+    cli_check(glyphs.has[GUI_FACE_SYMBOL], "Windows' symbol face is read for the check mark");
+#endif
+    float symbol_advance = 0.0f;
+    cli_check(!glyphs.has[GUI_FACE_SYMBOL] || ((mark != NULL) && (mark->cover != NULL) && (EMBED_CALL(gui_glyphs_face_letter.glyph, GuiGlyphsFaceLetterCfg, .glyphs = &glyphs, .face = GUI_FACE_SYMBOL, .letter = 0x2713u, .size = 13u, .advance = &symbol_advance) == mark)),
+              "the check mark asked of the interface face is the symbol face's");
+
     float advance = 0.0f;
     const GuiMask *const letter = EMBED_CALL(gui_glyphs_face_letter.glyph, GuiGlyphsFaceLetterCfg, .glyphs = &glyphs, .face = GUI_FACE_CODE, .letter = 'M', .size = 13u, .advance = &advance);
     cli_check(letter != NULL, "the glyph of M at thirteen pixels is drawn");

@@ -244,9 +244,9 @@ EMBED_INLINE int terminal_start_folder(const TerminalCtx *args)
     mmgr_line_ch(args->out, ':');
     mmgr_line_put(args->out, (folder[2] == '/') ? (folder + 2) : "/");
     const unsigned long long length = args->out->at;
-    const int folder_found = mmgr_line_ok(args->out) && (mmgr_line_finish(args->out) != 0ULL) &&
-                             EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx,
-                                        .path = args->out->out + began);
+    const int folder_found =
+        mmgr_line_ok(args->out) && (mmgr_line_finish(args->out) != 0ULL) &&
+        EMBED_CALL(query_path_seconds_internal.is_folder, QueryPathSecondsCtx, .path = args->out->out + began);
     args->out->at = folder_found ? length : began;
     return folder_found;
 }
@@ -968,6 +968,12 @@ int cli_model_terminal_command(const CliModelCtx *args)
     }
 }
 
+int cli_model_terminal_checked(const CliModelCtx *args)
+{
+    return cellul.eq(&(CatenaFinitaCfg){.src = args->path, .other = "terminal-split", .cap = CLI_LABEL_MAX_LEN}) &&
+           (s_terminal.beside >= 0);
+}
+
 int cli_model_terminal_key(const CliModelCtx *args)
 {
     if (!s_terminal.open || !s_terminal.keys)
@@ -1220,8 +1226,8 @@ EMBED_INLINE void terminal_rows_file(const TerminalCtx *args)
     }
     if (mmgr_line_ok(&out) && (written != 0ULL))
     {
-        (void)EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = tab->history_path,
-                         .bytes = text, .size = written, .fresh = 0);
+        (void)EMBED_CALL(cli_path_bytes_internal.file_append, CliPathBytesCtx, .path = tab->history_path, .bytes = text,
+                         .size = written, .fresh = 0);
     }
     g_cli_cells->persistent_buf_release(text, &g_cli_terminal_cells);
 }

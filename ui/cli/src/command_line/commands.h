@@ -26,8 +26,9 @@ typedef struct CliCommandsItemCfg CliCommandsItemCfg;
 #define CLI_LABEL_MAX_LEN 256u
 
 // One row of a menu: its label, the command it runs, the keys that run it in the window, the words it takes after its
-// name, what it needs before it can be chosen, 1 where the command line runs it in the terminal, whether it is a line,
-// hidden, or filled in as its menu opens, and the list of the rows under it, 0 where it has none
+// name, what it needs before it can be chosen, the name of the state it shows on or off, empty where it is neither, 1
+// where the command line runs it in the terminal, whether it is a line, hidden, or filled in as its menu opens, and the
+// list of the rows under it, 0 where it has none
 typedef struct
 {
     const char *label;
@@ -35,6 +36,7 @@ typedef struct
     const char *keys;
     const char *args;
     const char *needs;
+    const char *checks;
     int console;
     int line;
     int hidden;

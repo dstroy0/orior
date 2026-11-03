@@ -98,13 +98,15 @@ typedef struct
 #define CLI_MENU_ROW_ITEM 1u
 #define CLI_MENU_ROW_MORE 2u
 
-// One row of an open menu: its kind, its label and its keys, empty where none, and whether it cannot be chosen
+// One row of an open menu: its kind, its label and its keys, empty where none, whether it cannot be chosen, and the
+// state it shows, 1 on and 0 off, -1 where it shows none
 typedef struct
 {
     unsigned int kind;
     const char *label;
     const char *keys;
     int disabled;
+    int checked;
 } CliMenuRow;
 
 // One open menu: its rows, the row marked and the row whose items are open under it, each -1 for none

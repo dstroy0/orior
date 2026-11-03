@@ -16,8 +16,8 @@ typedef struct GuiGlyphsRasterCfg GuiGlyphsRasterCfg;
 typedef struct GuiGlyphsFaceCfg GuiGlyphsFaceCfg;
 typedef struct GuiGlyphsCfg GuiGlyphsCfg;
 
-// the faces: the code face regular, bold, italic and bold italic, the interface face, the reading face and the
-// interface face bold, the large name's
+// the faces: the code face regular, bold, italic and bold italic, the interface face, the reading face, the interface
+// face bold, the large name's, and the symbol face a letter is drawn from where its own face has none of it
 #define GUI_FACE_CODE 0u
 #define GUI_FACE_CODE_BOLD 1u
 #define GUI_FACE_CODE_ITALIC 2u
@@ -25,7 +25,8 @@ typedef struct GuiGlyphsCfg GuiGlyphsCfg;
 #define GUI_FACE_HEAD 4u
 #define GUI_FACE_TEXT 5u
 #define GUI_FACE_HEAD_BOLD 6u
-#define GUI_FACES 7u
+#define GUI_FACE_SYMBOL 7u
+#define GUI_FACES 8u
 // the glyphs saved drawn at once; past three quarters of them every one is let go and drawn again as it is asked for
 #define GUI_GLYPH_CACHE_ENTRIES 4096u
 // the stem darkening: how far a stroke's side is pushed out, most at the small sizes and least at the large, in pixels;
@@ -92,15 +93,17 @@ typedef struct
     float advance[GUI_ASCII_COUNT];
 } GuiAsciiTable;
 
-// The glyphs: each face as read and whether it was, the file each was read from, the outline a glyph is drawn through,
-// the cache's entries, one rasterized glyph each, with how many of them are in use, and the cells, one glyph in one
-// color each, with how many of them are in use; and the ASCII tables, the one last found and the next to be taken
+// The glyphs: each face as read and whether it was, the file each was read from, whether the symbol face has been
+// looked for, the outline a glyph is drawn through, the cache's entries, one rasterized glyph each, with how many of
+// them are in use, and the cells, one glyph in one color each, with how many of them are in use; and the ASCII tables,
+// the one last found and the next to be taken
 typedef struct
 {
     CliFont face[GUI_FACES];
     int has[GUI_FACES];
     const unsigned char *data[GUI_FACES];
     unsigned long long data_size[GUI_FACES];
+    int symbol_looked;
     CliContours *contours;
     GuiCachedGlyph *entry;
     unsigned int cached;
@@ -122,8 +125,9 @@ unsigned int gui_face_had(const GuiGlyphsFaceCfg *args);
 // now, 0 where it already was or the system has none; and given back with its letters' masks
 int gui_glyphs_head_bold_read(const GuiGlyphsCfg *args);
 void gui_glyphs_head_bold_free(const GuiGlyphsCfg *args);
-// the glyph of `letter` in `face` at `size` pixels an em, drawn and saved: its mask, with no pixels where the letter
-// draws none, or NULL where it could not be drawn; its advance in pixels into `advance`
+// the glyph of `letter` in `face` at `size` pixels an em, drawn and saved, from the symbol face where `face` has none
+// of it and the symbol face has, that face read from the system's fonts the first time a letter needs it: its mask,
+// with no pixels where the letter draws none, or NULL where it could not be drawn; its advance in pixels into `advance`
 const GuiMask *gui_glyph(const GuiGlyphsFaceLetterCfg *args);
 // the cell of `letter` in `face` at `size` pixels an em in `color`, made from the glyph's mask and saved: its lanes
 // laid for the blend over any ground, with no pixels where the letter draws none, or NULL where the glyph could not

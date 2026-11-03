@@ -192,7 +192,8 @@ void cli_model_watch_end(const CliModelCtx *args);
 // where `input` is a CLI_INPUT_TERMINAL_HEIGHT; every shell drained and the place stored once its time comes, 1 where
 // an xterm changed; the clock's reading of its next timer, 0 for none; its snapshot, and a snapshot's frames and cell
 // released; the place read back from the values `input` holds, a CliStateEntries or NULL for none, as the window
-// starts; and the place stored, every shell hung up on and its tabs let go
+// starts; the place stored, every shell hung up on and its tabs let go; and whether the terminal's state `path` is
+// on, terminal-split while a shell stands beside the one shown: 1, or 0 where it is off or none of the terminal's
 int cli_model_terminal_command(const CliModelCtx *args);
 int cli_model_terminal_key(const CliModelCtx *args);
 int cli_model_terminal_text(const CliModelCtx *args);
@@ -206,6 +207,7 @@ void *cli_model_terminal_alloc(const CliModelCtx *args);
 void cli_model_terminal_release(CliTerminalPanel *panel);
 void cli_model_terminal_restore(const CliModelCtx *args);
 void cli_model_terminal_end(const CliModelCtx *args);
+int cli_model_terminal_checked(const CliModelCtx *args);
 
 struct CliModelCtx
 {
@@ -395,9 +397,10 @@ typedef struct
     void *(*alloc)(const CliModelCtx *args);
     void (*restore)(const CliModelCtx *args);
     void (*end)(const CliModelCtx *args);
+    int (*checked)(const CliModelCtx *args);
 } CliModelTerminalNs;
 EMBED_TABLE_LAYOUT(CliModelTerminalNs, command, key, text, press, pointer, wheel, size, step, next_ms, alloc, restore,
-                   end);
+                   end, checked);
 EMBED_TABLE_STORAGE CliModelTerminalNs cli_model_terminal EMBED_UNUSED = {
     .command = cli_model_terminal_command,
     .key = cli_model_terminal_key,
@@ -411,6 +414,7 @@ EMBED_TABLE_STORAGE CliModelTerminalNs cli_model_terminal EMBED_UNUSED = {
     .alloc = cli_model_terminal_alloc,
     .restore = cli_model_terminal_restore,
     .end = cli_model_terminal_end,
+    .checked = cli_model_terminal_checked,
 };
 
 #endif

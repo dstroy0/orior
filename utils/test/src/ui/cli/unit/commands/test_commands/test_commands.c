@@ -84,6 +84,29 @@ void test_no_command_of_a_job_menu_is_a_job_path(void)
     }
 }
 
+void test_an_item_that_is_on_or_off_reads_the_name_of_its_state_and_every_other_none(void)
+{
+    unsigned int found = 0u;
+    for (unsigned int menu = 0u; menu < cli_menus(); menu += 1u)
+    {
+        const unsigned int items = EMBED_CALL(cli_commands_menu_capacity.menu_items, CliCommandsMenuCapacityCfg, .menu = menu, .items = s_items, .capacity = CLI_ITEMS_MAX);
+        for (unsigned int at = 0u; at < items; at += 1u)
+        {
+            if (cellul.eq(&(CatenaFinitaCfg){.src = s_items[at].command, .other = "split", .cap = CLI_CELLS_POOL}))
+            {
+                TEST_ASSERT_EQUAL_STRING("terminal-split", s_items[at].checks);
+                found += 1u;
+            }
+            else if (cellul.eq(&(CatenaFinitaCfg){.src = s_items[at].command, .other = "toggle", .cap = CLI_CELLS_POOL}))
+            {
+                TEST_ASSERT_EQUAL_STRING("", s_items[at].checks);
+                found += 1u;
+            }
+        }
+    }
+    TEST_ASSERT_EQUAL_UINT(2u, found);
+}
+
 void test_arguments_outside_brackets_are_required(void)
 {
     assert_arguments_required(2u, "<file> <line> [condition [hits [message]]]");

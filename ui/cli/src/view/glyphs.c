@@ -28,6 +28,10 @@ static const char *const s_serif[6][4] = {
      "LiberationSerif-BoldItalic.ttf"},
     {"Times New Roman.ttf", "", "", ""},
     {"times.ttf", "timesbd.ttf", "timesi.ttf", "timesbi.ttf"}};
+// the families the symbol face is looked for among, in the order they are preferred: the one the system's own text
+// falls back to for a letter its face has none of
+static const char *const s_symbol[3][4] = {
+    {"seguisym.ttf", "", "", ""}, {"DejaVuSans.ttf", "", "", ""}, {"NotoSansSymbols2-Regular.ttf", "", "", ""}};
 
 typedef struct
 {
@@ -238,6 +242,31 @@ void gui_glyphs_head_bold_free(const GuiGlyphsCfg *args)
     EMBED_CALL(glyphs_face_free, GlyphsCtx, .glyphs = args->glyphs, .face = GUI_FACE_HEAD_BOLD);
 }
 
+// the symbol face read from the first of its families the system's font folders hold, looked for once: 1 where it is
+// read
+EMBED_INLINE int glyphs_symbol_read(const GlyphsCtx *args)
+{
+    GuiGlyphs *const glyphs = args->glyphs;
+    if (glyphs->symbol_looked)
+    {
+        return glyphs->has[GUI_FACE_SYMBOL];
+    }
+    glyphs->symbol_looked = 1;
+    unsigned int (*const ranges)[3] =
+        g_cli_cells->temporary_buf_alloc(CLI_FONT_RANGES * sizeof(*ranges), &g_gui_glyphs_cells);
+    if (ranges == NULL)
+    {
+        return 0;
+    }
+    char paths[4][CLI_PATH_MAX_LEN];
+    EMBED_CALL(cli_font_families.find, CliFontFamiliesCfg, .families = s_symbol,
+               .count = sizeof(s_symbol) / sizeof(s_symbol[0]), .paths = paths);
+    glyphs->has[GUI_FACE_SYMBOL] = EMBED_CALL(glyphs_face_read, GlyphsCtx, .glyphs = glyphs, .face = GUI_FACE_SYMBOL,
+                                              .path = paths[0], .ranges = ranges);
+    g_cli_cells->persistent_buf_release(ranges, &g_gui_glyphs_cells);
+    return glyphs->has[GUI_FACE_SYMBOL];
+}
+
 unsigned int gui_face_had(const GuiGlyphsFaceCfg *args)
 {
     if ((args->face == GUI_FACE_HEAD_BOLD) && !args->glyphs_read->has[args->face] &&
@@ -412,10 +441,23 @@ const GuiMask *gui_glyph(const GuiGlyphsFaceLetterCfg *args)
     unsigned int face = args->face;
     unsigned int size = args->size;
     float *advance = args->advance;
-    const unsigned int had =
+    unsigned int had =
         EMBED_CALL(gui_glyphs_face.face_had, GuiGlyphsFaceCfg, .glyphs_read = args->glyphs, .face = face);
-    const CliFont *const font = &args->glyphs->face[had];
-    const unsigned int glyph = EMBED_CALL(cli_font.glyph, CliFontCfg, .font = font, .letter = args->letter);
+    const CliFont *font = &args->glyphs->face[had];
+    unsigned int glyph = EMBED_CALL(cli_font.glyph, CliFontCfg, .font = font, .letter = args->letter);
+    // a letter its face has none of is drawn from the symbol face where that face has it, as the system's text does
+    if ((glyph == 0u) && (args->letter > 0x20u) && (had != GUI_FACE_SYMBOL) &&
+        EMBED_CALL(glyphs_symbol_read, GlyphsCtx, .glyphs = args->glyphs))
+    {
+        const unsigned int symbol = EMBED_CALL(cli_font.glyph, CliFontCfg, .font = &args->glyphs->face[GUI_FACE_SYMBOL],
+                                               .letter = args->letter);
+        if (symbol != 0u)
+        {
+            had = GUI_FACE_SYMBOL;
+            font = &args->glyphs->face[had];
+            glyph = symbol;
+        }
+    }
     const float scale = (float)size / font->units;
     *advance = EMBED_CALL(cli_font_glyph_table.advance, CliFontGlyphCfg, .font = font, .glyph = glyph) * scale;
     GuiCachedGlyph *const entry =
