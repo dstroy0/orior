@@ -45,7 +45,7 @@
 
 // what the pointer hit, as the window's layout places it; a key sent while the name's pane stands names the wordmark,
 // no view taking it. In the terminal: its view `index`, a tab, a tab's ×, New Terminal, Split, and the panel on none of
-// these
+// these. On the status bar: the notice it shows, the Silence beside it, and Focus
 #define CLI_HIT_NONE 0u
 #define CLI_HIT_MENU_TITLE 1u
 #define CLI_HIT_MENU_ROW 2u
@@ -69,6 +69,9 @@
 #define CLI_HIT_TERMINAL_NEW 20u
 #define CLI_HIT_TERMINAL_SPLIT 21u
 #define CLI_HIT_TERMINAL_PANEL 22u
+#define CLI_HIT_STATUS_NOTICE 23u
+#define CLI_HIT_STATUS_SILENCE 24u
+#define CLI_HIT_STATUS_FOCUS 25u
 
 // the modifier keys down on an input, as bits
 #define CLI_INPUT_MOD_SHIFT 1u

@@ -147,7 +147,8 @@ EMBED_INLINE int commands_item_checked(const ControllerCommandsCtx *args)
         return -1;
     }
     const int motion = cellul.eq(&(CatenaFinitaCfg){.src = checks, .other = "reduce-motion", .cap = CLI_LABEL_MAX_LEN});
-    return (motion && (g_cli_model.motion_saved || g_cli_model.motion_system)) ||
+    const int focus = cellul.eq(&(CatenaFinitaCfg){.src = checks, .other = "focus", .cap = CLI_LABEL_MAX_LEN});
+    return (motion && (g_cli_model.motion_saved || g_cli_model.motion_system)) || (focus && g_cli_model.focus) ||
            EMBED_CALL(cli_model_terminal.checked, CliModelCtx, .path = checks);
 }
 
@@ -685,9 +686,20 @@ void cli_model_command_run(const CliModelCtx *args)
     {
         EMBED_CALL(cli_model_save.tabs_save, CliModelCtx, .at = 0u);
     }
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "focus", .cap = CLI_LABEL_MAX_LEN}))
+    {
+        EMBED_CALL(cli_model_notices.focus, CliModelCtx, .on = !g_cli_model.focus);
+    }
+    else if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "notice-show-again", .cap = CLI_LABEL_MAX_LEN}))
+    {
+        if (args->at != 0u)
+        {
+            EMBED_CALL(cli_model_notices.show_again, CliModelCtx, .path = args->words[0]);
+        }
+    }
     else if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "reduce-motion", .cap = CLI_LABEL_MAX_LEN}))
     {
-        // on or off as its word says, else turned from what shows, the saved setting or the system's wish
+        // on or off by its word, else turned from what shows, the saved setting or the system's wish
         const char *const word = (args->at != 0u) ? args->words[0] : "";
         const int on = cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "on", .cap = CLI_LABEL_MAX_LEN});
         const int off = cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "off", .cap = CLI_LABEL_MAX_LEN});

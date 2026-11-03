@@ -130,8 +130,8 @@ void cli_model_view_input(const CliModelCtx *args)
     g_cli_model.dirty |= CLI_MODEL_DIRTY(CLI_SNAPSHOT_FRAME);
     if (args->on)
     {
-        // the input may have edited the text, which the map's lines then no longer show, the server is told and the
-        // tab compared with its file
+        // the input may have edited the text, which the map's lines then no longer show, the server handed the change
+        // and the tab compared with its file
         g_cli_model.dirty |= CLI_MODEL_DIRTY(CLI_SNAPSHOT_MAP);
         EMBED_CALL(cli_model.server_changed, CliModelCtx, .at = 0u);
         // the tab shown is among the tabs
@@ -197,6 +197,11 @@ EMBED_INLINE void model_press(const ControllerModelCtx *args)
         return;
     case CLI_HIT_SUGGEST_ROW:
         EMBED_CALL(cli_model_panels.completion_accept, CliModelCtx, .at = input->index);
+        return;
+    case CLI_HIT_STATUS_NOTICE:
+    case CLI_HIT_STATUS_SILENCE:
+    case CLI_HIT_STATUS_FOCUS:
+        EMBED_CALL(cli_model_notices.press, CliModelCtx, .at = input->hit);
         return;
     default:
         break;
@@ -380,6 +385,12 @@ EMBED_INLINE void model_setting(const ControllerModelCtx *args)
 
 void cli_controller_model_input(const CliInput *input, const char *bytes)
 {
+    // the notices know when the reader commanded and when the work rests
+    if ((input->kind == CLI_INPUT_KEY) || (input->kind == CLI_INPUT_TEXT) || (input->kind == CLI_INPUT_POINTER_DOWN))
+    {
+        EMBED_CALL(cli_model_notices.input, CliModelCtx, .input = input,
+                   .path = (input->kind == CLI_INPUT_KEY) ? bytes : NULL);
+    }
     switch (input->kind)
     {
     case CLI_INPUT_KEY:
@@ -516,10 +527,12 @@ static void *model_status_alloc(void)
 {
     const char *const title = (g_cli_model.title != NULL) ? g_cli_model.title : "";
     const char *const path = (g_cli_model.active >= 0) ? g_cli_model.tab[g_cli_model.active]->path : "";
+    const char *const notice = (g_cli_model.notice != NULL) ? g_cli_model.notice : "";
     const unsigned long long title_size = cellul.len(&(CatenaFinitaCfg){.src = title, .cap = CLI_PATH_MAX_LEN}) + 1ULL;
     const unsigned long long path_size = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN}) + 1ULL;
-    CliStatus *const status =
-        g_cli_cells->persistent_buf_alloc(sizeof(*status) + title_size + path_size, &g_cli_controller_cells);
+    const unsigned long long notice_size = cellul.len(&(CatenaFinitaCfg){.src = notice, .cap = CLI_CELLS_POOL}) + 1ULL;
+    CliStatus *const status = g_cli_cells->persistent_buf_alloc(sizeof(*status) + title_size + path_size + notice_size,
+                                                                &g_cli_controller_cells);
     if (status == NULL)
     {
         return NULL;
@@ -527,6 +540,7 @@ static void *model_status_alloc(void)
     char *const text = (char *)(void *)(status + 1);
     memor.cpy(&(MemoriaCfg){.dst = text, .src = title, .bytes = title_size});
     memor.cpy(&(MemoriaCfg){.dst = text + title_size, .src = path, .bytes = path_size});
+    memor.cpy(&(MemoriaCfg){.dst = text + title_size + path_size, .src = notice, .bytes = notice_size});
     const char *const key = EMBED_CALL(cli_model.key, CliModelCtx, .at = 0u);
     *status = (CliStatus){text,
                           text + title_size,
@@ -541,7 +555,11 @@ static void *model_status_alloc(void)
                           g_cli_model.memory_bytes,
                           g_cli_model.wordmark,
                           g_cli_model.tree_read,
-                          g_cli_model.shown};
+                          g_cli_model.shown,
+                          text + title_size + path_size,
+                          g_cli_model.notice_failed,
+                          g_cli_model.focus,
+                          g_cli_model.focus_waiting};
     return status;
 }
 
@@ -658,6 +676,7 @@ int cli_controller_model_step(void)
     did = EMBED_CALL(cli_model_door.step, CliModelCtx, .at = 0u) || did;
     did = EMBED_CALL(cli_model_watch.step, CliModelCtx, .at = 0u) || did;
     did = EMBED_CALL(cli_model_terminal.step, CliModelCtx, .at = 0u) || did;
+    did = EMBED_CALL(cli_model_notices.step, CliModelCtx, .at = 0u) || did;
     if (!s_memory_reading && (now_ms >= g_cli_model.memory_due_ms))
     {
         unsigned long long *const reading =
@@ -688,6 +707,7 @@ unsigned long long cli_controller_model_due_ms(void)
     const unsigned long long dues[] = {EMBED_CALL(cli_model_commands.menu_due_ms, CliModelCtx, .at = 0u),
                                        EMBED_CALL(cli_model_panels.due_ms, CliModelCtx, .at = 0u),
                                        EMBED_CALL(cli_model_terminal.next_ms, CliModelCtx, .at = 0u),
+                                       EMBED_CALL(cli_model_notices.due_ms, CliModelCtx, .at = 0u),
                                        g_cli_model.memory_due_ms};
     unsigned long long earliest = 0ULL;
     for (unsigned int at = 0u; at < (sizeof(dues) / sizeof(dues[0])); at += 1u)
@@ -804,6 +824,7 @@ void cli_controller_model_begin(void)
         }
     }
     EMBED_CALL(model_wordmark_read, ControllerModelCtx, .entries = entries);
+    EMBED_CALL(cli_model_notices.restore, CliModelCtx, .input = entries);
     EMBED_CALL(cli_model_terminal.restore, CliModelCtx, .input = entries);
     if (g_cli_model.root != NULL)
     {

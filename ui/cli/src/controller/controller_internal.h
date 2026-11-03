@@ -60,11 +60,12 @@ typedef struct
 } CliModelMenu;
 
 // The model. The tree's root and name, each in a cell of its own, NULL with no tree; the tabs, the one shown and the
-// one shown before; the editor's rows and columns as the window last said; whether the editor takes the keys, and the
-// strip's tool shown; the lines the map stands for and whether the window has said; the place wanted for the next frame
-// of the tab shown; what orior's folder has been asked for the session; the asks under way and whether the tree's check
-// runs; less motion as the saved setting and as the system asks for it; the parts to publish; and when the next timer
-// is due
+// one shown before; the editor's rows and columns as the window last sent them; whether the editor takes the keys, and
+// the strip's tool shown; the lines the map stands for and whether the window has sent them; the place wanted for the
+// next frame of the tab shown; what orior's folder has been asked for the session; the asks under way and whether the
+// tree's check runs; less motion as the saved setting and as the system asks for it; the status bar's notice, its
+// first line in a cell of its own, NULL for none, whether it is a failure's, whether Focus holds the notices and how
+// many wait on it; the parts to publish; and when the next timer comes
 typedef struct
 {
     char *root;
@@ -97,6 +98,10 @@ typedef struct
     unsigned int editor_percent;
     int motion_saved;
     int motion_system;
+    char *notice;
+    int notice_failed;
+    int focus;
+    unsigned int focus_waiting;
     unsigned long long memory_bytes;
     unsigned long long memory_due_ms;
     unsigned long long shown;
@@ -147,6 +152,29 @@ void cli_model_tab_compare(const CliModelCtx *args);
 void cli_model_tab_save(const CliModelCtx *args);
 void cli_model_tabs_save(const CliModelCtx *args);
 int cli_model_save_needs(const CliModelCtx *args);
+// the notices (controller_notices.c), as the page's status bar shows them: the notice `path` posted, a failure's where
+// `on` is 1: one that answers a press or a key that gives a command within CLI_NOTICES_ANSWERS_MS shows at once, any
+// other waits for a break in the work, CLI_NOTICES_REST_MS of no input or a save, and Focus holds every one until it
+// ends; a notice whose kind is put away shows not at all; one shown stands CLI_NOTICES_SHOWN_MS on the status bar, a
+// failure's CLI_NOTICES_FAILED_MS, and a press on it takes it away, one on Silence beside it putting its kind away
+// for good, saved in orior's folder. One input, `input` a CliInput with its key's name `path`, handed on so the notices
+// know when the reader commanded and when the work rests; a break taken; a press on the status bar's notice, Silence
+// or Focus, `at` the hit; Focus on where `on` is 1 and off where it is 0; the kind `path` shown again; the timers whose
+// time came taken, 1 where anything changed; the clock's reading of the next timer, 0 for none; and the kinds put away
+// read from `input`, a CliStateEntries, as the window begins
+#define CLI_NOTICES_ANSWERS_MS 1500ULL
+#define CLI_NOTICES_REST_MS 2000ULL
+#define CLI_NOTICES_SHOWN_MS 5000ULL
+#define CLI_NOTICES_FAILED_MS 15000ULL
+void cli_model_notice_post(const CliModelCtx *args);
+void cli_model_notices_input(const CliModelCtx *args);
+void cli_model_notices_break(const CliModelCtx *args);
+void cli_model_notices_press(const CliModelCtx *args);
+void cli_model_notices_focus(const CliModelCtx *args);
+void cli_model_notices_show_again(const CliModelCtx *args);
+int cli_model_notices_step(const CliModelCtx *args);
+unsigned long long cli_model_notices_due_ms(const CliModelCtx *args);
+void cli_model_notices_restore(const CliModelCtx *args);
 // the text stored under `key` as its file would stand: its lines, line ends and census, and where `digest` is 1 its
 // SHA-256 where it is read whole, on whatever thread (controller_save.c)
 typedef struct
@@ -364,6 +392,31 @@ EMBED_TABLE_STORAGE CliModelSaveNs cli_model_save EMBED_UNUSED = {
     .tab_save = cli_model_tab_save,
     .tabs_save = cli_model_tabs_save,
     .needs = cli_model_save_needs,
+};
+
+typedef struct
+{
+    void (*post)(const CliModelCtx *args);
+    void (*input)(const CliModelCtx *args);
+    void (*taken)(const CliModelCtx *args);
+    void (*press)(const CliModelCtx *args);
+    void (*focus)(const CliModelCtx *args);
+    void (*show_again)(const CliModelCtx *args);
+    int (*step)(const CliModelCtx *args);
+    unsigned long long (*due_ms)(const CliModelCtx *args);
+    void (*restore)(const CliModelCtx *args);
+} CliModelNoticesNs;
+EMBED_TABLE_LAYOUT(CliModelNoticesNs, post, input, taken, press, focus, show_again, step, due_ms, restore);
+EMBED_TABLE_STORAGE CliModelNoticesNs cli_model_notices EMBED_UNUSED = {
+    .post = cli_model_notice_post,
+    .input = cli_model_notices_input,
+    .taken = cli_model_notices_break,
+    .press = cli_model_notices_press,
+    .focus = cli_model_notices_focus,
+    .show_again = cli_model_notices_show_again,
+    .step = cli_model_notices_step,
+    .due_ms = cli_model_notices_due_ms,
+    .restore = cli_model_notices_restore,
 };
 
 typedef struct

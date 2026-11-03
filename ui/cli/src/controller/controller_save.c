@@ -19,7 +19,7 @@
 
 // A save under way on the files' lane: the tab's key, the tree and the file's path from the tree's top, each after it
 // in its cell; the text, `size` bytes in a cell of its own, its lines joined by newlines, NULL for a paged text, which
-// the pages write; the text as its file stands once written; and whether the write was done
+// the pages write; the text as its file stands once written; whether the write was done, and why not where it was not
 typedef struct
 {
     char *key;
@@ -30,6 +30,7 @@ typedef struct
     int paged;
     CliModelSavedText saved;
     int written;
+    char why[CLI_ERR_MSG_MAX_LEN];
 } CliModelWriting;
 
 typedef struct
@@ -115,12 +116,12 @@ void cli_model_tab_compare(const CliModelCtx *args)
 static void save_run(void *context)
 {
     CliModelWriting *const writing = (CliModelWriting *)context;
-    char why[CLI_ERR_MSG_MAX_LEN];
-    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+    VerbaLinea err_msg = {writing->why, sizeof(writing->why), 0ULL};
     if (writing->paged)
     {
         writing->written = EMBED_CALL(cli_pages_path.save, CliPagesPathCfg, .key = writing->key, .path = writing->path,
                                       .err_msg = &err_msg);
+        (void)mmgr_line_finish(&err_msg);
         return;
     }
     const char *text = writing->text;
@@ -133,6 +134,9 @@ static void save_run(void *context)
         ended = g_cli_cells->persistent_buf_alloc(writing->size + breaks + 1ULL, &g_cli_controller_cells);
         if (ended == NULL)
         {
+            mmgr_line_put(&err_msg, writing->path);
+            mmgr_line_put(&err_msg, ": the cells cannot meet its text with its line ends");
+            (void)mmgr_line_finish(&err_msg);
             return;
         }
         VerbaLinea line = {ended, writing->size + breaks + 1ULL, 0ULL};
@@ -150,6 +154,7 @@ static void save_run(void *context)
     }
     writing->written = EMBED_CALL(cli_files_root_err_msg_text.write, CliFilesRootErrMsgTextCfg, .root = writing->root,
                                   .file = writing->path, .text = text, .length = length, .err_msg = &err_msg);
+    (void)mmgr_line_finish(&err_msg);
     g_cli_cells->persistent_buf_release(ended, &g_cli_controller_cells);
     EMBED_CALL(cli_digest_bytes_size.sha256_bytes, CliDigestBytesSizeCfg, .bytes = writing->text, .size = writing->size,
                .digest = writing->saved.digest);
@@ -171,10 +176,20 @@ EMBED_INLINE int save_tab_by_key(const ControllerSaveCtx *args)
 }
 
 // what comes back on the controller's thread: the tab's file as it now stands, the tab no longer changed where its text
-// stands there still, nor its close waiting; and a save asked for meanwhile begun
+// stands there still, nor its close waiting, and the save a break for the notices waiting; a write that failed posted
+// as a failure's notice, the tab left changed; and a save asked for meanwhile begun
 static void save_done(void *context)
 {
     CliModelWriting *const writing = (CliModelWriting *)context;
+    if (writing->written)
+    {
+        EMBED_CALL(cli_model_notices.taken, CliModelCtx, .at = 0u);
+    }
+    else
+    {
+        EMBED_CALL(cli_model_notices.post, CliModelCtx,
+                   .path = (writing->why[0] != '\0') ? writing->why : "The file could not be written.", .on = 1);
+    }
     const int at = EMBED_CALL(save_tab_by_key, ControllerSaveCtx, .key = writing->key);
     if (at >= 0)
     {

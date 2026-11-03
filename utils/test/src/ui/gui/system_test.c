@@ -242,10 +242,10 @@ int main(void)
     cli_check((transferred.pointers == 6u) && (transferred.pointer == GUI_INPUT_MENU) && (transferred.x == 30) && (transferred.y == 20),
               "its release asks for a menu at its client pixel");
 
-    // the keys gone to another window are told, as a page's window is blurred
+    // the keys gone to another window come as a blur, as a page's window is blurred
     const unsigned int blurs_before = transferred.blurs;
     SendMessageW(window, WM_KILLFOCUS, 0, 0);
-    cli_check(transferred.blurs == (blurs_before + 1u), "the keys gone to another window are told as the window blurred");
+    cli_check(transferred.blurs == (blurs_before + 1u), "the keys gone to another window come as the window blurred");
 
     // the pointer gone from the client is told only where it stands off the window altogether
     POINT cursor;

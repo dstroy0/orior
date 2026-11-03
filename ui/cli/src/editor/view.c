@@ -40,8 +40,8 @@ typedef struct CliViewEdit
     struct CliViewEdit *before;
     struct CliViewEdit *after;
 } CliViewEdit;
-// A step: its first and last edits, how many, the kind of edit it holds and when its last was
-// written, the state the text stands in once it is done, and where the cursor and the anchor stood before it and after it
+// A step: its first and last edits, how many, the kind of edit it holds and when its last was written, the state the
+// text stands in once it is done, and where the cursor and the anchor stood before it and after it
 typedef struct
 {
     CliViewEdit *first;

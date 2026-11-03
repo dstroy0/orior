@@ -474,13 +474,13 @@ EMBED_INLINE void window_motion_layout(const GuiWindowCtx *args)
     }
 }
 
-void gui_window_motion_tell(const GuiWindowReducedCfg *args)
+void gui_window_motion_wish(const GuiWindowReducedCfg *args)
 {
     args->window->motion_system = args->reduced;
     EMBED_CALL(window_motion_layout, GuiWindowCtx, .window = args->window);
     // the controller marks Reduce Motion by the system's wish as well as the saved setting
-    const CliInput told = {.kind = CLI_INPUT_MOTION_SYSTEM, .index = args->reduced ? 1u : 0u};
-    cli_controller_input(&told, NULL);
+    const CliInput wished = {.kind = CLI_INPUT_MOTION_SYSTEM, .index = args->reduced ? 1u : 0u};
+    cli_controller_input(&wished, NULL);
 }
 
 void gui_window_show(const GuiWindowDisplayedCfg *args)
@@ -1198,6 +1198,30 @@ EMBED_INLINE void window_panels_draw(const GuiWindowCtx *args)
     }
 }
 
+// what the status bar shows, from the window's standing and the editor's frame as last published
+EMBED_INLINE GuiStatus window_status_read(const GuiWindowCtx *args)
+{
+    const CliViewFrame *const shown = args->window_read->editor.frame;
+    const CliStatus *const standing = args->window_read->status;
+    const CliPosition none = {0ULL, 0ULL};
+    const CliPosition cursor = (shown != NULL) ? shown->cursor : none;
+    const CliPosition anchor = (shown != NULL) ? shown->anchor : none;
+    return (GuiStatus){(standing != NULL) ? standing->path : "",
+                       shown != NULL,
+                       cursor.line,
+                       cursor.col,
+                       anchor.line,
+                       anchor.col,
+                       (standing != NULL) && standing->crlf,
+                       (shown != NULL) ? shown->indent_tabs : -1,
+                       (shown != NULL) ? shown->indent_size : 4u,
+                       (standing != NULL) ? standing->memory_bytes : 0ULL,
+                       (standing != NULL) ? standing->notice : "",
+                       (standing != NULL) && standing->notice_failed,
+                       (standing != NULL) && standing->focus,
+                       (standing != NULL) ? standing->focus_waiting : 0u};
+}
+
 // the view drawn: the tabs row, the editor with the map beside it, and the side where one is shown, each on the ground
 // the base laid it, and the panels over them
 EMBED_INLINE void window_view_draw(const GuiWindowCtx *args)
@@ -1354,21 +1378,7 @@ void gui_window_draw(const GuiWindowCfg *args)
                .table = table, .shadow = &args->window->controls_shadow);
     EMBED_CALL(gui_menubar_glyphs_frame.titles_draw, GuiMenubarGlyphsFrameCfg, .menubar_read = &args->window->menubar,
                .raster = raster, .glyphs = &args->window->glyphs, .palette = palette, .frame = frame);
-    const CliViewFrame *const shown = args->window->editor.frame;
-    const CliStatus *const standing = args->window->status;
-    const CliPosition none = {0ULL, 0ULL};
-    const CliPosition cursor = (shown != NULL) ? shown->cursor : none;
-    const CliPosition anchor = (shown != NULL) ? shown->anchor : none;
-    const GuiStatus status = {(standing != NULL) ? standing->path : "",
-                              shown != NULL,
-                              cursor.line,
-                              cursor.col,
-                              anchor.line,
-                              anchor.col,
-                              (standing != NULL) && standing->crlf,
-                              (shown != NULL) ? shown->indent_tabs : -1,
-                              (shown != NULL) ? shown->indent_size : 4u,
-                              (standing != NULL) ? standing->memory_bytes : 0ULL};
+    const GuiStatus status = EMBED_CALL(window_status_read, GuiWindowCtx, .window_read = args->window);
     EMBED_CALL(gui_statusbar_status.draw, GuiStatusbarStatusCfg, .raster = raster, .glyphs = &args->window->glyphs,
                .icons = &args->window->icons, .palette = palette, .frame = frame, .status = &status);
     // the large name as it stands or goes, the funnel over the whole window, and the eye over the bar and the strip
@@ -1495,6 +1505,15 @@ EMBED_INLINE void window_hit_read(const GuiWindowCtx *args)
                    .at_pointer = &input->index))
     {
         input->hit = CLI_HIT_TOOL;
+        return;
+    }
+    // the status bar takes every press on it, those on none of its pressable items to nothing
+    if (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = window->frame.status, .x = x, .y = y))
+    {
+        const GuiStatus status = EMBED_CALL(window_status_read, GuiWindowCtx, .window_read = window);
+        input->hit =
+            EMBED_CALL(gui_statusbar_x.hit, GuiStatusbarXCfg, .status = &status, .glyphs = (GuiGlyphs *)&window->glyphs,
+                       .icons = (GuiIcons *)&window->icons, .frame = &window->frame, .x = x, .y = y);
         return;
     }
     // the terminal's panel takes every press on it, those on none of its parts to nothing

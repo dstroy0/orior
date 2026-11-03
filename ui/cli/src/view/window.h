@@ -188,9 +188,9 @@ unsigned long long gui_window_timeout_ms(const GuiWindowInputCfg *args);
 // the frame laid for the claim's movement at `time_ms`: while a slide runs the stage standing then, the stages made
 // where a slide has been sent since they were; at rest the frame the slides rest at
 void gui_window_autohide_layout(const GuiWindowAutohideCfg *args);
-// the system's wish for less motion told, 1 where it asks for less: that or View's Reduce Motion, saved in orior's
+// the system's wish for less motion set, 1 where it asks for less: that or View's Reduce Motion, saved in orior's
 // folder, stills the lattice, the claim's slides, the name's flight and the caret's breath
-void gui_window_motion_tell(const GuiWindowReducedCfg *args);
+void gui_window_motion_wish(const GuiWindowReducedCfg *args);
 // the window gone off the screen, `displayed` 0, its ground's clock standing still, or back on it, 1, a frame owed
 void gui_window_show(const GuiWindowDisplayedCfg *args);
 // the window's icon, the wordmark's eye in the text's color, made into `icon` at `size` pixels a side with its own
@@ -347,11 +347,11 @@ EMBED_TABLE_STORAGE GuiWindowAutohideNs gui_window_autohide EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*motion_tell)(const GuiWindowReducedCfg *args);
+    void (*motion_wish)(const GuiWindowReducedCfg *args);
 } GuiWindowReducedNs;
-EMBED_TABLE_LAYOUT(GuiWindowReducedNs, motion_tell);
+EMBED_TABLE_LAYOUT(GuiWindowReducedNs, motion_wish);
 EMBED_TABLE_STORAGE GuiWindowReducedNs gui_window_reduced EMBED_UNUSED = {
-    .motion_tell = gui_window_motion_tell,
+    .motion_wish = gui_window_motion_wish,
 };
 
 typedef struct

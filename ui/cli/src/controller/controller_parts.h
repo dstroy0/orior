@@ -58,7 +58,8 @@ typedef struct
 // a carriage return and a newline; whether the editor takes the keys; the strip's tool shown, -1 for none, and whether
 // its Problems tool is marked; whether an ask is under way, a check among them; whether the window is to close; whether
 // Preferences' window stands open; what orior holds in RAM; what the wordmark does, and whether the tree is read for
-// it; and a count that moves as another file is shown
+// it; a count that moves as another file is shown; the notice the status bar shows, its first line, empty for none,
+// and whether it is a failure's; and whether Focus holds the notices and how many wait on it
 typedef struct
 {
     const char *title;
@@ -75,6 +76,10 @@ typedef struct
     unsigned int wordmark;
     int tree_read;
     unsigned long long shown;
+    const char *notice;
+    int notice_failed;
+    int focus;
+    unsigned int focus_waiting;
 } CliStatus;
 
 // One color a setting changes: its name as the palette names it and its value as the palette reads it

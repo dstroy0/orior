@@ -328,7 +328,7 @@ static void view_event(const CliViewEvent *event)
         EMBED_CALL(cli_window_shown.show, GuiWindowDisplayedCfg, .window = window, .displayed = event->flag);
         break;
     case CLI_VIEW_EVENT_MOTION:
-        EMBED_CALL(gui_window_reduced.motion_tell, GuiWindowReducedCfg, .window = window, .reduced = event->flag);
+        EMBED_CALL(gui_window_reduced.motion_wish, GuiWindowReducedCfg, .window = window, .reduced = event->flag);
         break;
     case CLI_VIEW_EVENT_PRESENTED:
         view_presented(event->surface);

@@ -1,10 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_controller.c: the controller's menus as it publishes them: Reduce Motion shown on while the saved setting or the
-// system asks for less motion, its command setting it on or off as its word says and else turning it from what shows;
-// a menu's serial, new as it opens and the same while it stands open; and the tabs' saves: a tab changed while its text
+// system asks for less motion, its command setting it on or off by its word and else turning it from what shows; a
+// menu's serial, new as it opens and the same while it stands open; the tabs' saves: a tab changed while its text
 // differs from the file as saved, a letter typed and taken out again no change, Save and Save All writing the texts with
-// their line ends, a changed tab's close waiting on a second, and Save and Save All chosen only while a text is changed
+// their line ends, a changed tab's close waiting on a second, and Save and Save All chosen only while a text is changed;
+// and the notices: one answering a command shown at once for five seconds, a failure fifteen in its first line, one
+// answering nothing waiting for the work to rest or a break, Focus holding every one until it ends, Silence putting a
+// kind away until it is shown again, and a save that cannot write posting its failure
 #include "ui/cli/src/controller/controller_internal.h"
 #include "ui/cli/src/controller/controller_work.h"
 #include "ui/cli/src/editor/view.h"
@@ -79,11 +82,11 @@ static int reduce_motion_checked(void)
     return checked;
 }
 
-// the system's wish for less motion told the controller, as the window tells it
+// the system's wish for less motion handed to the controller, as the window hands it on
 static void system_wish(unsigned int reduced)
 {
-    const CliInput told = {.kind = CLI_INPUT_MOTION_SYSTEM, .index = reduced};
-    cli_controller_model_input(&told, NULL);
+    const CliInput wished = {.kind = CLI_INPUT_MOTION_SYSTEM, .index = reduced};
+    cli_controller_model_input(&wished, NULL);
 }
 
 // the reduce-motion command run with its word, NULL for none
@@ -289,7 +292,7 @@ void test_a_tab_is_changed_while_its_text_differs_from_the_file_and_not_once_the
     TEST_ASSERT_TRUE_MESSAGE(tab->changed, "the line broken and joined again leaves the x typed");
 }
 
-void test_letters_moved_are_a_change_the_census_of_the_text_does_not_tell(void)
+void test_letters_moved_are_a_change_the_census_of_the_text_misses(void)
 {
     tree_made("moved.txt", "ab", NULL, NULL);
     const unsigned int at = tab_opened("moved.txt");
@@ -388,4 +391,161 @@ void test_save_and_save_all_can_be_chosen_only_while_a_text_is_changed(void)
     (void)tab_opened("second.txt");
     TEST_ASSERT_FALSE_MESSAGE(file_row_enabled("Save"), "the tab shown is not changed");
     TEST_ASSERT_TRUE_MESSAGE(file_row_enabled("Save All"), "another tab is");
+}
+
+// the clock let run `milliseconds`
+static void clock_passes(unsigned long long milliseconds)
+{
+    const unsigned long long until = cli_clock_milliseconds() + milliseconds;
+    while (cli_clock_milliseconds() < until)
+    {
+    }
+}
+
+// the key `name` pressed as the window hands it on, the reader commanding where it is no typing
+static void key_pressed(const char *name)
+{
+    const CliInput keyed = {.kind = CLI_INPUT_KEY};
+    EMBED_CALL(cli_model_notices.input, CliModelCtx, .input = &keyed, .path = name);
+}
+
+// text typed, which commands nothing
+static void text_typed(void)
+{
+    const CliInput typed = {.kind = CLI_INPUT_TEXT, .length = 1u};
+    EMBED_CALL(cli_model_notices.input, CliModelCtx, .input = &typed, .path = "x");
+}
+
+// the notices at rest: Focus off, the timers whose time came taken, and the notice shown taken away
+static void notices_rested(void)
+{
+    EMBED_CALL(cli_model_notices.focus, CliModelCtx, .on = 0);
+    (void)EMBED_CALL(cli_model_notices.step, CliModelCtx, .at = 0u);
+    if (g_cli_model.notice != NULL)
+    {
+        EMBED_CALL(cli_model_notices.press, CliModelCtx, .at = CLI_HIT_STATUS_NOTICE);
+    }
+}
+
+// whether the status bar shows `text`
+static int showing(const char *text)
+{
+    return (g_cli_model.notice != NULL) && (strcmp(g_cli_model.notice, text) == 0);
+}
+
+void test_a_notice_answering_a_command_shows_at_once_and_stands_five_seconds(void)
+{
+    notices_rested();
+    key_pressed("Ctrl+S");
+    EMBED_CALL(cli_model_notices.post, CliModelCtx, .path = "Formatted 3 places.");
+    TEST_ASSERT_TRUE(showing("Formatted 3 places."));
+    TEST_ASSERT_FALSE(g_cli_model.notice_failed);
+    const unsigned long long deadline = EMBED_CALL(cli_model_notices.due_ms, CliModelCtx, .at = 0u);
+    const unsigned long long now = cli_clock_milliseconds();
+    TEST_ASSERT_TRUE_MESSAGE((deadline > now + CLI_NOTICES_SHOWN_MS - 500ULL) && (deadline <= now + CLI_NOTICES_SHOWN_MS),
+                             "the word stands five seconds");
+    EMBED_CALL(cli_model_notices.press, CliModelCtx, .at = CLI_HIT_STATUS_NOTICE);
+    TEST_ASSERT_NULL_MESSAGE(g_cli_model.notice, "a press on the word takes it away");
+}
+
+void test_a_failure_stands_fifteen_seconds_and_shows_its_first_line(void)
+{
+    notices_rested();
+    key_pressed("Ctrl+S");
+    EMBED_CALL(cli_model_notices.post, CliModelCtx, .path = "saved.txt: it could not be written\nAccess is denied.",
+               .on = 1);
+    TEST_ASSERT_TRUE(showing("saved.txt: it could not be written"));
+    TEST_ASSERT_TRUE(g_cli_model.notice_failed);
+    const unsigned long long deadline = EMBED_CALL(cli_model_notices.due_ms, CliModelCtx, .at = 0u);
+    TEST_ASSERT_TRUE(deadline > cli_clock_milliseconds() + CLI_NOTICES_SHOWN_MS);
+    notices_rested();
+}
+
+void test_a_notice_answering_nothing_waits_for_the_work_to_rest(void)
+{
+    notices_rested();
+    clock_passes(CLI_NOTICES_ANSWERS_MS + 100ULL);
+    text_typed();
+    EMBED_CALL(cli_model_notices.post, CliModelCtx, .path = "The run ended.");
+    TEST_ASSERT_NULL_MESSAGE(g_cli_model.notice, "typing goes on, and the notice waits");
+    clock_passes(CLI_NOTICES_REST_MS + 100ULL);
+    (void)EMBED_CALL(cli_model_notices.step, CliModelCtx, .at = 0u);
+    TEST_ASSERT_TRUE_MESSAGE(showing("The run ended."), "the keys at rest, it shows");
+    notices_rested();
+}
+
+void test_a_break_shows_the_last_notice_waiting(void)
+{
+    notices_rested();
+    clock_passes(CLI_NOTICES_ANSWERS_MS + 100ULL);
+    text_typed();
+    EMBED_CALL(cli_model_notices.post, CliModelCtx, .path = "First.");
+    EMBED_CALL(cli_model_notices.post, CliModelCtx, .path = "Second.");
+    TEST_ASSERT_NULL(g_cli_model.notice);
+    EMBED_CALL(cli_model_notices.taken, CliModelCtx, .at = 0u);
+    TEST_ASSERT_TRUE(showing("Second."));
+    notices_rested();
+}
+
+void test_focus_holds_every_notice_until_it_ends(void)
+{
+    notices_rested();
+    EMBED_CALL(cli_model_notices.focus, CliModelCtx, .on = 1);
+    key_pressed("Ctrl+S");
+    EMBED_CALL(cli_model_notices.post, CliModelCtx, .path = "Held by Focus.");
+    TEST_ASSERT_NULL_MESSAGE(g_cli_model.notice, "Focus holds a notice that answers a command");
+    TEST_ASSERT_TRUE(g_cli_model.focus);
+    TEST_ASSERT_EQUAL_UINT(1u, g_cli_model.focus_waiting);
+    EMBED_CALL(cli_model_notices.taken, CliModelCtx, .at = 0u);
+    TEST_ASSERT_NULL_MESSAGE(g_cli_model.notice, "a break does not end Focus");
+    EMBED_CALL(cli_model_notices.press, CliModelCtx, .at = CLI_HIT_STATUS_FOCUS);
+    TEST_ASSERT_FALSE_MESSAGE(g_cli_model.focus, "a press on Focus ends it");
+    TEST_ASSERT_TRUE(showing("Held by Focus."));
+    TEST_ASSERT_EQUAL_UINT(0u, g_cli_model.focus_waiting);
+    notices_rested();
+}
+
+void test_silence_puts_a_kind_away_for_good_and_show_again_brings_it_back(void)
+{
+#if defined(_WIN32)
+    TEST_ASSERT_EQUAL_INT(0, _putenv_s("ORIOR_HOME", "build/harness/controller_home"));
+#else
+    TEST_ASSERT_EQUAL_INT(0, setenv("ORIOR_HOME", "build/harness/controller_home", 1));
+#endif
+    notices_rested();
+    key_pressed("Ctrl+S");
+    EMBED_CALL(cli_model_notices.post, CliModelCtx, .path = "Formatted 3 places.");
+    EMBED_CALL(cli_model_notices.press, CliModelCtx, .at = CLI_HIT_STATUS_SILENCE);
+    TEST_ASSERT_NULL(g_cli_model.notice);
+    key_pressed("Ctrl+S");
+    EMBED_CALL(cli_model_notices.post, CliModelCtx, .path = "Formatted 12 places.");
+    TEST_ASSERT_NULL_MESSAGE(g_cli_model.notice, "the kind, its counts any, is put away");
+    EMBED_CALL(cli_model_notices.post, CliModelCtx, .path = "Already formatted.");
+    TEST_ASSERT_TRUE_MESSAGE(showing("Already formatted."), "another kind still shows");
+    EMBED_CALL(cli_model_notices.show_again, CliModelCtx, .path = "Formatted # places.");
+    key_pressed("Ctrl+S");
+    EMBED_CALL(cli_model_notices.post, CliModelCtx, .path = "Formatted 4 places.");
+    TEST_ASSERT_TRUE(showing("Formatted 4 places."));
+    notices_rested();
+}
+
+void test_a_save_that_cannot_write_posts_a_failure_notice(void)
+{
+    tree_made("saved.txt", "one\n", NULL, NULL);
+    (void)tab_opened("saved.txt");
+    notices_rested();
+    typed("x");
+    // a folder where the file stood, which no text is moved over
+    cli_unity_folder("build/harness/controller_tree", s_root);
+    char why[256];
+    VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_files_root_out_dir.create_folder, CliFilesRootOutDirCfg, .root = s_root,
+                                .dir = "saved.txt", .err_msg = &err_msg));
+    key_pressed("Ctrl+S");
+    saved_by("save");
+    TEST_ASSERT_TRUE_MESSAGE(g_cli_model.tab[g_cli_model.active]->changed, "the tab stays changed");
+    TEST_ASSERT_NOT_NULL(g_cli_model.notice);
+    TEST_ASSERT_TRUE(g_cli_model.notice_failed);
+    CLI_TEST_ASSERT_CONTAINS("saved.txt", g_cli_model.notice);
+    notices_rested();
 }
