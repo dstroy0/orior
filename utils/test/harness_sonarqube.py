@@ -4,6 +4,9 @@
 scanned onto it, and the duplications it holds listed.
 
     harness.py sonarqube project        the project made and a token of its admin written to build/harness/sonarqube_token.txt
+    harness.py sonarqube profile [--cloud]
+                                        the project's quality profiles, each language's cognitive complexity threshold
+                                        at 50, on SonarCloud's project with --cloud
     harness.py sonarqube scan           ui/ scanned through the scanner's image, the log to build/sonarqube_scan.log
     harness.py sonarqube duplications   every group of blocks found the same, to build/sonarqube_duplications.md
     harness.py sonarqube issues [--under ui/cli]
@@ -14,6 +17,7 @@ The token file is where the window's sonarqube test reads the token from."""
 
 import base64
 import collections
+import functools
 import json
 import os
 import re
@@ -48,9 +52,9 @@ def token_read():
         return kept.read().strip()
 
 
-def asked(path, method="GET", auth=None, token=None, **params):
+def asked(path, method="GET", auth=None, token=None, server=SERVER, **params):
     query = urllib.parse.urlencode(params)
-    request = urllib.request.Request("%s/api/%s?%s" % (SERVER, path, query), method=method)
+    request = urllib.request.Request("%s/api/%s?%s" % (server, path, query), method=method)
     if auth:
         request.add_header("Authorization", "Basic " + base64.b64encode(auth.encode()).decode())
     if token:
@@ -76,11 +80,56 @@ def cmd_project(a):
 PROFILE = "orior"
 PROFILE_FROM = "Sonar way comprehensive"
 REPORT_RULES = "cxx,clangtidy,cppcheck,clangsa"
+COGNITIVE_THRESHOLD = 50
+CLOUD_ORGANIZATION = "dstroy0"
+
+
+def cognitive_rule(ask, language, **organization):
+    """The language's cognitive complexity rule on the server and the key of its threshold, or None where it has none.
+    A rule's limit on a property's complexity is not its threshold."""
+    found = ask("rules/search", q="Cognitive Complexity of", languages=language, f="name,params", ps=100, **organization)
+    for rule in found.get("rules", []):
+        limits = [param["key"] for param in rule.get("params", []) if param["key"] != "propertyThreshold"]
+        if rule.get("name", "").startswith("Cognitive Complexity of") and limits:
+            return rule["key"], limits[0]
+    return None
+
+
+def cognitive_threshold_set(ask, project, **organization):
+    """In each language of the project's code, its profile `orior`, created where the server has none as a child of the
+    language's default profile, with the cognitive complexity rule's threshold at COGNITIVE_THRESHOLD, and set as the
+    project's. The languages come from the project's last analysis."""
+    measured = ask("measures/component", component=project, metricKeys="ncloc_language_distribution")
+    shares = (measured.get("component", {}).get("measures") or [{"value": ""}])[0]["value"]
+    languages = [share.split("=")[0] for share in shares.split(";") if share.split("=")[0].isalnum()]
+    for language in languages:
+        rule = cognitive_rule(ask, language, **organization)
+        if rule is None:
+            continue
+        listed = ask("qualityprofiles/search", language=language, **organization).get("profiles", [])
+        keys = {one["name"]: one["key"] for one in listed}
+        if PROFILE not in keys:
+            parent = next(one["name"] for one in listed if one.get("isDefault"))
+            keys[PROFILE] = ask("qualityprofiles/create", "POST", language=language, name=PROFILE, **organization)["profile"]["key"]
+            ask("qualityprofiles/change_parent", "POST", language=language, qualityProfile=PROFILE, parentQualityProfile=parent, **organization)
+        ask("qualityprofiles/activate_rule", "POST", key=keys[PROFILE], rule=rule[0], params="%s=%d" % (rule[1], COGNITIVE_THRESHOLD))
+        ask("qualityprofiles/add_project", "POST", language=language, qualityProfile=PROFILE, project=project, **organization)
+        print("%s: %s %s=%d in profile %s" % (language, rule[0], rule[1], COGNITIVE_THRESHOLD, PROFILE))
 
 
 def cmd_profile(a):
     """The cxx quality profile `orior` made from the plugin's comprehensive one, with every rule of the clang-tidy,
-    cppcheck and clang static analyzer report readers turned on, and set as the project's."""
+    cppcheck and clang static analyzer report readers turned on, and set as the project's; then the cognitive
+    complexity threshold of every language of the project's code. With --cloud, the threshold alone, on SonarCloud's
+    project, through the token in SONAR_TOKEN."""
+    if a.cloud:
+        token = os.environ.get("SONAR_TOKEN", "")
+        if not token:
+            print("SONAR_TOKEN is not set")
+            return 1
+        cloud = functools.partial(asked, auth=token + ":", server=CLOUD_SERVER)
+        cognitive_threshold_set(cloud, CLOUD_PROJECT, organization=CLOUD_ORGANIZATION)
+        return 0
     listed = asked("qualityprofiles/search", auth=ADMIN, language="cxx").get("profiles", [])
     keys = {one["name"]: one["key"] for one in listed}
     if PROFILE not in keys:
@@ -91,6 +140,7 @@ def cmd_profile(a):
     asked("qualityprofiles/activate_rules", "POST", ADMIN, targetKey=keys[PROFILE], repositories=REPORT_RULES)
     asked("qualityprofiles/add_project", "POST", ADMIN, language="cxx", qualityProfile=PROFILE, project=PROJECT)
     print("profile %s set for %s with the %s rules on" % (PROFILE, PROJECT, REPORT_RULES))
+    cognitive_threshold_set(functools.partial(asked, auth=ADMIN), PROJECT)
     return 0
 
 
@@ -261,7 +311,8 @@ def register(sub):
     p = sonarqube.add_parser("scan", help="the sources scanned through the scanner's image, ui/ where none are named, the log to build/sonarqube_scan.log")
     p.add_argument("--sources", nargs="+", default=["ui"], help="the folders scanned, from the top of the tree")
     p.set_defaults(fn=cmd_scan)
-    p = sonarqube.add_parser("profile", help="the cxx profile orior, with the clang-tidy, cppcheck and clang analyzer rules on, set for the project")
+    p = sonarqube.add_parser("profile", help="the cxx profile orior, with the clang-tidy, cppcheck and clang analyzer rules on, set for the project, and each language's cognitive complexity threshold at 50")
+    p.add_argument("--cloud", action="store_true", help="the cognitive complexity threshold alone, on SonarCloud's project, through the token in SONAR_TOKEN")
     p.set_defaults(fn=cmd_profile)
     p = sonarqube.add_parser("duplications", help="every group of blocks found the same, to build/sonarqube_duplications.md")
     p.set_defaults(fn=cmd_duplications)
