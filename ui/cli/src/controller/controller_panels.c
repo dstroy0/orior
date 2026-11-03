@@ -102,9 +102,9 @@ typedef struct
     int signature_asking;
     CliPosition cursor;
     int changed;
-    int telling;
+    int syncing;
     unsigned long long view_due_ms;
-    int view_told;
+    int view_sent;
     unsigned long long view_top;
     unsigned int view_rows;
     unsigned long long view_lines;
@@ -259,7 +259,7 @@ void cli_model_panels_hide(const CliModelCtx *args)
     s_panels.hover_due_ms = 0ULL;
     s_panels.hover_ask += 1ULL;
     s_panels.completion_wanted = 0;
-    s_panels.view_told = 0;
+    s_panels.view_sent = 0;
 }
 
 // whether the pointer stands on the hover's word, a unit either side
@@ -1478,7 +1478,7 @@ static void panels_serve_done(void *context)
         if (cellul.eq(&(CatenaFinitaCfg){.src = g_cli_model.tab[at]->key, .other = ask->key, .cap = CLI_PATH_MAX_LEN}))
         {
             g_cli_model.tab[at]->served = 1;
-            s_panels.view_told = 0;
+            s_panels.view_sent = 0;
             s_panels.view_due_ms = cli_clock_milliseconds() + CLI_PANELS_VIEW_REST_MS;
         }
     }
@@ -1544,7 +1544,7 @@ void cli_model_server_changed(const CliModelCtx *args)
 
 // what runs on the servers' lane: the server told the view's text, where the view is served and its text changed since
 // it was last told
-static void panels_tell_run(void *context)
+static void panels_sync_run(void *context)
 {
     const ControllerServeAsk *const ask = (const ControllerServeAsk *)context;
     char full[CLI_PATH_MAX_LEN];
@@ -1566,14 +1566,14 @@ static void panels_tell_run(void *context)
     }
 }
 
-static void panels_tell_done(void *context);
+static void panels_sync_done(void *context);
 
 // the server told the text changed where it is served, one telling in flight at a time
-static void panels_tell_post(const ControllerPanelsCtx *args)
+static void panels_sync_post(const ControllerPanelsCtx *args)
 {
     (void)args;
     const char *const key = EMBED_CALL(panels_viewed_key, ControllerPanelsCtx, .at = 0u);
-    if (!s_panels.changed || s_panels.telling || (key == NULL) ||
+    if (!s_panels.changed || s_panels.syncing || (key == NULL) ||
         !EMBED_CALL(panels_served, ControllerPanelsCtx, .at = 0u))
     {
         return;
@@ -1582,17 +1582,17 @@ static void panels_tell_post(const ControllerPanelsCtx *args)
     if (ask != NULL)
     {
         s_panels.changed = 0;
-        s_panels.telling = 1;
-        EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_SERVERS, .run = panels_tell_run,
-                   .done = panels_tell_done, .context = ask);
+        s_panels.syncing = 1;
+        EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_SERVERS, .run = panels_sync_run,
+                   .done = panels_sync_done, .context = ask);
     }
 }
 
-static void panels_tell_done(void *context)
+static void panels_sync_done(void *context)
 {
     g_cli_cells->persistent_buf_release(context, &g_cli_controller_cells);
-    s_panels.telling = 0;
-    EMBED_CALL(panels_tell_post, ControllerPanelsCtx, .at = 0u);
+    s_panels.syncing = 0;
+    EMBED_CALL(panels_sync_post, ControllerPanelsCtx, .at = 0u);
 }
 
 // what runs on the servers' lane: the server told the view's first and last lines and the lines opening the regions its
@@ -1620,7 +1620,7 @@ static void panels_view_run(void *context)
 }
 
 // the server told where the view of the tab shown rests
-EMBED_INLINE void panels_view_tell(const ControllerPanelsCtx *args)
+EMBED_INLINE void panels_view_send(const ControllerPanelsCtx *args)
 {
     (void)args;
     s_panels.view_due_ms = 0ULL;
@@ -1640,7 +1640,7 @@ EMBED_INLINE void panels_view_tell(const ControllerPanelsCtx *args)
     }
     ask->first = first;
     ask->last = last;
-    s_panels.view_told = 1;
+    s_panels.view_sent = 1;
     s_panels.view_rows = rows;
     EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_SERVERS, .run = panels_view_run,
                .done = panels_ask_release, .context = ask);
@@ -1656,16 +1656,16 @@ void cli_model_panels_frame(const CliModelCtx *args)
     }
     s_panels.cursor = frame->cursor;
     const int rested =
-        s_panels.view_told && (s_panels.view_top == frame->top) && (s_panels.view_rows == g_cli_model.rows);
+        s_panels.view_sent && (s_panels.view_top == frame->top) && (s_panels.view_rows == g_cli_model.rows);
     s_panels.view_top = frame->top;
     s_panels.view_lines = frame->lines;
     if (!rested && EMBED_CALL(panels_served, ControllerPanelsCtx, .at = 0u))
     {
-        s_panels.view_told = 0;
+        s_panels.view_sent = 0;
         s_panels.view_due_ms = cli_clock_milliseconds() + CLI_PANELS_VIEW_REST_MS;
     }
     EMBED_CALL(panels_completion_follow, ControllerPanelsCtx, .key = key);
-    EMBED_CALL(panels_tell_post, ControllerPanelsCtx, .at = 0u);
+    EMBED_CALL(panels_sync_post, ControllerPanelsCtx, .at = 0u);
     if (s_panels.completion_wanted)
     {
         EMBED_CALL(panels_completion_ask, ControllerPanelsCtx, .at = 0u);
@@ -1716,7 +1716,7 @@ int cli_model_panels_step(const CliModelCtx *args)
     }
     if ((s_panels.view_due_ms != 0ULL) && (now_ms >= s_panels.view_due_ms))
     {
-        EMBED_CALL(panels_view_tell, ControllerPanelsCtx, .at = 0u);
+        EMBED_CALL(panels_view_send, ControllerPanelsCtx, .at = 0u);
         did = 1;
     }
     return did;

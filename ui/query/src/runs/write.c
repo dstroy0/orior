@@ -296,7 +296,7 @@ EMBED_INLINE int query_names_usable(const WriteCtx *args)
 
 // each file the `named` names in `names` and the L* query table need that the table does not contain, told after the
 // `count` `words` of the query; 1 where none is missing, else 0 with them given
-EMBED_INLINE int query_missing_told(const WriteCtx *args)
+EMBED_INLINE int query_missing_reported(const WriteCtx *args)
 {
     char missing_text[QUERY_LINE_MAX_LEN];
     VerbaLinea missing = {missing_text, sizeof(missing_text), 0ULL};
@@ -365,7 +365,7 @@ int query_query_words(const QueryLoopsErrMsgContextWordsCfg *args)
         mmgr_line_put(args->err_msg, s_usage);
         return 0;
     }
-    return EMBED_CALL(query_missing_told, WriteCtx, .context = args->context_read, .names = args->names_letters,
+    return EMBED_CALL(query_missing_reported, WriteCtx, .context = args->context_read, .names = args->names_letters,
                       .named = named, .words = args->words, .count = args->count, .err_msg = args->err_msg);
 }
 

@@ -81,7 +81,7 @@ typedef struct
     int tool;
     unsigned long long map_first;
     unsigned long long map_last;
-    int map_said;
+    int map_span_known;
     CliPosition position_wanted;
     int position_pending;
     int session_known;

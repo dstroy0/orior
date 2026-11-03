@@ -211,7 +211,7 @@ EMBED_INLINE int shells_pipe_read(const ShellsCtx *args)
 {
     CliTerminalShell *const shell = args->shell;
     CliTerminalXterm *const xterm = args->xterm;
-    int heard = 0;
+    int received = 0;
     for (unsigned int pieces = 0u; pieces < SHELLS_PIECES; pieces += 1u)
     {
         const unsigned long long waiting = EMBED_CALL(cli_capacity_pipe_handle_internal.spawn_waiting,
@@ -228,7 +228,7 @@ EMBED_INLINE int shells_pipe_read(const ShellsCtx *args)
         {
             break;
         }
-        heard = 1;
+        received = 1;
         if (xterm != NULL)
         {
             EMBED_CALL(cli_terminal_xterm_bytes.write, CliTerminalXtermBytesCfg, .xterm = xterm, .bytes = piece,
@@ -237,7 +237,7 @@ EMBED_INLINE int shells_pipe_read(const ShellsCtx *args)
             xterm->answer_size = 0u;
         }
     }
-    return heard;
+    return received;
 }
 
 // the end of the shell printed on its xterm, `[exited CODE]` with no code where a signal ended it, and its process
@@ -283,8 +283,8 @@ int cli_terminal_shell_drain(const CliTerminalShellCfg *args)
     {
         return 0;
     }
-    const int heard = EMBED_CALL(shells_pipe_read, ShellsCtx, .shell = shell, .xterm = args->xterm);
-    if (heard)
+    const int received = EMBED_CALL(shells_pipe_read, ShellsCtx, .shell = shell, .xterm = args->xterm);
+    if (received)
     {
         shell->written = 1;
         shell->written_ms = args->now_ms;
@@ -306,7 +306,7 @@ int cli_terminal_shell_drain(const CliTerminalShellCfg *args)
         EMBED_CALL(shells_exited, ShellsCtx, .shell = shell, .xterm = args->xterm, .code = code);
         return 1;
     }
-    return heard;
+    return received;
 }
 
 unsigned long long cli_terminal_shell_next_ms(const CliTerminalShellCfg *args)

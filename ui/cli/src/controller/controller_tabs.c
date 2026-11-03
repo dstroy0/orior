@@ -234,7 +234,7 @@ EMBED_INLINE void tabs_show(const ControllerTabsCtx *args)
     g_cli_model.last_active =
         ((g_cli_model.active >= 0) && (g_cli_model.active != at)) ? g_cli_model.active : g_cli_model.last_active;
     g_cli_model.active = at;
-    g_cli_model.map_said = 0;
+    g_cli_model.map_span_known = 0;
     g_cli_model.shown += 1ULL;
     EMBED_CALL(cli_model.panels_hide, CliModelCtx, .at = 0u);
     EMBED_CALL(cli_model.shown_dirty, CliModelCtx, .at = 0u);

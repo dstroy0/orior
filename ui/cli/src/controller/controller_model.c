@@ -465,9 +465,9 @@ void cli_controller_model_input(const CliInput *input, const char *bytes)
         EMBED_CALL(cli_model_commands.preferences_key, CliModelCtx, .path = bytes);
         break;
     case CLI_INPUT_MAP_SPAN:
-        if (!g_cli_model.map_said || (g_cli_model.map_first != input->row) || (g_cli_model.map_last != input->column))
+        if (!g_cli_model.map_span_known || (g_cli_model.map_first != input->row) || (g_cli_model.map_last != input->column))
         {
-            g_cli_model.map_said = 1;
+            g_cli_model.map_span_known = 1;
             g_cli_model.map_first = input->row;
             g_cli_model.map_last = input->column;
             g_cli_model.dirty |= CLI_MODEL_DIRTY(CLI_SNAPSHOT_MAP);
@@ -612,8 +612,9 @@ EMBED_INLINE void *model_part_alloc(const ControllerModelCtx *args)
         return frame;
     }
     case CLI_SNAPSHOT_MAP:
-        return (viewed && g_cli_model.map_said) ? cli_view_map_alloc(key, g_cli_model.map_first, g_cli_model.map_last)
-                                                : NULL;
+        return (viewed && g_cli_model.map_span_known)
+                   ? cli_view_map_alloc(key, g_cli_model.map_first, g_cli_model.map_last)
+                   : NULL;
     case CLI_SNAPSHOT_HOVER:
         return EMBED_CALL(cli_model_panels.hover_alloc, CliModelCtx, .at = 0u);
     case CLI_SNAPSHOT_COMPLETIONS:
