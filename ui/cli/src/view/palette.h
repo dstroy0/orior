@@ -23,6 +23,8 @@ typedef struct GuiPaletteCfg GuiPaletteCfg;
 #define GUI_SCHEME_DARK 0u
 #define GUI_SCHEMES 1u
 #define GUI_MARKS 8u
+// the terminal's colors a shell names by number, --t0 to --t15
+#define GUI_TERMINAL_COLORS 16u
 
 // A token's color: the name its grammar gives it, and the color
 typedef struct
@@ -43,7 +45,7 @@ typedef struct
 // the ink at half; a diagnostic's error, warning and note colors; the large name's color and the eye's in the bar; the
 // shade under a raised thing and the color of TABVLA's cuts; a fuse's ash, burn, fire and the white of its hottest
 // core; the lattice's three colors, a point in place the first and a moved one passing through the second to the third;
-// the eight colors a file's mark takes; and its tokens, `token_count` of them
+// the eight colors a file's mark takes; the terminal's sixteen, --t0 to --t15; and its tokens, `token_count` of them
 typedef struct
 {
     GuiColor background_fill;
@@ -99,6 +101,7 @@ typedef struct
     GuiColor fuse_core;
     GuiColor lattice[3];
     GuiColor mark[GUI_MARKS];
+    GuiColor terminal[GUI_TERMINAL_COLORS];
     const GuiTokenColor *token;
     unsigned int token_count;
 } GuiPalette;

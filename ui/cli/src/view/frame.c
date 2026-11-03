@@ -111,9 +111,34 @@ EMBED_INLINE void frame_band(const FrameCtx *args)
     *to = at + EMBED_CALL(frame_share, FrameCtx, .share = args->grown, .pixels = args->end - at);
 }
 
-// the work's inside laid out: the inside the work less its padding, the side `side_width` pixels of it at the left,
-// the tabs row across the rest, and under it the editor with the map's column at its right, the row and the column
-// away by the claim's numbers
+// the terminal's panel's height in the inside `pixels` tall: the height asked at the scale, no less than its least and,
+// short of that, no more than the window's share or what leaves the views above it their least, and no taller than the
+// inside; 0 while the panel is closed
+EMBED_INLINE int frame_terminal_height(const FrameCtx *args)
+{
+    if (args->frame->terminal_height <= 0)
+    {
+        return 0;
+    }
+    const int scale = args->frame->scale;
+    const int asked =
+        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = args->frame->terminal_height, .scale = scale);
+    const int least =
+        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TERMINAL_LEAST, .scale = scale);
+    // the window's height is far inside what an int represents
+    const int window_height = (int)args->frame->height;
+    const int share = (window_height * GUI_TERMINAL_MOST_PERCENT) / 100;
+    const int leaves = window_height - EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                                  .pixels = GUI_TERMINAL_SHELL_LEAST, .scale = scale);
+    const int most = (share < leaves) ? share : leaves;
+    const int bounded = (asked < most) ? asked : most;
+    const int height = (bounded > least) ? bounded : least;
+    return (height < args->pixels) ? height : ((args->pixels > 0) ? args->pixels : 0);
+}
+
+// the work's inside laid out: the inside the work less its padding, the terminal's panel across its foot where it is
+// open, above it the side `side_width` pixels of it at the left, the tabs row across the rest, and under it the editor
+// with the map's column at its right, the row and the column away by the claim's numbers
 EMBED_INLINE void frame_inside_layout(const FrameCtx *args)
 {
     const int scale = args->frame->scale;
@@ -134,7 +159,9 @@ EMBED_INLINE void frame_inside_layout(const FrameCtx *args)
                  EMBED_CALL(frame_share, FrameCtx, .share = claim->claim, .pixels = GUI_FIXED_ONE - claim->inset_top),
         .pixels = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TABS_HEIGHT, .scale = scale));
     const int inner_width = args->frame->work.width - pad_left - pad_right;
-    const int inner_height = args->frame->work.height - pad_top - pad_bottom;
+    const int inside_height = args->frame->work.height - pad_top - pad_bottom;
+    const int terminal = EMBED_CALL(frame_terminal_height, FrameCtx, .frame = args->frame, .pixels = inside_height);
+    const int inner_height = inside_height - terminal;
     int side;
     if (args->side_width > inner_width)
     {
@@ -174,8 +201,15 @@ EMBED_INLINE void frame_inside_layout(const FrameCtx *args)
         map = map_width;
     }
     args->frame->inside =
-        (GuiRect){args->frame->work.x + pad_left, args->frame->work.y + pad_top, inner_width, inner_height};
+        (GuiRect){args->frame->work.x + pad_left, args->frame->work.y + pad_top, inner_width, inside_height};
     args->frame->side = (GuiRect){args->frame->inside.x, args->frame->inside.y, side, inner_height};
+    args->frame->terminal =
+        (GuiRect){args->frame->inside.x, args->frame->inside.y + inner_height, inner_width, terminal};
+    const int head = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                .pixels = (2 * GUI_TERMINAL_LINE) + GUI_TERMINAL_STRIP, .scale = scale);
+    const int views = (terminal > head) ? (terminal - head) : 0;
+    args->frame->terminal_views = (GuiRect){args->frame->terminal.x, args->frame->terminal.y + terminal - views,
+                                            (views > 0) ? inner_width : 0, views};
     args->frame->tabs = (GuiRect){args->frame->inside.x + side, args->frame->inside.y, rest, tabs_height};
     args->frame->editor =
         (GuiRect){args->frame->tabs.x, args->frame->tabs.y + tabs_height, rest - map, inner_height - tabs_height};
@@ -390,6 +424,12 @@ static void frame_layout(const FrameCtx *args)
 void gui_frame_side(const GuiFrameDisplayedCfg *args)
 {
     args->frame->side_displayed = args->displayed;
+    EMBED_CALL(frame_layout, FrameCtx, .frame = args->frame);
+}
+
+void gui_frame_terminal(const GuiFrameDisplayedCfg *args)
+{
+    args->frame->terminal_height = args->height;
     EMBED_CALL(frame_layout, FrameCtx, .frame = args->frame);
 }
 

@@ -722,7 +722,7 @@ void *cli_model_terminal_alloc(const CliModelCtx *args)
                                               .cursor_x = screen->cursor.x,
                                               .cursor_y = screen->cursor.y,
                                               .cursor_shown = screen->cursor_shown,
-                                              .focused = s_terminal.keys && (at == s_terminal.focused)};
+                                              .focused = at == s_terminal.focused};
         if (count != 0ULL)
         {
             memor.cpy(&(MemoriaCfg){.dst = cell, .src = screen->shown, .bytes = count * sizeof(*cell)});

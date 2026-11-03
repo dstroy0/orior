@@ -138,10 +138,34 @@ EMBED_INLINE float window_on_screen(const GuiWindowCtx *args)
     return (line_height > 0) ? (float)args->window_read->frame.editor.height / (float)line_height : 0.0f;
 }
 
-// the controller told the editor's size and how many titles the bar shows, where either moved
+// the controller told the columns and rows of each of the terminal's screens shown, where they moved; a screen no
+// longer shown said again as it shows
+EMBED_INLINE void window_terminal_resize(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    for (unsigned int view = 0u; view < 2u; view += 1u)
+    {
+        unsigned int columns = 0u;
+        unsigned int rows = 0u;
+        const int shown =
+            EMBED_CALL(gui_terminal.size, GuiTerminalCfg, .terminal_read = &window->terminal, .frame = &window->frame,
+                       .glyphs = &window->glyphs, .view = view, .columns = &columns, .rows = &rows);
+        if (shown && ((columns != window->terminal_columns_sent[view]) || (rows != window->terminal_rows_sent[view])))
+        {
+            const CliInput sized = {.kind = CLI_INPUT_TERMINAL_SIZE, .index = view, .rows = rows, .columns = columns};
+            cli_controller_input(&sized, NULL);
+        }
+        window->terminal_columns_sent[view] = columns;
+        window->terminal_rows_sent[view] = rows;
+    }
+}
+
+// the controller told the editor's size and how many titles the bar shows, where either moved, and the terminal's
+// screens' sizes
 EMBED_INLINE void window_view_resize(const GuiWindowCtx *args)
 {
     GuiWindow *const window = args->window;
+    EMBED_CALL(window_terminal_resize, GuiWindowCtx, .window = window);
     const unsigned int rows = EMBED_CALL(window_rows, GuiWindowCtx, .window_read = window);
     const unsigned int columns = window_columns(args);
     const unsigned int titles = (window->menubar.menus != NULL) ? window->menubar.menus->titles : 0u;
@@ -298,6 +322,26 @@ EMBED_INLINE int window_side_show(const GuiWindowCtx *args)
 {
     // the tool shown is among the tools
     return (args->window_read->strip.displayed >= 0) && g_cli_tools[args->window_read->strip.displayed].side;
+}
+
+// the work's inside laid again with the terminal's panel at its foot as the panel stands, the controller told the
+// editor's and the screens' sizes
+EMBED_INLINE void window_terminal(const GuiWindowCtx *args)
+{
+    const CliTerminalPanel *const panel = args->window->terminal.panel;
+    // a panel's height in the page's pixels is far inside what an int represents
+    const int height = ((panel != NULL) && panel->open) ? (int)panel->height : 0;
+    if (height != args->window->frame.terminal_height)
+    {
+        EMBED_CALL(gui_frame_displayed.terminal, GuiFrameDisplayedCfg, .frame = &args->window->frame, .height = height);
+        if (args->window->stage != NULL)
+        {
+            args->window->stages_stale = 1;
+            window_autohide_layout(args);
+        }
+    }
+    args->window->pending = 1;
+    window_view_resize(args);
 }
 
 // the work's inside laid again as the strip's tool shown has a side or not, the controller told the editor's size
@@ -979,6 +1023,12 @@ void gui_window_drain(const GuiWindowCfg *args)
     const CliStatus *const status = (const CliStatus *)cli_controller_latest(CLI_SNAPSHOT_STATUS);
     const CliSettings *const settings = (const CliSettings *)cli_controller_latest(CLI_SNAPSHOT_SETTINGS);
     const CliDocumentNames *const names = (const CliDocumentNames *)cli_controller_latest(CLI_SNAPSHOT_NAMES);
+    const CliTerminalPanel *const terminal = (const CliTerminalPanel *)cli_controller_latest(CLI_SNAPSHOT_TERMINAL);
+    if (terminal != window->terminal.panel)
+    {
+        window->terminal.panel = terminal;
+        EMBED_CALL(window_terminal, GuiWindowCtx, .window = window);
+    }
     const int status_changed = status != window->status;
     if (status_changed)
     {
@@ -1159,6 +1209,8 @@ EMBED_INLINE void window_view_draw(const GuiWindowCtx *args)
                        .raster = raster, .glyphs = &args->window->glyphs, .palette = palette, .frame = frame);
         }
     }
+    EMBED_CALL(gui_terminal.draw, GuiTerminalCfg, .terminal_read = &args->window->terminal, .frame = frame,
+               .glyphs = &args->window->glyphs, .raster = raster, .palette = palette);
     window_panels_draw(args);
 }
 
@@ -1412,6 +1464,14 @@ EMBED_INLINE void window_hit_read(const GuiWindowCtx *args)
                    .at_pointer = &input->index))
     {
         input->hit = CLI_HIT_TOOL;
+        return;
+    }
+    // the terminal's panel takes every press on it, those on none of its parts to nothing
+    if (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = window->frame.terminal, .x = x, .y = y))
+    {
+        input->hit =
+            EMBED_CALL(gui_terminal.hit, GuiTerminalCfg, .terminal_read = &window->terminal, .frame = &window->frame,
+                       .glyphs = (GuiGlyphs *)&window->glyphs, .x = x, .y = y, .index = &input->index);
         return;
     }
     if (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = window->frame.side, .x = x, .y = y))

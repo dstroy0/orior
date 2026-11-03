@@ -42,6 +42,15 @@ typedef struct GuiFramePixelsCfg GuiFramePixelsCfg;
 #define GUI_CONTROLS_BEVEL 8
 #define GUI_HOLE_SNAP 2
 
+// the terminal's panel in the page's pixels: its least height, min-height; what it leaves the views above it at the
+// least, the 16rem of its max-height; the share of the window's height it reaches at the most, in percent, the 75vh of
+// its max-height; its top line; and its strip of tabs under that with the strip's foot line
+#define GUI_TERMINAL_LEAST 96
+#define GUI_TERMINAL_SHELL_LEAST 256
+#define GUI_TERMINAL_MOST_PERCENT 75
+#define GUI_TERMINAL_LINE 1
+#define GUI_TERMINAL_STRIP 27
+
 // a number of 1 in the frame's arithmetic: every share the parts move on is a whole word, 16 bits of it a fraction
 #define GUI_FIXED_ONE 65536
 
@@ -80,8 +89,10 @@ typedef struct
     int bottom;
 } GuiEdges;
 
-// The frame: the window's size and scale it was laid out for, whether a side is shown and the claim's numbers it is
-// laid for; each part's rectangle, the side's of no width where none is shown, the map's at the editor's right, the
+// The frame: the window's size and scale it was laid out for, whether a side is shown, the terminal's height asked in
+// the page's pixels, 0 while its panel is closed, and the claim's numbers it is laid for; each part's rectangle, the
+// side's of no width where none is shown, the terminal's panel at the inside's foot under both and its views under its
+// strip, none while it is closed, the map's at the editor's right, the
 // bar's, the strip's and the status bar's standing off the window while the claim holds them away; each of those
 // three as the slat its edge shows, the part's rectangle cut to its grown share, and the edges of each slat's pane and
 // of the controls' in the frame's words; the controls' glass pane with its
@@ -93,6 +104,7 @@ typedef struct
     unsigned int height;
     int scale;
     int side_displayed;
+    int terminal_height;
     GuiAutohideNumbers claim;
     GuiRect bar;
     GuiRect controls;
@@ -102,6 +114,8 @@ typedef struct
     GuiRect work;
     GuiRect inside;
     GuiRect side;
+    GuiRect terminal;
+    GuiRect terminal_views;
     GuiRect tabs;
     GuiRect editor;
     GuiRect map;
@@ -124,8 +138,10 @@ int gui_scale(const GuiFramePixelsCfg *args);
 // the parts laid out for a window `width` by `height` at `scale`, with no side shown and no claim
 void gui_frame_layout(const GuiFrameScaleCfg *args);
 // the work's inside laid again with a side shown at its left where `displayed` is 1, the tabs row and the editor past
-// it, or with no side where it is 0
+// it, or with no side where it is 0; and with the terminal's panel `height` page's pixels tall at its foot, between
+// its least and its most, or with none where `height` is 0
 void gui_frame_side(const GuiFrameDisplayedCfg *args);
+void gui_frame_terminal(const GuiFrameDisplayedCfg *args);
 // the parts laid again for the claim's `numbers`: the work grown to the window less the gap on every side as the
 // claim runs, the bar, the strip and the status bar slid off and back as their reveals run, each a pane standing in
 // from the window's edges by the gap, the work giving each its inset as its inset runs, the tabs row and the map away
@@ -159,6 +175,7 @@ struct GuiFrameDisplayedCfg
 {
     GuiFrame *frame;
     int displayed;
+    int height;
 };
 
 struct GuiFramePixelsCfg
@@ -188,10 +205,12 @@ EMBED_TABLE_STORAGE GuiFrameScaleNs gui_frame_scale EMBED_UNUSED = {
 typedef struct
 {
     void (*side)(const GuiFrameDisplayedCfg *args);
+    void (*terminal)(const GuiFrameDisplayedCfg *args);
 } GuiFrameDisplayedNs;
-EMBED_TABLE_LAYOUT(GuiFrameDisplayedNs, side);
+EMBED_TABLE_LAYOUT(GuiFrameDisplayedNs, side, terminal);
 EMBED_TABLE_STORAGE GuiFrameDisplayedNs gui_frame_displayed EMBED_UNUSED = {
     .side = gui_frame_side,
+    .terminal = gui_frame_terminal,
 };
 
 typedef struct

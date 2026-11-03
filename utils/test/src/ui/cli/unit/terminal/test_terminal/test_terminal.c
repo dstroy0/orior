@@ -427,6 +427,12 @@ void test_the_terminal_opens_on_a_tab_whose_shell_takes_what_is_typed_and_shows_
     TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.text, CliModelCtx, .path = typed, .length = typed_size));
     TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.key, CliModelCtx, .path = "Enter"));
     TEST_ASSERT_TRUE(model_until("model_heard"));
+    // the Space key sends nothing of itself: the space it types comes as text
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.text, CliModelCtx, .path = "echo key", .length = 8ULL));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.key, CliModelCtx, .path = "Space"));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.text, CliModelCtx, .path = "_alone", .length = 6ULL));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.key, CliModelCtx, .path = "Enter"));
+    TEST_ASSERT_TRUE(model_until("key_alone"));
     TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.text, CliModelCtx, .path = "exit", .length = 4ULL));
     TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.key, CliModelCtx, .path = "Enter"));
     TEST_ASSERT_TRUE(model_until("[exited 0]"));

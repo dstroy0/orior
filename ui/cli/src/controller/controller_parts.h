@@ -236,7 +236,7 @@ typedef struct
 } CliTerminalTab;
 
 // One screen the terminal's panel shows: its columns and rows, its cells row by row, the cursor's column and row and
-// whether it is shown, and whether the keys go to its shell
+// whether it is shown, and whether its shell is the one the keys go to while the panel takes them
 typedef struct
 {
     unsigned int columns;

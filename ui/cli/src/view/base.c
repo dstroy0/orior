@@ -370,6 +370,9 @@ int gui_base_layout(const GuiBaseFrameCfg *args)
     EMBED_CALL(base_layout, BaseCtx, .base = args->base, .rect = frame->side, .layer = GUI_BASE_SIDE);
     EMBED_CALL(base_layout, BaseCtx, .base = args->base, .rect = frame->tabs, .layer = GUI_BASE_TABS);
     EMBED_CALL(base_layout, BaseCtx, .base = args->base, .rect = frame->editor, .layer = GUI_BASE_EDITOR);
+    // the terminal's panel on the ink at half as the side is, its views on the editor's ground
+    EMBED_CALL(base_layout, BaseCtx, .base = args->base, .rect = frame->terminal, .layer = GUI_BASE_SIDE);
+    EMBED_CALL(base_layout, BaseCtx, .base = args->base, .rect = frame->terminal_views, .layer = GUI_BASE_EDITOR);
     // each hole the sheet, its fillets' squares saved what lay there
     GuiRect holes[4];
     const unsigned int count = EMBED_CALL(cli_frame_holes.holes, GuiFrameHolesCfg, .frame_read = frame, .holes = holes);

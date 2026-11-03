@@ -24,6 +24,7 @@
 #include "parts/strip.h"
 #include "parts/suggest.h"
 #include "parts/tabs.h"
+#include "parts/terminal.h"
 #include "parts/wordmark.h"
 #include "stages.h"
 #include "view.h"
@@ -53,8 +54,9 @@ typedef struct GuiWindowDisplayedCfg GuiWindowDisplayedCfg;
 // the window's own they change, and the scale the system gave, which the zoom lays the frame at a share of; the claim
 // and whether its slides ran at the last tick; the controls' tab's shadow; the wordmark; less motion as the system and
 // the settings ask it; the count the controller gives each file shown, and what it last told of Preferences and the
-// name; what was last said of the editor's size, the bar's titles, the map's lines and the pointer, none said again
-// until it moves; whether the pointer drags in the editor; the presses counted, when
+// name; what was last said of the editor's size, the bar's titles, the map's lines, the terminal's two screens'
+// columns and rows and the pointer, none said again until it moves; whether the pointer drags in the editor; the
+// presses counted, when
 // and where the last was; whether a frame is owed; and the control pressed, for the system to act on, GUI_HIT_CLIENT
 // where none
 typedef struct GuiWindow
@@ -77,6 +79,7 @@ typedef struct GuiWindow
     GuiSuggest suggest;
     GuiSignature signature;
     GuiProblems problems;
+    GuiTerminal terminal;
     const CliTabs *tabs;
     const CliStatus *status;
     const CliSettings *settings;
@@ -116,6 +119,8 @@ typedef struct GuiWindow
     int map_sent;
     unsigned long long map_sent_first;
     unsigned long long map_sent_last;
+    unsigned int terminal_columns_sent[2];
+    unsigned int terminal_rows_sent[2];
     CliInput moved_sent;
     int dragging;
     unsigned int clicks;
