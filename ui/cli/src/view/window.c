@@ -331,6 +331,14 @@ EMBED_INLINE void window_terminal(const GuiWindowCtx *args)
     const CliTerminalPanel *const panel = args->window->terminal.panel;
     // a panel's height in the page's pixels is far inside what an int represents
     const int height = ((panel != NULL) && panel->open) ? (int)panel->height : 0;
+    args->window->strip.terminal_open = height != 0;
+    for (unsigned int at = 0u; at < g_cli_tools_count; at += 1u)
+    {
+        args->window->strip.terminal_at =
+            cellul.eq(&(CatenaFinitaCfg){.src = g_cli_tools[at].name, .other = "terminal", .cap = 16ULL})
+                ? at
+                : args->window->strip.terminal_at;
+    }
     if (height != args->window->frame.terminal_height)
     {
         EMBED_CALL(gui_frame_displayed.terminal, GuiFrameDisplayedCfg, .frame = &args->window->frame, .height = height);
@@ -900,6 +908,10 @@ void gui_window_preferences_resize(const GuiWindowWidthCfg *args)
 static void window_preferences_press(const GuiInputHandlerCfg *args)
 {
     GuiWindow *window = args->window;
+    if (args->input->button != GUI_BUTTON_LEFT)
+    {
+        return;
+    }
     GuiPreferenceChange change;
     (void)EMBED_CALL(gui_preferences_palette_change.press, GuiPreferencesPaletteChangeCfg,
                      .preferences = &window->preferences, .palette = window->palette, .x = args->input->x,
@@ -1573,10 +1585,75 @@ static void window_wheel(const GuiInputHandlerCfg *args)
     }
 }
 
+// a press of the middle button: on a terminal's tab it ends the tab's shell and closes the tab, as its × does, and
+// elsewhere it does nothing
+EMBED_INLINE void window_middle_press(const GuiWindowCtx *args)
+{
+    CliInput pressed = {.kind = CLI_INPUT_POINTER_DOWN};
+    EMBED_CALL(window_hit_read, GuiWindowCtx, .window_read = args->window_read, .x = args->x, .y = args->y,
+               .input = &pressed);
+    if (pressed.hit == CLI_HIT_TERMINAL_TAB)
+    {
+        pressed.hit = CLI_HIT_TERMINAL_TAB_CLOSE;
+        cli_controller_input(&pressed, NULL);
+    }
+}
+
+// whether the pixel at x, y stands on the terminal's top edge, which drags its height: the panel's top line and the
+// grip's reach either side of it
+EMBED_INLINE int window_terminal_grip(const GuiWindowCtx *args)
+{
+    const GuiFrame *const frame = &args->window_read->frame;
+    const int reach =
+        EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_TERMINAL_GRIP, .scale = frame->scale);
+    return !EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = frame->terminal) &&
+           EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg,
+                      .rect = (GuiRect){frame->terminal.x, frame->terminal.y - reach, frame->terminal.width, 2 * reach},
+                      .x = args->x, .y = args->y);
+}
+
+// the terminal's height for its top edge dragged to y, in the page's pixels, between its least and its most as the
+// frame lays it, told the controller where it moved
+EMBED_INLINE void window_terminal_drag(const GuiWindowCtx *args)
+{
+    GuiWindow *const window = args->window;
+    const GuiFrame *const frame = &window->frame;
+    const int foot = frame->terminal.y + frame->terminal.height;
+    const int scale = (frame->scale > 0) ? frame->scale : GUI_SCALE_ONE;
+    // a height in the frame's pixels comes back to the page's at the scale
+    const int asked = ((foot - args->y) * GUI_SCALE_ONE) / scale;
+    // the window's height in the page's pixels, of which the panel takes no more than its share and what leaves the
+    // views their least
+    const int window_height = ((int)frame->height * GUI_SCALE_ONE) / scale;
+    const int share = (window_height * GUI_TERMINAL_MOST_PERCENT) / 100;
+    const int leaves = window_height - GUI_TERMINAL_SHELL_LEAST;
+    const int most = (share < leaves) ? share : leaves;
+    const int bounded = (asked < most) ? asked : most;
+    const int height = (bounded > GUI_TERMINAL_LEAST) ? bounded : GUI_TERMINAL_LEAST;
+    // the height is not negative
+    if ((unsigned int)height != window->terminal_height_sent)
+    {
+        window->terminal_height_sent = (unsigned int)height;
+        const CliInput sized = {.kind = CLI_INPUT_TERMINAL_HEIGHT, .rows = (unsigned int)height};
+        cli_controller_input(&sized, NULL);
+    }
+}
+
 static void window_press(const GuiInputHandlerCfg *args)
 {
     GuiWindow *window = args->window;
     const GuiInput *input = args->input;
+    if (input->button == GUI_BUTTON_MIDDLE)
+    {
+        EMBED_CALL(window_middle_press, GuiWindowCtx, .window_read = window, .x = input->x, .y = input->y);
+        return;
+    }
+    if (EMBED_CALL(window_terminal_grip, GuiWindowCtx, .window_read = window, .x = input->x, .y = input->y))
+    {
+        window->terminal_gripped = 1;
+        window->terminal_height_sent = 0u;
+        return;
+    }
     const unsigned int hit = EMBED_CALL(cli_window_input.hit, GuiWindowInputCfg, .window_read = window, .input = input);
     window->pressed =
         ((hit == GUI_HIT_MINIMIZE) || (hit == GUI_HIT_MAXIMIZE) || (hit == GUI_HIT_CLOSE)) ? hit : GUI_HIT_CLIENT;
@@ -1616,6 +1693,11 @@ static void window_press(const GuiInputHandlerCfg *args)
 static void window_move(const GuiInputHandlerCfg *args)
 {
     GuiWindow *window = args->window;
+    if (window->terminal_gripped)
+    {
+        EMBED_CALL(window_terminal_drag, GuiWindowCtx, .window = window, .y = args->input->y);
+        return;
+    }
     if (window->claim.autohidden)
     {
         const GuiFrame *const frame = &window->frame;
@@ -1691,6 +1773,7 @@ static void window_leave(const GuiInputHandlerCfg *args)
 static void window_release(const GuiInputHandlerCfg *args)
 {
     GuiWindow *window = args->window;
+    window->terminal_gripped = 0;
     if (window->minimap.dragging)
     {
         EMBED_CALL(gui_minimap.release, GuiMinimapCfg, .map = &window->minimap);

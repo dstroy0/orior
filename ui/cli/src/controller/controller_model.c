@@ -446,6 +446,7 @@ void cli_controller_model_input(const CliInput *input, const char *bytes)
         }
         break;
     case CLI_INPUT_TERMINAL_SIZE:
+    case CLI_INPUT_TERMINAL_HEIGHT:
         EMBED_CALL(cli_model_terminal.size, CliModelCtx, .input = input);
         break;
     default:

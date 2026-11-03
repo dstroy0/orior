@@ -18,8 +18,9 @@
 // what an input is: a key by its name, text typed, the pointer pressed, moved or let go on what it hit, the wheel, the
 // editor's size in rows and columns of its text, a file dropped on it, the system's close, a setting changed, its key
 // and its value in the bytes with a 0 between, the lines the minimap stands for, from `row` to `column`, a command
-// whose name is in the bytes, a key pressed in Preferences' window, taken only where it is that command's own, and the
-// size in rows and columns of the terminal's view `index`, 0 the one shown and 1 the one beside it
+// whose name is in the bytes, a key pressed in Preferences' window, taken only where it is that command's own, the size
+// in rows and columns of the terminal's view `index`, 0 the one shown and 1 the one beside it, and the terminal's
+// panel's height dragged to `rows` pixels at a scale of one
 #define CLI_INPUT_KEY 0u
 #define CLI_INPUT_TEXT 1u
 #define CLI_INPUT_POINTER_DOWN 2u
@@ -34,6 +35,7 @@
 #define CLI_INPUT_COMMAND 11u
 #define CLI_INPUT_PREFERENCES_KEY 12u
 #define CLI_INPUT_TERMINAL_SIZE 13u
+#define CLI_INPUT_TERMINAL_HEIGHT 14u
 
 // what the pointer hit, as the window's layout places it; a key sent while the name's pane stands names the wordmark,
 // no view taking it. In the terminal: its view `index`, a tab, a tab's ×, New Terminal and Split

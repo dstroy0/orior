@@ -413,6 +413,16 @@ static void system_event(const SystemX11Ctx *args)
                                                               .state = args->event_x_event_pointer->xbutton.state)));
             }
         }
+        else if (args->event_x_event_pointer->xbutton.button == Button2)
+        {
+            EMBED_CALL(args->system->events->input, GuiEachInputCfg, .context = args->system->context,
+                       .input = &(GuiInput){.type = GUI_INPUT_DOWN,
+                                            .x = args->event_x_event_pointer->xbutton.x,
+                                            .y = args->event_x_event_pointer->xbutton.y,
+                                            .button = GUI_BUTTON_MIDDLE,
+                                            .mods = EMBED_CALL(system_mods, SystemX11Ctx,
+                                                               .state = args->event_x_event_pointer->xbutton.state)});
+        }
         else if ((args->event_x_event_pointer->xbutton.button == Button4) ||
                  (args->event_x_event_pointer->xbutton.button == Button5))
         {

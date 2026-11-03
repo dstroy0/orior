@@ -769,6 +769,14 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM pixel_w
                    .input = GUI_DOWN_INPUT(GET_X_LPARAM(low), GET_Y_LPARAM(low),
                                            EMBED_CALL(system_mods, SystemWindowsCtx, .system_read = system)));
         return 0;
+    case WM_MBUTTONDOWN:
+        EMBED_CALL(system->events->input, GuiEachInputCfg, .context = system->context,
+                   .input = &(GuiInput){.type = GUI_INPUT_DOWN,
+                                        .x = GET_X_LPARAM(low),
+                                        .y = GET_Y_LPARAM(low),
+                                        .button = GUI_BUTTON_MIDDLE,
+                                        .mods = EMBED_CALL(system_mods, SystemWindowsCtx, .system_read = system)});
+        return 0;
     case WM_LBUTTONUP:
         ReleaseCapture();
         EMBED_CALL(system->events->input, GuiEachInputCfg, .context = system->context,

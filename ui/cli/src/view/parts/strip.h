@@ -33,13 +33,16 @@ typedef struct GuiStripInitCfg GuiStripInitCfg;
 #define GUI_STRIP_MARK 6
 #define GUI_STRIP_MARK_IN 7
 
-// The strip: the tool the pointer stands on and the tool whose window shows, each GUI_STRIP_NONE for none; and
-// whether the Problems tool is marked, as it is while errors stand
+// The strip: the tool the pointer stands on and the tool whose window shows, each GUI_STRIP_NONE for none; whether
+// the Problems tool is marked, as it is while errors stand; and whether the terminal's panel is open, which shows the
+// Terminal tool, at `terminal_at` among the tools, as the tool whose window shows is
 typedef struct
 {
     int pointed;
     int displayed;
     int problems_marked;
+    int terminal_open;
+    unsigned int terminal_at;
 } GuiStrip;
 
 // a strip pointing at and showing no tool

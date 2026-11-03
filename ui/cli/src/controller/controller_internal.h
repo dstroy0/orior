@@ -187,7 +187,8 @@ void cli_model_watch_end(const CliModelCtx *args);
 // or 0 where it is none of the terminal's; the key `path` taken where the panel takes the keys: 1, or 0 where it goes
 // on to the rest of the window; `length` bytes of text `path` typed where the panel takes the keys: 1, or 0 where it
 // does not; a press on the terminal, `input` a CliInput, or elsewhere, which takes the keys from it; the view `input`
-// names sized to its rows and columns; every shell drained, 1 where a screen changed; the clock's reading of its next
+// names sized to its rows and columns, or the panel's height where `input` is a CLI_INPUT_TERMINAL_HEIGHT; every shell
+// drained, 1 where a screen changed; the clock's reading of its next
 // timer, 0 for none; its snapshot; and every shell hung up on and its tabs let go
 int cli_model_terminal_command(const CliModelCtx *args);
 int cli_model_terminal_key(const CliModelCtx *args);

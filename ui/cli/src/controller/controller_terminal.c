@@ -566,6 +566,12 @@ void cli_model_terminal_press(const CliModelCtx *args)
 void cli_model_terminal_size(const CliModelCtx *args)
 {
     const CliInput *const input = (const CliInput *)args->input;
+    if (input->kind == CLI_INPUT_TERMINAL_HEIGHT)
+    {
+        s_terminal.height = input->rows;
+        terminal_dirty();
+        return;
+    }
     const unsigned int view = (input->index != 0u) ? 1u : 0u;
     s_terminal.columns[view] = input->columns;
     s_terminal.rows[view] = input->rows;

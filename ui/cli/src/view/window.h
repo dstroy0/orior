@@ -55,8 +55,8 @@ typedef struct GuiWindowDisplayedCfg GuiWindowDisplayedCfg;
 // and whether its slides ran at the last tick; the controls' tab's shadow; the wordmark; less motion as the system and
 // the settings ask it; the count the controller gives each file shown, and what it last told of Preferences and the
 // name; what was last said of the editor's size, the bar's titles, the map's lines, the terminal's two screens'
-// columns and rows and the pointer, none said again until it moves; whether the pointer drags in the editor; the
-// presses counted, when
+// columns and rows and the pointer, none said again until it moves; whether the pointer drags the terminal's top edge
+// and the height it last said; whether the pointer drags in the editor; the presses counted, when
 // and where the last was; whether a frame is owed; and the control pressed, for the system to act on, GUI_HIT_CLIENT
 // where none
 typedef struct GuiWindow
@@ -121,6 +121,8 @@ typedef struct GuiWindow
     unsigned long long map_sent_last;
     unsigned int terminal_columns_sent[2];
     unsigned int terminal_rows_sent[2];
+    int terminal_gripped;
+    unsigned int terminal_height_sent;
     CliInput moved_sent;
     int dragging;
     unsigned int clicks;

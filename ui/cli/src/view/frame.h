@@ -50,6 +50,8 @@ typedef struct GuiFramePixelsCfg GuiFramePixelsCfg;
 #define GUI_TERMINAL_MOST_PERCENT 75
 #define GUI_TERMINAL_LINE 1
 #define GUI_TERMINAL_STRIP 27
+// how far either side of the panel's top line its grip reaches, the 6px grip set 3px above it
+#define GUI_TERMINAL_GRIP 3
 
 // a number of 1 in the frame's arithmetic: every share the parts move on is a whole word, 16 bits of it a fraction
 #define GUI_FIXED_ONE 65536

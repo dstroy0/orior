@@ -21,6 +21,9 @@ typedef struct GuiInputEventCfg GuiInputEventCfg;
 #define GUI_MOD_SHIFT 1u
 #define GUI_MOD_CONTROL 2u
 #define GUI_MOD_ALT 4u
+// the buttons a press names: the left and the middle
+#define GUI_BUTTON_LEFT 0u
+#define GUI_BUTTON_MIDDLE 1u
 
 // An input: the type; the pointer at x, y of the client; the button, 0 for the left; the modifier keys down; the
 // wheel's rows, down where positive; the key's name as the editor names a key, `Mod+Shift+Left`, Mod the control key,
