@@ -79,6 +79,21 @@ void test_tab_width_sizes_tabs_with_no_indent_size(void)
     assert_indent("main.go", 1, 8u);
 }
 
+void test_a_range_nested_braces_a_negated_class_a_question_mark_and_an_escape_match(void)
+{
+    written(".editorconfig", "root = true\n[part{2..4}.c]\nindent_size = 2\n[{x,y{1,z}}.h]\nindent_size = 3\n[[!a-m]?.md]\nindent_size = 5\n"
+                             "[\\{one\\}.txt]\nindent_size = 6\n[{solo}.ini]\nindent_size = 7\n");
+    assert_indent("part3.c", -1, 2u);
+    assert_indent("part5.c", -1, 0u);
+    assert_indent("x.h", -1, 3u);
+    assert_indent("y1.h", -1, 3u);
+    assert_indent("yz.h", -1, 3u);
+    assert_indent("zq.md", -1, 5u);
+    assert_indent("aq.md", -1, 0u);
+    assert_indent("{one}.txt", -1, 6u);
+    assert_indent("{solo}.ini", -1, 7u);
+}
+
 void test_a_file_no_section_matches_has_no_indentation_set(void)
 {
     written(".editorconfig", "root = true\n[*.go]\nindent_style = tab\ntab_width = 8\n");

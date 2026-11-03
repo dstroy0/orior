@@ -13,6 +13,7 @@ extern void test_a_nearer_file_overrides_its_parent(void);
 extern void test_a_double_star_crosses_folders(void);
 extern void test_a_character_class_matches_its_digits_only(void);
 extern void test_tab_width_sizes_tabs_with_no_indent_size(void);
+extern void test_a_range_nested_braces_a_negated_class_a_question_mark_and_an_escape_match(void);
 extern void test_a_file_no_section_matches_has_no_indentation_set(void);
 
 
@@ -81,7 +82,8 @@ int main(void)
   run_test(test_a_double_star_crosses_folders, "test_a_double_star_crosses_folders", 65);
   run_test(test_a_character_class_matches_its_digits_only, "test_a_character_class_matches_its_digits_only", 70);
   run_test(test_tab_width_sizes_tabs_with_no_indent_size, "test_tab_width_sizes_tabs_with_no_indent_size", 76);
-  run_test(test_a_file_no_section_matches_has_no_indentation_set, "test_a_file_no_section_matches_has_no_indentation_set", 82);
+  run_test(test_a_range_nested_braces_a_negated_class_a_question_mark_and_an_escape_match, "test_a_range_nested_braces_a_negated_class_a_question_mark_and_an_escape_match", 82);
+  run_test(test_a_file_no_section_matches_has_no_indentation_set, "test_a_file_no_section_matches_has_no_indentation_set", 97);
 
   return UNITY_END();
 }
