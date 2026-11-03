@@ -305,7 +305,7 @@ void cli_model_file_open(const CliModelCtx *args)
     *opening = (CliModelOpening){copies, copies + length + 1ULL, root_copy, g_cli_model.rows, CLI_FILES_OPEN_REFUSED};
     EMBED_CALL(tabs_show, ControllerTabsCtx, .at = g_cli_model.tabs - 1u);
     EMBED_CALL(cli_model.session_save, CliModelCtx, .at = 0u);
-    EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane = CLI_WORK_FILES, .run = tabs_open_run,
+    EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_FILES, .run = tabs_open_run,
                .done = tabs_open_done, .context = opening, .busy = 1);
 }
 
@@ -415,7 +415,7 @@ void cli_model_value_save(const CliModelCtx *args)
         tabs_save_done(saving);
         return;
     }
-    EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane = CLI_WORK_FILES, .run = tabs_save_run,
+    EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_FILES, .run = tabs_save_run,
                .done = tabs_save_done, .context = saving);
 }
 

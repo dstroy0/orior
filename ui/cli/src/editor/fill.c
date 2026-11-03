@@ -147,13 +147,13 @@ void cli_fill_words(const CliFillFilledCtx *args)
         const char *const text = g_cli_fill_slice[at];
         const unsigned long long size = g_cli_fill_slice_size[at];
         unsigned long long walk = 0ULL;
-        unsigned long long word = 0ULL;
+        unsigned long long word_text = 0ULL;
         unsigned long long length = 0ULL;
-        while (EMBED_CALL(cli_text_size_length.word, CliTextSizeLengthCfg, .text = text, .size = size,
-                          .at_pointer = &walk, .word = &word, .length = &length))
+        while (EMBED_CALL(cli_text_size_length.word_text, CliTextSizeLengthCfg, .text = text, .size = size,
+                          .at_pointer = &walk, .word_text = &word_text, .length = &length))
         {
             const unsigned long long word_letters =
-                EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = text + word, .size = length);
+                EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = text + word_text, .size = length);
             const unsigned long long lead = empty ? letters : letters + 1u;
             if (!empty && (lead + word_letters > args->width))
             {
@@ -169,7 +169,7 @@ void cli_fill_words(const CliFillFilledCtx *args)
                 mmgr_line_ch(args->filled->out, ' ');
                 letters += 1u;
             }
-            mmgr_line_put_n(args->filled->out, text + word, length);
+            mmgr_line_put_n(args->filled->out, text + word_text, length);
             letters += word_letters;
             empty = 0;
         }

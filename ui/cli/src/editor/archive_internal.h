@@ -4,6 +4,9 @@
 // written anew with one member changed
 #ifndef ARCHIVE_INTERNAL_H
 #define ARCHIVE_INTERNAL_H
+#include "archive.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliArchiveBytesCtx CliArchiveBytesCtx;
 typedef struct CliArchiveBytesSizeCtx CliArchiveBytesSizeCtx;
 typedef struct CliArchiveBytesSizeErrMsgCtx CliArchiveBytesSizeErrMsgCtx;
@@ -17,9 +20,6 @@ typedef struct CliArchiveErrMsgPartsCtx CliArchiveErrMsgPartsCtx;
 typedef struct CliArchiveMembersCtx CliArchiveMembersCtx;
 typedef struct CliArchiveCtx CliArchiveCtx;
 typedef struct CliArchiveNameOutCtx CliArchiveNameOutCtx;
-
-#include "archive.h"
-#include "embed_dispatch_layout.h"
 
 // the base length and the extra bits of each length code, and the base distance and the extra bits of each distance
 // code, as deflate gives them (archive_deflate.c)

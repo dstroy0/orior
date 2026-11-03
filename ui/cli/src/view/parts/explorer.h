@@ -7,17 +7,18 @@
 // and the name (explorer.c)
 #ifndef GUI_PARTS_EXPLORER_H
 #define GUI_PARTS_EXPLORER_H
-typedef struct GuiExplorerFrameXYCfg GuiExplorerFrameXYCfg;
-typedef struct GuiExplorerFrameXCfg GuiExplorerFrameXCfg;
-typedef struct GuiExplorerCfg GuiExplorerCfg;
-typedef struct GuiExplorerRowFrameCfg GuiExplorerRowFrameCfg;
-typedef struct GuiExplorerFrameCfg GuiExplorerFrameCfg;
 #include "../../controller/controller_parts.h"
 #include "../frame.h"
 #include "../glyphs.h"
 #include "../icons.h"
 #include "../palette.h"
 #include "embed_dispatch_layout.h"
+
+typedef struct GuiExplorerFrameXYCfg GuiExplorerFrameXYCfg;
+typedef struct GuiExplorerFrameXCfg GuiExplorerFrameXCfg;
+typedef struct GuiExplorerCfg GuiExplorerCfg;
+typedef struct GuiExplorerRowFrameCfg GuiExplorerRowFrameCfg;
+typedef struct GuiExplorerFrameCfg GuiExplorerFrameCfg;
 
 // no row; and the sizes in the page's pixels:
 // the explorer's head, the line over the pane and the pane's head, a row, a row's padding at the left, a guide's

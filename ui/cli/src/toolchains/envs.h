@@ -13,12 +13,12 @@
 // orior_cli starts, and its Python is the tree's Python (envs.c, envs_find.c, envs_resolve.c)
 #ifndef ENVS_H
 #define ENVS_H
+#include "embed_dispatch_layout.h"
+#include "toolchains.h"
+
 typedef struct CliEnvsRootCfg CliEnvsRootCfg;
 typedef struct CliEnvsCfg CliEnvsCfg;
 typedef struct CliEnvsOutFolderCfg CliEnvsOutFolderCfg;
-
-#include "embed_dispatch_layout.h"
-#include "toolchains.h"
 
 // the cells the environments are found and their requirements read through, counted, each given back before the call
 // that took it returns (envs.c)

@@ -76,9 +76,11 @@ int cli_settings_is_file_key(const CliSettingsKeyCfg *args)
                 (cellul.eq(&(CatenaFinitaCfg){.src = args->key, .other = s_machine, .cap = CLI_CELLS_POOL})) ||
                 EMBED_CALL(cli_settings_key_internal.kind_get, CliSettingsKeyCtx, .key = args->key, .kind = &kind,
                            .length_pointer = &length);
-    for (unsigned int at = 0u; !found && (at < 3u); at += 1u)
+    unsigned int at = 0u;
+    while (!found && (at < 3u))
     {
         found = cellul.eq(&(CatenaFinitaCfg){.src = args->key, .other = s_systems[at], .cap = CLI_CELLS_POOL});
+        at += 1u;
     }
     return found;
 }

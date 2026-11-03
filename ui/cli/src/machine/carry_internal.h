@@ -4,6 +4,11 @@
 // and the files of a folder that travel
 #ifndef CARRY_INTERNAL_H
 #define CARRY_INTERNAL_H
+#include "../command_line/cells.h"
+#include "../text/json_tree.h"
+#include "carry.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliMachineTransferTransferredPositionCtx CliMachineTransferTransferredPositionCtx;
 typedef struct CliMachineTransferWorkStateCtx CliMachineTransferWorkStateCtx;
 typedef struct CliMachineTransferWorkStateObjectCtx CliMachineTransferWorkStateObjectCtx;
@@ -12,11 +17,6 @@ typedef struct CliMachineTransferTransferredCtx CliMachineTransferTransferredCtx
 typedef struct CliMachineTransferTransferredAtCtx CliMachineTransferTransferredAtCtx;
 typedef struct CliMachineTransferFolderCtx CliMachineTransferFolderCtx;
 typedef struct CliMachineTransferCtx CliMachineTransferCtx;
-
-#include "../command_line/cells.h"
-#include "../text/json_tree.h"
-#include "carry.h"
-#include "embed_dispatch_layout.h"
 
 // What a carried file declares it is
 #define CLI_MACHINE_TRANSFER_MARK "orior settings"

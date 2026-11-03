@@ -299,7 +299,8 @@ EMBED_INLINE unsigned long long cli_line_letters(const DocumentCtx *args)
     const unsigned short *const unit = args->lines->unit + args->lines->start[args->line_u32];
     const unsigned long long length = args->lines->length[args->line_u32];
     unsigned long long count = 0ULL;
-    for (unsigned long long place = 0ULL; place < length; count += 1ULL)
+    unsigned long long place = 0ULL;
+    while (place < length)
     {
         const int paired = (unit[place] >= 0xd800u) && (unit[place] < 0xdc00u) && ((place + 1ULL) < length) &&
                            (unit[place + 1ULL] >= 0xdc00u) && (unit[place + 1ULL] < 0xe000u);
@@ -308,6 +309,7 @@ EMBED_INLINE unsigned long long cli_line_letters(const DocumentCtx *args)
         args->letters[count] =
             paired ? (0x10000u + ((unit[place] - 0xd800u) << 10u) + (unit[place + 1ULL] - 0xdc00u)) : unit[place];
         place += paired ? 2ULL : 1ULL;
+        count += 1ULL;
     }
     // the length stands below 2^32, as a line's cols do
     args->cols[count] = (unsigned int)length;
@@ -351,7 +353,7 @@ static int cli_found_pattern(const DocumentCtx *args)
     const unsigned long long output = err_msg->at;
     int read = EMBED_CALL(cli_regexp_source.read, CliRegexpSourceCfg, .regexp_out = &regexp, .source = source,
                           .flags = args->needle->match_case ? "u" : "iu", .err_msg = err_msg);
-    if (!read && !args->needle->word)
+    if (!read && !args->needle->word_text)
     {
         err_msg->at = output;
         EMBED_CALL(cli_regexp_capacity.capacity, CliRegexpWorkStateCfg, .regexp_out = &regexp,
@@ -376,7 +378,7 @@ static int cli_found_pattern(const DocumentCtx *args)
                                 (groups[0].to > groups[0].from);
             const unsigned long long to = matched ? groups[0].to : at;
             const int whole =
-                !args->needle->word ||
+                !args->needle->word_text ||
                 (((at == 0ULL) || !EMBED_CALL(cli_word_letter, DocumentCtx, .letter = letters[at - 1ULL])) &&
                  ((to == count) || !EMBED_CALL(cli_word_letter, DocumentCtx, .letter = letters[to])));
             if (matched && whole)
@@ -518,7 +520,7 @@ static void cli_found_at(const CliEachAtCfg *args)
     }
     const unsigned long long from = hit - joined->start[walk->line];
     const unsigned long long to = from + walk->size;
-    if (walk->needle->word)
+    if (walk->needle->word_text)
     {
         const unsigned long long length = joined->start[walk->line + 1u] - joined->start[walk->line] - 1ULL;
         const int whole =

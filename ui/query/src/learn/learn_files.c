@@ -10,10 +10,10 @@ void query_words_add(const QueryLoopsWordsWordsCfg *args)
 {
     if (args->words_words_pointer->count < QUERY_WORDS_MAX)
     {
-        args->words_words_pointer->word[args->words_words_pointer->count] = args->word;
+        args->words_words_pointer->word_text[args->words_words_pointer->count] = args->word_text;
         args->words_words_pointer->count += 1u;
     }
-    args->words_words_pointer->word[args->words_words_pointer->count] = NULL;
+    args->words_words_pointer->word_text[args->words_words_pointer->count] = NULL;
 }
 
 void query_words_text(const QueryLoopsWordsWordsTextCfg *args)
@@ -35,7 +35,7 @@ void query_words_text(const QueryLoopsWordsWordsTextCfg *args)
                             .src = args->text,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL}) + 1u});
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg,
-               .words_words_pointer = args->words_words_pointer, .word = text);
+               .words_words_pointer = args->words_words_pointer, .word_text = text);
 }
 
 typedef struct
@@ -82,53 +82,53 @@ void query_files_get(const QueryLoopsRootCfg *args)
 void query_transport_words(const QueryLoopsWordsWordsTransportCfg *args)
 {
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg,
-               .words_words_pointer = args->words_words_pointer, .word = args->transport);
+               .words_words_pointer = args->words_words_pointer, .word_text = args->transport);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg,
-               .words_words_pointer = args->words_words_pointer, .word = "--gated");
+               .words_words_pointer = args->words_words_pointer, .word_text = "--gated");
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg,
-               .words_words_pointer = args->words_words_pointer, .word = "gated.txt");
+               .words_words_pointer = args->words_words_pointer, .word_text = "gated.txt");
     if (args->lessons)
     {
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg,
-                   .words_words_pointer = args->words_words_pointer, .word = "--lessons");
+                   .words_words_pointer = args->words_words_pointer, .word_text = "--lessons");
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg,
-                   .words_words_pointer = args->words_words_pointer, .word = "overseer.txt");
+                   .words_words_pointer = args->words_words_pointer, .word_text = "overseer.txt");
     }
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg,
-               .words_words_pointer = args->words_words_pointer, .word = args->machine);
+               .words_words_pointer = args->words_words_pointer, .word_text = args->machine);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg,
-               .words_words_pointer = args->words_words_pointer, .word = args->layout);
+               .words_words_pointer = args->words_words_pointer, .word_text = args->layout);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg,
-               .words_words_pointer = args->words_words_pointer, .word = "--pop");
+               .words_words_pointer = args->words_words_pointer, .word_text = "--pop");
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg,
-               .words_words_pointer = args->words_words_pointer, .word = args->transport);
+               .words_words_pointer = args->words_words_pointer, .word_text = args->transport);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg,
-               .words_words_pointer = args->words_words_pointer, .word = "--dry");
+               .words_words_pointer = args->words_words_pointer, .word_text = "--dry");
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg,
-               .words_words_pointer = args->words_words_pointer, .word = "--full");
+               .words_words_pointer = args->words_words_pointer, .word_text = "--full");
     if (args->lessons)
     {
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg,
-                   .words_words_pointer = args->words_words_pointer, .word = "--lessons");
+                   .words_words_pointer = args->words_words_pointer, .word_text = "--lessons");
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg,
-                   .words_words_pointer = args->words_words_pointer, .word = "overseer.txt");
+                   .words_words_pointer = args->words_words_pointer, .word_text = "overseer.txt");
     }
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg,
-               .words_words_pointer = args->words_words_pointer, .word = args->machine);
+               .words_words_pointer = args->words_words_pointer, .word_text = args->machine);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg,
-               .words_words_pointer = args->words_words_pointer, .word = args->layout);
+               .words_words_pointer = args->words_words_pointer, .word_text = args->layout);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg,
-               .words_words_pointer = args->words_words_pointer, .word = "--cross");
+               .words_words_pointer = args->words_words_pointer, .word_text = "--cross");
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg,
-               .words_words_pointer = args->words_words_pointer, .word = args->cross);
+               .words_words_pointer = args->words_words_pointer, .word_text = args->cross);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg,
-               .words_words_pointer = args->words_words_pointer, .word = args->nvdisasm);
+               .words_words_pointer = args->words_words_pointer, .word_text = args->nvdisasm);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg,
-               .words_words_pointer = args->words_words_pointer, .word = "SM86");
+               .words_words_pointer = args->words_words_pointer, .word_text = "SM86");
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg,
-               .words_words_pointer = args->words_words_pointer, .word = "airlock.md");
+               .words_words_pointer = args->words_words_pointer, .word_text = "airlock.md");
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg,
-               .words_words_pointer = args->words_words_pointer, .word = "gated.txt");
+               .words_words_pointer = args->words_words_pointer, .word_text = "gated.txt");
 }
 
 int query_base_compile(const QueryLoopsContextErrMsgCfg *args)

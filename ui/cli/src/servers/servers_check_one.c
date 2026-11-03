@@ -238,9 +238,11 @@ EMBED_INLINE void check_one_wait(const ServersCheckOneCtx *args)
 EMBED_INLINE int check_one_reject(const ServersCheckOneCtx *args)
 {
     int refused = 0;
-    for (unsigned int at = 0u; !refused && (at < s_refusing); at += 1u)
+    unsigned int at = 0u;
+    while (!refused && (at < s_refusing))
     {
         refused = (s_refused[at] == args->pid);
+        at += 1u;
     }
     if (args->record && !refused && (s_refusing < CLI_SERVERS_REFUSED))
     {

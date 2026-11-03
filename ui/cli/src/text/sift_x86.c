@@ -17,7 +17,7 @@
 typedef struct
 {
 #if (ENGINE_TARGET_X86_64)
-    unsigned int mask;
+    unsigned int mask_bits;
     __m128i block;
     int fold;
     __m256i block_m256i;
@@ -33,7 +33,7 @@ EMBED_INLINE unsigned int cli_lowest(const SiftX86Ctx *args)
     return (unsigned int)index;
 #else
     // the trailing count of a non-zero 32 bit mask is 0 to 31
-    return (unsigned int)__builtin_ctz(args->mask);
+    return (unsigned int)__builtin_ctz(args->mask_bits);
 #endif
 }
 
@@ -90,11 +90,11 @@ unsigned long long cli_sift_window_sse2(const CliSiftWindowLengthCfg *args)
             EMBED_CALL(cli_fold16, SiftX86Ctx,
                        .block = _mm_loadu_si128((const __m128i *)(const void *)(window + at + second)), .fold = fold);
         // the movemask of a block is its 16 bits
-        unsigned int mask = (unsigned int)_mm_movemask_epi8(
+        unsigned int mask_bits = (unsigned int)_mm_movemask_epi8(
             _mm_and_si128(_mm_cmpeq_epi8(a, want_first), _mm_cmpeq_epi8(b, want_second)));
-        while (mask != 0u)
+        while (mask_bits != 0u)
         {
-            const unsigned long long here = at + EMBED_CALL(cli_lowest, SiftX86Ctx, .mask = mask);
+            const unsigned long long here = at + EMBED_CALL(cli_lowest, SiftX86Ctx, .mask_bits = mask_bits);
             if (EMBED_CALL(cli_sift_window_fold.matches, CliSiftWindowFoldCfg, .window = window, .needle = needle,
                            .needle_length = needle_length, .anchors = anchors, .anchor_count = anchor_count,
                            .from = tested, .at = here, .fold = fold))
@@ -102,7 +102,7 @@ unsigned long long cli_sift_window_sse2(const CliSiftWindowLengthCfg *args)
                 EMBED_CALL(args->found, CliEachAtCfg, .context = args->context, .at = args->base + here);
                 count += 1ULL;
             }
-            mask &= mask - 1u;
+            mask_bits &= mask_bits - 1u;
         }
         at += 16ULL;
     }
@@ -141,11 +141,11 @@ CLI_AVX2_TARGET unsigned long long cli_sift_window_avx2(const CliSiftWindowLengt
             cli_fold32, SiftX86Ctx,
             .block_m256i = _mm256_loadu_si256((const __m256i *)(const void *)(window + at + second)), .fold = fold);
         // the movemask of a block is its 32 bits
-        unsigned int mask = (unsigned int)_mm256_movemask_epi8(
+        unsigned int mask_bits = (unsigned int)_mm256_movemask_epi8(
             _mm256_and_si256(_mm256_cmpeq_epi8(a, want_first), _mm256_cmpeq_epi8(b, want_second)));
-        while (mask != 0u)
+        while (mask_bits != 0u)
         {
-            const unsigned long long here = at + EMBED_CALL(cli_lowest, SiftX86Ctx, .mask = mask);
+            const unsigned long long here = at + EMBED_CALL(cli_lowest, SiftX86Ctx, .mask_bits = mask_bits);
             if (EMBED_CALL(cli_sift_window_fold.matches, CliSiftWindowFoldCfg, .window = window, .needle = needle,
                            .needle_length = needle_length, .anchors = anchors, .anchor_count = anchor_count,
                            .from = tested, .at = here, .fold = fold))
@@ -153,7 +153,7 @@ CLI_AVX2_TARGET unsigned long long cli_sift_window_avx2(const CliSiftWindowLengt
                 EMBED_CALL(args->found, CliEachAtCfg, .context = args->context, .at = args->base + here);
                 count += 1ULL;
             }
-            mask &= mask - 1u;
+            mask_bits &= mask_bits - 1u;
         }
         at += 32ULL;
     }

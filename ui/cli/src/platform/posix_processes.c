@@ -116,17 +116,17 @@ static void processes_entry(const CliEachNameIsFolderCfg *args)
     const long long line_size =
         EMBED_CALL(processes_read, PosixProcessesCtx, .path = path, .out = s_line, .capacity = sizeof(s_line));
     VerbaLinea command = {s_command, sizeof(s_command), 0ULL};
-    unsigned long long word = 0ULL;
+    unsigned long long word_text = 0ULL;
     for (unsigned long long at = 0ULL; at <= (unsigned long long)((line_size > 0LL) ? line_size : 0LL); at += 1ULL)
     {
         const int ends = (at == (unsigned long long)((line_size > 0LL) ? line_size : 0LL)) || (s_line[at] == '\0');
-        if (ends && (at > word))
+        if (ends && (at > word_text))
         {
             mmgr_line_put(&command, (command.at > 0ULL) ? " " : "");
             EMBED_CALL(cli_json_tree_length_out.lossy, CliJsonTreeLengthOutCfg, .out = &command,
-                       .text_bytes = (const unsigned char *)s_line + word, .length = at - word);
+                       .text_bytes = (const unsigned char *)s_line + word_text, .length = at - word_text);
         }
-        word = ends ? at + 1ULL : word;
+        word_text = ends ? at + 1ULL : word_text;
     }
     mmgr_line_finish(&command);
     EMBED_CALL(read_list->each, CliEachPidNameCommandCfg, .context = read_list->context, .pid = (unsigned int)pid,

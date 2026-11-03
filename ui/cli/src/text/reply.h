@@ -6,15 +6,15 @@
 // reader walks it by key and the reply's bytes are the only capacity it takes (reply.c)
 #ifndef REPLY_H
 #define REPLY_H
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliReplyAtOutCfg CliReplyAtOutCfg;
 typedef struct CliReplyArrayCfg CliReplyArrayCfg;
 typedef struct CliReplyObjectCfg CliReplyObjectCfg;
 typedef struct CliReplyAtCfg CliReplyAtCfg;
 typedef struct CliReplyCfg CliReplyCfg;
 typedef struct CliReplyPathCfg CliReplyPathCfg;
-
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // A reply: its bytes and their count, a file mapped or a program's output as it came; and no value: a member an
 // object does not contain, an item past an array's last, a reply with nothing in it
@@ -71,7 +71,7 @@ struct CliReplyAtCfg
 {
     const CliReply *reply;
     unsigned long long at;
-    const char *word;
+    const char *word_text;
 };
 
 struct CliReplyCfg

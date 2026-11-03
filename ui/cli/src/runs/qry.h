@@ -14,6 +14,10 @@
 // and at most 65536 bytes of it; of any other record, its name and its count
 #ifndef CLI_QRY_H
 #define CLI_QRY_H
+#include "../command_line/cells.h"
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliQryPathCfg CliQryPathCfg;
 typedef struct CliQryPathNameCfg CliQryPathNameCfg;
 typedef struct CliQryPathOutCfg CliQryPathOutCfg;
@@ -25,10 +29,6 @@ typedef struct CliQryPathRootCfg CliQryPathRootCfg;
 typedef struct CliQryOutRootCfg CliQryOutRootCfg;
 typedef struct CliQryPathPanickedCfg CliQryPathPanickedCfg;
 typedef struct CliQryCfg CliQryCfg;
-
-#include "../command_line/cells.h"
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // the cells a tree's runs are listed in (qry_listing.c)
 extern CellOwner g_cli_qry_listing_cells;

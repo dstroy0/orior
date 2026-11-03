@@ -4,13 +4,13 @@
 // tree it is read into, and their lock (plugin_catalog.c, plugin_catalog_install.c)
 #ifndef PLUGIN_CATALOG_INTERNAL_H
 #define PLUGIN_CATALOG_INTERNAL_H
-typedef struct CliPluginCatalogWhereCtx CliPluginCatalogWhereCtx;
-typedef struct CliPluginCatalogAddressCtx CliPluginCatalogAddressCtx;
-typedef struct CliPluginCatalogCtx CliPluginCatalogCtx;
-
 #include "../command_line/cells.h"
 #include "embed_dispatch_layout.h"
 #include "plugin_catalog.h"
+
+typedef struct CliPluginCatalogWhereCtx CliPluginCatalogWhereCtx;
+typedef struct CliPluginCatalogAddressCtx CliPluginCatalogAddressCtx;
+typedef struct CliPluginCatalogCtx CliPluginCatalogCtx;
 
 // the most bytes a catalog or a package read takes
 #define CLI_CATALOG_BYTES (32u << 20u)

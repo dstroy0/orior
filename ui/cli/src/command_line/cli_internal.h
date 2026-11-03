@@ -5,6 +5,12 @@
 // another
 #ifndef CLI_INTERNAL_H
 #define CLI_INTERNAL_H
+#include "../../../../src/cu/includes/file_defs/ksg/ksg_writing.h"
+#include "../../../query/src/query_internal.h"
+#include "callback_cfg.h"
+#include "embed_dispatch_layout.h"
+#include <stdatomic.h>
+
 typedef struct CliWordsCtx CliWordsCtx;
 typedef struct CliWordsErrMsgCtx CliWordsErrMsgCtx;
 typedef struct CliWordsErrMsgSpawnedCtx CliWordsErrMsgSpawnedCtx;
@@ -73,12 +79,6 @@ typedef struct CliIdCtx CliIdCtx;
 typedef struct CliFileTemporaryFileCtx CliFileTemporaryFileCtx;
 typedef struct CliThreadCtx CliThreadCtx;
 typedef struct CliTreeCtx CliTreeCtx;
-
-#include "../../../../src/cu/includes/file_defs/ksg/ksg_writing.h"
-#include "../../../query/src/query_internal.h"
-#include "callback_cfg.h"
-#include "embed_dispatch_layout.h"
-#include <stdatomic.h>
 
 // the longest path and the longest line the command line handles, as the query's
 #define CLI_PATH_MAX_LEN QUERY_PATH_MAX_LEN
@@ -185,7 +185,7 @@ int cli_raised_platform(const CliErrMsgFromCtx *args);
 // word did not fit
 typedef struct
 {
-    const char *word[CLI_WORDS_MAX + 1u];
+    const char *word_text[CLI_WORDS_MAX + 1u];
     unsigned int count;
     char text[CLI_WORDS_TEXT];
     unsigned int used;
@@ -1002,7 +1002,7 @@ struct CliLineLetterCtx
 struct CliWordsWordsCtx
 {
     CliWords *words_words_pointer;
-    const char *word;
+    const char *word_text;
 };
 
 struct CliCtx

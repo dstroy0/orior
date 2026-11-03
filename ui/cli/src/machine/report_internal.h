@@ -3,10 +3,10 @@
 // report_internal.h: what report_file.c and report_page.c share
 #ifndef REPORT_INTERNAL_H
 #define REPORT_INTERNAL_H
-typedef struct CliReportCtx CliReportCtx;
-
 #include "embed_dispatch_layout.h"
 #include "report.h"
+
+typedef struct CliReportCtx CliReportCtx;
 
 // a report's category as the template's dropdown names it, "unknown" for any other; and the issue's body, laid out
 // as the template's form lays out what is entered in it, its fingerprint `print` last, into `out` (report_page.c)

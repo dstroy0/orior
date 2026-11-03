@@ -323,9 +323,11 @@ int cli_report_error(const CliReportCategoryCfg *args)
     EMBED_CALL(cli_report_category_text.fingerprint, CliReportCategoryTextCfg, .category = args->category,
                .text = s_scrubbed, .out_capacity = print);
     int known = 0;
-    for (unsigned int each = 0u; !known && (each < s_filed_count); each += 1u)
+    unsigned int each = 0u;
+    while (!known && (each < s_filed_count))
     {
         known = cellul.eq(&(CatenaFinitaCfg){.src = s_filed[each], .other = print, .cap = CLI_CELLS_POOL});
+        each += 1u;
     }
     const int files = !known && (s_filed_count < CLI_REPORT_AUTO);
     if (files)

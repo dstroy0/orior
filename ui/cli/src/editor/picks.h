@@ -6,11 +6,11 @@
 // milliseconds, spread over the cores (picks.c)
 #ifndef PICKS_H
 #define PICKS_H
-typedef struct CliPicksIdCfg CliPicksIdCfg;
-typedef struct CliPicksCfg CliPicksCfg;
-
 #include "../command_line/cli_internal.h"
 #include "embed_dispatch_layout.h"
+
+typedef struct CliPicksIdCfg CliPicksIdCfg;
+typedef struct CliPicksCfg CliPicksCfg;
 
 // the most lists stored at once
 #define CLI_PICKS_LISTS 64u

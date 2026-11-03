@@ -248,7 +248,7 @@ typedef struct
     const GuiIconShape *shape;
     unsigned int size;
     float stroke;
-    GuiMask *mask;
+    GuiMask *mask_bits;
 } IconsCtx;
 // a place in units as pixels of the square across and down
 EMBED_INLINE float pen_px(const IconsCtx *args)
@@ -809,8 +809,8 @@ void gui_icons_free(const GuiIconsCfg *args)
     {
         if (args->icons->entry[at].used)
         {
-            g_cli_cells->persistent_buf_release(args->icons->entry[at].mask.cover, &g_gui_icons_cells);
-            args->icons->entry[at].mask.cover = NULL;
+            g_cli_cells->persistent_buf_release(args->icons->entry[at].mask_bits.cover, &g_gui_icons_cells);
+            args->icons->entry[at].mask_bits.cover = NULL;
             args->icons->entry[at].used = 0;
         }
     }
@@ -884,11 +884,11 @@ EMBED_INLINE int icons_draw(const IconsCtx *args)
         cover[at] = (unsigned char)((floats[at] * 255.0f) + 0.5f);
     }
     g_cli_cells->persistent_buf_release(floats, &g_gui_icons_cells);
-    args->mask->width = args->size;
-    args->mask->height = args->size;
-    args->mask->left = 0;
-    args->mask->top = 0;
-    args->mask->cover = cover;
+    args->mask_bits->width = args->size;
+    args->mask_bits->height = args->size;
+    args->mask_bits->left = 0;
+    args->mask_bits->top = 0;
+    args->mask_bits->cover = cover;
     return 1;
 }
 
@@ -907,7 +907,7 @@ const GuiMask *gui_icon_get(const GuiIconsCfg *args)
         const GuiIconCacheEntry *const entry = &args->icons->entry[at];
         if (entry->used && (entry->icon == index) && (entry->size == size) && (entry->stroke == stroke))
         {
-            return &entry->mask;
+            return &entry->mask_bits;
         }
     }
     if (args->icons->count >= GUI_ICON_CACHE_ENTRIES)
@@ -915,7 +915,8 @@ const GuiMask *gui_icon_get(const GuiIconsCfg *args)
         cli_icons.free(args);
     }
     GuiIconCacheEntry *const entry = &args->icons->entry[args->icons->count];
-    if (!EMBED_CALL(icons_draw, IconsCtx, .shape = shape, .size = size, .stroke = stroke, .mask = &entry->mask))
+    if (!EMBED_CALL(icons_draw, IconsCtx, .shape = shape, .size = size, .stroke = stroke,
+                    .mask_bits = &entry->mask_bits))
     {
         return NULL;
     }
@@ -924,5 +925,5 @@ const GuiMask *gui_icon_get(const GuiIconsCfg *args)
     entry->size = size;
     entry->stroke = stroke;
     args->icons->count += 1u;
-    return &entry->mask;
+    return &entry->mask_bits;
 }

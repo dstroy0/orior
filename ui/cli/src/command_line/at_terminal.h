@@ -7,13 +7,13 @@
 // opens to run it (at_terminal.c, at_terminal_tests.c)
 #ifndef AT_TERMINAL_H
 #define AT_TERMINAL_H
+#include "cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliAtTerminalCommandCfg CliAtTerminalCommandCfg;
 typedef struct CliAtTerminalCountCfg CliAtTerminalCountCfg;
 typedef struct CliAtTerminalRootCfg CliAtTerminalRootCfg;
 typedef struct CliAtTerminalCfg CliAtTerminalCfg;
-
-#include "cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // whether `command` runs at the terminal where no window is open; and `command` with `args`, `count` of them, run on
 // the tree at `root` as its menu runs it in the window, what it prints written into `out`: 1, or 0 with why given

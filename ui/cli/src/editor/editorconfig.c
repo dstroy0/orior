@@ -26,7 +26,7 @@ typedef struct
     const char **to_pointer;
     const char *from;
     const char *to;
-    const char *word;
+    const char *word_text;
     const char *text;
     unsigned long long size;
     CliValue *value;
@@ -55,7 +55,7 @@ EMBED_INLINE void cli_trim(const EditorconfigCtx *args)
 // whether the bytes from `from` up to `to` are `word`, the ASCII letters of either case the same
 EMBED_INLINE int cli_folded_is(const EditorconfigCtx *args)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->word, .cap = CLI_CELLS_POOL});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_CELLS_POOL});
     if ((unsigned long long)(args->to - args->from) != length)
     {
         return 0;
@@ -64,7 +64,7 @@ EMBED_INLINE int cli_folded_is(const EditorconfigCtx *args)
     {
         const char letter =
             ((args->from[at] >= 'A') && (args->from[at] <= 'Z')) ? (char)(args->from[at] + 32) : args->from[at];
-        if (letter != args->word[at])
+        if (letter != args->word_text[at])
         {
             return 0;
         }
@@ -100,8 +100,9 @@ EMBED_INLINE int cli_is_root(const EditorconfigCtx *args)
         const char *value_end = stop;
         EMBED_CALL(cli_trim, EditorconfigCtx, .from_pointer = &key, .to_pointer = &key_end);
         EMBED_CALL(cli_trim, EditorconfigCtx, .from_pointer = &value, .to_pointer = &value_end);
-        if ((equals < stop) && EMBED_CALL(cli_folded_is, EditorconfigCtx, .from = key, .to = key_end, .word = "root") &&
-            EMBED_CALL(cli_folded_is, EditorconfigCtx, .from = value, .to = value_end, .word = "true"))
+        if ((equals < stop) &&
+            EMBED_CALL(cli_folded_is, EditorconfigCtx, .from = key, .to = key_end, .word_text = "root") &&
+            EMBED_CALL(cli_folded_is, EditorconfigCtx, .from = value, .to = value_end, .word_text = "true"))
         {
             return 1;
         }
@@ -165,11 +166,13 @@ EMBED_INLINE void cli_sections_read(const EditorconfigCtx *args)
         EMBED_CALL(cli_trim, EditorconfigCtx, .from_pointer = &key, .to_pointer = &key_end);
         EMBED_CALL(cli_trim, EditorconfigCtx, .from_pointer = &value, .to_pointer = &value_end);
         CliValue *const target =
-            EMBED_CALL(cli_folded_is, EditorconfigCtx, .from = key, .to = key_end, .word = "indent_style") ? args->style
-            : EMBED_CALL(cli_folded_is, EditorconfigCtx, .from = key, .to = key_end, .word = "indent_size")
+            EMBED_CALL(cli_folded_is, EditorconfigCtx, .from = key, .to = key_end, .word_text = "indent_style")
+                ? args->style
+            : EMBED_CALL(cli_folded_is, EditorconfigCtx, .from = key, .to = key_end, .word_text = "indent_size")
                 ? args->size_value
-            : EMBED_CALL(cli_folded_is, EditorconfigCtx, .from = key, .to = key_end, .word = "tab_width") ? args->width
-                                                                                                          : NULL;
+            : EMBED_CALL(cli_folded_is, EditorconfigCtx, .from = key, .to = key_end, .word_text = "tab_width")
+                ? args->width
+                : NULL;
         if (target != NULL)
         {
             EMBED_CALL(cli_value_store, EditorconfigCtx, .value = target, .from = value, .to = value_end);

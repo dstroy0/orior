@@ -26,7 +26,7 @@ typedef struct
     int escapes;
     unsigned long long at_value;
     const char *text;
-    const char *word;
+    const char *word_text;
     const char *const *words;
     unsigned int count;
 } SqlCtx;
@@ -212,7 +212,7 @@ int cli_sql_token(const CliSqlTextLengthDialectCfg *args)
 // whether `length` bytes of `text` are `word` in either case
 EMBED_INLINE int cli_word_is(const SqlCtx *args)
 {
-    if (cellul.len(&(CatenaFinitaCfg){.src = args->word, .cap = CLI_CELLS_POOL}) != args->length)
+    if (cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_CELLS_POOL}) != args->length)
     {
         return 0;
     }
@@ -220,7 +220,7 @@ EMBED_INLINE int cli_word_is(const SqlCtx *args)
     {
         const char letter =
             ((args->text[at] >= 'A') && (args->text[at] <= 'Z')) ? (char)(args->text[at] + 32) : args->text[at];
-        if (letter != args->word[at])
+        if (letter != args->word_text[at])
         {
             return 0;
         }
@@ -232,7 +232,7 @@ EMBED_INLINE int cli_word_in(const SqlCtx *args)
 {
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        if (EMBED_CALL(cli_word_is, SqlCtx, .text = args->text, .length = args->length, .word = args->words[at]))
+        if (EMBED_CALL(cli_word_is, SqlCtx, .text = args->text, .length = args->length, .word_text = args->words[at]))
         {
             return 1;
         }
@@ -264,13 +264,13 @@ void cli_sql_statements(const CliSqlTextLengthCfg *args)
     while (EMBED_CALL(cli_sql_text_length_dialect.token, CliSqlTextLengthDialectCfg, .text = text, .length = length,
                       .dialect = dialect, .at = &at, .token = &token))
     {
-        const char *const word = text + token.start;
+        const char *const word_text = text + token.start;
         const unsigned long long size = token.end - token.start;
         if ((token.kind == CLI_SQL_SPACE) || (token.kind == CLI_SQL_COMMENT))
         {
             continue;
         }
-        if ((token.kind == CLI_SQL_MARK) && (size == 1u) && (word[0] == ';'))
+        if ((token.kind == CLI_SQL_MARK) && (size == 1u) && (word_text[0] == ';'))
         {
             depth -= ending ? 1LL : 0LL;
             ending = 0;
@@ -296,27 +296,29 @@ void cli_sql_statements(const CliSqlTextLengthCfg *args)
                 const int closed = ending;
                 ending = 0;
                 if (closed &&
-                    !EMBED_CALL(cli_word_in, SqlCtx, .text = word, .length = size, .words = s_blocks, .count = 4u))
+                    !EMBED_CALL(cli_word_in, SqlCtx, .text = word_text, .length = size, .words = s_blocks, .count = 4u))
                 {
                     depth -= 1LL;
                 }
                 if (!(closed &&
-                      (EMBED_CALL(cli_word_in, SqlCtx, .text = word, .length = size, .words = s_blocks, .count = 4u) ||
-                       EMBED_CALL(cli_word_is, SqlCtx, .text = word, .length = size, .word = "case"))))
+                      (EMBED_CALL(cli_word_in, SqlCtx, .text = word_text, .length = size, .words = s_blocks,
+                                  .count = 4u) ||
+                       EMBED_CALL(cli_word_is, SqlCtx, .text = word_text, .length = size, .word_text = "case"))))
                 {
-                    depth += (EMBED_CALL(cli_word_is, SqlCtx, .text = word, .length = size, .word = "begin") ||
-                              EMBED_CALL(cli_word_is, SqlCtx, .text = word, .length = size, .word = "case"))
-                                 ? 1LL
-                                 : 0LL;
-                    ending = EMBED_CALL(cli_word_is, SqlCtx, .text = word, .length = size, .word = "end");
+                    depth +=
+                        (EMBED_CALL(cli_word_is, SqlCtx, .text = word_text, .length = size, .word_text = "begin") ||
+                         EMBED_CALL(cli_word_is, SqlCtx, .text = word_text, .length = size, .word_text = "case"))
+                            ? 1LL
+                            : 0LL;
+                    ending = EMBED_CALL(cli_word_is, SqlCtx, .text = word_text, .length = size, .word_text = "end");
                 }
             }
             if (words < 64u)
             {
-                created = (words == 0u)
-                              ? EMBED_CALL(cli_word_is, SqlCtx, .text = word, .length = size, .word = "create")
-                              : created;
-                bodied = bodied || ((words < 8u) && EMBED_CALL(cli_word_in, SqlCtx, .text = word, .length = size,
+                created = (words == 0u) ? EMBED_CALL(cli_word_is, SqlCtx, .text = word_text, .length = size,
+                                                     .word_text = "create")
+                                        : created;
+                bodied = bodied || ((words < 8u) && EMBED_CALL(cli_word_in, SqlCtx, .text = word_text, .length = size,
                                                                .words = s_bodies, .count = 4u));
                 words += 1u;
             }

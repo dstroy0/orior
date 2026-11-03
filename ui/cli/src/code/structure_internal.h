@@ -4,6 +4,9 @@
 // which compares two texts by them, share
 #ifndef STRUCTURE_INTERNAL_H
 #define STRUCTURE_INTERNAL_H
+#include "embed_dispatch_layout.h"
+#include "structure.h"
+
 typedef struct CliStructureACtx CliStructureACtx;
 typedef struct CliStructureTextCtx CliStructureTextCtx;
 typedef struct CliStructureCompareRenamesCtx CliStructureCompareRenamesCtx;
@@ -11,9 +14,6 @@ typedef struct CliStructureOneCtx CliStructureOneCtx;
 typedef struct CliStructureOldCtx CliStructureOldCtx;
 typedef struct CliStructureSideCtx CliStructureSideCtx;
 typedef struct CliStructureCtx CliStructureCtx;
-
-#include "embed_dispatch_layout.h"
-#include "structure.h"
 
 // the most tokens and lines a side contains, the most steps an edit takes, and the most texts the names number; a text
 // past them reads as too far apart

@@ -5,6 +5,9 @@
 // sign-in requires: MySQL's password scramble, PostgreSQL's md5 password and its SCRAM-SHA-256 (digest.c)
 #ifndef DIGEST_H
 #define DIGEST_H
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliDigestPasswordCfg CliDigestPasswordCfg;
 typedef struct CliDigestKeyCfg CliDigestKeyCfg;
 typedef struct CliDigestTextCfg CliDigestTextCfg;
@@ -12,9 +15,6 @@ typedef struct CliDigestBytesCfg CliDigestBytesCfg;
 typedef struct CliDigestBytesSizeCfg CliDigestBytesSizeCfg;
 typedef struct CliDigestShaCfg CliDigestShaCfg;
 typedef struct CliDigestCfg CliDigestCfg;
-
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // A SHA-256 taken over pieces as they come: the state, the bytes of the block not yet whole, and the count taken
 typedef struct

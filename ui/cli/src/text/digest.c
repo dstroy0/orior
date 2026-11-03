@@ -20,7 +20,7 @@ static const unsigned int s_start[8] = {0x6a09e667u, 0xbb67ae85u, 0x3c6ef372u, 0
 
 typedef struct
 {
-    unsigned int word;
+    unsigned int word_text;
     unsigned int count;
     unsigned int *state;
     const unsigned char *block;
@@ -34,12 +34,12 @@ typedef struct
 } DigestCtx;
 EMBED_INLINE unsigned int cli_right(const DigestCtx *args)
 {
-    return (args->word >> args->count) | (args->word << (32u - args->count));
+    return (args->word_text >> args->count) | (args->word_text << (32u - args->count));
 }
 
 EMBED_INLINE unsigned int cli_leave(const DigestCtx *args)
 {
-    return (args->word << args->count) | (args->word >> (32u - args->count));
+    return (args->word_text << args->count) | (args->word_text >> (32u - args->count));
 }
 
 // one block of 64 bytes taken into the state
@@ -53,11 +53,11 @@ EMBED_INLINE void cli_sha256_block(const DigestCtx *args)
     }
     for (unsigned int at = 16u; at < 64u; at += 1u)
     {
-        const unsigned int low = EMBED_CALL(cli_right, DigestCtx, .word = words[at - 15u], .count = 7u) ^
-                                 EMBED_CALL(cli_right, DigestCtx, .word = words[at - 15u], .count = 18u) ^
+        const unsigned int low = EMBED_CALL(cli_right, DigestCtx, .word_text = words[at - 15u], .count = 7u) ^
+                                 EMBED_CALL(cli_right, DigestCtx, .word_text = words[at - 15u], .count = 18u) ^
                                  (words[at - 15u] >> 3u);
-        const unsigned int high = EMBED_CALL(cli_right, DigestCtx, .word = words[at - 2u], .count = 17u) ^
-                                  EMBED_CALL(cli_right, DigestCtx, .word = words[at - 2u], .count = 19u) ^
+        const unsigned int high = EMBED_CALL(cli_right, DigestCtx, .word_text = words[at - 2u], .count = 17u) ^
+                                  EMBED_CALL(cli_right, DigestCtx, .word_text = words[at - 2u], .count = 19u) ^
                                   (words[at - 2u] >> 10u);
         words[at] = words[at - 16u] + low + words[at - 7u] + high;
     }
@@ -71,14 +71,14 @@ EMBED_INLINE void cli_sha256_block(const DigestCtx *args)
     unsigned int h = args->state[7];
     for (unsigned int at = 0u; at < 64u; at += 1u)
     {
-        const unsigned int sum_e = EMBED_CALL(cli_right, DigestCtx, .word = e, .count = 6u) ^
-                                   EMBED_CALL(cli_right, DigestCtx, .word = e, .count = 11u) ^
-                                   EMBED_CALL(cli_right, DigestCtx, .word = e, .count = 25u);
+        const unsigned int sum_e = EMBED_CALL(cli_right, DigestCtx, .word_text = e, .count = 6u) ^
+                                   EMBED_CALL(cli_right, DigestCtx, .word_text = e, .count = 11u) ^
+                                   EMBED_CALL(cli_right, DigestCtx, .word_text = e, .count = 25u);
         const unsigned int choose = (e & f) ^ (~e & g);
         const unsigned int first = h + sum_e + choose + s_round[at] + words[at];
-        const unsigned int sum_a = EMBED_CALL(cli_right, DigestCtx, .word = a, .count = 2u) ^
-                                   EMBED_CALL(cli_right, DigestCtx, .word = a, .count = 13u) ^
-                                   EMBED_CALL(cli_right, DigestCtx, .word = a, .count = 22u);
+        const unsigned int sum_a = EMBED_CALL(cli_right, DigestCtx, .word_text = a, .count = 2u) ^
+                                   EMBED_CALL(cli_right, DigestCtx, .word_text = a, .count = 13u) ^
+                                   EMBED_CALL(cli_right, DigestCtx, .word_text = a, .count = 22u);
         const unsigned int most = (a & b) ^ (a & c) ^ (b & c);
         h = g;
         g = f;
@@ -279,9 +279,9 @@ void cli_sha1_bytes(const CliDigestBytesSizeCfg *args)
         }
         for (unsigned int at = 16u; at < 80u; at += 1u)
         {
-            words[at] =
-                EMBED_CALL(cli_leave, DigestCtx,
-                           .word = words[at - 3u] ^ words[at - 8u] ^ words[at - 14u] ^ words[at - 16u], .count = 1u);
+            words[at] = EMBED_CALL(cli_leave, DigestCtx,
+                                   .word_text = words[at - 3u] ^ words[at - 8u] ^ words[at - 14u] ^ words[at - 16u],
+                                   .count = 1u);
         }
         unsigned int a = state[0];
         unsigned int b = state[1];
@@ -299,10 +299,10 @@ void cli_sha1_bytes(const CliDigestBytesSizeCfg *args)
                                           : (at < 60u) ? 0x8f1bbcdcu
                                                        : 0xca62c1d6u;
             const unsigned int next =
-                EMBED_CALL(cli_leave, DigestCtx, .word = a, .count = 5u) + mixed + e + constant + words[at];
+                EMBED_CALL(cli_leave, DigestCtx, .word_text = a, .count = 5u) + mixed + e + constant + words[at];
             e = d;
             d = c;
-            c = EMBED_CALL(cli_leave, DigestCtx, .word = b, .count = 30u);
+            c = EMBED_CALL(cli_leave, DigestCtx, .word_text = b, .count = 30u);
             b = a;
             a = next;
         }
@@ -359,12 +359,12 @@ void cli_md5_text(const CliDigestBytesCfg *args)
                                        : (quarter == 1u) ? ((d & b) | (~d & c))
                                        : (quarter == 2u) ? (b ^ c ^ d)
                                                          : (c ^ (b | ~d));
-            const unsigned int word = (quarter == 0u)   ? at
-                                      : (quarter == 1u) ? (((5u * at) + 1u) % 16u)
-                                      : (quarter == 2u) ? (((3u * at) + 5u) % 16u)
-                                                        : ((7u * at) % 16u);
+            const unsigned int word_text = (quarter == 0u)   ? at
+                                           : (quarter == 1u) ? (((5u * at) + 1u) % 16u)
+                                           : (quarter == 2u) ? (((3u * at) + 5u) % 16u)
+                                                             : ((7u * at) % 16u);
             const unsigned int turned =
-                EMBED_CALL(cli_leave, DigestCtx, .word = a + mixed + s_md5_round[at] + words[word],
+                EMBED_CALL(cli_leave, DigestCtx, .word_text = a + mixed + s_md5_round[at] + words[word_text],
                            .count = s_md5_shift[(quarter * 4u) + (at % 4u)]);
             a = d;
             d = c;

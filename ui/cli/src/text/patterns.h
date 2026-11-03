@@ -13,14 +13,14 @@
 // with no `!` hides files even among those. On Windows a pattern matches whatever the case
 #ifndef PATTERNS_H
 #define PATTERNS_H
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliPatternsPathCfg CliPatternsPathCfg;
 typedef struct CliPatternsLinesCfg CliPatternsLinesCfg;
 typedef struct CliPatternsLinesCountCfg CliPatternsLinesCountCfg;
 typedef struct CliPatternsCfg CliPatternsCfg;
 typedef struct CliPatternsPartCfg CliPatternsPartCfg;
-
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // the most patterns of each kind a set contains, and the most letters all of them take
 #define CLI_PATTERNS_MAX 256u

@@ -79,7 +79,8 @@ EMBED_INLINE void cli_when(const ExecutablesStepsCtx *args)
                .b = args->value, .c = NULL, .d = NULL, .separated = 0);
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        EMBED_CALL(cli_catalog_word_table.word, CliCatalogWordCfg, .catalog = catalog, .word = args->words[at]);
+        EMBED_CALL(cli_catalog_word_table.word_text, CliCatalogWordCfg, .catalog = catalog,
+                   .word_text = args->words[at]);
     }
 }
 

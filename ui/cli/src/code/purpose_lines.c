@@ -52,12 +52,14 @@ int cli_purpose_starts(const CliPurposeLinesSpanCfg *args)
 int cli_purpose_license(const CliPurposeLinesCfg *args)
 {
     static const char *const s_words[2] = {"copyright", "license"};
-    for (unsigned int word = 0u; word < 2u; word += 1u)
+    for (unsigned int word_text = 0u; word_text < 2u; word_text += 1u)
     {
-        const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = s_words[word], .cap = CLI_CELLS_POOL});
+        const unsigned long long size =
+            cellul.len(&(CatenaFinitaCfg){.src = s_words[word_text], .cap = CLI_CELLS_POOL});
         for (unsigned long long at = 0ULL; (at + size) <= args->length; at += 1ULL)
         {
-            if (cellul.starts(&(CatenaFinitaCfg){.src = args->text + at, .other = s_words[word], .cap = size, .ci = 1}))
+            if (cellul.starts(
+                    &(CatenaFinitaCfg){.src = args->text + at, .other = s_words[word_text], .cap = size, .ci = 1}))
             {
                 return 1;
             }

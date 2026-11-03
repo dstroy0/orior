@@ -17,6 +17,9 @@
 // into a CliRegexp the caller owns; the text is its letters, each a code point (regexp_read.c, regexp_match.c)
 #ifndef REGEXP_H
 #define REGEXP_H
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliRegexpTextU32sCfg CliRegexpTextU32sCfg;
 typedef struct CliRegexpTextCfg CliRegexpTextCfg;
 typedef struct CliRegexpSourceCfg CliRegexpSourceCfg;
@@ -24,9 +27,6 @@ typedef struct CliRegexpCfg CliRegexpCfg;
 typedef struct CliRegexpIndexCfg CliRegexpIndexCfg;
 typedef struct CliRegexpLetterCfg CliRegexpLetterCfg;
 typedef struct CliRegexpWorkStateCfg CliRegexpWorkStateCfg;
-
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // the most nodes, class items, child places and groups one pattern contains, and the most letters it is read from
 #define CLI_REGEXP_NODES 1024u

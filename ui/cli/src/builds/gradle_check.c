@@ -174,10 +174,10 @@ EMBED_INLINE void check_notation(const GradleCheckCtx *args)
 // a statement of a `dependencies` block checked by the configuration it names
 static void check_dependency(const CliGradleStatementCfg *args)
 {
-    unsigned long long word = args->word;
+    unsigned long long word_text = args->word_text;
     CliGradleCheck *const check = args->context;
     const char *const text = g_cli_gradle.text;
-    const char *const name = text + word;
+    const char *const name = text + word_text;
     const unsigned long long lead =
         args->rest + EMBED_CALL(cli_text_size_from_u_64s.lead, CliTextSizeFromU64sCfg, .text = text + args->rest,
                                 .size = args->remainder_end - args->rest);
@@ -205,13 +205,13 @@ static void check_dependency(const CliGradleStatementCfg *args)
         mmgr_line_put(&msg, "` stands in its place");
         const unsigned int finding =
             EMBED_CALL(cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = check->found, .message = &msg,
-                       .lines = check->lines, .from = word, .to = word + args->word_size, .severity = CLI_BUILD_WARNING,
-                       .code = "gradle-configuration");
+                       .lines = check->lines, .from = word_text, .to = word_text + args->word_size,
+                       .severity = CLI_BUILD_WARNING, .code = "gradle-configuration");
         VerbaLinea title = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = check->found);
         mmgr_line_put(&title, "Change to ");
         mmgr_line_put(&title, s_removed[removed][1]);
         EMBED_CALL(cli_builds_text.build_edit_fix, CliBuildsTextCfg, .found = check->found, .finding = finding,
-                   .title = &title, .lines = check->lines, .from = word, .to = word + args->word_size,
+                   .title = &title, .lines = check->lines, .from = word_text, .to = word_text + args->word_size,
                    .text = s_removed[removed][1],
                    .size = cellul.len(&(CatenaFinitaCfg){.src = s_removed[removed][1], .cap = CLI_CELLS_POOL}));
         return;
@@ -220,7 +220,7 @@ static void check_dependency(const CliGradleStatementCfg *args)
     {
         return;
     }
-    if (!EMBED_CALL(cli_gradle_size_word_internal.known_configuration, CliGradleSizeWordCtx, .word = name,
+    if (!EMBED_CALL(cli_gradle_size_word_internal.known_configuration, CliGradleSizeWordCtx, .word_text = name,
                     .size = args->word_size))
     {
         VerbaLinea msg = EMBED_CALL(cli_builds_lines.build_msg_line, CliBuildsLinesCfg, .found = check->found);
@@ -229,8 +229,8 @@ static void check_dependency(const CliGradleStatementCfg *args)
         mmgr_line_put(&msg, "` is declared here, by Gradle or the script");
         const unsigned int finding =
             EMBED_CALL(cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = check->found, .message = &msg,
-                       .lines = check->lines, .from = word, .to = word + args->word_size, .severity = CLI_BUILD_WARNING,
-                       .code = "gradle-configuration");
+                       .lines = check->lines, .from = word_text, .to = word_text + args->word_size,
+                       .severity = CLI_BUILD_WARNING, .code = "gradle-configuration");
         CliBuildAdjacent adjacent;
         EMBED_CALL(cli_builds_size.build_adjacent_begin, CliBuildsSizeCfg, .adjacent = &adjacent, .name = name,
                    .size = args->word_size);
@@ -252,12 +252,12 @@ static void check_dependency(const CliGradleStatementCfg *args)
             mmgr_line_put(&title, "Change to ");
             mmgr_line_put_n(&title, adjacent.adjacent[at], adjacent.adjacent_size[at]);
             EMBED_CALL(cli_builds_text.build_edit_fix, CliBuildsTextCfg, .found = check->found, .finding = finding,
-                       .title = &title, .lines = check->lines, .from = word, .to = word + args->word_size,
+                       .title = &title, .lines = check->lines, .from = word_text, .to = word_text + args->word_size,
                        .text = adjacent.adjacent[at], .size = adjacent.adjacent_size[at]);
         }
         return;
     }
-    EMBED_CALL(check_notation, GradleCheckCtx, .check = check, .after = word + args->word_size);
+    EMBED_CALL(check_notation, GradleCheckCtx, .check = check, .after = word_text + args->word_size);
 }
 
 void cli_gradle_check(const CliGradleTextSizeCtx *args)

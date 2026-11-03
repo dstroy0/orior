@@ -3,14 +3,14 @@
 // runner_internal.h: a run as runner_run.c stores it and runner_lines.c carries its lines
 #ifndef RUNNER_INTERNAL_H
 #define RUNNER_INTERNAL_H
+#include "embed_dispatch_layout.h"
+#include "runner.h"
+
 typedef struct CliRunnerRunCtx CliRunnerRunCtx;
 typedef struct CliRunnerRootCtx CliRunnerRootCtx;
 typedef struct CliRunnerRunStreamCtx CliRunnerRunStreamCtx;
 typedef struct CliRunnerRunSpawnedCtx CliRunnerRunSpawnedCtx;
 typedef struct CliRunnerCtx CliRunnerCtx;
-
-#include "embed_dispatch_layout.h"
-#include "runner.h"
 
 // the most runs open at once, and the most steps a run's job takes
 #define CLI_RUNS_MAX 16u

@@ -3,14 +3,14 @@
 // checkers_internal.h: what the checkers sources share: the findings read from what a checker wrote, by file
 #ifndef CHECKERS_INTERNAL_H
 #define CHECKERS_INTERNAL_H
+#include "checkers.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliCheckersNameCtx CliCheckersNameCtx;
 typedef struct CliCheckersPathCtx CliCheckersPathCtx;
 typedef struct CliCheckersCtx CliCheckersCtx;
 typedef struct CliCheckersFileCtx CliCheckersFileCtx;
 typedef struct CliCheckersTextCtx CliCheckersTextCtx;
-
-#include "checkers.h"
-#include "embed_dispatch_layout.h"
 
 // the most files and findings one check reads, and the bytes of their diagnostics
 #define CLI_CHECK_FILES 1024u

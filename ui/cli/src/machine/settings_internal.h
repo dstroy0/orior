@@ -3,6 +3,10 @@
 // settings_internal.h: what settings.c and settings_layers.c share
 #ifndef SETTINGS_INTERNAL_H
 #define SETTINGS_INTERNAL_H
+#include "../command_line/callback_cfg.h"
+#include "embed_dispatch_layout.h"
+#include "settings.h"
+
 typedef struct CliSettingsLayersCtx CliSettingsLayersCtx;
 typedef struct CliSettingsTextCtx CliSettingsTextCtx;
 typedef struct CliSettingsKeyCtx CliSettingsKeyCtx;
@@ -10,10 +14,6 @@ typedef struct CliSettingsPartsCtx CliSettingsPartsCtx;
 typedef struct CliSettingsTextLengthCtx CliSettingsTextLengthCtx;
 typedef struct CliSettingsLayersProblemCtx CliSettingsLayersProblemCtx;
 typedef struct CliSettingsCtx CliSettingsCtx;
-
-#include "../command_line/callback_cfg.h"
-#include "embed_dispatch_layout.h"
-#include "settings.h"
 
 // the kind a `[kind]` key names, its letters from `*kind`, `*length` of them: 1, or 0 where the key names none;
 // whether a tree's file does not set `key`; the reader's home folder into `out`, sized for CLI_PATH_MAX_LEN, empty

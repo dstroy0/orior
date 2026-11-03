@@ -10,15 +10,15 @@
 // the build, since only a bundler such as Bun or Deno takes those in.
 #ifndef SEA_H
 #define SEA_H
+#include "../command_line/cells.h"
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliSeaNodeCfg CliSeaNodeCfg;
 typedef struct CliSeaErrMsgCfg CliSeaErrMsgCfg;
 typedef struct CliSeaErrMsgProgramCfg CliSeaErrMsgProgramCfg;
 typedef struct CliSeaErrMsgProgramSizeCfg CliSeaErrMsgProgramSizeCfg;
 typedef struct CliSeaCfg CliSeaCfg;
-
-#include "../command_line/cells.h"
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // the most program headers a Linux node's are read with, the two this adds among them
 #define CLI_SEA_HEADERS 4096u

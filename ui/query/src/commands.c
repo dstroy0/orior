@@ -212,23 +212,23 @@ int query_leave_alloc(const QueryLoopsErrMsgWordsCountInputCfg *args)
             mmgr_line_put(args->err_msg, "--leave takes all, none or prompt");
             return 0;
         }
-        const char *const word = args->words_read[at + 1u];
-        if (cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "all", .cap = CLI_CELLS_POOL}))
+        const char *const word_text = args->words_read[at + 1u];
+        if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "all", .cap = CLI_CELLS_POOL}))
         {
             *leave = QUERY_LEAVE_ALL;
         }
-        else if (cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "none", .cap = CLI_CELLS_POOL}))
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "none", .cap = CLI_CELLS_POOL}))
         {
             *leave = QUERY_LEAVE_NONE;
         }
-        else if (cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "prompt", .cap = CLI_CELLS_POOL}))
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "prompt", .cap = CLI_CELLS_POOL}))
         {
             *leave = QUERY_LEAVE_PROMPT;
         }
         else
         {
             mmgr_line_put(args->err_msg, "--leave takes all, none or prompt, not ");
-            mmgr_line_put(args->err_msg, word);
+            mmgr_line_put(args->err_msg, word_text);
             return 0;
         }
         memor.move_down(&(MemoriaCfg){.dst = &args->words_read[at],

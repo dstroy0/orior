@@ -37,13 +37,14 @@ typedef struct
 EMBED_INLINE void cli_words_join(const DevcontainerUpCtx *args)
 {
     CliWords *words = args->words_out;
-    char word[CLI_STRING_JOINED];
-    VerbaLinea line = {word, sizeof(word), 0ULL};
+    char word_text[CLI_STRING_JOINED];
+    VerbaLinea line = {word_text, sizeof(word_text), 0ULL};
     mmgr_line_put(&line, args->first);
     mmgr_line_put(&line, args->second);
     words->full = words->full || !mmgr_line_ok(&line);
     mmgr_line_finish(&line);
-    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words, .word = word);
+    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
+               .word_text = word_text);
 }
 
 void cli_plan_address(const CliDevcontainerPlanContainerCfg *args)
@@ -69,20 +70,20 @@ int cli_plan_build_words(const CliDevcontainerPlanWordsCfg *args)
     mmgr_line_put(&line, "-image");
     mmgr_line_finish(&line);
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-               .word = "build");
+               .word_text = "build");
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-               .word = "-f");
+               .word_text = "-f");
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-               .word = EMBED_CALL(cli_devcontainer_plan_at.plan_text, CliDevcontainerPlanAtCfg, .plan = args->plan,
-                                  .at = args->plan->dockerfile));
+               .word_text = EMBED_CALL(cli_devcontainer_plan_at.plan_text, CliDevcontainerPlanAtCfg, .plan = args->plan,
+                                       .at = args->plan->dockerfile));
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-               .word = "-t");
+               .word_text = "-t");
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-               .word = args->image);
+               .word_text = args->image);
     for (unsigned int at = 0u; (at + 1u) < args->plan->args.count; at += 2u)
     {
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-                   .word = "--build-arg");
+                   .word_text = "--build-arg");
         char pair[CLI_STRING_JOINED];
         VerbaLinea joined = {pair, sizeof(pair), 0ULL};
         mmgr_line_put(&joined, EMBED_CALL(cli_devcontainer_plan_at.plan_text, CliDevcontainerPlanAtCfg,
@@ -93,19 +94,19 @@ int cli_plan_build_words(const CliDevcontainerPlanWordsCfg *args)
         args->words->full = args->words->full || !mmgr_line_ok(&joined);
         mmgr_line_finish(&joined);
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-                   .word = pair);
+                   .word_text = pair);
     }
     if (args->plan->targeted)
     {
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-                   .word = "--target");
+                   .word_text = "--target");
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-                   .word = EMBED_CALL(cli_devcontainer_plan_at.plan_text, CliDevcontainerPlanAtCfg, .plan = args->plan,
-                                      .at = args->plan->target));
+                   .word_text = EMBED_CALL(cli_devcontainer_plan_at.plan_text, CliDevcontainerPlanAtCfg,
+                                           .plan = args->plan, .at = args->plan->target));
     }
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-               .word = EMBED_CALL(cli_devcontainer_plan_at.plan_text, CliDevcontainerPlanAtCfg, .plan = args->plan,
-                                  .at = args->plan->context));
+               .word_text = EMBED_CALL(cli_devcontainer_plan_at.plan_text, CliDevcontainerPlanAtCfg, .plan = args->plan,
+                                       .at = args->plan->context));
     return 1;
 }
 
@@ -114,19 +115,19 @@ void cli_plan_run_words(const CliDevcontainerPlanWordsImageCfg *args)
     const char *const root = EMBED_CALL(cli_devcontainer_plan_at.plan_text, CliDevcontainerPlanAtCfg,
                                         .plan = args->plan, .at = args->plan->root);
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-               .word = "run");
+               .word_text = "run");
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-               .word = "-d");
+               .word_text = "-d");
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-               .word = "--name");
+               .word_text = "--name");
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-               .word = EMBED_CALL(cli_devcontainer_plan_at.plan_text, CliDevcontainerPlanAtCfg, .plan = args->plan,
-                                  .at = args->plan->name));
+               .word_text = EMBED_CALL(cli_devcontainer_plan_at.plan_text, CliDevcontainerPlanAtCfg, .plan = args->plan,
+                                       .at = args->plan->name));
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-               .word = "--label");
+               .word_text = "--label");
     EMBED_CALL(cli_words_join, DevcontainerUpCtx, .words_out = args->words, .first = "orior.tree=", .second = root);
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-               .word = "--mount");
+               .word_text = "--mount");
     char mount[CLI_STRING_JOINED];
     VerbaLinea line = {mount, sizeof(mount), 0ULL};
     mmgr_line_put(&line, "type=bind,source=");
@@ -137,11 +138,11 @@ void cli_plan_run_words(const CliDevcontainerPlanWordsImageCfg *args)
     args->words->full = args->words->full || !mmgr_line_ok(&line);
     mmgr_line_finish(&line);
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-               .word = mount);
+               .word_text = mount);
     for (unsigned int at = 0u; (at + 1u) < args->plan->env.count; at += 2u)
     {
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-                   .word = "-e");
+                   .word_text = "-e");
         char pair[CLI_STRING_JOINED];
         VerbaLinea joined = {pair, sizeof(pair), 0ULL};
         mmgr_line_put(&joined, EMBED_CALL(cli_devcontainer_plan_at.plan_text, CliDevcontainerPlanAtCfg,
@@ -152,40 +153,40 @@ void cli_plan_run_words(const CliDevcontainerPlanWordsImageCfg *args)
         args->words->full = args->words->full || !mmgr_line_ok(&joined);
         mmgr_line_finish(&joined);
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-                   .word = pair);
+                   .word_text = pair);
     }
     for (unsigned int at = 0u; at < args->plan->mounts.count; at += 1u)
     {
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-                   .word = "--mount");
+                   .word_text = "--mount");
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-                   .word = EMBED_CALL(cli_devcontainer_plan_at.plan_text, CliDevcontainerPlanAtCfg, .plan = args->plan,
-                                      .at = args->plan->mounts.at[at]));
+                   .word_text = EMBED_CALL(cli_devcontainer_plan_at.plan_text, CliDevcontainerPlanAtCfg,
+                                           .plan = args->plan, .at = args->plan->mounts.at[at]));
     }
     for (unsigned int at = 0u; at < args->plan->run_args.count; at += 1u)
     {
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-                   .word = EMBED_CALL(cli_devcontainer_plan_at.plan_text, CliDevcontainerPlanAtCfg, .plan = args->plan,
-                                      .at = args->plan->run_args.at[at]));
+                   .word_text = EMBED_CALL(cli_devcontainer_plan_at.plan_text, CliDevcontainerPlanAtCfg,
+                                           .plan = args->plan, .at = args->plan->run_args.at[at]));
     }
     if (args->plan->has_user)
     {
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-                   .word = "-u");
+                   .word_text = "-u");
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-                   .word = EMBED_CALL(cli_devcontainer_plan_at.plan_text, CliDevcontainerPlanAtCfg, .plan = args->plan,
-                                      .at = args->plan->user));
+                   .word_text = EMBED_CALL(cli_devcontainer_plan_at.plan_text, CliDevcontainerPlanAtCfg,
+                                           .plan = args->plan, .at = args->plan->user));
     }
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-               .word = "--entrypoint");
+               .word_text = "--entrypoint");
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-               .word = "/bin/sh");
+               .word_text = "/bin/sh");
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-               .word = args->image_read);
+               .word_text = args->image_read);
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-               .word = "-c");
+               .word_text = "-c");
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-               .word = CLI_CONTAINER_IDLE_SCRIPT);
+               .word_text = CLI_CONTAINER_IDLE_SCRIPT);
 }
 
 int cli_plan_compose_words(const CliDevcontainerPlanWordsCfg *args)
@@ -195,54 +196,54 @@ int cli_plan_compose_words(const CliDevcontainerPlanWordsCfg *args)
         return 0;
     }
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-               .word = "compose");
+               .word_text = "compose");
     for (unsigned int at = 0u; at < args->plan->files.count; at += 1u)
     {
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-                   .word = "-f");
+                   .word_text = "-f");
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-                   .word = EMBED_CALL(cli_devcontainer_plan_at.plan_text, CliDevcontainerPlanAtCfg, .plan = args->plan,
-                                      .at = args->plan->files.at[at]));
+                   .word_text = EMBED_CALL(cli_devcontainer_plan_at.plan_text, CliDevcontainerPlanAtCfg,
+                                           .plan = args->plan, .at = args->plan->files.at[at]));
     }
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-               .word = "-p");
+               .word_text = "-p");
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-               .word = EMBED_CALL(cli_devcontainer_plan_at.plan_text, CliDevcontainerPlanAtCfg, .plan = args->plan,
-                                  .at = args->plan->name));
+               .word_text = EMBED_CALL(cli_devcontainer_plan_at.plan_text, CliDevcontainerPlanAtCfg, .plan = args->plan,
+                                       .at = args->plan->name));
     return 1;
 }
 
 void cli_plan_exec_words(const CliDevcontainerPlanCfg *args)
 {
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-               .word = "exec");
+               .word_text = "exec");
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-               .word = "-w");
+               .word_text = "-w");
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-               .word = EMBED_CALL(cli_devcontainer_plan_at.plan_text, CliDevcontainerPlanAtCfg, .plan = args->plan,
-                                  .at = args->plan->folder));
+               .word_text = EMBED_CALL(cli_devcontainer_plan_at.plan_text, CliDevcontainerPlanAtCfg, .plan = args->plan,
+                                       .at = args->plan->folder));
     if (args->plan->has_user)
     {
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-                   .word = "-u");
+                   .word_text = "-u");
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-                   .word = EMBED_CALL(cli_devcontainer_plan_at.plan_text, CliDevcontainerPlanAtCfg, .plan = args->plan,
-                                      .at = args->plan->user));
+                   .word_text = EMBED_CALL(cli_devcontainer_plan_at.plan_text, CliDevcontainerPlanAtCfg,
+                                           .plan = args->plan, .at = args->plan->user));
     }
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-               .word = args->container);
+               .word_text = args->container);
     if (args->command->line)
     {
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-                   .word = "/bin/sh");
+                   .word_text = "/bin/sh");
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-                   .word = "-c");
+                   .word_text = "-c");
     }
     for (unsigned int at = 0u; at < args->command->count; at += 1u)
     {
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-                   .word = EMBED_CALL(cli_devcontainer_plan_at.plan_text, CliDevcontainerPlanAtCfg, .plan = args->plan,
-                                      .at = args->plan->words.at[args->command->first + at]));
+                   .word_text = EMBED_CALL(cli_devcontainer_plan_at.plan_text, CliDevcontainerPlanAtCfg,
+                                           .plan = args->plan, .at = args->plan->words.at[args->command->first + at]));
     }
 }
 
@@ -257,7 +258,7 @@ EMBED_INLINE int cli_docker_line(const DevcontainerUpCtx *args)
     args->line[0] = "docker";
     for (unsigned int at = 0u; at <= args->words->count; at += 1u)
     {
-        args->line[at + 1u] = args->words->word[at];
+        args->line[at + 1u] = args->words->word_text[at];
     }
     return 1;
 }
@@ -297,7 +298,7 @@ static int cli_docker(const DevcontainerUpCtx *args)
         return 1;
     }
     mmgr_line_put(args->err_msg, "docker ");
-    mmgr_line_put(args->err_msg, (words->count != 0u) ? words->word[0] : "");
+    mmgr_line_put(args->err_msg, (words->count != 0u) ? words->word_text[0] : "");
     mmgr_line_put(args->err_msg, " ended with ");
     if (code < 0LL)
     {
@@ -388,18 +389,23 @@ EMBED_INLINE int cli_compose_up(const DevcontainerUpCtx *args)
     memor.set(&(MemoriaCfg){.dst = &s_words, .val = 0, .bytes = sizeof(s_words)});
     EMBED_CALL(cli_devcontainer_plan_words.plan_compose_words, CliDevcontainerPlanWordsCfg, .plan = plan,
                .words = &s_words);
-    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words, .word = "ps");
-    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words, .word = "-a");
-    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words, .word = "-q");
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-               .word = service);
+               .word_text = "ps");
+    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
+               .word_text = "-a");
+    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
+               .word_text = "-q");
+    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
+               .word_text = service);
     const int made =
         EMBED_CALL(cli_docker_read, DevcontainerUpCtx, .words = &s_words, .out = s_output) && (s_output[0] != '\0');
     memor.set(&(MemoriaCfg){.dst = &s_words, .val = 0, .bytes = sizeof(s_words)});
     EMBED_CALL(cli_devcontainer_plan_words.plan_compose_words, CliDevcontainerPlanWordsCfg, .plan = plan,
                .words = &s_words);
-    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words, .word = "up");
-    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words, .word = "-d");
+    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
+               .word_text = "up");
+    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
+               .word_text = "-d");
     int named = plan->services.count == 0u;
     for (unsigned int at = 0u; at < plan->services.count; at += 1u)
     {
@@ -407,12 +413,12 @@ EMBED_INLINE int cli_compose_up(const DevcontainerUpCtx *args)
                                             .at = plan->services.at[at]);
         named = named || (cellul.eq(&(CatenaFinitaCfg){.src = each, .other = service, .cap = CLI_CELLS_POOL}));
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-                   .word = each);
+                   .word_text = each);
     }
     if (!named)
     {
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-                   .word = service);
+                   .word_text = service);
     }
     if (!EMBED_CALL(cli_docker, DevcontainerUpCtx, .words = &s_words, .sink = args->sink, .err_msg = args->err_msg))
     {
@@ -421,10 +427,12 @@ EMBED_INLINE int cli_compose_up(const DevcontainerUpCtx *args)
     memor.set(&(MemoriaCfg){.dst = &s_words, .val = 0, .bytes = sizeof(s_words)});
     EMBED_CALL(cli_devcontainer_plan_words.plan_compose_words, CliDevcontainerPlanWordsCfg, .plan = plan,
                .words = &s_words);
-    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words, .word = "ps");
-    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words, .word = "-q");
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-               .word = service);
+               .word_text = "ps");
+    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
+               .word_text = "-q");
+    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
+               .word_text = service);
     if (!EMBED_CALL(cli_docker_read, DevcontainerUpCtx, .words = &s_words, .out = s_output) || (s_output[0] == '\0'))
     {
         mmgr_line_put(args->err_msg, "docker compose started no ");
@@ -470,20 +478,22 @@ EMBED_INLINE int cli_up_lock(const DevcontainerUpCtx *args)
         EMBED_CALL(cli_devcontainer_plan_at.plan_text, CliDevcontainerPlanAtCfg, .plan = plan, .at = plan->name);
     memor.set(&(MemoriaCfg){.dst = &s_words, .val = 0, .bytes = sizeof(s_words)});
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-               .word = "inspect");
-    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words, .word = "-f");
+               .word_text = "inspect");
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-               .word = "{{.State.Running}}");
-    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words, .word = name);
+               .word_text = "-f");
+    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
+               .word_text = "{{.State.Running}}");
+    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
+               .word_text = name);
     if (EMBED_CALL(cli_docker_read, DevcontainerUpCtx, .words = &s_words, .out = s_output))
     {
         if (!cellul.eq(&(CatenaFinitaCfg){.src = s_output, .other = "true", .cap = CLI_CELLS_POOL}))
         {
             memor.set(&(MemoriaCfg){.dst = &s_words, .val = 0, .bytes = sizeof(s_words)});
             EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-                       .word = "start");
+                       .word_text = "start");
             EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-                       .word = name);
+                       .word_text = name);
             if (!EMBED_CALL(cli_docker, DevcontainerUpCtx, .words = &s_words, .sink = args->sink,
                             .err_msg = args->err_msg) ||
                 !EMBED_CALL(cli_commands_run, DevcontainerUpCtx, .plan = plan, .container = name,

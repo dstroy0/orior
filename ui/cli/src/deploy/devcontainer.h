@@ -17,6 +17,9 @@
 // The container is named for the tree, and found again by that name: brought up once, it is started again as it is
 #ifndef DEVCONTAINER_H
 #define DEVCONTAINER_H
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliDevcontainerErrMsgCfg CliDevcontainerErrMsgCfg;
 typedef struct CliDevcontainerPlanCfg CliDevcontainerPlanCfg;
 typedef struct CliDevcontainerRootCfg CliDevcontainerRootCfg;
@@ -27,9 +30,6 @@ typedef struct CliDevcontainerPlanWordsImageCfg CliDevcontainerPlanWordsImageCfg
 typedef struct CliDevcontainerCfg CliDevcontainerCfg;
 typedef struct CliDevcontainerRootNameCfg CliDevcontainerRootNameCfg;
 typedef struct CliDevcontainerPlanAtCfg CliDevcontainerPlanAtCfg;
-
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // the most bytes a plan's texts take, the most entries of one of its lists, and the most commands it runs at a time
 #define CLI_PLAN_TEXT (1u << 16u)

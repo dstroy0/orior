@@ -15,7 +15,8 @@ CliDap g_cli_daps[CLI_DAPS_MAX];
 CliDap *cli_dap_position_alloc(void)
 {
     CliDap *dap = NULL;
-    for (unsigned int at = 0u; (at < CLI_DAPS_MAX) && (dap == NULL); at += 1u)
+    unsigned int at = 0u;
+    while ((at < CLI_DAPS_MAX) && (dap == NULL))
     {
         if (!g_cli_daps[at].reserved)
         {
@@ -23,6 +24,7 @@ CliDap *cli_dap_position_alloc(void)
             dap->reserved = 1;
             dap->refs = 1u;
         }
+        at += 1u;
     }
     if (dap != NULL)
     {
@@ -111,11 +113,13 @@ EMBED_INLINE int dap_response(const DapCtx *args)
     int whole = EMBED_CALL(cli_lsp_body.member, CliLspBodyCfg, .body = args->message, .size_value = size,
                            .name = "request_seq", .start = &at, .length_pointer = &length) &&
                 (length > 0ULL);
-    for (unsigned long long letter = at; whole && (letter < at + length); letter += 1ULL)
+    unsigned long long letter = at;
+    while (whole && (letter < at + length))
     {
         const unsigned long long digit = (unsigned long long)(args->message[letter] - '0');
         whole = (args->message[letter] >= '0') && (args->message[letter] <= '9') && (seq <= (~0ULL - digit) / 10ULL);
         seq = whole ? (seq * 10ULL) + digit : seq;
+        letter += 1ULL;
     }
     if (!whole)
     {
@@ -354,9 +358,13 @@ int cli_dap_on_send(const CliDapErrMsgCommandCfg *args)
     *seq = args->dap->next;
     args->dap->next += 1ULL;
     CliDapWaiter *waiter = NULL;
-    for (unsigned int at = 0u; (at < CLI_DAP_WAITERS) && (waiter == NULL); at += 1u)
     {
-        waiter = args->dap->waiters[at].waiting ? NULL : &args->dap->waiters[at];
+        unsigned int at = 0u;
+        while ((at < CLI_DAP_WAITERS) && (waiter == NULL))
+        {
+            waiter = args->dap->waiters[at].waiting ? NULL : &args->dap->waiters[at];
+            at += 1u;
+        }
     }
     if (waiter != NULL)
     {
@@ -397,10 +405,12 @@ int cli_dap_wait(const CliDapErrMsgCommandSeqCfg *args)
     *answer = (CliLspAnswer){NULL, NULL, 0ULL};
     const unsigned long long until = cli_clock_milliseconds() + args->wait;
     CliDapWaiter *waiter = NULL;
-    for (unsigned int at = 0u; (at < CLI_DAP_WAITERS) && (waiter == NULL); at += 1u)
+    unsigned int at = 0u;
+    while ((at < CLI_DAP_WAITERS) && (waiter == NULL))
     {
         waiter = (args->dap->waiters[at].waiting && (args->dap->waiters[at].seq == args->seq)) ? &args->dap->waiters[at]
                                                                                                : NULL;
+        at += 1u;
     }
     while ((waiter != NULL) && !waiter->answered && (cli_clock_milliseconds() < until))
     {

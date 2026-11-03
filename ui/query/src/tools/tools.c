@@ -349,20 +349,24 @@ int query_stale(const QueryToolsRootToolCtx *args)
     const unsigned int counts[3] = {c, cxx, tools};
     unsigned long long newest = 0ULL;
     int stale = 0;
-    for (unsigned int list = 0u; !stale && (list < 3u); list += 1u)
+    unsigned int list = 0u;
+    while (!stale && (list < 3u))
     {
-        for (unsigned int at = 0u; !stale && (at < counts[list]); at += 1u)
+        unsigned int at = 0u;
+        while (!stale && (at < counts[list]))
         {
             unsigned long long seconds = 0ULL;
             stale = EMBED_CALL(query_path_seconds_internal.modify, QueryPathSecondsCtx, .path = lists[list][at],
                                .seconds = &seconds) &&
                     (seconds > built);
+            at += 1u;
         }
         const unsigned long long seconds =
             stale ? 0ULL
                   : EMBED_CALL(query_tools_root_tool_sources_internal.newest_header_get, QueryToolsRootToolSourcesCtx,
                                .root = args->root, .tool = args->tool, .sources = lists[list], .count = counts[list]);
         newest = (seconds > newest) ? seconds : newest;
+        list += 1u;
     }
     query_every_source_free();
     return stale || (newest > built);

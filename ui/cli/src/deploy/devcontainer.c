@@ -158,18 +158,23 @@ void cli_devcontainer_name(const CliDevcontainerRootNameCfg *args)
     // ASCII; the '-' at each end left off
     char docker_name[CLI_PATH_MAX_LEN];
     unsigned long long length = 0ULL;
-    for (const char *at = base; (at < end) && (length + 1ULL < sizeof(docker_name)); at += 1)
     {
-        const unsigned char byte = (unsigned char)at[0];
-        if ((byte >= 0x80u) && (byte < 0xc0u))
+        const char *at = base;
+        while ((at < end) && (length + 1ULL < sizeof(docker_name)))
         {
-            continue;
+            const unsigned char byte = (unsigned char)at[0];
+            if ((byte >= 0x80u) && (byte < 0xc0u))
+            {
+                at += 1;
+                continue;
+            }
+            const char lower = ((byte >= 'A') && (byte <= 'Z')) ? (char)(byte + 32u) : (char)byte;
+            const int reserved = ((lower >= 'a') && (lower <= 'z')) || ((lower >= '0') && (lower <= '9')) ||
+                                 (lower == '-') || (lower == '_');
+            docker_name[length] = reserved ? lower : '-';
+            length += 1ULL;
+            at += 1;
         }
-        const char lower = ((byte >= 'A') && (byte <= 'Z')) ? (char)(byte + 32u) : (char)byte;
-        const int reserved = ((lower >= 'a') && (lower <= 'z')) || ((lower >= '0') && (lower <= '9')) ||
-                             (lower == '-') || (lower == '_');
-        docker_name[length] = reserved ? lower : '-';
-        length += 1ULL;
     }
     unsigned long long from = 0ULL;
     from = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = docker_name, .at = from,

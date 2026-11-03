@@ -11,6 +11,9 @@
 // CLI_NO_CODE where a tool is missing or a step fails, which is reported to the errors
 #ifndef DISASM_VERIFY_H
 #define DISASM_VERIFY_H
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliDisasmVerifyCountCfg CliDisasmVerifyCountCfg;
 typedef struct CliDisasmVerifyCountErrMsgCfg CliDisasmVerifyCountErrMsgCfg;
 typedef struct CliDisasmVerifyIrCfg CliDisasmVerifyIrCfg;
@@ -23,9 +26,6 @@ typedef struct CliDisasmVerifyOneCfg CliDisasmVerifyOneCfg;
 typedef struct CliDisasmVerifySizeTextCfg CliDisasmVerifySizeTextCfg;
 typedef struct CliDisasmVerifyCfg CliDisasmVerifyCfg;
 typedef struct CliDisasmVerifyWordsCfg CliDisasmVerifyWordsCfg;
-
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // the most functions of one module compared, the most units of one function read, the longest mnemonic, and the most
 // bytes of one unit: the longest instruction of the architecture, and the most bytes of one raw run the plugin's

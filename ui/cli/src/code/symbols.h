@@ -7,6 +7,11 @@
 // walked so far and reports so. Each change after that joins, leaves or walks the one branch it names (symbols.c)
 #ifndef SYMBOLS_H
 #define SYMBOLS_H
+#include "../command_line/callback_cfg.h"
+#include "../command_line/cli_internal.h"
+#include "../text/edits.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliSymbolsPathCfg CliSymbolsPathCfg;
 typedef struct CliSymbolsPathTextCfg CliSymbolsPathTextCfg;
 typedef struct CliSymbolsPathContextCfg CliSymbolsPathContextCfg;
@@ -27,11 +32,6 @@ typedef struct CliSymbolsCountCfg CliSymbolsCountCfg;
 typedef struct CliSymbolsAtCfg CliSymbolsAtCfg;
 typedef struct CliSymbolsDoneCfg CliSymbolsDoneCfg;
 typedef struct CliSymbolsCfg CliSymbolsCfg;
-
-#include "../command_line/callback_cfg.h"
-#include "../command_line/cli_internal.h"
-#include "../text/edits.h"
-#include "embed_dispatch_layout.h"
 
 // one declaration found: its name, `length` bytes, what it is, and its line counted from 0
 typedef void (*CliDeclared)(const CliDeclaredCfg *args);

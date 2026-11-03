@@ -13,14 +13,14 @@
 // process's own (platform/windows_transfer.c, platform/posix_transfer.c, platform/posix_descriptors.c)
 #ifndef TRANSFER_H
 #define TRANSFER_H
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliTransferRegionCfg CliTransferRegionCfg;
 typedef struct CliTransferCfg CliTransferCfg;
 typedef struct CliTransferRegionBytesCfg CliTransferRegionBytesCfg;
 typedef struct CliTransferSocketCfg CliTransferSocketCfg;
 typedef struct CliTransferSizeCfg CliTransferSizeCfg;
-
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // the least body, in bytes, that goes through the transfer layer, a smaller one going in its frame; and the most a
 // region contains

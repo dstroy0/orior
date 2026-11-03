@@ -6,19 +6,21 @@
 
 void cli_words_append(const CliWordsWordsCtx *args)
 {
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->word, .cap = CLI_CELLS_POOL}) + 1ULL;
+    const unsigned long long size =
+        cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_CELLS_POOL}) + 1ULL;
     if ((args->words_words_pointer->count >= CLI_WORDS_MAX) ||
         ((args->words_words_pointer->used + size) > CLI_WORDS_TEXT))
     {
         args->words_words_pointer->full = 1;
         return;
     }
-    memor.cpy(&(MemoriaCfg){
-        .dst = args->words_words_pointer->text + args->words_words_pointer->used, .src = args->word, .bytes = size});
-    args->words_words_pointer->word[args->words_words_pointer->count] =
+    memor.cpy(&(MemoriaCfg){.dst = args->words_words_pointer->text + args->words_words_pointer->used,
+                            .src = args->word_text,
+                            .bytes = size});
+    args->words_words_pointer->word_text[args->words_words_pointer->count] =
         args->words_words_pointer->text + args->words_words_pointer->used;
     args->words_words_pointer->count += 1u;
-    args->words_words_pointer->word[args->words_words_pointer->count] = NULL;
+    args->words_words_pointer->word_text[args->words_words_pointer->count] = NULL;
     // the size is below CLI_WORDS_TEXT, checked above
     args->words_words_pointer->used += (unsigned int)size;
 }

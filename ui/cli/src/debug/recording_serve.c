@@ -182,11 +182,11 @@ int cli_recording_run(const CliRecordingDapCtx *args)
     for (unsigned int at = 0u; at < 5u; at += 1u)
     {
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-                   .word = words[at]);
+                   .word_text = words[at]);
     }
     memor.set(&(MemoriaCfg){.dst = &s_running, .val = 0, .bytes = sizeof(s_running)});
     if (!EMBED_CALL(cli_words_err_msg_internal.spawn_feed, CliWordsErrMsgCtx, .spawned = &s_running,
-                    .words = s_words.word, .folder = g_cli_replay->root, .settings = settings, .count = 2u,
+                    .words = s_words.word_text, .folder = g_cli_replay->root, .settings = settings, .count = 2u,
                     .detached = 1, .err_msg = args->err_msg))
     {
         mmgr_line_put(args->err_msg, ": ");

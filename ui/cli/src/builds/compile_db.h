@@ -15,16 +15,16 @@
 // compile_db_gather.c, compile_db_program.c)
 #ifndef COMPILE_DB_H
 #define COMPILE_DB_H
+#include "../command_line/callback_cfg.h"
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliCompileDbRootCfg CliCompileDbRootCfg;
 typedef struct CliCompileDbRootPathCfg CliCompileDbRootPathCfg;
 typedef struct CliCompileDbRootFileCfg CliCompileDbRootFileCfg;
 typedef struct CliCompileDbRootDatabaseCfg CliCompileDbRootDatabaseCfg;
 typedef struct CliCompileDbDatabaseCfg CliCompileDbDatabaseCfg;
 typedef struct CliCompileDbCfg CliCompileDbCfg;
-
-#include "../command_line/callback_cfg.h"
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // where the database gathered from the tree's builds is written, from the tree's top; and the most compilers one
 // database names

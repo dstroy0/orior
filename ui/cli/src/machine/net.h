@@ -8,14 +8,14 @@
 // them. This machine's own addresses are no part of the network and are neither blocked nor logged
 #ifndef NET_H
 #define NET_H
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliNetAddressCfg CliNetAddressCfg;
 typedef struct CliNetAddressHostCfg CliNetAddressHostCfg;
 typedef struct CliNetMaxCfg CliNetMaxCfg;
 typedef struct CliNetCfg CliNetCfg;
 typedef struct CliNetHostCfg CliNetHostCfg;
-
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // orior_cli blocked from the network, or let on, as the window's setting specifies; and whether it is blocked: as the
 // window set it, or as settings.json specifies where it has not

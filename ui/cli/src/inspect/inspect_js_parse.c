@@ -53,13 +53,14 @@ unsigned int cli_js_parameters(const CliInspectJsOpenCfg *args)
     const unsigned int before = args->open - 1u;
     unsigned int first = 0u;
     unsigned int last = 0u;
-    if (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = args->src, .at = before, .word = ")"))
+    if (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = args->src, .at = before,
+                   .word_text = ")"))
     {
         first = (g_cli_js_pair[before] != CLI_JS_NO) ? g_cli_js_pair[before] : before;
         last = before;
     }
     else if (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = args->src, .at = before,
-                        .word = "=>"))
+                        .word_text = "=>"))
     {
         if (before == 0u)
         {
@@ -67,7 +68,7 @@ unsigned int cli_js_parameters(const CliInspectJsOpenCfg *args)
             last = before;
         }
         else if (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = args->src, .at = before - 1u,
-                            .word = ")"))
+                            .word_text = ")"))
         {
             first = (g_cli_js_pair[before - 1u] != CLI_JS_NO) ? g_cli_js_pair[before - 1u] : (before - 1u);
             last = before - 1u;
@@ -82,7 +83,8 @@ unsigned int cli_js_parameters(const CliInspectJsOpenCfg *args)
     {
         return args->open;
     }
-    if (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = args->src, .at = before, .word = "=>") &&
+    if (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = args->src, .at = before,
+                   .word_text = "=>") &&
         (last == first + 1u) && (g_cli_inspect_tok[first].kind == CLI_JS_NAME))
     {
         EMBED_CALL(cli_inspect_set_internal.set_append, CliInspectSetCtx, .set = args->names,
@@ -216,7 +218,8 @@ EMBED_INLINE unsigned char parse_name_class(const InspectJsParseCtx *args)
     {
         return CLI_INSPECT_KEYWORD;
     }
-    if (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = before, .word = "function"))
+    if (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = before,
+                   .word_text = "function"))
     {
         return CLI_INSPECT_FUNCTION;
     }
@@ -225,21 +228,22 @@ EMBED_INLINE unsigned char parse_name_class(const InspectJsParseCtx *args)
     {
         return CLI_INSPECT_TYPE;
     }
-    if (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = before, .word = ".") ||
-        EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = before, .word = "?."))
+    if (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = before, .word_text = ".") ||
+        EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = before, .word_text = "?."))
     {
-        return EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = after, .word = "(")
+        return EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = after,
+                          .word_text = "(")
                    ? CLI_INSPECT_FUNCTION
                    : CLI_INSPECT_PROPERTY;
     }
     if ((holder == CLI_JS_OBJECT) &&
-        (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = before, .word = "{") ||
-         EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = before, .word = ",")) &&
-        EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = after, .word = ":"))
+        (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = before, .word_text = "{") ||
+         EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = before, .word_text = ",")) &&
+        EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = after, .word_text = ":"))
     {
         return CLI_INSPECT_PROPERTY;
     }
-    if (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = after, .word = "("))
+    if (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = after, .word_text = "("))
     {
         return classed ? CLI_INSPECT_TYPE : CLI_INSPECT_FUNCTION;
     }
@@ -294,7 +298,7 @@ void cli_inspect_js_parse(const CliInspectSizeSrcParsedCtx *args)
     for (unsigned int at = 1u; at < g_cli_inspect_toks; at += 1u)
     {
         if (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = args->src, .at = at - 1u,
-                       .word = "class") &&
+                       .word_text = "class") &&
             (g_cli_inspect_tok[at].kind == CLI_JS_NAME))
         {
             EMBED_CALL(cli_inspect_set_internal.set_append, CliInspectSetCtx, .set = &s_classes,
@@ -320,11 +324,11 @@ void cli_inspect_js_parse(const CliInspectSizeSrcParsedCtx *args)
         {
             const unsigned int close = g_cli_js_pair[at];
             const int opens = EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = args->src,
-                                         .at = at, .word = "(") ||
+                                         .at = at, .word_text = "(") ||
                               EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = args->src,
-                                         .at = at, .word = "[") ||
+                                         .at = at, .word_text = "[") ||
                               EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = args->src,
-                                         .at = at, .word = "{");
+                                         .at = at, .word_text = "{");
             if ((close != CLI_JS_NO) && opens && (close > at))
             {
                 const CliInspectTok *const closed = &g_cli_inspect_tok[close];

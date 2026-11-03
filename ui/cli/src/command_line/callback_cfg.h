@@ -312,7 +312,7 @@ typedef struct
 typedef struct
 {
     void *context;
-    const char *word;
+    const char *word_text;
     unsigned long long size;
 } CliEachWordSizeCfg;
 
@@ -341,7 +341,7 @@ typedef struct
 typedef struct
 {
     void *context;
-    unsigned long long word;
+    unsigned long long word_text;
     unsigned long long word_size;
     unsigned long long rest;
     unsigned long long remainder_end;

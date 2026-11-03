@@ -6,10 +6,11 @@
 // and line width and saved in a cache of coverage masks (icons.c)
 #ifndef GUI_ICONS_H
 #define GUI_ICONS_H
-typedef struct GuiIconsCoverCfg GuiIconsCoverCfg;
-typedef struct GuiIconsCfg GuiIconsCfg;
 #include "embed_dispatch_layout.h"
 #include "raster.h"
+
+typedef struct GuiIconsCoverCfg GuiIconsCoverCfg;
+typedef struct GuiIconsCfg GuiIconsCfg;
 
 // the cache's entries, one rasterized icon each; when every entry is in use the cache is emptied and icons are
 // rasterized again on demand; the units of an icon's square; and the width of an icon's line in those units, as the
@@ -30,7 +31,7 @@ typedef struct
     unsigned int icon;
     unsigned int size;
     float stroke;
-    GuiMask mask;
+    GuiMask mask_bits;
 } GuiIconCacheEntry;
 
 // The icons: the cache's entries and how many of them are in use

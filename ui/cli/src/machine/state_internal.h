@@ -4,13 +4,13 @@
 // files of a folder
 #ifndef STATE_INTERNAL_H
 #define STATE_INTERNAL_H
-typedef struct CliStateJsonCtx CliStateJsonCtx;
-typedef struct CliStateFolderCtx CliStateFolderCtx;
-typedef struct CliStateCtx CliStateCtx;
-
 #include "../command_line/cells.h"
 #include "embed_dispatch_layout.h"
 #include "state.h"
+
+typedef struct CliStateJsonCtx CliStateJsonCtx;
+typedef struct CliStateFolderCtx CliStateFolderCtx;
+typedef struct CliStateCtx CliStateCtx;
 
 // the cells the entries are stored and read back in (state.c)
 extern CellOwner g_cli_state_cells;

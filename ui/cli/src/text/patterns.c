@@ -371,7 +371,8 @@ EMBED_INLINE void cli_pattern_specs(const PatternsCtx *args)
         }
         words->full = words->full || !mmgr_line_ok(&line);
         mmgr_line_finish(&line);
-        EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words, .word = spec);
+        EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
+                   .word_text = spec);
     }
 }
 
@@ -398,7 +399,7 @@ void cli_patterns_pathspecs(const CliPatternsCfg *args)
     if (args->patterns->includes == 0u)
     {
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-                   .word = ".");
+                   .word_text = ".");
     }
     cli_patterns.include_specs(args);
     cli_patterns.hidden_specs(args);

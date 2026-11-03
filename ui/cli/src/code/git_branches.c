@@ -203,9 +203,11 @@ int cli_git_stash_act(const CliGitRootOutMessageCfg *args)
     int named = cellul.starts(&(CatenaFinitaCfg){.src = args->name_read, .other = "stash@{", .cap = CLI_CELLS_POOL});
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->name_read, .cap = CLI_CELLS_POOL});
     named = named && (length > 8ULL) && (args->name_read[length - 1ULL] == '}');
-    for (unsigned long long at = 7ULL; named && (at < (length - 1ULL)); at += 1ULL)
+    unsigned long long at = 7ULL;
+    while (named && (at < (length - 1ULL)))
     {
         named = (args->name_read[at] >= '0') && (args->name_read[at] <= '9');
+        at += 1ULL;
     }
     if ((!cellul.eq(&(CatenaFinitaCfg){.src = args->act, .other = "push", .cap = CLI_CELLS_POOL})) && !named)
     {
@@ -321,13 +323,13 @@ int cli_git_ahead_behind(const CliGitRootAheadCfg *args)
     {
         at += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ULL,
                          .size = (unsigned long long)(end - at), .set = CLI_TEXT_WHITE);
-        const char *const word = at;
+        const char *const word_text = at;
         at += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = at, .at = 0ULL,
                          .size = (unsigned long long)(end - at), .set = CLI_TEXT_WHITE);
         long long value = 0LL;
-        if ((at > word) &&
-            EMBED_CALL(cli_git_length_text_internal.seconds, CliGitLengthTextCtx, .text = word,
-                       .length = (unsigned long long)(at - word), .value = &value) &&
+        if ((at > word_text) &&
+            EMBED_CALL(cli_git_length_text_internal.seconds, CliGitLengthTextCtx, .text = word_text,
+                       .length = (unsigned long long)(at - word_text), .value = &value) &&
             (value >= 0LL) && (value <= 0xffffffffLL))
         {
             // a count of commits fits an unsigned int, as checked above

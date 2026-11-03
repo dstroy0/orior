@@ -4,14 +4,14 @@
 // the capacity a list is read into, under its lock
 #ifndef CONTAINERS_INTERNAL_H
 #define CONTAINERS_INTERNAL_H
+#include "../text/json_tree.h"
+#include "containers.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliContainersOutCtx CliContainersOutCtx;
 typedef struct CliContainersVariableCtx CliContainersVariableCtx;
 typedef struct CliContainersOutListingCtx CliContainersOutListingCtx;
 typedef struct CliContainersCtx CliContainersCtx;
-
-#include "../text/json_tree.h"
-#include "containers.h"
-#include "embed_dispatch_layout.h"
 
 // A container docker lists: its texts' places, and whether it belongs to a Compose project and service
 typedef struct

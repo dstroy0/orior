@@ -4,13 +4,13 @@
 // reader's plugins folder from their packages (plugin_catalog.c)
 #ifndef PLUGIN_CATALOG_H
 #define PLUGIN_CATALOG_H
+#include "../text/json_tree.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliPluginCatalogAddressCfg CliPluginCatalogAddressCfg;
 typedef struct CliPluginCatalogErrMsgCfg CliPluginCatalogErrMsgCfg;
 typedef struct CliPluginCatalogCfg CliPluginCatalogCfg;
 typedef struct CliPluginCatalogJsonCfg CliPluginCatalogJsonCfg;
-
-#include "../text/json_tree.h"
-#include "embed_dispatch_layout.h"
 
 // what a catalog declares it is, and what a package declares it is
 #define CLI_PLUGIN_CATALOG "plugin catalog"

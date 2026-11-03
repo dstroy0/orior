@@ -108,26 +108,30 @@ void cli_git_layout_out(const CliGitFoundCtx *args)
                                           .text_read = &args->found->text, .at = commit->id);
         commit->first_stroke = args->found->strokes;
         commit->stroke_count = 0u;
-        unsigned int lane = CLI_GIT_LANES;
-        for (unsigned int at = 0u; (lane == CLI_GIT_LANES) && (at < lanes); at += 1u)
+        unsigned int lane_at = CLI_GIT_LANES;
         {
-            lane =
-                (s_lanes[at].has &&
-                 (cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg,
-                                                                 .text_read = &args->found->text, .at = s_lanes[at].id),
-                                               .other = id,
-                                               .cap = CLI_CELLS_POOL})))
-                    ? at
-                    : lane;
+            unsigned int at = 0u;
+            while ((lane_at == CLI_GIT_LANES) && (at < lanes))
+            {
+                lane_at =
+                    (s_lanes[at].has && (cellul.eq(&(CatenaFinitaCfg){
+                                            .src = EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg,
+                                                              .text_read = &args->found->text, .at = s_lanes[at].id),
+                                            .other = id,
+                                            .cap = CLI_CELLS_POOL})))
+                        ? at
+                        : lane_at;
+                at += 1u;
+            }
         }
         unsigned int color = 0u;
-        if (lane < CLI_GIT_LANES)
+        if (lane_at < CLI_GIT_LANES)
         {
-            color = s_lanes[lane].color;
+            color = s_lanes[lane_at].color;
         }
         else
         {
-            lane = EMBED_CALL(cli_free, GitGraphCtx, .lanes = s_lanes, .count = &lanes);
+            lane_at = EMBED_CALL(cli_free, GitGraphCtx, .lanes = s_lanes, .count = &lanes);
             color = colors;
             colors += 1u;
         }
@@ -141,7 +145,7 @@ void cli_git_layout_out(const CliGitFoundCtx *args)
                                        .other = id,
                                        .cap = CLI_CELLS_POOL});
                 EMBED_CALL(cli_stroke, GitGraphCtx, .found = args->found, .drawn = commit, .from = at,
-                           .to = waits ? lane : at, .half = 0u, .color = s_lanes[at].color);
+                           .to = waits ? lane_at : at, .half = 0u, .color = s_lanes[at].color);
             }
         }
         for (unsigned int at = 0u; at < lanes; at += 1u)
@@ -162,35 +166,39 @@ void cli_git_layout_out(const CliGitFoundCtx *args)
             const char *const parent_id = EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg,
                                                      .text_read = &args->found->text, .at = parent);
             unsigned int joins = CLI_GIT_LANES;
-            for (unsigned int at = 0u; (joins == CLI_GIT_LANES) && (at < lanes); at += 1u)
             {
-                joins =
-                    (s_lanes[at].has && (cellul.eq(&(CatenaFinitaCfg){
-                                            .src = EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg,
-                                                              .text_read = &args->found->text, .at = s_lanes[at].id),
-                                            .other = parent_id,
-                                            .cap = CLI_CELLS_POOL})))
-                        ? at
-                        : joins;
+                unsigned int at = 0u;
+                while ((joins == CLI_GIT_LANES) && (at < lanes))
+                {
+                    joins = (s_lanes[at].has &&
+                             (cellul.eq(&(CatenaFinitaCfg){
+                                 .src = EMBED_CALL(cli_git_text_at_table.text_get, CliGitTextAtCfg,
+                                                   .text_read = &args->found->text, .at = s_lanes[at].id),
+                                 .other = parent_id,
+                                 .cap = CLI_CELLS_POOL})))
+                                ? at
+                                : joins;
+                    at += 1u;
+                }
             }
             if (joins < CLI_GIT_LANES)
             {
-                EMBED_CALL(cli_stroke, GitGraphCtx, .found = args->found, .drawn = commit, .from = lane, .to = joins,
+                EMBED_CALL(cli_stroke, GitGraphCtx, .found = args->found, .drawn = commit, .from = lane_at, .to = joins,
                            .half = 1u, .color = s_lanes[joins].color);
             }
             else if (nth == 0u)
             {
-                s_lanes[lane] = (CliLane){1, parent, color};
-                s_opened[lane] = 1;
-                EMBED_CALL(cli_stroke, GitGraphCtx, .found = args->found, .drawn = commit, .from = lane, .to = lane,
-                           .half = 1u, .color = color);
+                s_lanes[lane_at] = (CliLane){1, parent, color};
+                s_opened[lane_at] = 1;
+                EMBED_CALL(cli_stroke, GitGraphCtx, .found = args->found, .drawn = commit, .from = lane_at,
+                           .to = lane_at, .half = 1u, .color = color);
             }
             else
             {
                 const unsigned int at = EMBED_CALL(cli_free, GitGraphCtx, .lanes = s_lanes, .count = &lanes);
                 s_lanes[at] = (CliLane){1, parent, colors};
                 s_opened[at] = 1;
-                EMBED_CALL(cli_stroke, GitGraphCtx, .found = args->found, .drawn = commit, .from = lane, .to = at,
+                EMBED_CALL(cli_stroke, GitGraphCtx, .found = args->found, .drawn = commit, .from = lane_at, .to = at,
                            .half = 1u, .color = colors);
                 colors += 1u;
             }
@@ -207,7 +215,7 @@ void cli_git_layout_out(const CliGitFoundCtx *args)
         {
             lanes -= 1u;
         }
-        commit->lane = lane;
+        commit->lane_at = lane_at;
         commit->color = color;
     }
 }
@@ -278,23 +286,23 @@ EMBED_INLINE int cli_draw_append(const GitGraphCtx *args)
     drawn->id = EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &args->found->text, .from = fields[0],
                            .length = lengths[0]);
     drawn->parents = 0u;
-    const char *word = fields[1];
+    const char *word_text = fields[1];
     const char *const parents_end = fields[1] + lengths[1];
-    while (word < parents_end)
+    while (word_text < parents_end)
     {
-        word += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = word, .at = 0ULL,
-                           .size = (unsigned long long)(parents_end - word), .set = " ");
-        const char *word_past = word;
+        word_text += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = word_text,
+                                .at = 0ULL, .size = (unsigned long long)(parents_end - word_text), .set = " ");
+        const char *word_past = word_text;
         word_past += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = word_past, .at = 0ULL,
                                 .size = (unsigned long long)(parents_end - word_past), .set = " ");
-        if ((word_past > word) && (drawn->parents < CLI_GIT_PARENTS))
+        if ((word_past > word_text) && (drawn->parents < CLI_GIT_PARENTS))
         {
             drawn->parent[drawn->parents] =
-                EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &args->found->text, .from = word,
-                           .length = (unsigned long long)(word_past - word));
+                EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &args->found->text, .from = word_text,
+                           .length = (unsigned long long)(word_past - word_text));
             drawn->parents += 1u;
         }
-        word = word_past;
+        word_text = word_past;
     }
     drawn->author = EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &args->found->text, .from = fields[2],
                                .length = lengths[2]);
@@ -319,7 +327,7 @@ EMBED_INLINE int cli_draw_append(const GitGraphCtx *args)
     drawn->subject = (at <= stop) ? EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &args->found->text,
                                                .from = at, .length = (unsigned long long)(stop - at))
                                   : 0u;
-    drawn->lane = 0u;
+    drawn->lane_at = 0u;
     drawn->color = 0u;
     drawn->first_stroke = 0u;
     drawn->stroke_count = 0u;
@@ -333,25 +341,25 @@ void cli_git_graph(const CliGitRootQueryCfg *args)
     args->found_graph_pointer->strokes = 0u;
     EMBED_CALL(cli_git_text.text_begin, CliGitTextCfg, .text = &args->found_graph_pointer->text);
     unsigned int words = 0u;
-    const char *word = args->query;
-    while ((word[0] != '\0') && (words < CLI_GIT_QUERY_WORDS))
+    const char *word_text = args->query;
+    while ((word_text[0] != '\0') && (words < CLI_GIT_QUERY_WORDS))
     {
-        word += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = word, .at = 0ULL,
-                           .size = cellul.len(&(CatenaFinitaCfg){.src = word, .cap = CLI_CELLS_POOL}),
-                           .set = CLI_TEXT_WHITE);
-        const char *end = word;
+        word_text += EMBED_CALL(
+            cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = word_text, .at = 0ULL,
+            .size = cellul.len(&(CatenaFinitaCfg){.src = word_text, .cap = CLI_CELLS_POOL}), .set = CLI_TEXT_WHITE);
+        const char *end = word_text;
         end += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = end, .at = 0ULL,
                           .size = cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}),
                           .set = CLI_TEXT_WHITE);
-        if (end > word)
+        if (end > word_text)
         {
             VerbaLinea line = {s_words[words], CLI_NAME_MAX_LEN, 0ULL};
-            EMBED_CALL(cli_on_lower, GitGraphCtx, .line = &line, .text = word,
-                       .length = (unsigned long long)(end - word));
+            EMBED_CALL(cli_on_lower, GitGraphCtx, .line = &line, .text = word_text,
+                       .length = (unsigned long long)(end - word_text));
             mmgr_line_finish(&line);
             words += 1u;
         }
-        word = end;
+        word_text = end;
     }
     static const char *const s_format = "--format=%H%x1f%P%x1f%an%x1f%at%x1f%D%x1f%s";
     const char *const drawn[5] = {"log", "-n2000", "--all", "--date-order", s_format};

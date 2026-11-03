@@ -584,13 +584,15 @@ int cli_servers_view(const CliServersPathOutErrMsgCfg *args)
     const int known = stored != NULL;
     // a view the server was last given its slice of is cut again only as the text changes
     int same = known && (head.first == args->first) && (head.last == args->last) && (head.openers == named);
-    for (unsigned int at = 0u; same && (at < named); at += 1u)
+    unsigned int at = 0u;
+    while (same && (at < named))
     {
         unsigned int was = 0u;
         memor.cpy(&(MemoriaCfg){.dst = &was,
                                 .src = stored + sizeof(head) + ((unsigned long long)at * sizeof(unsigned int)),
                                 .bytes = sizeof(was)});
         same = was == args->opener[at];
+        at += 1u;
     }
     char root[CLI_PATH_MAX_LEN];
     if (known && !same)

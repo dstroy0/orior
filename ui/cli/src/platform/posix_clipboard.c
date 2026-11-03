@@ -154,9 +154,13 @@ static unsigned int clipboard_uris_read(const PosixClipboardCtx *args)
                          .size = size, .set = "\n\r");
         const unsigned long long scheme = sizeof(CLI_CLIPBOARD_FILE_SCHEME) - 1u;
         int file = (end - at > scheme);
-        for (unsigned long long letter = 0ULL; file && (letter < scheme); letter += 1ULL)
         {
-            file = args->list[at + letter] == CLI_CLIPBOARD_FILE_SCHEME[letter];
+            unsigned long long letter = 0ULL;
+            while (file && (letter < scheme))
+            {
+                file = args->list[at + letter] == CLI_CLIPBOARD_FILE_SCHEME[letter];
+                letter += 1ULL;
+            }
         }
         if (file)
         {
@@ -165,7 +169,8 @@ static unsigned int clipboard_uris_read(const PosixClipboardCtx *args)
                               .size = end, .set = "/");
             char path[CLI_PATH_MAX_LEN];
             VerbaLinea decoded = {path, sizeof(path), 0ULL};
-            for (unsigned long long letter = from; letter < end; letter += 1ULL)
+            unsigned long long letter = from;
+            while (letter < end)
             {
                 const int escaped =
                     (args->list[letter] == '%') && (letter + 2ULL < end) &&
@@ -180,6 +185,7 @@ static unsigned int clipboard_uris_read(const PosixClipboardCtx *args)
                                  EMBED_CALL(clipboard_hex_get, PosixClipboardCtx, .digit = args->list[letter + 2ULL]))
                         : args->list[letter]);
                 letter += escaped ? 2ULL : 0ULL;
+                letter += 1ULL;
             }
             if (mmgr_line_finish(&decoded) != 0ULL)
             {
@@ -716,7 +722,7 @@ EMBED_INLINE int x11_set_up(const PosixClipboardCtx *args)
         return 0;
     }
     const unsigned int base = EMBED_CALL(x11_get32, PosixClipboardCtx, .at_read = fixed + 4);
-    const unsigned int mask = EMBED_CALL(x11_get32, PosixClipboardCtx, .at_read = fixed + 8);
+    const unsigned int mask_bits = EMBED_CALL(x11_get32, PosixClipboardCtx, .at_read = fixed + 8);
     const unsigned long long vendor =
         ((unsigned long long)EMBED_CALL(x11_get16, PosixClipboardCtx, .at_read = fixed + 16) + 3ULL) & ~3ULL;
     args->x11_out->request_max =
@@ -734,7 +740,7 @@ EMBED_INLINE int x11_set_up(const PosixClipboardCtx *args)
     *root = EMBED_CALL(x11_get32, PosixClipboardCtx, .at_read = screen);
     const unsigned long long read = 32ULL + vendor + formats + 4ULL;
     // the window's id is the first the server gives this client
-    args->x11_out->window = base | (mask & (~mask + 1u));
+    args->x11_out->window = base | (mask_bits & (~mask_bits + 1u));
     return (read <= length) && EMBED_CALL(x11_pass, PosixClipboardCtx, .x11 = args->x11_out, .size = length - read,
                                           .storage = capacity, .capacity_bytes = sizeof(capacity));
 }
@@ -787,26 +793,34 @@ static int x11_connect(const PosixClipboardCtx *args)
     EMBED_CALL(x11_put32, PosixClipboardCtx, .at = window + 32, .value = CLI_X11_PROPERTY_CHANGES);
     made =
         made && EMBED_CALL(x11_send, PosixClipboardCtx, .x11 = args->x11_out, .bytes = window, .size = sizeof(window));
-    for (unsigned int at = 0u; made && (at < CLI_X11_NAMED); at += 1u)
     {
-        unsigned char intern[8 + 32];
-        const size_t length = cellul.len(&(CatenaFinitaCfg){.src = s_atom_names[at], .cap = 32u});
-        const size_t padded = (length + 3u) & ~(size_t)3u;
-        memor.set(&(MemoriaCfg){.dst = intern, .val = 0, .bytes = sizeof(intern)});
-        intern[0] = (unsigned char)CLI_X11_INTERN_ATOM;
-        // a request's length in words is far below what 16 bits count
-        EMBED_CALL(x11_put16, PosixClipboardCtx, .at = intern + 2, .value = (unsigned int)(2u + (padded / 4u)));
-        EMBED_CALL(x11_put16, PosixClipboardCtx, .at = intern + 4, .value = (unsigned int)length);
-        memor.cpy(&(MemoriaCfg){.dst = intern + 8, .src = s_atom_names[at], .bytes = length});
-        made = EMBED_CALL(x11_send, PosixClipboardCtx, .x11 = args->x11_out, .bytes = intern, .size = 8u + padded);
+        unsigned int at = 0u;
+        while (made && (at < CLI_X11_NAMED))
+        {
+            unsigned char intern[8 + 32];
+            const size_t length = cellul.len(&(CatenaFinitaCfg){.src = s_atom_names[at], .cap = 32u});
+            const size_t padded = (length + 3u) & ~(size_t)3u;
+            memor.set(&(MemoriaCfg){.dst = intern, .val = 0, .bytes = sizeof(intern)});
+            intern[0] = (unsigned char)CLI_X11_INTERN_ATOM;
+            // a request's length in words is far below what 16 bits count
+            EMBED_CALL(x11_put16, PosixClipboardCtx, .at = intern + 2, .value = (unsigned int)(2u + (padded / 4u)));
+            EMBED_CALL(x11_put16, PosixClipboardCtx, .at = intern + 4, .value = (unsigned int)length);
+            memor.cpy(&(MemoriaCfg){.dst = intern + 8, .src = s_atom_names[at], .bytes = length});
+            made = EMBED_CALL(x11_send, PosixClipboardCtx, .x11 = args->x11_out, .bytes = intern, .size = 8u + padded);
+            at += 1u;
+        }
     }
-    for (unsigned int at = 0u; made && (at < CLI_X11_NAMED); at += 1u)
     {
-        unsigned char reply[32];
-        unsigned long long size = 0ULL;
-        made = EMBED_CALL(x11_reply, PosixClipboardCtx, .x11 = args->x11_out, .packet = reply, .extra = NULL,
-                          .capacity = 0ULL, .size_pointer = &size);
-        args->x11_out->atom[at] = made ? EMBED_CALL(x11_get32, PosixClipboardCtx, .at_read = reply + 8) : 0u;
+        unsigned int at = 0u;
+        while (made && (at < CLI_X11_NAMED))
+        {
+            unsigned char reply[32];
+            unsigned long long size = 0ULL;
+            made = EMBED_CALL(x11_reply, PosixClipboardCtx, .x11 = args->x11_out, .packet = reply, .extra = NULL,
+                              .capacity = 0ULL, .size_pointer = &size);
+            args->x11_out->atom[at] = made ? EMBED_CALL(x11_get32, PosixClipboardCtx, .at_read = reply + 8) : 0u;
+            at += 1u;
+        }
     }
     if (!made)
     {
@@ -1327,7 +1341,7 @@ EMBED_INLINE unsigned int clipboard_copied_read(const PosixClipboardCtx *args)
 
 unsigned int cli_clipboard_files_read(const CliEachCtx *args)
 {
-    void (*each)(const CliEachPathCfg *args) = args->each;
+    void (*each)(const CliEachPathCfg *) = args->each;
     void *context = args->context;
     int *cut = args->cut_pointer;
     *cut = -1;

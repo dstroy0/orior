@@ -57,7 +57,7 @@ EMBED_INLINE int parse_one_get(const InspectPyParseCtx *args)
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         if (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok,
-                       .word = args->words[at]))
+                       .word_text = args->words[at]))
         {
             return 1;
         }
@@ -78,15 +78,19 @@ EMBED_INLINE void parse_parameters(const InspectPyParseCtx *args)
     {
         const CliInspectTok *const tok = EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = line, .at = offset);
         depth +=
-            (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word = "(") ||
-             EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word = "[") ||
-             EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word = "{"))
+            (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok,
+                        .word_text = "(") ||
+             EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok,
+                        .word_text = "[") ||
+             EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word_text = "{"))
                 ? 1
                 : 0;
         depth -=
-            (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word = ")") ||
-             EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word = "]") ||
-             EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word = "}"))
+            (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok,
+                        .word_text = ")") ||
+             EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok,
+                        .word_text = "]") ||
+             EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word_text = "}"))
                 ? 1
                 : 0;
         const int before = (offset > 0u) && EMBED_CALL(parse_one_get, InspectPyParseCtx, .src = src,
@@ -137,7 +141,7 @@ EMBED_INLINE void parse_scopes(const InspectPyParseCtx *args)
         s_scopes -= 1u;
     }
     if (EMBED_CALL(cli_inspect_py_src_line.py_head_is, CliInspectPySrcLineCfg, .src = src,
-                   .line = &g_cli_py_line[args->index], .word = "def") &&
+                   .line = &g_cli_py_line[args->index], .word_text = "def") &&
         (s_scopes < CLI_PY_STACK))
     {
         s_scope_at[s_scopes] = args->index;
@@ -165,7 +169,7 @@ EMBED_INLINE unsigned char parse_name_class(const InspectPyParseCtx *args)
             : NULL;
     static const char *const s_predefined[5] = {"True", "False", "None", "self", "cls"};
     const int called = (after != NULL) && EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src,
-                                                     .tok = after, .word = "(");
+                                                     .tok = after, .word_text = "(");
     const int is_class = EMBED_CALL(cli_inspect_at_internal.set_has, CliInspectAtCtx, .set_read = &s_classes,
                                     .at = src + tok->start, .size_u32 = tok->end - tok->start);
     if (EMBED_CALL(parse_one_get, InspectPyParseCtx, .src = src, .tok = tok, .words = s_predefined, .count = 5u))
@@ -183,23 +187,23 @@ EMBED_INLINE unsigned char parse_name_class(const InspectPyParseCtx *args)
     if (args->importing &&
         (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src,
                     .tok = EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = line, .at = 0u),
-                    .word = "import") ||
+                    .word_text = "import") ||
          (args->offset < args->imported_at)))
     {
         return CLI_INSPECT_MODULE;
     }
     if ((before != NULL) &&
-        EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = before, .word = "def"))
+        EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = before, .word_text = "def"))
     {
         return CLI_INSPECT_FUNCTION;
     }
-    if ((before != NULL) &&
-        EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = before, .word = "class"))
+    if ((before != NULL) && EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = before,
+                                       .word_text = "class"))
     {
         return CLI_INSPECT_TYPE;
     }
     if ((before != NULL) &&
-        EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = before, .word = "."))
+        EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = before, .word_text = "."))
     {
         return called ? CLI_INSPECT_FUNCTION : CLI_INSPECT_PROPERTY;
     }
@@ -209,10 +213,10 @@ EMBED_INLINE unsigned char parse_name_class(const InspectPyParseCtx *args)
     }
     const int keyword_argument =
         (after != NULL) &&
-        EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = after, .word = "=") &&
+        EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = after, .word_text = "=") &&
         (args->depth > 0) && (before != NULL) &&
-        (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = before, .word = "(") ||
-         EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = before, .word = ","));
+        (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = before, .word_text = "(") ||
+         EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = before, .word_text = ","));
     if (keyword_argument || EMBED_CALL(parse_parameter, InspectPyParseCtx, .src = src, .tok = tok))
     {
         return CLI_INSPECT_PARAMETER;
@@ -256,19 +260,20 @@ EMBED_INLINE void parse_line(const InspectPyParseCtx *args)
     const CliPyLine *const line = &g_cli_py_line[args->index];
     const CliInspectTok *const head = EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = line, .at = 0u);
     const int importing =
-        EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = head, .word = "import") ||
-        EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = head, .word = "from");
+        EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = head,
+                   .word_text = "import") ||
+        EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = head, .word_text = "from");
     unsigned int imported_at = line->count;
     for (unsigned int at = 0u; (imported_at == line->count) && (at < line->count); at += 1u)
     {
         imported_at = EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src,
                                  .tok = EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = line, .at = at),
-                                 .word = "import")
+                                 .word_text = "import")
                           ? at
                           : imported_at;
     }
     const int decorated =
-        EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = head, .word = "@");
+        EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = head, .word_text = "@");
     int depth = 0;
     unsigned int stack = 0u;
     for (unsigned int offset = 0u; offset < line->count; offset += 1u)
@@ -295,9 +300,12 @@ EMBED_INLINE void parse_line(const InspectPyParseCtx *args)
         }
         else
         {
-            if (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word = "(") ||
-                EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word = "[") ||
-                EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word = "{"))
+            if (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok,
+                           .word_text = "(") ||
+                EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok,
+                           .word_text = "[") ||
+                EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok,
+                           .word_text = "{"))
             {
                 depth += 1;
                 if (stack < CLI_PY_STACK)
@@ -307,11 +315,11 @@ EMBED_INLINE void parse_line(const InspectPyParseCtx *args)
                 }
             }
             else if (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok,
-                                .word = ")") ||
+                                .word_text = ")") ||
                      EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok,
-                                .word = "]") ||
+                                .word_text = "]") ||
                      EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok,
-                                .word = "}"))
+                                .word_text = "}"))
             {
                 depth -= 1;
                 if (stack > 0u)
@@ -329,7 +337,7 @@ EMBED_INLINE void parse_line(const InspectPyParseCtx *args)
             }
             class_of = (decorated && (depth == 0) &&
                         ((offset == 0u) || EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src,
-                                                      .tok = tok, .word = ".")))
+                                                      .tok = tok, .word_text = ".")))
                            ? CLI_INSPECT_ATTRIBUTE
                        : EMBED_CALL(parse_one_get, InspectPyParseCtx, .src = src, .tok = tok, .words = s_delimiters,
                                     .count = 9u)
@@ -376,7 +384,7 @@ EMBED_INLINE void parse_line(const InspectPyParseCtx *args)
            EMBED_CALL(
                cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src,
                .tok = EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = &g_cli_py_line[first - 1u], .at = 0u),
-               .word = "@"))
+               .word_text = "@"))
     {
         first -= 1u;
     }
@@ -408,7 +416,7 @@ void cli_inspect_py_parse(const CliInspectSizeSrcParsedCtx *args)
     {
         const CliPyLine *const line = &g_cli_py_line[at];
         if (!EMBED_CALL(cli_inspect_py_src_line.py_head_is, CliInspectPySrcLineCfg, .src = args->src, .line = line,
-                        .word = "class"))
+                        .word_text = "class"))
         {
             continue;
         }
@@ -416,7 +424,7 @@ void cli_inspect_py_parse(const CliInspectSizeSrcParsedCtx *args)
         {
             if (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = args->src,
                            .tok = EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = line, .at = offset),
-                           .word = "class"))
+                           .word_text = "class"))
             {
                 const CliInspectTok *const name =
                     EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = line, .at = offset + 1u);

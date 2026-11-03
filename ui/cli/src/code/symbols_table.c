@@ -97,7 +97,8 @@ unsigned int cli_branch_get(const CliSymbolsTreePathCfg *args)
     unsigned long long bucket = EMBED_CALL(cli_hash, SymbolsTableCtx, .path = args->path) % s_bucket_capacity;
     // the path with its terminator, so that a stored path it only starts differs from it there
     const size_t bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1u;
-    for (unsigned int tried = 0u; (tried < s_bucket_capacity) && (s_buckets[bucket] != CLI_BUCKET_EMPTY); tried += 1u)
+    unsigned int tried = 0u;
+    while ((tried < s_bucket_capacity) && (s_buckets[bucket] != CLI_BUCKET_EMPTY))
     {
         const unsigned int place = s_buckets[bucket];
         if ((place != CLI_BUCKET_REMOVED) &&
@@ -109,6 +110,7 @@ unsigned int cli_branch_get(const CliSymbolsTreePathCfg *args)
             return place - 1u;
         }
         bucket = (bucket + 1u) % s_bucket_capacity;
+        tried += 1u;
     }
     return CLI_BRANCHES_MAX;
 }
@@ -234,8 +236,8 @@ void cli_branch_leave(const CliSymbolsTreeFileCfg *args)
         EMBED_CALL(cli_symbols_tree_branch_path.branch_path_read, CliSymbolsTreeBranchPathCfg, .branch = branch,
                    .path_out = path);
         unsigned long long bucket = EMBED_CALL(cli_hash, SymbolsTableCtx, .path = path) % s_bucket_capacity;
-        for (unsigned int tried = 0u; (tried < s_bucket_capacity) && (s_buckets[bucket] != CLI_BUCKET_EMPTY);
-             tried += 1u)
+        unsigned int tried = 0u;
+        while ((tried < s_bucket_capacity) && (s_buckets[bucket] != CLI_BUCKET_EMPTY))
         {
             if (s_buckets[bucket] == (at + 1u))
             {
@@ -243,6 +245,7 @@ void cli_branch_leave(const CliSymbolsTreeFileCfg *args)
                 break;
             }
             bucket = (bucket + 1u) % s_bucket_capacity;
+            tried += 1u;
         }
         (void)g_cli_cells->movable_buf_release(branch->cell, &g_cli_code_cells);
         const unsigned int parent = branch->parent;

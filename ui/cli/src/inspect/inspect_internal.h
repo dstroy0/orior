@@ -5,6 +5,9 @@
 // and the facts' own writers. One reading runs at a time, under the inspections' lock
 #ifndef INSPECT_INTERNAL_H
 #define INSPECT_INTERNAL_H
+#include "embed_dispatch_layout.h"
+#include "inspect.h"
+
 typedef struct CliInspectSizeCtx CliInspectSizeCtx;
 typedef struct CliInspectSizeSrcCtx CliInspectSizeSrcCtx;
 typedef struct CliInspectFromCtx CliInspectFromCtx;
@@ -28,9 +31,6 @@ typedef struct CliInspectFactsLineVerbaLineaCtx CliInspectFactsLineVerbaLineaCtx
 typedef struct CliInspectScanAheadCtx CliInspectScanAheadCtx;
 typedef struct CliInspectPartitionSetCtx CliInspectPartitionSetCtx;
 typedef struct CliInspectCtx CliInspectCtx;
-
-#include "embed_dispatch_layout.h"
-#include "inspect.h"
 
 // The most a reading of one text contains, counted from the text as its cell is taken: its tokens, a token for each
 // name, number and other letter that is no space and one for each line; its lines; its comments, one for each letter

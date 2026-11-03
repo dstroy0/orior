@@ -6,14 +6,15 @@
 // and the code face's cell, its glyphs' advance (glyphs.c)
 #ifndef GUI_GLYPHS_H
 #define GUI_GLYPHS_H
+#include "../print/font.h"
+#include "embed_dispatch_layout.h"
+#include "raster.h"
+
 typedef struct GuiGlyphsFaceSizeCfg GuiGlyphsFaceSizeCfg;
 typedef struct GuiGlyphsFaceLetterCfg GuiGlyphsFaceLetterCfg;
 typedef struct GuiGlyphsRasterCfg GuiGlyphsRasterCfg;
 typedef struct GuiGlyphsFaceCfg GuiGlyphsFaceCfg;
 typedef struct GuiGlyphsCfg GuiGlyphsCfg;
-#include "../print/font.h"
-#include "embed_dispatch_layout.h"
-#include "raster.h"
 
 // the faces: the code face regular, bold, italic and bold italic, the interface face, the reading face and the
 // interface face bold, the large name's
@@ -44,7 +45,7 @@ typedef struct
     unsigned int glyph;
     unsigned int size;
     float advance;
-    GuiMask mask;
+    GuiMask mask_bits;
 } GuiCachedGlyph;
 
 // the glyph cells saved at once, a glyph in one color each; past three quarters of them every one is let go and made

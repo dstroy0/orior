@@ -71,10 +71,12 @@ void cli_watch_poll(void *context)
     for (;;)
     {
         int stopping = 0;
-        for (unsigned int waited = 0u; !stopping && (waited < CLI_WATCH_POLL_EVERY); waited += CLI_WATCH_SLICE)
+        unsigned int waited = 0u;
+        while (!stopping && (waited < CLI_WATCH_POLL_EVERY))
         {
             EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = CLI_WATCH_SLICE);
             stopping = cli_watch_stopping();
+            waited += CLI_WATCH_SLICE;
         }
         if (stopping)
         {

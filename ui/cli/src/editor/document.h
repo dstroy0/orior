@@ -13,6 +13,11 @@
 // document_store.c, diff.c)
 #ifndef DOCUMENT_H
 #define DOCUMENT_H
+#include "../command_line/callback_cfg.h"
+#include "../command_line/cli_internal.h"
+#include "../text/sift.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliDocumentKeyCfg CliDocumentKeyCfg;
 typedef struct CliDocumentThenCfg CliDocumentThenCfg;
 typedef struct CliDocumentErrMsgCfg CliDocumentErrMsgCfg;
@@ -35,11 +40,6 @@ typedef struct CliDocumentCfg CliDocumentCfg;
 typedef struct CliDocumentColoredCfg CliDocumentColoredCfg;
 typedef struct CliDocumentKeyColumnsCfg CliDocumentKeyColumnsCfg;
 typedef struct CliDocumentOutGrammarCfg CliDocumentOutGrammarCfg;
-
-#include "../command_line/callback_cfg.h"
-#include "../command_line/cli_internal.h"
-#include "../text/sift.h"
-#include "embed_dispatch_layout.h"
 
 // A place in a text: its line and its col, both from 0, the col in UTF-16 units
 typedef struct
@@ -71,7 +71,7 @@ typedef struct
     const char *query;
     int regex;
     int match_case;
-    int word;
+    int word_text;
 } CliDocNeedle;
 
 // a line's state where it is not colored, and the place of its runs where it saves none
@@ -212,7 +212,7 @@ typedef struct
 typedef struct
 {
     CliDocumentLineRuns *line;
-    unsigned int *word;
+    unsigned int *word_text;
 } CliDocumentRuns;
 // the `count` lines at `number`, in order, of the text under `key` walked where they save no runs that stand, and their
 // runs in a cell of `owner`, sized to them; `mirrored` as cli_document_runs_write reads it: the cell, or NULL where no

@@ -23,9 +23,13 @@ int cli_go_package(const CliExecutablesTextOutCtx *args)
         line = next;
         // whether the line closes a comment it is in
         int closes = 0;
-        for (unsigned long long at = 0ULL; !closes && ((at + 1ULL) < length); at += 1ULL)
         {
-            closes = (from[at] == '*') && (from[at + 1ULL] == '/');
+            unsigned long long at = 0ULL;
+            while (!closes && ((at + 1ULL) < length))
+            {
+                closes = (from[at] == '*') && (from[at + 1ULL] == '/');
+                at += 1ULL;
+            }
         }
         if (in_comment)
         {
@@ -45,20 +49,22 @@ int cli_go_package(const CliExecutablesTextOutCtx *args)
         {
             return 0;
         }
-        const char *word = from + 8;
+        const char *word_text = from + 8;
         const char *const end = from + length;
-        while ((word < end) && EMBED_CALL(cli_executables_internal.scan_white, CliExecutablesCtx, .letter = word[0]))
+        while ((word_text < end) &&
+               EMBED_CALL(cli_executables_internal.scan_white, CliExecutablesCtx, .letter = word_text[0]))
         {
-            word += 1;
+            word_text += 1;
         }
-        const char *word_past = word;
+        const char *word_past = word_text;
         while ((word_past < end) &&
                !EMBED_CALL(cli_executables_internal.scan_white, CliExecutablesCtx, .letter = word_past[0]))
         {
             word_past += 1;
         }
-        EMBED_CALL(cli_executables_length_text_internal.scan_copy, CliExecutablesLengthTextCtx, .text = word,
-                   .length = (unsigned long long)(word_past - word), .out = args->out, .capacity = CLI_NAME_MAX_LEN);
+        EMBED_CALL(cli_executables_length_text_internal.scan_copy, CliExecutablesLengthTextCtx, .text = word_text,
+                   .length = (unsigned long long)(word_past - word_text), .out = args->out,
+                   .capacity = CLI_NAME_MAX_LEN);
         return 1;
     }
     return 0;
@@ -70,7 +76,7 @@ typedef struct
     const char *tag;
     unsigned long long *length;
     unsigned long long length_value;
-    const char *word;
+    const char *word_text;
 } ExecutablesScanMoreCtx;
 // the text of the first element `tag` contains in an MSBuild project, trimmed: its start, its length into `length`, or
 // NULL where it has none
@@ -112,7 +118,7 @@ EMBED_INLINE const char *cli_msbuild_value(const ExecutablesScanMoreCtx *args)
 // whether `length` bytes of `text` are `word`, ASCII's case aside
 EMBED_INLINE int cli_same(const ExecutablesScanMoreCtx *args)
 {
-    if (args->length_value != cellul.len(&(CatenaFinitaCfg){.src = args->word, .cap = CLI_CELLS_POOL}))
+    if (args->length_value != cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_CELLS_POOL}))
     {
         return 0;
     }
@@ -120,7 +126,7 @@ EMBED_INLINE int cli_same(const ExecutablesScanMoreCtx *args)
     {
         const char letter = ((args->text[at] >= 'A') && (args->text[at] <= 'Z')) ? (char)(args->text[at] + ('a' - 'A'))
                                                                                  : args->text[at];
-        if (letter != args->word[at])
+        if (letter != args->word_text[at])
         {
             return 0;
         }
@@ -134,8 +140,8 @@ int cli_dotnet_program(const CliExecutablesTextOutCtx *args)
     const char *const output = EMBED_CALL(cli_msbuild_value, ExecutablesScanMoreCtx, .text = args->text,
                                           .tag = "OutputType", .length = &length);
     if ((output == NULL) ||
-        (!EMBED_CALL(cli_same, ExecutablesScanMoreCtx, .text = output, .length_value = length, .word = "exe") &&
-         !EMBED_CALL(cli_same, ExecutablesScanMoreCtx, .text = output, .length_value = length, .word = "winexe")))
+        (!EMBED_CALL(cli_same, ExecutablesScanMoreCtx, .text = output, .length_value = length, .word_text = "exe") &&
+         !EMBED_CALL(cli_same, ExecutablesScanMoreCtx, .text = output, .length_value = length, .word_text = "winexe")))
     {
         return 0;
     }
@@ -143,9 +149,13 @@ int cli_dotnet_program(const CliExecutablesTextOutCtx *args)
     const char *const name = EMBED_CALL(cli_msbuild_value, ExecutablesScanMoreCtx, .text = args->text,
                                         .tag = "AssemblyName", .length = &name_length);
     int named = (name != NULL) && (name_length != 0ULL);
-    for (unsigned long long at = 0ULL; named && ((at + 1ULL) < name_length); at += 1ULL)
     {
-        named = !((name[at] == '$') && (name[at + 1ULL] == '('));
+        unsigned long long at = 0ULL;
+        while (named && ((at + 1ULL) < name_length))
+        {
+            named = !((name[at] == '$') && (name[at + 1ULL] == '('));
+            at += 1ULL;
+        }
     }
     if (named)
     {
@@ -242,7 +252,8 @@ void cli_zig_exes(const CliExecutablesNamesCtx *args)
     }
     VerbaLinea code = {code_cell, capacity, 0ULL};
     const char *line = args->text;
-    for (int first = 1; line[0] != '\0'; first = 0)
+    int first = 1;
+    while (line[0] != '\0')
     {
         const char *stop = line;
         stop += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = stop, .at = 0ULL,
@@ -256,6 +267,7 @@ void cli_zig_exes(const CliExecutablesNamesCtx *args)
         mmgr_line_put(&code, first ? "" : "\n");
         mmgr_line_put_n(&code, line, (unsigned long long)(end - line));
         line = (stop[0] != '\0') ? (stop + 1) : stop;
+        first = 0;
     }
     mmgr_line_finish(&code);
     CliCall *calls = NULL;
@@ -313,10 +325,14 @@ int cli_spec_init(const CliExecutablesTextExeCtx *args)
         found ? EMBED_CALL(cli_executables_code_command_internal.calls_alloc, CliExecutablesCodeCommandCtx,
                            .code = code, .command = "EXE", .calls_pointer = &calls)
               : 0u;
-    for (unsigned int at = 0u; !named && (at < exes); at += 1u)
     {
-        named = EMBED_CALL(cli_executables_length_internal.keyword, CliExecutablesLengthCtx, .call = calls[at].text,
-                           .length = calls[at].length, .key = "name", .out = args->exe_capacity);
+        unsigned int at = 0u;
+        while (!named && (at < exes))
+        {
+            named = EMBED_CALL(cli_executables_length_internal.keyword, CliExecutablesLengthCtx, .call = calls[at].text,
+                               .length = calls[at].length, .key = "name", .out = args->exe_capacity);
+            at += 1u;
+        }
     }
     g_cli_cells->persistent_buf_release(calls, &g_cli_executables_cells);
     calls = NULL;
@@ -327,10 +343,14 @@ int cli_spec_init(const CliExecutablesTextExeCtx *args)
         found ? EMBED_CALL(cli_executables_code_command_internal.calls_alloc, CliExecutablesCodeCommandCtx,
                            .code = code, .command = "COLLECT", .calls_pointer = &calls)
               : 0u;
-    for (unsigned int at = 0u; !collected && (at < collects); at += 1u)
     {
-        collected = EMBED_CALL(cli_executables_length_internal.keyword, CliExecutablesLengthCtx, .call = calls[at].text,
-                               .length = calls[at].length, .key = "name", .out = folder);
+        unsigned int at = 0u;
+        while (!collected && (at < collects))
+        {
+            collected = EMBED_CALL(cli_executables_length_internal.keyword, CliExecutablesLengthCtx,
+                                   .call = calls[at].text, .length = calls[at].length, .key = "name", .out = folder);
+            at += 1u;
+        }
     }
     g_cli_cells->persistent_buf_release(calls, &g_cli_executables_cells);
     g_cli_cells->persistent_buf_release(code, &g_cli_executables_cells);

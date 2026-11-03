@@ -10,11 +10,11 @@
 // `[abc]` and `[!abc]` one letter of or not of those, `{a,b}` either text, and `{1..3}` any whole number between
 #ifndef EDITORCONFIG_H
 #define EDITORCONFIG_H
-typedef struct CliEditorconfigPatternCfg CliEditorconfigPatternCfg;
-typedef struct CliEditorconfigCfg CliEditorconfigCfg;
-
 #include "../command_line/cli_internal.h"
 #include "embed_dispatch_layout.h"
+
+typedef struct CliEditorconfigPatternCfg CliEditorconfigPatternCfg;
+typedef struct CliEditorconfigCfg CliEditorconfigCfg;
 
 // The indentation found: tabs where `tabs` is 1, spaces where it is 0, and -1 where nothing set it; the width of a
 // step in `size` where `sized` is 1

@@ -25,6 +25,11 @@
 // debug_bytecode.c)
 #ifndef DEBUG_H
 #define DEBUG_H
+#include "../command_line/callback_cfg.h"
+#include "../text/json_tree.h"
+#include "dap.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliDebugOutCfg CliDebugOutCfg;
 typedef struct CliDebugOutErrMsgCfg CliDebugOutErrMsgCfg;
 typedef struct CliDebugOutErrMsgIdCfg CliDebugOutErrMsgIdCfg;
@@ -39,11 +44,6 @@ typedef struct CliDebugOutErrMsgIdThreadHowCfg CliDebugOutErrMsgIdThreadHowCfg;
 typedef struct CliDebugRootOutErrMsgCfg CliDebugRootOutErrMsgCfg;
 typedef struct CliDebugOutErrMsgIdStepCfg CliDebugOutErrMsgIdStepCfg;
 typedef struct CliDebugCfg CliDebugCfg;
-
-#include "../command_line/callback_cfg.h"
-#include "../text/json_tree.h"
-#include "dap.h"
-#include "embed_dispatch_layout.h"
 
 // what a session reports on its own: its number, an adapter's event, and `size` bytes of the event's body as JSON
 typedef void (*CliDebugEventFn)(const CliDebugEventCfg *args);

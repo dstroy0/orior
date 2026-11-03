@@ -4,13 +4,13 @@
 // readers and the requests waiting on answers, and the queues an adapter in orior_cli is connected to through
 #ifndef DAP_INTERNAL_H
 #define DAP_INTERNAL_H
-typedef struct CliDapCtx CliDapCtx;
-
 #include "../servers/lsp.h"
 #include "../text/json_tree.h"
 #include "../toolchains/toolchains.h"
 #include "dap.h"
 #include "embed_dispatch_layout.h"
+
+typedef struct CliDapCtx CliDapCtx;
 
 // the most bytes of what an adapter writes to its errors that are retained
 #define CLI_DAP_COMPLAINT 4096u

@@ -4,18 +4,18 @@
 // the nearest settings file read, under the formatting's lock
 #ifndef FORMAT_INTERNAL_H
 #define FORMAT_INTERNAL_H
+#include "../command_line/cells.h"
+#include "../text/json_tree.h"
+#include "embed_dispatch_layout.h"
+#include "format.h"
+#include "toolchains.h"
+
 typedef struct CliFormatErrMsgCtx CliFormatErrMsgCtx;
 typedef struct CliFormatTextCtx CliFormatTextCtx;
 typedef struct CliFormatPathCtx CliFormatPathCtx;
 typedef struct CliFormatCtx CliFormatCtx;
 typedef struct CliFormatLanguageCtx CliFormatLanguageCtx;
 typedef struct CliFormatBytesCtx CliFormatBytesCtx;
-
-#include "../command_line/cells.h"
-#include "../text/json_tree.h"
-#include "embed_dispatch_layout.h"
-#include "format.h"
-#include "toolchains.h"
 
 // The work state the formatting reads into: the manifest and a settings file's text, each a cell sized to what it
 // contains, the toolchain found, and the formatter's words

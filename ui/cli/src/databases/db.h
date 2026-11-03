@@ -20,6 +20,11 @@
 // db_children.c, db_history.c, platform/windows_keychain.c, platform/posix_keychain.c)
 #ifndef DB_H
 #define DB_H
+#include "../command_line/callback_cfg.h"
+#include "../text/json_tree.h"
+#include "db_wire.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliDbOutCfg CliDbOutCfg;
 typedef struct CliDbOutFailureCfg CliDbOutFailureCfg;
 typedef struct CliDbOutCountCfg CliDbOutCountCfg;
@@ -33,11 +38,6 @@ typedef struct CliDbConnectionCfg CliDbConnectionCfg;
 typedef struct CliDbConnectionOutKindCfg CliDbConnectionOutKindCfg;
 typedef struct CliDbErrMsgCfg CliDbErrMsgCfg;
 typedef struct CliDbCfg CliDbCfg;
-
-#include "../command_line/callback_cfg.h"
-#include "../text/json_tree.h"
-#include "db_wire.h"
-#include "embed_dispatch_layout.h"
 
 // A connection a tree names: its name; its kind, postgres, mysql or sqlite; its host, port, user and database; a SQLite
 // database's file, by its path in the tree or whole; the machine, as ssh names it, a tunnel to the server goes

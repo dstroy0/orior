@@ -31,7 +31,7 @@ int query_learn_step_read(const QueryLearnWordsCtx *args)
         (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "costs", .cap = CLI_CELLS_POOL})))
     {
         args->step->kind = QUERY_LEARN_PASS;
-        args->step->word = first;
+        args->step->word_text = first;
         if (args->count == 1u)
         {
             return 1;
@@ -48,7 +48,7 @@ int query_learn_step_read(const QueryLearnWordsCtx *args)
     if ((cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "seed", .cap = CLI_CELLS_POOL})) && (args->count >= 2u))
     {
         args->step->kind = QUERY_LEARN_SEED;
-        args->step->word = args->words[1];
+        args->step->word_text = args->words[1];
         return 1;
     }
     if ((cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "rounds", .cap = CLI_CELLS_POOL})) ||
@@ -74,13 +74,13 @@ int query_learn_step_read(const QueryLearnWordsCtx *args)
         (args->count >= 2u))
     {
         args->step->kind = QUERY_LEARN_ENUMERATE;
-        args->step->word = args->words[1];
+        args->step->word_text = args->words[1];
         return 1;
     }
     if (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "clock", .cap = CLI_CELLS_POOL}))
     {
         args->step->kind = QUERY_LEARN_CLOCK;
-        args->step->word = (args->count >= 2u) ? args->words[1] : QUERY_CLOCK_FROM;
+        args->step->word_text = (args->count >= 2u) ? args->words[1] : QUERY_CLOCK_FROM;
         args->step->base = (args->count >= 3u) ? args->words[2] : QUERY_CLOCK_WORDS;
         return 1;
     }
@@ -150,17 +150,17 @@ void query_teacher_words(const QueryLearnWordsWordsCtx *args)
 {
     QueryWords *words = args->words_words_pointer;
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
-               .word = "sm_86");
+               .word_text = "sm_86");
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
-               .word = args->machine);
+               .word_text = args->machine);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
-               .word = args->files->layout);
+               .word_text = args->files->layout);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
-               .word = args->files->mnemonics);
+               .word_text = args->files->mnemonics);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
-               .word = args->files->fields);
+               .word_text = args->files->fields);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
-               .word = args->writer);
+               .word_text = args->writer);
 }
 
 void query_verdicts_print(const QueryLearnRunCtx *args)
@@ -186,11 +186,13 @@ void query_verdicts_print(const QueryLearnRunCtx *args)
         const unsigned long long length = (end != NULL) ? (unsigned long long)(end - line) : (dry_size - at);
         at += length + 1ULL;
         const char *found = NULL;
-        for (unsigned long long letter = 0ULL; (found == NULL) && ((letter + 10ULL) <= length); letter += 1ULL)
+        unsigned long long letter = 0ULL;
+        while ((found == NULL) && ((letter + 10ULL) <= length))
         {
             found = (memor.cmp(&(MemoriaCfg){.src = line + letter, .other = "the gate: ", .bytes = 10u}) == 0)
                         ? (line + letter)
                         : NULL;
+            letter += 1ULL;
         }
         if (found == NULL)
         {

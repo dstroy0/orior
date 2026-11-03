@@ -6,6 +6,12 @@
 // else in the view touches a pixel (raster.c)
 #ifndef GUI_RASTER_H
 #define GUI_RASTER_H
+// a scale that leaves a size as it is: every scale in the window is a percent
+#define GUI_SCALE_ONE 100
+
+#include "../command_line/cells.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct GuiRasterWidthXCfg GuiRasterWidthXCfg;
 typedef struct GuiRasterRadiusWorkCfg GuiRasterRadiusWorkCfg;
 typedef struct GuiRasterWidthCfg GuiRasterWidthCfg;
@@ -24,11 +30,6 @@ typedef struct GuiRasterReachCfg GuiRasterReachCfg;
 typedef struct GuiRasterRectCfg GuiRasterRectCfg;
 typedef struct GuiRasterCfg GuiRasterCfg;
 typedef struct GuiRasterOneCfg GuiRasterOneCfg;
-// a scale that leaves a size as it is: every scale in the window is a percent
-#define GUI_SCALE_ONE 100
-
-#include "../command_line/cells.h"
-#include "embed_dispatch_layout.h"
 
 // A color: alpha, red, green and blue, each a byte, as 0xAARRGGBB, the word a BGRA pixel holds in memory on a
 // little-endian machine
@@ -234,7 +235,7 @@ struct GuiRasterXYColorCfg
     int y;
     GuiRaster *raster;
     GuiColor color;
-    const GuiMask *mask;
+    const GuiMask *mask_bits;
     GuiRect clip;
 };
 
@@ -299,7 +300,7 @@ struct GuiRasterXYCfg
     int x;
     int y;
     GuiColor color;
-    const GuiMask *mask;
+    const GuiMask *mask_bits;
     GuiRaster *picture;
 };
 
@@ -469,12 +470,12 @@ EMBED_TABLE_STORAGE GuiRasterColorX0Ns gui_raster_color_x_0 EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*mask)(const GuiRasterXYColorCfg *args);
+    void (*mask_bits)(const GuiRasterXYColorCfg *args);
     void (*stencil)(const GuiRasterXYColorCfg *args);
 } GuiRasterXYColorNs;
-EMBED_TABLE_LAYOUT(GuiRasterXYColorNs, mask, stencil);
+EMBED_TABLE_LAYOUT(GuiRasterXYColorNs, mask_bits, stencil);
 EMBED_TABLE_STORAGE GuiRasterXYColorNs gui_raster_xy_color EMBED_UNUSED = {
-    .mask = gui_raster_mask,
+    .mask_bits = gui_raster_mask,
     .stencil = gui_raster_stencil,
 };
 

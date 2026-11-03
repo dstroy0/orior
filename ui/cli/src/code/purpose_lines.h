@@ -4,12 +4,12 @@
 // license's comment known, and a comment's lines with their marks taken off
 #ifndef PURPOSE_LINES_H
 #define PURPOSE_LINES_H
+#include "embed_dispatch_layout.h"
+#include "purpose.h"
+
 typedef struct CliPurposeLinesCountCfg CliPurposeLinesCountCfg;
 typedef struct CliPurposeLinesCfg CliPurposeLinesCfg;
 typedef struct CliPurposeLinesSpanCfg CliPurposeLinesSpanCfg;
-
-#include "embed_dispatch_layout.h"
-#include "purpose.h"
 
 // A span of a text: where it starts and its bytes
 typedef struct

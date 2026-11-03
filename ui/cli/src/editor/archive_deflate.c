@@ -309,12 +309,14 @@ int cli_inflate(const CliArchiveSizeCfg *args)
             code_lengths += 4u;
             unsigned char lengths[19];
             memor.set(&(MemoriaCfg){.dst = lengths, .val = 0, .bytes = sizeof(lengths)});
-            for (unsigned int at = 0u; done && (at < code_lengths) && (at < 19u); at += 1u)
+            unsigned int at = 0u;
+            while (done && (at < code_lengths) && (at < 19u))
             {
                 unsigned int value = 0u;
                 done = EMBED_CALL(cli_alloc, ArchiveDeflateCtx, .bits = &bits, .count = 3u, .value = &value);
                 // a code length is below 8, a byte
                 lengths[s_order[at]] = (unsigned char)value;
+                at += 1u;
             }
             if (!done)
             {

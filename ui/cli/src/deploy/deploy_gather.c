@@ -94,12 +94,16 @@ EMBED_INLINE int gather_folder_out(const DeployGatherCtx *args)
     unsigned long long starts[CLI_PATH_MAX_LEN / 2u];
     unsigned int parts = 0u;
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL});
-    for (unsigned long long at = 0ULL; (at <= length) && (parts < CLI_PATH_MAX_LEN / 2u); at += 1u)
     {
-        if ((at == 0u) || (args->path[at - 1u] == '/'))
+        unsigned long long at = 0ULL;
+        while ((at <= length) && (parts < CLI_PATH_MAX_LEN / 2u))
         {
-            starts[parts] = at;
-            parts += 1u;
+            if ((at == 0u) || (args->path[at - 1u] == '/'))
+            {
+                starts[parts] = at;
+                parts += 1u;
+            }
+            at += 1u;
         }
     }
     if (memor.chr(&(MemoriaCfg){.src = named, .bytes = (size_t)args->folder_size, .val = (uint8_t)'/'}) == NULL)
@@ -251,10 +255,12 @@ void cli_deploy_modes_read(const CliDeployPoolCtx *args)
             const char *const space = memor.chr(&(MemoriaCfg){.src = line, .bytes = (size_t)size, .val = (uint8_t)' '});
             unsigned long long mode = 0ULL;
             int read = (tab != NULL) && (space != NULL) && (space < tab) && (space > line);
-            for (const char *digit = line; read && (digit < space); digit += 1)
+            const char *digit = line;
+            while (read && (digit < space))
             {
                 read = (*digit >= '0') && (*digit <= '7') && (mode < 0x20000000ULL);
                 mode = (mode * 8u) + (unsigned long long)(*digit - '0');
+                digit += 1;
             }
             if (read)
             {

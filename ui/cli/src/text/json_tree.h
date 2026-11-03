@@ -6,6 +6,10 @@
 // nothing allocated
 #ifndef JSON_TREE_H
 #define JSON_TREE_H
+#include "../../../../src/cu/includes/formats/cfg_json/cfg_json.h"
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliJsonTreeTextSizeErrMsgCfg CliJsonTreeTextSizeErrMsgCfg;
 typedef struct CliJsonTreeErrMsgCfg CliJsonTreeErrMsgCfg;
 typedef struct CliJsonTreeTextSizeTokensCfg CliJsonTreeTextSizeTokensCfg;
@@ -33,10 +37,6 @@ typedef struct CliJsonTreeCfg CliJsonTreeCfg;
 typedef struct CliJsonTreeOutValueCfg CliJsonTreeOutValueCfg;
 typedef struct CliJsonTreeKindCfg CliJsonTreeKindCfg;
 typedef struct CliJsonTreeSizeCfg CliJsonTreeSizeCfg;
-
-#include "../../../../src/cu/includes/formats/cfg_json/cfg_json.h"
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // no node: a member or item not found, or a tree too full to make one
 #define CLI_JSON_NONE 0xffffffffu

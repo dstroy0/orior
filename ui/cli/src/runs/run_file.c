@@ -115,7 +115,8 @@ EMBED_INLINE unsigned int cli_ways(const RunFileCtx *args)
     unsigned int count = 0u;
     for (unsigned int key = 0u; key < 2u; key += 1u)
     {
-        for (unsigned int index = 0u; count < CLI_RUN_NAMED; index += 1u)
+        unsigned int index = 0u;
+        while (count < CLI_RUN_NAMED)
         {
             const unsigned int tool = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                                  .json_read = json, .array = args->manifest, .index = index);
@@ -135,6 +136,7 @@ EMBED_INLINE unsigned int cli_ways(const RunFileCtx *args)
                 args->named[count] = (CliNamed){tool, line};
                 count += 1u;
             }
+            index += 1u;
         }
     }
     return count;

@@ -103,9 +103,13 @@ long long cli_stand_ins_write(const CliHostIntoCfg *args)
                 (name[EMBED_CALL(cli_text_set_table.upto, CliTextSetCfg, .text = name, .set = "/\\")] == '\0') &&
                 (!cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "..", .cap = CLI_CELLS_POOL}));
         }
-        for (unsigned int at = 0u; valid_name && (at < 3u); at += 1u)
         {
-            valid_name = !cellul.eq(&(CatenaFinitaCfg){.src = name, .other = s_inside[at], .cap = CLI_CELLS_POOL});
+            unsigned int at = 0u;
+            while (valid_name && (at < 3u))
+            {
+                valid_name = !cellul.eq(&(CatenaFinitaCfg){.src = name, .other = s_inside[at], .cap = CLI_CELLS_POOL});
+                at += 1u;
+            }
         }
         if (valid_name)
         {

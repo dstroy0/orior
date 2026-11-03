@@ -448,15 +448,15 @@ void cli_schema_node(const CliSchemaBaseCtx *args)
                        .schema = one, .base = here, .key_schema_key = args->key_schema_key, .depth = args->depth + 1u);
         }
         static const char *const s_words[2] = {"anyOf", "oneOf"};
-        for (unsigned int word = 0u; word < 2u; word += 1u)
+        for (unsigned int word_text = 0u; word_text < 2u; word_text += 1u)
         {
             const unsigned int choices = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json,
-                                                    .map = args->schema, .name = s_words[word]);
+                                                    .map = args->schema, .name = s_words[word_text]);
             if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = choices,
                            .kind = CFG_JSON_ARRAY))
             {
                 EMBED_CALL(check_choose, SchemaCheckCtx, .check = args->check, .node = args->node, .choices = choices,
-                           .base = here, .key = args->key_schema_key, .depth = args->depth, .exactly = word == 1u);
+                           .base = here, .key = args->key_schema_key, .depth = args->depth, .exactly = word_text == 1u);
             }
         }
         const unsigned int not_one = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json,

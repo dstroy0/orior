@@ -8,13 +8,13 @@
 // gives what it printed (format.c, format_width.c)
 #ifndef FORMAT_H
 #define FORMAT_H
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliFormatPathCfg CliFormatPathCfg;
 typedef struct CliFormatPathLanguageCfg CliFormatPathLanguageCfg;
 typedef struct CliFormatCfg CliFormatCfg;
 typedef struct CliFormatLanguageCfg CliFormatLanguageCfg;
-
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // how long a formatter may take before it is stopped, in milliseconds
 #define CLI_FORMAT_PATIENCE 30000ull

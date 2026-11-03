@@ -7,6 +7,10 @@
 // version_catalog_entries.c, version_catalog_complete.c)
 #ifndef VERSION_CATALOG_INTERNAL_H
 #define VERSION_CATALOG_INTERNAL_H
+#include "../text/text.h"
+#include "builds.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliVersionCatalogSizeCtx CliVersionCatalogSizeCtx;
 typedef struct CliVersionCatalogTextCtx CliVersionCatalogTextCtx;
 typedef struct CliVersionCatalogLinesCtx CliVersionCatalogLinesCtx;
@@ -23,10 +27,6 @@ typedef struct CliVersionCatalogFieldOutCtx CliVersionCatalogFieldOutCtx;
 typedef struct CliVersionCatalogFirstCtx CliVersionCatalogFirstCtx;
 typedef struct CliVersionCatalogNameCtx CliVersionCatalogNameCtx;
 typedef struct CliVersionCatalogCtx CliVersionCatalogCtx;
-
-#include "../text/text.h"
-#include "builds.h"
-#include "embed_dispatch_layout.h"
 
 // what a value is: a string, a table of fields, a list of strings, or a bare word
 #define CLI_VERSIONS_TEXT 1u

@@ -9,12 +9,12 @@
 // (containers.c)
 #ifndef CONTAINERS_H
 #define CONTAINERS_H
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliContainersOutCfg CliContainersOutCfg;
 typedef struct CliContainersOutLineCfg CliContainersOutLineCfg;
 typedef struct CliContainersCfg CliContainersCfg;
-
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // how many lines of a container's or a pod's log are read, its last
 #define CLI_LOG_LINES 500u

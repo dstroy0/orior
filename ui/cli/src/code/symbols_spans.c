@@ -367,18 +367,18 @@ int cli_symbols_spans(const CliSymbolsPathTextSizeContextErrMsgFromSymbolPositio
                                      .place = args->to_symbol_position),
                           args->each_spanned,
                           args->context};
-        const unsigned int word = EMBED_CALL(spans_leaf_at, SymbolsSpansCtx, .read = &read, .byte = spans.from);
-        if (!EMBED_CALL(spans_blank, SymbolsSpansCtx, .read = &read, .leaf = word))
+        const unsigned int word_text = EMBED_CALL(spans_leaf_at, SymbolsSpansCtx, .read = &read, .byte = spans.from);
+        if (!EMBED_CALL(spans_blank, SymbolsSpansCtx, .read = &read, .leaf = word_text))
         {
-            EMBED_CALL(spans_dispatch, SymbolsSpansCtx, .spans = &spans, .first = word, .from = read.leaf[word].from,
-                       .last = word, .to = read.leaf[word].to);
+            EMBED_CALL(spans_dispatch, SymbolsSpansCtx, .spans = &spans, .first = word_text,
+                       .from = read.leaf[word_text].from, .last = word_text, .to = read.leaf[word_text].to);
         }
         // each pair around the place from the innermost out, the statement of a region's before its brackets
-        unsigned int inner = word;
+        unsigned int inner = word_text;
         unsigned int open = EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = &read,
-                                       .leaf = word, .roles = CLI_LEAF_OPEN)
-                                ? word
-                                : EMBED_CALL(spans_opening, SymbolsSpansCtx, .read = &read, .leaf = word);
+                                       .leaf = word_text, .roles = CLI_LEAF_OPEN)
+                                ? word_text
+                                : EMBED_CALL(spans_opening, SymbolsSpansCtx, .read = &read, .leaf = word_text);
         while (open != CLI_JSON_NONE)
         {
             const unsigned int outer = EMBED_CALL(spans_opening, SymbolsSpansCtx, .read = &read, .leaf = open);

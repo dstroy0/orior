@@ -6,11 +6,12 @@
 // is made; and the reports of the cellblock and of each owner to the telemetry (cells.c)
 #ifndef CELLS_H
 #define CELLS_H
-typedef struct CliCellsCfg CliCellsCfg;
-
+#include "cells_owners.h"
 #include "embed_dispatch_layout.h"
 #include "locus_carcerum/locus_carcerum.h"
 #include "verba_scribo/verba_linea.h"
+
+typedef struct CliCellsCfg CliCellsCfg;
 
 #ifdef __cplusplus
 extern "C"
@@ -31,9 +32,8 @@ extern "C"
     extern const MinimumSecurityGuard *const g_cli_cells;
 
     // The shared cellblock's owners, one for each module that takes from it
-#define CLI_CELL_OWNER(name_, text_) extern CellOwner name_;
-#include "cells_owners.h"
-#undef CLI_CELL_OWNER
+#define CLI_CELL_OWNER_DECLARED(name_, text_) extern CellOwner name_;
+    CLI_CELL_OWNERS(CLI_CELL_OWNER_DECLARED)
 
     // the owner `cell` counts to, read off the cell in the cellblock it was taken from: the owner a holder names that
     // gives back a cell another module took for it, NULL where `cell` is NULL or no cell is taken

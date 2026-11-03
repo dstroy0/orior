@@ -3,15 +3,15 @@
 // notebook_internal.h: what notebook.c and notebook_merge.c share
 #ifndef NOTEBOOK_INTERNAL_H
 #define NOTEBOOK_INTERNAL_H
+#include "embed_dispatch_layout.h"
+#include "notebook.h"
+
 typedef struct CliNotebookTextCtx CliNotebookTextCtx;
 typedef struct CliNotebookAtCtx CliNotebookAtCtx;
 typedef struct CliNotebookJsonCtx CliNotebookJsonCtx;
 typedef struct CliNotebookJsonCellCtx CliNotebookJsonCellCtx;
 typedef struct CliNotebookJsonValueCtx CliNotebookJsonValueCtx;
 typedef struct CliNotebookCtx CliNotebookCtx;
-
-#include "embed_dispatch_layout.h"
-#include "notebook.h"
 
 // a cell's source or an output's text as one text, from a list of lines or a text: a string node made of it
 unsigned int cli_notebook_join(const CliNotebookJsonValueCtx *args);

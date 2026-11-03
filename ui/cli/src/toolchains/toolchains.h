@@ -28,6 +28,10 @@
 // modules that start a tool's server, debugger, checker or formatter read by name
 #ifndef TOOLCHAINS_H
 #define TOOLCHAINS_H
+#include "../command_line/callback_cfg.h"
+#include "../text/json_tree.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliToolchainsJsonCfg CliToolchainsJsonCfg;
 typedef struct CliToolchainsJsonCountCfg CliToolchainsJsonCountCfg;
 typedef struct CliToolchainsErrMsgCfg CliToolchainsErrMsgCfg;
@@ -54,10 +58,6 @@ typedef struct CliToolchainsDirKeyCfg CliToolchainsDirKeyCfg;
 typedef struct CliToolchainsCfg CliToolchainsCfg;
 typedef struct CliToolchainsEnvironmentCfg CliToolchainsEnvironmentCfg;
 typedef struct CliToolchainsRootCfg CliToolchainsRootCfg;
-
-#include "../command_line/callback_cfg.h"
-#include "../text/json_tree.h"
-#include "embed_dispatch_layout.h"
 
 // the bytes of toolchains.json as built into the program (plugins_bundled.c, written as the program is built)
 extern const unsigned char g_cli_toolchains_json[];

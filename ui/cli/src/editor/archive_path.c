@@ -318,10 +318,14 @@ EMBED_INLINE void cli_children(const ArchivePathCtx *args)
         EMBED_CALL(cli_archive_err_msg_internal.parts_get, CliArchiveErrMsgCtx, .path = members->text + member->name,
                    .parts = &own);
         int under = own.count > depth;
-        for (unsigned int at = 0u; under && (at < depth); at += 1u)
         {
-            under = cellul.eq(&(CatenaFinitaCfg){
-                .src = own.part[at], .other = parts->part[args->descent->left + at], .cap = CLI_CELLS_POOL});
+            unsigned int at = 0u;
+            while (under && (at < depth))
+            {
+                under = cellul.eq(&(CatenaFinitaCfg){
+                    .src = own.part[at], .other = parts->part[args->descent->left + at], .cap = CLI_CELLS_POOL});
+                at += 1u;
+            }
         }
         if (!under)
         {

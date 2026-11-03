@@ -17,11 +17,11 @@
 // JSON file with comments writes one (schema_*.c)
 #ifndef SCHEMA_H
 #define SCHEMA_H
-typedef struct CliSchemaLineCfg CliSchemaLineCfg;
-typedef struct CliSchemaCfg CliSchemaCfg;
-
 #include "../text/edits.h"
 #include "embed_dispatch_layout.h"
+
+typedef struct CliSchemaLineCfg CliSchemaLineCfg;
+typedef struct CliSchemaCfg CliSchemaCfg;
 
 // whether the file at `path` is JSON this reader reads, by its extension, `json` or `jsonc`
 int cli_schema_reads(const CliSchemaCfg *args);

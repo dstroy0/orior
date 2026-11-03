@@ -16,10 +16,10 @@
 // profile_shim.c)
 #ifndef PROFILE_H
 #define PROFILE_H
-typedef struct CliProfileCfg CliProfileCfg;
-
 #include "../tests/test_runs.h"
 #include "embed_dispatch_layout.h"
+
+typedef struct CliProfileCfg CliProfileCfg;
 
 // the shim the program runs under (profile_shim.c)
 extern const char g_cli_profile_shim[];

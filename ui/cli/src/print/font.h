@@ -6,6 +6,9 @@
 // coverage, a pixel's share of the glyph, by the signed area each line leaves in the cells it crosses
 #ifndef PRINT_FONT_H
 #define PRINT_FONT_H
+#include "embed_dispatch_layout.h"
+#include "print.h"
+
 typedef struct CliFontGlyphMatrixCfg CliFontGlyphMatrixCfg;
 typedef struct CliFontGlyphCfg CliFontGlyphCfg;
 typedef struct CliFontContoursCfg CliFontContoursCfg;
@@ -13,9 +16,6 @@ typedef struct CliFontDataCfg CliFontDataCfg;
 typedef struct CliFontFamiliesCfg CliFontFamiliesCfg;
 typedef struct CliFontCfg CliFontCfg;
 typedef struct CliFontAtCfg CliFontAtCfg;
-
-#include "embed_dispatch_layout.h"
-#include "print.h"
 
 // the most bytes of a font file, tables of a font, character ranges of its cmap, points of a glyph's outline and
 // contours of it
@@ -114,7 +114,7 @@ struct CliFontGlyphCfg
 struct CliFontContoursCfg
 {
     const CliContours *contours;
-    CliMask *mask;
+    CliMask *mask_bits;
     float *cover;
     unsigned long long capacity;
 };

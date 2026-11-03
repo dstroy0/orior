@@ -62,7 +62,7 @@ EMBED_INLINE int programs_deploy(const CommandLineProgramsCtx *args)
 {
     const char *named = args->named;
     const int act =
-        (args->count > 2u) ? EMBED_CALL(cli_deploy_table.act_get, CliDeployCfg, .word = args->words[2]) : -1;
+        (args->count > 2u) ? EMBED_CALL(cli_deploy_table.act_get, CliDeployCfg, .word_text = args->words[2]) : -1;
     if (act < 0)
     {
         EMBED_CALL(

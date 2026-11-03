@@ -309,10 +309,14 @@ int cli_debug_step_across(const CliDebugRootOutErrMsgCfg *args)
     }
     unsigned long long positioned = 0ULL;
     int number = (end > start) && (end - start <= 19ULL);
-    for (unsigned long long at = start; number && (at < end); at += 1ULL)
     {
-        number = (count.out[at] >= '0') && (count.out[at] <= '9');
-        positioned = (positioned * 10ULL) + (unsigned long long)(count.out[at] - '0');
+        unsigned long long at = start;
+        while (number && (at < end))
+        {
+            number = (count.out[at] >= '0') && (count.out[at] <= '9');
+            positioned = (positioned * 10ULL) + (unsigned long long)(count.out[at] - '0');
+            at += 1ULL;
+        }
     }
     positioned = number ? positioned : 0ULL;
     if (positioned > 0ULL)

@@ -56,7 +56,7 @@ void query_targets(const QueryPairsWordsCtx *args)
         for (unsigned int at = 0u; at < args->mode->word_count; at += 1u)
         {
             EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
-                       .word = args->mode->words[at]);
+                       .word_text = args->mode->words[at]);
         }
     }
 }
@@ -74,17 +74,17 @@ void query_kernel_words(const QueryPairsPartCtx *args)
 {
     QueryWords *words = args->words;
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
-               .word = args->part);
+               .word_text = args->part);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
-               .word = args->files->machine);
+               .word_text = args->files->machine);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
-               .word = args->files->layout);
+               .word_text = args->files->layout);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
-               .word = args->files->mnemonics);
+               .word_text = args->files->mnemonics);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
-               .word = "kernel.bin");
+               .word_text = "kernel.bin");
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
-               .word = "kernel");
+               .word_text = "kernel");
 }
 
 int query_judged(const QueryPairsContextErrMsgCtx *args)
@@ -127,12 +127,12 @@ int query_judged(const QueryPairsContextErrMsgCtx *args)
         static QueryWords s_kernel;
         memor.set(&(MemoriaCfg){.dst = &s_kernel, .val = 0, .bytes = sizeof(s_kernel)});
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_kernel,
-                   .word = s_writer);
+                   .word_text = s_writer);
         EMBED_CALL(query_pairs_part_internal.kernel_words, QueryPairsPartCtx, .words = &s_kernel,
                    .part = args->mode->part, .files = &s_files);
         whole = EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
-                           .context = context, .run = &s_run, .name = "orior_khw_machine_write", .words = s_kernel.word,
-                           .code = &code, .err_msg = err_msg);
+                           .context = context, .run = &s_run, .name = "orior_khw_machine_write",
+                           .words = s_kernel.word_text, .code = &code, .err_msg = err_msg);
         if (whole && (code != 0LL))
         {
             mmgr_line_put(err_msg, "the vendor's writer handed the run no kernel");
@@ -182,15 +182,15 @@ int query_judged(const QueryPairsContextErrMsgCtx *args)
     EMBED_CALL(query_pairs_part_path_internal.part_file, QueryPairsPartPathCtx, .context_read = context,
                .part = args->mode->part, .extension = ".ksc", .path = ksc);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-               .word = args->mode->mode);
+               .word_text = args->mode->mode);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-               .word = engine);
+               .word_text = engine);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-               .word = "host_answers.txt");
+               .word_text = "host_answers.txt");
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-               .word = ksc);
+               .word_text = ksc);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-               .word = out);
+               .word_text = out);
     EMBED_CALL(query_pairs_words_internal.targets, QueryPairsWordsCtx, .context_read = context, .mode = args->mode,
                .words = &s_words);
     if (whole && (cellul.eq(&(CatenaFinitaCfg){.src = args->mode->mode, .other = "cost", .cap = CLI_CELLS_POOL})))
@@ -208,16 +208,16 @@ int query_judged(const QueryPairsContextErrMsgCtx *args)
             whole = 0;
         }
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-                   .word = "krs_forms.bin");
+                   .word_text = "krs_forms.bin");
     }
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-               .word = "--");
+               .word_text = "--");
     whole = whole &&
             EMBED_CALL(query_pairs_part_context_dry_internal.carry, QueryPairsPartContextDryCtx, .context = context,
                        .part = args->mode->part, .dry = args->mode->dry, .words = &s_words, .err_msg = err_msg) &&
             EMBED_CALL(query_pairs_context_err_msg_run_internal.identity_run, QueryPairsContextErrMsgRunCtx,
-                       .context = context, .run = &s_run, .identity = args->identity, .words_letters = s_words.word,
-                       .count = s_words.count, .code = &code, .err_msg = err_msg);
+                       .context = context, .run = &s_run, .identity = args->identity,
+                       .words_letters = s_words.word_text, .count = s_words.count, .code = &code, .err_msg = err_msg);
     if (whole && (code != 0LL))
     {
         return EMBED_CALL(query_loops_context_run.context_end, QueryLoopsContextRunCfg, .context = context,
@@ -310,23 +310,24 @@ int query_stick_slice(const QueryPairsContextErrMsgCtx *args)
     static QueryWords s_read;
     memor.set(&(MemoriaCfg){.dst = &s_read, .val = 0, .bytes = sizeof(s_read)});
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_read,
-               .word = "read");
+               .word_text = "read");
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_read,
-               .word = work);
-    EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_read, .word = klq);
+               .word_text = work);
+    EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_read,
+               .word_text = klq);
     if (args->mode->word_count == 0u)
     {
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_read,
-                   .word = "sass.krs");
+                   .word_text = "sass.krs");
     }
     for (unsigned int at = 0u; at < args->mode->word_count; at += 1u)
     {
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_read,
-                   .word = args->mode->words[at]);
+                   .word_text = args->mode->words[at]);
     }
     whole = whole && !stopped &&
             EMBED_CALL(query_pairs_context_err_msg_run_internal.identity_run, QueryPairsContextErrMsgRunCtx,
-                       .context = context, .run = &s_run, .identity = args->identity, .words_letters = s_read.word,
+                       .context = context, .run = &s_run, .identity = args->identity, .words_letters = s_read.word_text,
                        .count = s_read.count, .code = &code, .err_msg = err_msg);
     stopped = stopped || (whole && (code != 0LL));
     const char *const permuted[4] = {"permute", sass, tsv, work};
@@ -349,30 +350,31 @@ int query_stick_slice(const QueryPairsContextErrMsgCtx *args)
         memor.set(&(MemoriaCfg){.dst = &s_broken, .val = 0, .bytes = sizeof(s_broken)});
         static const char *const s_head[2] = {"broken", NULL};
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_broken,
-                   .word = s_head[0]);
+                   .word_text = s_head[0]);
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_broken,
-                   .word = sass);
+                   .word_text = sass);
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_broken,
-                   .word = tsv);
+                   .word_text = tsv);
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_broken,
-                   .word = work);
+                   .word_text = work);
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_broken,
-                   .word = engine);
+                   .word_text = engine);
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_broken,
-                   .word = "--");
+                   .word_text = "--");
         for (unsigned int at = 0u; at < s_read.count; at += 1u)
         {
             // the rulesets the read was given, every word after its folder and the bridge
             if (at >= 3u)
             {
                 EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_broken,
-                           .word = s_read.word[at]);
+                           .word_text = s_read.word_text[at]);
             }
         }
-        whole = whole && !stopped &&
-                EMBED_CALL(query_pairs_context_err_msg_run_internal.identity_run, QueryPairsContextErrMsgRunCtx,
-                           .context = context, .run = &s_run, .identity = args->identity,
-                           .words_letters = s_broken.word, .count = s_broken.count, .code = &code, .err_msg = err_msg);
+        whole =
+            whole && !stopped &&
+            EMBED_CALL(query_pairs_context_err_msg_run_internal.identity_run, QueryPairsContextErrMsgRunCtx,
+                       .context = context, .run = &s_run, .identity = args->identity,
+                       .words_letters = s_broken.word_text, .count = s_broken.count, .code = &code, .err_msg = err_msg);
     }
     else if (whole && !stopped)
     {

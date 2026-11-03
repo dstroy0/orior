@@ -9,11 +9,11 @@
 // each named by a hash of its path and the file by its name after it too
 #ifndef HISTORY_H
 #define HISTORY_H
-typedef struct CliHistoryBeforeCfg CliHistoryBeforeCfg;
-typedef struct CliHistoryCfg CliHistoryCfg;
-
 #include "../command_line/cli_internal.h"
 #include "embed_dispatch_layout.h"
+
+typedef struct CliHistoryBeforeCfg CliHistoryBeforeCfg;
+typedef struct CliHistoryCfg CliHistoryCfg;
 
 // `size` bytes of `text` stored as the newest snapshot of the file at `path` under the tree at `root`, and
 // `before_size` bytes of `before`, the text the file contained, ahead of it where the file has none yet and `before` is

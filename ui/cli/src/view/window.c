@@ -382,7 +382,7 @@ int gui_window_icon(const GuiWindowIconCfg *args)
     {
         return 0;
     }
-    EMBED_CALL(gui_raster_xy_color.stencil, GuiRasterXYColorCfg, .raster = args->icon, .mask = logo,
+    EMBED_CALL(gui_raster_xy_color.stencil, GuiRasterXYColorCfg, .raster = args->icon, .mask_bits = logo,
                .color = args->window->palette->text);
     return 1;
 }

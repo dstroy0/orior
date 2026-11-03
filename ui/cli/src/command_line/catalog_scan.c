@@ -44,7 +44,7 @@ typedef struct
     CatalogTextLine *line_pointer;
     char letter;
     CatalogTextLine line;
-    const char *word;
+    const char *word_text;
     VerbaLinea *out;
     int *count;
     const char *text;
@@ -98,10 +98,10 @@ EMBED_INLINE CatalogTextLine cli_trim(const CatalogScanCtx *args)
 
 EMBED_INLINE int cli_line_contains(const CatalogScanCtx *args)
 {
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->word, .cap = CLI_CELLS_POOL});
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_CELLS_POOL});
     for (unsigned long long at = 0ULL; (at + size) <= args->line.length; at += 1ULL)
     {
-        if (memor.cmp(&(MemoriaCfg){.src = args->line.at + at, .other = args->word, .bytes = size}) == 0)
+        if (memor.cmp(&(MemoriaCfg){.src = args->line.at + at, .other = args->word_text, .bytes = size}) == 0)
         {
             return 1;
         }
@@ -111,9 +111,9 @@ EMBED_INLINE int cli_line_contains(const CatalogScanCtx *args)
 
 EMBED_INLINE int cli_starts(const CatalogScanCtx *args)
 {
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->word, .cap = CLI_CELLS_POOL});
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_CELLS_POOL});
     return (args->line.length >= size) &&
-           (memor.cmp(&(MemoriaCfg){.src = args->line.at, .other = args->word, .bytes = size}) == 0);
+           (memor.cmp(&(MemoriaCfg){.src = args->line.at, .other = args->word_text, .bytes = size}) == 0);
 }
 
 // a retained line put after the paragraph, a space before each but the first
@@ -136,13 +136,13 @@ EMBED_INLINE void cli_docstring(const CatalogScanCtx *args)
     while (EMBED_CALL(cli_line, CatalogScanCtx, .at = &at, .end = args->end, .line_pointer = &line))
     {
         line = EMBED_CALL(cli_trim, CatalogScanCtx, .line = line);
-        while (first && EMBED_CALL(cli_starts, CatalogScanCtx, .line = line, .word = "\"\"\""))
+        while (first && EMBED_CALL(cli_starts, CatalogScanCtx, .line = line, .word_text = "\"\"\""))
         {
             line.at += 3;
             line.length -= 3ULL;
         }
         first = 0;
-        const int ended = EMBED_CALL(cli_line_contains, CatalogScanCtx, .line = line, .word = "\"\"\"");
+        const int ended = EMBED_CALL(cli_line_contains, CatalogScanCtx, .line = line, .word_text = "\"\"\"");
         while ((line.length >= 3ULL) &&
                (memor.cmp(&(MemoriaCfg){.src = line.at + line.length - 3u, .other = "\"\"\"", .bytes = 3u}) == 0))
         {
@@ -172,11 +172,13 @@ EMBED_INLINE const char *cli_about_end(const CatalogScanCtx *args)
     unsigned long long size = args->size;
     const char *end = text;
     const char *const whole = text + size;
-    for (unsigned int lines = 0u; (lines < 120u) && (end < whole); lines += 1u)
+    unsigned int lines = 0u;
+    while ((lines < 120u) && (end < whole))
     {
         end += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = end, .at = 0ULL,
                           .size = (unsigned long long)(whole - end), .set = "\n");
         end += (end < whole) ? 1 : 0;
+        lines += 1u;
     }
     return end;
 }
@@ -196,7 +198,7 @@ static void cli_about_write(const CatalogScanCtx *args)
         while (EMBED_CALL(cli_line, CatalogScanCtx, .at = &at, .end = args->end, .line_pointer = &line))
         {
             if (EMBED_CALL(cli_starts, CatalogScanCtx, .line = EMBED_CALL(cli_trim, CatalogScanCtx, .line = line),
-                           .word = "\"\"\""))
+                           .word_text = "\"\"\""))
             {
                 EMBED_CALL(cli_docstring, CatalogScanCtx, .open = line.at, .end = args->end, .out = args->out);
                 return;
@@ -213,14 +215,14 @@ static void cli_about_write(const CatalogScanCtx *args)
     while (EMBED_CALL(cli_line, CatalogScanCtx, .at = &at, .end = args->end, .line_pointer = &line))
     {
         line = EMBED_CALL(cli_trim, CatalogScanCtx, .line = line);
-        const int license = EMBED_CALL(cli_line_contains, CatalogScanCtx, .line = line, .word = "SPDX") ||
-                            EMBED_CALL(cli_line_contains, CatalogScanCtx, .line = line, .word = "Copyright") ||
-                            EMBED_CALL(cli_starts, CatalogScanCtx, .line = line, .word = "#!");
+        const int license = EMBED_CALL(cli_line_contains, CatalogScanCtx, .line = line, .word_text = "SPDX") ||
+                            EMBED_CALL(cli_line_contains, CatalogScanCtx, .line = line, .word_text = "Copyright") ||
+                            EMBED_CALL(cli_starts, CatalogScanCtx, .line = line, .word_text = "#!");
         if ((line.length == 0ULL) && (count == 0))
         {
             continue;
         }
-        if (!EMBED_CALL(cli_starts, CatalogScanCtx, .line = line, .word = mark))
+        if (!EMBED_CALL(cli_starts, CatalogScanCtx, .line = line, .word_text = mark))
         {
             if ((count == 0) && license)
             {
@@ -233,7 +235,7 @@ static void cli_about_write(const CatalogScanCtx *args)
             continue;
         }
         CatalogTextLine about_text = line;
-        while (EMBED_CALL(cli_starts, CatalogScanCtx, .line = about_text, .word = mark))
+        while (EMBED_CALL(cli_starts, CatalogScanCtx, .line = about_text, .word_text = mark))
         {
             about_text.at += cellul.len(&(CatenaFinitaCfg){.src = mark, .cap = CLI_CELLS_POOL});
             about_text.length -= cellul.len(&(CatenaFinitaCfg){.src = mark, .cap = CLI_CELLS_POOL});
@@ -463,8 +465,8 @@ char *cli_catalog_markdown_alloc(const CliCatalogPathOutCtx *args)
     while (EMBED_CALL(cli_line, CatalogScanCtx, .at = &at, .end = end, .line_pointer = &line))
     {
         line = EMBED_CALL(cli_trim, CatalogScanCtx, .line = line);
-        if ((line.length == 0ULL) || EMBED_CALL(cli_starts, CatalogScanCtx, .line = line, .word = "#") ||
-            EMBED_CALL(cli_starts, CatalogScanCtx, .line = line, .word = "**"))
+        if ((line.length == 0ULL) || EMBED_CALL(cli_starts, CatalogScanCtx, .line = line, .word_text = "#") ||
+            EMBED_CALL(cli_starts, CatalogScanCtx, .line = line, .word_text = "**"))
         {
             if (count != 0)
             {

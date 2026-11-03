@@ -5,6 +5,11 @@
 // tree's jobs read, a job found by a word, and the values its words give; and the codes it exits with
 #ifndef COMMAND_LINE_INTERNAL_H
 #define COMMAND_LINE_INTERNAL_H
+#include "callback_cfg.h"
+#include "catalog.h"
+#include "command_line.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliCommandLineCatalogCtx CliCommandLineCatalogCtx;
 typedef struct CliCommandLineTextCtx CliCommandLineTextCtx;
 typedef struct CliCommandLineTextEachCtx CliCommandLineTextEachCtx;
@@ -23,11 +28,6 @@ typedef struct CliCommandLineCatalogMenuCtx CliCommandLineCatalogMenuCtx;
 typedef struct CliCommandLineCtx CliCommandLineCtx;
 typedef struct CliCommandLineNamedCtx CliCommandLineNamedCtx;
 typedef struct CliCommandLineSizeCtx CliCommandLineSizeCtx;
-
-#include "callback_cfg.h"
-#include "catalog.h"
-#include "command_line.h"
-#include "embed_dispatch_layout.h"
 
 // the code a run exits with where a step could not start or gave no code, and the code for words the program does not
 // take
@@ -201,7 +201,7 @@ struct CliCommandLineTextSizeCtx
 struct CliCommandLineOutCtx
 {
     VerbaLinea *out;
-    const char *word;
+    const char *word_text;
     VerbaLinea *err_msg;
     const char *named;
 };
@@ -224,7 +224,7 @@ struct CliCommandLineOutErrMsgCtx
 
 struct CliCommandLineWordCtx
 {
-    const char *word;
+    const char *word_text;
     const char *root;
     unsigned int menu;
 };
@@ -253,7 +253,7 @@ struct CliCommandLineCatalogMenuCtx
 struct CliCommandLineCtx
 {
     const char *text;
-    const char *word;
+    const char *word_text;
 };
 
 struct CliCommandLineNamedCtx

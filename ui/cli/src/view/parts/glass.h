@@ -5,10 +5,11 @@
 // window as the page's fixed attachment anchors it, and the pane's corners rounded (glass.c)
 #ifndef GUI_PARTS_GLASS_H
 #define GUI_PARTS_GLASS_H
-typedef struct GuiGlassRasterCfg GuiGlassRasterCfg;
-typedef struct GuiGlassCfg GuiGlassCfg;
 #include "../palette.h"
 #include "embed_dispatch_layout.h"
+
+typedef struct GuiGlassRasterCfg GuiGlassRasterCfg;
+typedef struct GuiGlassCfg GuiGlassCfg;
 
 // the grain's tile, its side in pixels, as the page's SVG tile is; the noise's base frequency in cells a pixel and
 // its octaves; the seed of the noise; and the most of the grain's alpha, 0.07 of white

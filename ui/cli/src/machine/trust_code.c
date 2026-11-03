@@ -57,7 +57,7 @@ typedef struct
     CliTrustCode *code;
     const char *text;
     unsigned long long length;
-    const char *word;
+    const char *word_text;
     const char **from;
     const char **to;
     const char *folder;
@@ -91,7 +91,7 @@ EMBED_INLINE int cli_code_copy(const TrustCodeCtx *args)
 // whether `length` bytes at `text` are `word` without regard to ASCII case
 EMBED_INLINE int cli_same_word(const TrustCodeCtx *args)
 {
-    if (args->length != cellul.len(&(CatenaFinitaCfg){.src = args->word, .cap = CLI_CELLS_POOL}))
+    if (args->length != cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_CELLS_POOL}))
     {
         return 0;
     }
@@ -99,7 +99,7 @@ EMBED_INLINE int cli_same_word(const TrustCodeCtx *args)
     {
         const char one = ((args->text[at] >= 'A') && (args->text[at] <= 'Z')) ? (char)(args->text[at] + ('a' - 'A'))
                                                                               : args->text[at];
-        if (one != args->word[at])
+        if (one != args->word_text[at])
         {
             return 0;
         }
@@ -141,7 +141,7 @@ int cli_trust_names_a_hook(const CliTrustCfg *args)
                                    .at = (unsigned long long)(to - from), .set = "]");
             EMBED_CALL(cli_trim, TrustCodeCtx, .from = &from, .to = &to);
             in_core = EMBED_CALL(cli_same_word, TrustCodeCtx, .text = from, .length = (unsigned long long)(to - from),
-                                 .word = "core");
+                                 .word_text = "core");
             continue;
         }
         const char *equals = from;
@@ -163,15 +163,19 @@ int cli_trust_names_a_hook(const CliTrustCfg *args)
             value_from + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = value_from,
                                     .at = (unsigned long long)(value_to - value_from), .set = "\"");
         if (!EMBED_CALL(cli_same_word, TrustCodeCtx, .text = name_from,
-                        .length = (unsigned long long)(name_to - name_from), .word = "fsmonitor"))
+                        .length = (unsigned long long)(name_to - name_from), .word_text = "fsmonitor"))
         {
             continue;
         }
         int none = 0;
-        for (unsigned int at = 0u; !none && (at < 9u); at += 1u)
         {
-            none = EMBED_CALL(cli_same_word, TrustCodeCtx, .text = value_from,
-                              .length = (unsigned long long)(value_to - value_from), .word = s_none[at]);
+            unsigned int at = 0u;
+            while (!none && (at < 9u))
+            {
+                none = EMBED_CALL(cli_same_word, TrustCodeCtx, .text = value_from,
+                                  .length = (unsigned long long)(value_to - value_from), .word_text = s_none[at]);
+                at += 1u;
+            }
         }
         if (!none)
         {
@@ -341,16 +345,25 @@ int cli_trust_own_code(const CliTrustTreeCodeCfg *args)
     }
     // the tree's place, else a free one, else the oldest
     unsigned int place = CLI_TRUST_TREES;
-    for (unsigned int at = 0u; (place == CLI_TRUST_TREES) && (at < CLI_TRUST_TREES); at += 1u)
     {
-        place = (s_found[at].has &&
+        unsigned int at = 0u;
+        while ((place == CLI_TRUST_TREES) && (at < CLI_TRUST_TREES))
+        {
+            place =
+                (s_found[at].has &&
                  (cellul.eq(&(CatenaFinitaCfg){.src = s_found[at].tree, .other = args->tree, .cap = CLI_CELLS_POOL})))
                     ? at
                     : place;
+            at += 1u;
+        }
     }
-    for (unsigned int at = 0u; (place == CLI_TRUST_TREES) && (at < CLI_TRUST_TREES); at += 1u)
     {
-        place = !s_found[at].has ? at : place;
+        unsigned int at = 0u;
+        while ((place == CLI_TRUST_TREES) && (at < CLI_TRUST_TREES))
+        {
+            place = !s_found[at].has ? at : place;
+            at += 1u;
+        }
     }
     if (place == CLI_TRUST_TREES)
     {

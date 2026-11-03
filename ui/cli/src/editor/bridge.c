@@ -11,7 +11,7 @@
 typedef struct
 {
     unsigned int line;
-    const char *word;
+    const char *word_text;
     unsigned long long word_length;
     const char *rest;
     unsigned long long remainder_length;
@@ -52,7 +52,7 @@ typedef struct
     unsigned int *number;
     CliBridgeLine *parsed;
     const CliBridgeLine *parsed_read;
-    const char *word;
+    const char *word_text;
     const char *text;
     unsigned long long length;
     unsigned int index;
@@ -121,18 +121,20 @@ static int cli_next_line(const BridgeCtx *args)
 EMBED_INLINE int cli_word_is(const BridgeCtx *args)
 {
     return (args->parsed_read->word_length ==
-            cellul.len(&(CatenaFinitaCfg){.src = args->word, .cap = CLI_CELLS_POOL})) &&
-           (memor.cmp(&(MemoriaCfg){
-                .src = args->parsed_read->word, .other = args->word, .bytes = args->parsed_read->word_length}) == 0);
+            cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_CELLS_POOL})) &&
+           (memor.cmp(&(MemoriaCfg){.src = args->parsed_read->word_text,
+                                    .other = args->word_text,
+                                    .bytes = args->parsed_read->word_length}) == 0);
 }
 
 // the `index`th word of a text, its start into `word`: its length, 0 where it has none
 EMBED_INLINE unsigned long long cli_nth(const BridgeCtx *args)
 {
-    const char **word = args->word_pointer;
+    const char **word_text = args->word_pointer;
     const char *at = args->text;
     const char *const end = args->text + args->length;
-    for (unsigned int each = 0u; at < end; each += 1u)
+    unsigned int each = 0u;
+    while (at < end)
     {
         while ((at < end) && EMBED_CALL(cli_is_space, BridgeCtx, .letter = at[0]))
         {
@@ -145,12 +147,13 @@ EMBED_INLINE unsigned long long cli_nth(const BridgeCtx *args)
         }
         if (each == args->index)
         {
-            *word = at;
+            *word_text = at;
             return (unsigned long long)(stop - at);
         }
         at = stop;
+        each += 1u;
     }
-    *word = end;
+    *word_text = end;
     return 0ULL;
 }
 
@@ -174,7 +177,7 @@ EMBED_INLINE unsigned int cli_note(const BridgeCtx *args)
     EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = note,
                .name = "word",
                .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
-                                   .json = json, .text = args->word, .length = args->word_length));
+                                   .json = json, .text = args->word_text, .length = args->word_length));
     EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = json, .object = note,
                .name = "rest",
                .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
@@ -243,11 +246,11 @@ unsigned int cli_bridge_klq(const CliBridgePathCfg *args)
     while (EMBED_CALL(cli_next_line, BridgeCtx, .at = &at, .end = args->text + args->size, .number = &number,
                       .parsed = &parsed))
     {
-        if (EMBED_CALL(cli_word_is, BridgeCtx, .parsed_read = &parsed, .word = "klq"))
+        if (EMBED_CALL(cli_word_is, BridgeCtx, .parsed_read = &parsed, .word_text = "klq"))
         {
             continue;
         }
-        if (EMBED_CALL(cli_word_is, BridgeCtx, .parsed_read = &parsed, .word = "key"))
+        if (EMBED_CALL(cli_word_is, BridgeCtx, .parsed_read = &parsed, .word_text = "key"))
         {
             const char *name = NULL;
             const unsigned long long length =
@@ -265,7 +268,7 @@ unsigned int cli_bridge_klq(const CliBridgePathCfg *args)
             under_identity = 0;
             continue;
         }
-        if (EMBED_CALL(cli_word_is, BridgeCtx, .parsed_read = &parsed, .word = "pair"))
+        if (EMBED_CALL(cli_word_is, BridgeCtx, .parsed_read = &parsed, .word_text = "pair"))
         {
             const char *first = NULL;
             const char *second = NULL;
@@ -311,18 +314,18 @@ unsigned int cli_bridge_klq(const CliBridgePathCfg *args)
             under_identity = 0;
             continue;
         }
-        if (EMBED_CALL(cli_word_is, BridgeCtx, .parsed_read = &parsed, .word = "text_identity"))
+        if (EMBED_CALL(cli_word_is, BridgeCtx, .parsed_read = &parsed, .word_text = "text_identity"))
         {
             EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = args->json, .array = identities,
-                       .value = EMBED_CALL(cli_note, BridgeCtx, .json = args->json, .word = parsed.word,
+                       .value = EMBED_CALL(cli_note, BridgeCtx, .json = args->json, .word_text = parsed.word_text,
                                            .word_length = parsed.word_length, .rest = parsed.rest,
                                            .remainder_length = parsed.remainder_length, .line = parsed.line));
             under_pair = 0;
             under_identity = 1;
             continue;
         }
-        const int verdict = EMBED_CALL(cli_word_is, BridgeCtx, .parsed_read = &parsed, .word = "open") ||
-                            EMBED_CALL(cli_word_is, BridgeCtx, .parsed_read = &parsed, .word = "closed");
+        const int verdict = EMBED_CALL(cli_word_is, BridgeCtx, .parsed_read = &parsed, .word_text = "open") ||
+                            EMBED_CALL(cli_word_is, BridgeCtx, .parsed_read = &parsed, .word_text = "closed");
         if (under_identity && verdict)
         {
             // the verdict after an identity put after its text, two spaces between
@@ -342,8 +345,9 @@ unsigned int cli_bridge_klq(const CliBridgePathCfg *args)
                     args->json->used += length;
                     memor.cpy(&(MemoriaCfg){.dst = args->json->text + args->json->used, .src = "  ", .bytes = 2u});
                     args->json->used += 2u;
-                    memor.cpy(&(MemoriaCfg){
-                        .dst = args->json->text + args->json->used, .src = parsed.word, .bytes = parsed.word_length});
+                    memor.cpy(&(MemoriaCfg){.dst = args->json->text + args->json->used,
+                                            .src = parsed.word_text,
+                                            .bytes = parsed.word_length});
                     args->json->used += parsed.word_length;
                     args->json->text[args->json->used] = ' ';
                     args->json->used += 1u;
@@ -386,9 +390,9 @@ unsigned int cli_bridge_klq(const CliBridgePathCfg *args)
         {
             continue;
         }
-        const unsigned int note =
-            EMBED_CALL(cli_note, BridgeCtx, .json = args->json, .word = parsed.word, .word_length = parsed.word_length,
-                       .rest = parsed.rest, .remainder_length = parsed.remainder_length, .line = parsed.line);
+        const unsigned int note = EMBED_CALL(cli_note, BridgeCtx, .json = args->json, .word_text = parsed.word_text,
+                                             .word_length = parsed.word_length, .rest = parsed.rest,
+                                             .remainder_length = parsed.remainder_length, .line = parsed.line);
         if (verdict && EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = args->json,
                                   .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                      .json_read = args->json, .object = pair, .name = "verdict"),
@@ -458,15 +462,15 @@ unsigned int cli_bridge_klm(const CliBridgePathCfg *args)
                        .word_pointer = &name);
         // the words after the name, one space between each
         const unsigned long long start = args->json->used;
-        const char *word = NULL;
+        const char *word_text = NULL;
         for (unsigned int index = 1u;
              EMBED_CALL(cli_nth, BridgeCtx, .text = parsed.rest, .length = parsed.remainder_length, .index = index,
-                        .word_pointer = &word) != 0ULL;
+                        .word_pointer = &word_text) != 0ULL;
              index += 1u)
         {
             const unsigned long long length =
                 EMBED_CALL(cli_nth, BridgeCtx, .text = parsed.rest, .length = parsed.remainder_length, .index = index,
-                           .word_pointer = &word);
+                           .word_pointer = &word_text);
             if ((args->json->used + length + 2u) > args->json->text_max)
             {
                 args->json->full = 1;
@@ -477,18 +481,18 @@ unsigned int cli_bridge_klm(const CliBridgePathCfg *args)
                 args->json->text[args->json->used] = ' ';
                 args->json->used += 1u;
             }
-            memor.cpy(&(MemoriaCfg){.dst = args->json->text + args->json->used, .src = word, .bytes = length});
+            memor.cpy(&(MemoriaCfg){.dst = args->json->text + args->json->used, .src = word_text, .bytes = length});
             args->json->used += length;
         }
         const unsigned int value =
             EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
                        .json = args->json, .text = args->json->text + start, .length = args->json->used - start);
-        if (EMBED_CALL(cli_word_is, BridgeCtx, .parsed_read = &parsed, .word = "klm"))
+        if (EMBED_CALL(cli_word_is, BridgeCtx, .parsed_read = &parsed, .word_text = "klm"))
         {
             language = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
                                   .json = args->json, .text = name, .length = name_length);
         }
-        else if (EMBED_CALL(cli_word_is, BridgeCtx, .parsed_read = &parsed, .word = "key"))
+        else if (EMBED_CALL(cli_word_is, BridgeCtx, .parsed_read = &parsed, .word_text = "key"))
         {
             const unsigned int entry =
                 EMBED_CALL(cli_entry, BridgeCtx, .json = args->json, .object = names, .name = name,
@@ -499,8 +503,8 @@ unsigned int cli_bridge_klm(const CliBridgePathCfg *args)
                        .object = entry, .name = "line",
                        .value = EMBED_CALL(cli_number, BridgeCtx, .json = args->json, .value = parsed.line));
         }
-        else if (EMBED_CALL(cli_word_is, BridgeCtx, .parsed_read = &parsed, .word = "kind") ||
-                 EMBED_CALL(cli_word_is, BridgeCtx, .parsed_read = &parsed, .word = "breaks"))
+        else if (EMBED_CALL(cli_word_is, BridgeCtx, .parsed_read = &parsed, .word_text = "kind") ||
+                 EMBED_CALL(cli_word_is, BridgeCtx, .parsed_read = &parsed, .word_text = "breaks"))
         {
             const unsigned int entry =
                 EMBED_CALL(cli_entry, BridgeCtx, .json = args->json, .object = names, .name = name,
@@ -508,10 +512,10 @@ unsigned int cli_bridge_klm(const CliBridgePathCfg *args)
             unsigned long long length = 0ULL;
             const char *const joined = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                                   .json_read = args->json, .node = value, .length_pointer = &length);
-            const unsigned int note = EMBED_CALL(cli_note, BridgeCtx, .json = args->json, .word = parsed.word,
+            const unsigned int note = EMBED_CALL(cli_note, BridgeCtx, .json = args->json, .word_text = parsed.word_text,
                                                  .word_length = parsed.word_length, .rest = joined,
                                                  .remainder_length = length, .line = parsed.line);
-            if (EMBED_CALL(cli_word_is, BridgeCtx, .parsed_read = &parsed, .word = "kind"))
+            if (EMBED_CALL(cli_word_is, BridgeCtx, .parsed_read = &parsed, .word_text = "kind"))
             {
                 EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json,
                            .object = entry, .name = "kind", .value = note);
@@ -545,7 +549,7 @@ EMBED_INLINE int cli_is_kind(const BridgeCtx *args)
 {
     for (unsigned long long at = 0ULL; at < args->length; at += 1ULL)
     {
-        if (!(((args->word[at] >= 'a') && (args->word[at] <= 'z')) || (args->word[at] == '_')))
+        if (!(((args->word_text[at] >= 'a') && (args->word_text[at] <= 'z')) || (args->word_text[at] == '_')))
         {
             return 0;
         }
@@ -556,13 +560,13 @@ EMBED_INLINE int cli_is_kind(const BridgeCtx *args)
 EMBED_INLINE int cli_is_name(const BridgeCtx *args)
 {
     if ((args->length == 0ULL) ||
-        !(((args->word[0] | 0x20) >= 'a') && ((args->word[0] | 0x20) <= 'z')) && (args->word[0] != '_'))
+        !(((args->word_text[0] | 0x20) >= 'a') && ((args->word_text[0] | 0x20) <= 'z')) && (args->word_text[0] != '_'))
     {
         return 0;
     }
     for (unsigned long long at = 0ULL; at < args->length; at += 1ULL)
     {
-        const char letter = args->word[at];
+        const char letter = args->word_text[at];
         if (!(((letter >= 'a') && (letter <= 'z')) || ((letter >= 'A') && (letter <= 'Z')) ||
               ((letter >= '0') && (letter <= '9')) || (letter == '_') || (letter == '.')))
         {
@@ -593,8 +597,8 @@ unsigned int cli_bridge_ruleset(const CliBridgePathCfg *args)
         const unsigned long long name_length =
             EMBED_CALL(cli_nth, BridgeCtx, .text = parsed.rest, .length = parsed.remainder_length, .index = 0u,
                        .word_pointer = &name);
-        if (EMBED_CALL(cli_is_kind, BridgeCtx, .word = parsed.word, .length = parsed.word_length) &&
-            EMBED_CALL(cli_is_name, BridgeCtx, .word = name, .length = name_length))
+        if (EMBED_CALL(cli_is_kind, BridgeCtx, .word_text = parsed.word_text, .length = parsed.word_length) &&
+            EMBED_CALL(cli_is_name, BridgeCtx, .word_text = name, .length = name_length))
         {
             const unsigned int list =
                 EMBED_CALL(cli_entry, BridgeCtx, .json = args->json, .object = entries, .name = name,
@@ -605,7 +609,7 @@ unsigned int cli_bridge_ruleset(const CliBridgePathCfg *args)
                        .object = entry, .name = "kind",
                        .value =
                            EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
-                                      .json = args->json, .text = parsed.word, .length = parsed.word_length));
+                                      .json = args->json, .text = parsed.word_text, .length = parsed.word_length));
             EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = args->json,
                        .object = entry, .name = "line",
                        .value = EMBED_CALL(cli_number, BridgeCtx, .json = args->json, .value = parsed.line));

@@ -214,7 +214,7 @@ EMBED_INLINE void cli_cmake_target(const CompileDbProgramCtx *args)
     if (!EMBED_CALL(cli_reply_at.string_is, CliReplyAtCfg, .reply = args->target,
                     .at = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = args->target, .object = root,
                                      .key = "type"),
-                    .word = "EXECUTABLE"))
+                    .word_text = "EXECUTABLE"))
     {
         return;
     }
@@ -438,7 +438,7 @@ EMBED_INLINE void cli_meson_programs(const CompileDbProgramCtx *args)
         if (!EMBED_CALL(cli_reply_at.string_is, CliReplyAtCfg, .reply = &reply,
                         .at = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = &reply, .object = target,
                                          .key = "type"),
-                        .word = "executable"))
+                        .word_text = "executable"))
         {
             continue;
         }

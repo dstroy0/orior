@@ -4,10 +4,10 @@
 // request it is started with (debug_start.c, debug_launch.c)
 #ifndef DEBUG_START_H
 #define DEBUG_START_H
-typedef struct CliDebugStartCfg CliDebugStartCfg;
-
 #include "debug_internal.h"
 #include "embed_dispatch_layout.h"
+
+typedef struct CliDebugStartCfg CliDebugStartCfg;
 
 // A session's plan: the kind of its start, the test it runs, its language, whether it is a recorded run, the program a
 // CMake or Meson build makes from its file, the adapter's spec in the session's start capacity, the toolchain's name

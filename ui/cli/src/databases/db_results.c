@@ -79,13 +79,16 @@ EMBED_INLINE int results_real(const DbResultsCtx *args)
     unsigned long long at = ((size > 0u) && ((text[0] == '-') || (text[0] == '+'))) ? 1ULL : 0ULL;
     const unsigned long long rest = size - at;
     static const char *const s_words[3] = {"inf", "infinity", "nan"};
-    for (unsigned int word = 0u; word < 3u; word += 1u)
+    for (unsigned int word_text = 0u; word_text < 3u; word_text += 1u)
     {
-        int same = (rest == cellul.len(&(CatenaFinitaCfg){.src = s_words[word], .cap = CLI_CELLS_POOL}));
-        for (unsigned long long one = 0ULL; same && (one < rest); one += 1ULL)
+        int same = (rest == cellul.len(&(CatenaFinitaCfg){.src = s_words[word_text], .cap = CLI_CELLS_POOL}));
+        unsigned long long one = 0ULL;
+        while (same && (one < rest))
         {
             const char letter = text[at + one];
-            same = (((letter >= 'A') && (letter <= 'Z')) ? (char)(letter - 'A' + 'a') : letter) == s_words[word][one];
+            same =
+                (((letter >= 'A') && (letter <= 'Z')) ? (char)(letter - 'A' + 'a') : letter) == s_words[word_text][one];
+            one += 1ULL;
         }
         if (same)
         {

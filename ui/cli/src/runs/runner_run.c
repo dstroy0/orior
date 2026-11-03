@@ -208,9 +208,9 @@ static int cli_step(const RunnerRunCtx *args)
     char why[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     const int started = EMBED_CALL(cli_words_err_msg_internal.spawn, CliWordsErrMsgCtx, .spawned = &spawned,
-                                   .words = command->words.word, .folder = command->has_folder ? command->folder : NULL,
-                                   .settings = command->setting, .count = command->settings, .detached = !s_attached,
-                                   .err_msg = &err_msg);
+                                   .words = command->words.word_text,
+                                   .folder = command->has_folder ? command->folder : NULL, .settings = command->setting,
+                                   .count = command->settings, .detached = !s_attached, .err_msg = &err_msg);
     if (started)
     {
         run->process = spawned.id;
@@ -311,7 +311,8 @@ EMBED_INLINE int cli_sign(const RunnerRunCtx *args)
         return 0;
     }
     int goes = 1;
-    for (int at = 0; goes && (at < steps); at += 1)
+    int at = 0;
+    while (goes && (at < steps))
     {
         double began = 0.0;
         if (EMBED_CALL(cli_stopping, RunnerRunCtx, .run_read = args->run) ||
@@ -325,6 +326,7 @@ EMBED_INLINE int cli_sign(const RunnerRunCtx *args)
         }
         goes = EMBED_CALL(cli_after_step, RunnerRunCtx, .run = args->run, .created_step = 0, .step_began_value = began,
                           .has_code_value = *has_code, .code_value = *args->code, .built = built);
+        at += 1;
     }
     if (goes)
     {

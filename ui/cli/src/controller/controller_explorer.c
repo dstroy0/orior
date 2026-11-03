@@ -207,7 +207,7 @@ EMBED_INLINE void explorer_list_post(const ControllerExplorerCtx *args)
     memor.cpy(&(MemoriaCfg){.dst = root, .src = g_cli_model.root, .bytes = root_size});
     memor.cpy(&(MemoriaCfg){.dst = dir, .src = args->dir, .bytes = dir_size});
     *listing = (ControllerListing){root, dir, NULL};
-    EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane = CLI_WORK_FILES, .run = explorer_list_run,
+    EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_FILES, .run = explorer_list_run,
                .done = explorer_list_done, .context = listing);
 }
 

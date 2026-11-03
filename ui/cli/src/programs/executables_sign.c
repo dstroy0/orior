@@ -125,7 +125,7 @@ EMBED_INLINE void cli_both(const ExecutablesSignCtx *args)
 {
     CliCommand *command = args->command;
     const char *word = args->word;
-    EMBED_CALL(cli_runner_command_word.command_word, CliRunnerCommandWordCfg, .command = command, .word = word);
+    EMBED_CALL(cli_runner_command_word.command_word, CliRunnerCommandWordCfg, .command = command, .word_text = word);
     mmgr_line_ch(args->displayed, ' ');
     mmgr_line_put(args->displayed, args->displayed_word);
 }

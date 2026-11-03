@@ -105,7 +105,8 @@ EMBED_INLINE unsigned int rows_row(const PgRowsCtx *args)
     const unsigned long long count = (size >= 2u) ? EMBED_CALL(rows_number, PgRowsCtx, .at = body, .width = 2u) : 0ULL;
     unsigned long long at = 2ULL;
     unsigned int values = 0u;
-    for (unsigned long long one = 0ULL; (one < count) && (values < CLI_DB_COLUMNS) && (at + 4u <= size); one += 1ULL)
+    unsigned long long one = 0ULL;
+    while ((one < count) && (values < CLI_DB_COLUMNS) && (at + 4u <= size))
     {
         // the length is a signed number of four bytes, -1 for NULL
         const unsigned long long raw = EMBED_CALL(rows_number, PgRowsCtx, .at = body + at, .width = 4u);
@@ -118,6 +119,7 @@ EMBED_INLINE unsigned int rows_row(const PgRowsCtx *args)
         value->size = end - at;
         at = end;
         values += 1u;
+        one += 1ULL;
     }
     return values;
 }

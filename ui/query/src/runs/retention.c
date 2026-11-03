@@ -24,22 +24,22 @@ int query_account_read(const QueryRetentionBlobCtx *args)
     {
         return 0;
     }
-    unsigned long long word[6];
+    unsigned long long word_text[6];
     for (unsigned int at = 0u; at < 6u; at += 1u)
     {
-        word[at] = 0ULL;
+        word_text[at] = 0ULL;
         for (unsigned int byte = 0u; byte < 8u; byte += 1u)
         {
-            word[at] |= (unsigned long long)args->blob[(at * 8u) + byte] << (8u * byte);
+            word_text[at] |= (unsigned long long)args->blob[(at * 8u) + byte] << (8u * byte);
         }
     }
-    args->account->records = word[0];
-    args->account->bytes = word[1];
-    args->account->corrupt = word[2];
-    args->account->unplaced = word[3];
-    args->account->panics = word[4];
+    args->account->records = word_text[0];
+    args->account->bytes = word_text[1];
+    args->account->corrupt = word_text[2];
+    args->account->unplaced = word_text[3];
+    args->account->panics = word_text[4];
     // the writer counts nanoseconds, and a run's are far below where a double loses a millisecond
-    args->account->ms = (double)word[5] / 1000000.0;
+    args->account->ms = (double)word_text[5] / 1000000.0;
     return 1;
 }
 

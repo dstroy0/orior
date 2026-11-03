@@ -4,11 +4,11 @@
 // as they are set (maven_settings.c, maven_set.c)
 #ifndef MAVEN_H
 #define MAVEN_H
-typedef struct CliMavenKeyCfg CliMavenKeyCfg;
-typedef struct CliMavenCfg CliMavenCfg;
-
 #include "../command_line/cli_internal.h"
 #include "embed_dispatch_layout.h"
+
+typedef struct CliMavenKeyCfg CliMavenKeyCfg;
+typedef struct CliMavenCfg CliMavenCfg;
 
 struct CliMavenKeyCfg
 {

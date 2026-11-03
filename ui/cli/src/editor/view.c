@@ -533,9 +533,11 @@ int cli_view_open(const CliViewCfg *args)
     }
     else
     {
-        for (unsigned int at = 0u; (view == NULL) && (at < CLI_VIEWS); at += 1u)
+        unsigned int at = 0u;
+        while ((view == NULL) && (at < CLI_VIEWS))
         {
             view = s_views[at].used ? NULL : &s_views[at];
+            at += 1u;
         }
     }
     if (view == NULL)
@@ -1027,16 +1029,16 @@ EMBED_INLINE CliPosition view_word_leave(const ViewCtx *args)
     {
         col -= 1ULL;
     }
-    const int word = (col > 0ULL) && EMBED_CALL(view_word_unit, ViewCtx,
-                                                .unit = EMBED_CALL(view_unit, ViewCtx, .view = args->view,
-                                                                   .line = args->place.line, .col = col - 1ULL));
+    const int word_text = (col > 0ULL) && EMBED_CALL(view_word_unit, ViewCtx,
+                                                     .unit = EMBED_CALL(view_unit, ViewCtx, .view = args->view,
+                                                                        .line = args->place.line, .col = col - 1ULL));
     while ((col > 0ULL) &&
            !EMBED_CALL(view_blank_unit, ViewCtx,
                        .unit = EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = args->place.line,
                                           .col = col - 1ULL)) &&
            (EMBED_CALL(view_word_unit, ViewCtx,
                        .unit = EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = args->place.line,
-                                          .col = col - 1ULL)) == word))
+                                          .col = col - 1ULL)) == word_text))
     {
         col -= 1ULL;
     }
@@ -1057,16 +1059,16 @@ EMBED_INLINE CliPosition view_word_right(const ViewCtx *args)
     {
         col += 1ULL;
     }
-    const int word = (col < length) && EMBED_CALL(view_word_unit, ViewCtx,
-                                                  .unit = EMBED_CALL(view_unit, ViewCtx, .view = args->view,
-                                                                     .line = args->place.line, .col = col));
+    const int word_text = (col < length) && EMBED_CALL(view_word_unit, ViewCtx,
+                                                       .unit = EMBED_CALL(view_unit, ViewCtx, .view = args->view,
+                                                                          .line = args->place.line, .col = col));
     while (
         (col < length) &&
         !EMBED_CALL(view_blank_unit, ViewCtx,
                     .unit = EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = args->place.line, .col = col)) &&
         (EMBED_CALL(view_word_unit, ViewCtx,
                     .unit = EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = args->place.line, .col = col)) ==
-         word))
+         word_text))
     {
         col += 1ULL;
     }
@@ -1927,14 +1929,18 @@ EMBED_INLINE int view_opens_block(const ViewCtx *args)
     unsigned int *const letters = (unsigned int *)(void *)(cell + sizeof(CliRegexpWorkState));
     // the units read as letters, a surrogate pair one letter
     unsigned long long read = 0ULL;
-    for (unsigned long long at = 0ULL; at < count; at += 1ULL)
     {
-        const unsigned int unit = args->view->line_units[at];
-        const int pair = (unit >= 0xd800u) && (unit <= 0xdbffu) && (at + 1ULL < count);
-        letters[read] =
-            pair ? (0x10000u + ((unit - 0xd800u) << 10u) + (args->view->line_units[at + 1ULL] - 0xdc00u)) : unit;
-        at += pair ? 1ULL : 0ULL;
-        read += 1ULL;
+        unsigned long long at = 0ULL;
+        while (at < count)
+        {
+            const unsigned int unit = args->view->line_units[at];
+            const int pair = (unit >= 0xd800u) && (unit <= 0xdbffu) && (at + 1ULL < count);
+            letters[read] =
+                pair ? (0x10000u + ((unit - 0xd800u) << 10u) + (args->view->line_units[at + 1ULL] - 0xdc00u)) : unit;
+            at += pair ? 1ULL : 0ULL;
+            read += 1ULL;
+            at += 1ULL;
+        }
     }
     char error_text[256];
     VerbaLinea why = {error_text, sizeof(error_text), 0ULL};
@@ -1952,14 +1958,19 @@ EMBED_INLINE int view_opens_block(const ViewCtx *args)
                         .source = args->view->indent_after, .flags = "", .err_msg = &why);
     }
     int matched = 0;
-    for (unsigned long long at = 0ULL; ok && !matched && (at <= read); at += 1ULL)
     {
-        CliRegexpSpan groups[CLI_REGEXP_GROUPS + 1u];
-        const int starts = (!regexp.anchored || (at == 0ULL)) &&
-                           ((at == read) || regexp.first.empty ||
-                            EMBED_CALL(cli_regexp.allows, CliRegexpCfg, .first = &regexp.first, .letter = letters[at]));
-        matched = starts && EMBED_CALL(cli_regexp_text_u_32s.match_into, CliRegexpTextU32sCfg, .regexp = &regexp,
-                                       .text_u32s = letters, .length = read, .at = at, .groups = groups);
+        unsigned long long at = 0ULL;
+        while (ok && !matched && (at <= read))
+        {
+            CliRegexpSpan groups[CLI_REGEXP_GROUPS + 1u];
+            const int starts =
+                (!regexp.anchored || (at == 0ULL)) &&
+                ((at == read) || regexp.first.empty ||
+                 EMBED_CALL(cli_regexp.allows, CliRegexpCfg, .first = &regexp.first, .letter = letters[at]));
+            matched = starts && EMBED_CALL(cli_regexp_text_u_32s.match_into, CliRegexpTextU32sCfg, .regexp = &regexp,
+                                           .text_u32s = letters, .length = read, .at = at, .groups = groups);
+            at += 1ULL;
+        }
     }
     g_cli_cells->persistent_buf_release(cell, &g_cli_views_cells);
     return matched;
@@ -4230,7 +4241,7 @@ CliViewFrame *cli_view_frame_alloc(const char *key)
         frame->find.at = view->find_at;
         frame->find.regex = view->find_regex;
         frame->find.match_case = view->find_case;
-        frame->find.word = view->find_word;
+        frame->find.word_text = view->find_word;
         frame->find.count = view->matches;
         frame->find.current = view->current;
         for (unsigned long long at = 0ULL; at < view->matches; at += 1ULL)
@@ -4367,11 +4378,13 @@ int cli_view_serve(const CliViewFullKindCfg *args)
 int cli_view_serving(const CliViewFullCfg *args)
 {
     int serving = 0;
-    for (unsigned int at = 0u; !serving && (s_views != NULL) && (at < CLI_VIEWS); at += 1u)
+    unsigned int at = 0u;
+    while (!serving && (s_views != NULL) && (at < CLI_VIEWS))
     {
         serving =
             s_views[at].used && cellul.eq(&(CatenaFinitaCfg){
                                     .src = s_views[at].served, .other = args->full, .cap = sizeof(s_views[at].served)});
+        at += 1u;
     }
     return serving;
 }
@@ -4434,7 +4447,7 @@ int cli_view_word_at(const CliViewLineCfg *args)
                                      .col = args->col_value, .from_u64s = args->from, .to_u64s = args->to);
     if (found)
     {
-        VerbaLinea text = {args->word, args->capacity, 0ULL};
+        VerbaLinea text = {args->word_text, args->capacity, 0ULL};
         EMBED_CALL(cli_document_units_count.units_utf8, CliDocumentUnitsCountCfg, .out = &text,
                    .units = view->line_units + *args->from, .count = *args->to - *args->from);
         (void)mmgr_line_finish(&text);

@@ -107,9 +107,13 @@ int cli_runs_start(const CliRunnerErrMsgCfg *args)
         }
     }
     CliRun *run = NULL;
-    for (unsigned int at = 0u; (run == NULL) && (at < CLI_RUNS_MAX); at += 1u)
     {
-        run = (!g_cli_runs[at].used || g_cli_runs[at].ended) ? &g_cli_runs[at] : NULL;
+        unsigned int at = 0u;
+        while ((run == NULL) && (at < CLI_RUNS_MAX))
+        {
+            run = (!g_cli_runs[at].used || g_cli_runs[at].ended) ? &g_cli_runs[at] : NULL;
+            at += 1u;
+        }
     }
     if (run == NULL)
     {

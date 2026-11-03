@@ -76,7 +76,7 @@ typedef struct
     unsigned long long length;
     int *full;
     const char *name;
-    const char *word;
+    const char *word_text;
     const char **from;
     const char **to;
     const char *from_value;
@@ -270,14 +270,14 @@ void cli_print_layout_read(const CliPrintJsonNodeCfg *args)
 // whether a name is `word` in ASCII's either case
 EMBED_INLINE int cli_by_name(const PageCtx *args)
 {
-    return cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = args->word, .cap = CLI_CELLS_POOL, .ci = 1});
+    return cellul.eq(&(CatenaFinitaCfg){.src = args->name, .other = args->word_text, .cap = CLI_CELLS_POOL, .ci = 1});
 }
 
 void cli_print_size(const CliPrintLayoutWidthCfg *args)
 {
     float *width = args->width;
     float *height = args->height;
-    const int letter = EMBED_CALL(cli_by_name, PageCtx, .name = args->layout->paper, .word = "letter");
+    const int letter = EMBED_CALL(cli_by_name, PageCtx, .name = args->layout->paper, .word_text = "letter");
     const float pixel_width = letter ? 612.0f : 595.276f;
     const float high = letter ? 792.0f : 841.89f;
     *width = args->layout->landscape ? high : pixel_width;
@@ -286,8 +286,8 @@ void cli_print_size(const CliPrintLayoutWidthCfg *args)
 
 const char *cli_print_media(const CliPrintLayoutCfg *args)
 {
-    return EMBED_CALL(cli_by_name, PageCtx, .name = args->layout->paper, .word = "letter") ? "na_letter_8.5x11in"
-                                                                                           : "iso_a4_210x297mm";
+    return EMBED_CALL(cli_by_name, PageCtx, .name = args->layout->paper, .word_text = "letter") ? "na_letter_8.5x11in"
+                                                                                                : "iso_a4_210x297mm";
 }
 
 // The bytes from `from` to `to` trimmed of ASCII's spaces

@@ -303,24 +303,24 @@ static int cli_on_check(const CheckersCtx *args)
                                                  .json_read = json, .array = arguments, .index = at) != CLI_JSON_NONE);
          at += 1u)
     {
-        const char *const word =
+        const char *const word_text =
             EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
                        .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                           .json_read = json, .array = arguments, .index = at),
                        .length_pointer = NULL);
-        if (word == NULL)
+        if (word_text == NULL)
         {
             continue;
         }
         const unsigned long long start = filled.at;
         if (args->file != NULL)
         {
-            EMBED_CALL(cli_text_out_name.append_fill, CliTextOutNameCfg, .out = &filled, .text = word, .name = "{file}",
-                       .value = args->file);
+            EMBED_CALL(cli_text_out_name.append_fill, CliTextOutNameCfg, .out = &filled, .text = word_text,
+                       .name = "{file}", .value = args->file);
         }
         else
         {
-            mmgr_line_put(&filled, word);
+            mmgr_line_put(&filled, word_text);
         }
         mmgr_line_ch(&filled, '\0');
         words[count] = s_work_state->words + start;

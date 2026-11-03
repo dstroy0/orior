@@ -14,12 +14,12 @@
 // and pylint write them; and the JSON of ruff, ESLint and ShellCheck (checkers.c, checkers_read.c)
 #ifndef CHECKERS_H
 #define CHECKERS_H
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliCheckersOutCfg CliCheckersOutCfg;
 typedef struct CliCheckersCfg CliCheckersCfg;
 typedef struct CliCheckersNameCfg CliCheckersNameCfg;
-
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // the checker a name names, by its toolchain's id or its name in any case, its id into `id`, sized for
 // CLI_NAME_MAX_LEN: 1, or 0 where none does; whether the checker `id` checks a tree whole, whether it reads a file's

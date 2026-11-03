@@ -104,14 +104,14 @@ EMBED_INLINE void find_ahead_first(const DebugFindCtx *args)
             continue;
         }
         const unsigned int tool = args->named_out[at];
-        const unsigned int word = args->words[at];
+        const unsigned int word_text = args->words[at];
         for (unsigned int moved = at; moved > first; moved -= 1u)
         {
             args->named_out[moved] = args->named_out[moved - 1u];
             args->words[moved] = args->words[moved - 1u];
         }
         args->named_out[first] = tool;
-        args->words[first] = word;
+        args->words[first] = word_text;
         first += 1u;
     }
 }
@@ -243,10 +243,14 @@ EMBED_INLINE void find_tail(const DebugFindCtx *args)
         unsigned long long end = bounds.stop;
         end = ((end > start) && (text[end - 1ULL] == '\r')) ? end - 1ULL : end;
         int blank = 1;
-        for (unsigned long long at = start; blank && (at < end); at += 1ULL)
         {
-            blank =
-                (cellul.chr(&(CatenaFinitaCfg){.src = " \t\f\v\r", .cap = CLI_CELLS_POOL, .byte = text[at]}) != NULL);
+            unsigned long long at = start;
+            while (blank && (at < end))
+            {
+                blank = (cellul.chr(&(CatenaFinitaCfg){.src = " \t\f\v\r", .cap = CLI_CELLS_POOL, .byte = text[at]}) !=
+                         NULL);
+                at += 1ULL;
+            }
         }
         if (!blank)
         {
@@ -369,26 +373,26 @@ EMBED_INLINE int find_build_words(const DebugFindCtx *args)
          at += 1u)
     {
         unsigned long long length = 0ULL;
-        const char *const word =
+        const char *const word_text =
             EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
                        .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                           .json_read = json, .array = args->words_node, .index = at),
                        .length_pointer = &length);
-        const char *const text = (word != NULL) ? word : "";
+        const char *const text = (word_text != NULL) ? word_text : "";
         if (cellul.eq(&(CatenaFinitaCfg){.src = text, .other = "{path}", .cap = CLI_CELLS_POOL}))
         {
             EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
-                       .word = path);
+                       .word_text = path);
         }
         else if (cellul.eq(&(CatenaFinitaCfg){.src = text, .other = "{out}", .cap = CLI_CELLS_POOL}))
         {
             EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
-                       .word = out);
+                       .word_text = out);
         }
         else if (cellul.eq(&(CatenaFinitaCfg){.src = text, .other = "{program}", .cap = CLI_CELLS_POOL}))
         {
             EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
-                       .word = args->program);
+                       .word_text = args->program);
         }
         else if ((length >= 2ULL) && (text[0] == '{') && (text[length - 1ULL] == '}'))
         {
@@ -414,12 +418,12 @@ EMBED_INLINE int find_build_words(const DebugFindCtx *args)
                 return 0;
             }
             EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
-                       .word = found);
+                       .word_text = found);
         }
         else
         {
             EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
-                       .word = text);
+                       .word_text = text);
         }
     }
     return 1;
@@ -482,17 +486,22 @@ int cli_debug_build(const CliDebugErrMsgLanguageCtx *args)
     s_folders = cli_toolchains_path_allocated(&folders, &g_cli_debug_cells);
     unsigned int chosen = count;
     char compiler[CLI_PATH_MAX_LEN];
-    for (unsigned int at = 0u; (at < count) && (chosen == count); at += 1u)
     {
-        EMBED_CALL(cli_toolchains_json.find, CliToolchainsJsonCfg, .json = &json, .tool = named[at],
-                   .path_callback = (const char (*)[CLI_PATH_MAX_LEN])s_folders, .count = folders, .found = &s_found);
-        if (s_found.has_program)
+        unsigned int at = 0u;
+        while ((at < count) && (chosen == count))
         {
-            chosen = at;
-            memor.cpy(&(MemoriaCfg){
-                .dst = compiler,
-                .src = s_found.program,
-                .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_found.program, .cap = CLI_CELLS_POOL}) + 1u});
+            EMBED_CALL(cli_toolchains_json.find, CliToolchainsJsonCfg, .json = &json, .tool = named[at],
+                       .path_callback = (const char (*)[CLI_PATH_MAX_LEN])s_folders, .count = folders,
+                       .found = &s_found);
+            if (s_found.has_program)
+            {
+                chosen = at;
+                memor.cpy(&(MemoriaCfg){
+                    .dst = compiler,
+                    .src = s_found.program,
+                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_found.program, .cap = CLI_CELLS_POOL}) + 1u});
+            }
+            at += 1u;
         }
     }
     if (chosen == count)
@@ -553,12 +562,12 @@ int cli_debug_build(const CliDebugErrMsgLanguageCtx *args)
     VerbaLinea err_buf = {why, sizeof(why), 0ULL};
     CliRunResult *const run_result = cli_run_result_alloc();
     const int run_result_well =
-        EMBED_CALL(cli_words_internal.run_result_within, CliWordsCtx, .words = s_words.word, .folder = args->root,
+        EMBED_CALL(cli_words_internal.run_result_within, CliWordsCtx, .words = s_words.word_text, .folder = args->root,
                    .settings = settings, .count = 1u, .input = NULL, .length = 0ULL,
                    .milliseconds_u64 = CLI_DEBUG_BUILDING, .run_result = run_result, .err_msg = &err_buf);
     if (!run_result_well)
     {
-        mmgr_line_put(args->err_msg, s_words.word[0]);
+        mmgr_line_put(args->err_msg, s_words.word_text[0]);
         mmgr_line_put(args->err_msg, ": ");
         mmgr_line_put_n(args->err_msg, err_buf.out, err_buf.at);
     }

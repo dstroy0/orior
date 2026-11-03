@@ -13,6 +13,10 @@
 // it stops them
 #ifndef RUNNER_H
 #define RUNNER_H
+#include "../command_line/callback_cfg.h"
+#include "../command_line/catalog.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliRunnerErrMsgCfg CliRunnerErrMsgCfg;
 typedef struct CliRunnerCommandCfg CliRunnerCommandCfg;
 typedef struct CliRunnerErrMsgRootCfg CliRunnerErrMsgRootCfg;
@@ -28,10 +32,6 @@ typedef struct CliRunnerLinesIndexCfg CliRunnerLinesIndexCfg;
 typedef struct CliRunnerEventCfg CliRunnerEventCfg;
 typedef struct CliRunnerVariableCfg CliRunnerVariableCfg;
 typedef struct CliRunnerErrMsgRunNumberCfg CliRunnerErrMsgRunNumberCfg;
-
-#include "../command_line/callback_cfg.h"
-#include "../command_line/catalog.h"
-#include "embed_dispatch_layout.h"
 
 // the variable a job's step finds the run's number in: set on every step a run starts, and read by a command that
 // would otherwise reach a window open on the tree
@@ -241,7 +241,7 @@ struct CliRunnerNameCommandCfg
 struct CliRunnerCommandWordCfg
 {
     CliCommand *command;
-    const char *word;
+    const char *word_text;
 };
 
 struct CliRunnerLinesIndexCfg

@@ -87,12 +87,16 @@ static void cli_hit_at(const CliEachAtCfg *args)
     // the letters before the query on its line, and the last of them
     unsigned long long before = 0ULL;
     unsigned int last = 0u;
-    for (unsigned long long place = start; place < at; before += 1ULL)
     {
-        place += EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg, .text_bytes = bytes, .length = at,
-                            .at = place, .letter = &last);
+        unsigned long long place = start;
+        while (place < at)
+        {
+            place += EMBED_CALL(cli_json_tree_length.lossy_letter, CliJsonTreeLengthCfg, .text_bytes = bytes,
+                                .length = at, .at = place, .letter = &last);
+            before += 1ULL;
+        }
     }
-    if (hitting->needle->how.word)
+    if (hitting->needle->how.word_text)
     {
         const unsigned long long after = at + hitting->needle->length;
         unsigned int next = 0u;
@@ -186,7 +190,7 @@ EMBED_INLINE int cli_line_match(const FilesHitsCtx *args)
              EMBED_CALL(cli_files_letter_internal.hit_wordy, CliFilesLetterCtx, .letter = step.last)) ||
             (has_next && EMBED_CALL(cli_files_letter_internal.hit_wordy, CliFilesLetterCtx,
                                     .letter = EMBED_CALL(cli_regexp_letter.lower, CliRegexpLetterCfg, .letter = next)));
-        if (!args->needle->how.word || !joined)
+        if (!args->needle->how.word_text || !joined)
         {
             *col = step.letter_at + 1ULL;
             return 1;

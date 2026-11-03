@@ -11,6 +11,11 @@
 // git_lines.c, git_clone.c)
 #ifndef GIT_H
 #define GIT_H
+#include "../command_line/callback_cfg.h"
+#include "../command_line/cells.h"
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliGitRootCfg CliGitRootCfg;
 typedef struct CliGitRootOutCfg CliGitRootOutCfg;
 typedef struct CliGitRootOutCountCfg CliGitRootOutCountCfg;
@@ -44,11 +49,6 @@ typedef struct CliGitOutFoundRepositoriesCfg CliGitOutFoundRepositoriesCfg;
 typedef struct CliGitRootFoundStashesCfg CliGitRootFoundStashesCfg;
 typedef struct CliGitOutFoundStashesCfg CliGitOutFoundStashesCfg;
 typedef struct CliGitTextAtCfg CliGitTextAtCfg;
-
-#include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // the cells the lists git gives store their texts in (git_run.c)
 extern CellOwner g_cli_git_cells;
@@ -272,7 +272,7 @@ typedef struct
     unsigned int ref[CLI_GIT_REFS];
     unsigned int refs;
     unsigned int subject;
-    unsigned int lane;
+    unsigned int lane_at;
     unsigned int color;
     unsigned int first_stroke;
     unsigned int stroke_count;

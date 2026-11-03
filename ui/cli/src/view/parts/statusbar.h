@@ -5,14 +5,15 @@
 // line and column, what is selected, the line ends, the encoding, the indentation and the lock (statusbar.c)
 #ifndef GUI_PARTS_STATUSBAR_H
 #define GUI_PARTS_STATUSBAR_H
-typedef struct GuiStatusbarStatusCfg GuiStatusbarStatusCfg;
-typedef struct GuiStatusbarCfg GuiStatusbarCfg;
-typedef struct GuiStatusbarBytesCfg GuiStatusbarBytesCfg;
 #include "../frame.h"
 #include "../glyphs.h"
 #include "../icons.h"
 #include "../palette.h"
 #include "embed_dispatch_layout.h"
+
+typedef struct GuiStatusbarStatusCfg GuiStatusbarStatusCfg;
+typedef struct GuiStatusbarCfg GuiStatusbarCfg;
+typedef struct GuiStatusbarBytesCfg GuiStatusbarBytesCfg;
 
 // the sizes in the page's pixels: the bar's text size, its padding at each end past the strip, the gap between its
 // items, the gap about a crumb's mark, the lock's side and how far it ends before the frame's gap, the memory

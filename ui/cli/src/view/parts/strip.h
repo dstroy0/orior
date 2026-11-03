@@ -6,16 +6,17 @@
 // window that shows is drawn in signal on a square of it, and the one under the pointer on the pointed ground (strip.c)
 #ifndef GUI_PARTS_STRIP_H
 #define GUI_PARTS_STRIP_H
-typedef struct GuiStripFrameRasterCfg GuiStripFrameRasterCfg;
-typedef struct GuiStripFrameCfg GuiStripFrameCfg;
-typedef struct GuiStripFrameXCfg GuiStripFrameXCfg;
-typedef struct GuiStripCfg GuiStripCfg;
-typedef struct GuiStripInitCfg GuiStripInitCfg;
 #include "../../controller/controller_parts.h"
 #include "../frame.h"
 #include "../icons.h"
 #include "../palette.h"
 #include "embed_dispatch_layout.h"
+
+typedef struct GuiStripFrameRasterCfg GuiStripFrameRasterCfg;
+typedef struct GuiStripFrameCfg GuiStripFrameCfg;
+typedef struct GuiStripFrameXCfg GuiStripFrameXCfg;
+typedef struct GuiStripCfg GuiStripCfg;
+typedef struct GuiStripInitCfg GuiStripInitCfg;
 
 // no tool; and the sizes in the page's pixels: the strip's padding at its head and foot,
 // a button's side, the gap between buttons, a button's corner radius, its icon's side, and the icon's line width in

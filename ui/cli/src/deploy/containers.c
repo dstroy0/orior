@@ -53,18 +53,18 @@ EMBED_INLINE int cli_tool_run(const ContainersCtx *args)
         s_words.count = 0u;
         s_words.used = 0u;
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-                   .word = args->program);
+                   .word_text = args->program);
     }
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-                   .word = args->request[at]);
+                   .word_text = args->request[at]);
     }
-    s_words.word[s_words.count] = NULL;
+    s_words.word_text[s_words.count] = NULL;
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea unstarted = {why, sizeof(why), 0ULL};
     const int started =
-        !s_words.full && EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = s_words.word, .folder = NULL,
+        !s_words.full && EMBED_CALL(cli_words_internal.run, CliWordsCtx, .words = s_words.word_text, .folder = NULL,
                                     .settings = NULL, .count = 0u, .run_result = run_result, .err_msg = &unstarted);
     if (!started)
     {

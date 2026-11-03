@@ -47,7 +47,7 @@ EMBED_INLINE void read_line_on_end(const TestReadCtx *args)
 void cli_test_lines_read(const CliTestRunsWorkerLineCtx *args)
 {
     CliTestWorker *worker = args->worker;
-    void (*line)(const CliWorkerTextSizeCfg *args) = args->line_callback;
+    void (*line)(const CliWorkerTextSizeCfg *) = args->line_callback;
     char piece[4096];
     int fresh = 1;
     int stopped = 0;
@@ -62,7 +62,8 @@ void cli_test_lines_read(const CliTestRunsWorkerLineCtx *args)
         {
             break;
         }
-        for (unsigned long long at = 0ULL; (at < count) && !stopped; at += 1ULL)
+        unsigned long long at = 0ULL;
+        while ((at < count) && !stopped)
         {
             // a line longer than the capacity is handed on in pieces of the capacity's length
             if ((piece[at] == '\n') || (worker->line_size == sizeof(worker->line)))
@@ -78,6 +79,7 @@ void cli_test_lines_read(const CliTestRunsWorkerLineCtx *args)
                 worker->line[worker->line_size] = piece[at];
                 worker->line_size += 1ULL;
             }
+            at += 1ULL;
         }
     }
     if ((worker->line_size > 0ULL) && !stopped && !cli_test_stop())

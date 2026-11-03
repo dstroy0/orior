@@ -110,7 +110,7 @@ int gui_stages_init(const GuiStagesAutohideCfg *args)
         return 0;
     }
     GuiStage *const stage = (GuiStage *)cell;
-    unsigned int *word = (unsigned int *)(cell + stage_bytes);
+    unsigned int *word_text = (unsigned int *)(cell + stage_bytes);
     GuiBaseRun *run = (GuiBaseRun *)(cell + stage_bytes + word_capacity);
     GuiTitle *title = (GuiTitle *)(cell + stage_bytes + word_capacity + run_bytes);
     laid = *frame;
@@ -125,10 +125,10 @@ int gui_stages_init(const GuiStagesAutohideCfg *args)
         one->hole_count = EMBED_CALL(cli_frame_holes.holes, GuiFrameHolesCfg, .frame_read = &laid, .holes = one->holes);
         const unsigned int bands = args->base->bands;
         const unsigned int band_runs = args->base->run_first[bands];
-        memor.cpy(&(MemoriaCfg){.dst = word,
+        memor.cpy(&(MemoriaCfg){.dst = word_text,
                                 .src = args->base->band_from,
                                 .bytes = ((unsigned long long)bands + 1ULL) * sizeof(unsigned int)});
-        memor.cpy(&(MemoriaCfg){.dst = word + bands + 1u,
+        memor.cpy(&(MemoriaCfg){.dst = word_text + bands + 1u,
                                 .src = args->base->run_first,
                                 .bytes = ((unsigned long long)bands + 1ULL) * sizeof(unsigned int)});
         memor.cpy(&(MemoriaCfg){
@@ -136,11 +136,11 @@ int gui_stages_init(const GuiStagesAutohideCfg *args)
         memor.cpy(&(MemoriaCfg){.dst = title,
                                 .src = args->menubar->title,
                                 .bytes = (unsigned long long)args->menubar->titles * sizeof(GuiTitle)});
-        one->map = (GuiBaseMap){bands, word, word + bands + 1u, run};
+        one->map = (GuiBaseMap){bands, word_text, word_text + bands + 1u, run};
         one->title = title;
         one->titles = args->menubar->titles;
         one->folded_from = args->menubar->folded_from;
-        word += (2u * bands) + 2u;
+        word_text += (2u * bands) + 2u;
         run += band_runs;
         title += args->menubar->titles;
     }

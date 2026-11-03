@@ -5,16 +5,16 @@
 // names
 #ifndef INSPECT_TREE_INTERNAL_H
 #define INSPECT_TREE_INTERNAL_H
+#include "../command_line/callback_cfg.h"
+#include "embed_dispatch_layout.h"
+#include "inspect_tree.h"
+
 typedef struct CliInspectTreeSizeCtx CliInspectTreeSizeCtx;
 typedef struct CliInspectTreeFileCtx CliInspectTreeFileCtx;
 typedef struct CliInspectTreeFolderCtx CliInspectTreeFolderCtx;
 typedef struct CliInspectTreeSizeFileCtx CliInspectTreeSizeFileCtx;
 typedef struct CliInspectTreeCtx CliInspectTreeCtx;
 typedef struct CliInspectTreePathCtx CliInspectTreePathCtx;
-
-#include "../command_line/callback_cfg.h"
-#include "embed_dispatch_layout.h"
-#include "inspect_tree.h"
 
 // the most files the tree contains, and no file
 #define CLI_TREE_FILES 65536u

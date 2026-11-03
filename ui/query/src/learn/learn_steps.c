@@ -62,7 +62,7 @@ EMBED_INLINE int query_learn_clock(const LearnStepsCtx *args)
         return -1;
     }
     const char *const read[1] = {args->files->costs};
-    const char *const words[6] = {s_clock, args->files->costs, args->step->word, args->step->base, "10", NULL};
+    const char *const words[6] = {s_clock, args->files->costs, args->step->word_text, args->step->base, "10", NULL};
     long long code = -1LL;
     const int run_result = EMBED_CALL(query_count_err_msg_internal.run_read, QueryCountErrMsgCtx, .run = &s_run,
                                       .paths_letters = read, .count = 1u, .err_msg = err_msg) &&
@@ -106,10 +106,10 @@ EMBED_INLINE int query_learn_pass(const LearnStepsCtx *args)
     char step_word[64];
     VerbaLinea step_line = {step_word, sizeof(step_word), 0ULL};
     mmgr_line_put(&step_line, "--");
-    mmgr_line_put(&step_line, (args->step->kind == QUERY_LEARN_PASS) ? args->step->word : "discover");
+    mmgr_line_put(&step_line, (args->step->kind == QUERY_LEARN_PASS) ? args->step->word_text : "discover");
     mmgr_line_finish(&step_line);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-               .word = step_word);
+               .word_text = step_word);
     const char *const read[7] = {files->machine,   files->costs,  files->record,   files->layout,
                                  files->mnemonics, files->fields, args->step->base};
     const unsigned int reads = ((args->step->kind == QUERY_LEARN_PASS) && (args->step->base != NULL)) ? 7u : 6u;
@@ -120,7 +120,7 @@ EMBED_INLINE int query_learn_pass(const LearnStepsCtx *args)
     if (whole && (args->step->kind == QUERY_LEARN_SEED))
     {
         static char s_seeds[QUERY_PATH_MAX_LEN];
-        const char *const seeds[4] = {s_seeds, args->step->word, "--modifiers", NULL};
+        const char *const seeds[4] = {s_seeds, args->step->word_text, "--modifiers", NULL};
         long long seeded = -1LL;
         whole =
             EMBED_CALL(query_loops_err_msg_context.context_tool, QueryLoopsErrMsgContextCfg, .context_read = context,
@@ -134,9 +134,9 @@ EMBED_INLINE int query_learn_pass(const LearnStepsCtx *args)
             whole = 0;
         }
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-                   .word = "--seeds");
+                   .word_text = "--seeds");
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-                   .word = "seeds.txt");
+                   .word_text = "seeds.txt");
     }
     if (whole && (args->step->kind == QUERY_LEARN_PASS) && (args->step->base != NULL))
     {
@@ -147,15 +147,15 @@ EMBED_INLINE int query_learn_pass(const LearnStepsCtx *args)
     if (whole)
     {
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-                   .word = "--");
+                   .word_text = "--");
         EMBED_CALL(query_loops_words_words_transport.transport_words, QueryLoopsWordsWordsTransportCfg,
                    .words_words_pointer = &s_words, .transport = transport, .cross = s_cross, .nvdisasm = s_nvdisasm,
                    .machine = files->machine, .layout = files->layout, .lessons = 1);
         static const char *s_teacher[QUERY_WORDS_MAX + 2u];
         s_teacher[0] = args->teacher;
         memor.cpy(&(MemoriaCfg){.dst = &s_teacher[1],
-                                .src = s_words.word,
-                                .bytes = (size_t)(s_words.count + 1u) * sizeof(s_words.word[0])});
+                                .src = s_words.word_text,
+                                .bytes = (size_t)(s_words.count + 1u) * sizeof(s_words.word_text[0])});
         whole = EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
                            .context = context, .run = &s_run, .name = "orior_khw_learn", .words = s_teacher,
                            .code = &code, .err_msg = err_msg);
@@ -250,15 +250,15 @@ EMBED_INLINE int query_learn_offline(const LearnStepsCtx *args)
                 : "forms.txt";
         const unsigned int seeded = EMBED_CALL(query_learn_internal.lines, QueryLearnCtx, .run = &s_run, .name = forms);
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-                   .word = "--position");
+                   .word_text = "--position");
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-                   .word = args->step->word);
+                   .word_text = args->step->word_text);
         if (seeded != 0u)
         {
             EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-                       .word = "--forms");
+                       .word_text = "--forms");
             EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-                       .word = forms);
+                       .word_text = forms);
             char line[128];
             VerbaLinea print_line = {line, sizeof(line), 0ULL};
             mmgr_line_put(&print_line, "  seeding from the ");
@@ -271,20 +271,20 @@ EMBED_INLINE int query_learn_offline(const LearnStepsCtx *args)
             }
         }
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-                   .word = "--");
+                   .word_text = "--");
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-                   .word = "dry");
+                   .word_text = "dry");
     }
     else
     {
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-                   .word = rounds);
+                   .word_text = rounds);
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-                   .word = "--");
+                   .word_text = "--");
         if (args->step->kind == QUERY_LEARN_DRY)
         {
             EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-                       .word = "dry");
+                       .word_text = "dry");
         }
         EMBED_CALL(query_loops_words_words_transport.transport_words, QueryLoopsWordsWordsTransportCfg,
                    .words_words_pointer = &s_words, .transport = transport, .cross = s_cross, .nvdisasm = s_nvdisasm,
@@ -292,8 +292,9 @@ EMBED_INLINE int query_learn_offline(const LearnStepsCtx *args)
     }
     static const char *s_teacher[QUERY_WORDS_MAX + 2u];
     s_teacher[0] = args->teacher;
-    memor.cpy(&(MemoriaCfg){
-        .dst = &s_teacher[1], .src = s_words.word, .bytes = (size_t)(s_words.count + 1u) * sizeof(s_words.word[0])});
+    memor.cpy(&(MemoriaCfg){.dst = &s_teacher[1],
+                            .src = s_words.word_text,
+                            .bytes = (size_t)(s_words.count + 1u) * sizeof(s_words.word_text[0])});
     long long code = -1LL;
     whole = whole && EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
                                 .context = context, .run = &s_run, .name = "orior_khw_learn", .words = s_teacher,
@@ -346,7 +347,7 @@ EMBED_INLINE int query_learn_offline(const LearnStepsCtx *args)
         else if (whole)
         {
             mmgr_line_put(&print_line, "  the place");
-            mmgr_line_put(&print_line, args->step->word);
+            mmgr_line_put(&print_line, args->step->word_text);
             mmgr_line_put(&print_line, "'s questions: questions.txt of ");
             mmgr_line_put(&print_line, s_run.writer.qry);
             mmgr_line_put(&print_line, ", ");

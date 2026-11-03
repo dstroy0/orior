@@ -176,7 +176,7 @@ int cli_search_by_git(const CliFilesRootCtx *args)
         s_words[count] = "-i";
         count += 1u;
     }
-    if (args->how.word)
+    if (args->how.word_text)
     {
         s_words[count] = "-w";
         count += 1u;
@@ -188,7 +188,7 @@ int cli_search_by_git(const CliFilesRootCtx *args)
     count += 4u;
     for (unsigned int at = 0u; at < args->specs->count; at += 1u)
     {
-        s_words[count] = args->specs->word[at];
+        s_words[count] = args->specs->word_text[at];
         count += 1u;
     }
     s_words[count] = NULL;
@@ -233,7 +233,7 @@ int cli_search_by_git(const CliFilesRootCtx *args)
 // the path being matched, its letters in lower case, and the paths found
 typedef struct
 {
-    unsigned int word[CLI_FUZZY_LETTERS];
+    unsigned int word_text[CLI_FUZZY_LETTERS];
     unsigned int start[CLI_FUZZY_LETTERS];
     unsigned int length[CLI_FUZZY_LETTERS];
     unsigned int words;

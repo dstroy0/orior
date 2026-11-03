@@ -7,6 +7,9 @@
 // reported to be out of reach
 #ifndef PRINT_IPP_H
 #define PRINT_IPP_H
+#include "embed_dispatch_layout.h"
+#include "print.h"
+
 typedef struct CliIppSizeCfg CliIppSizeCfg;
 typedef struct CliIppNameCfg CliIppNameCfg;
 typedef struct CliIppSizeErrMsgCfg CliIppSizeErrMsgCfg;
@@ -23,9 +26,6 @@ typedef struct CliIppMessageTagCfg CliIppMessageTagCfg;
 typedef struct CliIppCfg CliIppCfg;
 typedef struct CliIppMessageOutVerbaLineaCfg CliIppMessageOutVerbaLineaCfg;
 typedef struct CliIppCodeCfg CliIppCodeCfg;
-
-#include "embed_dispatch_layout.h"
-#include "print.h"
 
 // the groups' tags, the end of the groups, and the tags of the texts orior_cli writes
 #define CLI_IPP_OPERATION 0x01u

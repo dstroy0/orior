@@ -4,15 +4,15 @@
 // and the capacity the search stores what files contain in
 #ifndef CARGO_TESTS_INTERNAL_H
 #define CARGO_TESTS_INTERNAL_H
-typedef struct CliCargoTestsACtx CliCargoTestsACtx;
-typedef struct CliCargoTestsTextCtx CliCargoTestsTextCtx;
-typedef struct CliCargoTestsTextSizeCtx CliCargoTestsTextSizeCtx;
-typedef struct CliCargoTestsCtx CliCargoTestsCtx;
-
 #include "../command_line/cells.h"
 #include "../text/json_tree.h"
 #include "cargo_tests.h"
 #include "embed_dispatch_layout.h"
+
+typedef struct CliCargoTestsACtx CliCargoTestsACtx;
+typedef struct CliCargoTestsTextCtx CliCargoTestsTextCtx;
+typedef struct CliCargoTestsTextSizeCtx CliCargoTestsTextSizeCtx;
+typedef struct CliCargoTestsCtx CliCargoTestsCtx;
 
 // the cells the search for Rust's tests occupies; and a cell of `most` of `width` bytes, or of twice `*capacity` where
 // that is more, containing the `*capacity` of `cell`, `cell` given back and `*capacity` raised: the cell, or NULL where

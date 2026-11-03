@@ -5,6 +5,10 @@
 // toolchains_path.c
 #ifndef TOOLCHAINS_INTERNAL_H
 #define TOOLCHAINS_INTERNAL_H
+#include "../command_line/cells.h"
+#include "embed_dispatch_layout.h"
+#include "toolchains.h"
+
 typedef struct CliToolchainsPathCtx CliToolchainsPathCtx;
 typedef struct CliToolchainsJsonCtx CliToolchainsJsonCtx;
 typedef struct CliToolchainsIdCtx CliToolchainsIdCtx;
@@ -14,10 +18,6 @@ typedef struct CliToolchainsTextCtx CliToolchainsTextCtx;
 typedef struct CliToolchainsCtx CliToolchainsCtx;
 typedef struct CliToolchainsPatternCtx CliToolchainsPatternCtx;
 typedef struct CliToolchainsACtx CliToolchainsACtx;
-
-#include "../command_line/cells.h"
-#include "embed_dispatch_layout.h"
-#include "toolchains.h"
 
 // whether `name` matches `pattern`, whose * matches any run of letters, case aside on Windows; and names ordered as
 // their numbers read, so that Python314 comes after Python39: below 0 where `a` comes first (toolchains.c)

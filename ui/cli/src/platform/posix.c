@@ -183,19 +183,23 @@ unsigned int cli_container_members(const CliIdsCtx *args)
         EMBED_CALL(cli_container_root.descendants, CliContainerRootCfg, .root = cli_process_own(), .parents = s_all,
                    .count = all, .found = s_found, .capacity = CLI_PROCESSES_MAX);
     unsigned int count = 0u;
-    for (unsigned int at = 0u; (at < found) && (count < capacity); at += 1u)
+    unsigned int at = 0u;
+    while ((at < found) && (count < capacity))
     {
         int outside = 0;
-        for (unsigned int each = 0u; !outside && (each < s_outsides); each += 1u)
+        unsigned int each = 0u;
+        while (!outside && (each < s_outsides))
         {
             outside = EMBED_CALL(cli_container_root_id.under, CliContainerRootIdCfg, .root = s_outside[each],
                                  .id = s_found[at], .parents = s_all, .count = all);
+            each += 1u;
         }
         if (!outside)
         {
             args->ids[count] = s_found[at];
             count += 1u;
         }
+        at += 1u;
     }
     return count;
 }

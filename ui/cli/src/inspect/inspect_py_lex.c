@@ -250,13 +250,17 @@ EMBED_INLINE void lex_operator(const InspectPyLexCtx *args)
     const unsigned long long start = scan->pos;
     const CliInspectPosition from = EMBED_CALL(cli_inspect_scan_internal.place, CliInspectScanCtx, .scan = scan);
     const char *op = NULL;
-    for (unsigned int at = 0u; (op == NULL) && (at < 47u); at += 1u)
     {
-        const size_t length = cellul.len(&(CatenaFinitaCfg){.src = s_ops[at], .cap = CLI_CELLS_POOL});
-        op = ((scan->size - start >= length) &&
-              (memor.cmp(&(MemoriaCfg){.src = scan->src + start, .other = s_ops[at], .bytes = length}) == 0))
-                 ? s_ops[at]
-                 : NULL;
+        unsigned int at = 0u;
+        while ((op == NULL) && (at < 47u))
+        {
+            const size_t length = cellul.len(&(CatenaFinitaCfg){.src = s_ops[at], .cap = CLI_CELLS_POOL});
+            op = ((scan->size - start >= length) &&
+                  (memor.cmp(&(MemoriaCfg){.src = scan->src + start, .other = s_ops[at], .bytes = length}) == 0))
+                     ? s_ops[at]
+                     : NULL;
+            at += 1u;
+        }
     }
     if (op == NULL)
     {
@@ -438,9 +442,9 @@ const CliInspectTok *cli_py_tok(const CliInspectPyCfg *args)
 int cli_py_is(const CliInspectPySrcTokCfg *args)
 {
     const char *src = args->src;
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->word, .cap = CLI_CELLS_POOL});
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_CELLS_POOL});
     return (args->tok->end - args->tok->start == length) &&
-           (memor.cmp(&(MemoriaCfg){.src = src + args->tok->start, .other = args->word, .bytes = length}) == 0);
+           (memor.cmp(&(MemoriaCfg){.src = src + args->tok->start, .other = args->word_text, .bytes = length}) == 0);
 }
 
 int cli_py_keyword(const CliInspectPySrcTokCfg *args)
@@ -448,7 +452,7 @@ int cli_py_keyword(const CliInspectPySrcTokCfg *args)
     for (unsigned int at = 0u; at < 35u; at += 1u)
     {
         if (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = args->src, .tok = args->tok,
-                       .word = g_cli_py_keywords[at]))
+                       .word_text = g_cli_py_keywords[at]))
         {
             return 1;
         }
@@ -460,8 +464,8 @@ int cli_py_opens(const CliInspectPySrcLineCfg *args)
 {
     const CliInspectTok *const last =
         EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = args->line, .at = args->line->count - 1u);
-    return (last->kind == CLI_PY_OP) &&
-           EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = args->src, .tok = last, .word = ":");
+    return (last->kind == CLI_PY_OP) && EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg,
+                                                   .src = args->src, .tok = last, .word_text = ":");
 }
 
 unsigned int cli_py_block_end(const CliInspectPyCfg *args)
@@ -480,12 +484,12 @@ int cli_py_head_is(const CliInspectPySrcLineCfg *args)
     const CliInspectTok *const first = EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = args->line, .at = 0u);
     const CliInspectTok *const head =
         (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = args->src, .tok = first,
-                    .word = "async") &&
+                    .word_text = "async") &&
          (args->line->count > 1u))
             ? EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = args->line, .at = 1u)
             : first;
     return EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = args->src, .tok = head,
-                      .word = args->word);
+                      .word_text = args->word_text);
 }
 
 int cli_py_contains(const CliInspectPySrcWordCfg *args)
@@ -493,7 +497,7 @@ int cli_py_contains(const CliInspectPySrcWordCfg *args)
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         if (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = args->src, .tok = &args->toks[at],
-                       .word = args->word))
+                       .word_text = args->word_text))
         {
             return 1;
         }

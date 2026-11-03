@@ -178,7 +178,7 @@ EMBED_INLINE void cli_progress_emit(const GitCloneCtx *args)
 
 int cli_git_clone(const CliGitErrMsgCfg *args)
 {
-    void (*progress_line)(const CliEachLineEndedCfg *args) = args->progress_line;
+    void (*progress_line)(const CliEachLineEndedCfg *) = args->progress_line;
     void *context = args->context;
     VerbaLinea *err_msg = args->err_msg;
     static char s_run_path[CLI_GIT_RUN_PATH];

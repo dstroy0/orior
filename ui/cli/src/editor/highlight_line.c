@@ -109,7 +109,7 @@ static unsigned int cli_resolve(const HighlightLineCtx *args)
         if (entry->list != CLI_HIGHLIGHT_NONE)
         {
             hit = EMBED_CALL(cli_highlight_length_internal.has_word, CliHighlightLengthCtx, .grammar = grammar,
-                             .list = &grammar->words[entry->list], .word = key, .length = key_length);
+                             .list = &grammar->words[entry->list], .word_text = key, .length = key_length);
         }
         else if (name[0] != '@')
         {
@@ -576,20 +576,15 @@ void cli_highlight_leaves_get(const CliHighlightWorkStateStateCtx *args)
             EMBED_CALL(cli_close, HighlightLineCtx, .grammar = args->grammar, .coloring = &coloring,
                        .col = t_work_state->cols[coloring.letters]);
         }
-        char state[CLI_HIGHLIGHT_STACK * 4u];
-        VerbaLinea state_line = {state, sizeof(state), 0ULL};
+        char inner_state[CLI_HIGHLIGHT_STACK * 4u];
+        VerbaLinea state_line = {inner_state, sizeof(inner_state), 0ULL};
         EMBED_CALL(cli_state_write, HighlightLineCtx, .grammar = args->grammar, .coloring_read = &coloring,
                    .line_verba_linea_pointer = &state_line);
         // a state longer than its work state is read as root, as a request's last line's is
-        const char *const ended = (mmgr_line_finish(&state_line) != 0ULL) ? state : "root";
-        const CliLeaves leaves = {args->lines[line],
-                                  coloring.runs,
-                                  t_work_state->run_col,
-                                  t_work_state->run_name,
-                                  args->grammar->name,
-                                  args->grammar->text,
-                                  ended,
-                                  t_work_state->cols[coloring.letters]};
+        const char *const inner_ended = (mmgr_line_finish(&state_line) != 0ULL) ? inner_state : "root";
+        const CliLeaves leaves = {
+            args->lines[line],   coloring.runs,       t_work_state->run_col, t_work_state->run_name,
+            args->grammar->name, args->grammar->text, inner_ended,           t_work_state->cols[coloring.letters]};
         EMBED_CALL(args->each, CliLeavesEachCfg, .context = args->context, .leaves = &leaves);
     }
     EMBED_CALL(cli_state_write, HighlightLineCtx, .grammar = args->grammar, .coloring_read = &coloring,

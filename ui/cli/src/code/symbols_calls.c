@@ -139,12 +139,14 @@ EMBED_INLINE void calls_functions_read(const SymbolsCallsCtx *args)
                 continue;
             }
             unsigned int name = CLI_JSON_NONE;
-            for (unsigned int head = statement; (name == CLI_JSON_NONE) && (head < open); head += 1u)
+            unsigned int head = statement;
+            while ((name == CLI_JSON_NONE) && (head < open))
             {
                 name = EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = read,
                                   .leaf = head, .roles = CLI_LEAF_DECLARES | CLI_LEAF_FUNCTION)
                            ? head
                            : CLI_JSON_NONE;
+                head += 1u;
             }
             const CliCallsFunction one = {statement, open, leaf + 1u, name};
             if (name != CLI_JSON_NONE)

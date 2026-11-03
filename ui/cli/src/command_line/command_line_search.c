@@ -70,8 +70,8 @@ int cli_console_search(const CliCommandLineWordsCountCtx *args)
         how.match_case =
             how.match_case ||
             cellul.eq(&(CatenaFinitaCfg){.src = args->words[at], .other = "--case", .cap = CLI_CELLS_POOL});
-        how.word =
-            how.word || cellul.eq(&(CatenaFinitaCfg){.src = args->words[at], .other = "--word", .cap = CLI_CELLS_POOL});
+        how.word_text = how.word_text ||
+                        cellul.eq(&(CatenaFinitaCfg){.src = args->words[at], .other = "--word", .cap = CLI_CELLS_POOL});
         how.regex = how.regex ||
                     cellul.eq(&(CatenaFinitaCfg){.src = args->words[at], .other = "--regex", .cap = CLI_CELLS_POOL});
         if ((!cellul.eq(&(CatenaFinitaCfg){.src = args->words[at], .other = "--case", .cap = CLI_CELLS_POOL})) &&

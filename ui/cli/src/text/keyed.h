@@ -7,15 +7,15 @@
 // own is locked here: each store owns its own lock (keyed.c)
 #ifndef KEYED_H
 #define KEYED_H
+#include "../command_line/callback_cfg.h"
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliKeyedKeyAdjacentCfg CliKeyedKeyAdjacentCfg;
 typedef struct CliKeyedKeyCfg CliKeyedKeyCfg;
 typedef struct CliKeyedNameCfg CliKeyedNameCfg;
 typedef struct CliKeyedEachCfg CliKeyedEachCfg;
 typedef struct CliKeyedCfg CliKeyedCfg;
-
-#include "../command_line/callback_cfg.h"
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // An entry: whether it contains one, the hash of its key, its cell and the cell's size, its key's and its second text's
 // sizes

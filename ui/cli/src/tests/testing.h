@@ -12,6 +12,9 @@
 // `src/files.rs::listing::name` (testing.c, testing_found.c)
 #ifndef TESTING_H
 #define TESTING_H
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliTestingRulesTextCfg CliTestingRulesTextCfg;
 typedef struct CliTestingRulesCfg CliTestingRulesCfg;
 typedef struct CliTestingRulesRuleSizeCfg CliTestingRulesRuleSizeCfg;
@@ -19,9 +22,6 @@ typedef struct CliTestingSizeCfg CliTestingSizeCfg;
 typedef struct CliTestingRulesRuleCfg CliTestingRulesRuleCfg;
 typedef struct CliTestingRootCfg CliTestingRootCfg;
 typedef struct CliTestingCfg CliTestingCfg;
-
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // A test: its name as pytest gives it, its file in the tree, its class where it has one, NULL where it has none, its
 // own name, and the line its name stands on, counted from 0

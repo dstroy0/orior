@@ -5,15 +5,16 @@
 // file and one on its close mark closes it (tabs.c)
 #ifndef GUI_PARTS_TABS_H
 #define GUI_PARTS_TABS_H
-typedef struct GuiTabsGlyphsFrameCountCfg GuiTabsGlyphsFrameCountCfg;
-typedef struct GuiTabsGlyphsFrameCfg GuiTabsGlyphsFrameCfg;
-typedef struct GuiTabsGlyphsCfg GuiTabsGlyphsCfg;
-typedef struct GuiTabsCfg GuiTabsCfg;
 #include "../../controller/controller_parts.h"
 #include "../frame.h"
 #include "../glyphs.h"
 #include "../palette.h"
 #include "embed_dispatch_layout.h"
+
+typedef struct GuiTabsGlyphsFrameCountCfg GuiTabsGlyphsFrameCountCfg;
+typedef struct GuiTabsGlyphsFrameCfg GuiTabsGlyphsFrameCfg;
+typedef struct GuiTabsGlyphsCfg GuiTabsGlyphsCfg;
+typedef struct GuiTabsCfg GuiTabsCfg;
 
 // the sizes in the page's pixels: a tab's text size, its padding at its left and its right, the gap between its name
 // and its close mark, its corner radius, the line along the shown tab's top and left, and the close mark's padding each

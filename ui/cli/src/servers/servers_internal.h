@@ -6,6 +6,18 @@
 // findings, the checkers' and what a build tool and a family give; and the shapes the servers' answers are written in
 #ifndef SERVERS_INTERNAL_H
 #define SERVERS_INTERNAL_H
+#include "../code/symbols.h"
+#include "../command_line/callback_cfg.h"
+#include "../command_line/cells.h"
+#include "../comms/container.h"
+#include "../plugins/plugins.h"
+#include "../text/json_tree.h"
+#include "../text/keyed.h"
+#include "../text/text.h"
+#include "embed_dispatch_layout.h"
+#include "lsp.h"
+#include "servers.h"
+
 typedef struct CliServersPathCtx CliServersPathCtx;
 typedef struct CliServersPathErrMsgCtx CliServersPathErrMsgCtx;
 typedef struct CliServersPathSizeCtx CliServersPathSizeCtx;
@@ -66,18 +78,6 @@ typedef struct CliServersPathUriCtx CliServersPathUriCtx;
 typedef struct CliServersKeyCheckerCtx CliServersKeyCheckerCtx;
 typedef struct CliServersCtx CliServersCtx;
 typedef struct CliServersRootKindCtx CliServersRootKindCtx;
-
-#include "../code/symbols.h"
-#include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
-#include "../comms/container.h"
-#include "../plugins/plugins.h"
-#include "../text/json_tree.h"
-#include "../text/keyed.h"
-#include "../text/text.h"
-#include "embed_dispatch_layout.h"
-#include "lsp.h"
-#include "servers.h"
 
 // the most servers running, toolchains that failed and that ended, words a server starts with, languages and
 // extensions' names of one, and checkers named

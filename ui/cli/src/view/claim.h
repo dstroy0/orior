@@ -11,6 +11,9 @@
 // the timers and says when it next wants the clock, and the frame lays the parts out for the numbers (claim.c)
 #ifndef GUI_AUTOHIDE_H
 #define GUI_AUTOHIDE_H
+#include "embed_dispatch_layout.h"
+#include "frame.h"
+
 typedef struct GuiAutohidePointerCfg GuiAutohidePointerCfg;
 typedef struct GuiAutohideWidthCfg GuiAutohideWidthCfg;
 typedef struct GuiAutohideTableCfg GuiAutohideTableCfg;
@@ -21,8 +24,6 @@ typedef struct GuiAutohideCfg GuiAutohideCfg;
 typedef struct GuiAutohideStillCfg GuiAutohideStillCfg;
 typedef struct GuiAutohideShareCfg GuiAutohideShareCfg;
 typedef struct GuiAutohideSlideCfg GuiAutohideSlideCfg;
-#include "embed_dispatch_layout.h"
-#include "frame.h"
 
 // the edges whose parts a rest brings back, and none
 #define GUI_AUTOHIDE_NONE 0u

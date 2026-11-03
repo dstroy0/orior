@@ -4,12 +4,13 @@
 // its parts. When it is asked for and when it goes are the controller's (hover.c)
 #ifndef GUI_PARTS_HOVER_H
 #define GUI_PARTS_HOVER_H
-typedef struct GuiHoverRasterCfg GuiHoverRasterCfg;
-typedef struct GuiHoverXCfg GuiHoverXCfg;
-typedef struct GuiHoverCfg GuiHoverCfg;
 #include "../../controller/controller_parts.h"
 #include "embed_dispatch_layout.h"
 #include "panel.h"
+
+typedef struct GuiHoverRasterCfg GuiHoverRasterCfg;
+typedef struct GuiHoverXCfg GuiHoverXCfg;
+typedef struct GuiHoverCfg GuiHoverCfg;
 
 // the box's most width and height in the page's pixels, 36rem by 18rem, and its padding down and across
 #define GUI_HOVER_WIDTH 576

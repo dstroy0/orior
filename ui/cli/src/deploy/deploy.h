@@ -22,12 +22,12 @@
 // deploy_existing.c, deploy_run.c, deploy_send.c, deploy_jobs.c)
 #ifndef DEPLOY_H
 #define DEPLOY_H
-typedef struct CliDeployRootCfg CliDeployRootCfg;
-typedef struct CliDeployCfg CliDeployCfg;
-
 #include "../command_line/callback_cfg.h"
 #include "../command_line/cli_internal.h"
 #include "embed_dispatch_layout.h"
+
+typedef struct CliDeployRootCfg CliDeployRootCfg;
+typedef struct CliDeployCfg CliDeployCfg;
 
 // what a deployment does, as the job's `do` specifies
 #define CLI_DEPLOY_PREVIEW 0
@@ -60,7 +60,7 @@ struct CliDeployRootCfg
 
 struct CliDeployCfg
 {
-    const char *word;
+    const char *word_text;
 };
 
 typedef struct

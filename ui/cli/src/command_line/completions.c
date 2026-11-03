@@ -69,13 +69,15 @@ void cli_completions_unique(const CliEditsItemsCfg *args)
     {
         const CliCompletion *const one = &args->items->item[at];
         int seen = 0;
-        for (unsigned int before = 0u; !seen && (before < count); before += 1u)
+        unsigned int before = 0u;
+        while (!seen && (before < count))
         {
             const CliCompletion *const other = &args->items->item[before];
             seen = (other->label_size == one->label_size) &&
                    (memor.cmp(&(MemoriaCfg){.src = args->items->text + other->label_at,
                                             .other = args->items->text + one->label_at,
                                             .bytes = one->label_size}) == 0);
+            before += 1u;
         }
         if (!seen)
         {

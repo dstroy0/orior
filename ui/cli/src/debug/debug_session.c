@@ -112,9 +112,11 @@ CliDebugAnswer *cli_debug_answer_alloc(void)
     CliDebugAnswer *answer = NULL;
     while (answer == NULL)
     {
-        for (unsigned int at = 0u; (at < CLI_DEBUG_ANSWERS) && (answer == NULL); at += 1u)
+        unsigned int at = 0u;
+        while ((at < CLI_DEBUG_ANSWERS) && (answer == NULL))
         {
             answer = s_answers[at].reserved ? NULL : &s_answers[at];
+            at += 1u;
         }
         if (answer == NULL)
         {

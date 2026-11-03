@@ -296,10 +296,12 @@ int cli_replay_integer(const CliRecordingJsonCtx *args)
     const unsigned long long length = (text != NULL) ? args->json->node[args->id].length : 0ULL;
     int whole = (length > 0ULL) && (length <= 19ULL);
     *value = 0ULL;
-    for (unsigned long long at = 0ULL; whole && (at < length); at += 1ULL)
+    unsigned long long at = 0ULL;
+    while (whole && (at < length))
     {
         whole = (text[at] >= '0') && (text[at] <= '9');
         *value = (*value * 10ULL) + (unsigned long long)(text[at] - '0');
+        at += 1ULL;
     }
     return whole && (*value <= 9223372036854775807ULL);
 }

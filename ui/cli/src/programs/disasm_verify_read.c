@@ -19,7 +19,7 @@ typedef struct
     unsigned long long end;
     unsigned long long *at;
     unsigned long long *value;
-    const char *word;
+    const char *word_text;
     CliDisasmReadState *read_state;
     unsigned long long address;
     const char *mnemonic;
@@ -111,26 +111,27 @@ int cli_disasm_symbol_get(const CliDisasmVerifySizeTextCfg *args)
         const unsigned long long end =
             EMBED_CALL(read_line_end, DisasmVerifyReadCtx, .text = args->text, .size = args->size, .at_value = at);
         // the line's last word is the symbol: an address, a kind letter and the name, each apart by one space
-        unsigned long long word = end;
-        word = (at + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->text + at,
-                                .at = word - at, .set = " "));
-        const unsigned long long found = end - word;
-        const int same = (found == length) &&
-                         cellul.starts(&(CatenaFinitaCfg){.src = args->text + word, .other = args->name, .cap = found});
+        unsigned long long word_text = end;
+        word_text = (at + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg,
+                                     .text = args->text + at, .at = word_text - at, .set = " "));
+        const unsigned long long found = end - word_text;
+        const int same =
+            (found == length) &&
+            cellul.starts(&(CatenaFinitaCfg){.src = args->text + word_text, .other = args->name, .cap = found});
         if (same)
         {
             return EMBED_CALL(read_copy, DisasmVerifyReadCtx, .into = args->symbol_out, .capacity = CLI_NAME_MAX_LEN,
-                              .text = args->text + word, .length = found);
+                              .text = args->text + word_text, .length = found);
         }
         const int suffixed =
             !promoted && (found > length + 6ULL) &&
-            cellul.starts(&(CatenaFinitaCfg){.src = args->text + word, .other = args->name, .cap = found}) &&
+            cellul.starts(&(CatenaFinitaCfg){.src = args->text + word_text, .other = args->name, .cap = found}) &&
             cellul.starts(
-                &(CatenaFinitaCfg){.src = args->text + word + length, .other = ".llvm.", .cap = found - length});
+                &(CatenaFinitaCfg){.src = args->text + word_text + length, .other = ".llvm.", .cap = found - length});
         if (suffixed)
         {
             promoted = EMBED_CALL(read_copy, DisasmVerifyReadCtx, .into = args->symbol_out,
-                                  .capacity = CLI_NAME_MAX_LEN, .text = args->text + word, .length = found);
+                                  .capacity = CLI_NAME_MAX_LEN, .text = args->text + word_text, .length = found);
         }
         at = end + 1ULL;
     }
@@ -214,7 +215,7 @@ EMBED_INLINE int read_prefix(const DisasmVerifyReadCtx *args)
     {
         const unsigned long long known = cellul.len(&(CatenaFinitaCfg){.src = prefixes[each], .cap = CLI_NAME_MAX_LEN});
         if ((known == args->length) &&
-            cellul.starts(&(CatenaFinitaCfg){.src = args->word, .other = prefixes[each], .cap = args->length}))
+            cellul.starts(&(CatenaFinitaCfg){.src = args->word_text, .other = prefixes[each], .cap = args->length}))
         {
             return 1;
         }
@@ -318,13 +319,14 @@ int cli_disasm_objdump_read(const CliDisasmVerifySizeCfg *args)
                     }
                 }
                 EMBED_CALL(read_blanks, DisasmVerifyReadCtx, .text = args->text, .end = end, .at = &cursor);
-                unsigned long long word = cursor;
+                unsigned long long word_text = cursor;
                 unsigned long long word_length =
                     EMBED_CALL(read_word, DisasmVerifyReadCtx, .text = args->text, .end = end, .at = &cursor);
-                if (EMBED_CALL(read_prefix, DisasmVerifyReadCtx, .word = args->text + word, .length = word_length))
+                if (EMBED_CALL(read_prefix, DisasmVerifyReadCtx, .word_text = args->text + word_text,
+                               .length = word_length))
                 {
                     EMBED_CALL(read_blanks, DisasmVerifyReadCtx, .text = args->text, .end = end, .at = &cursor);
-                    word = cursor;
+                    word_text = cursor;
                     word_length =
                         EMBED_CALL(read_word, DisasmVerifyReadCtx, .text = args->text, .end = end, .at = &cursor);
                 }
@@ -332,7 +334,7 @@ int cli_disasm_objdump_read(const CliDisasmVerifySizeCfg *args)
                 {
                     CliDisasmInstruction *const unit =
                         EMBED_CALL(read_append, DisasmVerifyReadCtx, .read_state = args->read_state, .address = address,
-                                   .mnemonic = args->text + word, .length = word_length);
+                                   .mnemonic = args->text + word_text, .length = word_length);
                     if (unit == NULL)
                     {
                         return found;
@@ -382,15 +384,15 @@ int cli_disasm_ghidra_read(const CliDisasmVerifySizeCfg *args)
                     (cursor < end) && (args->text[cursor] == ' '))
                 {
                     cursor += 1ULL;
-                    const unsigned long long word = cursor;
+                    const unsigned long long word_text = cursor;
                     const unsigned long long word_length =
                         EMBED_CALL(read_word, DisasmVerifyReadCtx, .text = args->text, .end = end, .at = &cursor);
                     // a raw run is "?" then its bytes as one hex string, read as a unit with no mnemonic
-                    const int raw = (word_length == 1ULL) && (args->text[word] == '?');
+                    const int raw = (word_length == 1ULL) && (args->text[word_text] == '?');
                     CliDisasmInstruction *const unit =
                         (word_length > 0ULL)
                             ? EMBED_CALL(read_append, DisasmVerifyReadCtx, .read_state = args->read_state,
-                                         .address = address, .mnemonic = args->text + word,
+                                         .address = address, .mnemonic = args->text + word_text,
                                          .length = raw ? 0ULL : word_length)
                             : NULL;
                     if ((word_length > 0ULL) && (unit == NULL))

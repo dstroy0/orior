@@ -13,7 +13,7 @@ void cli_py_functions(const CliInspectPySrcSizeCfg *args)
     {
         const CliPyLine *const line = &g_cli_py_line[at];
         if (!EMBED_CALL(cli_inspect_py_src_line.py_head_is, CliInspectPySrcLineCfg, .src = args->src, .line = line,
-                        .word = "def") ||
+                        .word_text = "def") ||
             !EMBED_CALL(cli_inspect_py_src_line.py_opens, CliInspectPySrcLineCfg, .src = args->src, .line = line))
         {
             continue;
@@ -23,7 +23,7 @@ void cli_py_functions(const CliInspectPySrcSizeCfg *args)
         {
             name_at = EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = args->src,
                                  .tok = EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = line, .at = offset),
-                                 .word = "def")
+                                 .word_text = "def")
                           ? (offset + 1u)
                           : name_at;
         }
@@ -42,7 +42,7 @@ void cli_py_functions(const CliInspectPySrcSizeCfg *args)
                 continue;
             }
             if (EMBED_CALL(cli_inspect_py_src_line.py_head_is, CliInspectPySrcLineCfg, .src = args->src, .line = inner,
-                           .word = "def") &&
+                           .word_text = "def") &&
                 EMBED_CALL(cli_inspect_py_src_line.py_opens, CliInspectPySrcLineCfg, .src = args->src, .line = inner))
             {
                 nested_end = EMBED_CALL(cli_inspect_py.py_block_end, CliInspectPyCfg, .at = index);
@@ -56,7 +56,7 @@ void cli_py_functions(const CliInspectPySrcSizeCfg *args)
                     !EMBED_CALL(
                         cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = args->src,
                         .tok = EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = inner, .at = offset + 1u),
-                        .word = "(") ||
+                        .word_text = "(") ||
                     EMBED_CALL(cli_inspect_py_src_tok.py_keyword, CliInspectPySrcTokCfg, .src = args->src, .tok = tok))
                 {
                     continue;
@@ -68,16 +68,16 @@ void cli_py_functions(const CliInspectPySrcSizeCfg *args)
                                                                                .line = inner, .at = offset - 2u)
                                                                   : NULL;
                 const int dotted = (before != NULL) && EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg,
-                                                                  .src = args->src, .tok = before, .word = ".");
+                                                                  .src = args->src, .tok = before, .word_text = ".");
                 const int own = (owner != NULL) && (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg,
-                                                               .src = args->src, .tok = owner, .word = "self") ||
+                                                               .src = args->src, .tok = owner, .word_text = "self") ||
                                                     EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg,
-                                                               .src = args->src, .tok = owner, .word = "cls"));
+                                                               .src = args->src, .tok = owner, .word_text = "cls"));
                 const int declared =
                     (before != NULL) && (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg,
-                                                    .src = args->src, .tok = before, .word = "def") ||
+                                                    .src = args->src, .tok = before, .word_text = "def") ||
                                          EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg,
-                                                    .src = args->src, .tok = before, .word = "class"));
+                                                    .src = args->src, .tok = before, .word_text = "class"));
                 if ((dotted && !own) || declared)
                 {
                     continue;
@@ -162,7 +162,8 @@ EMBED_INLINE void facts_plain_import(const InspectPyFactsCtx *args)
     {
         if ((at < line->count) &&
             !EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src,
-                        .tok = EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = line, .at = at), .word = ","))
+                        .tok = EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = line, .at = at),
+                        .word_text = ","))
         {
             continue;
         }
@@ -173,7 +174,8 @@ EMBED_INLINE void facts_plain_import(const InspectPyFactsCtx *args)
         {
             const CliInspectTok *const tok =
                 EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = line, .at = part);
-            if (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word = "as"))
+            if (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok,
+                           .word_text = "as"))
             {
                 alias = (part + 1u < at)
                             ? EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = line, .at = part + 1u)
@@ -202,7 +204,7 @@ EMBED_INLINE void facts_from_import(const InspectPyFactsCtx *args)
     {
         import_at = EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src,
                                .tok = EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = line, .at = at),
-                               .word = "import")
+                               .word_text = "import")
                         ? at
                         : import_at;
     }
@@ -223,7 +225,8 @@ EMBED_INLINE void facts_from_import(const InspectPyFactsCtx *args)
     {
         if ((at < line->count) &&
             !EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src,
-                        .tok = EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = line, .at = at), .word = ","))
+                        .tok = EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = line, .at = at),
+                        .word_text = ","))
         {
             continue;
         }
@@ -233,8 +236,10 @@ EMBED_INLINE void facts_from_import(const InspectPyFactsCtx *args)
         {
             const CliInspectTok *const tok =
                 EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = line, .at = part);
-            if (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word = "(") ||
-                EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word = ")"))
+            if (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok,
+                           .word_text = "(") ||
+                EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok,
+                           .word_text = ")"))
             {
                 continue;
             }
@@ -243,25 +248,27 @@ EMBED_INLINE void facts_from_import(const InspectPyFactsCtx *args)
                 name = tok;
             }
             else if (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok,
-                                .word = "as") &&
+                                .word_text = "as") &&
                      (alias == NULL))
             {
-                for (unsigned int after = part + 1u; (alias == NULL) && (after < at); after += 1u)
+                unsigned int after = part + 1u;
+                while ((alias == NULL) && (after < at))
                 {
                     const CliInspectTok *const next =
                         EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = line, .at = after);
                     alias = (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = next,
-                                        .word = "(") ||
+                                        .word_text = "(") ||
                              EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = next,
-                                        .word = ")"))
+                                        .word_text = ")"))
                                 ? NULL
                                 : next;
+                    after += 1u;
                 }
                 break;
             }
         }
         if ((name != NULL) &&
-            !EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = name, .word = "*"))
+            !EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = name, .word_text = "*"))
         {
             (void)EMBED_CALL(cli_inspect_size_from_internal.name_append, CliInspectSizeFromCtx, .facts = facts,
                              .name = src + name->start, .size = name->end - name->start,
@@ -286,14 +293,14 @@ void cli_py_imports(const CliInspectPySrcSizeCfg *args)
         }
         const CliPyLine *const line = &g_cli_py_line[at];
         const int declares = EMBED_CALL(cli_inspect_py_src_line.py_head_is, CliInspectPySrcLineCfg, .src = args->src,
-                                        .line = line, .word = "def") ||
+                                        .line = line, .word_text = "def") ||
                              EMBED_CALL(cli_inspect_py_src_line.py_head_is, CliInspectPySrcLineCfg, .src = args->src,
-                                        .line = line, .word = "class");
+                                        .line = line, .word_text = "class");
         const int checking =
             EMBED_CALL(cli_inspect_py_src_line.py_head_is, CliInspectPySrcLineCfg, .src = args->src, .line = line,
-                       .word = "if") &&
+                       .word_text = "if") &&
             EMBED_CALL(cli_inspect_py_src_word.py_contains, CliInspectPySrcWordCfg, .src = args->src,
-                       .toks = &g_cli_inspect_tok[line->first], .count = line->count, .word = "TYPE_CHECKING");
+                       .toks = &g_cli_inspect_tok[line->first], .count = line->count, .word_text = "TYPE_CHECKING");
         if ((declares || checking) &&
             EMBED_CALL(cli_inspect_py_src_line.py_opens, CliInspectPySrcLineCfg, .src = args->src, .line = line))
         {
@@ -302,13 +309,13 @@ void cli_py_imports(const CliInspectPySrcSizeCfg *args)
         }
         if (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = args->src,
                        .tok = EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = line, .at = 0u),
-                       .word = "import"))
+                       .word_text = "import"))
         {
             EMBED_CALL(facts_plain_import, InspectPyFactsCtx, .src = args->src, .line = line, .facts = args->facts);
         }
         else if (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = args->src,
                             .tok = EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = line, .at = 0u),
-                            .word = "from"))
+                            .word_text = "from"))
         {
             EMBED_CALL(facts_from_import, InspectPyFactsCtx, .src = args->src, .line = line, .facts = args->facts);
         }
@@ -324,7 +331,7 @@ void cli_inspect_py_facts(const CliInspectSizeSrcFactsCtx *args)
     {
         const CliPyLine *const line = &g_cli_py_line[at];
         if (EMBED_CALL(cli_inspect_py_src_line.py_head_is, CliInspectPySrcLineCfg, .src = args->src, .line = line,
-                       .word = "def") &&
+                       .word_text = "def") &&
             EMBED_CALL(cli_inspect_py_src_line.py_opens, CliInspectPySrcLineCfg, .src = args->src, .line = line))
         {
             EMBED_CALL(cli_inspect_py_src_size.py_unread, CliInspectPySrcSizeCfg, .src = args->src, .size = args->size,

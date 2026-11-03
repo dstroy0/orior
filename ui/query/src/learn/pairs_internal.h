@@ -4,6 +4,9 @@
 // the calls one reads from the other
 #ifndef PAIRS_INTERNAL_H
 #define PAIRS_INTERNAL_H
+#include "../query_loops.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct QueryPairsPartDryCtx QueryPairsPartDryCtx;
 typedef struct QueryPairsContextErrMsgRunCtx QueryPairsContextErrMsgRunCtx;
 typedef struct QueryPairsContextErrMsgCtx QueryPairsContextErrMsgCtx;
@@ -17,9 +20,6 @@ typedef struct QueryPairsFolderCtx QueryPairsFolderCtx;
 typedef struct QueryPairsPartNameCtx QueryPairsPartNameCtx;
 typedef struct QueryPairsWordsCtx QueryPairsWordsCtx;
 typedef struct QueryPairsCtx QueryPairsCtx;
-
-#include "../query_loops.h"
-#include "embed_dispatch_layout.h"
 
 // the stick's folder, the vendor's reading of it and, under `engine/`, the engine's; the identity's working folder;
 // and the run folder where no trace folder is named

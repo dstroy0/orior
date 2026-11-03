@@ -4,6 +4,9 @@
 // written over it, and the lines a reading of them gives, under the pages' lock
 #ifndef PAGES_INTERNAL_H
 #define PAGES_INTERNAL_H
+#include "embed_dispatch_layout.h"
+#include "pages.h"
+
 typedef struct CliPagesLinesCtx CliPagesLinesCtx;
 typedef struct CliPagesLinesErrMsgCtx CliPagesLinesErrMsgCtx;
 typedef struct CliPagesErrMsgCtx CliPagesErrMsgCtx;
@@ -14,9 +17,6 @@ typedef struct CliPagesLinesLinesMoreCtx CliPagesLinesLinesMoreCtx;
 typedef struct CliPagesPieceCtx CliPagesPieceCtx;
 typedef struct CliPagesCtx CliPagesCtx;
 typedef struct CliPagesOneCtx CliPagesOneCtx;
-
-#include "embed_dispatch_layout.h"
-#include "pages.h"
 
 // how many lines apart the index records the byte a line starts at, and how many bytes apart at the most, so a reading
 // of a file of long lines starts near the lines it reads; the most starts it records; how many lines find and a save

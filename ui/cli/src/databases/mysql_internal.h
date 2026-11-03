@@ -4,6 +4,9 @@
 // columns of the result being read
 #ifndef MYSQL_INTERNAL_H
 #define MYSQL_INTERNAL_H
+#include "embed_dispatch_layout.h"
+#include "mysql.h"
+
 typedef struct CliMysqlSizeCtx CliMysqlSizeCtx;
 typedef struct CliMysqlFailurePasswordCtx CliMysqlFailurePasswordCtx;
 typedef struct CliMysqlSizePasswordCtx CliMysqlSizePasswordCtx;
@@ -17,9 +20,6 @@ typedef struct CliMysqlCtx CliMysqlCtx;
 typedef struct CliMysqlACtx CliMysqlACtx;
 typedef struct CliMysqlBigCtx CliMysqlBigCtx;
 typedef struct CliMysqlBigOutCtx CliMysqlBigOutCtx;
-
-#include "embed_dispatch_layout.h"
-#include "mysql.h"
 
 // the most connections at once; the bytes read off the socket at a time; the most bytes of one packet; and the bytes a
 // row's values written in hex take
@@ -86,7 +86,7 @@ int cli_mysql_signed_in(const CliMysqlFailurePasswordCtx *args);
 // A number: its words, least first, and how many of them are used, the top one not 0
 typedef struct
 {
-    unsigned int word[CLI_BIG_WORDS];
+    unsigned int word_text[CLI_BIG_WORDS];
     unsigned int count;
 } CliBig;
 

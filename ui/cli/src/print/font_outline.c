@@ -175,10 +175,12 @@ void cli_font_outline(const CliFontGlyphMatrixCfg *args)
         {
             const unsigned int repeats = (cursor < args->font->size) ? args->font->data[cursor] : 0u;
             cursor += 1ULL;
-            for (unsigned int each = 0u; (each < repeats) && (flag_count < points); each += 1u)
+            unsigned int each = 0u;
+            while ((each < repeats) && (flag_count < points))
             {
                 s_flags[flag_count] = flag;
                 flag_count += 1u;
+                each += 1u;
             }
         }
     }
@@ -218,9 +220,13 @@ void cli_font_outline(const CliFontGlyphMatrixCfg *args)
         const unsigned int ring = end - start + 1u;
         // The contour starts at a point on the curve: the first that is, or the middle of the first two
         unsigned int first_on = ring;
-        for (unsigned int index = 0u; (first_on == ring) && (index < ring); index += 1u)
         {
-            first_on = ((s_flags[start + index] & 1u) != 0u) ? index : ring;
+            unsigned int index = 0u;
+            while ((first_on == ring) && (index < ring))
+            {
+                first_on = ((s_flags[start + index] & 1u) != 0u) ? index : ring;
+                index += 1u;
+            }
         }
         const unsigned int second = start + ((ring > 1u) ? 1u : 0u);
         const float begin[2] = {(first_on < ring) ? s_xs[start + first_on] : ((s_xs[start] + s_xs[second]) / 2.0f),
@@ -367,11 +373,11 @@ void cli_font_rasterize(const CliFontContoursCfg *args)
         min_y = (args->contours->y[at] < min_y) ? args->contours->y[at] : min_y;
         max_y = (args->contours->y[at] > max_y) ? args->contours->y[at] : max_y;
     }
-    args->mask->width = 0ULL;
-    args->mask->height = 0ULL;
-    args->mask->left = 0;
-    args->mask->top = 0;
-    args->mask->cover = cover;
+    args->mask_bits->width = 0ULL;
+    args->mask_bits->height = 0ULL;
+    args->mask_bits->left = 0;
+    args->mask_bits->top = 0;
+    args->mask_bits->cover = cover;
     if (min_x > max_x)
     {
         return;
@@ -385,10 +391,10 @@ void cli_font_rasterize(const CliFontContoursCfg *args)
     const unsigned long long height = (unsigned long long)((rows > 1) ? rows : 1);
     if (cover == NULL)
     {
-        args->mask->width = width;
-        args->mask->height = height;
-        args->mask->left = left;
-        args->mask->top = top;
+        args->mask_bits->width = width;
+        args->mask_bits->height = height;
+        args->mask_bits->left = left;
+        args->mask_bits->top = top;
         return;
     }
     if (((width * height) + 4ULL) > args->capacity)
@@ -422,8 +428,8 @@ void cli_font_rasterize(const CliFontContoursCfg *args)
             cover[(row * width) + column] = (magnitude < 1.0f) ? magnitude : 1.0f;
         }
     }
-    args->mask->width = width;
-    args->mask->height = height;
-    args->mask->left = left;
-    args->mask->top = top;
+    args->mask_bits->width = width;
+    args->mask_bits->height = height;
+    args->mask_bits->left = left;
+    args->mask_bits->top = top;
 }

@@ -10,11 +10,11 @@
 // CLI_REACH_REFUSED and then its text (reach.c)
 #ifndef REACH_H
 #define REACH_H
-typedef struct CliReachMenuCfg CliReachMenuCfg;
-typedef struct CliReachCfg CliReachCfg;
-
 #include "../command_line/cli_internal.h"
 #include "embed_dispatch_layout.h"
+
+typedef struct CliReachMenuCfg CliReachMenuCfg;
+typedef struct CliReachCfg CliReachCfg;
 
 // the fields before a command's words; and the first byte of an answer, where the command ran and where it did not
 #define CLI_REACH_HEAD_FIELDS 3u

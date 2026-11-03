@@ -179,10 +179,12 @@ EMBED_INLINE int within_length(const DapWithinCtx *args)
             }
             has_length = (stop > at);
             *length = 0ULL;
-            for (unsigned long long digit = at; has_length && (digit < stop); digit += 1ULL)
+            unsigned long long digit = at;
+            while (has_length && (digit < stop))
             {
                 has_length = (s_head[digit] >= '0') && (s_head[digit] <= '9');
                 *length = (*length * 10ULL) + (unsigned long long)(s_head[digit] - '0');
+                digit += 1ULL;
             }
         }
         line = end + 1ULL;

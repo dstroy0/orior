@@ -140,7 +140,8 @@ static int cli_look(const CliEachNameLengthOutCfg *args)
     else if ((args->length > 8ULL) && (memor.cmp(&(MemoriaCfg){.src = name, .other = "setting:", .bytes = 8u}) == 0) &&
              (names->depth < CLI_SETTINGS_NAMES_DEEP))
     {
-        for (unsigned int at = names->raws; !found && (at > 0u); at -= 1u)
+        unsigned int at = names->raws;
+        while (!found && (at > 0u))
         {
             const CliRaw *const raw = &names->raw[at - 1u];
             if ((cellul.len(&(CatenaFinitaCfg){.src = raw->key, .cap = CLI_CELLS_POOL}) == (args->length - 8ULL)) &&
@@ -151,6 +152,7 @@ static int cli_look(const CliEachNameLengthOutCfg *args)
                 names->depth -= 1u;
                 found = 1;
             }
+            at -= 1u;
         }
     }
     if (!found && (names->missings < CLI_SETTINGS_PROBLEMS))

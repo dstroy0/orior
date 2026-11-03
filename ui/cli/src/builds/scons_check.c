@@ -351,7 +351,7 @@ void cli_scons_free(const CliSconsTextSizeContextCtx *args)
 {
     const char *text = args->text;
     unsigned long long size = args->size;
-    void (*each)(const CliEachNameSizeCfg *args) = args->each_callback;
+    void (*each)(const CliEachNameSizeCfg *) = args->each_callback;
     void *context = args->context;
     for (unsigned int at = 0u; at < 76u; at += 1u)
     {

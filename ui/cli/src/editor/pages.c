@@ -151,7 +151,8 @@ static void cli_index_read(void *context)
     int stop = 0;
     // a chunk at a time stored in a cell, its newlines found where it lies; a line that runs over a chunk's end is
     // counted at its newline in the chunk after
-    for (unsigned long long offset = 0ULL; sized && !stop && (offset < size); offset += CLI_PAGE_CHUNK)
+    unsigned long long offset = 0ULL;
+    while (sized && !stop && (offset < size))
     {
         unsigned long long len = 0ULL;
         const unsigned char *const chunk =
@@ -183,6 +184,7 @@ static void cli_index_read(void *context)
         index->lines = lines;
         stop = index->cancel || (chunk == NULL) || (len == 0ULL);
         EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = chunk, .owner = &g_cli_editor_cells);
+        offset += CLI_PAGE_CHUNK;
     }
     index->lines = lines;
     index->done = 1;

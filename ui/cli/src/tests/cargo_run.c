@@ -315,13 +315,13 @@ EMBED_INLINE void run_target_words(const CargoRunCtx *args)
 {
     CliWords *words = args->words;
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
-               .word = (args->target->kind == CLI_CARGO_LIB)   ? "--lib"
-                       : (args->target->kind == CLI_CARGO_BIN) ? "--bin"
-                                                               : "--test");
+               .word_text = (args->target->kind == CLI_CARGO_LIB)   ? "--lib"
+                            : (args->target->kind == CLI_CARGO_BIN) ? "--bin"
+                                                                    : "--test");
     if (args->target->kind != CLI_CARGO_LIB)
     {
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
-                   .word = args->target->name);
+                   .word_text = args->target->name);
     }
 }
 
@@ -359,18 +359,19 @@ EMBED_INLINE int run_target_start(const CargoRunCtx *args)
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-                   .word = head[at]);
+                   .word_text = head[at]);
     }
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-               .word = first->package);
+               .word_text = first->package);
     EMBED_CALL(run_target_words, CargoRunCtx, .words = &s_words, .target = &first->target);
     const char *const middle[5] = {"--no-fail-fast", "--color", "never", "--manifest-path", manifest};
     for (unsigned int at = 0u; at < 5u; at += 1u)
     {
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-                   .word = middle[at]);
+                   .word_text = middle[at]);
     }
-    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words, .word = "--");
+    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
+               .word_text = "--");
     worker->named = run->named_count;
     unsigned long long names = 0ULL;
     for (unsigned int at = 0u; (at < args->group->count) && (run->named_count < CLI_TEST_NAMED); at += 1u)
@@ -396,21 +397,21 @@ EMBED_INLINE int run_target_start(const CargoRunCtx *args)
         for (unsigned int at = worker->named; at < run->named_count; at += 1u)
         {
             EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-                       .word = run->named[at].full);
+                       .word_text = run->named[at].full);
         }
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-                   .word = "--exact");
+                   .word_text = "--exact");
     }
     const char *const tail[3] = {"--show-output", "--color", "never"};
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-                   .word = tail[at]);
+                   .word_text = tail[at]);
     }
     if (args->group->named)
     {
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-                   .word = "--include-ignored");
+                   .word_text = "--include-ignored");
     }
     EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = s_path, .size = sizeof(s_path));
     const CliSetting settings[2] = {{"PATH", s_path}, {"CARGO_TERM_COLOR", "never"}};
@@ -433,7 +434,7 @@ EMBED_INLINE int run_target_start(const CargoRunCtx *args)
     EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = run->scratch, .relative = name, .joined = worker->seen);
     const int started =
         EMBED_CALL(cli_words_err_msg_internal.spawn_as, CliWordsErrMsgCtx, .priority = CLI_PRIORITY_GUEST,
-                   .spawned = &worker->spawned, .words = s_words.word, .folder = package, .settings = settings,
+                   .spawned = &worker->spawned, .words = s_words.word_text, .folder = package, .settings = settings,
                    .count = 2u, .detached = 1, .err_msg = err_msg);
     run->worker_count += started ? 1u : 0u;
     if (!started)
@@ -461,10 +462,12 @@ int cli_cargo_workers_start(const CliTestRunsRunInputCtx *args)
     const unsigned int groups =
         EMBED_CALL(run_group, CargoRunCtx, .root = args->run->root, .supplied = args->supplied, .count = args->count);
     int started = 1;
-    for (unsigned int group = 0u; started && (group < groups); group += 1u)
+    unsigned int group = 0u;
+    while (started && (group < groups))
     {
         started = EMBED_CALL(run_target_start, CargoRunCtx, .run = args->run, .group = &s_groups[group], .cargo = cargo,
                              .err_msg = args->err_msg);
+        group += 1u;
     }
     // each worker took its tests' names into the run, so the tests found are given back once every one is started
     EMBED_CALL(cli_cargo_tests_table.free, CliCargoTestsCfg, .tests = &s_tests);

@@ -20,7 +20,7 @@ typedef struct
     unsigned long long start;
     unsigned long long *from;
     unsigned long long *to;
-    const char *word;
+    const char *word_text;
     unsigned long long size;
     unsigned int *section;
     const char **kind;
@@ -117,7 +117,7 @@ EMBED_INLINE void references_section_get(const GradleReferencesCtx *args)
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
         if ((cellul.len(&(CatenaFinitaCfg){.src = s_names[at], .cap = CLI_CELLS_POOL}) == args->size) &&
-            (memor.cmp(&(MemoriaCfg){.src = s_names[at], .other = args->word, .bytes = (size_t)args->size}) == 0))
+            (memor.cmp(&(MemoriaCfg){.src = s_names[at], .other = args->word_text, .bytes = (size_t)args->size}) == 0))
         {
             *section = s_sections[at];
             *kind = s_kinds[at];
@@ -139,7 +139,7 @@ EMBED_INLINE void references_one(const GradleReferencesCtx *args)
     unsigned int section = 0u;
     const char *kind = NULL;
     unsigned int path_from = 0u;
-    EMBED_CALL(references_section_get, GradleReferencesCtx, .word = text + from[0], .size = to[0] - from[0],
+    EMBED_CALL(references_section_get, GradleReferencesCtx, .word_text = text + from[0], .size = to[0] - from[0],
                .section = &section, .kind = &kind, .path_from = &path_from);
     if (path_from >= args->count)
     {
@@ -225,11 +225,13 @@ void cli_gradle_references(const CliVersionCatalogLinesCtx *args)
     const char *const text = g_cli_gradle.text;
     const unsigned long long size = g_cli_gradle.size;
     const unsigned long long name_size = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
-    for (unsigned long long at = 0ULL; at + name_size + 1u <= size; at += 1u)
+    unsigned long long at = 0ULL;
+    while (at + name_size + 1u <= size)
     {
         if ((memor.cmp(&(MemoriaCfg){.src = text + at, .other = args->name, .bytes = (size_t)name_size}) != 0) ||
             (text[at + name_size] != '.') || (g_cli_gradle.class_of[at] != CLI_GRADLE_CODE))
         {
+            at += 1u;
             continue;
         }
         unsigned long long length = 0ULL;
@@ -238,6 +240,7 @@ void cli_gradle_references(const CliVersionCatalogLinesCtx *args)
                                               : ' ';
         if (EMBED_CALL(cli_each_letter.build_word_letter, CliEachLetterCfg, .letter = before) || (before == '.'))
         {
+            at += 1u;
             continue;
         }
         unsigned long long from[CLI_GRADLE_SEGMENTS];
@@ -251,5 +254,6 @@ void cli_gradle_references(const CliVersionCatalogLinesCtx *args)
                        .from_read = from, .to_read = to, .count = count);
         }
         at += name_size;
+        at += 1u;
     }
 }

@@ -12,15 +12,15 @@
 // mysql_rsa.c)
 #ifndef MYSQL_H
 #define MYSQL_H
+#include "db_wire.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliMysqlHostCfg CliMysqlHostCfg;
 typedef struct CliMysqlFailureCfg CliMysqlFailureCfg;
 typedef struct CliMysqlFailureSqlCfg CliMysqlFailureSqlCfg;
 typedef struct CliMysqlCfg CliMysqlCfg;
 typedef struct CliMysqlCancelCfg CliMysqlCancelCfg;
 typedef struct CliMysqlTextCfg CliMysqlTextCfg;
-
-#include "db_wire.h"
-#include "embed_dispatch_layout.h"
 
 // A connection to a MySQL or MariaDB server
 typedef struct CliMysql CliMysql;

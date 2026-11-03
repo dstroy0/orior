@@ -4,15 +4,15 @@
 // steps of reading one calls in another
 #ifndef REGEXP_READ_INTERNAL_H
 #define REGEXP_READ_INTERNAL_H
+#include "embed_dispatch_layout.h"
+#include "regexp.h"
+
 typedef struct CliRegexpReadKindCtx CliRegexpReadKindCtx;
 typedef struct CliRegexpReadCtx CliRegexpReadCtx;
 typedef struct CliRegexpReadErrorCtx CliRegexpReadErrorCtx;
 typedef struct CliRegexpReadLetterCtx CliRegexpReadLetterCtx;
 typedef struct CliRegexpReadValueCtx CliRegexpReadValueCtx;
 typedef struct CliRegexpReadLetterKindCtx CliRegexpReadLetterKindCtx;
-
-#include "embed_dispatch_layout.h"
-#include "regexp.h"
 
 // the most alternatives, parts of a sequence and items of a class read at one level
 #define CLI_REGEXP_LEVEL_MAX 256u

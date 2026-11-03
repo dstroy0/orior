@@ -362,7 +362,7 @@ void gui_problems_draw(const GuiProblemsRowFrameCfg *args)
             continue;
         }
         // a diagnostic's row: the guide, the mark in its severity's color, the message and its place at the right
-        const CliProblemRow *const one = file;
+        const CliProblemRow *const inner_one = file;
         EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
                    .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
                                       .one = (GuiRect){rect.x + pad + (arrow / 2), rect.y,
@@ -377,12 +377,13 @@ void gui_problems_draw(const GuiProblemsRowFrameCfg *args)
             .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
                                .one = (GuiRect){mark_x, rect.y + ((rect.height - mark) / 2), mark, mark}, .other = on),
             .radius = (unsigned int)(mark / 2),
-            .color = EMBED_CALL(problems_color, ProblemsCtx, .palette = args->palette, .severity = one->severity));
+            .color =
+                EMBED_CALL(problems_color, ProblemsCtx, .palette = args->palette, .severity = inner_one->severity));
         char where_text[48];
         VerbaLinea where = {where_text, sizeof(where_text), 0ULL};
-        mmgr_line_decimal(&where, one->line + 1ULL, 1u);
+        mmgr_line_decimal(&where, inner_one->line + 1ULL, 1u);
         mmgr_line_ch(&where, ':');
-        mmgr_line_decimal(&where, one->col + 1ULL, 1u);
+        mmgr_line_decimal(&where, inner_one->col + 1ULL, 1u);
         const float where_width =
             EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs, .face = GUI_FACE_CODE,
                        .size = where_size, .text = where_text, .length = where.at);
@@ -397,8 +398,8 @@ void gui_problems_draw(const GuiProblemsRowFrameCfg *args)
                        .one = (GuiRect){rect.x, rect.y, (int)where_x - gap - rect.x, rect.height}, .other = on);
         (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
                          .face = GUI_FACE_HEAD, .size = message_size, .x_f32 = (float)(mark_x + mark + gap),
-                         .y = baseline, .text = one->message,
-                         .length = cellul.len(&(CatenaFinitaCfg){.src = one->message, .cap = CLI_CELLS_POOL}),
+                         .y = baseline, .text = inner_one->message,
+                         .length = cellul.len(&(CatenaFinitaCfg){.src = inner_one->message, .cap = CLI_CELLS_POOL}),
                          .color = args->palette->text, .clip = text_clip);
     }
 }

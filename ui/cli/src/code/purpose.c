@@ -137,13 +137,15 @@ int cli_purpose_uses(const CliPurposeTextCfg *args)
             lead += step;
         }
         int imports = 0;
-        for (unsigned int keyword = 0u; !imports && (keyword < 12u); keyword += 1u)
+        unsigned int keyword = 0u;
+        while (!imports && (keyword < 12u))
         {
             const unsigned long long size_of =
                 cellul.len(&(CatenaFinitaCfg){.src = s_imports[keyword], .cap = CLI_CELLS_POOL});
             imports =
                 ((length - lead) >= size_of) &&
                 (memor.cmp(&(MemoriaCfg){.src = line + lead, .other = s_imports[keyword], .bytes = size_of}) == 0);
+            keyword += 1u;
         }
         if (imports && EMBED_CALL(cli_name_in, PurposeCtx, .within = line, .size = length, .name = args->stem))
         {

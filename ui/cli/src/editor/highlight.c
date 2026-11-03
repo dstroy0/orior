@@ -555,22 +555,23 @@ EMBED_INLINE void cli_words_read(const HighlightCtx *args)
         for (unsigned int item = json->node[member].first; item != CLI_JSON_NONE; item = json->node[item].next)
         {
             unsigned long long length = 0ULL;
-            const char *const word = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
-                                                .json_read = json, .node = item, .length_pointer = &length);
-            if ((word == NULL) || (args->grammar->word_count >= s_read->words_max))
+            const char *const word_text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                                     .json_read = json, .node = item, .length_pointer = &length);
+            if ((word_text == NULL) || (args->grammar->word_count >= s_read->words_max))
             {
                 continue;
             }
-            const unsigned int text = EMBED_CALL(cli_text, HighlightCtx, .grammar = args->grammar, .text = word,
+            const unsigned int text = EMBED_CALL(cli_text, HighlightCtx, .grammar = args->grammar, .text = word_text,
                                                  .length = length, .lower = args->grammar->ignore_case);
             // put in its place among the list's words, none twice
             unsigned int place = list->count;
             int twice = 0;
             while ((place > 0u) && !twice)
             {
-                const int order = EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg,
-                                             .one = args->grammar->text + args->grammar->word[list->first + place - 1u],
-                                             .other_pointer = args->grammar->text + text);
+                const int order =
+                    EMBED_CALL(cli_text_size_one.order, CliTextSizeOneCfg,
+                               .one = args->grammar->text + args->grammar->word_text[list->first + place - 1u],
+                               .other_pointer = args->grammar->text + text);
                 twice = order == 0;
                 if (order <= 0)
                 {
@@ -584,9 +585,9 @@ EMBED_INLINE void cli_words_read(const HighlightCtx *args)
             }
             for (unsigned int at = list->count; at > place; at -= 1u)
             {
-                args->grammar->word[list->first + at] = args->grammar->word[list->first + at - 1u];
+                args->grammar->word_text[list->first + at] = args->grammar->word_text[list->first + at - 1u];
             }
-            args->grammar->word[list->first + place] = text;
+            args->grammar->word_text[list->first + place] = text;
             list->count += 1u;
             args->grammar->word_count += 1u;
         }
@@ -708,7 +709,7 @@ int cli_highlight_read(const CliHighlightJsonCtx *args)
     args->grammar_out->cases = args->grammar_work_state_pointer->cases;
     args->grammar_out->list_entries = args->grammar_work_state_pointer->list_entries;
     args->grammar_out->state = args->grammar_work_state_pointer->state;
-    args->grammar_out->word = args->grammar_work_state_pointer->word;
+    args->grammar_out->word_text = args->grammar_work_state_pointer->word_text;
     args->grammar_out->words = args->grammar_work_state_pointer->words;
     args->grammar_out->name = args->grammar_work_state_pointer->name;
     args->grammar_out->text = args->grammar_work_state_pointer->text;

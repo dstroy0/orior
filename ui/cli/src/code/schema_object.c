@@ -104,10 +104,10 @@ EMBED_INLINE void object_dependent(const SchemaObjectCtx *args)
     const CliJson *const json = &check->store->json;
     const CliSchemaRead *const read = check->read;
     static const char *const s_words[3] = {"dependencies", "dependentRequired", "dependentSchemas"};
-    for (unsigned int word = 0u; word < 3u; word += 1u)
+    for (unsigned int word_text = 0u; word_text < 3u; word_text += 1u)
     {
-        const unsigned int all =
-            EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json, .map = map, .name = s_words[word]);
+        const unsigned int all = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json, .map = map,
+                                            .name = s_words[word_text]);
         for (unsigned int needs = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
                                              .node = all, .kind = CFG_JSON_OBJECT)
                                       ? json->node[all].first

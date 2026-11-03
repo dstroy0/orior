@@ -385,7 +385,7 @@ int cli_python_workers_start(const CliTestRunsRunCtx *args)
         s_words.used = 0u;
         s_words.full = 0;
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-                   .word = args->python);
+                   .word_text = args->python);
         if (pytest)
         {
             char junit[CLI_PATH_MAX_LEN + 16u];
@@ -402,7 +402,7 @@ int cli_python_workers_start(const CliTestRunsRunCtx *args)
             for (unsigned int at = 0u; at < (args->cover ? 4u : 2u); at += 1u)
             {
                 EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-                           .word = args->cover ? head[at] : module[at]);
+                           .word_text = args->cover ? head[at] : module[at]);
             }
             // the process starts in the run's root, and pytest is bound to it as its rootdir: the ids its lines and
             // its report give are the ids the run was given though a folder above contains a configuration of its own
@@ -411,7 +411,7 @@ int cli_python_workers_start(const CliTestRunsRunCtx *args)
             for (unsigned int at = 0u; at < 8u; at += 1u)
             {
                 EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-                           .word = words[at]);
+                           .word_text = words[at]);
             }
         }
         else
@@ -420,7 +420,7 @@ int cli_python_workers_start(const CliTestRunsRunCtx *args)
             for (unsigned int at = 0u; at < 3u; at += 1u)
             {
                 EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-                           .word = words[at]);
+                           .word_text = words[at]);
             }
         }
         for (unsigned int at = 0u; at < run->share_size[share]; at += 1u)
@@ -429,7 +429,7 @@ int cli_python_workers_start(const CliTestRunsRunCtx *args)
             if (pytest)
             {
                 EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-                           .word = id);
+                           .word_text = id);
             }
             else
             {
@@ -445,8 +445,8 @@ int cli_python_workers_start(const CliTestRunsRunCtx *args)
         worker->named_count = run->share_size[share];
         const int started =
             EMBED_CALL(cli_words_err_msg_internal.spawn_as, CliWordsErrMsgCtx, .priority = CLI_PRIORITY_GUEST,
-                       .spawned = &worker->spawned, .words = s_words.word, .folder = run->root, .settings = settings,
-                       .count = 2u, .detached = 1, .err_msg = args->err_msg);
+                       .spawned = &worker->spawned, .words = s_words.word_text, .folder = run->root,
+                       .settings = settings, .count = 2u, .detached = 1, .err_msg = args->err_msg);
         run->worker_count += started ? 1u : 0u;
         if (!started)
         {

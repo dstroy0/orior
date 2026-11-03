@@ -6,17 +6,18 @@
 // controller says it means (menubar.c)
 #ifndef GUI_PARTS_MENUBAR_H
 #define GUI_PARTS_MENUBAR_H
+#include "../../controller/controller.h"
+#include "../frame.h"
+#include "../glyphs.h"
+#include "../palette.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct GuiMenubarBarCfg GuiMenubarBarCfg;
 typedef struct GuiMenubarGlyphsFrameXCfg GuiMenubarGlyphsFrameXCfg;
 typedef struct GuiMenubarGlyphsFrameCfg GuiMenubarGlyphsFrameCfg;
 typedef struct GuiMenubarFrameCfg GuiMenubarFrameCfg;
 typedef struct GuiMenubarXCfg GuiMenubarXCfg;
 typedef struct GuiMenubarCfg GuiMenubarCfg;
-#include "../../controller/controller.h"
-#include "../frame.h"
-#include "../glyphs.h"
-#include "../palette.h"
-#include "embed_dispatch_layout.h"
 
 // the titles the bar holds at the most and the menus open at once at the most, one under another; and the sizes in
 // the page's pixels: a title's padding each side and its margins across and along, its corner radius, how far the

@@ -265,7 +265,7 @@ void cli_catalog_word(const CliCatalogWordCfg *args)
     }
     EMBED_CALL(cli_on_list, CatalogCtx, .catalog = args->catalog,
                .text = EMBED_CALL(cli_catalog_text_program.text, CliCatalogTextProgramCfg, .catalog = args->catalog,
-                                  .text = args->word));
+                                  .text = args->word_text));
     args->catalog->arg[args->catalog->args - 1u].words += 1u;
 }
 
@@ -355,11 +355,11 @@ unsigned int cli_catalog_copy(const CliCatalogFromCfg *args)
                        .c = EMBED_CALL(cli_from, CatalogCtx, .from = args->from, .text = arg->text[2]),
                        .d = EMBED_CALL(cli_from, CatalogCtx, .from = args->from, .text = arg->text[3]),
                        .separated = arg->separated);
-            for (unsigned int word = 0u; word < arg->words; word += 1u)
+            for (unsigned int word_text = 0u; word_text < arg->words; word_text += 1u)
             {
-                EMBED_CALL(cli_catalog_word_table.word, CliCatalogWordCfg, .catalog = args->to,
-                           .word = EMBED_CALL(cli_from, CatalogCtx, .from = args->from,
-                                              .text = args->from->list[arg->first + word]));
+                EMBED_CALL(cli_catalog_word_table.word_text, CliCatalogWordCfg, .catalog = args->to,
+                           .word_text = EMBED_CALL(cli_from, CatalogCtx, .from = args->from,
+                                                   .text = args->from->list[arg->first + word_text]));
             }
         }
     }
@@ -413,10 +413,10 @@ void cli_catalog_job_extent(const CliCatalogFromIndexCfg *args)
                 extent->text += EMBED_CALL(cli_stored_size, CatalogCtx, .from = args->from, .text = arg->text[part]);
             }
             extent->lists += arg->words;
-            for (unsigned int word = 0u; word < arg->words; word += 1u)
+            for (unsigned int word_text = 0u; word_text < arg->words; word_text += 1u)
             {
                 extent->text += EMBED_CALL(cli_stored_size, CatalogCtx, .from = args->from,
-                                           .text = args->from->list[arg->first + word]);
+                                           .text = args->from->list[arg->first + word_text]);
             }
         }
     }

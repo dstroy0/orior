@@ -6,16 +6,6 @@
 // (window.c)
 #ifndef GUI_WINDOW_H
 #define GUI_WINDOW_H
-typedef struct GuiWindowWokenCfg GuiWindowWokenCfg;
-typedef struct GuiWindowWidthCfg GuiWindowWidthCfg;
-typedef struct GuiWindowIconCfg GuiWindowIconCfg;
-typedef struct GuiWindowCfg GuiWindowCfg;
-typedef struct GuiWindowHitsCfg GuiWindowHitsCfg;
-typedef struct GuiWindowAutohideCfg GuiWindowAutohideCfg;
-typedef struct GuiWindowInputCfg GuiWindowInputCfg;
-typedef struct GuiWindowInputKindCfg GuiWindowInputKindCfg;
-typedef struct GuiWindowReducedCfg GuiWindowReducedCfg;
-typedef struct GuiWindowDisplayedCfg GuiWindowDisplayedCfg;
 #include "base.h"
 #include "claim.h"
 #include "embed_dispatch_layout.h"
@@ -37,6 +27,17 @@ typedef struct GuiWindowDisplayedCfg GuiWindowDisplayedCfg;
 #include "parts/wordmark.h"
 #include "stages.h"
 #include "view.h"
+
+typedef struct GuiWindowWokenCfg GuiWindowWokenCfg;
+typedef struct GuiWindowWidthCfg GuiWindowWidthCfg;
+typedef struct GuiWindowIconCfg GuiWindowIconCfg;
+typedef struct GuiWindowCfg GuiWindowCfg;
+typedef struct GuiWindowHitsCfg GuiWindowHitsCfg;
+typedef struct GuiWindowAutohideCfg GuiWindowAutohideCfg;
+typedef struct GuiWindowInputCfg GuiWindowInputCfg;
+typedef struct GuiWindowInputKindCfg GuiWindowInputKindCfg;
+typedef struct GuiWindowReducedCfg GuiWindowReducedCfg;
+typedef struct GuiWindowDisplayedCfg GuiWindowDisplayedCfg;
 
 // the resize border's width in the page's pixels; the rectangles a map of what a pixel stands on holds, each title,
 // each menu open and the eye; and the milliseconds of one refresh of a monitor before the system has said

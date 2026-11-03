@@ -402,7 +402,8 @@ int cli_zip_with(const CliArchiveBytesSizeCtx *args)
     unsigned long long directory = 0ULL;
     unsigned long long at = start;
     int done = 1;
-    for (unsigned long long index = 0ULL; done && (index < count); index += 1ULL)
+    unsigned long long index = 0ULL;
+    while (done && (index < count))
     {
         CliCentral record;
         done = EMBED_CALL(cli_central, ArchiveZipCtx, .bytes = bytes, .size = size, .at = at, .central = &record,
@@ -508,6 +509,7 @@ int cli_zip_with(const CliArchiveBytesSizeCtx *args)
                    .value = offset, .width = 4u);
         directory += record.length;
         at += record.length;
+        index += 1ULL;
     }
     const unsigned long long directory_at = used;
     const unsigned long long tail = size - end;

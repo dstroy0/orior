@@ -399,7 +399,8 @@ int cli_git_touch(const CliGitRootErrMsgCfg *args)
     {
         unsigned int read = 0u;
         char state = 'M';
-        for (unsigned int want = 1u; read < want; read += 1u)
+        unsigned int want = 1u;
+        while (read < want)
         {
             do
             {
@@ -415,6 +416,7 @@ int cli_git_touch(const CliGitRootErrMsgCfg *args)
                 state = fields[0][0];
                 want = ((state == 'R') || (state == 'C')) ? 3u : 2u;
             }
+            read += 1u;
         }
         if ((read < 2u) || (((state == 'R') || (state == 'C')) && (read < 3u)))
         {

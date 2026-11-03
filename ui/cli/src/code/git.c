@@ -40,10 +40,12 @@ int cli_git_head(const CliGitRootCommitCfg *args)
                         .size = (unsigned long long)(to - space), .set = " ");
     found = found && (space < to) && (space[1] >= '0') && (space[1] <= '9');
     long long seconds = 0LL;
-    for (const char *digit = space + 1; found && (digit < to); digit += 1)
+    const char *digit = space + 1;
+    while (found && (digit < to))
     {
         found = (digit[0] >= '0') && (digit[0] <= '9');
         seconds = (seconds * 10LL) + (long long)(digit[0] - '0');
+        digit += 1;
     }
     if (found)
     {

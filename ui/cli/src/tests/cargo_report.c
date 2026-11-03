@@ -344,12 +344,14 @@ void cli_cargo_failures_each(const CliCargoReportSizeOutCfg *args)
     {
         const CliCargoFailure *const failure = &failures[one];
         int later = 0;
-        for (unsigned int other = one + 1u; !later && (other < count); other += 1u)
+        unsigned int other = one + 1u;
+        while (!later && (other < count))
         {
             later = (failures[other].name_size == failure->name_size) &&
                     (memor.cmp(&(MemoriaCfg){.src = out + failures[other].name,
                                              .other = out + failure->name,
                                              .bytes = failure->name_size}) == 0);
+            other += 1u;
         }
         if (!later)
         {

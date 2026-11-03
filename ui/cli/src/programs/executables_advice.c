@@ -341,11 +341,13 @@ static void cli_fullest_each(const CliEachNameIsFolderCfg *args)
                                                   ? (unsigned long long)(end - piece)
                                                   : cellul.len(&(CatenaFinitaCfg){.src = piece, .cap = CLI_CELLS_POOL});
             int named = 1;
-            for (unsigned long long letter = 0ULL; named && (letter < length); letter += 1ULL)
+            unsigned long long letter = 0ULL;
+            while (named && (letter < length))
             {
                 const char one = piece[letter];
                 named = ((one >= 'a') && (one <= 'z')) || ((one >= 'A') && (one <= 'Z')) ||
                         ((one >= '0') && (one <= '9')) || (one == '_') || (one == '.') || ((unsigned char)one >= 0x80u);
+                letter += 1ULL;
             }
             const int starts =
                 (length >= fullest->length) &&

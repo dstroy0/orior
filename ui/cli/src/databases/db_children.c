@@ -69,7 +69,7 @@ typedef struct
     VerbaLinea *out;
     const char *text;
     VerbaLinea *detail;
-    const char *word;
+    const char *word_text;
     unsigned long long size;
     const char *kind;
     CliDbChildren *children;
@@ -124,7 +124,7 @@ EMBED_INLINE void children_word(const DbChildrenCtx *args)
     if (args->size > 0u)
     {
         mmgr_line_put(args->detail, (args->detail->at > 0u) ? " " : "");
-        mmgr_line_put_n(args->detail, args->word, args->size);
+        mmgr_line_put_n(args->detail, args->word_text, args->size);
     }
 }
 
@@ -230,7 +230,7 @@ static int children_row(const CliDbRowCfg *args)
         return 1;
     }
     // a column: its type, whether it may not be NULL, its default, and what else its database reports of it
-    EMBED_CALL(children_word, DbChildrenCtx, .detail = &detail_line, .word = second,
+    EMBED_CALL(children_word, DbChildrenCtx, .detail = &detail_line, .word_text = second,
                .size = cellul.len(&(CatenaFinitaCfg){.src = second, .cap = CLI_CELLS_POOL}));
     const int not_null =
         (how == CHILDREN_PG_COLUMN)
@@ -238,7 +238,7 @@ static int children_row(const CliDbRowCfg *args)
         : (how == CHILDREN_MY_COLUMN)
             ? EMBED_CALL(children_equal, DbChildrenCtx, .values = values, .count = count, .at = 2u, .text = "NO")
             : EMBED_CALL(children_equal, DbChildrenCtx, .values = values, .count = count, .at = 2u, .text = "1");
-    EMBED_CALL(children_word, DbChildrenCtx, .detail = &detail_line, .word = "not null",
+    EMBED_CALL(children_word, DbChildrenCtx, .detail = &detail_line, .word_text = "not null",
                .size = not_null ? 8ULL : 0ULL);
     const int has_default = (how == CHILDREN_PG_COLUMN)
                                 ? (EMBED_CALL(children_is, DbChildrenCtx, .values = values, .count = count, .at = 3u) &&
@@ -250,19 +250,21 @@ static int children_row(const CliDbRowCfg *args)
         VerbaLinea value_line = {value, sizeof(value), 0ULL};
         mmgr_line_put(&value_line, "default ");
         EMBED_CALL(children_text, DbChildrenCtx, .values = values, .count = count, .at = 3u, .out = &value_line);
-        EMBED_CALL(children_word, DbChildrenCtx, .detail = &detail_line, .word = value_line.out, .size = value_line.at);
+        EMBED_CALL(children_word, DbChildrenCtx, .detail = &detail_line, .word_text = value_line.out,
+                   .size = value_line.at);
     }
     if (how == CHILDREN_MY_COLUMN)
     {
         char extra[CLI_DB_FIELD];
         VerbaLinea extra_line = {extra, sizeof(extra), 0ULL};
         EMBED_CALL(children_text, DbChildrenCtx, .values = values, .count = count, .at = 4u, .out = &extra_line);
-        EMBED_CALL(children_word, DbChildrenCtx, .detail = &detail_line, .word = extra_line.out, .size = extra_line.at);
+        EMBED_CALL(children_word, DbChildrenCtx, .detail = &detail_line, .word_text = extra_line.out,
+                   .size = extra_line.at);
     }
     if ((how == CHILDREN_LITE_COLUMN) &&
         !EMBED_CALL(children_equal, DbChildrenCtx, .values = values, .count = count, .at = 4u, .text = "0"))
     {
-        EMBED_CALL(children_word, DbChildrenCtx, .detail = &detail_line, .word = "primary key", .size = 11ULL);
+        EMBED_CALL(children_word, DbChildrenCtx, .detail = &detail_line, .word_text = "primary key", .size = 11ULL);
     }
     mmgr_line_finish(&detail_line);
     EMBED_CALL(children_node, DbChildrenCtx, .children = children, .label = first, .kind = "column",

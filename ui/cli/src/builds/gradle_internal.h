@@ -6,6 +6,11 @@
 // the build's `gradle` folder (gradle.c, gradle_build.c, gradle_check.c, gradle_references.c, gradle_complete.c)
 #ifndef GRADLE_INTERNAL_H
 #define GRADLE_INTERNAL_H
+#include "../command_line/callback_cfg.h"
+#include "../text/text.h"
+#include "builds_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliGradleTextCtx CliGradleTextCtx;
 typedef struct CliGradleTextSizeCtx CliGradleTextSizeCtx;
 typedef struct CliGradleLinesCtx CliGradleLinesCtx;
@@ -15,11 +20,6 @@ typedef struct CliGradleTextSizeClassOfCtx CliGradleTextSizeClassOfCtx;
 typedef struct CliGradleCtx CliGradleCtx;
 typedef struct CliGradleFolderCtx CliGradleFolderCtx;
 typedef struct CliGradleSizeWordCtx CliGradleSizeWordCtx;
-
-#include "../command_line/callback_cfg.h"
-#include "../text/text.h"
-#include "builds_internal.h"
-#include "embed_dispatch_layout.h"
 
 // what a byte of a script is
 #define CLI_GRADLE_CODE 0u
@@ -190,7 +190,7 @@ struct CliGradleFolderCtx
 struct CliGradleSizeWordCtx
 {
     unsigned long long size;
-    const char *word;
+    const char *word_text;
 };
 
 typedef struct

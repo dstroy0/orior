@@ -265,17 +265,25 @@ EMBED_INLINE int emit_input_names(const ServersEmitCtx *args)
     static const char s_script[] = "/sconscript";
     int construct = (length >= sizeof(s_construct) - 1u);
     int script = (length >= sizeof(s_script) - 1u);
-    for (unsigned int at = 0u; construct && (at < sizeof(s_construct) - 1u); at += 1u)
     {
-        const char one = uri[length - (sizeof(s_construct) - 1u) + at];
-        const char lower = ((one >= 'A') && (one <= 'Z')) ? (char)(one - 'A' + 'a') : one;
-        construct = (lower == s_construct[at]);
+        unsigned int at = 0u;
+        while (construct && (at < sizeof(s_construct) - 1u))
+        {
+            const char one = uri[length - (sizeof(s_construct) - 1u) + at];
+            const char lower = ((one >= 'A') && (one <= 'Z')) ? (char)(one - 'A' + 'a') : one;
+            construct = (lower == s_construct[at]);
+            at += 1u;
+        }
     }
-    for (unsigned int at = 0u; script && (at < sizeof(s_script) - 1u); at += 1u)
     {
-        const char one = uri[length - (sizeof(s_script) - 1u) + at];
-        const char lower = ((one >= 'A') && (one <= 'Z')) ? (char)(one - 'A' + 'a') : one;
-        script = (lower == s_script[at]);
+        unsigned int at = 0u;
+        while (script && (at < sizeof(s_script) - 1u))
+        {
+            const char one = uri[length - (sizeof(s_script) - 1u) + at];
+            const char lower = ((one >= 'A') && (one <= 'Z')) ? (char)(one - 'A' + 'a') : one;
+            script = (lower == s_script[at]);
+            at += 1u;
+        }
     }
     if (!construct && !script)
     {

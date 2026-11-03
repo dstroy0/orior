@@ -197,29 +197,36 @@ EMBED_INLINE unsigned int cli_myers(const StructureCtx *args)
                             .val = 0,
                             .bytes = sizeof(g_cli_structure->frontier[0]) * (size_t)((2 * most) + 3)});
     int found = -1;
-    for (int d = 0; (found < 0) && (d <= most); d += 1)
     {
-        // the frontier before this edit stored, d squared on, the band from middle - d to middle + d
-        memor.cpy(&(MemoriaCfg){.dst = g_cli_structure->trace + (d * d),
-                                .src = g_cli_structure->frontier + (middle - d),
-                                .bytes = sizeof(int) * (size_t)((2 * d) + 1)});
-        for (int k = -d; (found < 0) && (k <= d); k += 2)
+        int d = 0;
+        while ((found < 0) && (d <= most))
         {
-            const int at = middle + k;
-            int x = ((k == -d) || ((k != d) && (g_cli_structure->frontier[at - 1] < g_cli_structure->frontier[at + 1])))
+            // the frontier before this edit stored, d squared on, the band from middle - d to middle + d
+            memor.cpy(&(MemoriaCfg){.dst = g_cli_structure->trace + (d * d),
+                                    .src = g_cli_structure->frontier + (middle - d),
+                                    .bytes = sizeof(int) * (size_t)((2 * d) + 1)});
+            int k = -d;
+            while ((found < 0) && (k <= d))
+            {
+                const int at = middle + k;
+                int x =
+                    ((k == -d) || ((k != d) && (g_cli_structure->frontier[at - 1] < g_cli_structure->frontier[at + 1])))
                         ? g_cli_structure->frontier[at + 1]
                         : (g_cli_structure->frontier[at - 1] + 1);
-            int y = x - k;
-            while ((x < args->n) && (y < args->m) && (args->a[x] == args->b[y]))
-            {
-                x += 1;
-                y += 1;
+                int y = x - k;
+                while ((x < args->n) && (y < args->m) && (args->a[x] == args->b[y]))
+                {
+                    x += 1;
+                    y += 1;
+                }
+                g_cli_structure->frontier[at] = x;
+                if ((x >= args->n) && (y >= args->m))
+                {
+                    found = d;
+                }
+                k += 2;
             }
-            g_cli_structure->frontier[at] = x;
-            if ((x >= args->n) && (y >= args->m))
-            {
-                found = d;
-            }
+            d += 1;
         }
     }
     if (found < 0)

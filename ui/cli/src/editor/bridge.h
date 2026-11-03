@@ -13,11 +13,11 @@
 // equal
 #ifndef BRIDGE_H
 #define BRIDGE_H
-typedef struct CliBridgePathCfg CliBridgePathCfg;
-typedef struct CliBridgeCfg CliBridgeCfg;
-
 #include "../text/json_tree.h"
 #include "embed_dispatch_layout.h"
+
+typedef struct CliBridgePathCfg CliBridgePathCfg;
+typedef struct CliBridgeCfg CliBridgeCfg;
 
 #define CLI_BRIDGE_DIR "src/cu/transpiler/lstar/protocol/table"
 

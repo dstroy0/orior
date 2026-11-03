@@ -135,10 +135,12 @@ EMBED_INLINE void usages_regions_read(const SymbolsUsagesCtx *args)
             if (depth == 0u)
             {
                 int function = 0;
-                for (unsigned int head = statement; !function && (head < open); head += 1u)
+                unsigned int head = statement;
+                while (!function && (head < open))
                 {
                     function = EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = read,
                                           .leaf = head, .roles = CLI_LEAF_DECLARES | CLI_LEAF_FUNCTION);
+                    head += 1u;
                 }
                 const CliUsageRegion region = {statement, open, leaf + 1u, function, -1};
                 mmgr_line_put_n(&args->usages_out->regions, (const char *)&region, sizeof(region));
@@ -431,12 +433,13 @@ EMBED_INLINE unsigned long long usages_name_at(const SymbolsUsagesCtx *args)
                           ((read.leaf[leaf - 1u].is & words) == 0u);
         leaf -= after ? 1u : 0u;
         const int named = in || after;
-        const char *const word = named ? EMBED_CALL(cli_symbols_read_leaf_internal.leaf_text, CliSymbolsReadLeafCtx,
-                                                    .read_read = &read, .leaf = leaf, .length_pointer = &length)
-                                       : "";
+        const char *const word_text = named
+                                          ? EMBED_CALL(cli_symbols_read_leaf_internal.leaf_text, CliSymbolsReadLeafCtx,
+                                                       .read_read = &read, .leaf = leaf, .length_pointer = &length)
+                                          : "";
         length = (length < CLI_NAME_MAX_LEN) ? length : 0ULL;
         // a name below CLI_NAME_MAX_LEN bytes
-        memor.cpy(&(MemoriaCfg){.dst = args->name, .src = word, .bytes = (size_t)length});
+        memor.cpy(&(MemoriaCfg){.dst = args->name, .src = word_text, .bytes = (size_t)length});
     }
     args->name[length] = '\0';
     if (leaved)

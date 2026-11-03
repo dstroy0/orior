@@ -43,7 +43,7 @@ EMBED_INLINE void query_list_by_name(const CrossCtx *args)
             &(MemoriaCfg){.src = args->list + at, .val = '\n', .bytes = (size_t)(size - at)});
         const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - args->list) : size;
         // the line's words: its code first and its cases third
-        const char *word[3] = {NULL, NULL, NULL};
+        const char *word_text[3] = {NULL, NULL, NULL};
         unsigned long long length[3] = {0ULL, 0ULL, 0ULL};
         unsigned int words = 0u;
         unsigned long long walk = at;
@@ -56,16 +56,16 @@ EMBED_INLINE void query_list_by_name(const CrossCtx *args)
                               .text = (const char *)args->list, .at = walk, .size = end, .set = " \t\r");
             if (walk > first)
             {
-                word[words] = (const char *)(args->list + first);
+                word_text[words] = (const char *)(args->list + first);
                 length[words] = walk - first;
                 words += 1u;
             }
         }
         if (words >= 3u)
         {
-            mmgr_line_put_n(args->names, word[0], length[0]);
+            mmgr_line_put_n(args->names, word_text[0], length[0]);
             mmgr_line_ch(args->names, '\n');
-            mmgr_line_put_n(args->names, word[2], length[2]);
+            mmgr_line_put_n(args->names, word_text[2], length[2]);
             mmgr_line_ch(args->names, '\n');
         }
         at = end + 1ULL;

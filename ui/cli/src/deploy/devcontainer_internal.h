@@ -4,6 +4,9 @@
 // devcontainer_read.c, which reads it into a plan
 #ifndef DEVCONTAINER_INTERNAL_H
 #define DEVCONTAINER_INTERNAL_H
+#include "devcontainer.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliDevcontainerPlanCtx CliDevcontainerPlanCtx;
 typedef struct CliDevcontainerObjectCtx CliDevcontainerObjectCtx;
 typedef struct CliDevcontainerOutCtx CliDevcontainerOutCtx;
@@ -13,9 +16,6 @@ typedef struct CliDevcontainerValueCtx CliDevcontainerValueCtx;
 typedef struct CliDevcontainerCtx CliDevcontainerCtx;
 typedef struct CliDevcontainerNameCtx CliDevcontainerNameCtx;
 typedef struct CliDevcontainerValueOutCtx CliDevcontainerValueOutCtx;
-
-#include "devcontainer.h"
-#include "embed_dispatch_layout.h"
 
 // the longest text of one of a description's strings
 #define CLI_STRING_MAX_LEN 8192u

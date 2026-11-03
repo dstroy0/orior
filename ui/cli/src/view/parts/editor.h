@@ -8,6 +8,11 @@
 // its breath's steps put back and draw it over again alone (editor.c)
 #ifndef GUI_PARTS_EDITOR_H
 #define GUI_PARTS_EDITOR_H
+#include "../../editor/view.h"
+#include "../glyphs.h"
+#include "../palette.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct GuiEditorPositionCellScaleCfg GuiEditorPositionCellScaleCfg;
 typedef struct GuiEditorPositionCellCfg GuiEditorPositionCellCfg;
 typedef struct GuiEditorPositionScaleCfg GuiEditorPositionScaleCfg;
@@ -15,10 +20,6 @@ typedef struct GuiEditorRasterCfg GuiEditorRasterCfg;
 typedef struct GuiEditorPositionCfg GuiEditorPositionCfg;
 typedef struct GuiEditorPaletteCfg GuiEditorPaletteCfg;
 typedef struct GuiEditorCfg GuiEditorCfg;
-#include "../../editor/view.h"
-#include "../glyphs.h"
-#include "../palette.h"
-#include "embed_dispatch_layout.h"
 
 // the pixels saved under the caret at the most: a caret two of the page's pixels wide over a row at any scale the
 // window takes fits

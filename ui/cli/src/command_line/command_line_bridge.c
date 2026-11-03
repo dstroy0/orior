@@ -29,7 +29,7 @@ typedef struct
     unsigned int key;
     unsigned int bridge;
     const char *root;
-    const char *word;
+    const char *word_text;
 } CommandLineBridgeCtx;
 // a string member of a node, the empty text where it has none
 EMBED_INLINE const char *bridge_text(const CommandLineBridgeCtx *args)
@@ -318,7 +318,7 @@ EMBED_INLINE void bridge_rulesets(const CommandLineBridgeCtx *args)
 EMBED_INLINE int bridge_words(const CommandLineBridgeCtx *args)
 {
     const char *root = args->root;
-    const char *word = args->word;
+    const char *word_text = args->word_text;
     const unsigned int bridge = EMBED_CALL(cli_bridge.read, CliBridgeCfg, .json = &s_work_state->json, .root = root);
     const unsigned int klq = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                         .json_read = &s_work_state->json, .object = bridge, .name = "klq");
@@ -330,17 +330,17 @@ EMBED_INLINE int bridge_words(const CommandLineBridgeCtx *args)
     }
     const unsigned int keys = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                          .json_read = &s_work_state->json, .object = klq, .name = "keys");
-    if (word != NULL)
+    if (word_text != NULL)
     {
         const unsigned int key = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                            .json_read = &s_work_state->json, .object = keys, .name = word);
+                                            .json_read = &s_work_state->json, .object = keys, .name = word_text);
         if (key != CLI_JSON_NONE)
         {
             EMBED_CALL(bridge_pairs, CommandLineBridgeCtx,
-                       .path = EMBED_CALL(bridge_text, CommandLineBridgeCtx, .node = klq, .name = "path"), .name = word,
-                       .key = key);
-            EMBED_CALL(bridge_maps, CommandLineBridgeCtx, .bridge = bridge, .name = word);
-            EMBED_CALL(bridge_rulesets, CommandLineBridgeCtx, .bridge = bridge, .name = word);
+                       .path = EMBED_CALL(bridge_text, CommandLineBridgeCtx, .node = klq, .name = "path"),
+                       .name = word_text, .key = key);
+            EMBED_CALL(bridge_maps, CommandLineBridgeCtx, .bridge = bridge, .name = word_text);
+            EMBED_CALL(bridge_rulesets, CommandLineBridgeCtx, .bridge = bridge, .name = word_text);
             return 0;
         }
     }
@@ -353,8 +353,8 @@ EMBED_INLINE int bridge_words(const CommandLineBridgeCtx *args)
     for (unsigned int key = first; key != CLI_JSON_NONE; key = s_work_state->json.node[key].next)
     {
         const char *const name = s_work_state->json.text + s_work_state->json.node[key].key;
-        if ((word == NULL) ||
-            EMBED_CALL(cli_command_line_internal.contains_word, CliCommandLineCtx, .text = name, .word = word))
+        if ((word_text == NULL) || EMBED_CALL(cli_command_line_internal.contains_word, CliCommandLineCtx, .text = name,
+                                              .word_text = word_text))
         {
             const unsigned long long letters =
                 EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = name,
@@ -371,8 +371,8 @@ EMBED_INLINE int bridge_words(const CommandLineBridgeCtx *args)
     for (unsigned int key = first; key != CLI_JSON_NONE; key = s_work_state->json.node[key].next)
     {
         const char *const name = s_work_state->json.text + s_work_state->json.node[key].key;
-        if ((word != NULL) &&
-            !EMBED_CALL(cli_command_line_internal.contains_word, CliCommandLineCtx, .text = name, .word = word))
+        if ((word_text != NULL) && !EMBED_CALL(cli_command_line_internal.contains_word, CliCommandLineCtx, .text = name,
+                                               .word_text = word_text))
         {
             continue;
         }
@@ -401,7 +401,7 @@ int cli_bridge_words(const CliCommandLineWordCtx *args)
                    .text = "a showing of the bridge could not be taken");
         return CLI_NO_CODE;
     }
-    const int code = EMBED_CALL(bridge_words, CommandLineBridgeCtx, .root = args->root, .word = args->word);
+    const int code = EMBED_CALL(bridge_words, CommandLineBridgeCtx, .root = args->root, .word_text = args->word_text);
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &s_work_state->json);
     g_cli_cells->persistent_buf_release(s_work_state, &g_cli_command_line_cells);
     s_work_state = NULL;

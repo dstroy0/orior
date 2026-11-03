@@ -27,15 +27,15 @@
 // the statement's indent and `|`, each state of `states` followed by `:` and its indent
 #ifndef HIGHLIGHT_H
 #define HIGHLIGHT_H
+#include "../command_line/callback_cfg.h"
+#include "../text/json_tree.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliHighlightKeyCfg CliHighlightKeyCfg;
 typedef struct CliHighlightKeyErrMsgCfg CliHighlightKeyErrMsgCfg;
 typedef struct CliHighlightKeyJsonCfg CliHighlightKeyJsonCfg;
 typedef struct CliHighlightKeyContextCfg CliHighlightKeyContextCfg;
 typedef struct CliHighlightCfg CliHighlightCfg;
-
-#include "../command_line/callback_cfg.h"
-#include "../text/json_tree.h"
-#include "embed_dispatch_layout.h"
 
 // the grammar at `def` in `json` read and stored under `key`, in the place of one stored there before: 1, or 0 with
 // what in it is not read here reported

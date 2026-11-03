@@ -280,20 +280,21 @@ EMBED_INLINE int tools_new_plugin(const CommandLineToolsCtx *args)
     unsigned int at = 0u;
     while (at < args->count)
     {
-        const char *const word = args->words[at];
+        const char *const word_text = args->words[at];
         const char *const value = (at + 1u < args->count) ? args->words[at + 1u] : NULL;
         unsigned int reserved = 0u;
         int known = 0;
-        if (cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "--replace", .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--replace", .cap = CLI_CELLS_POOL}))
         {
             replace = 1;
             known = 1;
         }
         if (value != NULL)
         {
-            for (unsigned int list = 0u; (s_lists[list][0] != NULL) && !known; list += 1u)
+            unsigned int list = 0u;
+            while ((s_lists[list][0] != NULL) && !known)
             {
-                if (cellul.eq(&(CatenaFinitaCfg){.src = word, .other = s_lists[list][0], .cap = CLI_CELLS_POOL}))
+                if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = s_lists[list][0], .cap = CLI_CELLS_POOL}))
                 {
                     EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = &s_json,
                                .object = spec, .name = s_lists[list][1],
@@ -301,19 +302,25 @@ EMBED_INLINE int tools_new_plugin(const CommandLineToolsCtx *args)
                     reserved = 1u;
                     known = 1;
                 }
+                list += 1u;
             }
-            for (unsigned int text = 0u; (text < 3u) && !known; text += 1u)
             {
-                if (cellul.eq(&(CatenaFinitaCfg){.src = word, .other = s_texts[text][0], .cap = CLI_CELLS_POOL}))
+                unsigned int text = 0u;
+                while ((text < 3u) && !known)
                 {
-                    EMBED_CALL(tools_set_text, CommandLineToolsCtx, .object = spec, .name = s_texts[text][1],
-                               .text = value);
-                    reserved = 1u;
-                    known = 1;
+                    if (cellul.eq(
+                            &(CatenaFinitaCfg){.src = word_text, .other = s_texts[text][0], .cap = CLI_CELLS_POOL}))
+                    {
+                        EMBED_CALL(tools_set_text, CommandLineToolsCtx, .object = spec, .name = s_texts[text][1],
+                                   .text = value);
+                        reserved = 1u;
+                        known = 1;
+                    }
+                    text += 1u;
                 }
             }
             if (!known &&
-                (cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "--block-comment", .cap = CLI_CELLS_POOL})))
+                (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--block-comment", .cap = CLI_CELLS_POOL})))
             {
                 if (at + 2u >= args->count)
                 {
@@ -340,17 +347,17 @@ EMBED_INLINE int tools_new_plugin(const CommandLineToolsCtx *args)
                 known = 1;
             }
         }
-        if (!known && (cellul.starts(&(CatenaFinitaCfg){.src = word, .other = "--", .cap = CLI_CELLS_POOL})))
+        if (!known && (cellul.starts(&(CatenaFinitaCfg){.src = word_text, .other = "--", .cap = CLI_CELLS_POOL})))
         {
             if (value == NULL)
             {
-                EMBED_CALL(tools_err_two, CommandLineToolsCtx, .one = word, .other = " needs a value");
+                EMBED_CALL(tools_err_two, CommandLineToolsCtx, .one = word_text, .other = " needs a value");
             }
             else
             {
                 VerbaLinea line = {s_line, sizeof(s_line), 0ULL};
                 mmgr_line_put(&line, "new-plugin takes no ");
-                mmgr_line_put(&line, word);
+                mmgr_line_put(&line, word_text);
                 mmgr_line_put(&line, ": orior_cli help names what it takes");
                 EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = s_line,
                            .size = mmgr_line_ok(&line) ? line.at : 0ULL);
@@ -360,7 +367,7 @@ EMBED_INLINE int tools_new_plugin(const CommandLineToolsCtx *args)
         if (!known)
         {
             mmgr_line_put(&name, (name.at > 0ULL) ? " " : "");
-            mmgr_line_put(&name, word);
+            mmgr_line_put(&name, word_text);
         }
         at += 1u + reserved;
     }

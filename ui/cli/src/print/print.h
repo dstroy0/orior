@@ -13,6 +13,9 @@
 // (cli_print_alloc, cli_print_release)
 #ifndef PRINT_H
 #define PRINT_H
+#include "../text/json_tree.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliPrintLayoutCfg CliPrintLayoutCfg;
 typedef struct CliPrintLayoutListingCfg CliPrintLayoutListingCfg;
 typedef struct CliPrintTextCfg CliPrintTextCfg;
@@ -23,9 +26,6 @@ typedef struct CliPrintJsonNodeCfg CliPrintJsonNodeCfg;
 typedef struct CliPrintLayoutWidthCfg CliPrintLayoutWidthCfg;
 typedef struct CliPrintCfg CliPrintCfg;
 typedef struct CliPrintPageCfg CliPrintPageCfg;
-
-#include "../text/json_tree.h"
-#include "embed_dispatch_layout.h"
 
 // the text's size, the height of a row, the width of a column and the margin, in points
 #define CLI_PRINT_SIZE 9.5f

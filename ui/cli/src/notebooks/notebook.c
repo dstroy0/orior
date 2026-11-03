@@ -349,33 +349,41 @@ EMBED_INLINE void cli_mark_read(const NotebookCtx *args)
     {
         end -= 1;
     }
-    const char *word = NULL;
+    const char *word_text = NULL;
     const char *after = end;
     const char *found = NULL;
-    for (const char *at = rest; (found == NULL) && (at < end); at += 1)
     {
-        const unsigned long long left = (unsigned long long)(end - at);
-        if (((left >= 10u) && (memor.cmp(&(MemoriaCfg){.src = at, .other = "[markdown]", .bytes = 10u}) == 0)) ||
-            ((left >= 4u) && (memor.cmp(&(MemoriaCfg){.src = at, .other = "[md]", .bytes = 4u}) == 0)))
+        const char *at = rest;
+        while ((found == NULL) && (at < end))
         {
-            found = at;
-            word = "markdown";
-            after = at;
-            after += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = after, .at = 0ULL,
-                                .size = (unsigned long long)(end - after), .set = "]");
-            after += (after < end) ? 1 : 0;
+            const unsigned long long left = (unsigned long long)(end - at);
+            if (((left >= 10u) && (memor.cmp(&(MemoriaCfg){.src = at, .other = "[markdown]", .bytes = 10u}) == 0)) ||
+                ((left >= 4u) && (memor.cmp(&(MemoriaCfg){.src = at, .other = "[md]", .bytes = 4u}) == 0)))
+            {
+                found = at;
+                word_text = "markdown";
+                after = at;
+                after += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = after, .at = 0ULL,
+                                    .size = (unsigned long long)(end - after), .set = "]");
+                after += (after < end) ? 1 : 0;
+            }
+            at += 1;
         }
     }
-    for (const char *at = rest; (found == NULL) && (at + 5 <= end); at += 1)
     {
-        if (memor.cmp(&(MemoriaCfg){.src = at, .other = "[raw]", .bytes = 5u}) == 0)
+        const char *at = rest;
+        while ((found == NULL) && (at + 5 <= end))
         {
-            found = at;
-            word = "raw";
-            after = at + 5;
+            if (memor.cmp(&(MemoriaCfg){.src = at, .other = "[raw]", .bytes = 5u}) == 0)
+            {
+                found = at;
+                word_text = "raw";
+                after = at + 5;
+            }
+            at += 1;
         }
     }
-    const char *const named = (word != NULL) ? word : "code";
+    const char *const named = (word_text != NULL) ? word_text : "code";
     *kind = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg, .json = json,
                        .text = named, .length = cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}));
     const unsigned long long start = json->used;

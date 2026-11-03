@@ -151,9 +151,11 @@ unsigned int cli_qry_member_names(const CliQryDataCfg *args)
         mmgr_line_put_n(&line, QRY_RECORD_NAME(record), record->name_length);
         mmgr_line_finish(&line);
         int seen = 0;
-        for (unsigned int each = 0u; !seen && (each < count); each += 1u)
+        unsigned int each = 0u;
+        while (!seen && (each < count))
         {
             seen = cellul.eq(&(CatenaFinitaCfg){.src = args->names[each], .other = name, .cap = CLI_CELLS_POOL});
+            each += 1u;
         }
         if (!seen && (count < args->capacity))
         {

@@ -11,19 +11,19 @@ void cli_command_begin(const CliRunnerCfg *args)
     args->command->words.count = 0u;
     args->command->words.used = 0u;
     args->command->words.full = 0;
-    args->command->words.word[0] = NULL;
+    args->command->words.word_text[0] = NULL;
     args->command->has_folder = 0;
     args->command->folder[0] = '\0';
     args->command->settings = 0u;
     args->command->used = 0u;
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &args->command->words,
-               .word = args->program);
+               .word_text = args->program);
 }
 
 void cli_command_word(const CliRunnerCommandWordCfg *args)
 {
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &args->command->words,
-               .word = args->word);
+               .word_text = args->word_text);
 }
 
 typedef struct
@@ -274,7 +274,8 @@ int cli_runner_shell_words(const CliRunnerTextCfg *args)
     unsigned long long length = 0ULL;
     int started = 0;
     char quote = '\0';
-    for (const char *at = args->text; at[0] != '\0'; at += 1)
+    const char *at = args->text;
+    while (at[0] != '\0')
     {
         const char letter = at[0];
         if ((quote != '\0') && (letter == quote))
@@ -303,7 +304,7 @@ int cli_runner_shell_words(const CliRunnerTextCfg *args)
             {
                 s_word[length] = '\0';
                 EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-                           .word = s_word);
+                           .word_text = s_word);
                 length = 0ULL;
                 started = 0;
             }
@@ -314,6 +315,7 @@ int cli_runner_shell_words(const CliRunnerTextCfg *args)
             length += (length + 1u < sizeof(s_word)) ? 1ULL : 0ULL;
             started = 1;
         }
+        at += 1;
     }
     if (quote != '\0')
     {
@@ -325,7 +327,7 @@ int cli_runner_shell_words(const CliRunnerTextCfg *args)
     {
         s_word[length] = '\0';
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-                   .word = s_word);
+                   .word_text = s_word);
     }
     return 1;
 }
@@ -365,7 +367,8 @@ EMBED_INLINE int cli_runner_text_words(const RunnerCtx *args)
     to[0] = '\0';
     if (EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = from))
     {
-        EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words, .word = from);
+        EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
+                   .word_text = from);
         return 1;
     }
     char err_buf[CLI_PATH_MAX_LEN];

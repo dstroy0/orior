@@ -4,6 +4,10 @@
 // from, a request ready to go, and its answer
 #ifndef REQUESTS_INTERNAL_H
 #define REQUESTS_INTERNAL_H
+#include "../command_line/cells.h"
+#include "embed_dispatch_layout.h"
+#include "requests.h"
+
 typedef struct CliRequestsTextCtx CliRequestsTextCtx;
 typedef struct CliRequestsErrMsgCtx CliRequestsErrMsgCtx;
 typedef struct CliRequestsTextSizeCtx CliRequestsTextSizeCtx;
@@ -32,10 +36,6 @@ typedef struct CliRequestsCtx CliRequestsCtx;
 typedef struct CliRequestsNameAnswerCtx CliRequestsNameAnswerCtx;
 typedef struct CliRequestsOutSecondsCtx CliRequestsOutSecondsCtx;
 typedef struct CliRequestsPoolCtx CliRequestsPoolCtx;
-
-#include "../command_line/cells.h"
-#include "embed_dispatch_layout.h"
-#include "requests.h"
 
 // the cells the requests are read, filled and answered in (requests_values.c)
 extern CellOwner g_cli_requests_cells;
@@ -295,7 +295,7 @@ int cli_requests_history_save(const CliRequestsErrMsgCtx *args);
 // The words of a shell line, each stored in the pool with a 0 after it
 typedef struct
 {
-    CliRequestsText word[CLI_REQUESTS_CURL_WORDS];
+    CliRequestsText word_text[CLI_REQUESTS_CURL_WORDS];
     unsigned int count;
     char text[CLI_REQUESTS_CURL_TEXT];
     unsigned long long used;

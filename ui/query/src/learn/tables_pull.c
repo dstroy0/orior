@@ -114,11 +114,11 @@ EMBED_INLINE int query_pull(const TablesPullCtx *args)
     memor.set(&(MemoriaCfg){.dst = &s_docker_words, .val = 0, .bytes = sizeof(s_docker_words)});
     static const char *const s_head[6] = {"run", "--rm", "-v", NULL, QUERY_TABLES_IMAGE, "sh"};
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_docker_words,
-               .word = s_docker);
+               .word_text = s_docker);
     for (unsigned int at = 0u; at < 6u; at += 1u)
     {
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_docker_words,
-                   .word = (at == 3u) ? mount : s_head[at]);
+                   .word_text = (at == 3u) ? mount : s_head[at]);
     }
     const char *const inside_of[4] = {capture_script, s_disassembler, intercept, captures};
     for (unsigned int at = 0u; at < 4u; at += 1u)
@@ -143,7 +143,7 @@ EMBED_INLINE int query_pull(const TablesPullCtx *args)
     EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = line_text);
     long long code = -1LL;
     if (!EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
-                    .context = context, .run = run, .name = "tables_capture", .words = s_docker_words.word,
+                    .context = context, .run = run, .name = "tables_capture", .words = s_docker_words.word_text,
                     .code = &code, .err_msg = err_msg))
     {
         return -1;
@@ -307,21 +307,21 @@ int query_tables_run(const QueryLoopCfg *args)
             static QueryWords s_words;
             memor.set(&(MemoriaCfg){.dst = &s_words, .val = 0, .bytes = sizeof(s_words)});
             EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-                       .word = s_reader);
+                       .word_text = s_reader);
             EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-                       .word = instructions);
+                       .word_text = instructions);
             EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-                       .word = mode);
+                       .word_text = mode);
             for (unsigned int at = 2u; at < count; at += 1u)
             {
                 EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-                           .word = words[at]);
+                           .word_text = words[at]);
             }
             long long run_result = -1LL;
             // an exit code is far below what an int represents
             code = EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
-                              .context = context, .run = &s_run, .name = "orior_tables_read", .words = s_words.word,
-                              .code = &run_result, .err_msg = &failed)
+                              .context = context, .run = &s_run, .name = "orior_tables_read",
+                              .words = s_words.word_text, .code = &run_result, .err_msg = &failed)
                        ? (int)run_result
                        : -1;
         }

@@ -348,10 +348,12 @@ int cli_disasm_verify_words(const CliDisasmVerifyWordsCfg *args)
     for (unsigned int each = 0u; each < functions; each += 1u)
     {
         int all_requested = requested_count == 0u;
-        for (unsigned int one = 0u; !all_requested && (one < requested_count); one += 1u)
+        unsigned int one = 0u;
+        while (!all_requested && (one < requested_count))
         {
             all_requested =
                 cellul.eq(&(CatenaFinitaCfg){.src = s_names[each], .other = required[one], .cap = CLI_NAME_MAX_LEN});
+            one += 1u;
         }
         if (all_requested)
         {
@@ -398,24 +400,30 @@ int cli_disasm_verify_words(const CliDisasmVerifyWordsCfg *args)
                    .text = (ghidra == NULL) ? s_err_buf : "the readings' cells could not be taken");
         code = CLI_NO_CODE;
     }
-    for (unsigned int each = 0u; (code != CLI_NO_CODE) && (each < functions); each += 1u)
     {
-        if (s_symbols[each][0] == '\0')
+        unsigned int each = 0u;
+        while ((code != CLI_NO_CODE) && (each < functions))
         {
-            continue;
+            if (s_symbols[each][0] == '\0')
+            {
+                each += 1u;
+                continue;
+            }
+            (void)EMBED_CALL(cli_disasm_verify_size.disasm_objdump_read, CliDisasmVerifySizeCfg,
+                             .text = disassembled->out, .size = disassembled->out_size, .symbol = s_symbols[each],
+                             .read_state = &one);
+            (void)EMBED_CALL(cli_disasm_verify_size.disasm_ghidra_read, CliDisasmVerifySizeCfg,
+                             .text = (const char *)ghidra, .size = ghidra_size, .symbol = s_symbols[each],
+                             .read_state = &other);
+            unsigned int at = 0u;
+            unsigned int other_at = 0u;
+            const int same = EMBED_CALL(cli_disasm_verify_one.disasm_same, CliDisasmVerifyOneCfg, .one = &one,
+                                        .other = &other, .at = &at, .other_at = &other_at);
+            EMBED_CALL(verify_row, DisasmVerifyCtx, .name_read = s_symbols[each], .llvm = &one, .ghidra = &other,
+                       .same = same, .at = at, .ghidra_at = other_at);
+            code = same ? code : 1;
+            each += 1u;
         }
-        (void)EMBED_CALL(cli_disasm_verify_size.disasm_objdump_read, CliDisasmVerifySizeCfg, .text = disassembled->out,
-                         .size = disassembled->out_size, .symbol = s_symbols[each], .read_state = &one);
-        (void)EMBED_CALL(cli_disasm_verify_size.disasm_ghidra_read, CliDisasmVerifySizeCfg,
-                         .text = (const char *)ghidra, .size = ghidra_size, .symbol = s_symbols[each],
-                         .read_state = &other);
-        unsigned int at = 0u;
-        unsigned int other_at = 0u;
-        const int same = EMBED_CALL(cli_disasm_verify_one.disasm_same, CliDisasmVerifyOneCfg, .one = &one,
-                                    .other = &other, .at = &at, .other_at = &other_at);
-        EMBED_CALL(verify_row, DisasmVerifyCtx, .name_read = s_symbols[each], .llvm = &one, .ghidra = &other,
-                   .same = same, .at = at, .ghidra_at = other_at);
-        code = same ? code : 1;
     }
     g_cli_cells->persistent_buf_release(one.instruction, &g_cli_programs_cells);
     g_cli_cells->persistent_buf_release(other.instruction, &g_cli_programs_cells);

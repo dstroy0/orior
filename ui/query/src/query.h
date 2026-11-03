@@ -7,11 +7,11 @@
 // toolchains.
 #ifndef QUERY_H
 #define QUERY_H
-typedef struct QueryCfg QueryCfg;
-
 #include "../../cli/src/command_line/callback_cfg.h"
 #include "embed_dispatch_layout.h"
 #include <stddef.h>
+
+typedef struct QueryCfg QueryCfg;
 
 #ifdef __cplusplus
 extern "C"

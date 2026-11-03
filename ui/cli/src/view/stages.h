@@ -6,13 +6,14 @@
 // tables rounding the corners; the cell goes back as the slides rest (stages.c)
 #ifndef GUI_STAGES_H
 #define GUI_STAGES_H
-typedef struct GuiStagesAutohideCfg GuiStagesAutohideCfg;
-typedef struct GuiStagesCfg GuiStagesCfg;
-typedef struct GuiStagesReadCfg GuiStagesReadCfg;
 #include "base.h"
 #include "claim.h"
 #include "embed_dispatch_layout.h"
 #include "parts/menubar.h"
+
+typedef struct GuiStagesAutohideCfg GuiStagesAutohideCfg;
+typedef struct GuiStagesCfg GuiStagesCfg;
+typedef struct GuiStagesReadCfg GuiStagesReadCfg;
 
 // the milliseconds a stage stands, a frame at 120 frames a second; a slower display reads every other stage
 #define GUI_STAGE_MS 8ull

@@ -26,12 +26,12 @@
 // requests_words.c, requests_curl.c, requests_curl_line.c)
 #ifndef REQUESTS_H
 #define REQUESTS_H
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliRequestsTextCfg CliRequestsTextCfg;
 typedef struct CliRequestsAddressCfg CliRequestsAddressCfg;
 typedef struct CliRequestsCfg CliRequestsCfg;
-
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // the environment files a tree names
 #define CLI_REQUESTS_PUBLIC "http-client.env.json"

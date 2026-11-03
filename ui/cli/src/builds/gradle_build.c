@@ -16,7 +16,7 @@ int cli_gradle_known_configuration(const CliGradleSizeWordCtx *args)
         if ((cellul.len(&(CatenaFinitaCfg){.src = g_cli_gradle_configurations[at], .cap = CLI_CELLS_POOL}) ==
              args->size) &&
             (memor.cmp(&(MemoriaCfg){
-                 .src = g_cli_gradle_configurations[at], .other = args->word, .bytes = (size_t)args->size}) == 0))
+                 .src = g_cli_gradle_configurations[at], .other = args->word_text, .bytes = (size_t)args->size}) == 0))
         {
             return 1;
         }
@@ -32,7 +32,7 @@ int cli_gradle_known_configuration(const CliGradleSizeWordCtx *args)
         }
         if ((length == args->size) &&
             (memor.cmp(&(MemoriaCfg){
-                 .src = g_cli_gradle_helpers[at], .other = args->word, .bytes = (size_t)args->size}) == 0))
+                 .src = g_cli_gradle_helpers[at], .other = args->word_text, .bytes = (size_t)args->size}) == 0))
         {
             return 1;
         }
@@ -41,7 +41,7 @@ int cli_gradle_known_configuration(const CliGradleSizeWordCtx *args)
     {
         if ((g_cli_gradle.declared_size[at] == args->size) &&
             (memor.cmp(&(MemoriaCfg){
-                 .src = g_cli_gradle.declared[at], .other = args->word, .bytes = (size_t)args->size}) == 0))
+                 .src = g_cli_gradle.declared[at], .other = args->word_text, .bytes = (size_t)args->size}) == 0))
         {
             return 1;
         }
@@ -49,9 +49,9 @@ int cli_gradle_known_configuration(const CliGradleSizeWordCtx *args)
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
         const size_t length = cellul.len(&(CatenaFinitaCfg){.src = g_cli_gradle_suffixes[at], .cap = CLI_CELLS_POOL});
-        if ((args->size > length) &&
-            (memor.cmp(&(MemoriaCfg){
-                 .src = args->word + args->size - length, .other = g_cli_gradle_suffixes[at], .bytes = length}) == 0))
+        if ((args->size > length) && (memor.cmp(&(MemoriaCfg){.src = args->word_text + args->size - length,
+                                                              .other = g_cli_gradle_suffixes[at],
+                                                              .bytes = length}) == 0))
         {
             return 1;
         }

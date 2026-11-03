@@ -24,11 +24,11 @@
 // validate_run.c, validate_code.c, validate_messages.c, validate_axioms.c, validate_report.c)
 #ifndef VALIDATE_H
 #define VALIDATE_H
-typedef struct CliValidatePathCfg CliValidatePathCfg;
-typedef struct CliValidateCfg CliValidateCfg;
-
 #include "../command_line/cli_internal.h"
 #include "embed_dispatch_layout.h"
+
+typedef struct CliValidatePathCfg CliValidatePathCfg;
+typedef struct CliValidateCfg CliValidateCfg;
 
 // the most checks one validation runs
 #define CLI_VALIDATE_CHECKS 16u

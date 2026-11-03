@@ -62,9 +62,11 @@ unsigned int cli_descendants(const CliContainerRootCfg *args)
                 continue;
             }
             int known = 0;
-            for (unsigned int at = 0u; !known && (at < founds); at += 1u)
+            unsigned int at = 0u;
+            while (!known && (at < founds))
             {
                 known = args->found[at] == args->parents[each].id;
+                at += 1u;
             }
             if (!known && (founds < args->capacity))
             {

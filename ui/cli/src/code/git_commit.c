@@ -462,10 +462,12 @@ int cli_git_commit_parts(const CliGitRootCfg *args)
     ok = ok && EMBED_CALL(cli_own, GitCommitCtx, .root = args->root, .paths = s_committing.paths, .count = count,
                           .err_msg = args->err_msg);
     const unsigned long long from = args->out->at;
-    for (unsigned int first = 0u; ok && (first < count); first += 1u)
+    unsigned int first = 0u;
+    while (ok && (first < count))
     {
         if (s_committing.done[first])
         {
+            first += 1u;
             continue;
         }
         const unsigned int repo = s_committing.owner[first];
@@ -517,6 +519,7 @@ int cli_git_commit_parts(const CliGitRootCfg *args)
                        .error = error, .length = why.at, .err_msg = args->err_msg);
             ok = 0;
         }
+        first += 1u;
     }
     EMBED_CALL(cli_git_text.text_free, CliGitTextCfg, .text = &s_repositories.text);
     cli_committing_free();

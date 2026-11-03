@@ -16,7 +16,7 @@ int cli_deploy_act_get(const CliDeployCfg *args)
     static const char *const acts[3] = {"preview", "send", "roll back"};
     for (int act = 0; act < 3; act += 1)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = args->word, .other = acts[act], .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = args->word_text, .other = acts[act], .cap = CLI_CELLS_POOL}))
         {
             return act;
         }

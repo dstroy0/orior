@@ -20,7 +20,7 @@
 typedef struct
 {
 #if (ENGINE_TARGET_X86_64)
-    unsigned int mask;
+    unsigned int mask_bits;
     __m128i block;
     __m256i block_m256i;
 #endif
@@ -35,7 +35,7 @@ EMBED_INLINE unsigned int cli_lowest(const VectorX86Ctx *args)
     return (unsigned int)index;
 #else
     // the trailing count of a non-zero 32 bit mask is 0 to 31
-    return (unsigned int)__builtin_ctz(args->mask);
+    return (unsigned int)__builtin_ctz(args->mask_bits);
 #endif
 }
 
@@ -116,10 +116,10 @@ unsigned long long cli_vector_find_unit_sse2(const CliVectorUnitCfg *args)
     {
         const __m128i block = _mm_loadu_si128((const __m128i *)(const void *)(args->text + at));
         // the movemask of a block is its 16 bits
-        const unsigned int mask = (unsigned int)_mm_movemask_epi8(_mm_cmpeq_epi16(block, required));
-        if (mask != 0u)
+        const unsigned int mask_bits = (unsigned int)_mm_movemask_epi8(_mm_cmpeq_epi16(block, required));
+        if (mask_bits != 0u)
         {
-            return at + (EMBED_CALL(cli_lowest, VectorX86Ctx, .mask = mask) / 2u);
+            return at + (EMBED_CALL(cli_lowest, VectorX86Ctx, .mask_bits = mask_bits) / 2u);
         }
         at += 8ULL;
     }
@@ -142,10 +142,10 @@ CLI_AVX2_TARGET unsigned long long cli_vector_find_unit_avx2(const CliVectorUnit
     {
         const __m256i block = _mm256_loadu_si256((const __m256i *)(const void *)(args->text + at));
         // the movemask of a block is its 32 bits
-        const unsigned int mask = (unsigned int)_mm256_movemask_epi8(_mm256_cmpeq_epi16(block, required));
-        if (mask != 0u)
+        const unsigned int mask_bits = (unsigned int)_mm256_movemask_epi8(_mm256_cmpeq_epi16(block, required));
+        if (mask_bits != 0u)
         {
-            return at + (EMBED_CALL(cli_lowest, VectorX86Ctx, .mask = mask) / 2u);
+            return at + (EMBED_CALL(cli_lowest, VectorX86Ctx, .mask_bits = mask_bits) / 2u);
         }
         at += 16ULL;
     }
@@ -167,7 +167,7 @@ unsigned long long cli_vector_common_sse2(const CliVectorLengthCfg *args)
         const unsigned int same = (unsigned int)_mm_movemask_epi8(_mm_cmpeq_epi8(one, other));
         if (same != 0xffffu)
         {
-            return at + (EMBED_CALL(cli_lowest, VectorX86Ctx, .mask = ~same) / 8u);
+            return at + (EMBED_CALL(cli_lowest, VectorX86Ctx, .mask_bits = ~same) / 8u);
         }
         at += 2ULL;
     }
@@ -189,7 +189,7 @@ CLI_AVX2_TARGET unsigned long long cli_vector_common_avx2(const CliVectorLengthC
         const unsigned int same = (unsigned int)_mm256_movemask_epi8(_mm256_cmpeq_epi8(one, other));
         if (same != 0xffffffffu)
         {
-            return at + (EMBED_CALL(cli_lowest, VectorX86Ctx, .mask = ~same) / 8u);
+            return at + (EMBED_CALL(cli_lowest, VectorX86Ctx, .mask_bits = ~same) / 8u);
         }
         at += 4ULL;
     }
@@ -256,17 +256,17 @@ unsigned long long cli_vector_find_sse2(const CliVectorTextLengthCfg *args)
         }
         const __m128i both = _mm_and_si128(_mm_cmpeq_epi16(head, first), _mm_cmpeq_epi16(tail, last));
         // the movemask of a block is its 16 bits, one of each lane's two retained
-        unsigned int mask = ((unsigned int)_mm_movemask_epi8(both)) & 0x5555u;
-        while (mask != 0u)
+        unsigned int mask_bits = ((unsigned int)_mm_movemask_epi8(both)) & 0x5555u;
+        while (mask_bits != 0u)
         {
-            const unsigned long long place = at + (EMBED_CALL(cli_lowest, VectorX86Ctx, .mask = mask) / 2u);
+            const unsigned long long place = at + (EMBED_CALL(cli_lowest, VectorX86Ctx, .mask_bits = mask_bits) / 2u);
             if (EMBED_CALL(cli_vector_text_needle.exists_at, CliVectorTextNeedleCfg, .text = args->text,
                            .needle = args->needle, .needle_length = args->needle_length, .at = place,
                            .folded = args->folded))
             {
                 return place;
             }
-            mask &= mask - 1u;
+            mask_bits &= mask_bits - 1u;
         }
         at += 8ULL;
     }
@@ -298,17 +298,17 @@ CLI_AVX2_TARGET unsigned long long cli_vector_find_avx2(const CliVectorTextLengt
         }
         const __m256i both = _mm256_and_si256(_mm256_cmpeq_epi16(head, first), _mm256_cmpeq_epi16(tail, last));
         // the movemask of a block is its 32 bits, one of each lane's two retained
-        unsigned int mask = ((unsigned int)_mm256_movemask_epi8(both)) & 0x55555555u;
-        while (mask != 0u)
+        unsigned int mask_bits = ((unsigned int)_mm256_movemask_epi8(both)) & 0x55555555u;
+        while (mask_bits != 0u)
         {
-            const unsigned long long place = at + (EMBED_CALL(cli_lowest, VectorX86Ctx, .mask = mask) / 2u);
+            const unsigned long long place = at + (EMBED_CALL(cli_lowest, VectorX86Ctx, .mask_bits = mask_bits) / 2u);
             if (EMBED_CALL(cli_vector_text_needle.exists_at, CliVectorTextNeedleCfg, .text = args->text,
                            .needle = args->needle, .needle_length = args->needle_length, .at = place,
                            .folded = args->folded))
             {
                 return place;
             }
-            mask &= mask - 1u;
+            mask_bits &= mask_bits - 1u;
         }
         at += 16ULL;
     }

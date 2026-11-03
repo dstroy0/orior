@@ -15,6 +15,9 @@
 // (pages.c, pages_edit.c)
 #ifndef PAGES_H
 #define PAGES_H
+#include "document.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliPagesOutCfg CliPagesOutCfg;
 typedef struct CliPagesOutErrMsgCfg CliPagesOutErrMsgCfg;
 typedef struct CliPagesFromCfg CliPagesFromCfg;
@@ -22,9 +25,6 @@ typedef struct CliPagesOutErrMsgNeedleCfg CliPagesOutErrMsgNeedleCfg;
 typedef struct CliPagesPathCfg CliPagesPathCfg;
 typedef struct CliPagesCfg CliPagesCfg;
 typedef struct CliPagesViewCfg CliPagesViewCfg;
-
-#include "document.h"
-#include "embed_dispatch_layout.h"
 
 // the file at `path` opened as the paged text `key`, its index read on a thread of its own; its shape as it stands
 // written as `{"lines", "indexed", "size"}`: 1, or 0 with why given. The shape of the text under `key`; its lines from

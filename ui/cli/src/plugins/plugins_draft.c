@@ -81,9 +81,11 @@ EMBED_INLINE unsigned int cli_words(const PluginsDraftCtx *args)
              word_node = json->node[word_node].next)
         {
             unsigned long long word_length = 0ULL;
-            const char *const word = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
-                                                .json_read = json, .node = word_node, .length_pointer = &word_length);
-            seen = (word_length == size) && (memor.cmp(&(MemoriaCfg){.src = word, .other = from, .bytes = size}) == 0);
+            const char *const word_text =
+                EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                           .node = word_node, .length_pointer = &word_length);
+            seen = (word_length == size) &&
+                   (memor.cmp(&(MemoriaCfg){.src = word_text, .other = from, .bytes = size}) == 0);
         }
         if (!seen)
         {

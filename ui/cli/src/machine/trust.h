@@ -16,6 +16,10 @@
 // to run no fsmonitor hook. A tree with no code of its own is never prompted about.
 #ifndef TRUST_H
 #define TRUST_H
+#include "../command_line/cells.h"
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliTrustFolderCfg CliTrustFolderCfg;
 typedef struct CliTrustTreeCfg CliTrustTreeCfg;
 typedef struct CliTrustTreeWordsCfg CliTrustTreeWordsCfg;
@@ -23,10 +27,6 @@ typedef struct CliTrustTreeCodeCfg CliTrustTreeCodeCfg;
 typedef struct CliTrustTreeOutCfg CliTrustTreeOutCfg;
 typedef struct CliTrustFolderInnerCfg CliTrustFolderInnerCfg;
 typedef struct CliTrustCfg CliTrustCfg;
-
-#include "../command_line/cells.h"
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // The files of a tree found to run as code, as the tree's paths: one after another, each with its zero after it, in a
 // cell of their bytes given back with cli_trust_code_free, and their count

@@ -369,16 +369,20 @@ void cli_lsp_open_each(const CliLspContextCfg *args)
     count = ((positions != NULL) && (uris != NULL)) ? count : 0u;
     unsigned int copied = 0u;
     unsigned long long used = 0ULL;
-    for (unsigned int at = 0u; (copied < count) && (at < s_files_capacity); at += 1u)
     {
-        if (s_files[at].reserved && (s_files[at].server == args->lsp->number))
+        unsigned int at = 0u;
+        while ((copied < count) && (at < s_files_capacity))
         {
-            const unsigned long long length =
-                cellul.len(&(CatenaFinitaCfg){.src = s_files[at].uri, .cap = CLI_LSP_URI}) + 1ULL;
-            positions[copied] = at;
-            memor.cpy(&(MemoriaCfg){.dst = uris + used, .src = s_files[at].uri, .bytes = (size_t)length});
-            used += length;
-            copied += 1u;
+            if (s_files[at].reserved && (s_files[at].server == args->lsp->number))
+            {
+                const unsigned long long length =
+                    cellul.len(&(CatenaFinitaCfg){.src = s_files[at].uri, .cap = CLI_LSP_URI}) + 1ULL;
+                positions[copied] = at;
+                memor.cpy(&(MemoriaCfg){.dst = uris + used, .src = s_files[at].uri, .bytes = (size_t)length});
+                used += length;
+                copied += 1u;
+            }
+            at += 1u;
         }
     }
     const char *uri = uris;
@@ -396,11 +400,13 @@ void cli_lsp_open_each(const CliLspContextCfg *args)
         char saved_path[CLI_PATH_MAX_LEN];
         EMBED_CALL(files_saved_path, LspFilesCtx, .place = positions[one], .path = saved_path);
         unsigned long long size = 0ULL;
-        const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = saved_path,
-                                                      .size_pointer = &size, .owner = &g_cli_lsp_files_cells);
+        const unsigned char *const inner_bytes =
+            EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = saved_path, .size_pointer = &size,
+                       .owner = &g_cli_lsp_files_cells);
         EMBED_CALL(args->each, CliEachPathTextLengthCfg, .context = args->context, .path = path,
-                   .text = (bytes != NULL) ? (const char *)bytes : "", .length = (bytes != NULL) ? size : 0ULL);
-        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes,
+                   .text = (inner_bytes != NULL) ? (const char *)inner_bytes : "",
+                   .length = (inner_bytes != NULL) ? size : 0ULL);
+        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = inner_bytes,
                    .owner = &g_cli_lsp_files_cells);
     }
     g_cli_cells->persistent_buf_release(uris, &g_cli_lsp_files_cells);

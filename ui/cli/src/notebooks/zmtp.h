@@ -4,13 +4,13 @@
 // greeted as the type named, and messages of frames sent and received
 #ifndef ZMTP_H
 #define ZMTP_H
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliZmtpSocketHostCfg CliZmtpSocketHostCfg;
 typedef struct CliZmtpSocketCfg CliZmtpSocketCfg;
 typedef struct CliZmtpCfg CliZmtpCfg;
 typedef struct CliZmtpFramesCountCfg CliZmtpFramesCountCfg;
-
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // one frame of a message: its bytes and their count
 typedef struct

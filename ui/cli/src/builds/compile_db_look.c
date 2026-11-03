@@ -255,17 +255,17 @@ int cli_compile_db_is_cl(const CliCompileDbCfg *args)
 
 void cli_compile_db_words(const CliCompileDbDatabaseCfg *args)
 {
-    char word[CLI_PATH_MAX_LEN * 4u];
+    char word_text[CLI_PATH_MAX_LEN * 4u];
     if (args->database_read->has_folder)
     {
-        VerbaLinea line = {word, sizeof(word), 0ULL};
+        VerbaLinea line = {word_text, sizeof(word_text), 0ULL};
         mmgr_line_put(&line, "--compile-commands-dir=");
         mmgr_line_put(&line, args->database_read->folder);
         mmgr_line_finish(&line);
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-                   .word = word);
+                   .word_text = word_text);
     }
-    VerbaLinea line = {word, sizeof(word), 0ULL};
+    VerbaLinea line = {word_text, sizeof(word_text), 0ULL};
     mmgr_line_put(&line, "--query-driver=");
     unsigned int drivers = 0u;
     for (unsigned int at = 0u; at < args->database_read->compilers; at += 1u)
@@ -281,6 +281,6 @@ void cli_compile_db_words(const CliCompileDbDatabaseCfg *args)
     if (drivers != 0u)
     {
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-                   .word = word);
+                   .word_text = word_text);
     }
 }

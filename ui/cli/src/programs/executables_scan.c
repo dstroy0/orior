@@ -202,7 +202,8 @@ EMBED_INLINE int cli_cmake_word(const ExecutablesScanCtx *args)
     char *out = args->out;
     const char *at = args->call->text;
     const char *const end = args->call->text + args->call->length;
-    for (unsigned int word = 0u; at < end; word += 1u)
+    unsigned int word_text = 0u;
+    while (at < end)
     {
         while ((at < end) && EMBED_CALL(cli_executables_internal.scan_white, CliExecutablesCtx, .letter = at[0]))
         {
@@ -217,7 +218,7 @@ EMBED_INLINE int cli_cmake_word(const ExecutablesScanCtx *args)
         {
             return 0;
         }
-        if (word == args->index)
+        if (word_text == args->index)
         {
             const char *from = at;
             from += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = from, .at = 0ULL,
@@ -230,6 +231,7 @@ EMBED_INLINE int cli_cmake_word(const ExecutablesScanCtx *args)
             return 1;
         }
         at = stop;
+        word_text += 1u;
     }
     return 0;
 }
@@ -283,9 +285,11 @@ int cli_cmake_project(const CliExecutablesTextOutCtx *args)
         EMBED_CALL(cli_executables_code_command_internal.calls_alloc, CliExecutablesCodeCommandCtx, .code = code,
                    .command = "project", .calls_pointer = &calls);
     int found = 0;
-    for (unsigned int at = 0u; !found && (at < count); at += 1u)
+    unsigned int at = 0u;
+    while (!found && (at < count))
     {
         found = EMBED_CALL(cli_cmake_word, ExecutablesScanCtx, .call = &calls[at], .index = 0u, .out = args->out);
+        at += 1u;
     }
     g_cli_cells->persistent_buf_release(calls, &g_cli_executables_cells);
     g_cli_cells->persistent_buf_release(code, &g_cli_executables_cells);
@@ -343,9 +347,11 @@ int cli_meson_project(const CliExecutablesTextOutCtx *args)
         EMBED_CALL(cli_executables_code_command_internal.calls_alloc, CliExecutablesCodeCommandCtx, .code = code,
                    .command = "project", .calls_pointer = &calls);
     int found = 0;
-    for (unsigned int at = 0u; !found && (at < count); at += 1u)
+    unsigned int at = 0u;
+    while (!found && (at < count))
     {
         found = EMBED_CALL(cli_meson_first, ExecutablesScanCtx, .call = &calls[at], .out = args->out);
+        at += 1u;
     }
     g_cli_cells->persistent_buf_release(calls, &g_cli_executables_cells);
     g_cli_cells->persistent_buf_release(code, &g_cli_executables_cells);

@@ -250,7 +250,7 @@ void cli_compile_words_each(const CliCompileDbTextCtx *args)
         {
             if (any)
             {
-                EMBED_CALL(args->each, CliEachWordSizeCfg, .context = args->context, .word = s_word, .size = size);
+                EMBED_CALL(args->each, CliEachWordSizeCfg, .context = args->context, .word_text = s_word, .size = size);
                 size = 0ULL;
                 any = 0;
             }
@@ -267,7 +267,7 @@ void cli_compile_words_each(const CliCompileDbTextCtx *args)
     }
     if (any)
     {
-        EMBED_CALL(args->each, CliEachWordSizeCfg, .context = args->context, .word = s_word, .size = size);
+        EMBED_CALL(args->each, CliEachWordSizeCfg, .context = args->context, .word_text = s_word, .size = size);
     }
 }
 
@@ -283,7 +283,7 @@ static void cli_first_each(const CliEachWordSizeCfg *args)
     CliFirst *const first = (CliFirst *)args->context;
     if (!first->found && (args->size < CLI_PATH_MAX_LEN))
     {
-        memor.cpy(&(MemoriaCfg){.dst = first->first, .src = args->word, .bytes = args->size});
+        memor.cpy(&(MemoriaCfg){.dst = first->first, .src = args->word_text, .bytes = args->size});
         first->first[args->size] = '\0';
         first->found = 1;
     }

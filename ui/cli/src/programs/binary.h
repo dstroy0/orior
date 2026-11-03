@@ -9,6 +9,10 @@
 // that start a program here and prevent it from starting elsewhere
 #ifndef BINARY_H
 #define BINARY_H
+#include "../command_line/callback_cfg.h"
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliBinaryErrMsgCfg CliBinaryErrMsgCfg;
 typedef struct CliBinaryPathCfg CliBinaryPathCfg;
 typedef struct CliBinaryPathReportCfg CliBinaryPathReportCfg;
@@ -19,10 +23,6 @@ typedef struct CliBinaryPathOriorPathCountCfg CliBinaryPathOriorPathCountCfg;
 typedef struct CliBinaryErrMsgBytesCfg CliBinaryErrMsgBytesCfg;
 typedef struct CliBinaryReportCfg CliBinaryReportCfg;
 typedef struct CliBinaryCfg CliBinaryCfg;
-
-#include "../command_line/callback_cfg.h"
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // the most libraries a report contains, and the most run paths of the machine that built the program
 #define CLI_BINARY_LIBRARIES 512u

@@ -266,11 +266,11 @@ static int cli_version_get(const ToolchainsFindCtx *args)
     for (unsigned int item = json->node[version].first; (item != CLI_JSON_NONE) && (count < 31u);
          item = json->node[item].next)
     {
-        const char *const word = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
-                                            .json_read = json, .node = item, .length_pointer = NULL);
-        if (word != NULL)
+        const char *const word_text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                                 .json_read = json, .node = item, .length_pointer = NULL);
+        if (word_text != NULL)
         {
-            words[count] = word;
+            words[count] = word_text;
             count += 1u;
         }
     }
@@ -337,13 +337,15 @@ static int cli_version_get(const ToolchainsFindCtx *args)
             first = from;
             first_length = (unsigned long long)(to - from);
         }
-        for (const char *three = from; (numbered == NULL) && ((three + 3) <= to); three += 1)
+        const char *three = from;
+        while ((numbered == NULL) && ((three + 3) <= to))
         {
             if ((three[0] >= '0') && (three[0] <= '9') && (three[1] == '.') && (three[2] >= '0') && (three[2] <= '9'))
             {
                 numbered = from;
                 numbered_length = (unsigned long long)(to - from);
             }
+            three += 1;
         }
         at = (end[0] != '\0') ? (end + 1) : end;
     }

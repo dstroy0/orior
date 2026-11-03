@@ -187,9 +187,10 @@ unsigned long long cli_reply_item(const CliReplyArrayCfg *args)
 {
     unsigned long long index = args->index;
     unsigned long long at = cli_reply_array.first(args);
-    for (; (at != CLI_REPLY_NONE) && (index > 0ULL); index -= 1ULL)
+    while ((at != CLI_REPLY_NONE) && (index > 0ULL))
     {
         at = EMBED_CALL(cli_reply.next, CliReplyCfg, .reply = args->reply, .item = at);
+        index -= 1ULL;
     }
     return at;
 }
@@ -243,5 +244,5 @@ int cli_reply_string_is(const CliReplyAtCfg *args)
     char text[CLI_NAME_MAX_LEN];
     return EMBED_CALL(cli_reply_at_out.string, CliReplyAtOutCfg, .reply = args->reply, .at = args->at, .out = text,
                       .capacity = sizeof(text)) &&
-           (cellul.eq(&(CatenaFinitaCfg){.src = text, .other = args->word, .cap = CLI_CELLS_POOL}));
+           (cellul.eq(&(CatenaFinitaCfg){.src = text, .other = args->word_text, .cap = CLI_CELLS_POOL}));
 }

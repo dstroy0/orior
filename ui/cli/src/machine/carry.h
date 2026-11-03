@@ -12,14 +12,14 @@
 // takes out the files it made (carry.c, machine_transfer_send.c, machine_transfer_alloc.c, machine_transfer_undo.c)
 #ifndef CARRY_H
 #define CARRY_H
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliMachineTransferHomeCfg CliMachineTransferHomeCfg;
 typedef struct CliMachineTransferHomeToCfg CliMachineTransferHomeToCfg;
 typedef struct CliMachineTransferHomeOutCfg CliMachineTransferHomeOutCfg;
 typedef struct CliMachineTransferCfg CliMachineTransferCfg;
 typedef struct CliMachineTransferFromCfg CliMachineTransferFromCfg;
-
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // the most files carried, and the most bytes of one's text
 #define CLI_TRANSFERRED_MAX 4096u

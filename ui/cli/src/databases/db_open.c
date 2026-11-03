@@ -230,7 +230,7 @@ static int open_with(const DbOpenCtx *args)
 int cli_db_with_query(const CliDbFailureContextCtx *args)
 {
     CliDbOpen *open = args->open;
-    int (*work)(const CliEachLinkFailureCfg *args) = args->work;
+    int (*work)(const CliEachLinkFailureCfg *) = args->work;
     void *context = args->context;
     CliDbFailure *failure = args->failure;
     return EMBED_CALL(open_with, DbOpenCtx, .open = open, .link = &open->query, .stop = &open->stop,
@@ -240,7 +240,7 @@ int cli_db_with_query(const CliDbFailureContextCtx *args)
 int cli_db_with_meta(const CliDbFailureContextCtx *args)
 {
     CliDbOpen *open = args->open;
-    int (*work)(const CliEachLinkFailureCfg *args) = args->work;
+    int (*work)(const CliEachLinkFailureCfg *) = args->work;
     void *context = args->context;
     CliDbFailure *failure = args->failure;
     return EMBED_CALL(open_with, DbOpenCtx, .open = open, .link = &open->meta, .stop = &open->meta_stop,

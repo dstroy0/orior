@@ -165,10 +165,12 @@ int cli_servers_line_names(const CliServersSizeLengthCtx *args)
 {
     static const char *const s_starts[5] = {"#include", "import ", "from ", "use ", "mod "};
     int starts = 0;
-    for (unsigned int one = 0u; !starts && (one < 5u); one += 1u)
+    unsigned int one = 0u;
+    while (!starts && (one < 5u))
     {
         starts = EMBED_CALL(cli_text_size_prefix.starts, CliTextSizePrefixCfg, .text = args->line_text,
                             .size = args->length, .prefix = s_starts[one]);
+        one += 1u;
     }
     return starts && EMBED_CALL(changed_word, ServersChangedCtx, .line = args->line_text, .length = args->length,
                                 .stem = args->stem, .size = args->size);

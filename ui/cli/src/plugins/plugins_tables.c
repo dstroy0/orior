@@ -217,8 +217,8 @@ EMBED_INLINE void cli_tables_word(const PluginsTablesCtx *args)
                            .letters = letters, .capacity_u64 = CLI_TABLES_LETTERS);
         to = count;
     }
-    char word[CLI_NAME_MAX_LEN];
-    VerbaLinea line = {word, sizeof(word), 0ULL};
+    char word_text[CLI_NAME_MAX_LEN];
+    VerbaLinea line = {word_text, sizeof(word_text), 0ULL};
     for (unsigned long long at = from; at < to; at += 1ULL)
     {
         EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &line, .letter = letters[at]);
@@ -229,8 +229,8 @@ EMBED_INLINE void cli_tables_word(const PluginsTablesCtx *args)
         return;
     }
     mmgr_line_put(args->list->out, args->list->written ? "," : "");
-    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->list->out, .text = word,
-               .length = size);
+    EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = args->list->out,
+               .text = word_text, .length = size);
     args->list->written = 1;
 }
 
@@ -356,13 +356,15 @@ EMBED_INLINE int cli_tables_list_write(const PluginsTablesCtx *args)
                                       .object = list, .name = "skip"),
                    .length_pointer = NULL)};
     int patterns_read = 1;
-    for (unsigned int place = 0u; patterns_read && (place < CLI_TABLES_PATTERNS); place += 1u)
+    unsigned int place = 0u;
+    while (patterns_read && (place < CLI_TABLES_PATTERNS))
     {
         read.supplied[place] = sources[place] != NULL;
         patterns_read =
             !read.supplied[place] ||
             EMBED_CALL(cli_tables_pattern_read, PluginsTablesCtx, .pattern_out = &read.pattern[place],
                        .work_state = &work_state[place], .source = sources[place], .err_msg = args->err_msg);
+        place += 1u;
     }
     mmgr_line_ch(out, '[');
     if (patterns_read && EMBED_CALL(cli_tables_path, PluginsTablesCtx, .json = json,
@@ -443,15 +445,15 @@ EMBED_INLINE unsigned int cli_tables_words_pattern(const PluginsTablesCtx *args)
         for (unsigned int item = json->node[list].first; item != CLI_JSON_NONE; item = json->node[item].next)
         {
             unsigned long long length = 0ULL;
-            const char *const word = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
-                                                .json_read = json, .node = item, .length_pointer = &length);
-            if ((word == NULL) || (length != size))
+            const char *const word_text = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                                     .json_read = json, .node = item, .length_pointer = &length);
+            if ((word_text == NULL) || (length != size))
             {
                 continue;
             }
             mmgr_line_put(args->source_verba_linea_pointer, (reserved != 0u) ? "|" : "");
             EMBED_CALL(cli_text_size_set.append_marked_n, CliTextSizeSetCfg, .out = args->source_verba_linea_pointer,
-                       .text = word, .size = length, .set = "\\^$.|?*+()[]{}", .mark = '\\');
+                       .text = word_text, .size = length, .set = "\\^$.|?*+()[]{}", .mark = '\\');
             reserved += 1u;
         }
     }

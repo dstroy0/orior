@@ -10,6 +10,9 @@
 // `ſ` to `s` and the Kelvin sign to `k`, and are folded too
 #ifndef VECTOR_H
 #define VECTOR_H
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliVectorTextCfg CliVectorTextCfg;
 typedef struct CliVectorTextLengthCfg CliVectorTextLengthCfg;
 typedef struct CliVectorACfg CliVectorACfg;
@@ -19,9 +22,6 @@ typedef struct CliVectorLengthCfg CliVectorLengthCfg;
 typedef struct CliVectorUnitCfg CliVectorUnitCfg;
 typedef struct CliVectorLengthACfg CliVectorLengthACfg;
 typedef struct CliVectorCfg CliVectorCfg;
-
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // none found
 #define CLI_VECTOR_NONE 0xffffffffffffffffull

@@ -4,11 +4,11 @@
 // program's name put first on the PATH (host.c)
 #ifndef HOST_H
 #define HOST_H
-typedef struct CliHostIntoCfg CliHostIntoCfg;
-typedef struct CliHostCfg CliHostCfg;
-
 #include "../command_line/cli_internal.h"
 #include "embed_dispatch_layout.h"
+
+typedef struct CliHostIntoCfg CliHostIntoCfg;
+typedef struct CliHostCfg CliHostCfg;
 
 // whether orior_cli runs inside a Flatpak's sandbox
 int cli_sandbox(void);

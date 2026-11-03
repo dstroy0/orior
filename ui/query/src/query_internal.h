@@ -5,6 +5,15 @@
 // one module reads from another
 #ifndef QUERY_INTERNAL_H
 #define QUERY_INTERNAL_H
+#include "../../../src/cu/includes/file_defs/qry/qry_read.h"
+#include "../../../src/cu/includes/file_defs/qry/writer/qry_member.h"
+#include "../../cli/src/command_line/callback_cfg.h"
+#include "../../cli/src/command_line/cells.h"
+#include "cellularum_laboro/cellularum_laboro.h"
+#include "embed_dispatch_layout.h"
+#include "memoria_operor/memoria_operor.h"
+#include "query.h"
+
 typedef struct QueryCountNameCtx QueryCountNameCtx;
 typedef struct QueryNameCapacityCtx QueryNameCapacityCtx;
 typedef struct QueryFolderContextCtx QueryFolderContextCtx;
@@ -44,15 +53,6 @@ typedef struct QueryCapacityLineCtx QueryCapacityLineCtx;
 typedef struct QueryErrMsgWriterCtx QueryErrMsgWriterCtx;
 typedef struct QueryMillisecondsCtx QueryMillisecondsCtx;
 typedef struct QueryProcessCtx QueryProcessCtx;
-
-#include "../../../src/cu/includes/file_defs/qry/qry_read.h"
-#include "../../../src/cu/includes/file_defs/qry/writer/qry_member.h"
-#include "../../cli/src/command_line/callback_cfg.h"
-#include "../../cli/src/command_line/cells.h"
-#include "cellularum_laboro/cellularum_laboro.h"
-#include "embed_dispatch_layout.h"
-#include "memoria_operor/memoria_operor.h"
-#include "query.h"
 
 // what the query's modules occupy in the cellblock, their own count, every cell the query takes and gives back counted
 // to it, its report reported as `cli_query` (commands.c)

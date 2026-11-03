@@ -4,6 +4,9 @@
 // lock they are read and written under, and whether a walk goes
 #ifndef SYMBOLS_TREE_H
 #define SYMBOLS_TREE_H
+#include "embed_dispatch_layout.h"
+#include "symbols.h"
+
 typedef struct CliSymbolsTreeBranchCfg CliSymbolsTreeBranchCfg;
 typedef struct CliSymbolsTreeBranchScratchCfg CliSymbolsTreeBranchScratchCfg;
 typedef struct CliSymbolsTreeCountCfg CliSymbolsTreeCountCfg;
@@ -11,9 +14,6 @@ typedef struct CliSymbolsTreePathCfg CliSymbolsTreePathCfg;
 typedef struct CliSymbolsTreeBranchPathCfg CliSymbolsTreeBranchPathCfg;
 typedef struct CliSymbolsTreeCfg CliSymbolsTreeCfg;
 typedef struct CliSymbolsTreeFileCfg CliSymbolsTreeFileCfg;
-
-#include "embed_dispatch_layout.h"
-#include "symbols.h"
 
 // the most branches stored; and what a branch's closest parent reads where it stands at the tree's top, and where it
 // is mounted beside the tree, whose folders have no branch

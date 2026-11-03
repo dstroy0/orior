@@ -38,7 +38,7 @@ static void verify_words_begin(void)
     s_words.count = 0u;
     s_words.used = 0u;
     s_words.full = 0;
-    s_words.word[0] = NULL;
+    s_words.word_text[0] = NULL;
 }
 
 typedef struct
@@ -58,7 +58,7 @@ EMBED_INLINE CliRunResult *verify_run(const DisasmVerifyStepsCtx *args)
     unsigned int count = args->count;
     VerbaLinea *err_msg = args->err_msg;
     CliRunResult *const run_result = cli_run_result_alloc();
-    if (!EMBED_CALL(cli_words_internal.run_result_within, CliWordsCtx, .words = s_words.word, .folder = folder,
+    if (!EMBED_CALL(cli_words_internal.run_result_within, CliWordsCtx, .words = s_words.word_text, .folder = folder,
                     .settings = settings, .count = count, .input = NULL, .length = 0ULL,
                     .milliseconds_u64 = args->patience, .run_result = run_result, .err_msg = err_msg))
     {
@@ -67,7 +67,7 @@ EMBED_INLINE CliRunResult *verify_run(const DisasmVerifyStepsCtx *args)
     }
     if (run_result->code != 0)
     {
-        mmgr_line_put(err_msg, s_words.word[0]);
+        mmgr_line_put(err_msg, s_words.word_text[0]);
         mmgr_line_put(err_msg, run_result->stopped ? " ran past its time" : " ended with ");
         if (!run_result->stopped)
         {
@@ -116,11 +116,12 @@ int cli_disasm_build(const CliDisasmVerifyCompilerCfg *args)
         return 0;
     }
     verify_words_begin();
-    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words, .word = bash);
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-               .word = script);
+               .word_text = bash);
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-               .word = args->target);
+               .word_text = script);
+    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
+               .word_text = args->target);
     const CliSetting settings[2] = {{"PATH", s_run_path}, {"CC", args->compiler}};
     CliRunResult *const run_result =
         EMBED_CALL(verify_run, DisasmVerifyStepsCtx, .folder = args->top, .settings = settings, .count = 2u,
@@ -138,22 +139,22 @@ unsigned int cli_disasm_functions(const CliDisasmVerifyIrCfg *args)
     VerbaLinea *err_msg = args->err_msg;
     verify_words_begin();
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-               .word = args->lifter);
+               .word_text = args->lifter);
     if (args->gnu)
     {
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-                   .word = "-list");
+                   .word_text = "-list");
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-                   .word = args->object);
+                   .word_text = args->object);
     }
     else
     {
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-                   .word = args->object);
+                   .word_text = args->object);
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-                   .word = "-o");
+                   .word_text = "-o");
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-                   .word = args->ir);
+                   .word_text = args->ir);
     }
     const CliSetting settings[1] = {{"PATH", s_run_path}};
     CliRunResult *const run_result = EMBED_CALL(verify_run, DisasmVerifyStepsCtx, .folder = NULL, .settings = settings,
@@ -172,15 +173,16 @@ unsigned int cli_disasm_functions(const CliDisasmVerifyIrCfg *args)
             unsigned long long end = at;
             end = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = run_result->out,
                              .at = end, .size = run_result->out_size, .set = "\n");
-            unsigned long long word = end;
-            word = (at + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg,
-                                    .text = run_result->out + at, .at = word - at, .set = " \t"));
+            unsigned long long word_text = end;
+            word_text = (at + EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg,
+                                         .text = run_result->out + at, .at = word_text - at, .set = " \t"));
             const int function =
-                ((end - word) > 0ULL) && ((end - word) < CLI_NAME_MAX_LEN) && (run_result->out[at] == 'T');
+                ((end - word_text) > 0ULL) && ((end - word_text) < CLI_NAME_MAX_LEN) && (run_result->out[at] == 'T');
             if (function)
             {
-                memor.cpy(&(MemoriaCfg){.dst = args->names[count], .src = run_result->out + word, .bytes = end - word});
-                args->names[count][end - word] = '\0';
+                memor.cpy(&(MemoriaCfg){
+                    .dst = args->names[count], .src = run_result->out + word_text, .bytes = end - word_text});
+                args->names[count][end - word_text] = '\0';
                 count += 1u;
             }
             at = end + 1ULL;
@@ -217,11 +219,11 @@ unsigned int cli_disasm_symbols(const CliDisasmVerifyCountErrMsgListerCfg *args)
     VerbaLinea *err_msg = args->err_msg;
     verify_words_begin();
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-               .word = args->lister);
+               .word_text = args->lister);
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-               .word = "--defined-only");
+               .word_text = "--defined-only");
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-               .word = args->program);
+               .word_text = args->program);
     const CliSetting settings[1] = {{"PATH", s_run_path}};
     CliRunResult *const run_result = EMBED_CALL(verify_run, DisasmVerifyStepsCtx, .folder = NULL, .settings = settings,
                                                 .count = 1u, .patience = CLI_DISASM_READ_PATIENCE, .err_msg = err_msg);
@@ -271,15 +273,17 @@ CliRunResult *cli_disasm_disassemble(const CliDisasmVerifyCountErrMsgCfg *args)
     }
     verify_words_begin();
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-               .word = args->disassembler);
-    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words, .word = "-d");
-    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words, .word = "-M");
+               .word_text = args->disassembler);
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-               .word = "intel");
+               .word_text = "-d");
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-               .word = s_symbol_list);
+               .word_text = "-M");
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-               .word = args->program);
+               .word_text = "intel");
+    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
+               .word_text = s_symbol_list);
+    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
+               .word_text = args->program);
     const CliSetting settings[1] = {{"PATH", s_run_path}};
     CliRunResult *const run_result = EMBED_CALL(verify_run, DisasmVerifyStepsCtx, .folder = NULL, .settings = settings,
                                                 .count = 1u, .patience = CLI_DISASM_READ_PATIENCE, .err_msg = err_msg);
@@ -351,37 +355,38 @@ const unsigned char *cli_disasm_ghidra(const CliDisasmVerifyCountCfg *args)
     }
     verify_words_begin();
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-               .word = args->analyzer);
+               .word_text = args->analyzer);
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-               .word = project);
+               .word_text = project);
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-               .word = "verify");
+               .word_text = "verify");
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-               .word = "-import");
+               .word_text = "-import");
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-               .word = args->program);
+               .word_text = args->program);
     for (unsigned int each = 0u; args->loader[each] != NULL; each += 1u)
     {
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-                   .word = args->loader[each]);
+                   .word_text = args->loader[each]);
     }
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-               .word = "-overwrite");
+               .word_text = "-overwrite");
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-               .word = "-deleteProject");
+               .word_text = "-deleteProject");
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-               .word = "-noanalysis");
+               .word_text = "-noanalysis");
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-               .word = "-scriptPath");
+               .word_text = "-scriptPath");
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-               .word = scripts);
+               .word_text = scripts);
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-               .word = "-postScript");
+               .word_text = "-postScript");
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-               .word = "FunctionsDisassembled.java");
-    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words, .word = names);
+               .word_text = "FunctionsDisassembled.java");
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-               .word = args->into);
+               .word_text = names);
+    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
+               .word_text = args->into);
     // the output emptied first, so that a script the analyzer could not run leaves nothing to read, not an older run's
     (void)EMBED_CALL(cli_path_bytes_internal.private_file_write, CliPathBytesCtx, .path = args->into, .bytes = "",
                      .size = 0ULL);
@@ -412,9 +417,9 @@ int cli_disasm_execute(const CliDisasmVerifyCountErrMsgCfg *args)
 {
     verify_words_begin();
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-               .word = args->program);
+               .word_text = args->program);
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_words,
-               .word = "help");
+               .word_text = "help");
     const CliSetting settings[1] = {{"PATH", s_run_path}};
     CliRunResult *const run_result =
         EMBED_CALL(verify_run, DisasmVerifyStepsCtx, .folder = NULL, .settings = settings, .count = 1u,

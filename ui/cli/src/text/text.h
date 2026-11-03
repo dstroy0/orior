@@ -4,6 +4,9 @@
 // split at it into words, and a text's letters and UTF-16 units counted (text.c)
 #ifndef TEXT_H
 #define TEXT_H
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliTextSizeAtCfg CliTextSizeAtCfg;
 typedef struct CliTextSizeCfg CliTextSizeCfg;
 typedef struct CliTextAtSizeClassesCfg CliTextAtSizeClassesCfg;
@@ -29,9 +32,6 @@ typedef struct CliTextSizePrefixCfg CliTextSizePrefixCfg;
 typedef struct CliTextPathsCfg CliTextPathsCfg;
 typedef struct CliTextSizeKindCfg CliTextSizeKindCfg;
 typedef struct CliTextCfg CliTextCfg;
-
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // A line of a text: where it stops, at its "\n" or the text's end; where it stops with a "\r" before its "\n" left
 // out; and where the next starts, past its "\n" or at the text's end
@@ -223,7 +223,7 @@ struct CliTextSizeLengthCfg
     unsigned long long size;
     unsigned long long *length;
     unsigned long long *at_pointer;
-    unsigned long long *word;
+    unsigned long long *word_text;
 };
 
 struct CliTextSizeFromU64sCfg
@@ -556,11 +556,11 @@ EMBED_TABLE_STORAGE CliTextSizeFromU64sNs cli_text_size_from_u_64s EMBED_UNUSED 
 
 typedef struct
 {
-    int (*word)(const CliTextSizeLengthCfg *args);
+    int (*word_text)(const CliTextSizeLengthCfg *args);
 } CliTextSizeLengthNs;
-EMBED_TABLE_LAYOUT(CliTextSizeLengthNs, word);
+EMBED_TABLE_LAYOUT(CliTextSizeLengthNs, word_text);
 EMBED_TABLE_STORAGE CliTextSizeLengthNs cli_text_size_length EMBED_UNUSED = {
-    .word = cli_text_word,
+    .word_text = cli_text_word,
 };
 
 typedef struct

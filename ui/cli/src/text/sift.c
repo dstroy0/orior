@@ -132,9 +132,11 @@ EMBED_INLINE unsigned int cli_plan_anchors_position(const SiftCtx *args)
         for (unsigned long long offset = 0ULL; offset < args->needle_length; offset += 1ULL)
         {
             int chosen = 0;
-            for (unsigned int at = 0u; !chosen && (at < candidate_count); at += 1u)
+            unsigned int at = 0u;
+            while (!chosen && (at < candidate_count))
             {
                 chosen = candidates[at] == offset;
+                at += 1u;
             }
             if (!chosen && ((best == args->needle_length) ||
                             (EMBED_CALL(cli_magnitude, SiftCtx, .histogram = &histogram,
@@ -157,11 +159,14 @@ EMBED_INLINE unsigned int cli_plan_anchors_position(const SiftCtx *args)
     const unsigned long long alignments = length - args->needle_length + 1ULL;
     const unsigned long long stride = ((alignments / CLI_SIFT_SCORED) > 1ULL) ? (alignments / CLI_SIFT_SCORED) : 1ULL;
     unsigned long long existing = 0ULL;
-    for (unsigned long long at = 0ULL; (at < alignments) && (existing < (sizeof(s_existing) / sizeof(s_existing[0])));
-         at += stride)
     {
-        s_existing[existing] = at;
-        existing += 1ULL;
+        unsigned long long at = 0ULL;
+        while ((at < alignments) && (existing < (sizeof(s_existing) / sizeof(s_existing[0]))))
+        {
+            s_existing[existing] = at;
+            existing += 1ULL;
+            at += stride;
+        }
     }
     unsigned int positioned = 0u;
     while (positioned < CLI_SIFT_ANCHORS)
@@ -172,9 +177,13 @@ EMBED_INLINE unsigned int cli_plan_anchors_position(const SiftCtx *args)
         {
             const unsigned long long offset = candidates[each];
             int reserved = 0;
-            for (unsigned int at = 0u; !reserved && (at < positioned); at += 1u)
             {
-                reserved = args->anchors[at] == offset;
+                unsigned int at = 0u;
+                while (!reserved && (at < positioned))
+                {
+                    reserved = args->anchors[at] == offset;
+                    at += 1u;
+                }
             }
             if (reserved)
             {
@@ -401,7 +410,7 @@ unsigned long long cli_sift_find_all_on(const CliSiftLengthCfg *args)
     const unsigned char *needle = args->needle;
     unsigned long long needle_length = args->needle_length;
     int fold = args->fold;
-    void (*found)(const CliEachAtCfg *args) = args->found;
+    void (*found)(const CliEachAtCfg *) = args->found;
     void *context = args->context;
     return EMBED_CALL(cli_find_all_histogram, SiftCtx, .path = path, .histogram = NULL, .text = text, .length = length,
                       .needle = needle, .needle_length = needle_length, .fold = fold, .found = found,
@@ -415,7 +424,7 @@ unsigned long long cli_sift_find_all(const CliSiftLengthCfg *args)
     const unsigned char *needle = args->needle;
     unsigned long long needle_length = args->needle_length;
     int fold = args->fold;
-    void (*found)(const CliEachAtCfg *args) = args->found;
+    void (*found)(const CliEachAtCfg *) = args->found;
     void *context = args->context;
     return EMBED_CALL(cli_find_all_histogram, SiftCtx, .path = cli_vector_best(), .histogram = NULL, .text = text,
                       .length = length, .needle = needle, .needle_length = needle_length, .fold = fold, .found = found,
@@ -430,7 +439,7 @@ unsigned long long cli_sift_find_all_with(const CliSiftLengthFoldCfg *args)
     const unsigned char *needle = args->needle;
     unsigned long long needle_length = args->needle_length;
     int fold = args->fold;
-    void (*found)(const CliEachAtCfg *args) = args->found;
+    void (*found)(const CliEachAtCfg *) = args->found;
     void *context = args->context;
     return EMBED_CALL(cli_find_all_histogram, SiftCtx, .path = cli_vector_best(), .histogram = histogram, .text = text,
                       .length = length, .needle = needle, .needle_length = needle_length, .fold = fold, .found = found,

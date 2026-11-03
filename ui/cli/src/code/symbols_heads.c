@@ -359,11 +359,13 @@ EMBED_INLINE void cli_head_label(const SymbolsHeadsCtx *args)
         }
         const unsigned char lead = (unsigned char)text[byte];
         const unsigned int length = (lead < 0x80u) ? 1u : (lead < 0xe0u) ? 2u : (lead < 0xf0u) ? 3u : 4u;
-        for (unsigned int more = 0u; (more < length) && (byte < to); more += 1u)
+        unsigned int more = 0u;
+        while ((more < length) && (byte < to))
         {
             args->head->label[at] = text[byte];
             at += 1u;
             byte += 1ULL;
+            more += 1u;
         }
         units += (length == 4u) ? 2u : 1u;
     }
@@ -475,9 +477,11 @@ int cli_symbols_head_read(const CliSymbolsLanguagesCtx *args)
         counted += 1u;
     }
     unsigned long long end = start;
-    for (unsigned int lines = 0u; (end < size) && (lines < CLI_SYMBOLS_HEAD_LINES); lines += 1u)
+    unsigned int lines = 0u;
+    while ((end < size) && (lines < CLI_SYMBOLS_HEAD_LINES))
     {
         end = EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = text, .at = end, .size = size).next;
+        lines += 1u;
     }
     CliLeafRead read;
     const int saved =

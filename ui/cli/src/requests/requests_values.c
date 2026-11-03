@@ -199,13 +199,15 @@ EMBED_INLINE int values_list(const RequestsValuesCtx *args)
     int read = 1;
     int fits = 1;
     EMBED_CALL(cli_requests_err_msg_root_internal.values_free, CliRequestsErrMsgRootCtx, .values = &s_names);
-    for (unsigned int at = 0u; read && fits && (at < 2u); at += 1u)
+    unsigned int at = 0u;
+    while (read && fits && (at < 2u))
     {
         char file[CLI_PATH_MAX_LEN];
         args->has[at] = EMBED_CALL(cli_requests_root_internal.nearest, CliRequestsRootCtx, .root = root, .path = path,
                                    .name = s_files[at], .found = file);
         if (!args->has[at])
         {
+            at += 1u;
             continue;
         }
         const unsigned int object = EMBED_CALL(values_read, RequestsValuesCtx, .file = file, .err_msg = args->err_msg);
@@ -222,6 +224,7 @@ EMBED_INLINE int values_list(const RequestsValuesCtx *args)
         }
         EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = root, .path = file,
                    .relative_out = relative[at]);
+        at += 1u;
     }
     if (!fits)
     {
@@ -304,12 +307,14 @@ int cli_requests_values(const CliRequestsErrMsgRootCtx *args)
     cli_requests_err_msg_root_internal.values_free(args);
     int read = 1;
     int fits = 1;
-    for (unsigned int at = 0u; read && fits && (at < 2u); at += 1u)
+    unsigned int at = 0u;
+    while (read && fits && (at < 2u))
     {
         char file[CLI_PATH_MAX_LEN];
         if (!EMBED_CALL(cli_requests_root_internal.nearest, CliRequestsRootCtx, .root = args->root, .path = args->path,
                         .name = s_files[at], .found = file))
         {
+            at += 1u;
             continue;
         }
         const unsigned int object = EMBED_CALL(values_read, RequestsValuesCtx, .file = file, .err_msg = args->err_msg);
@@ -328,6 +333,7 @@ int cli_requests_values(const CliRequestsErrMsgRootCtx *args)
                 fits = EMBED_CALL(values_member_append, RequestsValuesCtx, .values = args->values, .member = member);
             }
         }
+        at += 1u;
     }
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &s_json);
     if (!fits)
@@ -344,7 +350,8 @@ int cli_requests_verifies(const CliRequestsErrMsgRootCtx *args)
         return 1;
     }
     int verifies = 1;
-    for (unsigned int at = 0u; verifies && (at < 2u); at += 1u)
+    unsigned int at = 0u;
+    while (verifies && (at < 2u))
     {
         char file[CLI_PATH_MAX_LEN];
         char why[CLI_ERR_MSG_MAX_LEN];
@@ -362,6 +369,7 @@ int cli_requests_verifies(const CliRequestsErrMsgRootCtx *args)
                                .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
                                                   .json_read = &s_json, .object = ssl, .name = "verifyHostCertificate"),
                                .kind = CFG_JSON_FALSE);
+        at += 1u;
     }
     EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &s_json);
     return verifies;

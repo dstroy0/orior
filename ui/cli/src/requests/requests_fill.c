@@ -14,7 +14,7 @@ typedef struct
     unsigned long long at;
     const char *needle;
     const char *name;
-    const char *word;
+    const char *word_text;
     VerbaLinea *out;
     VerbaLinea *err_msg;
     const CliRequestsValues *values;
@@ -64,8 +64,8 @@ void cli_requests_iso(const CliRequestsOutSecondsCtx *args)
 // whether `size` bytes of `name` are `word`
 EMBED_INLINE int fill_is(const RequestsFillCtx *args)
 {
-    return (cellul.len(&(CatenaFinitaCfg){.src = args->word, .cap = CLI_CELLS_POOL}) == args->size) &&
-           (memor.cmp(&(MemoriaCfg){.src = args->name, .other = args->word, .bytes = (size_t)args->size}) == 0);
+    return (cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_CELLS_POOL}) == args->size) &&
+           (memor.cmp(&(MemoriaCfg){.src = args->name, .other = args->word_text, .bytes = (size_t)args->size}) == 0);
 }
 
 // the value JetBrains' HTTP Client makes for `name` written into `out`: 1, 0 where it makes none, or -1 with why
@@ -76,9 +76,11 @@ EMBED_INLINE int fill_dynamic(const RequestsFillCtx *args)
     VerbaLinea *out = args->out;
     const unsigned long long seconds = cli_wall_milliseconds() / 1000u;
     unsigned char bytes[16];
-    const int uuid = EMBED_CALL(fill_is, RequestsFillCtx, .name = args->name, .size = size, .word = "$uuid") ||
-                     EMBED_CALL(fill_is, RequestsFillCtx, .name = args->name, .size = size, .word = "$random.uuid");
-    const int number = EMBED_CALL(fill_is, RequestsFillCtx, .name = args->name, .size = size, .word = "$randomInt");
+    const int uuid =
+        EMBED_CALL(fill_is, RequestsFillCtx, .name = args->name, .size = size, .word_text = "$uuid") ||
+        EMBED_CALL(fill_is, RequestsFillCtx, .name = args->name, .size = size, .word_text = "$random.uuid");
+    const int number =
+        EMBED_CALL(fill_is, RequestsFillCtx, .name = args->name, .size = size, .word_text = "$randomInt");
     if ((uuid || number) &&
         !EMBED_CALL(cli_size_bytes_internal.random_bytes, CliSizeBytesCtx, .bytes_out = bytes, .size = sizeof(bytes)))
     {
@@ -105,12 +107,12 @@ EMBED_INLINE int fill_dynamic(const RequestsFillCtx *args)
         mmgr_line_decimal(out, value % 1000u, 1u);
         return 1;
     }
-    if (EMBED_CALL(fill_is, RequestsFillCtx, .name = args->name, .size = size, .word = "$timestamp"))
+    if (EMBED_CALL(fill_is, RequestsFillCtx, .name = args->name, .size = size, .word_text = "$timestamp"))
     {
         mmgr_line_decimal(out, seconds, 1u);
         return 1;
     }
-    if (EMBED_CALL(fill_is, RequestsFillCtx, .name = args->name, .size = size, .word = "$isoTimestamp"))
+    if (EMBED_CALL(fill_is, RequestsFillCtx, .name = args->name, .size = size, .word_text = "$isoTimestamp"))
     {
         EMBED_CALL(cli_requests_out_seconds_internal.iso, CliRequestsOutSecondsCtx, .seconds = seconds, .out = out);
         return 1;

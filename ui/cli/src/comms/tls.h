@@ -8,12 +8,12 @@
 // libssl supports TLS 1.3 as well
 #ifndef TLS_H
 #define TLS_H
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliTlsCfg CliTlsCfg;
 typedef struct CliTlsOutCfg CliTlsOutCfg;
 typedef struct CliTlsDataCfg CliTlsDataCfg;
-
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // the most sessions open at once
 #define CLI_TLS_MAX 32u

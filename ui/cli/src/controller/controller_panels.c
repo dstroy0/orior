@@ -117,7 +117,7 @@ static ControllerPanels s_panels;
 typedef struct
 {
     unsigned long long ask;
-    const char *word;
+    const char *word_text;
     const char *root;
     const char *full;
     unsigned long long line;
@@ -326,7 +326,7 @@ static void panels_hover_tree_run(void *context)
     ControllerHoverAsk *const ask = (ControllerHoverAsk *)context;
     EMBED_CALL(cli_symbols_root.tree_walk, CliSymbolsRootCfg, .root = ask->root);
     CliFoundDeclarations *const found =
-        EMBED_CALL(cli_symbols_query_max.tree_declarations_alloc, CliSymbolsQueryMaxCfg, .query = ask->word,
+        EMBED_CALL(cli_symbols_query_max.tree_declarations_alloc, CliSymbolsQueryMaxCfg, .query = ask->word_text,
                    .most = CLI_PANELS_DECLARATIONS, .owner = &g_cli_controller_cells);
     if (found == NULL)
     {
@@ -347,7 +347,7 @@ static void panels_hover_tree_run(void *context)
          at += 1u)
     {
         const CliFoundDeclaration *const one = &found->found[at];
-        if (cellul.eq(&(CatenaFinitaCfg){.src = one->name, .other = ask->word, .cap = CLI_PANELS_WORD}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = one->name, .other = ask->word_text, .cap = CLI_PANELS_WORD}))
         {
             mmgr_line_put(&joined, (parts > 0u) ? CLI_PANELS_HOVER_BETWEEN : "");
             EMBED_CALL(panels_declaration_write, ControllerPanelsCtx, .found = one, .out = &joined);
@@ -414,7 +414,7 @@ static void panels_hover_tree_done(void *context)
     ask->length = 0ULL;
     if (current && (ask->full[0] != '\0'))
     {
-        EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane = CLI_WORK_SERVERS,
+        EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_SERVERS,
                    .run = panels_hover_server_run, .done = panels_hover_server_done, .context = ask, .busy = 1);
         return;
     }
@@ -471,11 +471,11 @@ EMBED_INLINE void panels_hover_ask(const ControllerPanelsCtx *args)
     unsigned long long col = 0ULL;
     unsigned long long from = 0ULL;
     unsigned long long to = 0ULL;
-    char word[CLI_PANELS_WORD];
+    char word_text[CLI_PANELS_WORD];
     if (!EMBED_CALL(cli_view_row.position_at, CliViewRowCfg, .key = key, .row = s_panels.pointer_row,
                     .column = s_panels.pointer_column, .line = &line, .col = &col) ||
         !EMBED_CALL(cli_view_line.word_at, CliViewLineCfg, .key = key, .line_value = line, .col_value = col,
-                    .from = &from, .to = &to, .word = word, .capacity = sizeof(word)))
+                    .from = &from, .to = &to, .word_text = word_text, .capacity = sizeof(word_text)))
     {
         EMBED_CALL(panels_hover_hide, ControllerPanelsCtx, .at = 0u);
         return;
@@ -487,7 +487,8 @@ EMBED_INLINE void panels_hover_ask(const ControllerPanelsCtx *args)
     {
         full[0] = '\0';
     }
-    const unsigned long long word_size = cellul.len(&(CatenaFinitaCfg){.src = word, .cap = sizeof(word)}) + 1ULL;
+    const unsigned long long word_size =
+        cellul.len(&(CatenaFinitaCfg){.src = word_text, .cap = sizeof(word_text)}) + 1ULL;
     const unsigned long long root_size =
         cellul.len(&(CatenaFinitaCfg){.src = g_cli_model.root, .cap = CLI_PATH_MAX_LEN}) + 1ULL;
     const unsigned long long full_size = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = sizeof(full)}) + 1ULL;
@@ -498,12 +499,12 @@ EMBED_INLINE void panels_hover_ask(const ControllerPanelsCtx *args)
         return;
     }
     char *const text = (char *)(void *)(ask + 1);
-    memor.cpy(&(MemoriaCfg){.dst = text, .src = word, .bytes = word_size});
+    memor.cpy(&(MemoriaCfg){.dst = text, .src = word_text, .bytes = word_size});
     memor.cpy(&(MemoriaCfg){.dst = text + word_size, .src = g_cli_model.root, .bytes = root_size});
     memor.cpy(&(MemoriaCfg){.dst = text + word_size + root_size, .src = full, .bytes = full_size});
     *ask = (ControllerHoverAsk){
         s_panels.hover_ask, text, text + word_size, text + word_size + root_size, line, col, from, to, NULL, 0ULL};
-    EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane = CLI_WORK_TREE, .run = panels_hover_tree_run,
+    EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_TREE, .run = panels_hover_tree_run,
                .done = panels_hover_tree_done, .context = ask, .busy = 1);
 }
 
@@ -798,34 +799,40 @@ EMBED_INLINE ControllerCompletion *panels_completion_alloc(const ControllerPanel
         list->items += 1u;
     }
     const unsigned int supplied = list->items;
-    for (unsigned int at = 0u; at < from_words; at += 1u)
     {
-        const char *const label = args->words->text + args->words->at[at];
-        const unsigned long long label_length = args->words->length[at];
-        int supplied_already = 0;
-        for (unsigned int other = 0u; !supplied_already && (other < supplied); other += 1u)
+        unsigned int at = 0u;
+        while (at < from_words)
         {
-            supplied_already =
-                (list->item[other].label_length == label_length) &&
-                (memor.cmp(&(MemoriaCfg){.src = list->item[other].label, .other = label, .bytes = label_length}) == 0);
+            const char *const label = args->words->text + args->words->at[at];
+            const unsigned long long label_length = args->words->length[at];
+            int supplied_already = 0;
+            for (unsigned int other = 0u; !supplied_already && (other < supplied); other += 1u)
+            {
+                supplied_already =
+                    (list->item[other].label_length == label_length) &&
+                    (memor.cmp(&(MemoriaCfg){.src = list->item[other].label, .other = label, .bytes = label_length}) ==
+                     0);
+            }
+            if (supplied_already)
+            {
+                at += 1u;
+                continue;
+            }
+            ControllerItem *const item = &list->item[list->items];
+            item->label = label;
+            item->label_length = label_length;
+            item->kind = "word";
+            item->detail = "";
+            item->detail_length = 0ULL;
+            item->insert = label;
+            item->insert_length = label_length;
+            memor.cpy(&(MemoriaCfg){.dst = text, .src = label, .bytes = label_length});
+            EMBED_CALL(cli_text_size_from.lower, CliTextSizeFromCfg, .size = label_length, .text_out = text);
+            item->lowered = text;
+            text += label_length + 1ULL;
+            list->items += 1u;
+            at += 1u;
         }
-        if (supplied_already)
-        {
-            continue;
-        }
-        ControllerItem *const item = &list->item[list->items];
-        item->label = label;
-        item->label_length = label_length;
-        item->kind = "word";
-        item->detail = "";
-        item->detail_length = 0ULL;
-        item->insert = label;
-        item->insert_length = label_length;
-        memor.cpy(&(MemoriaCfg){.dst = text, .src = label, .bytes = label_length});
-        EMBED_CALL(cli_text_size_from.lower, CliTextSizeFromCfg, .size = label_length, .text_out = text);
-        item->lowered = text;
-        text += label_length + 1ULL;
-        list->items += 1u;
     }
     return list;
 }
@@ -909,7 +916,7 @@ EMBED_INLINE void panels_items_post(const ControllerPanelsCtx *args)
     *ask = (ControllerItemsAsk){copy, s_panels.completion->line, s_panels.cursor.col, s_panels.completion->from, NULL};
     s_panels.items_asking = 1;
     s_panels.items_again = 0;
-    EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane = CLI_WORK_SERVERS, .run = panels_items_run,
+    EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_SERVERS, .run = panels_items_run,
                .done = panels_items_done, .context = ask, .busy = 1);
 }
 
@@ -1257,8 +1264,8 @@ EMBED_INLINE void panels_signature_ask(const ControllerPanelsCtx *args)
     *ask = (ControllerSignatureAsk){text, text + key_size, text + key_size + path_size, cursor, NULL};
     s_panels.signature_position = cursor;
     s_panels.signature_asking = 1;
-    EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane = CLI_WORK_TREE, .run = panels_signature_tree_run,
-               .done = panels_signature_tree_done, .context = ask, .busy = 1);
+    EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_TREE,
+               .run = panels_signature_tree_run, .done = panels_signature_tree_done, .context = ask, .busy = 1);
 }
 
 // what runs on the tree's lane: the text's lines from as far above as CLI_PANELS_SIGNATURE_LINES reach to the cursor's,
@@ -1305,7 +1312,7 @@ static void panels_signature_tree_done(void *context)
     const int still = (s_panels.cursor.line == ask->cursor.line) && (s_panels.cursor.col == ask->cursor.col);
     if (still && (ask->full[0] != '\0'))
     {
-        EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane = CLI_WORK_SERVERS,
+        EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_SERVERS,
                    .run = panels_signature_server_run, .done = panels_signature_server_done, .context = ask, .busy = 1);
         return;
     }
@@ -1452,7 +1459,7 @@ void cli_model_server_serve(const CliModelCtx *args)
     ControllerServeAsk *const ask = panels_serve_ask_alloc(tab->key, tab->path, g_cli_model.root, "");
     if (ask != NULL)
     {
-        EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane = CLI_WORK_SERVERS, .run = panels_serve_run,
+        EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_SERVERS, .run = panels_serve_run,
                    .done = panels_serve_done, .context = ask, .busy = 1);
     }
 }
@@ -1488,7 +1495,7 @@ void cli_model_server_close(const CliModelCtx *args)
     ControllerServeAsk *const ask = panels_serve_ask_alloc("", "", "", full);
     if (ask != NULL)
     {
-        EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane = CLI_WORK_SERVERS, .run = panels_close_run,
+        EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_SERVERS, .run = panels_close_run,
                    .done = panels_ask_release, .context = ask);
     }
 }
@@ -1540,7 +1547,7 @@ static void panels_tell_post(const ControllerPanelsCtx *args)
     {
         s_panels.changed = 0;
         s_panels.telling = 1;
-        EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane = CLI_WORK_SERVERS, .run = panels_tell_run,
+        EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_SERVERS, .run = panels_tell_run,
                    .done = panels_tell_done, .context = ask);
     }
 }
@@ -1599,7 +1606,7 @@ EMBED_INLINE void panels_view_tell(const ControllerPanelsCtx *args)
     ask->last = last;
     s_panels.view_told = 1;
     s_panels.view_rows = rows;
-    EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane = CLI_WORK_SERVERS, .run = panels_view_run,
+    EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_SERVERS, .run = panels_view_run,
                .done = panels_ask_release, .context = ask);
 }
 

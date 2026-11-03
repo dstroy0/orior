@@ -97,7 +97,7 @@ int cli_inspect_py_sort_methods(const CliInspectSizeSrcCtx *args)
                EMBED_CALL(
                    cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = args->src,
                    .tok = EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = &g_cli_py_line[def_at], .at = 0u),
-                   .word = "@"))
+                   .word_text = "@"))
         {
             def_at += 1u;
         }
@@ -115,13 +115,13 @@ int cli_inspect_py_sort_methods(const CliInspectSizeSrcCtx *args)
         s_names[members] = NULL;
         s_name_sizes[members] = 0u;
         if (EMBED_CALL(cli_inspect_py_src_line.py_head_is, CliInspectPySrcLineCfg, .src = args->src, .line = defined,
-                       .word = "def"))
+                       .word_text = "def"))
         {
             for (unsigned int part = 0u; part + 1u < defined->count; part += 1u)
             {
                 if (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = args->src,
                                .tok = EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = defined, .at = part),
-                               .word = "def"))
+                               .word_text = "def"))
                 {
                     const CliInspectTok *const name =
                         EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = defined, .at = part + 1u);

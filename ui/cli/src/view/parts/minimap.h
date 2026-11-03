@@ -7,12 +7,13 @@
 // of the text (minimap.c)
 #ifndef GUI_PARTS_MINIMAP_H
 #define GUI_PARTS_MINIMAP_H
+#include "editor.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct GuiMinimapPositionScaleCfg GuiMinimapPositionScaleCfg;
 typedef struct GuiMinimapPositionCfg GuiMinimapPositionCfg;
 typedef struct GuiMinimapCfg GuiMinimapCfg;
 typedef struct GuiMinimapFirstCfg GuiMinimapFirstCfg;
-#include "editor.h"
-#include "embed_dispatch_layout.h"
 
 // the sizes in the page's pixels: a row's height, a cell's width, the margin before the bars, the most cells a line's
 // bars reach, the overview strip's width, a mark's least height and the slider's least height

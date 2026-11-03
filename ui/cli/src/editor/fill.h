@@ -12,10 +12,10 @@
 // (fill.c, fill_comment.c)
 #ifndef FILL_H
 #define FILL_H
-typedef struct CliFillCfg CliFillCfg;
-
 #include "../text/edits.h"
 #include "embed_dispatch_layout.h"
+
+typedef struct CliFillCfg CliFillCfg;
 
 struct CliFillCfg
 {

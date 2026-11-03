@@ -4,6 +4,13 @@
 // tunnel, SQLite's process, and the rows a statement gave, buffered in a file of their own as they are read
 #ifndef DB_INTERNAL_H
 #define DB_INTERNAL_H
+#include "../command_line/callback_cfg.h"
+#include "../toolchains/toolchains.h"
+#include "db.h"
+#include "embed_dispatch_layout.h"
+#include "mysql.h"
+#include "pg.h"
+
 typedef struct CliDbLinkCtx CliDbLinkCtx;
 typedef struct CliDbLinkFailureCtx CliDbLinkFailureCtx;
 typedef struct CliDbFailureCtx CliDbFailureCtx;
@@ -21,13 +28,6 @@ typedef struct CliDbOutNameCtx CliDbOutNameCtx;
 typedef struct CliDbCtx CliDbCtx;
 typedef struct CliDbErrMsgCtx CliDbErrMsgCtx;
 typedef struct CliDbStopCtx CliDbStopCtx;
-
-#include "../command_line/callback_cfg.h"
-#include "../toolchains/toolchains.h"
-#include "db.h"
-#include "embed_dispatch_layout.h"
-#include "mysql.h"
-#include "pg.h"
 
 // what the connections and SQLite's processes occupy in the cellblock, each a cell taken as it opens and given back as
 // it closes (db_open.c)

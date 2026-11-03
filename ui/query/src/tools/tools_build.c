@@ -152,30 +152,30 @@ EMBED_INLINE int query_compiled_at_once(const ToolsBuildCtx *args)
 EMBED_INLINE void query_compile_add(const ToolsBuildCtx *args)
 {
     const char *source = args->source;
-    unsigned int word = 0u;
-    args->compile->words[word++] = args->compiler;
-    for (unsigned int flag = 0u; (args->flags[flag] != NULL) && (word < 8u); flag += 1u)
+    unsigned int word_text = 0u;
+    args->compile->words[word_text++] = args->compiler;
+    for (unsigned int flag = 0u; (args->flags[flag] != NULL) && (word_text < 8u); flag += 1u)
     {
-        args->compile->words[word++] = args->flags[flag];
+        args->compile->words[word_text++] = args->flags[flag];
     }
     for (unsigned int setting = 0u; g_query_mmgr_settings[setting] != NULL; setting += 1u)
     {
-        args->compile->words[word++] = g_query_mmgr_settings[setting];
+        args->compile->words[word_text++] = g_query_mmgr_settings[setting];
     }
     for (unsigned int include = 0u; include < args->includes; include += 1u)
     {
-        args->compile->words[word++] = s_includes[include];
+        args->compile->words[word_text++] = s_includes[include];
     }
     if (args->as_cxx)
     {
-        args->compile->words[word++] = "-x";
-        args->compile->words[word++] = "c++";
+        args->compile->words[word_text++] = "-x";
+        args->compile->words[word_text++] = "c++";
     }
-    args->compile->words[word++] = "-c";
-    args->compile->words[word++] = source;
-    args->compile->words[word++] = "-o";
-    args->compile->words[word++] = args->object;
-    args->compile->words[word] = NULL;
+    args->compile->words[word_text++] = "-c";
+    args->compile->words[word_text++] = source;
+    args->compile->words[word_text++] = "-o";
+    args->compile->words[word_text++] = args->object;
+    args->compile->words[word_text] = NULL;
     args->compile->source = source;
 }
 
@@ -254,7 +254,8 @@ EMBED_INLINE int query_tool_compile(const ToolsBuildCtx *args)
     const char *const *const folders[2] = {g_query_mmgr_includes, tool->includes};
     for (unsigned int list = 0u; list < 2u; list += 1u)
     {
-        for (unsigned int at = 0u; (folders[list][at] != NULL) && (includes < QUERY_INCLUDES_MAX); at += 1u)
+        unsigned int at = 0u;
+        while ((folders[list][at] != NULL) && (includes < QUERY_INCLUDES_MAX))
         {
             VerbaLinea line = {s_includes[includes], sizeof(s_includes[includes]), 0ULL};
             mmgr_line_put(&line, "-I");
@@ -262,6 +263,7 @@ EMBED_INLINE int query_tool_compile(const ToolsBuildCtx *args)
             mmgr_line_ch(&line, '/');
             mmgr_line_put(&line, folders[list][at]);
             includes += (mmgr_line_finish(&line) != 0ULL) ? 1u : 0u;
+            at += 1u;
         }
     }
     char (*const lists[3])[QUERY_PATH_MAX_LEN] = {g_query_c_sources.path, g_query_cxx_sources.path,
@@ -342,19 +344,19 @@ EMBED_INLINE int query_tool_compile(const ToolsBuildCtx *args)
         g_cli_cells->persistent_buf_release(cell, &g_query_cells);
         return 0;
     }
-    unsigned int word = 0u;
-    link[word++] = with_cxx ? args->cxx_compiler : args->c_compiler;
-    link[word++] = "-o";
-    link[word++] = args->binary;
+    unsigned int word_text = 0u;
+    link[word_text++] = with_cxx ? args->cxx_compiler : args->c_compiler;
+    link[word_text++] = "-o";
+    link[word_text++] = args->binary;
     for (unsigned int at = 0u; at < objected; at += 1u)
     {
-        link[word++] = g_query_objects.path[at];
+        link[word_text++] = g_query_objects.path[at];
     }
     for (unsigned int at = 0u; at < link_words; at += 1u)
     {
-        link[word++] = tool->link[at];
+        link[word_text++] = tool->link[at];
     }
-    link[word] = NULL;
+    link[word_text] = NULL;
     QueryProcess linked;
     int built = EMBED_CALL(query_started_internal.process_start, QueryStartedCtx, .started = &linked, .words = link,
                            .folder = NULL, .output = QUERY_OUTPUT_PIPED);

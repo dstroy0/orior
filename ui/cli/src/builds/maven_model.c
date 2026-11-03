@@ -133,7 +133,8 @@ void cli_maven_resolve(const CliMavenSizeOutCtx *args)
     VerbaLinea line = {s_turn[0], sizeof(s_turn[0]), 0ULL};
     mmgr_line_put_n(&line, args->value, args->size);
     unsigned int turn_at = 0u;
-    for (unsigned int round = 0u; (round < 8u) && mmgr_line_ok(&line); round += 1u)
+    unsigned int round = 0u;
+    while ((round < 8u) && mmgr_line_ok(&line))
     {
         unsigned long long start = 0ULL;
         unsigned long long length = 0ULL;
@@ -159,6 +160,7 @@ void cli_maven_resolve(const CliMavenSizeOutCtx *args)
         mmgr_line_put_n(&turned, s_turn[turn_at] + start + length + 1u, line.at - start - length - 1u);
         line = turned;
         turn_at = next;
+        round += 1u;
     }
     mmgr_line_put_n(args->out, s_turn[turn_at], line.at);
 }

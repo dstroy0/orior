@@ -256,7 +256,8 @@ EMBED_INLINE int rows_query_send(const MysqlRowsCtx *args)
     const unsigned long long total = size + 1ULL;
     unsigned long long last = 0ULL;
     int sent = 1;
-    for (unsigned long long at = 0ULL; sent && (at < total); at += last)
+    unsigned long long at = 0ULL;
+    while (sent && (at < total))
     {
         last = ((total - at) < 0xffffffULL) ? (total - at) : 0xffffffULL;
         const unsigned char head[5] = {(unsigned char)(last & 0xffu), (unsigned char)((last >> 8u) & 0xffu),
@@ -269,6 +270,7 @@ EMBED_INLINE int rows_query_send(const MysqlRowsCtx *args)
                EMBED_CALL(cli_bytes_size_internal.socket_write, CliBytesSizeCtx, .sock = &args->mysql->socket,
                           .bytes = args->sql + from, .size = piece);
         args->mysql->sequence = (unsigned char)(args->mysql->sequence + 1u);
+        at += last;
     }
     if (sent && (last == 0xffffffULL))
     {

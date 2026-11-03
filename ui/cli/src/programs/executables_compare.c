@@ -198,10 +198,13 @@ void cli_executables_compare_build(const CliExecutablesCfg *args)
             }
             // MSVC's linker writes its Rich header between the DOS stub and the PE header
             int msvc = 0;
-            for (unsigned long long at = 0x80ULL;
-                 stamped_file && !msvc && ((at + 4ULL) <= stamp) && ((at + 4ULL) <= now_size); at += 1ULL)
             {
-                msvc = memor.cmp(&(MemoriaCfg){.src = now + at, .other = "Rich", .bytes = 4u}) == 0;
+                unsigned long long at = 0x80ULL;
+                while (stamped_file && !msvc && ((at + 4ULL) <= stamp) && ((at + 4ULL) <= now_size))
+                {
+                    msvc = memor.cmp(&(MemoriaCfg){.src = now + at, .other = "Rich", .bytes = 4u}) == 0;
+                    at += 1ULL;
+                }
             }
             if (msvc && stamped)
             {
@@ -266,11 +269,15 @@ EMBED_INLINE void cli_dot_env(const ExecutablesCompareCtx *args)
         EMBED_CALL(cli_executables_text_length_internal.scan_trim, CliExecutablesTextLengthCtx, .text_pointer = &value,
                    .length_pointer = &value_length);
         int named = name_length != 0ULL;
-        for (unsigned long long at = 0ULL; named && (at < name_length); at += 1ULL)
         {
-            const char one = name[at];
-            named = ((one >= 'a') && (one <= 'z')) || ((one >= 'A') && (one <= 'Z')) ||
-                    ((one >= '0') && (one <= '9')) || (one == '_') || ((unsigned char)one >= 0x80u);
+            unsigned long long at = 0ULL;
+            while (named && (at < name_length))
+            {
+                const char one = name[at];
+                named = ((one >= 'a') && (one <= 'z')) || ((one >= 'A') && (one <= 'Z')) ||
+                        ((one >= '0') && (one <= '9')) || (one == '_') || ((unsigned char)one >= 0x80u);
+                at += 1ULL;
+            }
         }
         if (!named)
         {

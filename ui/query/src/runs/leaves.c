@@ -56,24 +56,28 @@ static QueryAnswer query_terminal_prompt(const CliEachPathCfg *args)
         {
             continue;
         }
-        const char *const word =
+        const char *const word_text =
             answer + EMBED_CALL(cli_text_set_table.over, CliTextSetCfg, .text = answer, .set = " \t");
-        const size_t length = EMBED_CALL(cli_text_set_table.upto, CliTextSetCfg, .text = word, .set = " \t");
-        if (((length == 1u) && (word[0] == 'y')) ||
-            ((length == 3u) && (cellul.starts(&(CatenaFinitaCfg){.src = word, .other = "yes", .cap = CLI_CELLS_POOL}))))
+        const size_t length = EMBED_CALL(cli_text_set_table.upto, CliTextSetCfg, .text = word_text, .set = " \t");
+        if (((length == 1u) && (word_text[0] == 'y')) ||
+            ((length == 3u) &&
+             (cellul.starts(&(CatenaFinitaCfg){.src = word_text, .other = "yes", .cap = CLI_CELLS_POOL}))))
         {
             return QUERY_ANSWER_YES;
         }
-        if (((length == 1u) && (word[0] == 'n')) ||
-            ((length == 2u) && (cellul.starts(&(CatenaFinitaCfg){.src = word, .other = "no", .cap = CLI_CELLS_POOL}))))
+        if (((length == 1u) && (word_text[0] == 'n')) ||
+            ((length == 2u) &&
+             (cellul.starts(&(CatenaFinitaCfg){.src = word_text, .other = "no", .cap = CLI_CELLS_POOL}))))
         {
             return QUERY_ANSWER_NO;
         }
-        if ((length == 3u) && (cellul.starts(&(CatenaFinitaCfg){.src = word, .other = "all", .cap = CLI_CELLS_POOL})))
+        if ((length == 3u) &&
+            (cellul.starts(&(CatenaFinitaCfg){.src = word_text, .other = "all", .cap = CLI_CELLS_POOL})))
         {
             return QUERY_ANSWER_ALL;
         }
-        if ((length == 4u) && (cellul.starts(&(CatenaFinitaCfg){.src = word, .other = "none", .cap = CLI_CELLS_POOL})))
+        if ((length == 4u) &&
+            (cellul.starts(&(CatenaFinitaCfg){.src = word_text, .other = "none", .cap = CLI_CELLS_POOL})))
         {
             return QUERY_ANSWER_NONE;
         }
@@ -428,11 +432,13 @@ int query_leaves_settle(const QueryContextErrMsgCtx *args)
         const char *const path = (at < reads) ? args->run_read->read.path[at] : args->run_read->left.path[at - reads];
         // each path once, in the order first named
         int named_before = 0;
-        for (unsigned int before = 0u; !named_before && (before < at); before += 1u)
+        unsigned int before = 0u;
+        while (!named_before && (before < at))
         {
             const char *const other =
                 (before < reads) ? args->run_read->read.path[before] : args->run_read->left.path[before - reads];
             named_before = cellul.eq(&(CatenaFinitaCfg){.src = other, .other = path, .cap = CLI_CELLS_POOL});
+            before += 1u;
         }
         const unsigned char *stored = NULL;
         unsigned long long stored_size = 0ULL;

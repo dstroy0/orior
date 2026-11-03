@@ -492,10 +492,12 @@ int cli_schema_matches(const CliSchemaTextCtx *args)
                 EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = args->text, .size = args->size,
                            .letters = letters, .capacity_u64 = capacity);
             found = 0;
-            for (unsigned long long at = 0ULL; !found && (at <= length); at += 1u)
+            unsigned long long at = 0ULL;
+            while (!found && (at <= length))
             {
                 found = EMBED_CALL(cli_regexp_text_u_32s.match_into, CliRegexpTextU32sCfg, .regexp = &s_regexp,
                                    .text_u32s = letters, .length = length, .at = at, .groups = s_groups);
+                at += 1u;
             }
         }
     }

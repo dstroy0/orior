@@ -7,15 +7,15 @@
 // completions.c)
 #ifndef EDITS_H
 #define EDITS_H
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliEditsItemsCfg CliEditsItemsCfg;
 typedef struct CliEditsOutCfg CliEditsOutCfg;
 typedef struct CliEditsOutItemsCfg CliEditsOutItemsCfg;
 typedef struct CliEditsLineCfg CliEditsLineCfg;
 typedef struct CliEditsCfg CliEditsCfg;
 typedef struct CliEditsPositionCfg CliEditsPositionCfg;
-
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // the most edits written over a text at once
 #define CLI_TEXT_EDITS 65536u

@@ -16,13 +16,13 @@
 // key the reader takes out of a file is gone at the next start, and the window's default stands for it
 #ifndef STATE_H
 #define STATE_H
+#include "../text/json_tree.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliStateFolderCfg CliStateFolderCfg;
 typedef struct CliStateJsonCfg CliStateJsonCfg;
 typedef struct CliStateOutCfg CliStateOutCfg;
 typedef struct CliStateCfg CliStateCfg;
-
-#include "../text/json_tree.h"
-#include "embed_dispatch_layout.h"
 
 // whether the entry `key`, without `orior.`, is a setting or the list of themes, those a taking of another machine's
 // settings changes

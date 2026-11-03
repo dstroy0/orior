@@ -9,10 +9,10 @@
 // .ksc. The query reads them the same way (query_jobs.c)
 #ifndef PROTOCOL_H
 #define PROTOCOL_H
-typedef struct CliProtocolCfg CliProtocolCfg;
-
 #include "../command_line/cli_internal.h"
 #include "embed_dispatch_layout.h"
+
+typedef struct CliProtocolCfg CliProtocolCfg;
 
 // the programs as the toolchains find them: the gcc or the llvm toolchain's compilers, whichever is chosen, the cuda
 // toolchain's nvcc and the programs beside it, the msvc toolchain's cl, the python toolchain's program; the PATH alone

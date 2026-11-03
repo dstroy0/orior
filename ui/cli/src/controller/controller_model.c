@@ -609,8 +609,8 @@ int cli_controller_model_step(void)
         if (reading != NULL)
         {
             s_memory_reading = 1;
-            EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane = CLI_WORK_FILES, .run = model_memory_run,
-                       .done = model_memory_done, .context = reading);
+            EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_FILES,
+                       .run = model_memory_run, .done = model_memory_done, .context = reading);
         }
     }
     const unsigned int dirty = g_cli_model.dirty;

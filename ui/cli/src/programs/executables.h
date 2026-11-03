@@ -7,6 +7,10 @@
 // the tree, and the program it made is read back from the id and the build's lines
 #ifndef EXECUTABLES_H
 #define EXECUTABLES_H
+#include "../command_line/callback_cfg.h"
+#include "../runs/runner.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliExecutablesPathCfg CliExecutablesPathCfg;
 typedef struct CliExecutablesRootCfg CliExecutablesRootCfg;
 typedef struct CliExecutablesValuesCfg CliExecutablesValuesCfg;
@@ -14,10 +18,6 @@ typedef struct CliExecutablesErrMsgCfg CliExecutablesErrMsgCfg;
 typedef struct CliExecutablesCfg CliExecutablesCfg;
 typedef struct CliExecutablesKindCfg CliExecutablesKindCfg;
 typedef struct CliExecutablesToolCfg CliExecutablesToolCfg;
-
-#include "../command_line/callback_cfg.h"
-#include "../runs/runner.h"
-#include "embed_dispatch_layout.h"
 
 // the program `name` of the toolchain `tool`, found where the toolchains window finds it, into `path`, sized for
 // CLI_PATH_MAX_LEN: 1, or 0 with why given

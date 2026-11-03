@@ -86,10 +86,10 @@ void cli_wrap(const CliCommandLineTextCtx *args)
     VerbaLinea line = {s_line, sizeof(s_line), 0ULL};
     mmgr_line_put(&line, args->lead);
     unsigned long long at = 0ULL;
-    unsigned long long word = 0ULL;
+    unsigned long long word_text = 0ULL;
     unsigned long long length = 0ULL;
-    while (EMBED_CALL(cli_text_size_length.word, CliTextSizeLengthCfg, .text = text, .size = size, .at_pointer = &at,
-                      .word = &word, .length = &length))
+    while (EMBED_CALL(cli_text_size_length.word_text, CliTextSizeLengthCfg, .text = text, .size = size,
+                      .at_pointer = &at, .word_text = &word_text, .length = &length))
     {
         const int started = (line.at > comment_prefix_size);
         if (started && (line.at + 1ULL + length > args->most))
@@ -98,7 +98,7 @@ void cli_wrap(const CliCommandLineTextCtx *args)
             line.at = comment_prefix_size;
         }
         mmgr_line_put(&line, (line.at > comment_prefix_size) ? " " : "");
-        mmgr_line_put_n(&line, text + word, length);
+        mmgr_line_put_n(&line, text + word_text, length);
     }
     if (line.at > comment_prefix_size)
     {
@@ -108,7 +108,7 @@ void cli_wrap(const CliCommandLineTextCtx *args)
 
 int cli_contains_word(const CliCommandLineCtx *args)
 {
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->word, .cap = CLI_CELLS_POOL});
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_CELLS_POOL});
     const size_t size = cellul.len(&(CatenaFinitaCfg){.src = args->text, .cap = CLI_CELLS_POOL});
     for (size_t at = 0u; at + length <= size; at += 1u)
     {
@@ -116,7 +116,7 @@ int cli_contains_word(const CliCommandLineCtx *args)
         while (same < length)
         {
             const char one = args->text[at + same];
-            const char other = args->word[same];
+            const char other = args->word_text[same];
             const char lower = ((one >= 'A') && (one <= 'Z')) ? (char)(one - 'A' + 'a') : one;
             const char lower_other = ((other >= 'A') && (other <= 'Z')) ? (char)(other - 'A' + 'a') : other;
             if (lower != lower_other)
@@ -137,7 +137,7 @@ void cli_quoted_word(const CliCommandLineOutCtx *args)
 {
     VerbaLinea *out = args->out;
     mmgr_line_ch(out, '"');
-    EMBED_CALL(cli_text_size_set.append_mark, CliTextSizeSetCfg, .out = out, .text = args->word, .set = "\\\"",
+    EMBED_CALL(cli_text_size_set.append_mark, CliTextSizeSetCfg, .out = out, .text = args->word_text, .set = "\\\"",
                .mark = '\\');
     mmgr_line_ch(out, '"');
 }
@@ -274,11 +274,11 @@ int cli_job_values(const CliCommandLineCatalogCtx *args)
             }
             static char s_free[1u << 16u];
             VerbaLinea free = {s_free, sizeof(s_free), 0ULL};
-            for (unsigned int word = at + 1u; word < count; word += 1u)
+            for (unsigned int word_text = at + 1u; word_text < count; word_text += 1u)
             {
-                mmgr_line_put(&free, (word > at + 1u) ? " " : "");
-                EMBED_CALL(cli_command_line_out_internal.quoted_word, CliCommandLineOutCtx, .word = args->words[word],
-                           .out = &free);
+                mmgr_line_put(&free, (word_text > at + 1u) ? " " : "");
+                EMBED_CALL(cli_command_line_out_internal.quoted_word, CliCommandLineOutCtx,
+                           .word_text = args->words[word_text], .out = &free);
             }
             (void)mmgr_line_finish(&free);
             EMBED_CALL(cli_catalog_key_values.values_append, CliCatalogKeyValuesCfg, .values_out = values,

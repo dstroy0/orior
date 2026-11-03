@@ -4,6 +4,11 @@
 // frames and regions that go over it
 #ifndef DOOR_INTERNAL_H
 #define DOOR_INTERNAL_H
+#include "door.h"
+#include "embed_atomic.h"
+#include "embed_dispatch_layout.h"
+#include "transfer.h"
+
 typedef struct CliIpcErrMsgCtx CliIpcErrMsgCtx;
 typedef struct CliIpcListenerCtx CliIpcListenerCtx;
 typedef struct CliIpcErrMsgEndCtx CliIpcErrMsgEndCtx;
@@ -14,11 +19,6 @@ typedef struct CliIpcEndSizeCtx CliIpcEndSizeCtx;
 typedef struct CliIpcCtx CliIpcCtx;
 typedef struct CliIpcListenerAddressCtx CliIpcListenerAddressCtx;
 typedef struct CliIpcEndBytesCtx CliIpcEndBytesCtx;
-
-#include "door.h"
-#include "embed_atomic.h"
-#include "embed_dispatch_layout.h"
-#include "transfer.h"
 
 // the longest frame taken, in bytes, a longer body going through the transfer layer; the bytes of a frame read into
 // the capacity it is read in, and of a body written again; and the bytes of a body stored in a message's buffer, a

@@ -70,10 +70,10 @@ static void cli_write(const PluginsTextCtx *args)
         if (strings)
         {
             // the words packed onto lines, a line broken where the next would pass the width
-            const unsigned long long word =
+            const unsigned long long word_text =
                 EMBED_CALL(cli_quoted_length, PluginsTextCtx, .text = json->text + json->node[item].text,
                            .length = json->node[item].length);
-            if (!first && ((inner + line + word + 2ULL) > CLI_WIDE))
+            if (!first && ((inner + line + word_text + 2ULL) > CLI_WIDE))
             {
                 mmgr_line_put(out, ",\n");
                 line = 0ULL;
@@ -92,7 +92,7 @@ static void cli_write(const PluginsTextCtx *args)
             }
             EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out,
                        .text = json->text + json->node[item].text, .length = json->node[item].length);
-            line += word;
+            line += word_text;
             first = 0;
             if (last)
             {

@@ -6,12 +6,13 @@
 // against the cell it answers for, below it where the capacity allows, else above, saved inside its bounds (panel.c)
 #ifndef GUI_PARTS_PANEL_H
 #define GUI_PARTS_PANEL_H
-typedef struct GuiPanelRasterCfg GuiPanelRasterCfg;
-typedef struct GuiPanelWidthCfg GuiPanelWidthCfg;
-typedef struct GuiPanelCfg GuiPanelCfg;
 #include "../glyphs.h"
 #include "../palette.h"
 #include "embed_dispatch_layout.h"
+
+typedef struct GuiPanelRasterCfg GuiPanelRasterCfg;
+typedef struct GuiPanelWidthCfg GuiPanelWidthCfg;
+typedef struct GuiPanelCfg GuiPanelCfg;
 
 // the sizes in the page's pixels: a panel's corner radius, --radius; the text face's size and its line's height in a
 // hover, 13.5px over 1.5; the code face's size and its line's height, 12.5px over 1.45; a paragraph's margin; a rule's

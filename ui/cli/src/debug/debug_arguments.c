@@ -26,10 +26,12 @@ int cli_debug_sign(const CliDebugJsonNodeCtx *args)
     const unsigned long long first = negative ? 1ULL : 0ULL;
     unsigned long long whole = 0ULL;
     int read = (length > first) && (length - first <= 19ULL);
-    for (unsigned long long at = first; read && (at < length); at += 1ULL)
+    unsigned long long at = first;
+    while (read && (at < length))
     {
         read = (text[at] >= '0') && (text[at] <= '9');
         whole = (whole * 10ULL) + (unsigned long long)(text[at] - '0');
+        at += 1ULL;
     }
     read = read && (whole <= (negative ? 9223372036854775808ULL : 9223372036854775807ULL));
     // the least number is its own negative's bits, as two's complement writes it
@@ -47,11 +49,13 @@ int cli_debug_unsigned(const CliDebugJsonNodeValueU64sCtx *args)
     const unsigned long long length = (text != NULL) ? args->json->node[args->node].length : 0ULL;
     unsigned long long whole = 0ULL;
     int read = (length > 0ULL) && (length <= 20ULL);
-    for (unsigned long long at = 0ULL; read && (at < length); at += 1ULL)
+    unsigned long long at = 0ULL;
+    while (read && (at < length))
     {
         const unsigned long long digit = (unsigned long long)(text[at] - '0');
         read = (text[at] >= '0') && (text[at] <= '9') && (whole <= (18446744073709551615ULL - digit) / 10ULL);
         whole = (whole * 10ULL) + digit;
+        at += 1ULL;
     }
     *value = read ? whole : 0ULL;
     return read;

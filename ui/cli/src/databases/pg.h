@@ -11,6 +11,9 @@
 // pg_cancel.c)
 #ifndef PG_H
 #define PG_H
+#include "db_wire.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliPgHostCfg CliPgHostCfg;
 typedef struct CliPgFailureCfg CliPgFailureCfg;
 typedef struct CliPgFailureSqlCfg CliPgFailureSqlCfg;
@@ -19,9 +22,6 @@ typedef struct CliPgCancelCfg CliPgCancelCfg;
 typedef struct CliPgTextCfg CliPgTextCfg;
 typedef struct CliPgAtCfg CliPgAtCfg;
 typedef struct CliPgNameCfg CliPgNameCfg;
-
-#include "db_wire.h"
-#include "embed_dispatch_layout.h"
 
 // A connection to a PostgreSQL server
 typedef struct CliPg CliPg;

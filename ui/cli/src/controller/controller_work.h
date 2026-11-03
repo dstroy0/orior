@@ -4,9 +4,9 @@
 // (controller_work.c)
 #ifndef CONTROLLER_WORK_H
 #define CONTROLLER_WORK_H
-typedef struct CliControllerWorkCfg CliControllerWorkCfg;
-
 #include "controller.h"
+
+typedef struct CliControllerWorkCfg CliControllerWorkCfg;
 
 // the lanes: files read, what reads the tree's declarations, and what waits on a language server
 #define CLI_WORK_FILES 0u
@@ -25,7 +25,7 @@ void cli_controller_work_end(void);
 
 struct CliControllerWorkCfg
 {
-    unsigned int lane;
+    unsigned int lane_at;
     void (*run)(void *context);
     void (*done)(void *context);
     void *context;

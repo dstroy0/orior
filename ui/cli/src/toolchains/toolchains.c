@@ -390,11 +390,20 @@ int cli_toolchains_natural(const CliToolchainsACtx *args)
         }
         else
         {
-            for (const char *x = a, *y = b; (order == 0) && ((x < a_end) || (y < b_end)); x += 1, y += 1)
+            const char *x = a;
+            const char *y = b;
+            while ((order == 0) && ((x < a_end) || (y < b_end)))
             {
-                const char left = (x < a_end) ? (((x[0] >= 'A') && (x[0] <= 'Z')) ? (char)(x[0] + 32) : x[0]) : '\0';
-                const char right = (y < b_end) ? (((y[0] >= 'A') && (y[0] <= 'Z')) ? (char)(y[0] + 32) : y[0]) : '\0';
-                order = (left != right) ? ((left < right) ? -1 : 1) : 0;
+                const char left_read = (x < a_end) ? x[0] : '\0';
+                const char right_read = (y < b_end) ? y[0] : '\0';
+                const char left = ((left_read >= 'A') && (left_read <= 'Z')) ? (char)(left_read + 32) : left_read;
+                const char right = ((right_read >= 'A') && (right_read <= 'Z')) ? (char)(right_read + 32) : right_read;
+                if (left != right)
+                {
+                    order = (left < right) ? -1 : 1;
+                }
+                x += 1;
+                y += 1;
             }
         }
         if (order != 0)

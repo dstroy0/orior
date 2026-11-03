@@ -6,12 +6,13 @@
 // controller's (suggest.c)
 #ifndef GUI_PARTS_SUGGEST_H
 #define GUI_PARTS_SUGGEST_H
-typedef struct GuiSuggestRasterCfg GuiSuggestRasterCfg;
-typedef struct GuiSuggestXCfg GuiSuggestXCfg;
-typedef struct GuiSuggestCfg GuiSuggestCfg;
 #include "../../controller/controller_parts.h"
 #include "embed_dispatch_layout.h"
 #include "panel.h"
+
+typedef struct GuiSuggestRasterCfg GuiSuggestRasterCfg;
+typedef struct GuiSuggestXCfg GuiSuggestXCfg;
+typedef struct GuiSuggestCfg GuiSuggestCfg;
 
 // the sizes in the page's pixels: a row's height, the list's least and most width, 16rem and 26rem, the detail pane's
 // width, 18rem, and its most height, 14rem, a kind's mark, 0.55rem, a row's padding across, 0.55rem, the gap between a

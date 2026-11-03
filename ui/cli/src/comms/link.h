@@ -9,15 +9,15 @@
 // names another ssh, with words of its own before ssh's (link_address.c)
 #ifndef LINK_H
 #define LINK_H
+#include "../command_line/callback_cfg.h"
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliLinkSizeCfg CliLinkSizeCfg;
 typedef struct CliLinkAddressCfg CliLinkAddressCfg;
 typedef struct CliLinkTextCfg CliLinkTextCfg;
 typedef struct CliLinkTextSizeCfg CliLinkTextSizeCfg;
 typedef struct CliLinkOutCfg CliLinkOutCfg;
-
-#include "../command_line/callback_cfg.h"
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // how the machine is reached
 #define CLI_LINK_SSH 0u

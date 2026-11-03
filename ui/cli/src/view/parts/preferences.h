@@ -8,6 +8,11 @@
 // window holds what each row sets and acts on what is changed here (preferences.c)
 #ifndef GUI_PARTS_PREFERENCES_H
 #define GUI_PARTS_PREFERENCES_H
+#include "../frame.h"
+#include "../glyphs.h"
+#include "../palette.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct GuiPreferencesPaletteValuesCfg GuiPreferencesPaletteValuesCfg;
 typedef struct GuiPreferencesValuesCfg GuiPreferencesValuesCfg;
 typedef struct GuiPreferencesPaletteChangeCfg GuiPreferencesPaletteChangeCfg;
@@ -20,10 +25,6 @@ typedef struct GuiPreferencesSizeCfg GuiPreferencesSizeCfg;
 typedef struct GuiPreferencesPaletteCfg GuiPreferencesPaletteCfg;
 typedef struct GuiPreferencesCfg GuiPreferencesCfg;
 typedef struct GuiPreferencesRowCfg GuiPreferencesRowCfg;
-#include "../frame.h"
-#include "../glyphs.h"
-#include "../palette.h"
-#include "embed_dispatch_layout.h"
 
 // the sections; the rows of Settings; the zoom's steps; the opacities' step and most; and the sizes in unscaled pixels:
 // how far everything saves from the edges of what it stands in, the sections' width, a row's height, the text's size, a

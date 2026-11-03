@@ -37,6 +37,10 @@
 // and try
 #ifndef PLUGINS_H
 #define PLUGINS_H
+#include "../command_line/cells.h"
+#include "../text/json_tree.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliPluginsIdCfg CliPluginsIdCfg;
 typedef struct CliPluginsErrMsgCfg CliPluginsErrMsgCfg;
 typedef struct CliPluginsErrMsgJsonCfg CliPluginsErrMsgJsonCfg;
@@ -51,10 +55,6 @@ typedef struct CliPluginsIdNameCfg CliPluginsIdNameCfg;
 typedef struct CliPluginsCfg CliPluginsCfg;
 typedef struct CliPluginsRootCfg CliPluginsRootCfg;
 typedef struct CliPluginsTreeCfg CliPluginsTreeCfg;
-
-#include "../command_line/cells.h"
-#include "../text/json_tree.h"
-#include "embed_dispatch_layout.h"
 
 // the most keys of extensions, names and paths the languages contain, and the most plugins the reader installs
 #define CLI_LANGUAGE_PAIRS 4096u

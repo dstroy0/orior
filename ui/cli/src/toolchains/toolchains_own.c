@@ -120,7 +120,8 @@ EMBED_INLINE int cli_add_folder(const ToolchainsOwnCtx *args)
         // a line already there, trimmed, is retained as it is
         int there = 0;
         const char *from = s_file;
-        for (const char *place = s_file; !there && (place <= (s_file + size)); place += 1)
+        const char *place = s_file;
+        while (!there && (place <= (s_file + size)))
         {
             if ((place == (s_file + size)) || (place[0] == '\n'))
             {
@@ -134,6 +135,7 @@ EMBED_INLINE int cli_add_folder(const ToolchainsOwnCtx *args)
                         (memor.cmp(&(MemoriaCfg){.src = start, .other = line, .bytes = line_length}) == 0);
                 from = place + 1;
             }
+            place += 1;
         }
         if (there)
         {

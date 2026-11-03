@@ -302,9 +302,11 @@ EMBED_INLINE int cli_effect_tree_path(const SymbolsEffectCtx *args)
         const char *const top = (at == 0u) ? args->effect_read->root : paths[at - 1u];
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = top, .cap = CLI_CELLS_POOL});
         int under = length != 0ULL;
-        for (unsigned long long each = 0ULL; under && (each < length); each += 1ULL)
+        unsigned long long each = 0ULL;
+        while (under && (each < length))
         {
             under = ((top[each] == '\\') ? '/' : top[each]) == ((args->whole[each] == '\\') ? '/' : args->whole[each]);
+            each += 1ULL;
         }
         under = under && ((args->whole[length] == '/') || (args->whole[length] == '\0'));
         if (!under)
@@ -434,7 +436,8 @@ EMBED_INLINE int cli_effect_include(const SymbolsEffectCtx *args)
     }
     found = found || EMBED_CALL(cli_effect_tree_file, SymbolsEffectCtx, .folder = "", .folder_length = 0ULL,
                                 .named = args->named, .length = length, .out = args->out);
-    for (unsigned int file = 0u; !found && (file < g_cli_branch_count); file += 1u)
+    unsigned int file = 0u;
+    while (!found && (file < g_cli_branch_count))
     {
         const CliTreeBranch *const branch = &g_cli_branches[file];
         char stored_path[CLI_PATH_MAX_LEN] = {'\0'};
@@ -452,6 +455,7 @@ EMBED_INLINE int cli_effect_include(const SymbolsEffectCtx *args)
             memor.cpy(&(MemoriaCfg){.dst = args->out, .src = stored_path, .bytes = (size_t)size + 1u});
             found = 1;
         }
+        file += 1u;
     }
     return found;
 }

@@ -4,6 +4,12 @@
 // results each has received, and what a run reports
 #ifndef TEST_RUNS_INTERNAL_H
 #define TEST_RUNS_INTERNAL_H
+#include "../text/json_tree.h"
+#include "../toolchains/toolchains.h"
+#include "cargo_tests.h"
+#include "embed_dispatch_layout.h"
+#include "test_runs.h"
+
 typedef struct CliTestRunsOutcomeCtx CliTestRunsOutcomeCtx;
 typedef struct CliTestRunsRunCtx CliTestRunsRunCtx;
 typedef struct CliTestRunsTextCtx CliTestRunsTextCtx;
@@ -24,12 +30,6 @@ typedef struct CliTestRunsCtx CliTestRunsCtx;
 typedef struct CliTestRunsPathCtx CliTestRunsPathCtx;
 typedef struct CliTestRunsPythonCtx CliTestRunsPythonCtx;
 typedef struct CliTestRunsWorkerLineCtx CliTestRunsWorkerLineCtx;
-
-#include "../text/json_tree.h"
-#include "../toolchains/toolchains.h"
-#include "cargo_tests.h"
-#include "embed_dispatch_layout.h"
-#include "test_runs.h"
 
 // the runs open at once, a run going and the one before it ending; the most processes a run starts; the longest line
 // a process writes that is read whole, and the most bytes one thing a run reports takes; the bytes the names a run is

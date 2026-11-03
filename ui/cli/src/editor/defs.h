@@ -7,11 +7,11 @@
 // word of its own. A form added to an oracle table is a form the editor knows the next time it opens
 #ifndef DEFS_H
 #define DEFS_H
-typedef struct CliDefsPathCfg CliDefsPathCfg;
-typedef struct CliDefsCfg CliDefsCfg;
-
 #include "../command_line/cli_internal.h"
 #include "embed_dispatch_layout.h"
+
+typedef struct CliDefsPathCfg CliDefsPathCfg;
+typedef struct CliDefsCfg CliDefsCfg;
 
 // the cells the definitions are read through, counted, each given back before cli_defs_read returns
 extern CellOwner g_cli_defs_cells;

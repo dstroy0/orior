@@ -78,9 +78,11 @@ EMBED_INLINE void offer_keys(const SchemaOfferCtx *args)
             const char *const name = json->text + json->node[one].key;
             const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
             int seen = EMBED_CALL(offer_has_key, SchemaOfferCtx, .text = text, .name = name, .size = size);
-            for (unsigned int earlier = 0u; !seen && (earlier < offered); earlier += 1u)
+            unsigned int earlier = 0u;
+            while (!seen && (earlier < offered))
             {
                 seen = (cellul.eq(&(CatenaFinitaCfg){.src = s_offered[earlier], .other = name, .cap = CLI_CELLS_POOL}));
+                earlier += 1u;
             }
             if (seen || (offered == CLI_SCHEMA_OFFERED) || (size < base - args->token) ||
                 (memor.cmp(&(MemoriaCfg){
@@ -266,10 +268,10 @@ EMBED_INLINE void offer_values(const SchemaOfferCtx *args)
                        .detail_size = detail.at);
         }
         static const char *const s_input[2] = {"const", "default"};
-        for (unsigned int word = 0u; word < 2u; word += 1u)
+        for (unsigned int word_text = 0u; word_text < 2u; word_text += 1u)
         {
             const unsigned int supplied = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json,
-                                                     .map = one, .name = s_input[word]);
+                                                     .map = one, .name = s_input[word_text]);
             if (supplied != CLI_JSON_NONE)
             {
                 EMBED_CALL(offer_value, SchemaOfferCtx, .json = json, .value = supplied, .detail = s_detail,
@@ -288,14 +290,14 @@ EMBED_INLINE void offer_values(const SchemaOfferCtx *args)
                        .detail_size = detail.at);
         }
         static const CfgJsonKind s_kinds[3] = {CFG_JSON_TRUE, CFG_JSON_FALSE, CFG_JSON_NULL};
-        for (unsigned int word = 0u; word < 3u; word += 1u)
+        for (unsigned int word_text = 0u; word_text < 3u; word_text += 1u)
         {
             if (EMBED_CALL(offer_type, SchemaOfferCtx, .json = json, .schema = one,
-                           .kind = (word < 2u) ? "boolean" : "null") &&
+                           .kind = (word_text < 2u) ? "boolean" : "null") &&
                 !g_cli_schema_spot.in_string)
             {
-                const unsigned int made =
-                    EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = json, .kind = s_kinds[word]);
+                const unsigned int made = EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = json,
+                                                     .kind = s_kinds[word_text]);
                 if (made != CLI_JSON_NONE)
                 {
                     EMBED_CALL(offer_value, SchemaOfferCtx, .json = json, .value = made, .detail = s_detail,

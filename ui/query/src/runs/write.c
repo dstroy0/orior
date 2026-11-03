@@ -71,20 +71,20 @@ int query_bridge(const QueryLoopsContextErrMsgRulesetsCfg *args)
     static QueryWords s_words;
     memor.set(&(MemoriaCfg){.dst = &s_words, .val = 0, .bytes = sizeof(s_words)});
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-               .word = s_klq_write);
+               .word_text = s_klq_write);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-               .word = table);
+               .word_text = table);
     for (unsigned int at = 0u; at < input_count; at += 1u)
     {
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-                   .word = supplied[at]);
+                   .word_text = supplied[at]);
     }
     long long code = -1LL;
     const int whole = EMBED_CALL(query_count_err_msg_internal.run_read, QueryCountErrMsgCtx, .run = &s_run,
                                  .paths_letters = s_reads, .count = input_count + 1u, .err_msg = err_msg) &&
                       EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
-                                 .context = context, .run = &s_run, .name = "orior_klq_write", .words = s_words.word,
-                                 .code = &code, .err_msg = err_msg);
+                                 .context = context, .run = &s_run, .name = "orior_klq_write",
+                                 .words = s_words.word_text, .code = &code, .err_msg = err_msg);
     if (!EMBED_CALL(query_loops_context_run.context_end, QueryLoopsContextRunCfg, .context = context, .run_out = &s_run,
                     .err_msg = err_msg) ||
         !whole)

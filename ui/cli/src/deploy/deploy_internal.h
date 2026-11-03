@@ -4,6 +4,11 @@
 // the files it sends and leaves out, and what each place has against what goes
 #ifndef DEPLOY_INTERNAL_H
 #define DEPLOY_INTERNAL_H
+#include "../comms/link.h"
+#include "../text/json_tree.h"
+#include "deploy.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliDeployErrMsgCtx CliDeployErrMsgCtx;
 typedef struct CliDeploySizeCtx CliDeploySizeCtx;
 typedef struct CliDeployErrMsgIndexCtx CliDeployErrMsgIndexCtx;
@@ -23,11 +28,6 @@ typedef struct CliDeployIndexCtx CliDeployIndexCtx;
 typedef struct CliDeployIndexPathCtx CliDeployIndexPathCtx;
 typedef struct CliDeployOutSecondsCtx CliDeployOutSecondsCtx;
 typedef struct CliDeployCtx CliDeployCtx;
-
-#include "../comms/link.h"
-#include "../text/json_tree.h"
-#include "deploy.h"
-#include "embed_dispatch_layout.h"
 
 // the bytes of each page of a pool, a text longer taking a page of its own
 #define CLI_DEPLOY_PAGE (64u << 10u)

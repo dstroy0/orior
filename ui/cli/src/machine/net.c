@@ -101,12 +101,16 @@ void cli_net_host_get(const CliNetAddressHostCfg *args)
     end += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = end, .at = 0ULL,
                       .size = cellul.len(&(CatenaFinitaCfg){.src = end, .cap = CLI_CELLS_POOL}), .set = "/?#");
     // after the last `@`, the user before it left off
-    for (const char *at = end; at > rest; at -= 1)
     {
-        if (at[-1] == '@')
+        const char *at = end;
+        while (at > rest)
         {
-            rest = at;
-            break;
+            if (at[-1] == '@')
+            {
+                rest = at;
+                break;
+            }
+            at -= 1;
         }
     }
     VerbaLinea line = {args->host, CLI_PATH_MAX_LEN, 0ULL};
@@ -140,10 +144,14 @@ int cli_net_local(const CliNetHostCfg *args)
     to = from + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = from,
                            .at = (unsigned long long)(to - from), .set = CLI_TEXT_WHITE);
     unsigned long long length = 0ULL;
-    for (const char *at = from; (at < to) && (length + 1ULL < sizeof(lower)); at += 1)
     {
-        lower[length] = ((at[0] >= 'A') && (at[0] <= 'Z')) ? (char)(at[0] + 32) : at[0];
-        length += 1ULL;
+        const char *at = from;
+        while ((at < to) && (length + 1ULL < sizeof(lower)))
+        {
+            lower[length] = ((at[0] >= 'A') && (at[0] <= 'Z')) ? (char)(at[0] + 32) : at[0];
+            length += 1ULL;
+            at += 1;
+        }
     }
     lower[length] = '\0';
     return (length == 0ULL) ||

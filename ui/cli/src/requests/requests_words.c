@@ -61,8 +61,8 @@ EMBED_INLINE int words_end(const RequestsWordsCtx *args)
     {
         return 0;
     }
-    args->words->word[args->words->count].at = *start;
-    args->words->word[args->words->count].size = args->words->used - *start;
+    args->words->word_text[args->words->count].at = *start;
+    args->words->word_text[args->words->count].size = args->words->used - *start;
     args->words->text[args->words->used] = '\0';
     args->words->used += 1u;
     args->words->count += 1u;

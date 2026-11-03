@@ -96,13 +96,13 @@ void cli_launch_words(const CliCommandLineLaunchOutCfg *args)
     const char *const named[2] = {args->launch->menu, args->launch->command};
     for (unsigned int at = 0u; at < 2u + args->launch->args; at += 1u)
     {
-        const char *const word = (at < 2u) ? named[at]
-                                           : EMBED_CALL(cli_command_line_table.launch_arg, CliCommandLineCfg,
-                                                        .launch = args->launch, .at = at - 2u);
-        if (word[0] != '\0')
+        const char *const word_text = (at < 2u) ? named[at]
+                                                : EMBED_CALL(cli_command_line_table.launch_arg, CliCommandLineCfg,
+                                                             .launch = args->launch, .at = at - 2u);
+        if (word_text[0] != '\0')
         {
             mmgr_line_put(args->out, (args->out->at > start) ? " " : "");
-            mmgr_line_put(args->out, word);
+            mmgr_line_put(args->out, word_text);
         }
     }
 }
@@ -228,12 +228,12 @@ EMBED_INLINE void run_menus(const CommandLineRunCtx *args)
     }
     unsigned int menu = 0u;
     VerbaLinea err_msg = {s_msg_buf, sizeof(s_msg_buf), 0ULL};
-    if (!EMBED_CALL(cli_commands_word.menu_by_name, CliCommandsWordCfg, .word = first, .menu_pointer = &menu))
+    if (!EMBED_CALL(cli_commands_word.menu_by_name, CliCommandsWordCfg, .word_text = first, .menu_pointer = &menu))
     {
         static char s_file[CLI_PATH_MAX_LEN * 2u];
         VerbaLinea file = {s_file, sizeof(s_file), 0ULL};
         const int named_file = EMBED_CALL(cli_command_line_out_internal.file_word, CliCommandLineOutCtx, .named = named,
-                                          .word = first, .out = &file, .err_msg = &err_msg);
+                                          .word_text = first, .out = &file, .err_msg = &err_msg);
         if (named_file > 0)
         {
             (void)mmgr_line_finish(&file);
@@ -269,9 +269,10 @@ EMBED_INLINE void run_menus(const CommandLineRunCtx *args)
         return;
     }
     static CliItem s_item;
-    char word[CLI_LABEL_MAX_LEN];
-    EMBED_CALL(cli_commands_menu_word.menu_word, CliCommandsMenuWordCfg, .menu = menu, .word_out = word);
-    if (EMBED_CALL(cli_commands_menu.menu_command, CliCommandsMenuCfg, .menu = menu, .word = words[1], .item = &s_item))
+    char word_text[CLI_LABEL_MAX_LEN];
+    EMBED_CALL(cli_commands_menu_word.menu_word, CliCommandsMenuWordCfg, .menu = menu, .word_out = word_text);
+    if (EMBED_CALL(cli_commands_menu.menu_command, CliCommandsMenuCfg, .menu = menu, .word_text = words[1],
+                   .item = &s_item))
     {
         if (s_item.console)
         {
@@ -285,7 +286,7 @@ EMBED_INLINE void run_menus(const CommandLineRunCtx *args)
         if ((count - 2u) < EMBED_CALL(cli_commands_item.item_words_need, CliCommandsItemCfg, .item_read = &s_item))
         {
             VerbaLinea line = {s_msg_buf, sizeof(s_msg_buf), 0ULL};
-            mmgr_line_put(&line, word);
+            mmgr_line_put(&line, word_text);
             mmgr_line_ch(&line, ' ');
             mmgr_line_put(&line, s_item.command);
             mmgr_line_put(&line, " takes ");
@@ -295,12 +296,12 @@ EMBED_INLINE void run_menus(const CommandLineRunCtx *args)
             EMBED_CALL(run_exit, CommandLineRunCtx, .outcome = args->outcome, .code = CLI_WRONG);
             return;
         }
-        EMBED_CALL(run_window, CommandLineRunCtx, .outcome = args->outcome, .named = named, .menu = word,
+        EMBED_CALL(run_window, CommandLineRunCtx, .outcome = args->outcome, .named = named, .menu = word_text,
                    .command = s_item.command, .request = words + 2, .count = count - 2u);
         return;
     }
     char group[1][CLI_LABEL_MAX_LEN];
-    if (cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "run", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "run", .cap = CLI_CELLS_POOL}))
     {
         EMBED_CALL(run_exit, CommandLineRunCtx, .outcome = args->outcome,
                    .code = EMBED_CALL(cli_command_line_words_count_internal.console, CliCommandLineWordsCountCtx,
@@ -396,8 +397,8 @@ void cli_command_line_run(const CliCommandLineInputCfg *args)
     unsigned int words = 0u;
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
-        const char *const word = args->supplied[at];
-        if (cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "--", .cap = CLI_CELLS_POOL}))
+        const char *const word_text = args->supplied[at];
+        if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--", .cap = CLI_CELLS_POOL}))
         {
             for (; (at < args->count) && (words < CLI_LAUNCH_ARGS); at += 1u)
             {
@@ -406,7 +407,7 @@ void cli_command_line_run(const CliCommandLineInputCfg *args)
             }
             break;
         }
-        if (cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "--root", .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--root", .cap = CLI_CELLS_POOL}))
         {
             if (at + 1u >= args->count)
             {
@@ -417,13 +418,13 @@ void cli_command_line_run(const CliCommandLineInputCfg *args)
             at += 1u;
             named = args->supplied[at];
         }
-        else if (cellul.starts(&(CatenaFinitaCfg){.src = word, .other = "--root=", .cap = CLI_CELLS_POOL}))
+        else if (cellul.starts(&(CatenaFinitaCfg){.src = word_text, .other = "--root=", .cap = CLI_CELLS_POOL}))
         {
-            named = word + 7;
+            named = word_text + 7;
         }
         else if (words < CLI_LAUNCH_ARGS)
         {
-            s_words[words] = word;
+            s_words[words] = word_text;
             words += 1u;
         }
     }

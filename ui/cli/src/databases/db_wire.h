@@ -4,11 +4,11 @@
 // result's columns, how a statement began, and each row's values as the server wrote them (db_wire.c)
 #ifndef DB_WIRE_H
 #define DB_WIRE_H
-typedef struct CliDbWireCfg CliDbWireCfg;
-typedef struct CliDbWireOutCfg CliDbWireOutCfg;
-
 #include "../command_line/cli_internal.h"
 #include "embed_dispatch_layout.h"
+
+typedef struct CliDbWireCfg CliDbWireCfg;
+typedef struct CliDbWireOutCfg CliDbWireOutCfg;
 
 // the bytes of each field of a failure; the most columns a result has, as PostgreSQL's 1664 targets; the bytes of a
 // column's type name; and of the tag a statement ended with

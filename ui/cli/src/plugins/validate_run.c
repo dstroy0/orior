@@ -22,7 +22,8 @@ EMBED_INLINE void validate_fill(const ValidateRunCtx *args)
     EMBED_CALL(cli_text_out_name.append_fill, CliTextOutNameCfg, .out = &line, .text = text, .name = "{file}",
                .value = args->file);
     mmgr_line_finish(&line);
-    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words, .word = filled);
+    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
+               .word_text = filled);
 }
 
 int cli_validate_command_for(const CliValidateProgramCtx *args)
@@ -43,7 +44,7 @@ int cli_validate_command_for(const CliValidateProgramCtx *args)
     if (!inside)
     {
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_named,
-                   .word = tool->program);
+                   .word_text = tool->program);
     }
     for (unsigned int index = 0u; EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                              .json_read = json, .array = list_entries, .index = index) != CLI_JSON_NONE;
@@ -67,7 +68,7 @@ int cli_validate_command_for(const CliValidateProgramCtx *args)
     }
     char runs[CLI_PATH_MAX_LEN];
     char folder[CLI_PATH_MAX_LEN];
-    const char *const first = s_named.word[0];
+    const char *const first = s_named.word_text[0];
     if (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = tool->program, .cap = CLI_CELLS_POOL}))
     {
         memor.cpy(
@@ -89,7 +90,7 @@ int cli_validate_command_for(const CliValidateProgramCtx *args)
     }
     unsigned int at = 1u;
     while ((at < s_named.count) &&
-           (!cellul.eq(&(CatenaFinitaCfg){.src = s_named.word[at], .other = args->file, .cap = CLI_CELLS_POOL})))
+           (!cellul.eq(&(CatenaFinitaCfg){.src = s_named.word_text[at], .other = args->file, .cap = CLI_CELLS_POOL})))
     {
         at += 1u;
     }
@@ -97,11 +98,11 @@ int cli_validate_command_for(const CliValidateProgramCtx *args)
     args->words->used = 0u;
     args->words->full = 0;
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-               .word = runs);
-    for (unsigned int word = 1u; word < at; word += 1u)
+               .word_text = runs);
+    for (unsigned int word_text = 1u; word_text < at; word_text += 1u)
     {
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-                   .word = s_named.word[word]);
+                   .word_text = s_named.word_text[word_text]);
     }
     unsigned int keys[CLI_VALIDATE_BARRIERS];
     const unsigned int grown = EMBED_CALL(cli_validate_internal.grown_keys, CliValidateCtx, .keys = keys);
@@ -119,12 +120,12 @@ int cli_validate_command_for(const CliValidateProgramCtx *args)
                    .text = tool->barriers[keys[key]].lift, .name = "{value}", .value = value);
         mmgr_line_finish(&line);
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-                   .word = setting);
+                   .word_text = setting);
     }
-    for (unsigned int word = at; word < s_named.count; word += 1u)
+    for (unsigned int word_text = at; word_text < s_named.count; word_text += 1u)
     {
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-                   .word = s_named.word[word]);
+                   .word_text = s_named.word_text[word_text]);
     }
     return 1;
 }
@@ -140,7 +141,7 @@ int cli_validate_check(const CliValidateErrMsgCtx *args)
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea unstarted = {why, sizeof(why), 0ULL};
     const int started =
-        EMBED_CALL(cli_words_internal.run_result_within, CliWordsCtx, .words = args->words_read->word,
+        EMBED_CALL(cli_words_internal.run_result_within, CliWordsCtx, .words = args->words_read->word_text,
                    .folder = (args->dir_read[0] != '\0') ? args->dir_read : NULL, .settings = settings, .count = 1u,
                    .input = NULL, .length = 0ULL, .milliseconds_u64 = g_cli_validate->tool.patience * 1000ULL,
                    .run_result = run_result, .err_msg = &unstarted);

@@ -143,10 +143,12 @@ void cli_pg_failure_get(const CliPgCtx *args)
                 // the place, where the field is a number alone, else 0
                 unsigned long long value = 0ULL;
                 int whole = (end > at + 1u) && (end - at - 1u <= 19ULL);
-                for (unsigned long long digit = at + 1u; whole && (digit < end); digit += 1ULL)
+                unsigned long long digit = at + 1u;
+                while (whole && (digit < end))
                 {
                     whole = (args->body[digit] >= '0') && (args->body[digit] <= '9');
                     value = (value * 10ULL) + (unsigned long long)(args->body[digit] - '0');
+                    digit += 1ULL;
                 }
                 args->failure->position = whole ? value : 0ULL;
             }

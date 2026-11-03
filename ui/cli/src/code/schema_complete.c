@@ -223,12 +223,12 @@ static void complete_schemas_at(const SchemaCompleteCtx *args)
     }
     g_cli_cells->persistent_buf_release(doc, &g_cli_schema_cells);
     static const char *const s_words[5] = {"allOf", "anyOf", "oneOf", "then", "else"};
-    for (unsigned int word = 0u; word < 5u; word += 1u)
+    for (unsigned int word_text = 0u; word_text < 5u; word_text += 1u)
     {
         const unsigned int all = EMBED_CALL(cli_schema_json_internal.get, CliSchemaJsonCtx, .json = json,
-                                            .map = args->schema, .name = s_words[word]);
-        if ((word < 3u) && EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
-                                      .node = all, .kind = CFG_JSON_ARRAY))
+                                            .map = args->schema, .name = s_words[word_text]);
+        if ((word_text < 3u) && EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                                           .node = all, .kind = CFG_JSON_ARRAY))
         {
             for (unsigned int one = json->node[all].first; one != CLI_JSON_NONE; one = json->node[one].next)
             {
@@ -236,7 +236,7 @@ static void complete_schemas_at(const SchemaCompleteCtx *args)
                            .at_u32 = args->at_u32, .depth = args->depth + 1u);
             }
         }
-        else if ((word >= 3u) && (all != CLI_JSON_NONE))
+        else if ((word_text >= 3u) && (all != CLI_JSON_NONE))
         {
             EMBED_CALL(complete_schemas_at, SchemaCompleteCtx, .text = text, .schema = all, .base = base,
                        .at_u32 = args->at_u32, .depth = args->depth + 1u);

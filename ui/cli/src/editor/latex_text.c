@@ -81,12 +81,12 @@ int cli_tex_double(const CliLatexTextLengthValueCtx *args)
 {
     double *value = args->value;
     unsigned long long at = ((args->length > 0ULL) && ((args->text[0] == '+') || (args->text[0] == '-'))) ? 1ULL : 0ULL;
-    const int word =
+    const int word_text =
         EMBED_CALL(latex_by_name, LatexTextCtx, .text = args->text + at, .length = args->length - at, .with = "inf") ||
         EMBED_CALL(latex_by_name, LatexTextCtx, .text = args->text + at, .length = args->length - at,
                    .with = "infinity") ||
         EMBED_CALL(latex_by_name, LatexTextCtx, .text = args->text + at, .length = args->length - at, .with = "nan");
-    if (!word)
+    if (!word_text)
     {
         const unsigned long long whole =
             EMBED_CALL(cli_latex_text_length_at_internal.tex_digits, CliLatexTextLengthAtCtx, .text = args->text,
@@ -187,68 +187,75 @@ EMBED_INLINE int latex_allocs_unicode(const LatexTextCtx *args)
         cut = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->line, .at = cut + 1ULL,
                          .size = size, .set = "%");
     }
-    static const char word[] = "\\usepackage";
-    const unsigned long long word_size = sizeof(word) - 1ULL;
-    for (unsigned long long at = 0ULL; at + word_size <= cut; at += 1ULL)
+    static const char word_text[] = "\\usepackage";
+    const unsigned long long word_size = sizeof(word_text) - 1ULL;
     {
-        if (memor.cmp(&(MemoriaCfg){.src = args->line + at, .other = word, .bytes = word_size}) != 0)
+        unsigned long long at = 0ULL;
+        while (at + word_size <= cut)
         {
-            continue;
-        }
-        unsigned long long rest = at + word_size;
-        unsigned long long from = rest;
-        while ((from < cut) && EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .letter = args->line[from]))
-        {
-            from += 1ULL;
-        }
-        if ((from < cut) && (args->line[from] == '['))
-        {
+            if (memor.cmp(&(MemoriaCfg){.src = args->line + at, .other = word_text, .bytes = word_size}) != 0)
+            {
+                at += 1ULL;
+                continue;
+            }
+            unsigned long long rest = at + word_size;
+            unsigned long long from = rest;
+            while ((from < cut) && EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .letter = args->line[from]))
+            {
+                from += 1ULL;
+            }
+            if ((from < cut) && (args->line[from] == '['))
+            {
+                const char *const closed =
+                    memor.chr(&(MemoriaCfg){.src = args->line + from + 1ULL, .val = ']', .bytes = cut - from - 1ULL});
+                // the options never closed leave nothing after them
+                rest = (closed != NULL) ? (unsigned long long)(closed - args->line) + 1ULL : cut;
+            }
+            while ((rest < cut) && EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .letter = args->line[rest]))
+            {
+                rest += 1ULL;
+            }
             const char *const closed =
-                memor.chr(&(MemoriaCfg){.src = args->line + from + 1ULL, .val = ']', .bytes = cut - from - 1ULL});
-            // the options never closed leave nothing after them
-            rest = (closed != NULL) ? (unsigned long long)(closed - args->line) + 1ULL : cut;
-        }
-        while ((rest < cut) && EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .letter = args->line[rest]))
-        {
-            rest += 1ULL;
-        }
-        const char *const closed =
-            ((rest < cut) && (args->line[rest] == '{'))
-                ? memor.chr(&(MemoriaCfg){.src = args->line + rest, .val = '}', .bytes = cut - rest})
-                : NULL;
-        if (closed == NULL)
-        {
+                ((rest < cut) && (args->line[rest] == '{'))
+                    ? memor.chr(&(MemoriaCfg){.src = args->line + rest, .val = '}', .bytes = cut - rest})
+                    : NULL;
+            if (closed == NULL)
+            {
+                at += word_size - 1ULL;
+                at += 1ULL;
+                continue;
+            }
+            const unsigned long long end = (unsigned long long)(closed - args->line);
+            unsigned long long name = rest + 1ULL;
+            while (name <= end)
+            {
+                unsigned long long stop = name;
+                stop = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->line,
+                                  .at = stop, .size = end, .set = ",");
+                unsigned long long first = name;
+                unsigned long long last = stop;
+                while ((first < last) &&
+                       EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .letter = args->line[first]))
+                {
+                    first += 1ULL;
+                }
+                while ((last > first) &&
+                       EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .letter = args->line[last - 1ULL]))
+                {
+                    last -= 1ULL;
+                }
+                if (((last - first == 8ULL) &&
+                     (memor.cmp(&(MemoriaCfg){.src = args->line + first, .other = "fontspec", .bytes = 8u}) == 0)) ||
+                    ((last - first == 12ULL) &&
+                     (memor.cmp(&(MemoriaCfg){.src = args->line + first, .other = "unicode-math", .bytes = 12u}) == 0)))
+                {
+                    return 1;
+                }
+                name = stop + 1ULL;
+            }
             at += word_size - 1ULL;
-            continue;
+            at += 1ULL;
         }
-        const unsigned long long end = (unsigned long long)(closed - args->line);
-        unsigned long long name = rest + 1ULL;
-        while (name <= end)
-        {
-            unsigned long long stop = name;
-            stop = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = args->line, .at = stop,
-                              .size = end, .set = ",");
-            unsigned long long first = name;
-            unsigned long long last = stop;
-            while ((first < last) && EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .letter = args->line[first]))
-            {
-                first += 1ULL;
-            }
-            while ((last > first) &&
-                   EMBED_CALL(cli_latex_internal.tex_white, CliLatexCtx, .letter = args->line[last - 1ULL]))
-            {
-                last -= 1ULL;
-            }
-            if (((last - first == 8ULL) &&
-                 (memor.cmp(&(MemoriaCfg){.src = args->line + first, .other = "fontspec", .bytes = 8u}) == 0)) ||
-                ((last - first == 12ULL) &&
-                 (memor.cmp(&(MemoriaCfg){.src = args->line + first, .other = "unicode-math", .bytes = 12u}) == 0)))
-            {
-                return 1;
-            }
-            name = stop + 1ULL;
-        }
-        at += word_size - 1ULL;
     }
     return 0;
 }

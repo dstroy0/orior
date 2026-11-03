@@ -12,12 +12,12 @@
 // test_reports.c, test_coverage.c)
 #ifndef TEST_RUNS_H
 #define TEST_RUNS_H
-typedef struct CliTestRunsRootCfg CliTestRunsRootCfg;
-typedef struct CliTestRunsCfg CliTestRunsCfg;
-
 #include "../command_line/callback_cfg.h"
 #include "../command_line/cli_internal.h"
 #include "embed_dispatch_layout.h"
+
+typedef struct CliTestRunsRootCfg CliTestRunsRootCfg;
+typedef struct CliTestRunsCfg CliTestRunsCfg;
 
 // What a run reports as it goes, written as JSON, `{"kind": "started" | "result" | "coverage" | "done", "run", ...}`:
 // that it started, with how many tests or files, over how many processes and with which runner; each result, `{"id",

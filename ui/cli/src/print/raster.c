@@ -29,7 +29,7 @@ typedef struct
     unsigned int glyph;
     int bold;
     int slant;
-    CliMask mask;
+    CliMask mask_bits;
 } CliCachedGlyph;
 
 // The faces drawn with, a cell taken as they are read and given back as they are read again: regular, bold, italic
@@ -130,7 +130,7 @@ int cli_print_faces(const CliPrintJsonCfg *args)
 
 typedef struct
 {
-    CliMask *mask;
+    CliMask *mask_bits;
     unsigned long long by;
     unsigned long long capacity;
     unsigned int key_face;
@@ -155,20 +155,20 @@ typedef struct
 // from: 1, or 0 where it would not fit
 EMBED_INLINE int cli_embolden(const RasterCtx *args)
 {
-    const unsigned long long width = args->mask->width + args->by;
-    if (((width * args->mask->height) > (sizeof(s_work_state->scratch) / sizeof(s_work_state->scratch[0]))) ||
-        ((width * args->mask->height) > args->capacity))
+    const unsigned long long width = args->mask_bits->width + args->by;
+    if (((width * args->mask_bits->height) > (sizeof(s_work_state->scratch) / sizeof(s_work_state->scratch[0]))) ||
+        ((width * args->mask_bits->height) > args->capacity))
     {
         return 0;
     }
     memor.set(&(MemoriaCfg){.dst = s_work_state->scratch,
                             .val = 0,
-                            .bytes = width * args->mask->height * sizeof(s_work_state->scratch[0])});
-    for (unsigned long long y = 0ULL; y < args->mask->height; y += 1ULL)
+                            .bytes = width * args->mask_bits->height * sizeof(s_work_state->scratch[0])});
+    for (unsigned long long y = 0ULL; y < args->mask_bits->height; y += 1ULL)
     {
-        for (unsigned long long x = 0ULL; x < args->mask->width; x += 1ULL)
+        for (unsigned long long x = 0ULL; x < args->mask_bits->width; x += 1ULL)
         {
-            const float value = args->mask->cover[(y * args->mask->width) + x];
+            const float value = args->mask_bits->cover[(y * args->mask_bits->width) + x];
             for (unsigned long long shift = 0ULL; shift <= args->by; shift += 1ULL)
             {
                 float *const at = &s_work_state->scratch[(y * width) + x + shift];
@@ -176,10 +176,10 @@ EMBED_INLINE int cli_embolden(const RasterCtx *args)
             }
         }
     }
-    memor.cpy(&(MemoriaCfg){.dst = args->mask->cover,
+    memor.cpy(&(MemoriaCfg){.dst = args->mask_bits->cover,
                             .src = s_work_state->scratch,
-                            .bytes = width * args->mask->height * sizeof(s_work_state->scratch[0])});
-    args->mask->width = width;
+                            .bytes = width * args->mask_bits->height * sizeof(s_work_state->scratch[0])});
+    args->mask_bits->width = width;
     return 1;
 }
 
@@ -221,7 +221,7 @@ EMBED_INLINE const CliMask *cli_mask_get(const RasterCtx *args)
         if ((cached->face == args->key_face) && (cached->glyph == glyph) && (cached->bold == bold) &&
             (cached->slant == slant))
         {
-            return &cached->mask;
+            return &cached->mask_bits;
         }
         bucket = (bucket + 1u) % CLI_GLYPH_CACHE;
         if (bucket == bucket_start)
@@ -250,26 +250,26 @@ EMBED_INLINE const CliMask *cli_mask_get(const RasterCtx *args)
                .depth = 0u, .out = &s_work_state->contours);
     CliCachedGlyph *const cached = &s_typefaces->glyphs[bucket];
     EMBED_CALL(cli_font_contours.rasterize, CliFontContoursCfg, .contours = &s_work_state->contours,
-               .mask = &cached->mask, .cover = s_typefaces->cover + s_typefaces->cover_used,
+               .mask_bits = &cached->mask_bits, .cover = s_typefaces->cover + s_typefaces->cover_used,
                .capacity = s_typefaces->cover_capacity - s_typefaces->cover_used);
     if (bold)
     {
         const float spread = args->em / 28.0f;
         // a spread of whole pixels, at least one
         const unsigned long long by = (unsigned long long)((spread > 1.0f) ? spread : 1.0f);
-        if (!EMBED_CALL(cli_embolden, RasterCtx, .mask = &cached->mask, .by = by,
+        if (!EMBED_CALL(cli_embolden, RasterCtx, .mask_bits = &cached->mask_bits, .by = by,
                         .capacity = s_typefaces->cover_capacity - s_typefaces->cover_used))
         {
             return NULL;
         }
     }
-    s_typefaces->cover_used += cached->mask.width * cached->mask.height;
+    s_typefaces->cover_used += cached->mask_bits.width * cached->mask_bits.height;
     cached->used = 1;
     cached->face = args->key_face;
     cached->glyph = glyph;
     cached->bold = bold;
     cached->slant = slant;
-    return &cached->mask;
+    return &cached->mask_bits;
 }
 
 // Lays `mask` on `page` with its top left at x, y in `color`
@@ -328,9 +328,9 @@ EMBED_INLINE void cli_draw(const RasterCtx *args)
         }
         const unsigned int glyph =
             EMBED_CALL(cli_font.glyph, CliFontCfg, .font = font, .letter = s_work_state->letters[offset]);
-        const CliMask *const mask = EMBED_CALL(cli_mask_get, RasterCtx, .key_face = face, .font = font, .glyph = glyph,
-                                               .bold = make_bold, .slant = slant, .em = em);
-        if (mask == NULL)
+        const CliMask *const mask_bits = EMBED_CALL(cli_mask_get, RasterCtx, .key_face = face, .font = font,
+                                                    .glyph = glyph, .bold = make_bold, .slant = slant, .em = em);
+        if (mask_bits == NULL)
         {
             continue;
         }
@@ -339,9 +339,9 @@ EMBED_INLINE void cli_draw(const RasterCtx *args)
         const float x =
             (CLI_PRINT_MARGIN * scale) + ((float)(args->column + offset) * cell) + ((cell - advance) / 2.0f);
         // a pixel's place, rounded, is far inside what a long long represents
-        EMBED_CALL(cli_blend, RasterCtx, .page = args->page, .mask_read = mask,
-                   .left = (long long)roundf(x) + mask->left, .top = (long long)roundf(args->baseline) - mask->top,
-                   .color = args->color);
+        EMBED_CALL(cli_blend, RasterCtx, .page = args->page, .mask_read = mask_bits,
+                   .left = (long long)roundf(x) + mask_bits->left,
+                   .top = (long long)roundf(args->baseline) - mask_bits->top, .color = args->color);
     }
 }
 

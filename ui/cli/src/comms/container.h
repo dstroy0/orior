@@ -5,15 +5,15 @@
 // system gives for the container itself (cli_internal.h, the platform files)
 #ifndef CONTAINER_H
 #define CONTAINER_H
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliContainerRootCfg CliContainerRootCfg;
 typedef struct CliContainerRootIdCfg CliContainerRootIdCfg;
 typedef struct CliContainerRestartsCfg CliContainerRestartsCfg;
 typedef struct CliContainerCfg CliContainerCfg;
 typedef struct CliContainerAtCfg CliContainerAtCfg;
 typedef struct CliContainerRestartsAtCfg CliContainerRestartsAtCfg;
-
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // the most deaths a supervisor counts
 #define CLI_RESTARTS_MAX 64u

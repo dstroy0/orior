@@ -13,6 +13,9 @@
 // (view.c)
 #ifndef VIEW_H
 #define VIEW_H
+#include "document.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliViewLineCfg CliViewLineCfg;
 typedef struct CliViewRowCfg CliViewRowCfg;
 typedef struct CliViewOutCfg CliViewOutCfg;
@@ -23,8 +26,6 @@ typedef struct CliViewCfg CliViewCfg;
 typedef struct CliViewPathKindCfg CliViewPathKindCfg;
 typedef struct CliViewFullKindCfg CliViewFullKindCfg;
 typedef struct CliViewFullCfg CliViewFullCfg;
-#include "document.h"
-#include "embed_dispatch_layout.h"
 
 // what the window sends: a key, text typed, the pointer, a scroll, the view's size, and a completion accepted, whose
 // `text` replaces the `column` units before the cursor, and a place, the cursor put at the line `row` and the unit
@@ -97,7 +98,7 @@ typedef struct
     unsigned long long at;
     int regex;
     int match_case;
-    int word;
+    int word_text;
     unsigned long long count;
     long long current;
     char *query;
@@ -193,7 +194,7 @@ struct CliViewLineCfg
     unsigned long long col_value;
     unsigned long long *from;
     unsigned long long *to;
-    char *word;
+    char *word_text;
     unsigned long long capacity;
 };
 

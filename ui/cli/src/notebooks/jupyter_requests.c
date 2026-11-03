@@ -70,7 +70,8 @@ int cli_jupyter_request(const CliJupyterErrMsgCfg *args)
     EMBED_CALL(cli_jupyter_session_internal.kernel_id_init, CliJupyterSessionCtx, .session = args->kernel->session,
                .id = id);
     CliKernelWaiter *waiter = NULL;
-    for (unsigned int at = 0u; (at < CLI_KERNEL_WAITERS) && (waiter == NULL); at += 1u)
+    unsigned int at = 0u;
+    while ((at < CLI_KERNEL_WAITERS) && (waiter == NULL))
     {
         if (!args->kernel->waiters[at].waiting)
         {
@@ -80,6 +81,7 @@ int cli_jupyter_request(const CliJupyterErrMsgCfg *args)
             waiter->reply = reply;
             memor.cpy(&(MemoriaCfg){.dst = waiter->id, .src = id, .bytes = sizeof(id)});
         }
+        at += 1u;
     }
     if (waiter == NULL)
     {

@@ -5,6 +5,11 @@
 // machine a job is made from (executables_jobs.c)
 #ifndef EXECUTABLES_INTERNAL_H
 #define EXECUTABLES_INTERNAL_H
+#include "../command_line/callback_cfg.h"
+#include "../command_line/cells.h"
+#include "embed_dispatch_layout.h"
+#include "executables.h"
+
 typedef struct CliExecutablesNameCtx CliExecutablesNameCtx;
 typedef struct CliExecutablesNameOutCtx CliExecutablesNameOutCtx;
 typedef struct CliExecutablesOutCtx CliExecutablesOutCtx;
@@ -35,11 +40,6 @@ typedef struct CliExecutablesSystemCtx CliExecutablesSystemCtx;
 typedef struct CliExecutablesSpecCtx CliExecutablesSpecCtx;
 typedef struct CliExecutablesTextLengthCtx CliExecutablesTextLengthCtx;
 typedef struct CliExecutablesCtx CliExecutablesCtx;
-
-#include "../command_line/callback_cfg.h"
-#include "../command_line/cells.h"
-#include "embed_dispatch_layout.h"
-#include "executables.h"
 
 // the cells the programs' scripts are read in (executables_scan.c)
 extern CellOwner g_cli_executables_cells;

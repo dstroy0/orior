@@ -15,6 +15,10 @@
 // A needle searched without case is searched in ASCII case: each letter of the text and of the needle to its lower case
 #ifndef SIFT_H
 #define SIFT_H
+#include "../command_line/callback_cfg.h"
+#include "embed_dispatch_layout.h"
+#include "vector.h"
+
 typedef struct CliSiftWindowCfg CliSiftWindowCfg;
 typedef struct CliSiftWindowLengthCfg CliSiftWindowLengthCfg;
 typedef struct CliSiftLengthCfg CliSiftLengthCfg;
@@ -25,10 +29,6 @@ typedef struct CliSiftWindowLengthFoldHistogramCfg CliSiftWindowLengthFoldHistog
 typedef struct CliSiftLengthHistogramCfg CliSiftLengthHistogramCfg;
 typedef struct CliSiftCfg CliSiftCfg;
 typedef struct CliSiftFoldCfg CliSiftFoldCfg;
-
-#include "../command_line/callback_cfg.h"
-#include "embed_dispatch_layout.h"
-#include "vector.h"
 
 // the most anchors a plan places, and the bytes a window contains, the last needle's length less one of them the next
 // window's first too

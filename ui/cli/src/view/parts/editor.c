@@ -376,8 +376,8 @@ EMBED_INLINE void editor_line_draw(const EditorCtx *args)
     // met
     const CliDocumentLineRuns none = {0u, 0u};
     const CliDocumentLineRuns runs = (frame->runs != NULL) ? frame->runs->line[args->at] : none;
-    const unsigned int *const column_of = (frame->runs != NULL) ? (frame->runs->word + runs.at) : NULL;
-    const unsigned int *const name_of = (frame->runs != NULL) ? (frame->runs->word + runs.at + runs.runs) : NULL;
+    const unsigned int *const column_of = (frame->runs != NULL) ? (frame->runs->word_text + runs.at) : NULL;
+    const unsigned int *const name_of = (frame->runs != NULL) ? (frame->runs->word_text + runs.at + runs.runs) : NULL;
     unsigned long long at = 0ULL;
     unsigned long long units = 0ULL;
     unsigned long long column = 0ULL;
@@ -591,7 +591,7 @@ EMBED_INLINE void editor_find_draw(const EditorCtx *args)
             .color = args->palette->caret);
     }
     static const char *const s_toggle[3] = {"Aa", "ab", ".*"};
-    const int on[3] = {args->editor->frame->find.match_case, args->editor->frame->find.word,
+    const int on[3] = {args->editor->frame->find.match_case, args->editor->frame->find.word_text,
                        args->editor->frame->find.regex};
     int x = field.x + field_width + gap;
     for (unsigned int at = 0u; at < 3u; at += 1u)

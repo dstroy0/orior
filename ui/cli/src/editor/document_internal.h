@@ -3,11 +3,11 @@
 // document_internal.h: a text stored as document_store.c stores it and document_branch.c colors it
 #ifndef DOCUMENT_INTERNAL_H
 #define DOCUMENT_INTERNAL_H
-typedef struct CliDocumentCtx CliDocumentCtx;
-typedef struct CliDocumentKeyCtx CliDocumentKeyCtx;
-
 #include "document.h"
 #include "embed_dispatch_layout.h"
+
+typedef struct CliDocumentCtx CliDocumentCtx;
+typedef struct CliDocumentKeyCtx CliDocumentKeyCtx;
 
 // the line past the last of a text read whole whose runs are handed on: every line's
 #define CLI_DOC_CACHED_ALL 0xffffffffu

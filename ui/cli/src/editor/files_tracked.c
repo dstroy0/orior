@@ -36,11 +36,13 @@ EMBED_INLINE int tracked_cache(const FilesTrackedCtx *args)
         s_cached_at = args->at;
     }
     int found = 0;
-    for (unsigned int each = 0u; !found && (each < s_cached_count); each += 1u)
+    unsigned int each = 0u;
+    while (!found && (each < s_cached_count))
     {
         found =
             cellul.eq(&(CatenaFinitaCfg){.src = s_cached_paths[each], .other = args->outside, .cap = CLI_CELLS_POOL});
         *ignored = found ? s_ignored[each] : *ignored;
+        each += 1u;
     }
     return found;
 }

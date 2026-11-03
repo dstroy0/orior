@@ -41,7 +41,7 @@ typedef struct
     float reach;
     unsigned int cover;
     const GuiGlyphs *glyphs_read;
-    GuiMask *mask;
+    GuiMask *mask_bits;
     unsigned int letter;
     GuiColor color;
     float *advance;
@@ -98,8 +98,8 @@ EMBED_INLINE void glyphs_clear(const GlyphsCtx *args)
         GuiCachedGlyph *const entry = &args->glyphs->entry[at];
         if (entry->used)
         {
-            g_cli_cells->persistent_buf_release(entry->mask.cover, &g_gui_glyphs_cells);
-            entry->mask.cover = NULL;
+            g_cli_cells->persistent_buf_release(entry->mask_bits.cover, &g_gui_glyphs_cells);
+            entry->mask_bits.cover = NULL;
             entry->used = 0;
         }
     }
@@ -366,15 +366,15 @@ EMBED_INLINE unsigned int glyphs_lift(const GlyphsCtx *args)
 // a cell could not be taken; a glyph of no pixels is a mask of none
 EMBED_INLINE int glyphs_rasterize(const GlyphsCtx *args)
 {
-    GuiMask *mask = args->mask;
+    GuiMask *mask_bits = args->mask_bits;
     CliMask measured;
     EMBED_CALL(cli_font_contours.rasterize, CliFontContoursCfg, .contours = args->glyphs_read->contours,
-               .mask = &measured, .cover = NULL, .capacity = 0ULL);
-    mask->width = 0u;
-    mask->height = 0u;
-    mask->left = 0;
-    mask->top = 0;
-    mask->cover = NULL;
+               .mask_bits = &measured, .cover = NULL, .capacity = 0ULL);
+    mask_bits->width = 0u;
+    mask_bits->height = 0u;
+    mask_bits->left = 0;
+    mask_bits->top = 0;
+    mask_bits->cover = NULL;
     if (measured.width == 0ULL)
     {
         return 1;
@@ -390,8 +390,8 @@ EMBED_INLINE int glyphs_rasterize(const GlyphsCtx *args)
         return 0;
     }
     CliMask drawn;
-    EMBED_CALL(cli_font_contours.rasterize, CliFontContoursCfg, .contours = args->glyphs_read->contours, .mask = &drawn,
-               .cover = floats, .capacity = capacity);
+    EMBED_CALL(cli_font_contours.rasterize, CliFontContoursCfg, .contours = args->glyphs_read->contours,
+               .mask_bits = &drawn, .cover = floats, .capacity = capacity);
     for (unsigned long long at = 0ULL; at < (drawn.width * drawn.height); at += 1ULL)
     {
         // a coverage from 0 to 1 by 255, rounded, is a byte
@@ -399,11 +399,11 @@ EMBED_INLINE int glyphs_rasterize(const GlyphsCtx *args)
     }
     g_cli_cells->persistent_buf_release(floats, &g_gui_glyphs_cells);
     // a glyph's sides are far inside what an unsigned int represents
-    mask->width = (unsigned int)drawn.width;
-    mask->height = (unsigned int)drawn.height;
-    mask->left = drawn.left;
-    mask->top = drawn.top;
-    mask->cover = cover;
+    mask_bits->width = (unsigned int)drawn.width;
+    mask_bits->height = (unsigned int)drawn.height;
+    mask_bits->left = drawn.left;
+    mask_bits->top = drawn.top;
+    mask_bits->cover = cover;
     return 1;
 }
 
@@ -422,7 +422,7 @@ const GuiMask *gui_glyph(const GuiGlyphsFaceLetterCfg *args)
         EMBED_CALL(glyphs_entry, GlyphsCtx, .glyphs = args->glyphs, .face = had, .glyph = glyph, .size = size);
     if (entry->used)
     {
-        return &entry->mask;
+        return &entry->mask_bits;
     }
     args->glyphs->contours->points = 0u;
     args->glyphs->contours->contours = 0u;
@@ -431,7 +431,7 @@ const GuiMask *gui_glyph(const GuiGlyphsFaceLetterCfg *args)
                .depth = 0u, .out = args->glyphs->contours);
     EMBED_CALL(glyphs_darken, GlyphsCtx, .contours = args->glyphs->contours,
                .reach = EMBED_CALL(glyphs_darkening, GlyphsCtx, .size = size));
-    if (!EMBED_CALL(glyphs_rasterize, GlyphsCtx, .glyphs_read = args->glyphs, .mask = &entry->mask))
+    if (!EMBED_CALL(glyphs_rasterize, GlyphsCtx, .glyphs_read = args->glyphs, .mask_bits = &entry->mask_bits))
     {
         return NULL;
     }
@@ -441,7 +441,7 @@ const GuiMask *gui_glyph(const GuiGlyphsFaceLetterCfg *args)
     entry->size = size;
     entry->advance = *advance;
     args->glyphs->cached += 1u;
-    return &entry->mask;
+    return &entry->mask_bits;
 }
 
 float gui_glyphs_ascent(const GuiGlyphsFaceCfg *args)
@@ -511,9 +511,9 @@ static const GuiGlyphCell *glyphs_cell_init(const GlyphsCtx *args)
         *advance = cell->advance;
         return cell;
     }
-    const GuiMask *const mask = EMBED_CALL(gui_glyphs_face_letter.glyph, GuiGlyphsFaceLetterCfg, .glyphs = glyphs,
-                                           .face = had, .letter = letter, .size = size, .advance = advance);
-    if (mask == NULL)
+    const GuiMask *const mask_bits = EMBED_CALL(gui_glyphs_face_letter.glyph, GuiGlyphsFaceLetterCfg, .glyphs = glyphs,
+                                                .face = had, .letter = letter, .size = size, .advance = advance);
+    if (mask_bits == NULL)
     {
         return NULL;
     }
@@ -522,14 +522,14 @@ static const GuiGlyphCell *glyphs_cell_init(const GlyphsCtx *args)
     cell->size = size;
     cell->color = color;
     cell->advance = *advance;
-    cell->width = mask->width;
-    cell->height = mask->height;
-    cell->left = mask->left;
-    cell->top = mask->top;
+    cell->width = mask_bits->width;
+    cell->height = mask_bits->height;
+    cell->left = mask_bits->left;
+    cell->top = mask_bits->top;
     cell->red_blue = NULL;
     cell->green = NULL;
     cell->rest = NULL;
-    const unsigned long long pixels = (unsigned long long)mask->width * mask->height;
+    const unsigned long long pixels = (unsigned long long)mask_bits->width * mask_bits->height;
     if (pixels != 0ULL)
     {
         cell->red_blue = g_cli_cells->persistent_buf_alloc(3ULL * pixels * sizeof(unsigned int), &g_gui_glyphs_cells);
@@ -546,7 +546,7 @@ static const GuiGlyphCell *glyphs_cell_init(const GlyphsCtx *args)
         for (unsigned long long at = 0ULL; at < pixels; at += 1ULL)
         {
             const unsigned int share =
-                ((EMBED_CALL(glyphs_lift, GlyphsCtx, .cover = mask->cover[at]) * alpha) + 127u) / 255u;
+                ((EMBED_CALL(glyphs_lift, GlyphsCtx, .cover = mask_bits->cover[at]) * alpha) + 127u) / 255u;
             cell->red_blue[at] = ((color & 0x00ff00ffu) * share) + 0x00800080u;
             cell->green[at] = (((color >> 8u) & 0xffu) * share) + 0x80u;
             cell->rest[at] = 255u - share;

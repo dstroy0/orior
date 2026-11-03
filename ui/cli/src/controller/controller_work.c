@@ -43,27 +43,27 @@ static CliWake s_ended;
 // what a lane's thread runs: each piece in turn and its `done` handed back, until the work ends
 static void work_lane_run(void *context)
 {
-    CliWorkLane *const lane = (CliWorkLane *)context;
+    CliWorkLane *const lane_at = (CliWorkLane *)context;
     for (;;)
     {
-        const unsigned int seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &lane->wake);
+        const unsigned int seen = EMBED_CALL(cli_wake_internal.wake_read, CliWakeCtx, .wake = &lane_at->wake);
         size_t at = 0u;
-        if (anularis.seg_front(&(AnularisCfg){.ring = &lane->work_ring, .out_index = &at}))
+        if (anularis.seg_front(&(AnularisCfg){.ring = &lane_at->work_ring, .out_index = &at}))
         {
             const CliWorkPiece piece = *(const CliWorkPiece *)(const void *)anularis.seg_at(
-                &(AnularisCfg){.ring = &lane->work_ring, .index = at});
-            anularis.seg_release(&(AnularisCfg){.ring = &lane->work_ring});
+                &(AnularisCfg){.ring = &lane_at->work_ring, .index = at});
+            anularis.seg_release(&(AnularisCfg){.ring = &lane_at->work_ring});
             piece.run(piece.context);
             size_t done_at = 0u;
             // the controller drains the ring ahead of every input, so it stands full only for the moment that takes
-            while (!anularis.seg_next(&(AnularisCfg){.ring = &lane->done_ring, .out_index = &done_at}))
+            while (!anularis.seg_next(&(AnularisCfg){.ring = &lane_at->done_ring, .out_index = &done_at}))
             {
-                (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &lane->wake,
+                (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &lane_at->wake,
                                  .milliseconds_u64 = 1ull);
             }
-            *(CliWorkPiece *)(void *)anularis.seg_at(&(AnularisCfg){.ring = &lane->done_ring, .index = done_at}) =
+            *(CliWorkPiece *)(void *)anularis.seg_at(&(AnularisCfg){.ring = &lane_at->done_ring, .index = done_at}) =
                 piece;
-            anularis.seg_publish(&(AnularisCfg){.ring = &lane->done_ring});
+            anularis.seg_publish(&(AnularisCfg){.ring = &lane_at->done_ring});
             cli_controller_wake();
             continue;
         }
@@ -71,7 +71,7 @@ static void work_lane_run(void *context)
         {
             break;
         }
-        EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &lane->wake, .seen = seen);
+        EMBED_CALL(cli_wake_internal.wake_wait_seen, CliWakeCtx, .wake = &lane_at->wake, .seen = seen);
     }
     (void)EMBED_ATOMIC_ADD_32(&s_running, (embed_u32)-1);
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &s_ended);
@@ -88,19 +88,19 @@ int cli_controller_work_begin(void)
     EMBED_ATOMIC_STORE(&s_ending, 0u);
     for (unsigned int at = 0u; at < CLI_WORK_LANES; at += 1u)
     {
-        CliWorkLane *const lane = &s_lane[at];
+        CliWorkLane *const lane_at = &s_lane[at];
         uint8_t *const first = s_cell + (2u * at * ring_bytes);
         (void)anularis.init(&(AnularisCfg){
-            .ring = &lane->work_ring, .buf = first, .capacity = ring_bytes, .segment_count = CLI_WORK_PIECES});
-        (void)anularis.init(&(AnularisCfg){.ring = &lane->done_ring,
+            .ring = &lane_at->work_ring, .buf = first, .capacity = ring_bytes, .segment_count = CLI_WORK_PIECES});
+        (void)anularis.init(&(AnularisCfg){.ring = &lane_at->done_ring,
                                            .buf = first + ring_bytes,
                                            .capacity = ring_bytes,
                                            .segment_count = CLI_WORK_PIECES});
-        lane->thread.run = work_lane_run;
-        lane->thread.context = lane;
-        lane->thread.priority = CLI_PRIORITY_WORK;
+        lane_at->thread.run = work_lane_run;
+        lane_at->thread.context = lane_at;
+        lane_at->thread.priority = CLI_PRIORITY_WORK;
         (void)EMBED_ATOMIC_ADD_32(&s_running, 1u);
-        if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &lane->thread))
+        if (!EMBED_CALL(cli_thread_internal.thread_start, CliThreadCtx, .thread = &lane_at->thread))
         {
             (void)EMBED_ATOMIC_ADD_32(&s_running, (embed_u32)-1);
         }
@@ -110,38 +110,38 @@ int cli_controller_work_begin(void)
 
 void cli_controller_work_post(const CliControllerWorkCfg *args)
 {
-    CliWorkLane *const lane = &s_lane[args->lane];
+    CliWorkLane *const lane_at = &s_lane[args->lane_at];
     size_t at = 0u;
     // a full ring runs the piece here, a lane far behind already, which keeps every piece's `done` promised
-    if (!anularis.seg_next(&(AnularisCfg){.ring = &lane->work_ring, .out_index = &at}))
+    if (!anularis.seg_next(&(AnularisCfg){.ring = &lane_at->work_ring, .out_index = &at}))
     {
         args->run(args->context);
         args->done(args->context);
         return;
     }
-    *(CliWorkPiece *)(void *)anularis.seg_at(&(AnularisCfg){.ring = &lane->work_ring, .index = at}) =
+    *(CliWorkPiece *)(void *)anularis.seg_at(&(AnularisCfg){.ring = &lane_at->work_ring, .index = at}) =
         (CliWorkPiece){args->run, args->done, args->context, args->busy};
     if (args->busy)
     {
         g_cli_model.dirty |= (g_cli_model.busy == 0u) ? CLI_MODEL_DIRTY(CLI_SNAPSHOT_STATUS) : 0u;
         g_cli_model.busy += 1u;
     }
-    anularis.seg_publish(&(AnularisCfg){.ring = &lane->work_ring});
-    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &lane->wake);
+    anularis.seg_publish(&(AnularisCfg){.ring = &lane_at->work_ring});
+    EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &lane_at->wake);
 }
 
 int cli_controller_work_step(void)
 {
     int did = 0;
-    for (unsigned int lane_at = 0u; lane_at < CLI_WORK_LANES; lane_at += 1u)
+    for (unsigned int each = 0u; each < CLI_WORK_LANES; each += 1u)
     {
-        CliWorkLane *const lane = &s_lane[lane_at];
+        CliWorkLane *const lane_at = &s_lane[each];
         size_t at = 0u;
-        while (anularis.seg_front(&(AnularisCfg){.ring = &lane->done_ring, .out_index = &at}))
+        while (anularis.seg_front(&(AnularisCfg){.ring = &lane_at->done_ring, .out_index = &at}))
         {
             const CliWorkPiece piece = *(const CliWorkPiece *)(const void *)anularis.seg_at(
-                &(AnularisCfg){.ring = &lane->done_ring, .index = at});
-            anularis.seg_release(&(AnularisCfg){.ring = &lane->done_ring});
+                &(AnularisCfg){.ring = &lane_at->done_ring, .index = at});
+            anularis.seg_release(&(AnularisCfg){.ring = &lane_at->done_ring});
             if (piece.busy)
             {
                 g_cli_model.busy -= 1u;

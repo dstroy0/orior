@@ -10,13 +10,13 @@
 // code (command_line*.c)
 #ifndef COMMAND_LINE_H
 #define COMMAND_LINE_H
+#include "cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliCommandLineInputCfg CliCommandLineInputCfg;
 typedef struct CliCommandLineNamedCfg CliCommandLineNamedCfg;
 typedef struct CliCommandLineCfg CliCommandLineCfg;
 typedef struct CliCommandLineLaunchOutCfg CliCommandLineLaunchOutCfg;
-
-#include "cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // the most words a command the window runs is given, and the bytes they take
 #define CLI_LAUNCH_ARGS 256u

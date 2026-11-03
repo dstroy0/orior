@@ -30,7 +30,7 @@ typedef struct
     const char *one;
     unsigned long long one_length;
     const char *other;
-    const char *word;
+    const char *word_text;
     const char *file;
     const char *edition;
     unsigned long long *used;
@@ -262,24 +262,24 @@ EMBED_INLINE const char *cli_word_fill(const FormatCtx *args)
     unsigned long long *used = args->used;
     char *const start = g_cli_format.words + *used;
     VerbaLinea line = {start, CLI_WORDS_TEXT - *used, 0ULL};
-    const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = args->word, .cap = CLI_CELLS_POOL});
+    const unsigned long long whole = cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_CELLS_POOL});
     for (unsigned long long at = 0ULL; at < whole;)
     {
         const unsigned long long stop = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
-                                                   .text = args->word, .at = at, .size = whole, .set = "{");
-        mmgr_line_put_n(&line, args->word + at, (size_t)(stop - at));
+                                                   .text = args->word_text, .at = at, .size = whole, .set = "{");
+        mmgr_line_put_n(&line, args->word_text + at, (size_t)(stop - at));
         at = stop;
         if (stop == whole)
         {
             break;
         }
-        if (cellul.starts(&(CatenaFinitaCfg){.src = args->word + stop, .other = "{file}", .cap = CLI_CELLS_POOL}))
+        if (cellul.starts(&(CatenaFinitaCfg){.src = args->word_text + stop, .other = "{file}", .cap = CLI_CELLS_POOL}))
         {
             mmgr_line_put(&line, args->file);
             at += 6ULL;
         }
         else if (cellul.starts(
-                     &(CatenaFinitaCfg){.src = args->word + stop, .other = "{edition}", .cap = CLI_CELLS_POOL}))
+                     &(CatenaFinitaCfg){.src = args->word_text + stop, .other = "{edition}", .cap = CLI_CELLS_POOL}))
         {
             mmgr_line_put(&line, args->edition);
             at += 9ULL;
@@ -346,14 +346,14 @@ int cli_format(const CliFormatPathCfg *args)
                                           .json_read = json, .array = arguments, .index = at) != CLI_JSON_NONE;
          at += 1u)
     {
-        const char *const word =
+        const char *const word_text =
             EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
                        .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                           .json_read = json, .array = arguments, .index = at),
                        .length_pointer = NULL);
-        if ((word != NULL) &&
+        if ((word_text != NULL) &&
             (cellul.find(&(CatenaFinitaCfg){
-                 .src = word, .cap = CLI_CELLS_POOL, .other = "{edition}", .other_cap = CLI_CELLS_POOL}) != NULL))
+                 .src = word_text, .cap = CLI_CELLS_POOL, .other = "{edition}", .other_cap = CLI_CELLS_POOL}) != NULL))
         {
             EMBED_CALL(cli_format_internal.edition_get, CliFormatCtx, .path = args->path, .edition = edition);
             break;
@@ -367,14 +367,15 @@ int cli_format(const CliFormatPathCfg *args)
                                            .json_read = json, .array = arguments, .index = at) != CLI_JSON_NONE);
          at += 1u)
     {
-        const char *const word =
+        const char *const word_text =
             EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
                        .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                           .json_read = json, .array = arguments, .index = at),
                        .length_pointer = NULL);
-        const char *const filled = (word != NULL) ? EMBED_CALL(cli_word_fill, FormatCtx, .word = word,
-                                                               .file = args->path, .edition = edition, .used = &used)
-                                                  : NULL;
+        const char *const filled = (word_text != NULL)
+                                       ? EMBED_CALL(cli_word_fill, FormatCtx, .word_text = word_text,
+                                                    .file = args->path, .edition = edition, .used = &used)
+                                       : NULL;
         if (filled != NULL)
         {
             words[word_count] = filled;

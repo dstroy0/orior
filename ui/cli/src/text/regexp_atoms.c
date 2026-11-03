@@ -171,15 +171,22 @@ static int cli_escape(const RegexpAtomsCtx *args)
         static const char *const s_properties[8] = {"L",  "Letter",           "N",  "Number",
                                                     "Lu", "Uppercase_Letter", "Ll", "Lowercase_Letter"};
         unsigned int property = 8u;
-        for (unsigned int at = 0u; (property == 8u) && (at < 8u); at += 1u)
         {
-            const size_t name_length = cellul.len(&(CatenaFinitaCfg){.src = s_properties[at], .cap = CLI_CELLS_POOL});
-            int same = name_length == length;
-            for (size_t letter_at = 0u; same && (letter_at < name_length); letter_at += 1u)
+            unsigned int at = 0u;
+            while ((property == 8u) && (at < 8u))
             {
-                same = reader->letters[start + letter_at] == (unsigned char)s_properties[at][letter_at];
+                const size_t name_length =
+                    cellul.len(&(CatenaFinitaCfg){.src = s_properties[at], .cap = CLI_CELLS_POOL});
+                int same = name_length == length;
+                size_t letter_at = 0u;
+                while (same && (letter_at < name_length))
+                {
+                    same = reader->letters[start + letter_at] == (unsigned char)s_properties[at][letter_at];
+                    letter_at += 1u;
+                }
+                property = same ? (at / 2u) : property;
+                at += 1u;
             }
-            property = same ? (at / 2u) : property;
         }
         if (property == 8u)
         {

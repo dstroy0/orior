@@ -472,12 +472,14 @@ EMBED_INLINE int cli_elf_read(const BinaryElfCtx *args)
                             .name = dynamic->needed[at], .by = program, .origin = origin, .dynamic = dynamic);
     }
     EMBED_CALL(cli_build_paths, BinaryElfCtx, .dynamic = dynamic, .report = args->report);
-    for (unsigned int next = 0u; next < queued; next += 1u)
+    unsigned int next = 0u;
+    while (next < queued)
     {
         const CliElfQueued *const one = &args->read_state->queue[next];
         if (EMBED_CALL(cli_queued_before, BinaryElfCtx, .read_state_read = args->read_state, .next = next) ||
             (args->report->libraries >= CLI_BINARY_LIBRARIES))
         {
+            next += 1u;
             continue;
         }
         CliLibrary *const library = &args->report->library[args->report->libraries];
@@ -512,6 +514,7 @@ EMBED_INLINE int cli_elf_read(const BinaryElfCtx *args)
         }
         if (!library->has_at || ((library->found != CLI_FOUND_ADJACENT) && (library->found != CLI_FOUND_BUILD_PATH)))
         {
+            next += 1u;
             continue;
         }
         unsigned long long more_size = 0ULL;
@@ -544,6 +547,7 @@ EMBED_INLINE int cli_elf_read(const BinaryElfCtx *args)
         }
         EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = more,
                    .owner = &g_cli_programs_cells);
+        next += 1u;
     }
     return 1;
 }

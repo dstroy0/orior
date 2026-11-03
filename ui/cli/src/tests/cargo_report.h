@@ -5,16 +5,16 @@
 // (cargo_report.c)
 #ifndef CARGO_REPORT_H
 #define CARGO_REPORT_H
+#include "../command_line/callback_cfg.h"
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliCargoReportSizeCfg CliCargoReportSizeCfg;
 typedef struct CliCargoReportSizeTextCfg CliCargoReportSizeTextCfg;
 typedef struct CliCargoReportLineCfg CliCargoReportLineCfg;
 typedef struct CliCargoReportSizeOutCfg CliCargoReportSizeOutCfg;
 typedef struct CliCargoReportSizeTextPathCfg CliCargoReportSizeTextPathCfg;
 typedef struct CliCargoReportCfg CliCargoReportCfg;
-
-#include "../command_line/callback_cfg.h"
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // a line of the harness's own, `test name ... ok`: the test's name as its start and size in the line, and `passed`,
 // `failed` or `skipped`: 1, or 0 where the line is no result

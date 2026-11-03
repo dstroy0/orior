@@ -16,12 +16,12 @@
 // shape_match.c, shape_search.c)
 #ifndef SHAPE_H
 #define SHAPE_H
-typedef struct CliShapeLanguagesCfg CliShapeLanguagesCfg;
-typedef struct CliShapeCfg CliShapeCfg;
-
 #include "../text/edits.h"
 #include "embed_dispatch_layout.h"
 #include "symbols.h"
+
+typedef struct CliShapeLanguagesCfg CliShapeLanguagesCfg;
+typedef struct CliShapeCfg CliShapeCfg;
 
 // A match: its span, its first line as the file has it, its whitespace at its end taken off, and what the template
 // writes in its place where one is given

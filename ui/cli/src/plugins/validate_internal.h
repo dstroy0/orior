@@ -4,6 +4,12 @@
 // validation reads into under its lock, and the code, the prover's messages and the findings
 #ifndef VALIDATE_INTERNAL_H
 #define VALIDATE_INTERNAL_H
+#include "../command_line/cells.h"
+#include "../text/json_tree.h"
+#include "../toolchains/toolchains.h"
+#include "embed_dispatch_layout.h"
+#include "validate.h"
+
 typedef struct CliValidateProgramCtx CliValidateProgramCtx;
 typedef struct CliValidateTextCtx CliValidateTextCtx;
 typedef struct CliValidateTextSizeCtx CliValidateTextSizeCtx;
@@ -18,12 +24,6 @@ typedef struct CliValidateMessagesCtx CliValidateMessagesCtx;
 typedef struct CliValidateCtx CliValidateCtx;
 typedef struct CliValidateAtCtx CliValidateAtCtx;
 typedef struct CliValidateIdCtx CliValidateIdCtx;
-
-#include "../command_line/cells.h"
-#include "../text/json_tree.h"
-#include "../toolchains/toolchains.h"
-#include "embed_dispatch_layout.h"
-#include "validate.h"
 
 // the most nodes and bytes of a tool's plugin.json, barriers and flags a tool has, bytes of a file validated and of its
 // copy, words of its code, theorems and the bytes their names take, messages of a check and the bytes they take,

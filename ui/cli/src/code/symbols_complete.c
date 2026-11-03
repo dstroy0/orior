@@ -173,10 +173,14 @@ EMBED_INLINE void complete_locals(const SymbolsCompleteCtx *args)
         }
     }
     int function = 0;
-    for (unsigned int leaf = head; (depth > 0u) && !function && (leaf < open); leaf += 1u)
     {
-        function = EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = read, .leaf = leaf,
-                              .roles = CLI_LEAF_DECLARES | CLI_LEAF_FUNCTION);
+        unsigned int leaf = head;
+        while ((depth > 0u) && !function && (leaf < open))
+        {
+            function = EMBED_CALL(cli_symbols_read_internal.leaf_has, CliSymbolsReadCtx, .read_read = read,
+                                  .leaf = leaf, .roles = CLI_LEAF_DECLARES | CLI_LEAF_FUNCTION);
+            leaf += 1u;
+        }
     }
     for (unsigned int leaf = head; function && (leaf < args->place); leaf += 1u)
     {

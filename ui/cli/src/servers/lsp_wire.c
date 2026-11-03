@@ -201,11 +201,12 @@ static int wire_head_read(const LspWireCtx *args)
             at += ((at < used) && (line[at] == '+')) ? 1ULL : 0ULL;
             *length = 0ULL;
             has_length = (at < used);
-            for (; has_length && (at < used); at += 1ULL)
+            while (has_length && (at < used))
             {
                 const unsigned long long digit = (unsigned long long)(line[at] - '0');
                 has_length = (line[at] >= '0') && (line[at] <= '9') && (*length <= (~0ULL - digit) / 10ULL);
                 *length = has_length ? (*length * 10ULL) + digit : *length;
+                at += 1ULL;
             }
         }
     }

@@ -16,10 +16,10 @@
 // latex_text.c, latex_read.c, latex_sync.c)
 #ifndef LATEX_H
 #define LATEX_H
-typedef struct CliLatexCfg CliLatexCfg;
-
 #include "../command_line/cli_internal.h"
 #include "embed_dispatch_layout.h"
+
+typedef struct CliLatexCfg CliLatexCfg;
 
 // how long an engine or pdftocairo may take before it is stopped, in milliseconds, and the most errors a make gives
 #define CLI_LATEX_PATIENCE 120000ull

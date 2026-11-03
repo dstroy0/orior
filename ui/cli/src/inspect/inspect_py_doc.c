@@ -94,17 +94,18 @@ void cli_py_unreachable(const CliInspectPySrcSizeCfg *args)
     while (at < g_cli_py_lines)
     {
         const CliPyLine *const line = &g_cli_py_line[at];
-        const CliInspectTok *const word = EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = line, .at = 0u);
+        const CliInspectTok *const word_text =
+            EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = line, .at = 0u);
         const int leaves = EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = args->src,
-                                      .tok = word, .word = "return") ||
+                                      .tok = word_text, .word_text = "return") ||
                            EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = args->src,
-                                      .tok = word, .word = "raise") ||
+                                      .tok = word_text, .word_text = "raise") ||
                            EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = args->src,
-                                      .tok = word, .word = "break") ||
+                                      .tok = word_text, .word_text = "break") ||
                            EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = args->src,
-                                      .tok = word, .word = "continue");
+                                      .tok = word_text, .word_text = "continue");
         if (!leaves || EMBED_CALL(cli_inspect_py_src_word.py_contains, CliInspectPySrcWordCfg, .src = args->src,
-                                  .toks = &g_cli_inspect_tok[line->first], .count = line->count, .word = ";"))
+                                  .toks = &g_cli_inspect_tok[line->first], .count = line->count, .word_text = ";"))
         {
             at += 1u;
             continue;
@@ -128,7 +129,7 @@ void cli_py_unreachable(const CliInspectPySrcSizeCfg *args)
             char message[CLI_INSPECT_UNREACHED_CAPACITY];
             VerbaLinea msg = {message, sizeof(message), 0ULL};
             mmgr_line_put(&msg, CLI_INSPECT_UNREACHED_BEFORE);
-            mmgr_line_put_n(&msg, args->src + word->start, word->end - word->start);
+            mmgr_line_put_n(&msg, args->src + word_text->start, word_text->end - word_text->start);
             mmgr_line_put(&msg, CLI_INSPECT_UNREACHED_AFTER);
             EMBED_CALL(cli_inspect_from_internal.finding_append, CliInspectFromCtx, .facts = facts,
                        .from = EMBED_CALL(cli_inspect_py.py_tok, CliInspectPyCfg, .line = first, .at = 0u)->from,
@@ -421,9 +422,9 @@ void cli_py_docstrings(const CliInspectPySrcSizeCfg *args)
         const CliPyLine *const line = &g_cli_py_line[at];
         const CliPyLine *const next = &g_cli_py_line[at + 1u];
         const int declares = EMBED_CALL(cli_inspect_py_src_line.py_head_is, CliInspectPySrcLineCfg, .src = args->src,
-                                        .line = line, .word = "def") ||
+                                        .line = line, .word_text = "def") ||
                              EMBED_CALL(cli_inspect_py_src_line.py_head_is, CliInspectPySrcLineCfg, .src = args->src,
-                                        .line = line, .word = "class");
+                                        .line = line, .word_text = "class");
         if (declares &&
             EMBED_CALL(cli_inspect_py_src_line.py_opens, CliInspectPySrcLineCfg, .src = args->src, .line = line) &&
             (next->indent > line->indent) && EMBED_CALL(doc_lone, InspectPyDocCtx, .line_py_line_pointer = next))

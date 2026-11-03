@@ -482,9 +482,11 @@ EMBED_INLINE void cover_file_write(const TestCoverageCtx *args)
     {
         const unsigned int line = s_cover->lines[at].line;
         int run_result = (at > could_from) && (s_cover->lines[at - 1u].line == line);
-        for (unsigned int one = args->from; !run_result && (one < could_from); one += 1u)
+        unsigned int one = args->from;
+        while (!run_result && (one < could_from))
         {
             run_result = (s_cover->lines[one].line == line);
+            one += 1u;
         }
         if (!run_result)
         {

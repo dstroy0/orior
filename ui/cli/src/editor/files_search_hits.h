@@ -4,10 +4,10 @@
 // CLI_HITS_MAX in the order of the files and of the lines in each retained (files_search_hits.c)
 #ifndef FILES_SEARCH_HITS_H
 #define FILES_SEARCH_HITS_H
-typedef struct CliFilesSearchHitsCfg CliFilesSearchHitsCfg;
-
 #include "embed_dispatch_layout.h"
 #include "files_internal.h"
+
+typedef struct CliFilesSearchHitsCfg CliFilesSearchHitsCfg;
 
 // the most lines stored while a search runs
 #define CLI_POOL_MAX (CLI_HITS_MAX * 4u)

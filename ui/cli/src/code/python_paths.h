@@ -15,11 +15,11 @@
 // python_paths_eval.c)
 #ifndef PYTHON_PATHS_H
 #define PYTHON_PATHS_H
-typedef struct CliPythonPathsCfg CliPythonPathsCfg;
-
 #include "../command_line/callback_cfg.h"
 #include "../command_line/cli_internal.h"
 #include "embed_dispatch_layout.h"
+
+typedef struct CliPythonPathsCfg CliPythonPathsCfg;
 
 // the folders the Python scripts of the tree at `root` put on `sys.path`, each a folder there in the tree other than
 // its top, the most used first, the first `most` of them each handed to `each`: their count. A tree's reading stands

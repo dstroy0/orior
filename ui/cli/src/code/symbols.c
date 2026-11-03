@@ -317,20 +317,24 @@ static void cli_tree_walk(void *context)
         g_cli_branches[at].seen = (g_cli_branches[at].parent == CLI_BRANCH_MOUNTED) ? 0 : g_cli_branches[at].seen;
     }
     int stopped = 0;
-    for (unsigned int at = 0u; !stopped && (at < g_cli_branch_count); at += 1u)
     {
-        const CliTreeBranch *const branch = &g_cli_branches[at];
-        if (branch->used && !branch->folder && (branch->parent != CLI_BRANCH_MOUNTED))
+        unsigned int at = 0u;
+        while (!stopped && (at < g_cli_branch_count))
         {
-            char path[CLI_PATH_MAX_LEN];
-            EMBED_CALL(cli_symbols_tree_branch_path.branch_path_read, CliSymbolsTreeBranchPathCfg, .branch = branch,
-                       .path_out = path);
-            s_done += 1ULL;
-            stopped = EMBED_CALL(cli_symbols_read_languages_internal.reads_in, CliSymbolsReadLanguagesCtx,
-                                 .read_symbols_languages_pointer = walk->languages, .path = path) &&
-                      !EMBED_CALL(cli_branch_walk, SymbolsCtx, .walk = walk, .root = root, .path = path,
-                                  .generation = generation, .changed = 0);
-            stopped = stopped || s_stop || (s_generation != generation);
+            const CliTreeBranch *const branch = &g_cli_branches[at];
+            if (branch->used && !branch->folder && (branch->parent != CLI_BRANCH_MOUNTED))
+            {
+                char path[CLI_PATH_MAX_LEN];
+                EMBED_CALL(cli_symbols_tree_branch_path.branch_path_read, CliSymbolsTreeBranchPathCfg, .branch = branch,
+                           .path_out = path);
+                s_done += 1ULL;
+                stopped = EMBED_CALL(cli_symbols_read_languages_internal.reads_in, CliSymbolsReadLanguagesCtx,
+                                     .read_symbols_languages_pointer = walk->languages, .path = path) &&
+                          !EMBED_CALL(cli_branch_walk, SymbolsCtx, .walk = walk, .root = root, .path = path,
+                                      .generation = generation, .changed = 0);
+                stopped = stopped || s_stop || (s_generation != generation);
+            }
+            at += 1u;
         }
     }
     for (unsigned int at = 0u; !stopped && (at < walk->mounts); at += 1u)
@@ -704,15 +708,15 @@ static unsigned long long cli_tree_mounts_word(void)
     const char *paths[CLI_MOUNTS_MAX];
     const unsigned int mounts = EMBED_CALL(cli_capacity_names_internal.mounts, CliCapacityNamesCtx, .names = names,
                                            .paths_read = paths, .capacity_u32 = CLI_MOUNTS_MAX);
-    unsigned long long word = 0ULL;
+    unsigned long long word_text = 0ULL;
     for (unsigned int at = 0u; at < mounts; at += 1u)
     {
         for (const char *letter = paths[at]; letter[0] != '\0'; letter += 1)
         {
-            word = (word ^ (unsigned char)letter[0]) * 0x100000001b3ULL;
+            word_text = (word_text ^ (unsigned char)letter[0]) * 0x100000001b3ULL;
         }
     }
-    return word;
+    return word_text;
 }
 
 // One include folder or file the compilation database names, joined to the tree at the top `context` is: mounted
@@ -723,11 +727,13 @@ static void cli_symbols_include_join(const CliEachPathKindCfg *args)
     const char *const root = (const char *)args->context;
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL});
     int inside = 1;
-    for (unsigned long long at = 0ULL; inside && (at < length); at += 1ULL)
+    unsigned long long at = 0ULL;
+    while (inside && (at < length))
     {
         const char one = (root[at] == '\\') ? '/' : root[at];
         const char other = (path[at] == '\\') ? '/' : path[at];
         inside = one == other;
+        at += 1ULL;
     }
     inside = inside && ((path[length] == '/') || (path[length] == '\\') || (path[length] == '\0'));
     char name[CLI_NAME_MAX_LEN];

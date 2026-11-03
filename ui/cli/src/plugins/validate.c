@@ -137,10 +137,10 @@ EMBED_INLINE void validate_check_print(const ValidateCtx *args)
     for (unsigned int at = 0u; at < args->settings; at += 1u)
     {
         mmgr_line_put(&out, (at > 0u) ? "," : "");
-        EMBED_CALL(
-            cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &out,
-            .text = args->words->word[args->from + at],
-            .length = cellul.len(&(CatenaFinitaCfg){.src = args->words->word[args->from + at], .cap = CLI_CELLS_POOL}));
+        EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = &out,
+                   .text = args->words->word_text[args->from + at],
+                   .length = cellul.len(
+                       &(CatenaFinitaCfg){.src = args->words->word_text[args->from + at], .cap = CLI_CELLS_POOL}));
     }
     unsigned long long errors = 0ULL;
     for (unsigned int at = 0u; at < messages->count; at += 1u)

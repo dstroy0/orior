@@ -174,10 +174,14 @@ int cli_mount(const CliPathErrMsgNameCtx *args)
     for (unsigned long long count = 2ULL;; count += 1ULL)
     {
         int reserved = 0;
-        for (unsigned int at = 0u; !reserved && (at < s_mounts); at += 1u)
         {
-            reserved =
-                cellul.eq(&(CatenaFinitaCfg){.src = s_mount_name[at], .other = args->name_out, .cap = CLI_CELLS_POOL});
+            unsigned int at = 0u;
+            while (!reserved && (at < s_mounts))
+            {
+                reserved = cellul.eq(
+                    &(CatenaFinitaCfg){.src = s_mount_name[at], .other = args->name_out, .cap = CLI_CELLS_POOL});
+                at += 1u;
+            }
         }
         if (!reserved)
         {
@@ -241,7 +245,8 @@ int cli_inside(const CliRootCtx *args)
                                   ? (size_t)(slash - args->relative - 1)
                                   : cellul.len(&(CatenaFinitaCfg){.src = args->relative + 1, .cap = CLI_CELLS_POOL});
         int found = 0;
-        for (unsigned int at = 0u; !found && (at < s_mounts); at += 1u)
+        unsigned int at = 0u;
+        while (!found && (at < s_mounts))
         {
             if ((cellul.len(&(CatenaFinitaCfg){.src = s_mount_name[at], .cap = CLI_CELLS_POOL}) == length) &&
                 EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = s_mount_name[at],
@@ -250,6 +255,7 @@ int cli_inside(const CliRootCtx *args)
                 mmgr_line_put(&line, s_mount_path[at]);
                 found = 1;
             }
+            at += 1u;
         }
         if (!found)
         {

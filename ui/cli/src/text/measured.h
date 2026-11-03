@@ -3,11 +3,11 @@
 // measured.h: a line that measures what is written into it, storing none of it (measured.c)
 #ifndef MEASURED_H
 #define MEASURED_H
-typedef struct CliMeasuredPieceCfg CliMeasuredPieceCfg;
-typedef struct CliMeasuredCfg CliMeasuredCfg;
-
 #include "../command_line/cli_internal.h"
 #include "embed_dispatch_layout.h"
+
+typedef struct CliMeasuredPieceCfg CliMeasuredPieceCfg;
+typedef struct CliMeasuredCfg CliMeasuredCfg;
 
 // `line` made over `piece`, sized for `piece_size`, a line whose pieces are let go as it fills; and the bytes
 // written into it so far

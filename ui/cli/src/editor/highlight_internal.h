@@ -3,16 +3,16 @@
 // highlight_internal.h: a grammar as highlight.c reads it and highlight_line.c colors by it
 #ifndef HIGHLIGHT_INTERNAL_H
 #define HIGHLIGHT_INTERNAL_H
+#include "../text/regexp.h"
+#include "embed_dispatch_layout.h"
+#include "highlight.h"
+
 typedef struct CliHighlightWorkStateStateCtx CliHighlightWorkStateStateCtx;
 typedef struct CliHighlightWorkStateCtx CliHighlightWorkStateCtx;
 typedef struct CliHighlightJsonCtx CliHighlightJsonCtx;
 typedef struct CliHighlightLengthCtx CliHighlightLengthCtx;
 typedef struct CliHighlightCtx CliHighlightCtx;
 typedef struct CliHighlightNameCtx CliHighlightNameCtx;
-
-#include "../text/regexp.h"
-#include "embed_dispatch_layout.h"
-#include "highlight.h"
 
 // none: no token, no next, no state
 #define CLI_HIGHLIGHT_NONE 0xffffffffu
@@ -126,7 +126,7 @@ typedef struct
     CliHighlightCase *cases;
     unsigned int *list_entries;
     CliHighlightList *state;
-    unsigned int *word;
+    unsigned int *word_text;
     CliHighlightList *words;
     unsigned int *name;
     char *text;
@@ -164,7 +164,7 @@ typedef struct
     CliHighlightCase *cases;
     unsigned int *list_entries;
     CliHighlightList *state;
-    unsigned int *word;
+    unsigned int *word_text;
     CliHighlightList *words;
     unsigned int *name;
     char *text;
@@ -259,7 +259,7 @@ struct CliHighlightLengthCtx
     const CliGrammar *grammar;
     unsigned long long length;
     const CliHighlightList *list;
-    const char *word;
+    const char *word_text;
 };
 
 struct CliHighlightCtx

@@ -140,7 +140,7 @@ EMBED_INLINE void cli_each_lock(const PluginsCtx *args)
 
 void cli_plugins_each(const CliPluginsEachCfg *args)
 {
-    void (*each)(const CliEachPluginCfg *args) = args->each;
+    void (*each)(const CliEachPluginCfg *) = args->each;
     void *context = args->context;
     EMBED_CALL(cli_each_lock, PluginsCtx, .each = each, .context = context);
 }
@@ -435,7 +435,8 @@ int cli_plugins_language_for(const CliPluginsLanguagesPathCfg *args)
             continue;
         }
         CliRegexpSpan groups[CLI_REGEXP_GROUPS + 1u];
-        for (unsigned long long place = 0ULL; (place < length) && !matched; place += 1ULL)
+        unsigned long long place = 0ULL;
+        while ((place < length) && !matched)
         {
             if (EMBED_CALL(cli_regexp_text_u_32s.match_into, CliRegexpTextU32sCfg, .regexp = &pattern,
                            .text_u32s = slashed, .length = length, .at = place, .groups = groups))
@@ -447,6 +448,7 @@ int cli_plugins_language_for(const CliPluginsLanguagesPathCfg *args)
                                                  1u});
                 matched = 1;
             }
+            place += 1ULL;
         }
     }
     g_cli_cells->persistent_buf_release(work_state, &g_cli_plugins_cells);
@@ -573,22 +575,27 @@ void cli_plugins_slug(const CliPluginsIdNameCfg *args)
     to = from + EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = from,
                            .at = (unsigned long long)(to - from), .set = CLI_TEXT_WHITE);
     unsigned long long length = 0ULL;
-    for (const char *at = from; (at < to) && ((length + 1ULL) < CLI_NAME_MAX_LEN); at += 1)
     {
-        const char letter = at[0];
-        const int allowed = ((letter >= 'a') && (letter <= 'z')) || ((letter >= 'A') && (letter <= 'Z')) ||
-                            ((letter >= '0') && (letter <= '9'));
-        if (allowed)
+        const char *at = from;
+        while ((at < to) && ((length + 1ULL) < CLI_NAME_MAX_LEN))
         {
-            args->id_out[length] = ((letter >= 'A') && (letter <= 'Z')) ? (char)(letter + 32) : letter;
-            length += 1ULL;
+            const char letter = at[0];
+            const int allowed = ((letter >= 'a') && (letter <= 'z')) || ((letter >= 'A') && (letter <= 'Z')) ||
+                                ((letter >= '0') && (letter <= '9'));
+            if (allowed)
+            {
+                args->id_out[length] = ((letter >= 'A') && (letter <= 'Z')) ? (char)(letter + 32) : letter;
+                length += 1ULL;
+            }
+            else if ((length != 0ULL) && (args->id_out[length - 1u] != '-'))
+            {
+                args->id_out[length] = '-';
+                length += 1ULL;
+            }
+            // a byte past ASCII that starts or carries a letter is no letter or digit here, and one run of them one
+            // dash
+            at += 1;
         }
-        else if ((length != 0ULL) && (args->id_out[length - 1u] != '-'))
-        {
-            args->id_out[length] = '-';
-            length += 1ULL;
-        }
-        // a byte past ASCII that starts or carries a letter is no letter or digit here, and one run of them one dash
     }
     length = EMBED_CALL(cli_text_at_size_classes.back_end, CliTextAtSizeClassesCfg, .text = args->id_out, .at = length,
                         .set = "-");

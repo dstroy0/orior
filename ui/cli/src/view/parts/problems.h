@@ -5,16 +5,17 @@
 // has gone; and the shown file's spans underlined in the editor (problems.c)
 #ifndef GUI_PARTS_PROBLEMS_H
 #define GUI_PARTS_PROBLEMS_H
-typedef struct GuiProblemsRowFrameCfg GuiProblemsRowFrameCfg;
-typedef struct GuiProblemsPathRasterCfg GuiProblemsPathRasterCfg;
-typedef struct GuiProblemsFrameCfg GuiProblemsFrameCfg;
-typedef struct GuiProblemsCfg GuiProblemsCfg;
 #include "../../controller/controller_parts.h"
 #include "../frame.h"
 #include "../glyphs.h"
 #include "../palette.h"
 #include "editor.h"
 #include "embed_dispatch_layout.h"
+
+typedef struct GuiProblemsRowFrameCfg GuiProblemsRowFrameCfg;
+typedef struct GuiProblemsPathRasterCfg GuiProblemsPathRasterCfg;
+typedef struct GuiProblemsFrameCfg GuiProblemsFrameCfg;
+typedef struct GuiProblemsCfg GuiProblemsCfg;
 
 // no row; the sizes in the page's
 // pixels: a file's row, a diagnostic's row, the pane's head, a row's padding at the left, the guide's width before a

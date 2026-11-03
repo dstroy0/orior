@@ -15,6 +15,10 @@
 // version_catalog*.c, gradle*.c, maven*.c, scons*.c)
 #ifndef BUILDS_H
 #define BUILDS_H
+#include "../command_line/callback_cfg.h"
+#include "../text/edits.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliBuildsTextCfg CliBuildsTextCfg;
 typedef struct CliBuildsPathCfg CliBuildsPathCfg;
 typedef struct CliBuildsItemsCfg CliBuildsItemsCfg;
@@ -33,10 +37,6 @@ typedef struct CliBuildsCfg CliBuildsCfg;
 typedef struct CliBuildsLineCfg CliBuildsLineCfg;
 typedef struct CliBuildsLinesAtCfg CliBuildsLinesAtCfg;
 typedef struct CliBuildsSizeVersionCfg CliBuildsSizeVersionCfg;
-
-#include "../command_line/callback_cfg.h"
-#include "../text/edits.h"
-#include "embed_dispatch_layout.h"
 
 // the kinds of build file read here, 0 for none
 #define CLI_BUILD_GRADLE 1u

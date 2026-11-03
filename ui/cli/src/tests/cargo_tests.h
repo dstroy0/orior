@@ -18,12 +18,12 @@
 // error (cargo_scan.c, cargo_targets.c, cargo_found.c, cargo_run.c, cargo_binary.c)
 #ifndef CARGO_TESTS_H
 #define CARGO_TESTS_H
+#include "embed_dispatch_layout.h"
+#include "testing.h"
+
 typedef struct CliCargoTestsIdCfg CliCargoTestsIdCfg;
 typedef struct CliCargoTestsInputCfg CliCargoTestsInputCfg;
 typedef struct CliCargoTestsCfg CliCargoTestsCfg;
-
-#include "embed_dispatch_layout.h"
-#include "testing.h"
 
 // the most tests found, and the bytes their texts take
 #define CLI_CARGO_FOUND 16384u

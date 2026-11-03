@@ -121,7 +121,8 @@ EMBED_INLINE unsigned int tree_hash(const InspectTreeCtx *args)
 unsigned int cli_tree_find(const CliInspectTreePathCtx *args)
 {
     unsigned int bucket = EMBED_CALL(tree_hash, InspectTreeCtx, .path = args->path, .size = args->size);
-    for (unsigned int probe = 0u; (probe < CLI_TREE_BUCKETS) && (s_bucket[bucket] != 0u); probe += 1u)
+    unsigned int probe = 0u;
+    while ((probe < CLI_TREE_BUCKETS) && (s_bucket[bucket] != 0u))
     {
         const unsigned int place = s_bucket[bucket];
         if (place != CLI_TREE_NONE)
@@ -134,6 +135,7 @@ unsigned int cli_tree_find(const CliInspectTreePathCtx *args)
             }
         }
         bucket = (bucket + 1u) & (CLI_TREE_BUCKETS - 1u);
+        probe += 1u;
     }
     return CLI_TREE_NONE;
 }
@@ -175,7 +177,8 @@ EMBED_INLINE void tree_bucket_alloc(const InspectTreeCtx *args)
 {
     unsigned int bucket = EMBED_CALL(tree_hash, InspectTreeCtx, .path = CLI_TREE_FILE(args->file).path,
                                      .size = CLI_TREE_FILE(args->file).path_size);
-    for (unsigned int probe = 0u; (probe < CLI_TREE_BUCKETS) && (s_bucket[bucket] != 0u); probe += 1u)
+    unsigned int probe = 0u;
+    while ((probe < CLI_TREE_BUCKETS) && (s_bucket[bucket] != 0u))
     {
         if (s_bucket[bucket] == args->file + 1u)
         {
@@ -183,6 +186,7 @@ EMBED_INLINE void tree_bucket_alloc(const InspectTreeCtx *args)
             return;
         }
         bucket = (bucket + 1u) & (CLI_TREE_BUCKETS - 1u);
+        probe += 1u;
     }
 }
 

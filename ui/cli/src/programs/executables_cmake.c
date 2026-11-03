@@ -94,7 +94,7 @@ EMBED_INLINE int cli_found_in(const ExecutablesCmakeCtx *args)
         if (EMBED_CALL(cli_reply_at.string_is, CliReplyAtCfg, .reply = reply,
                        .at = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = reply, .object = item,
                                         .key = args->match),
-                       .word = args->required))
+                       .word_text = args->required))
         {
             return EMBED_CALL(cli_reply_at_out.string, CliReplyAtOutCfg, .reply = reply,
                               .at = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = reply,
@@ -126,10 +126,14 @@ EMBED_INLINE int cli_artifact(const ExecutablesCmakeCtx *args)
         }
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = out, .cap = CLI_CELLS_POOL});
         int passed = 0;
-        for (unsigned int at = 0u; !passed && (at < 4u); at += 1u)
         {
-            passed = (length >= 4ULL) && EMBED_CALL(cli_same_case_aside, ExecutablesCmakeCtx,
-                                                    .one = out + length - 4ULL, .other = s_passed[at]);
+            unsigned int at = 0u;
+            while (!passed && (at < 4u))
+            {
+                passed = (length >= 4ULL) && EMBED_CALL(cli_same_case_aside, ExecutablesCmakeCtx,
+                                                        .one = out + length - 4ULL, .other = s_passed[at]);
+                at += 1u;
+            }
         }
         if (!passed)
         {
@@ -284,11 +288,11 @@ int cli_meson_artifact(const CliExecutablesNameOutCtx *args)
         if (!EMBED_CALL(cli_reply_at.string_is, CliReplyAtCfg, .reply = &reply,
                         .at = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = &reply, .object = item,
                                          .key = "name"),
-                        .word = args->name) ||
+                        .word_text = args->name) ||
             !EMBED_CALL(cli_reply_at.string_is, CliReplyAtCfg, .reply = &reply,
                         .at = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = &reply, .object = item,
                                          .key = "type"),
-                        .word = "executable"))
+                        .word_text = "executable"))
         {
             continue;
         }

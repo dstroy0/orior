@@ -40,12 +40,13 @@ int cli_test_pytest_line(const CliTestRunsSizeCtx *args)
     {
         size -= 1ULL;
     }
-    for (unsigned int word = 0u; word < 6u; word += 1u)
+    for (unsigned int word_text = 0u; word_text < 6u; word_text += 1u)
     {
-        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = s_words[word], .cap = CLI_CELLS_POOL});
+        const unsigned long long length =
+            cellul.len(&(CatenaFinitaCfg){.src = s_words[word_text], .cap = CLI_CELLS_POOL});
         unsigned long long at = 0ULL;
         while ((at + length <= size) &&
-               (memor.cmp(&(MemoriaCfg){.src = args->line + at, .other = s_words[word], .bytes = length}) != 0))
+               (memor.cmp(&(MemoriaCfg){.src = args->line + at, .other = s_words[word_text], .bytes = length}) != 0))
         {
             at += 1ULL;
         }
@@ -75,7 +76,7 @@ int cli_test_pytest_line(const CliTestRunsSizeCtx *args)
         {
             *id = start;
             *id_size = end - start;
-            *outcome = s_outcomes[word];
+            *outcome = s_outcomes[word_text];
             return 1;
         }
     }
@@ -170,7 +171,7 @@ void cli_test_dot(const CliTestRunsCtx *args)
     }
     mmgr_line_finish(&line);
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-               .word = dotted);
+               .word_text = dotted);
 }
 
 int cli_test_unittest_id(const CliTestRunsLengthCtx *args)

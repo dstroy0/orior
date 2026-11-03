@@ -200,9 +200,11 @@ EMBED_INLINE void cli_groups_get(const ToolchainsAddedCtx *args)
                                                              .json_read = in, .object = item, .name = "group"),
                            .length_pointer = NULL);
             int known = group == NULL;
-            for (unsigned int at = 0u; !known && (at < seen); at += 1u)
+            unsigned int at = 0u;
+            while (!known && (at < seen))
             {
                 known = cellul.eq(&(CatenaFinitaCfg){.src = s_seen[at], .other = group, .cap = CLI_CELLS_POOL});
+                at += 1u;
             }
             if (!known && (seen < 512u))
             {
@@ -219,7 +221,7 @@ EMBED_INLINE void cli_groups_get(const ToolchainsAddedCtx *args)
 
 void cli_toolchains_groups(const CliToolchainsEachCfg *args)
 {
-    void (*each)(const CliEachGroupCfg *args) = args->each;
+    void (*each)(const CliEachGroupCfg *) = args->each;
     void *context = args->context;
     CliJson bundled;
     CliJson json;

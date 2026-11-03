@@ -188,10 +188,12 @@ EMBED_INLINE int cli_version(const SeaBuildCtx *args)
                            .size = (unsigned long long)(end - stop), .set = ".");
         int number = stop > text;
         unsigned long long value = 0ULL;
-        for (const char *digit = text; number && (digit < stop); digit += 1)
+        const char *digit = text;
+        while (number && (digit < stop))
         {
             number = (digit[0] >= '0') && (digit[0] <= '9');
             value = (value * 10ULL) + (unsigned long long)(digit[0] - '0');
+            digit += 1;
         }
         if (number)
         {

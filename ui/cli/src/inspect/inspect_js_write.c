@@ -137,9 +137,12 @@ int cli_inspect_js_docstring(const CliInspectSizeSrcCtx *args)
     const unsigned int start = (name_at < first) ? name_at : first;
     unsigned int lead = start;
     while ((lead > 0u) &&
-           !EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = lead - 1u, .word = ";") &&
-           !EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = lead - 1u, .word = "{") &&
-           !EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = lead - 1u, .word = "}") &&
+           !EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = lead - 1u,
+                       .word_text = ";") &&
+           !EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = lead - 1u,
+                       .word_text = "{") &&
+           !EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = lead - 1u,
+                       .word_text = "}") &&
            (g_cli_inspect_tok[lead - 1u].from.line == g_cli_inspect_tok[start].from.line))
     {
         lead -= 1u;
@@ -169,24 +172,32 @@ int cli_inspect_js_docstring(const CliInspectSizeSrcCtx *args)
         }
     }
     unsigned int params = 0u;
-    for (unsigned int at = first; (at < open) && (params < CLI_JS_NAMED); at += 1u)
     {
-        unsigned int length = 0u;
-        const char *const word = EMBED_CALL(write_word, InspectJsWriteCtx, .src = src, .at = at, .size = &length);
-        int known = !EMBED_CALL(cli_inspect_at_internal.set_has, CliInspectAtCtx, .set_read = &s_names, .at = word,
-                                .size_u32 = length) ||
-                    (g_cli_inspect_tok[at].kind != CLI_JS_NAME);
-        for (unsigned int index = 0u; !known && (index < params); index += 1u)
+        unsigned int at = first;
+        while ((at < open) && (params < CLI_JS_NAMED))
         {
-            unsigned int other = 0u;
-            const char *const before =
-                EMBED_CALL(write_word, InspectJsWriteCtx, .src = src, .at = s_params[index], .size = &other);
-            known = (other == length) && (memor.cmp(&(MemoriaCfg){.src = before, .other = word, .bytes = length}) == 0);
-        }
-        if (!known)
-        {
-            s_params[params] = at;
-            params += 1u;
+            unsigned int length = 0u;
+            const char *const word_text =
+                EMBED_CALL(write_word, InspectJsWriteCtx, .src = src, .at = at, .size = &length);
+            int known = !EMBED_CALL(cli_inspect_at_internal.set_has, CliInspectAtCtx, .set_read = &s_names,
+                                    .at = word_text, .size_u32 = length) ||
+                        (g_cli_inspect_tok[at].kind != CLI_JS_NAME);
+            unsigned int index = 0u;
+            while (!known && (index < params))
+            {
+                unsigned int other = 0u;
+                const char *const before =
+                    EMBED_CALL(write_word, InspectJsWriteCtx, .src = src, .at = s_params[index], .size = &other);
+                known = (other == length) &&
+                        (memor.cmp(&(MemoriaCfg){.src = before, .other = word_text, .bytes = length}) == 0);
+                index += 1u;
+            }
+            if (!known)
+            {
+                s_params[params] = at;
+                params += 1u;
+            }
+            at += 1u;
         }
     }
     int releases = 0;
@@ -199,25 +210,29 @@ int cli_inspect_js_docstring(const CliInspectSizeSrcCtx *args)
             at = (g_cli_js_pair[at] != CLI_JS_NO) ? (g_cli_js_pair[at] + 1u) : (at + 1u);
             continue;
         }
-        releases =
-            releases ||
-            (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at, .word = "return") &&
-             !EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at + 1u, .word = ";") &&
-             !EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at + 1u, .word = "}"));
-        if (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at, .word = "throw") &&
+        releases = releases || (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at,
+                                           .word_text = "return") &&
+                                !EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src,
+                                            .at = at + 1u, .word_text = ";") &&
+                                !EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src,
+                                            .at = at + 1u, .word_text = "}"));
+        if (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at,
+                       .word_text = "throw") &&
             (thrown < CLI_JS_NAMED))
         {
             const int made = EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at + 1u,
-                                        .word = "new") &&
+                                        .word_text = "new") &&
                              (at + 2u < g_cli_inspect_toks);
             unsigned int length = 5u;
             const char *const name =
                 made ? EMBED_CALL(write_word, InspectJsWriteCtx, .src = src, .at = at + 2u, .size = &length) : "Error";
             int known = 0;
-            for (unsigned int index = 0u; !known && (index < thrown); index += 1u)
+            unsigned int index = 0u;
+            while (!known && (index < thrown))
             {
                 known = (s_thrown_size[index] == length) &&
                         (memor.cmp(&(MemoriaCfg){.src = s_thrown[index], .other = name, .bytes = length}) == 0);
+                index += 1u;
             }
             if (!known)
             {
@@ -246,11 +261,11 @@ int cli_inspect_js_docstring(const CliInspectSizeSrcCtx *args)
     for (unsigned int index = 0u; index < params; index += 1u)
     {
         unsigned int length = 0u;
-        const char *const word =
+        const char *const word_text =
             EMBED_CALL(write_word, InspectJsWriteCtx, .src = src, .at = s_params[index], .size = &length);
         mmgr_line_put_n(args->text, indent, indent_size);
         mmgr_line_put(args->text, " * @param ");
-        mmgr_line_put_n(args->text, word, length);
+        mmgr_line_put_n(args->text, word_text, length);
         mmgr_line_ch(args->text, '\n');
     }
     if (releases)
@@ -306,22 +321,23 @@ EMBED_INLINE unsigned int write_member_end(const InspectJsWriteCtx *args)
             end = (g_cli_js_pair[end] != CLI_JS_NO) ? g_cli_js_pair[end] : end;
             break;
         }
-        if (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = end, .word = ";"))
+        if (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = end, .word_text = ";"))
         {
             break;
         }
         const unsigned int pair = g_cli_js_pair[end];
         const int opens =
-            EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = end, .word = "(") ||
-            EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = end, .word = "[");
+            EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = end, .word_text = "(") ||
+            EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = end, .word_text = "[");
         end = ((pair != CLI_JS_NO) && (pair > end) && opens) ? (pair + 1u) : (end + 1u);
         end = (end < args->close) ? end : args->close;
-        const int broken =
-            (end < args->close) && (g_cli_inspect_tok[end].from.line > g_cli_inspect_tok[end - 1u].to.line) &&
-            !EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = end - 1u, .word = ",") &&
-            !EMBED_CALL(cli_inspect_js_at.js_one_get, CliInspectJsAtCfg, .src = src, .at = end, .words = s_runs_on,
-                        .count = 4u) &&
-            (g_cli_js_brace[end] != CLI_JS_FUNCTION);
+        const int broken = (end < args->close) &&
+                           (g_cli_inspect_tok[end].from.line > g_cli_inspect_tok[end - 1u].to.line) &&
+                           !EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = end - 1u,
+                                       .word_text = ",") &&
+                           !EMBED_CALL(cli_inspect_js_at.js_one_get, CliInspectJsAtCfg, .src = src, .at = end,
+                                       .words = s_runs_on, .count = 4u) &&
+                           (g_cli_js_brace[end] != CLI_JS_FUNCTION);
         if (broken)
         {
             end -= 1u;
@@ -357,7 +373,8 @@ int cli_inspect_js_sort_methods(const CliInspectSizeSrcCtx *args)
     unsigned int floor = g_cli_inspect_tok[open].to.line + 1u;
     while ((at < close) && (members < CLI_JS_MEMBERS))
     {
-        if (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = args->src, .at = at, .word = ";"))
+        if (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = args->src, .at = at,
+                       .word_text = ";"))
         {
             at += 1u;
             continue;

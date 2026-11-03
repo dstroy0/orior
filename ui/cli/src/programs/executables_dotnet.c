@@ -381,9 +381,13 @@ static void cli_own_each(const CliEachModuleImportersCfg *args)
         const char *const kinds = split + 2;
         const unsigned long long kinds_length = (unsigned long long)(close - kinds);
         int optional = 0;
-        for (unsigned long long at = 0ULL; !optional && ((at + 8ULL) <= kinds_length); at += 1ULL)
         {
-            optional = memor.cmp(&(MemoriaCfg){.src = kinds + at, .other = "optional", .bytes = 8u}) == 0;
+            unsigned long long at = 0ULL;
+            while (!optional && ((at + 8ULL) <= kinds_length))
+            {
+                optional = memor.cmp(&(MemoriaCfg){.src = kinds + at, .other = "optional", .bytes = 8u}) == 0;
+                at += 1ULL;
+            }
         }
         if (optional ||
             !EMBED_CALL(cli_is_own, ExecutablesDotnetCtx, .folder = own->folder, .importer = name, .length = length))

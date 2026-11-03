@@ -61,9 +61,11 @@ int cli_tar_members(const CliArchiveBytesSizeErrMsgCtx *args)
     {
         const unsigned char *const header = bytes + at;
         int zeros = 1;
-        for (unsigned int byte = 0u; zeros && (byte < 512u); byte += 1u)
+        unsigned int byte = 0u;
+        while (zeros && (byte < 512u))
         {
             zeros = header[byte] == 0u;
+            byte += 1u;
         }
         if (zeros)
         {

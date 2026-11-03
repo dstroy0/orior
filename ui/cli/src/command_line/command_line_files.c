@@ -57,7 +57,7 @@ typedef struct
     const char *one;
     const char *two;
     const char *three;
-    const char *word;
+    const char *word_text;
     char *full;
     const char *named;
     const char *const *words;
@@ -102,12 +102,12 @@ EMBED_INLINE void files_err(const CommandLineFilesCtx *args)
 EMBED_INLINE void files_full(const CommandLineFilesCtx *args)
 {
     char *full = args->full;
-    if (!EMBED_CALL(query_capacity_path_internal.path_full, QueryCapacityPathCtx, .path = args->word, .full = full,
+    if (!EMBED_CALL(query_capacity_path_internal.path_full, QueryCapacityPathCtx, .path = args->word_text, .full = full,
                     .capacity = CLI_PATH_MAX_LEN))
     {
-        const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->word, .cap = CLI_CELLS_POOL});
+        const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_CELLS_POOL});
         const unsigned long long copied_len = (size < CLI_PATH_MAX_LEN) ? size : CLI_PATH_MAX_LEN - 1ULL;
-        memor.cpy(&(MemoriaCfg){.dst = full, .src = args->word, .bytes = copied_len});
+        memor.cpy(&(MemoriaCfg){.dst = full, .src = args->word_text, .bytes = copied_len});
         full[copied_len] = '\0';
     }
 }
@@ -133,7 +133,7 @@ EMBED_INLINE int files_run_words(const CommandLineFilesCtx *args)
         return CLI_NO_CODE;
     }
     char path[CLI_PATH_MAX_LEN];
-    EMBED_CALL(files_full, CommandLineFilesCtx, .word = words[0], .full = path);
+    EMBED_CALL(files_full, CommandLineFilesCtx, .word_text = words[0], .full = path);
     char language[CLI_NAME_MAX_LEN];
     if (!EMBED_CALL(cli_format_table.language_get, CliFormatCfg, .path = path, .id = language))
     {
@@ -418,7 +418,7 @@ EMBED_INLINE int files_validate(const CommandLineFilesCtx *args)
             continue;
         }
         char path[CLI_PATH_MAX_LEN];
-        EMBED_CALL(files_full, CommandLineFilesCtx, .word = file, .full = path);
+        EMBED_CALL(files_full, CommandLineFilesCtx, .word_text = file, .full = path);
         char language[CLI_NAME_MAX_LEN];
         char tool[CLI_NAME_MAX_LEN];
         if (!EMBED_CALL(cli_format_table.language_get, CliFormatCfg, .path = path, .id = language) ||
@@ -485,7 +485,7 @@ EMBED_INLINE int files_format(const CommandLineFilesCtx *args)
             continue;
         }
         char full[CLI_PATH_MAX_LEN];
-        EMBED_CALL(files_full, CommandLineFilesCtx, .word = file, .full = full);
+        EMBED_CALL(files_full, CommandLineFilesCtx, .word_text = file, .full = full);
         char language[CLI_NAME_MAX_LEN];
         if (!EMBED_CALL(cli_format_table.language_get, CliFormatCfg, .path = file, .id = language))
         {

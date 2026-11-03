@@ -15,7 +15,7 @@ typedef struct
 {
     const char *name;
     int (*loop)(const QueryLoopCfg *args);
-    const char *word;
+    const char *word_text;
 } QueryStep;
 
 // The steps in order: the part's tables are pulled off the vendor's disassembler, the widening discovers forms at the
@@ -128,7 +128,7 @@ int query_course_run(const QueryLoopCfg *args)
         EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context, .text = line);
         char step_err_buf[QUERY_LINE_MAX_LEN];
         VerbaLinea step_err_msg = {step_err_buf, sizeof(step_err_buf), 0ULL};
-        const char *const supplied[1] = {s_steps[index].word};
+        const char *const supplied[1] = {s_steps[index].word_text};
         const int code = EMBED_CALL(s_steps[index].loop, QueryLoopCfg, .context = context, .words = supplied,
                                     .count = 1u, .err_msg = &step_err_msg);
         // a step that joined the run parts from it as it ends: the course is the run's member again

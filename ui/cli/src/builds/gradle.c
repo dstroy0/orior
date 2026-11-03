@@ -389,22 +389,22 @@ void cli_gradle_statements(const CliGradleLinesCtx *args)
         {
             continue;
         }
-        unsigned long long word = at;
-        while (word < line_end)
+        unsigned long long word_text = at;
+        while (word_text < line_end)
         {
             unsigned long long length = 0ULL;
             if (!EMBED_CALL(cli_each_letter.build_word_letter, CliEachLetterCfg,
                             .letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = text, .size = line_end,
-                                                 .at = word, .length = &length)))
+                                                 .at = word_text, .length = &length)))
             {
                 break;
             }
-            word += length;
+            word_text += length;
         }
-        if (word > at)
+        if (word_text > at)
         {
-            EMBED_CALL(args->each, CliGradleStatementCfg, .context = args->context, .word = at, .word_size = word - at,
-                       .rest = word, .remainder_end = line_end);
+            EMBED_CALL(args->each, CliGradleStatementCfg, .context = args->context, .word_text = at,
+                       .word_size = word_text - at, .rest = word_text, .remainder_end = line_end);
         }
     }
 }
@@ -430,13 +430,14 @@ static void gradle_declared_statement(const CliGradleStatementCfg *args)
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         if ((cellul.len(&(CatenaFinitaCfg){.src = words[at], .cap = CLI_CELLS_POOL}) == args->word_size) &&
-            (memor.cmp(&(MemoriaCfg){
-                 .src = words[at], .other = g_cli_gradle.text + args->word, .bytes = (size_t)args->word_size}) == 0))
+            (memor.cmp(&(MemoriaCfg){.src = words[at],
+                                     .other = g_cli_gradle.text + args->word_text,
+                                     .bytes = (size_t)args->word_size}) == 0))
         {
             return;
         }
     }
-    EMBED_CALL(gradle_declare, GradleCtx, .name_text = g_cli_gradle.text + args->word, .size = args->word_size);
+    EMBED_CALL(gradle_declare, GradleCtx, .name_text = g_cli_gradle.text + args->word_text, .size = args->word_size);
 }
 
 void cli_gradle_declare(const CliGradleLinesCtx *args)
@@ -491,12 +492,12 @@ void cli_gradle_declare(const CliGradleLinesCtx *args)
                         .required = "by creating", .size = 11u, .at_pointer = &found)))
         {
             unsigned long long walk = 0ULL;
-            unsigned long long word = 0ULL;
+            unsigned long long word_text = 0ULL;
             unsigned long long length = 0ULL;
-            if (EMBED_CALL(cli_text_size_length.word, CliTextSizeLengthCfg, .text = line + 4u, .size = line_size - 4u,
-                           .at_pointer = &walk, .word = &word, .length = &length))
+            if (EMBED_CALL(cli_text_size_length.word_text, CliTextSizeLengthCfg, .text = line + 4u,
+                           .size = line_size - 4u, .at_pointer = &walk, .word_text = &word_text, .length = &length))
             {
-                EMBED_CALL(gradle_declare, GradleCtx, .name_text = line + 4u + word, .size = length);
+                EMBED_CALL(gradle_declare, GradleCtx, .name_text = line + 4u + word_text, .size = length);
             }
         }
         start = end + 1u;

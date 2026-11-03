@@ -5,6 +5,11 @@
 // (symbols_read.c)
 #ifndef SYMBOLS_INTERNAL_H
 #define SYMBOLS_INTERNAL_H
+#include "../editor/highlight.h"
+#include "../plugins/plugins.h"
+#include "embed_dispatch_layout.h"
+#include "symbols.h"
+
 typedef struct CliSymbolsPathCtx CliSymbolsPathCtx;
 typedef struct CliSymbolsReadLanguagesTextCtx CliSymbolsReadLanguagesTextCtx;
 typedef struct CliSymbolsPathReadLanguagesTextCtx CliSymbolsPathReadLanguagesTextCtx;
@@ -23,11 +28,6 @@ typedef struct CliSymbolsReadLeafTypeCtx CliSymbolsReadLeafTypeCtx;
 typedef struct CliSymbolsCtx CliSymbolsCtx;
 typedef struct CliSymbolsReadLanguagesCtx CliSymbolsReadLanguagesCtx;
 typedef struct CliSymbolsArgumentCtx CliSymbolsArgumentCtx;
-
-#include "../editor/highlight.h"
-#include "../plugins/plugins.h"
-#include "embed_dispatch_layout.h"
-#include "symbols.h"
 
 // the most languages a reading holds whose plugins have a grammar
 #define CLI_SYMBOLS_GRAMMARS 64u

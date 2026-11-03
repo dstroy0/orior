@@ -125,15 +125,16 @@ EMBED_INLINE void docstring_close(const FillDocstringCtx *args)
     }
     VerbaLinea *const out = filled->out;
     const unsigned long long cut = filled->line_start + space;
-    const unsigned long long word = size - space - 1u;
-    const unsigned long long end = cut + 1u + args->comment_prefix_size + word;
+    const unsigned long long word_text = size - space - 1u;
+    const unsigned long long end = cut + 1u + args->comment_prefix_size + word_text;
     if (end >= out->capacity)
     {
         out->at = out->capacity;
         return;
     }
-    memor.move_up(&(MemoriaCfg){
-        .dst = out->out + cut + 1u + args->comment_prefix_size, .src = out->out + cut + 1u, .bytes = (size_t)word});
+    memor.move_up(&(MemoriaCfg){.dst = out->out + cut + 1u + args->comment_prefix_size,
+                                .src = out->out + cut + 1u,
+                                .bytes = (size_t)word_text});
     memor.cpy(&(MemoriaCfg){.dst = out->out + cut + 1u, .src = args->lead, .bytes = (size_t)args->comment_prefix_size});
     out->out[cut] = '\n';
     out->at = end;

@@ -4,12 +4,13 @@
 // the lattice next changes on screen, and its clock stops while the window is off screen (ground.c)
 #ifndef GUI_BACKGROUND_H
 #define GUI_BACKGROUND_H
-typedef struct GuiBackgroundRasterCfg GuiBackgroundRasterCfg;
-typedef struct GuiBackgroundCfg GuiBackgroundCfg;
-typedef struct GuiBackgroundClockCfg GuiBackgroundClockCfg;
 #include "embed_dispatch_layout.h"
 #include "lattice.h"
 #include "palette.h"
+
+typedef struct GuiBackgroundRasterCfg GuiBackgroundRasterCfg;
+typedef struct GuiBackgroundCfg GuiBackgroundCfg;
+typedef struct GuiBackgroundClockCfg GuiBackgroundClockCfg;
 
 // How a dot is shaded by its order: ink from the least ordered to the most, and radius in page pixels
 #define GUI_BACKGROUND_DIM 0.85

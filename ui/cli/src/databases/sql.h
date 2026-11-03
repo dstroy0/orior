@@ -10,15 +10,15 @@
 // end a statement
 #ifndef SQL_H
 #define SQL_H
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliSqlTextCfg CliSqlTextCfg;
 typedef struct CliSqlTextLengthCfg CliSqlTextLengthCfg;
 typedef struct CliSqlTextLengthDialectCfg CliSqlTextLengthDialectCfg;
 typedef struct CliSqlLengthCfg CliSqlLengthCfg;
 typedef struct CliSqlLengthDialectCfg CliSqlLengthDialectCfg;
 typedef struct CliSqlCfg CliSqlCfg;
-
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // the SQL each database writes
 enum

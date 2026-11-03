@@ -230,12 +230,14 @@ void cli_xml_parse(const CliMavenXmlTextCtx *args)
         const unsigned long long lt = (unsigned long long)(found - args->text);
         const unsigned long long left = args->size - lt;
         unsigned int skip = 4u;
-        for (unsigned int one = 0u; (skip == 4u) && (one < 4u); one += 1u)
+        unsigned int one = 0u;
+        while ((skip == 4u) && (one < 4u))
         {
             skip = EMBED_CALL(cli_text_size_prefix.starts, CliTextSizePrefixCfg, .text = found, .size = left,
                               .prefix = s_skip_open[one])
                        ? one
                        : skip;
+            one += 1u;
         }
         if (skip < 4u)
         {
@@ -392,12 +394,14 @@ int cli_xml_text(const CliMavenXmlOutCtx *args)
     for (unsigned long long at = 0ULL; at < size;)
     {
         unsigned int entity = 5u;
-        for (unsigned int one = 0u; (entity == 5u) && (one < 5u); one += 1u)
+        unsigned int one = 0u;
+        while ((entity == 5u) && (one < 5u))
         {
             entity = EMBED_CALL(cli_text_size_prefix.starts, CliTextSizePrefixCfg, .text = raw + at, .size = size - at,
                                 .prefix = s_entities[one])
                          ? one
                          : entity;
+            one += 1u;
         }
         if (entity < 5u)
         {

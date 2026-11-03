@@ -167,13 +167,15 @@ unsigned int cli_binary_linux_folders(const CliBinaryCfg *args)
                                             "/usr/lib/aarch64-linux-gnu"};
     unsigned int count =
         EMBED_CALL(cli_ld_conf, BinaryLdCtx, .path = "/etc/ld.so.conf", .folders = folders, .count = 0u, .depth = 0u);
-    for (unsigned int at = 0u; (at < 8u) && (count < CLI_BINARY_LINUX_FOLDERS); at += 1u)
+    unsigned int at = 0u;
+    while ((at < 8u) && (count < CLI_BINARY_LINUX_FOLDERS))
     {
         memor.cpy(
             &(MemoriaCfg){.dst = folders[count],
                           .src = s_system[at],
                           .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_system[at], .cap = CLI_CELLS_POOL}) + 1u});
         count += 1u;
+        at += 1u;
     }
     return count;
 }

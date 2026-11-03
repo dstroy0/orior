@@ -4,16 +4,16 @@
 // that hand a place on, and the steps of matching one calls in another
 #ifndef REGEXP_MATCH_INTERNAL_H
 #define REGEXP_MATCH_INTERNAL_H
+#include "embed_dispatch_layout.h"
+#include "regexp.h"
+
+#include <stdint.h>
+
 typedef struct CliRegexpMatchIndexCtx CliRegexpMatchIndexCtx;
 typedef struct CliRegexpMatchThenCtx CliRegexpMatchThenCtx;
 typedef struct CliRegexpMatchIndexAtCtx CliRegexpMatchIndexAtCtx;
 typedef struct CliRegexpMatchCtx CliRegexpMatchCtx;
 typedef struct CliRegexpMatchACtx CliRegexpMatchACtx;
-
-#include "embed_dispatch_layout.h"
-#include "regexp.h"
-
-#include <stdint.h>
 
 // the most passes' ends the one-way repeats standing at once store, the ends a match stores on its own stack before
 // they go to a cell, and a pass that took nothing

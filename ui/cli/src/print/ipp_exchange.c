@@ -22,7 +22,7 @@ typedef struct
     const char *to;
     unsigned int *port;
     unsigned long long length;
-    const char *word;
+    const char *word_text;
     const unsigned char *bytes;
     unsigned long long size;
     unsigned long long at;
@@ -143,7 +143,7 @@ int cli_ipp_address(const CliIppErrMsgCfg *args)
 // whether `length` bytes at `text` are `word` in ASCII's either case
 EMBED_INLINE int cli_same(const IppExchangeCtx *args)
 {
-    if (cellul.len(&(CatenaFinitaCfg){.src = args->word, .cap = CLI_CELLS_POOL}) != args->length)
+    if (cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_CELLS_POOL}) != args->length)
     {
         return 0;
     }
@@ -151,7 +151,7 @@ EMBED_INLINE int cli_same(const IppExchangeCtx *args)
     {
         const char letter =
             ((args->text[at] >= 'A') && (args->text[at] <= 'Z')) ? (char)(args->text[at] + 32) : args->text[at];
-        if (letter != args->word[at])
+        if (letter != args->word_text[at])
         {
             return 0;
         }
@@ -342,18 +342,18 @@ EMBED_INLINE int cli_exchange(const IppExchangeCtx *args)
     unsigned long long at =
         EMBED_CALL(cli_line, IppExchangeCtx, .bytes = s_answer, .size = read, .at = 0ULL, .stop = &stop);
     // the status line's second word, the code
-    unsigned long long word = 0ULL;
-    word = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = (const char *)s_answer,
-                      .at = word, .size = stop, .set = " ");
-    word = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = (const char *)s_answer,
-                      .at = word, .size = stop, .set = " ");
+    unsigned long long word_text = 0ULL;
+    word_text = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = (const char *)s_answer,
+                           .at = word_text, .size = stop, .set = " ");
+    word_text = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = (const char *)s_answer,
+                           .at = word_text, .size = stop, .set = " ");
     unsigned long long code = 0ULL;
     unsigned long long digits = 0ULL;
-    unsigned long long end = word;
-    code = EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = (const char *)s_answer, .at = word,
+    unsigned long long end = word_text;
+    code = EMBED_CALL(cli_text_at_size.number, CliTextAtSizeCfg, .text = (const char *)s_answer, .at = word_text,
                       .size = stop, .end = &end);
-    digits = ((end - word) <= 5ULL) ? (end - word) : 0ULL;
-    if ((digits == 0ULL) || (((word + digits) < stop) && (s_answer[word + digits] != ' ')))
+    digits = ((end - word_text) <= 5ULL) ? (end - word_text) : 0ULL;
+    if ((digits == 0ULL) || (((word_text + digits) < stop) && (s_answer[word_text + digits] != ' ')))
     {
         mmgr_line_put(err_msg, host);
         mmgr_line_put(err_msg, " did not answer as a printer: ");
@@ -382,8 +382,8 @@ EMBED_INLINE int cli_exchange(const IppExchangeCtx *args)
         value = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = (const char *)s_answer,
                            .at = value, .size = stop, .set = " ");
         const char *const key = (const char *)(s_answer + line_start);
-        if ((colon < stop) &&
-            EMBED_CALL(cli_same, IppExchangeCtx, .text = key, .length = key_end - line_start, .word = "content-length"))
+        if ((colon < stop) && EMBED_CALL(cli_same, IppExchangeCtx, .text = key, .length = key_end - line_start,
+                                         .word_text = "content-length"))
         {
             length = 0ULL;
             has_length = value < stop;
@@ -395,9 +395,9 @@ EMBED_INLINE int cli_exchange(const IppExchangeCtx *args)
         }
         else if ((colon < stop) &&
                  EMBED_CALL(cli_same, IppExchangeCtx, .text = key, .length = key_end - line_start,
-                            .word = "transfer-encoding") &&
+                            .word_text = "transfer-encoding") &&
                  EMBED_CALL(cli_same, IppExchangeCtx, .text = (const char *)(s_answer + value), .length = stop - value,
-                            .word = "chunked"))
+                            .word_text = "chunked"))
         {
             chunked = 1;
         }

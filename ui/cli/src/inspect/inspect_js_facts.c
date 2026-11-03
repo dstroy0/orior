@@ -39,9 +39,9 @@ EMBED_INLINE unsigned int facts_end(const InspectJsFactsCtx *args)
     unsigned int at = args->at;
     const unsigned int close = g_cli_js_pair[at];
     const int opens =
-        EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at, .word = "(") ||
-        EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at, .word = "[") ||
-        EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at, .word = "{");
+        EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at, .word_text = "(") ||
+        EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at, .word_text = "[") ||
+        EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at, .word_text = "{");
     return ((close != CLI_JS_NO) && (close > at) && opens) ? (close + 1u) : (at + 1u);
 }
 
@@ -89,15 +89,15 @@ EMBED_INLINE void facts_declaration_fix(const InspectJsFactsCtx *args)
     CliFacts *facts = args->facts;
     const unsigned int keyword = args->name_at - 1u;
     if (!EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = args->name_at + 1u,
-                    .word = "="))
+                    .word_text = "="))
     {
         return;
     }
     unsigned int end = args->name_at + 2u;
     while ((end < g_cli_inspect_toks) &&
-           !EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = end, .word = ";"))
+           !EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = end, .word_text = ";"))
     {
-        if (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = end, .word = ",") &&
+        if (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = end, .word_text = ",") &&
             (g_cli_js_within[end] == g_cli_js_within[args->name_at]) &&
             (EMBED_CALL(cli_inspect_js_from.js_pair_depth, CliInspectJsFromCfg, .src = src, .from = args->name_at + 2u,
                         .to = end) == 0))
@@ -111,9 +111,14 @@ EMBED_INLINE void facts_declaration_fix(const InspectJsFactsCtx *args)
         return;
     }
     int calls = 0;
-    for (unsigned int at = args->name_at + 2u; !calls && (at < end); at += 1u)
     {
-        calls = EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at, .word = "(");
+        unsigned int at = args->name_at + 2u;
+        while (!calls && (at < end))
+        {
+            calls =
+                EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at, .word_text = "(");
+            at += 1u;
+        }
     }
     const CliInspectTok *const name = &g_cli_inspect_tok[args->name_at];
     const CliInspectTok *const keyword_tok = &g_cli_inspect_tok[keyword];
@@ -167,17 +172,20 @@ EMBED_INLINE void facts_unread(const InspectJsFactsCtx *args)
         }
         const int direct = (at > nested_end);
         const int declares =
-            EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at, .word = "const") ||
-            EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at, .word = "let") ||
-            EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at, .word = "var");
+            EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at,
+                       .word_text = "const") ||
+            EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at, .word_text = "let") ||
+            EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at, .word_text = "var");
         const int named = (at + 1u < g_cli_inspect_toks) && (g_cli_inspect_tok[at + 1u].kind == CLI_JS_NAME);
-        const int supplied =
-            EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at + 2u, .word = "=") ||
-            EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at + 2u, .word = ";");
-        const int looped =
-            (at >= 2u) &&
-            EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at - 1u, .word = "(") &&
-            EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at - 2u, .word = "for");
+        const int supplied = EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at + 2u,
+                                        .word_text = "=") ||
+                             EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at + 2u,
+                                        .word_text = ";");
+        const int looped = (at >= 2u) &&
+                           EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at - 1u,
+                                      .word_text = "(") &&
+                           EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at - 2u,
+                                      .word_text = "for");
         if (direct && declares && named && supplied && !looped)
         {
             if (declared < CLI_JS_DECLARED)
@@ -188,9 +196,11 @@ EMBED_INLINE void facts_unread(const InspectJsFactsCtx *args)
             continue;
         }
         int own = 0;
-        for (unsigned int index = 0u; !own && (index < declared); index += 1u)
+        unsigned int index = 0u;
+        while (!own && (index < declared))
         {
             own = (s_declared[index] == at);
+            index += 1u;
         }
         if (EMBED_CALL(cli_inspect_js_at_word.js_is_read, CliInspectJsAtWordCfg, .src = src, .at = at) && !own)
         {
@@ -257,8 +267,8 @@ static void facts_unreachable(const InspectJsFactsCtx *args)
             continue;
         }
         unsigned int end = at + 1u;
-        while ((end < close) &&
-               !EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = end, .word = ";"))
+        while ((end < close) && !EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = end,
+                                            .word_text = ";"))
         {
             end = EMBED_CALL(facts_end, InspectJsFactsCtx, .src = src, .at = end);
         }
@@ -280,11 +290,11 @@ static void facts_unreachable(const InspectJsFactsCtx *args)
             last = ((pair != CLI_JS_NO) && (pair > next)) ? pair : next;
             next = last + 1u;
         }
-        const CliInspectTok *const word = &g_cli_inspect_tok[at];
+        const CliInspectTok *const word_text = &g_cli_inspect_tok[at];
         char message[CLI_INSPECT_UNREACHED_CAPACITY];
         VerbaLinea msg = {message, sizeof(message), 0ULL};
         mmgr_line_put(&msg, CLI_INSPECT_UNREACHED_BEFORE);
-        mmgr_line_put_n(&msg, src + word->start, word->end - word->start);
+        mmgr_line_put_n(&msg, src + word_text->start, word_text->end - word_text->start);
         mmgr_line_put(&msg, CLI_INSPECT_UNREACHED_AFTER);
         EMBED_CALL(cli_inspect_from_internal.finding_append, CliInspectFromCtx, .facts = facts,
                    .from = g_cli_inspect_tok[first].from, .to = g_cli_inspect_tok[last].to,
@@ -310,8 +320,9 @@ EMBED_INLINE unsigned int facts_name_by_assignment(const InspectJsFactsCtx *args
     unsigned int at = args->at;
     const int assigned =
         (at >= 2u) &&
-        (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at - 1u, .word = "=") ||
-         EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at - 1u, .word = ":")) &&
+        (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at - 1u, .word_text = "=") ||
+         EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at - 1u,
+                    .word_text = ":")) &&
         (g_cli_inspect_tok[at - 2u].kind == CLI_JS_NAME);
     return assigned ? (at - 2u) : CLI_JS_NO;
 }
@@ -323,7 +334,8 @@ unsigned int cli_js_function_name(const CliInspectJsOpenCfg *args)
         return CLI_JS_NO;
     }
     const unsigned int before = args->open - 1u;
-    if (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = args->src, .at = before, .word = "=>"))
+    if (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = args->src, .at = before,
+                   .word_text = "=>"))
     {
         if (before == 0u)
         {
@@ -332,7 +344,7 @@ unsigned int cli_js_function_name(const CliInspectJsOpenCfg *args)
         const unsigned int params = before - 1u;
         unsigned int start = params;
         if (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = args->src, .at = params,
-                       .word = ")"))
+                       .word_text = ")"))
         {
             start = g_cli_js_pair[params];
             if (start == CLI_JS_NO)
@@ -341,22 +353,23 @@ unsigned int cli_js_function_name(const CliInspectJsOpenCfg *args)
             }
         }
         start = ((start >= 1u) && EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = args->src,
-                                             .at = start - 1u, .word = "async"))
+                                             .at = start - 1u, .word_text = "async"))
                     ? (start - 1u)
                     : start;
         return EMBED_CALL(facts_name_by_assignment, InspectJsFactsCtx, .src = args->src, .at = start);
     }
-    if (!EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = args->src, .at = before, .word = ")") ||
+    if (!EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = args->src, .at = before,
+                    .word_text = ")") ||
         (g_cli_js_pair[before] == CLI_JS_NO) || (g_cli_js_pair[before] == 0u))
     {
         return CLI_JS_NO;
     }
     const unsigned int name = g_cli_js_pair[before] - 1u;
     if (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = args->src, .at = name,
-                   .word = "function"))
+                   .word_text = "function"))
     {
         const unsigned int start = ((name >= 1u) && EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg,
-                                                               .src = args->src, .at = name - 1u, .word = "async"))
+                                                               .src = args->src, .at = name - 1u, .word_text = "async"))
                                        ? (name - 1u)
                                        : name;
         return EMBED_CALL(facts_name_by_assignment, InspectJsFactsCtx, .src = args->src, .at = start);
@@ -381,23 +394,24 @@ EMBED_INLINE void facts_calls(const InspectJsFactsCtx *args)
         const unsigned int before = (at >= 1u) ? (at - 1u) : CLI_JS_NO;
         const unsigned int owner = (at >= 2u) ? (at - 2u) : CLI_JS_NO;
         const unsigned int end = g_cli_js_pair[at + 1u];
-        const int declares =
-            (end != CLI_JS_NO) && (end + 1u < g_cli_inspect_toks) &&
-            EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = end + 1u, .word = "{");
+        const int declares = (end != CLI_JS_NO) && (end + 1u < g_cli_inspect_toks) &&
+                             EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = end + 1u,
+                                        .word_text = "{");
         const CliInspectTok *const tok = &g_cli_inspect_tok[at];
-        const int called =
-            (tok->kind == CLI_JS_NAME) &&
-            EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at + 1u, .word = "(") &&
-            !EMBED_CALL(cli_inspect_js_at.js_one_get, CliInspectJsAtCfg, .src = src, .at = at,
-                        .words = g_cli_js_keywords, .count = 35u) &&
-            !EMBED_CALL(cli_inspect_js_at.js_one_get, CliInspectJsAtCfg, .src = src, .at = at,
-                        .words = g_cli_js_control, .count = 7u);
-        const int reaches =
-            !EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = before, .word = ".") ||
-            EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = owner, .word = "this");
+        const int called = (tok->kind == CLI_JS_NAME) &&
+                           EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at + 1u,
+                                      .word_text = "(") &&
+                           !EMBED_CALL(cli_inspect_js_at.js_one_get, CliInspectJsAtCfg, .src = src, .at = at,
+                                       .words = g_cli_js_keywords, .count = 35u) &&
+                           !EMBED_CALL(cli_inspect_js_at.js_one_get, CliInspectJsAtCfg, .src = src, .at = at,
+                                       .words = g_cli_js_control, .count = 7u);
+        const int reaches = !EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = before,
+                                        .word_text = ".") ||
+                            EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = owner,
+                                       .word_text = "this");
         if (called && !declares && reaches &&
             !EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = before,
-                        .word = "function"))
+                        .word_text = "function"))
         {
             (void)EMBED_CALL(cli_inspect_size_from_internal.name_append, CliInspectSizeFromCtx, .facts = facts,
                              .name = src + tok->start, .size = tok->end - tok->start, .alias = NULL, .alias_size = 0ULL,
@@ -458,36 +472,42 @@ EMBED_INLINE void facts_imports(const InspectJsFactsCtx *args)
     CliFacts *facts = args->facts;
     for (unsigned int at = 0u; at < g_cli_inspect_toks; at += 1u)
     {
-        const int starts =
-            EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at, .word = "import") ||
-            EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at, .word = "export");
+        const int starts = EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at,
+                                      .word_text = "import") ||
+                           EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at,
+                                      .word_text = "export");
         if ((g_cli_js_within[at] != CLI_JS_NO) || !starts ||
-            EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at + 1u, .word = "(") ||
-            EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at + 1u, .word = "."))
+            EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at + 1u,
+                       .word_text = "(") ||
+            EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = at + 1u,
+                       .word_text = "."))
         {
             continue;
         }
         unsigned int end = at + 1u;
-        while ((end < g_cli_inspect_toks) &&
-               !EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = end, .word = ";") &&
-               !((g_cli_inspect_tok[end].kind == CLI_JS_NAME) &&
-                 (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = end,
-                             .word = "import") ||
-                  EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = end,
-                             .word = "export")) &&
-                 (g_cli_inspect_tok[end].from.line > g_cli_inspect_tok[at].from.line) &&
-                 (g_cli_js_within[end] == CLI_JS_NO)))
+        while (
+            (end < g_cli_inspect_toks) &&
+            !EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = end, .word_text = ";") &&
+            !((g_cli_inspect_tok[end].kind == CLI_JS_NAME) &&
+              (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = end,
+                          .word_text = "import") ||
+               EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = end,
+                          .word_text = "export")) &&
+              (g_cli_inspect_tok[end].from.line > g_cli_inspect_tok[at].from.line) &&
+              (g_cli_js_within[end] == CLI_JS_NO)))
         {
             end += 1u;
         }
         unsigned int spec = CLI_JS_NO;
-        for (unsigned int one = at + 1u; (spec == CLI_JS_NO) && (one < end); one += 1u)
+        unsigned int one = at + 1u;
+        while ((spec == CLI_JS_NO) && (one < end))
         {
             const int stated = (g_cli_inspect_tok[one].kind == CLI_JS_STR) &&
                                (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src,
-                                           .at = one - 1u, .word = "from") ||
+                                           .at = one - 1u, .word_text = "from") ||
                                 (one == at + 1u));
             spec = stated ? one : spec;
+            one += 1u;
         }
         if (spec == CLI_JS_NO)
         {

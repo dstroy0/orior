@@ -1014,7 +1014,7 @@ void gui_raster_line(const GuiRasterColorX0Cfg *args)
 void gui_raster_mask(const GuiRasterXYColorCfg *args)
 {
     // a mask's sides are far inside what an int represents
-    const GuiRect laid = {args->x, args->y, (int)args->mask->width, (int)args->mask->height};
+    const GuiRect laid = {args->x, args->y, (int)args->mask_bits->width, (int)args->mask_bits->height};
     const GuiRect on =
         EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
                    .one = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = laid, .other = args->clip),
@@ -1027,7 +1027,8 @@ void gui_raster_mask(const GuiRasterXYColorCfg *args)
     for (int row = on.y; row < on.y + on.height; row += 1)
     {
         // the row and column inside the mask are not negative, the rectangle drawn lying inside it
-        const unsigned char *const cover = args->mask->cover + ((unsigned int)(row - args->y) * args->mask->width);
+        const unsigned char *const cover =
+            args->mask_bits->cover + ((unsigned int)(row - args->y) * args->mask_bits->width);
         for (int column = on.x; column < on.x + on.width; column += 1)
         {
             const unsigned int share = cover[(unsigned int)(column - args->x)];
@@ -1067,22 +1068,22 @@ void gui_raster_lanes_layout(const GuiRasterWidthXCfg *args)
         {
             const GuiColor background_fill = out[px];
             const unsigned int lanes = text_color_red_blue[px] + ((background_fill & 0x00ff00ffu) * saved[px]);
-            const unsigned int lane = text_color_green[px] + (((background_fill >> 8u) & 0xffu) * saved[px]);
+            const unsigned int lane_at = text_color_green[px] + (((background_fill >> 8u) & 0xffu) * saved[px]);
             out[px] = 0xff000000u | (((lanes + ((lanes >> 8u) & 0x00ff00ffu)) >> 8u) & 0x00ff00ffu) |
-                      ((((lane + (lane >> 8u)) >> 8u) & 0xffu) << 8u);
+                      ((((lane_at + (lane_at >> 8u)) >> 8u) & 0xffu) << 8u);
         }
     }
 }
 
 void gui_raster_stencil(const GuiRasterXYColorCfg *args)
 {
-    const unsigned long long pixels = (unsigned long long)args->mask->width * args->mask->height;
+    const unsigned long long pixels = (unsigned long long)args->mask_bits->width * args->mask_bits->height;
     const unsigned int most = (args->raster->width * args->raster->height < pixels)
                                   ? args->raster->width * args->raster->height
                                   : (unsigned int)pixels;
     for (unsigned int at = 0u; at < most; at += 1u)
     {
-        args->raster->pixels[at] = ((GuiColor)args->mask->cover[at] << 24u) | (args->color & 0x00ffffffu);
+        args->raster->pixels[at] = ((GuiColor)args->mask_bits->cover[at] << 24u) | (args->color & 0x00ffffffu);
     }
 }
 
@@ -1164,9 +1165,10 @@ void gui_raster_span_layout(const GuiRasterXYColorCountCfg *args)
 void gui_raster_stenciled_over(const GuiRasterXYCfg *args)
 {
     // the mask's sides are far inside what an int represents
-    const GuiRect on = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
-                                  .one = (GuiRect){args->x, args->y, (int)args->mask->width, (int)args->mask->height},
-                                  .other = EMBED_CALL(raster_rect, GuiRasterCtx, .raster_read = args->picture));
+    const GuiRect on =
+        EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                   .one = (GuiRect){args->x, args->y, (int)args->mask_bits->width, (int)args->mask_bits->height},
+                   .other = EMBED_CALL(raster_rect, GuiRasterCtx, .raster_read = args->picture));
     const unsigned int alpha = GUI_ALPHA_OF(args->color);
     if (EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = on) || (alpha == 0u))
     {
@@ -1175,7 +1177,8 @@ void gui_raster_stenciled_over(const GuiRasterXYCfg *args)
     for (int row = on.y; row < on.y + on.height; row += 1)
     {
         // the row and column inside the mask are not negative, the rectangle drawn lying inside it
-        const unsigned char *const cover = args->mask->cover + ((unsigned int)(row - args->y) * args->mask->width);
+        const unsigned char *const cover =
+            args->mask_bits->cover + ((unsigned int)(row - args->y) * args->mask_bits->width);
         for (int column = on.x; column < on.x + on.width; column += 1)
         {
             const unsigned int laid = ((cover[(unsigned int)(column - args->x)] * alpha) + 127u) / 255u;

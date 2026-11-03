@@ -127,7 +127,7 @@ typedef struct
     char root[CLI_PATH_MAX_LEN];
     CliStamped database;
     VerbaLinea text;
-    CliDefineWord *word;
+    CliDefineWord *word_text;
     unsigned int words;
     unsigned int word_capacity;
     CliDefineNodeInput *supplied;
@@ -166,8 +166,9 @@ EMBED_INLINE unsigned int cli_flags_word(const CompileDbFlagsCtx *args)
 {
     for (unsigned int at = 0u; at < s_saved.words; at += 1u)
     {
-        const char *const saved_name = EMBED_CALL(cli_flags_text, CompileDbFlagsCtx, .at = s_saved.word[at].name);
-        const char *const saved_value = EMBED_CALL(cli_flags_text, CompileDbFlagsCtx, .at = s_saved.word[at].value);
+        const char *const saved_name = EMBED_CALL(cli_flags_text, CompileDbFlagsCtx, .at = s_saved.word_text[at].name);
+        const char *const saved_value =
+            EMBED_CALL(cli_flags_text, CompileDbFlagsCtx, .at = s_saved.word_text[at].value);
         if ((cellul.len(&(CatenaFinitaCfg){.src = saved_name, .cap = CLI_CELLS_POOL}) == args->name_length) &&
             EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = saved_name, .other_pointer = args->name,
                        .size = args->name_length) &&
@@ -189,7 +190,7 @@ EMBED_INLINE unsigned int cli_flags_word(const CompileDbFlagsCtx *args)
     {
         return CLI_JSON_NONE;
     }
-    s_saved.word[s_saved.words] = (CliDefineWord){named, valued};
+    s_saved.word_text[s_saved.words] = (CliDefineWord){named, valued};
     s_saved.words += 1u;
     return s_saved.words - 1u;
 }
@@ -198,13 +199,13 @@ EMBED_INLINE unsigned int cli_flags_word(const CompileDbFlagsCtx *args)
 // run holds
 EMBED_INLINE void cli_flags_id_append(const CompileDbFlagsCtx *args)
 {
-    const char *const name = EMBED_CALL(cli_flags_text, CompileDbFlagsCtx, .at = s_saved.word[args->id].name);
+    const char *const name = EMBED_CALL(cli_flags_text, CompileDbFlagsCtx, .at = s_saved.word_text[args->id].name);
     for (unsigned int at = args->first; at < args->read_state->ids; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){
-                .src = EMBED_CALL(cli_flags_text, CompileDbFlagsCtx, .at = s_saved.word[args->read_state->id[at]].name),
-                .other = name,
-                .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = EMBED_CALL(cli_flags_text, CompileDbFlagsCtx,
+                                                           .at = s_saved.word_text[args->read_state->id[at]].name),
+                                         .other = name,
+                                         .cap = CLI_CELLS_POOL}))
         {
             args->read_state->id[at] = args->id;
             return;
@@ -313,12 +314,12 @@ static void cli_flags_word_read(const CliEachWordSizeCfg *args)
         read_state->awaiting = CLI_FLAGS_AWAITS_NONE;
         if (awaited == CLI_FLAGS_AWAITS_DEFINE)
         {
-            EMBED_CALL(cli_flags_define, CompileDbFlagsCtx, .read_state = read_state, .define = args->word,
+            EMBED_CALL(cli_flags_define, CompileDbFlagsCtx, .read_state = read_state, .define = args->word_text,
                        .length = size);
         }
         else
         {
-            EMBED_CALL(cli_flags_include, CompileDbFlagsCtx, .read_state = read_state, .named = args->word,
+            EMBED_CALL(cli_flags_include, CompileDbFlagsCtx, .read_state = read_state, .named = args->word_text,
                        .length = size, .kind = read_state->awaited_kind);
         }
         return;
@@ -326,7 +327,7 @@ static void cli_flags_word_read(const CliEachWordSizeCfg *args)
     for (unsigned int at = 0u; at < (sizeof(s_flags) / sizeof(s_flags[0])); at += 1u)
     {
         const CliFlagWord *const flag = &s_flags[at];
-        if ((size < flag->length) || !EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = args->word,
+        if ((size < flag->length) || !EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = args->word_text,
                                                  .other_pointer = flag->flag, .size = flag->length))
         {
             continue;
@@ -339,12 +340,12 @@ static void cli_flags_word_read(const CliEachWordSizeCfg *args)
         else if (flag->kind == CLI_JSON_NONE)
         {
             EMBED_CALL(cli_flags_define, CompileDbFlagsCtx, .read_state = read_state,
-                       .define = args->word + flag->length, .length = size - flag->length);
+                       .define = args->word_text + flag->length, .length = size - flag->length);
         }
         else
         {
             EMBED_CALL(cli_flags_include, CompileDbFlagsCtx, .read_state = read_state,
-                       .named = args->word + flag->length, .length = size - flag->length, .kind = flag->kind);
+                       .named = args->word_text + flag->length, .length = size - flag->length, .kind = flag->kind);
         }
         return;
     }
@@ -431,18 +432,18 @@ EMBED_INLINE unsigned int cli_flags_folder_intersect(const CompileDbFlagsCtx *ar
                        .size = args->length))
         {
             CliDefineNode *const folder = &args->read_state->folder[at];
-            unsigned int saved = 0u;
+            unsigned int inner_saved = 0u;
             for (unsigned int each = 0u; each < folder->count; each += 1u)
             {
                 const unsigned int id = args->read_state->id[folder->first + each];
                 if (EMBED_CALL(cli_flags_holds, CompileDbFlagsCtx, .read_state_read = args->read_state,
                                .node = args->file, .id = id))
                 {
-                    args->read_state->id[folder->first + saved] = id;
-                    saved += 1u;
+                    args->read_state->id[folder->first + inner_saved] = id;
+                    inner_saved += 1u;
                 }
             }
-            folder->count = saved;
+            folder->count = inner_saved;
             return at;
         }
     }
@@ -565,20 +566,20 @@ EMBED_INLINE void cli_flags_entries(const CompileDbFlagsCtx *args)
         if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = arguments,
                        .kind = CFG_JSON_ARRAY))
         {
-            for (unsigned int word = 0u;
+            for (unsigned int word_text = 0u;
                  EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = json,
-                            .array = arguments, .index = word) != CLI_JSON_NONE;
-                 word += 1u)
+                            .array = arguments, .index = word_text) != CLI_JSON_NONE;
+                 word_text += 1u)
             {
                 unsigned long long size = 0ULL;
                 const char *const text =
                     EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
                                .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
-                                                  .json_read = json, .array = arguments, .index = word),
+                                                  .json_read = json, .array = arguments, .index = word_text),
                                .length_pointer = &size);
                 if (text != NULL)
                 {
-                    EMBED_CALL(cli_flags_word_read, CliEachWordSizeCfg, .context = args->read_state, .word = text,
+                    EMBED_CALL(cli_flags_word_read, CliEachWordSizeCfg, .context = args->read_state, .word_text = text,
                                .size = size);
                 }
             }
@@ -644,9 +645,9 @@ EMBED_INLINE void cli_flags_lift(const CompileDbFlagsCtx *args)
 // the saved flags let go, their cells given back, under the lock
 static void cli_flags_let_go(void)
 {
-    g_cli_cells->persistent_buf_release(s_saved.word, &g_cli_compile_cells);
+    g_cli_cells->persistent_buf_release(s_saved.word_text, &g_cli_compile_cells);
     s_saved.text = (VerbaLinea){NULL, 0ULL, 0ULL, NULL, NULL, 0ULL};
-    s_saved.word = NULL;
+    s_saved.word_text = NULL;
     s_saved.words = 0u;
     s_saved.word_capacity = 0u;
     s_saved.supplied = NULL;
@@ -719,7 +720,7 @@ static void cli_flags_read(const CompileDbFlagsCtx *args)
     {
         return;
     }
-    s_saved.word = (CliDefineWord *)(void *)saved;
+    s_saved.word_text = (CliDefineWord *)(void *)saved;
     s_saved.word_capacity = word_capacity;
     s_saved.supplied = (CliDefineNodeInput *)(void *)(saved + word_bytes);
     s_saved.input_capacity = input_capacity;
@@ -816,11 +817,11 @@ void cli_compile_db_defines_get(const CliCompileDbRootCfg *args)
                 EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = node, .other_pointer = args->path,
                            .size = cut))
             {
-                const CliDefineWord *const word = &s_saved.word[s_saved.supplied[at].define];
+                const CliDefineWord *const word_text = &s_saved.word_text[s_saved.supplied[at].define];
                 EMBED_CALL(cli_flags_define_dispatch, CompileDbFlagsCtx,
-                           .name = EMBED_CALL(cli_flags_text, CompileDbFlagsCtx, .at = word->name),
-                           .value = EMBED_CALL(cli_flags_text, CompileDbFlagsCtx, .at = word->value), .node_text = node,
-                           .each = args->each_define_each, .context = args->context);
+                           .name = EMBED_CALL(cli_flags_text, CompileDbFlagsCtx, .at = word_text->name),
+                           .value = EMBED_CALL(cli_flags_text, CompileDbFlagsCtx, .at = word_text->value),
+                           .node_text = node, .each = args->each_define_each, .context = args->context);
             }
         }
         done = cut >= length;
@@ -837,12 +838,14 @@ void cli_compile_db_includes_all(const CliCompileDbRootPathCfg *args)
     {
         const char *const path = EMBED_CALL(cli_flags_text, CompileDbFlagsCtx, .at = s_saved.include[at].path);
         int before = 0;
-        for (unsigned int earlier = 0u; !before && (earlier < at); earlier += 1u)
+        unsigned int earlier = 0u;
+        while (!before && (earlier < at))
         {
             before = cellul.eq(&(CatenaFinitaCfg){
                 .src = EMBED_CALL(cli_flags_text, CompileDbFlagsCtx, .at = s_saved.include[earlier].path),
                 .other = path,
                 .cap = CLI_CELLS_POOL});
+            earlier += 1u;
         }
         if (!before)
         {

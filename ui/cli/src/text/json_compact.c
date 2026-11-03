@@ -235,11 +235,15 @@ EMBED_INLINE int cli_compact_number(const JsonCompactCtx *args)
     }
     unsigned long long value = 0ULL;
     int fits = integer;
-    for (unsigned long long at = digits_at; fits && (at < digits_at + whole); at += 1ULL)
     {
-        const unsigned long long digit = (unsigned long long)(args->read->text[at] - '0');
-        fits = (value <= (18446744073709551615ULL - digit) / 10ULL);
-        value = fits ? (value * 10ULL) + digit : value;
+        unsigned long long at = digits_at;
+        while (fits && (at < digits_at + whole))
+        {
+            const unsigned long long digit = (unsigned long long)(args->read->text[at] - '0');
+            fits = (value <= (18446744073709551615ULL - digit) / 10ULL);
+            value = fits ? (value * 10ULL) + digit : value;
+            at += 1ULL;
+        }
     }
     if (fits && !negative)
     {
@@ -336,15 +340,16 @@ static int cli_compact_value(const JsonCompactCtx *args)
         return 0;
     }
     static const char *const words[3] = {"true", "false", "null"};
-    for (unsigned int word = 0u; word < 3u; word += 1u)
+    for (unsigned int word_text = 0u; word_text < 3u; word_text += 1u)
     {
-        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = words[word], .cap = CLI_CELLS_POOL});
+        const unsigned long long length =
+            cellul.len(&(CatenaFinitaCfg){.src = words[word_text], .cap = CLI_CELLS_POOL});
         if ((args->read->at + length <= args->read->size) &&
-            (memor.cmp(
-                 &(MemoriaCfg){.src = args->read->text + args->read->at, .other = words[word], .bytes = length}) == 0))
+            (memor.cmp(&(MemoriaCfg){
+                 .src = args->read->text + args->read->at, .other = words[word_text], .bytes = length}) == 0))
         {
             args->read->at += length;
-            mmgr_line_put(args->out, words[word]);
+            mmgr_line_put(args->out, words[word_text]);
             return 1;
         }
     }

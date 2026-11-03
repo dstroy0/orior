@@ -11,11 +11,11 @@
 // named apart (review.c, review_compare.c, review_text.c)
 #ifndef REVIEW_H
 #define REVIEW_H
-typedef struct CliReviewPathsCfg CliReviewPathsCfg;
-typedef struct CliReviewCfg CliReviewCfg;
-
 #include "../command_line/cli_internal.h"
 #include "embed_dispatch_layout.h"
+
+typedef struct CliReviewPathsCfg CliReviewPathsCfg;
+typedef struct CliReviewCfg CliReviewCfg;
 
 // the change of the tree `root` against its last commit, or of commit `commit` against its first parent where it is
 // given, reviewed by its structure, written as `{"pieces": [{"path", "name", "kind", "how", "from", "line", "was",

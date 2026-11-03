@@ -325,23 +325,25 @@ unsigned int cli_run_pages(const CliRunnerRootCtx *args)
             }
             if (((to - from) >= 5) && (memor.cmp(&(MemoriaCfg){.src = to - 5, .other = ".html", .bytes = 5u}) == 0))
             {
-                char word[CLI_PATH_MAX_LEN];
+                char word_text[CLI_PATH_MAX_LEN];
                 char path[CLI_PATH_MAX_LEN];
-                VerbaLinea line = {word, sizeof(word), 0ULL};
+                VerbaLinea line = {word_text, sizeof(word_text), 0ULL};
                 mmgr_line_put_n(&line, from, (unsigned long long)(to - from));
                 if (mmgr_line_finish(&line) != 0ULL)
                 {
-                    const int whole = (word[0] == '/') || (word[0] == '\\') || ((word[0] != '\0') && (word[1] == ':'));
+                    const int whole = (word_text[0] == '/') || (word_text[0] == '\\') ||
+                                      ((word_text[0] != '\0') && (word_text[1] == ':'));
                     if (whole)
                     {
                         memor.cpy(&(MemoriaCfg){
                             .dst = path,
-                            .src = word,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = word, .cap = CLI_CELLS_POOL}) + 1u});
+                            .src = word_text,
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = word_text, .cap = CLI_CELLS_POOL}) + 1u});
                     }
                     else
                     {
-                        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = word, .joined = path);
+                        EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = root, .relative = word_text,
+                                   .joined = path);
                     }
                     EMBED_CALL(cli_page_append, RunnerLinesCtx, .root = root, .path = path, .views = views,
                                .count = &count);

@@ -12,10 +12,10 @@
 // the same folder (run_file.c)
 #ifndef RUN_FILE_H
 #define RUN_FILE_H
-typedef struct CliRunFileCfg CliRunFileCfg;
-
 #include "../command_line/cli_internal.h"
 #include "embed_dispatch_layout.h"
+
+typedef struct CliRunFileCfg CliRunFileCfg;
 
 // a path as a POSIX shell takes it, with forward slashes, in single quotes, after `out`
 void cli_run_file_quote(const CliRunFileCfg *args);

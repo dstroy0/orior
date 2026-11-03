@@ -107,7 +107,7 @@ typedef struct
     unsigned int at;
     CliItem *item;
     unsigned int list;
-    const char *word;
+    const char *word_text;
     CliItem *items;
     unsigned int count;
     unsigned int capacity_u32;
@@ -204,14 +204,15 @@ static int cli_flat_find(const CommandsCtx *args)
             if (command != 0u)
             {
                 const char *const named = EMBED_CALL(cli_member_string, CommandsCtx, .object = at, .name = "command");
-                if (cellul.eq(&(CatenaFinitaCfg){.src = named, .other = args->word, .cap = CLI_CELLS_POOL}))
+                if (cellul.eq(&(CatenaFinitaCfg){.src = named, .other = args->word_text, .cap = CLI_CELLS_POOL}))
                 {
                     EMBED_CALL(cli_item_read, CommandsCtx, .at = at, .item = args->item);
                     return 1;
                 }
             }
             else if ((nested != 0u) && (s_tokens[nested].kind == CFG_JSON_ARRAY) &&
-                     EMBED_CALL(cli_flat_find, CommandsCtx, .list = nested, .word = args->word, .item = args->item))
+                     EMBED_CALL(cli_flat_find, CommandsCtx, .list = nested, .word_text = args->word_text,
+                                .item = args->item))
             {
                 return 1;
             }
@@ -305,7 +306,7 @@ int cli_menu_command(const CliCommandsMenuCfg *args)
 {
     const unsigned int list = cfg_json_member(s_text, s_tokens, s_menu[args->menu], "items");
     return (list != 0u) && (s_tokens[list].kind == CFG_JSON_ARRAY) &&
-           EMBED_CALL(cli_flat_find, CommandsCtx, .list = list, .word = args->word, .item = args->item);
+           EMBED_CALL(cli_flat_find, CommandsCtx, .list = list, .word_text = args->word_text, .item = args->item);
 }
 
 unsigned int cli_item_words_need(const CliCommandsItemCfg *args)
@@ -333,7 +334,7 @@ int cli_menu_by_name(const CliCommandsWordCfg *args)
     {
         char named[CLI_LABEL_MAX_LEN];
         EMBED_CALL(cli_commands_menu_word.menu_word, CliCommandsMenuWordCfg, .menu = at, .word_out = named);
-        if (cellul.eq(&(CatenaFinitaCfg){.src = named, .other = args->word, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = named, .other = args->word_text, .cap = CLI_CELLS_POOL}))
         {
             *menu = at;
             return 1;

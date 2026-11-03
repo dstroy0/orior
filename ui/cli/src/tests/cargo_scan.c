@@ -26,7 +26,7 @@ typedef struct
     unsigned int line;
     unsigned int *line_pointer;
     unsigned int at;
-    const char *word;
+    const char *word_text;
     unsigned long long length;
     const unsigned int *inline_names;
     unsigned int count;
@@ -312,8 +312,9 @@ EMBED_INLINE int scan_is_word(const CargoScanCtx *args)
 {
     const CliRustToken *const token = &g_cli_cargo_scan.tokens[args->at];
     return (args->at < g_cli_cargo_scan.token_count) && (token->kind == CLI_RUST_WORD) &&
-           (token->size == cellul.len(&(CatenaFinitaCfg){.src = args->word, .cap = CLI_CELLS_POOL})) &&
-           (memor.cmp(&(MemoriaCfg){.src = args->text + token->start, .other = args->word, .bytes = token->size}) == 0);
+           (token->size == cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_CELLS_POOL})) &&
+           (memor.cmp(
+                &(MemoriaCfg){.src = args->text + token->start, .other = args->word_text, .bytes = token->size}) == 0);
 }
 
 // `length` bytes put in the names, ended by a 0, the names' cell containing them: where they start
@@ -372,7 +373,7 @@ EMBED_INLINE unsigned int scan_attribute(const CargoScanCtx *args)
         last = (kind == CLI_RUST_WORD) ? step : last;
     }
     if (!inner && (last != CLI_RUST_NONE) &&
-        EMBED_CALL(scan_is_word, CargoScanCtx, .text = args->text, .at = last, .word = "test"))
+        EMBED_CALL(scan_is_word, CargoScanCtx, .text = args->text, .at = last, .word_text = "test"))
     {
         *marked = 1;
     }
@@ -424,7 +425,7 @@ unsigned int cli_cargo_scan(const CliCargoTestsCtx *args)
         }
         const int named =
             (at + 1u < g_cli_cargo_scan.token_count) && (g_cli_cargo_scan.tokens[at + 1u].kind == CLI_RUST_WORD);
-        if (EMBED_CALL(scan_is_word, CargoScanCtx, .text = args->text, .at = at, .word = "mod") && named)
+        if (EMBED_CALL(scan_is_word, CargoScanCtx, .text = args->text, .at = at, .word_text = "mod") && named)
         {
             if (EMBED_CALL(scan_is_mark, CargoScanCtx, .at = at + 2u, .letter = ';'))
             {
@@ -447,7 +448,7 @@ unsigned int cli_cargo_scan(const CliCargoTestsCtx *args)
             marked = 0;
             continue;
         }
-        if (EMBED_CALL(scan_is_word, CargoScanCtx, .text = args->text, .at = at, .word = "fn") && named)
+        if (EMBED_CALL(scan_is_word, CargoScanCtx, .text = args->text, .at = at, .word_text = "fn") && named)
         {
             if (marked)
             {

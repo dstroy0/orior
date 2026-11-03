@@ -4,6 +4,10 @@
 // into the edit's text, the texts whose words are filled, and words filled into lines no wider than the margin
 #ifndef FILL_INTERNAL_H
 #define FILL_INTERNAL_H
+#include "../text/text.h"
+#include "embed_dispatch_layout.h"
+#include "fill.h"
+
 typedef struct CliFillFilledCtx CliFillFilledCtx;
 typedef struct CliFillTextCtx CliFillTextCtx;
 typedef struct CliFillTextFilledCtx CliFillTextFilledCtx;
@@ -11,10 +15,6 @@ typedef struct CliFillTextSizeCtx CliFillTextSizeCtx;
 typedef struct CliFillSizeCtx CliFillSizeCtx;
 typedef struct CliFillFilledSizeCtx CliFillFilledSizeCtx;
 typedef struct CliFillCtx CliFillCtx;
-
-#include "../text/text.h"
-#include "embed_dispatch_layout.h"
-#include "fill.h"
 
 // the most texts whose words one fill takes
 #define CLI_FILL_SLICES (1u << 20u)

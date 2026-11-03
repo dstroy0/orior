@@ -7,6 +7,12 @@
 // schema_offer.c)
 #ifndef SCHEMA_INTERNAL_H
 #define SCHEMA_INTERNAL_H
+#include "../builds/builds.h"
+#include "../text/json_tree.h"
+#include "../text/text.h"
+#include "embed_dispatch_layout.h"
+#include "schema.h"
+
 typedef struct CliSchemaBaseCtx CliSchemaBaseCtx;
 typedef struct CliSchemaBaseMapCtx CliSchemaBaseMapCtx;
 typedef struct CliSchemaReadCtx CliSchemaReadCtx;
@@ -29,12 +35,6 @@ typedef struct CliSchemaStoreCtx CliSchemaStoreCtx;
 typedef struct CliSchemaOutCtx CliSchemaOutCtx;
 typedef struct CliSchemaReadAtCtx CliSchemaReadAtCtx;
 typedef struct CliSchemaCtx CliSchemaCtx;
-
-#include "../builds/builds.h"
-#include "../text/json_tree.h"
-#include "../text/text.h"
-#include "embed_dispatch_layout.h"
-#include "schema.h"
 
 // what a value of a JSON file is
 #define CLI_SCHEMA_OBJECT 1u

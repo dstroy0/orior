@@ -4,6 +4,11 @@
 // what it is, and the marks its stops are read by
 #ifndef DEBUG_INTERNAL_H
 #define DEBUG_INTERNAL_H
+#include "../builds/compile_db.h"
+#include "../command_line/cells.h"
+#include "debug.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliDebugErrMsgCtx CliDebugErrMsgCtx;
 typedef struct CliDebugErrMsgLanguageCtx CliDebugErrMsgLanguageCtx;
 typedef struct CliDebugJsonCtx CliDebugJsonCtx;
@@ -21,11 +26,6 @@ typedef struct CliDebugInfoCtx CliDebugInfoCtx;
 typedef struct CliDebugErrMsgIdCtx CliDebugErrMsgIdCtx;
 typedef struct CliDebugFileCtx CliDebugFileCtx;
 typedef struct CliDebugCtx CliDebugCtx;
-
-#include "../builds/compile_db.h"
-#include "../command_line/cells.h"
-#include "debug.h"
-#include "embed_dispatch_layout.h"
 
 // the most requests sent to adapters at once, and the most bytes of a request's arguments
 #define CLI_DEBUG_ANSWERS 4u

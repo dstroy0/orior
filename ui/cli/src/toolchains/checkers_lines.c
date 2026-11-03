@@ -157,9 +157,13 @@ EMBED_INLINE void cli_code_get(const CheckersLinesCtx *args)
         first += 1ULL;
     }
     int code = (first >= 2ULL) && (rest[0] >= 'A') && (rest[0] <= 'Z');
-    for (unsigned long long at = 1ULL; code && (at < first); at += 1ULL)
     {
-        code = (rest[at] >= '0') && (rest[at] <= '9');
+        unsigned long long at = 1ULL;
+        while (code && (at < first))
+        {
+            code = (rest[at] >= '0') && (rest[at] <= '9');
+            at += 1ULL;
+        }
     }
     if (code)
     {

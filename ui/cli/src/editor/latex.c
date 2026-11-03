@@ -76,11 +76,13 @@ void cli_latex_job_get(const CliLatexFileCtx *args)
     unsigned long long size = 0ULL;
     EMBED_CALL(latex_stem, LatexCtx, .path = args->file_read, .start = &start, .size = &size);
     int plain = (size > 0ULL);
-    for (unsigned long long at = start; plain && (at < start + size); at += 1ULL)
+    unsigned long long at = start;
+    while (plain && (at < start + size))
     {
         const char letter = args->file_read[at];
         plain = ((letter >= 'a') && (letter <= 'z')) || ((letter >= 'A') && (letter <= 'Z')) ||
                 ((letter >= '0') && (letter <= '9')) || (letter == '-') || (letter == '_');
+        at += 1ULL;
     }
     if (!plain)
     {

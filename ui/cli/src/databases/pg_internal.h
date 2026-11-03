@@ -4,15 +4,15 @@
 // the server reported of itself and noted
 #ifndef PG_INTERNAL_H
 #define PG_INTERNAL_H
+#include "embed_dispatch_layout.h"
+#include "pg.h"
+
 typedef struct CliPgFailurePasswordCtx CliPgFailurePasswordCtx;
 typedef struct CliPgFailureCtx CliPgFailureCtx;
 typedef struct CliPgFailureKindCtx CliPgFailureKindCtx;
 typedef struct CliPgCtx CliPgCtx;
 typedef struct CliPgKindCtx CliPgKindCtx;
 typedef struct CliPgBodyCtx CliPgBodyCtx;
-
-#include "embed_dispatch_layout.h"
-#include "pg.h"
 
 // the most connections at once; the bytes read off the socket at a time; the most bytes of one message's body; the
 // parameters the server reports of itself recorded, and the bytes of each; and the notices of one statement recorded,

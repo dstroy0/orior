@@ -5,13 +5,13 @@
 // controller_*.c)
 #ifndef CONTROLLER_INTERNAL_H
 #define CONTROLLER_INTERNAL_H
-typedef struct CliModelCtx CliModelCtx;
-
 #include "../command_line/command_line.h"
 #include "../editor/document.h"
 #include "../editor/watch.h"
 #include "../servers/servers.h"
 #include "controller.h"
+
+typedef struct CliModelCtx CliModelCtx;
 
 // a part marked to be published again
 #define CLI_MODEL_DIRTY(part_) (1u << (part_))

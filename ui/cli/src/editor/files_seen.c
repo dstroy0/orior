@@ -116,7 +116,7 @@ EMBED_INLINE void walked_from(const FilesSeenCtx *args)
 void cli_files_walk(const CliFilesRootEachContextCfg *args)
 {
     const char *root = args->root;
-    void (*each)(const CliEachPathLengthCfg *args) = args->each;
+    void (*each)(const CliEachPathLengthCfg *) = args->each;
     void *context = args->context;
     EMBED_CALL(walked_from, FilesSeenCtx, .root = root, .from = root, .each = each, .context = context);
 }
@@ -180,7 +180,7 @@ static int git_list(const FilesSeenCtx *args)
 int cli_files_on_list(const CliFilesRootEachContextCfg *args)
 {
     const char *root = args->root;
-    void (*each)(const CliEachPathLengthCfg *args) = args->each;
+    void (*each)(const CliEachPathLengthCfg *) = args->each;
     void *context = args->context;
     int *git = args->git_pointer;
     int whole = 1;
@@ -199,7 +199,7 @@ int cli_files_folder_list(const CliFilesRootEachCfg *args)
 {
     const char *root = args->root;
     const char *folder = args->folder;
-    void (*each)(const CliEachPathLengthCfg *args) = args->each;
+    void (*each)(const CliEachPathLengthCfg *) = args->each;
     void *context = args->context;
     int whole = 1;
     if (args->git)
@@ -258,12 +258,12 @@ void cli_files_ignored_read(const CliFilesRootPathsCfg *args)
         used += length;
     }
     const char *words[8] = {"git"};
-    unsigned int word =
+    unsigned int word_text =
         1u + EMBED_CALL(cli_trust_tree_words.git_words, CliTrustTreeWordsCfg, .tree = args->root, .words = words + 1);
-    words[word] = "check-ignore";
-    words[word + 1u] = "--stdin";
-    words[word + 2u] = "-z";
-    words[word + 3u] = NULL;
+    words[word_text] = "check-ignore";
+    words[word_text + 1u] = "--stdin";
+    words[word_text + 2u] = "-z";
+    words[word_text + 3u] = NULL;
     CliRunResult *const run_result = cli_run_result_alloc();
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea unstarted = {why, sizeof(why), 0ULL};

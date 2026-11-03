@@ -17,7 +17,7 @@ typedef struct
     const char *program;
     char *path;
     CliCatalog *catalog;
-    const QueryWord *word;
+    const QueryWord *word_text;
 } QueryJobsCtx;
 // `program` in the folder of the toolchain `tool`'s chosen program, where one is chosen, into `path`: 1, or 0 where
 // none is
@@ -120,33 +120,34 @@ QueryPrograms cli_protocol_programs(void)
 EMBED_INLINE void jobs_word(const QueryJobsCtx *args)
 {
     CliCatalog *catalog = args->catalog;
-    const QueryWord *word = args->word;
-    switch (word->kind)
+    const QueryWord *word_text = args->word_text;
+    switch (word_text->kind)
     {
     case QUERY_WORD_LITERAL:
         EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_LIT,
-                   .a = word->first, .b = NULL, .c = NULL, .d = NULL, .separated = 0);
+                   .a = word_text->first, .b = NULL, .c = NULL, .d = NULL, .separated = 0);
         break;
     case QUERY_WORD_VALUE:
         EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_VALUE,
-                   .a = word->first, .b = NULL, .c = NULL, .d = NULL, .separated = 0);
+                   .a = word_text->first, .b = NULL, .c = NULL, .d = NULL, .separated = 0);
         break;
     case QUERY_WORD_FLAG:
         EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_FLAG,
-                   .a = word->first, .b = word->second, .c = NULL, .d = NULL, .separated = 0);
+                   .a = word_text->first, .b = word_text->second, .c = NULL, .d = NULL, .separated = 0);
         break;
     case QUERY_WORD_EACH:
         EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_EACH,
-                   .a = word->first, .b = word->second, .c = NULL, .d = NULL, .separated = 0);
+                   .a = word_text->first, .b = word_text->second, .c = NULL, .d = NULL, .separated = 0);
         break;
     case QUERY_WORD_WORDS:
         EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_WORDS,
-                   .a = word->first, .b = NULL, .c = NULL, .d = NULL, .separated = 0);
+                   .a = word_text->first, .b = NULL, .c = NULL, .d = NULL, .separated = 0);
         break;
     default:
         EMBED_CALL(cli_catalog_kind.arg, CliCatalogKindCfg, .catalog = catalog, .kind_u32 = CLI_ARG_WHEN,
-                   .a = word->first, .b = word->second, .c = NULL, .d = NULL, .separated = 0);
-        EMBED_CALL(cli_catalog_word_table.word, CliCatalogWordCfg, .catalog = catalog, .word = word->third);
+                   .a = word_text->first, .b = word_text->second, .c = NULL, .d = NULL, .separated = 0);
+        EMBED_CALL(cli_catalog_word_table.word_text, CliCatalogWordCfg, .catalog = catalog,
+                   .word_text = word_text->third);
         break;
     }
 }
@@ -191,7 +192,7 @@ void cli_query_jobs(const CliCatalogRootCfg *args)
                    .a = "protocol", .b = NULL, .c = NULL, .d = NULL, .separated = 0);
         for (unsigned int at = 0u; at < command->word_count; at += 1u)
         {
-            EMBED_CALL(jobs_word, QueryJobsCtx, .catalog = args->catalog, .word = &command->words[at]);
+            EMBED_CALL(jobs_word, QueryJobsCtx, .catalog = args->catalog, .word_text = &command->words[at]);
         }
     }
 }

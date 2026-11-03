@@ -18,8 +18,8 @@
 // no bytes it did not use and no page it did not touch; a capacity writes what it reads
 LocusCarcerumHospes(cli_cells_site, MMGR_MINIMUM_SECURITY(cli_cells_pool));
 
-#define CLI_CELL_OWNER(name_, text_) CellOwner name_ = MMGR_CELL_OWNER(text_);
-#include "cells_owners.h"
+#define CLI_CELL_OWNER_DEFINED(name_, text_) CellOwner name_ = MMGR_CELL_OWNER(text_);
+CLI_CELL_OWNERS(CLI_CELL_OWNER_DEFINED)
 
 // One owner as the cellblock's list gave it, its counts read off their atomic words and written after, since a line
 // written to may take a cell of the same cellblock
@@ -29,8 +29,6 @@ typedef struct
     unsigned long long in_use;
     unsigned long long hw;
 } CliCellsOwnerRead;
-#undef CLI_CELL_OWNER
-
 typedef struct
 {
     const char *kind;
@@ -202,10 +200,8 @@ int cli_cells_init(const CliCellsCfg *args)
 {
     // every owner registered ahead of the first take, and a pool made anew finds them registered
     static CellOwner *const s_owners[] = {
-#define CLI_CELL_OWNER(name_, text_) &name_,
-#include "cells_owners.h"
-#undef CLI_CELL_OWNER
-    };
+#define CLI_CELL_OWNER_LISTED(name_, text_) &name_,
+        CLI_CELL_OWNERS(CLI_CELL_OWNER_LISTED)};
     for (size_t at = 0u; at < (sizeof(s_owners) / sizeof(s_owners[0])); at += 1u)
     {
         EMBED_CALL(cells_owner_ready, CellsCtx, .owner = s_owners[at]);

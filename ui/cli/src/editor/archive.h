@@ -17,6 +17,9 @@
 // what the run did and is never written back
 #ifndef ARCHIVE_H
 #define ARCHIVE_H
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliArchiveSizeCfg CliArchiveSizeCfg;
 typedef struct CliArchiveBytesCfg CliArchiveBytesCfg;
 typedef struct CliArchiveErrMsgCfg CliArchiveErrMsgCfg;
@@ -25,9 +28,6 @@ typedef struct CliArchiveErrMsgRootCfg CliArchiveErrMsgRootCfg;
 typedef struct CliArchiveRootCfg CliArchiveRootCfg;
 typedef struct CliArchiveBytesSizeCfg CliArchiveBytesSizeCfg;
 typedef struct CliArchiveCfg CliArchiveCfg;
-
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // the kinds of archive, and none
 enum

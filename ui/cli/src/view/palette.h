@@ -5,6 +5,9 @@
 // name its grammar gives it (palette.c)
 #ifndef GUI_PALETTE_H
 #define GUI_PALETTE_H
+#include "embed_dispatch_layout.h"
+#include "raster.h"
+
 typedef struct GuiPaletteAtSizeCfg GuiPaletteAtSizeCfg;
 typedef struct GuiPaletteAtCfg GuiPaletteAtCfg;
 typedef struct GuiPaletteTextCfg GuiPaletteTextCfg;
@@ -15,8 +18,6 @@ typedef struct GuiPaletteOwnBarPercentCfg GuiPaletteOwnBarPercentCfg;
 typedef struct GuiPaletteLengthCfg GuiPaletteLengthCfg;
 typedef struct GuiPaletteSizeColorCfg GuiPaletteSizeColorCfg;
 typedef struct GuiPaletteCfg GuiPaletteCfg;
-#include "embed_dispatch_layout.h"
-#include "raster.h"
 
 // the schemes: the dark one; and the colors a file's mark in the explorer is drawn in, --t1 to --t8
 #define GUI_SCHEME_DARK 0u

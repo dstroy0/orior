@@ -18,14 +18,14 @@
 // made in the listening process (door.c, ipc_serve.c, ipc_client.c, platform/windows_ipc.c, platform/posix_ipc.c)
 #ifndef DOOR_H
 #define DOOR_H
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliIpcErrMsgCfg CliIpcErrMsgCfg;
 typedef struct CliIpcClientCfg CliIpcClientCfg;
 typedef struct CliIpcErrMsgAddressCfg CliIpcErrMsgAddressCfg;
 typedef struct CliIpcAddressCfg CliIpcAddressCfg;
 typedef struct CliIpcCfg CliIpcCfg;
-
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // One process's end of the door: what it joined as, the answers to what it requests, and the messages on the channels
 // it listens on

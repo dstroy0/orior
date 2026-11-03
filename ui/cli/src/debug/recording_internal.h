@@ -4,6 +4,11 @@
 // replay stands and what it stops at
 #ifndef RECORDING_INTERNAL_H
 #define RECORDING_INTERNAL_H
+#include "../command_line/callback_cfg.h"
+#include "../text/json_tree.h"
+#include "embed_dispatch_layout.h"
+#include "recording.h"
+
 typedef struct CliRecordingDapCtx CliRecordingDapCtx;
 typedef struct CliRecordingAtCtx CliRecordingAtCtx;
 typedef struct CliRecordingSerialCtx CliRecordingSerialCtx;
@@ -16,11 +21,6 @@ typedef struct CliRecordingRelativeCtx CliRecordingRelativeCtx;
 typedef struct CliRecordingHowCtx CliRecordingHowCtx;
 typedef struct CliRecordingPathCtx CliRecordingPathCtx;
 typedef struct CliRecordingDapReasonCtx CliRecordingDapReasonCtx;
-
-#include "../command_line/callback_cfg.h"
-#include "../text/json_tree.h"
-#include "embed_dispatch_layout.h"
-#include "recording.h"
 
 // the threads whose stacks are followed as a recording is read and the depth of each, the files and lines
 // breakpoints are set at, and no step: a frame's last step where it has none, and a step requested that is none

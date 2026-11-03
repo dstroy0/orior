@@ -171,8 +171,8 @@ EMBED_INLINE int cli_list(const PythonPathsParseCtx *args)
                               .count = args->count);
         }
         const unsigned int start = g_cli_py.at;
-        unsigned int word = 0u;
-        if (EMBED_CALL(cli_word, PythonPathsParseCtx, .start = &word))
+        unsigned int word_text = 0u;
+        if (EMBED_CALL(cli_word, PythonPathsParseCtx, .start = &word_text))
         {
             cli_blank();
             const int keyword = EMBED_CALL(cli_letter_is, PythonPathsParseCtx, .at = g_cli_py.at, .letter = '=') &&

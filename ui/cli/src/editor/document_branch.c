@@ -321,7 +321,8 @@ EMBED_INLINE void branch_line_append(const DocumentBranchCtx *args)
     unsigned int line = args->line;
     const unsigned short *const unit = args->lines->unit + args->lines->start[line];
     const unsigned long long count = args->lines->length[line];
-    for (unsigned long long place = 0ULL; place < count; place += 1ULL)
+    unsigned long long place = 0ULL;
+    while (place < count)
     {
         unsigned int letter = unit[place];
         const int paired = (letter >= 0xd800u) && (letter < 0xdc00u) && ((place + 1ULL) < count) &&
@@ -332,6 +333,7 @@ EMBED_INLINE void branch_line_append(const DocumentBranchCtx *args)
             place += 1ULL;
         }
         EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = args->out, .letter = letter);
+        place += 1ULL;
     }
 }
 
@@ -1231,11 +1233,11 @@ EMBED_INLINE unsigned int branch_batch_color(const DocumentBranchCtx *args)
     char *reserved = NULL;
     if (paged && (cell != NULL))
     {
-        unsigned long long count = 0ULL;
+        unsigned long long inner_count = 0ULL;
         reserved = EMBED_CALL(cli_pages_from.lines_alloc, CliPagesFromCfg, .key = key, .from = args->first, .to = end,
-                              .line = line, .count = &count, .owner = &g_cli_editor_cells);
+                              .line = line, .count = &inner_count, .owner = &g_cli_editor_cells);
         // no more lines are read than were asked, which an unsigned int counts
-        read = args->first + (unsigned int)count;
+        read = args->first + (unsigned int)inner_count;
     }
     line = (paged && (reserved == NULL)) ? NULL : line;
     // the lines read colored as far as the range's bytes reach, one at the least
@@ -1435,8 +1437,8 @@ EMBED_INLINE int branch_step(const DocumentBranchCtx *args)
     const unsigned int origin = (one->origin < low) ? low : ((one->origin < high) ? one->origin : (high - 1u));
     unsigned int at = CLI_DOC_NONE;
     int down = 1;
-    for (unsigned int distance = 0u;
-         (at == CLI_DOC_NONE) && (((origin + distance) < high) || (distance < (origin - low))); distance += 1u)
+    unsigned int distance = 0u;
+    while ((at == CLI_DOC_NONE) && (((origin + distance) < high) || (distance < (origin - low))))
     {
         if (((origin + distance) < high) &&
             EMBED_CALL(branch_uncolored, DocumentBranchCtx, .one_read = one, .line = origin + distance, .yielding = 1))
@@ -1449,6 +1451,7 @@ EMBED_INLINE int branch_step(const DocumentBranchCtx *args)
             at = origin - distance - 1u;
             down = 0;
         }
+        distance += 1u;
     }
     unsigned int first = CLI_DOC_NONE;
     unsigned int end = 0u;
@@ -1458,14 +1461,17 @@ EMBED_INLINE int branch_step(const DocumentBranchCtx *args)
                    .yielding = 1, .first_pointer = &first, .end_pointer = &end);
     }
     // the first line of the lines walked entered in whatever state it was entered in, where it is not the text's first
-    for (unsigned int line = (low != 0u) ? (low + 1u) : 0u;
-         (at == CLI_DOC_NONE) && (first == CLI_DOC_NONE) && (line < high); line += 1u)
     {
-        if ((lines->begun[line] != ((line == 0u) ? CLI_DOC_ROOT : lines->ended[line - 1u])) &&
-            !EMBED_CALL(branch_claim, DocumentBranchCtx, .one_read = one, .line = line))
+        unsigned int line = (low != 0u) ? (low + 1u) : 0u;
+        while ((at == CLI_DOC_NONE) && (first == CLI_DOC_NONE) && (line < high))
         {
-            first = line;
-            end = line + 1u;
+            if ((lines->begun[line] != ((line == 0u) ? CLI_DOC_ROOT : lines->ended[line - 1u])) &&
+                !EMBED_CALL(branch_claim, DocumentBranchCtx, .one_read = one, .line = line))
+            {
+                first = line;
+                end = line + 1u;
+            }
+            line += 1u;
         }
     }
     if (first == CLI_DOC_NONE)
@@ -1544,7 +1550,8 @@ static void branch_folds_each(const DocumentBranchCtx *args)
     {
         const unsigned int regions = lines->regions[line];
         const unsigned int closes = (regions >> CLI_DOC_REGION_CLOSES_AT) & CLI_DOC_REGION_COUNT;
-        for (unsigned int close = 0u; (close < closes) && (open != 0u); close += 1u)
+        unsigned int close = 0u;
+        while ((close < closes) && (open != 0u))
         {
             open -= 1u;
             const unsigned int opened = opened_on[open];
@@ -1554,6 +1561,7 @@ static void branch_folds_each(const DocumentBranchCtx *args)
             {
                 widest[opened - first] = fold;
             }
+            close += 1u;
         }
         for (unsigned int opens = regions & CLI_DOC_REGION_COUNT; opens != 0u; opens -= 1u)
         {
@@ -1876,7 +1884,7 @@ CliDocumentRuns *cli_document_runs_alloc(const CliDocumentRunsCfg *args)
     if (read != NULL)
     {
         read->line = (CliDocumentLineRuns *)(void *)(read + 1);
-        read->word = (unsigned int *)(void *)(read->line + args->count);
+        read->word_text = (unsigned int *)(void *)(read->line + args->count);
         unsigned int used = 0u;
         for (unsigned long long at = 0ULL; at < args->count; at += 1ULL)
         {
@@ -1893,9 +1901,9 @@ CliDocumentRuns *cli_document_runs_alloc(const CliDocumentRunsCfg *args)
             {
                 runs -= 1u;
             }
-            memor.cpy(&(MemoriaCfg){.dst = read->word + used, .src = col, .bytes = runs * sizeof(*col)});
-            memor.cpy(
-                &(MemoriaCfg){.dst = read->word + used + runs, .src = col + record[0], .bytes = runs * sizeof(*col)});
+            memor.cpy(&(MemoriaCfg){.dst = read->word_text + used, .src = col, .bytes = runs * sizeof(*col)});
+            memor.cpy(&(MemoriaCfg){
+                .dst = read->word_text + used + runs, .src = col + record[0], .bytes = runs * sizeof(*col)});
             read->line[at].runs = runs;
             used += 2u * runs;
         }
@@ -1992,9 +2000,10 @@ EMBED_INLINE int branch_word_seen(const DocumentBranchCtx *args)
 {
     const char *const text = args->words->text;
     // the table's entries are a power of two an unsigned int counts
-    const unsigned int mask = (unsigned int)args->capacity - 1u;
+    const unsigned int mask_bits = (unsigned int)args->capacity - 1u;
     unsigned int entry =
-        EMBED_CALL(branch_state_hash, DocumentBranchCtx, .text = text + args->word_at, .length = args->length) & mask;
+        EMBED_CALL(branch_state_hash, DocumentBranchCtx, .text = text + args->word_at, .length = args->length) &
+        mask_bits;
     for (;;)
     {
         unsigned int *const standing = args->word_table[entry];
@@ -2011,7 +2020,7 @@ EMBED_INLINE int branch_word_seen(const DocumentBranchCtx *args)
         {
             return 1;
         }
-        entry = (entry + 1u) & mask;
+        entry = (entry + 1u) & mask_bits;
     }
 }
 

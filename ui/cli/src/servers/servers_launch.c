@@ -237,7 +237,7 @@ CliLsp *cli_servers_launch(const CliServersRootCtx *args)
     for (unsigned int at = 0u; at < args->spec_read->args; at += 1u)
     {
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
-                   .word = args->spec_read->arg[at]);
+                   .word_text = args->spec_read->arg[at]);
     }
     EMBED_CALL(cli_toolchains_count_path.run_path, CliToolchainsCountPathCfg, .path = launching->path,
                .size = sizeof(launching->path));
@@ -297,7 +297,7 @@ CliLsp *cli_servers_launch(const CliServersRootCtx *args)
         mmgr_line_put(&reason, "the cells cannot meet its options or its environment");
     }
     CliLsp *const server =
-        met ? EMBED_CALL(cli_lsp_err_msg.start, CliLspErrMsgCfg, .program = program, .request = words->word,
+        met ? EMBED_CALL(cli_lsp_err_msg.start, CliLspErrMsgCfg, .program = program, .request = words->word_text,
                          .count = words->count, .root = root, .options = options.out, .length = options.at,
                          .settings = setting, .setting_count = settings, .recv = cli_servers_recv,
                          .context = server_sink, .err_msg = &reason)

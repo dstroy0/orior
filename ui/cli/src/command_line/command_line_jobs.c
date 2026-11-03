@@ -113,16 +113,17 @@ int cli_jobs_list(const CliCommandLineWordCtx *args)
         const CliJob *const job = &catalog->job[at];
         const char *const id =
             EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = catalog, .text_u32 = job->id);
-        if ((args->word != NULL) &&
-            !EMBED_CALL(cli_command_line_internal.contains_word, CliCommandLineCtx, .text = id, .word = args->word) &&
+        if ((args->word_text != NULL) &&
+            !EMBED_CALL(cli_command_line_internal.contains_word, CliCommandLineCtx, .text = id,
+                        .word_text = args->word_text) &&
             !EMBED_CALL(cli_command_line_internal.contains_word, CliCommandLineCtx,
                         .text = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = catalog,
                                            .text_u32 = job->title),
-                        .word = args->word) &&
+                        .word_text = args->word_text) &&
             !EMBED_CALL(cli_command_line_internal.contains_word, CliCommandLineCtx,
                         .text = EMBED_CALL(cli_catalog_text_table.at, CliCatalogTextCfg, .catalog_read = catalog,
                                            .text_u32 = job->about),
-                        .word = args->word))
+                        .word_text = args->word_text))
         {
             continue;
         }

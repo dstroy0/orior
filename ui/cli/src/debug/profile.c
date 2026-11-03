@@ -142,11 +142,12 @@ static void profile_line(const CliProfileLineSizeCfg *args)
         long long code = 0LL;
         int whole = (done_size > 0ULL);
         const int negative = whole && (json[at] == '-');
-        for (unsigned long long letter = at + (negative ? 1ULL : 0ULL); whole && (letter < at + done_size);
-             letter += 1ULL)
+        unsigned long long letter = at + (negative ? 1ULL : 0ULL);
+        while (whole && (letter < at + done_size))
         {
             whole = (json[letter] >= '0') && (json[letter] <= '9') && (code < 922337203685477580LL);
             code = (code * 10LL) + (long long)(json[letter] - '0');
+            letter += 1ULL;
         }
         profile->has_code = whole;
         profile->code = negative ? -code : code;
@@ -299,9 +300,11 @@ EMBED_INLINE CliProfile *profile_alloc(const ProfileCtx *args)
     CliProfile *profile = NULL;
     while (profile == NULL)
     {
-        for (unsigned int at = 0u; (at < CLI_PROFILES) && (profile == NULL); at += 1u)
+        unsigned int at = 0u;
+        while ((at < CLI_PROFILES) && (profile == NULL))
         {
             profile = s_profiles[at].reserved ? NULL : &s_profiles[at];
+            at += 1u;
         }
         if (profile == NULL)
         {
@@ -396,7 +399,7 @@ int cli_profile_start(const CliProfileCfg *args)
         for (unsigned int at = 0u; at < 5u; at += 1u)
         {
             EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = profile->words,
-                       .word = words[at]);
+                       .word_text = words[at]);
         }
     }
     else
@@ -409,11 +412,11 @@ int cli_profile_start(const CliProfileCfg *args)
         for (unsigned int at = 0u; at < 4u; at += 1u)
         {
             EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = profile->words,
-                       .word = words[at]);
+                       .word_text = words[at]);
         }
     }
     if (!EMBED_CALL(cli_words_err_msg_internal.spawn_feed, CliWordsErrMsgCtx, .spawned = &profile->spawned,
-                    .words = profile->words->word, .folder = far ? NULL : args->root, .settings = settings,
+                    .words = profile->words->word_text, .folder = far ? NULL : args->root, .settings = settings,
                     .count = settings_count, .detached = 1, .err_msg = args->err_msg))
     {
         EMBED_CALL(profile_let_go, ProfileCtx, .profile = profile);

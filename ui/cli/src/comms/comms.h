@@ -15,6 +15,10 @@
 // (comms.c, comms_view.c)
 #ifndef COMMS_H
 #define COMMS_H
+#include "../command_line/callback_cfg.h"
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliCommsNameCfg CliCommsNameCfg;
 typedef struct CliCommsChannelCfg CliCommsChannelCfg;
 typedef struct CliCommsChannelErrMsgCfg CliCommsChannelErrMsgCfg;
@@ -26,10 +30,6 @@ typedef struct CliCommsChannelBytesCfg CliCommsChannelBytesCfg;
 typedef struct CliCommsInnerCfg CliCommsInnerCfg;
 typedef struct CliCommsCfg CliCommsCfg;
 typedef struct CliCommsListenerCfg CliCommsListenerCfg;
-
-#include "../command_line/callback_cfg.h"
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // the bytes of a key written, its 32 bytes in hex and a 0 after; the most grants a part has to listen and to send
 #define CLI_COMMS_KEY 65u

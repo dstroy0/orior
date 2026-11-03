@@ -262,7 +262,7 @@ EMBED_INLINE int jupyter_process_start(const JupyterCtx *args)
                                        .at = spec->folder),
                    .out = s_word, .capacity = sizeof(s_word));
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &kernel->words,
-                   .word = s_word);
+                   .word_text = s_word);
     }
     if (kernel->words.count == 0u)
     {
@@ -291,7 +291,7 @@ EMBED_INLINE int jupyter_process_start(const JupyterCtx *args)
     count += 1u;
 #endif
     if (!EMBED_CALL(cli_words_err_msg_internal.spawn, CliWordsErrMsgCtx, .spawned = &kernel->spawned,
-                    .words = kernel->words.word, .folder = folder, .settings = kernel->settings, .count = count,
+                    .words = kernel->words.word_text, .folder = folder, .settings = kernel->settings, .count = count,
                     .detached = 1, .err_msg = err_msg))
     {
         return 0;

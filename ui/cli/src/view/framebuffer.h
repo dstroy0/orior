@@ -7,10 +7,11 @@
 // taken from the shared cells (framebuffer.c)
 #ifndef GUI_FRAMEBUFFER_H
 #define GUI_FRAMEBUFFER_H
-typedef struct GuiFramebufferMaxWidthCfg GuiFramebufferMaxWidthCfg;
-typedef struct GuiFramebufferCfg GuiFramebufferCfg;
 #include "embed_dispatch_layout.h"
 #include "raster.h"
+
+typedef struct GuiFramebufferMaxWidthCfg GuiFramebufferMaxWidthCfg;
+typedef struct GuiFramebufferCfg GuiFramebufferCfg;
 
 // the boundary each raster's pixels start on in its pages, the placement a graphics device takes a buffer at
 #define GUI_FRAMEBUFFER_POSITION (64ull << 10u)

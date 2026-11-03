@@ -3,11 +3,11 @@
 // envs_internal.h: what the environments' modules share: the names a folder requires, read and written (envs.c)
 #ifndef ENVS_INTERNAL_H
 #define ENVS_INTERNAL_H
-typedef struct CliEnvsCtx CliEnvsCtx;
-typedef struct CliEnvsOutCtx CliEnvsOutCtx;
-
 #include "embed_dispatch_layout.h"
 #include "envs.h"
+
+typedef struct CliEnvsCtx CliEnvsCtx;
+typedef struct CliEnvsOutCtx CliEnvsOutCtx;
 
 // the most names one folder requires and the bytes of them, and the names and the bytes their capacities are taken with
 #define CLI_ENVS_NAMES 1024u

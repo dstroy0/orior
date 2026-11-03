@@ -74,7 +74,7 @@ EMBED_INLINE void cli_flag_append(const CompileDbCmakeCtx *args)
 static void cli_fragment_word(const CliEachWordSizeCfg *args)
 {
     unsigned long long size = args->size;
-    EMBED_CALL(cli_flag_append, CompileDbCmakeCtx, .flag = args->word, .size = size);
+    EMBED_CALL(cli_flag_append, CompileDbCmakeCtx, .flag = args->word_text, .size = size);
 }
 
 // a flag made of `lead` and `text` put after the flags

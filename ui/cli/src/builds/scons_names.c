@@ -21,13 +21,13 @@ static void names_word_dispatch(const CliSconsSpanCfg *args)
     const CliSconsHand *const hand = args->context;
     const char *const text = g_cli_scons.text;
     unsigned long long walk = 0ULL;
-    unsigned long long word = 0ULL;
+    unsigned long long word_text = 0ULL;
     unsigned long long length = 0ULL;
-    while (EMBED_CALL(cli_text_size_length.word, CliTextSizeLengthCfg, .text = text + args->from,
-                      .size = args->to - args->from, .at_pointer = &walk, .word = &word, .length = &length))
+    while (EMBED_CALL(cli_text_size_length.word_text, CliTextSizeLengthCfg, .text = text + args->from,
+                      .size = args->to - args->from, .at_pointer = &walk, .word_text = &word_text, .length = &length))
     {
-        EMBED_CALL(hand->each, CliSconsSpanCfg, .context = hand->context, .from = args->from + word,
-                   .to = args->from + word + length);
+        EMBED_CALL(hand->each, CliSconsSpanCfg, .context = hand->context, .from = args->from + word_text,
+                   .to = args->from + word_text + length);
     }
 }
 
@@ -61,12 +61,12 @@ static void names_exported_words(const CliSconsSpanCfg *args)
     const CliSconsNamed *const hand = args->context;
     const char *const text = g_cli_scons.text;
     unsigned long long walk = 0ULL;
-    unsigned long long word = 0ULL;
+    unsigned long long word_text = 0ULL;
     unsigned long long length = 0ULL;
-    while (EMBED_CALL(cli_text_size_length.word, CliTextSizeLengthCfg, .text = text + args->from,
-                      .size = args->to - args->from, .at_pointer = &walk, .word = &word, .length = &length))
+    while (EMBED_CALL(cli_text_size_length.word_text, CliTextSizeLengthCfg, .text = text + args->from,
+                      .size = args->to - args->from, .at_pointer = &walk, .word_text = &word_text, .length = &length))
     {
-        EMBED_CALL(hand->named, CliEachNameSizeCfg, .context = hand->context, .name = text + args->from + word,
+        EMBED_CALL(hand->named, CliEachNameSizeCfg, .context = hand->context, .name = text + args->from + word_text,
                    .size = length);
     }
 }

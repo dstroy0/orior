@@ -7,6 +7,10 @@
 // maven_settings.c, maven_set.c)
 #ifndef MAVEN_INTERNAL_H
 #define MAVEN_INTERNAL_H
+#include "../text/text.h"
+#include "builds_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliMavenTextCtx CliMavenTextCtx;
 typedef struct CliMavenTextSizeCtx CliMavenTextSizeCtx;
 typedef struct CliMavenTextSizeModelCtx CliMavenTextSizeModelCtx;
@@ -25,10 +29,6 @@ typedef struct CliMavenXmlProjectCtx CliMavenXmlProjectCtx;
 typedef struct CliMavenCheckCtx CliMavenCheckCtx;
 typedef struct CliMavenXmlAtCtx CliMavenXmlAtCtx;
 typedef struct CliMavenCtx CliMavenCtx;
-
-#include "../text/text.h"
-#include "builds_internal.h"
-#include "embed_dispatch_layout.h"
 
 // the most elements of an XML file, comments, and things that prevented it from reading, and no element
 #define CLI_XML_ELEMENTS 16384u

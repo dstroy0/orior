@@ -4,11 +4,11 @@
 // (base64.c)
 #ifndef BASE64_H
 #define BASE64_H
-typedef struct CliBase64TextCfg CliBase64TextCfg;
-typedef struct CliBase64Cfg CliBase64Cfg;
-
 #include "../command_line/cli_internal.h"
 #include "embed_dispatch_layout.h"
+
+typedef struct CliBase64TextCfg CliBase64TextCfg;
+typedef struct CliBase64Cfg CliBase64Cfg;
 
 // `size` bytes of `bytes` written as base64; and the bytes base64 `text`, `length` bytes, gives, ASCII's whitespace in
 // it passed over, into `out`, sized for `capacity`, their count into `size`: 1, or 0 where it is not base64 or they do

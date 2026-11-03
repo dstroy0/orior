@@ -194,12 +194,14 @@ EMBED_INLINE unsigned int cli_split(const ToolchainsPathCtx *args)
                 char key[CLI_PATH_MAX_LEN];
                 EMBED_CALL(cli_toolchains_dir_key.key_get, CliToolchainsDirKeyCfg, .dir = folder, .key = key);
                 int seen = 0;
-                for (unsigned int each = 0u; !seen && (each < count); each += 1u)
+                unsigned int each = 0u;
+                while (!seen && (each < count))
                 {
                     char path_buf[CLI_PATH_MAX_LEN];
                     EMBED_CALL(cli_toolchains_dir_key.key_get, CliToolchainsDirKeyCfg, .dir = args->folders[each],
                                .key = path_buf);
                     seen = cellul.eq(&(CatenaFinitaCfg){.src = path_buf, .other = key, .cap = CLI_CELLS_POOL});
+                    each += 1u;
                 }
                 if (!seen && (count < args->capacity))
                 {
@@ -331,10 +333,12 @@ int cli_toolchains_on_path(const CliToolchainsNamesCfg *args)
     unsigned int folders = 0u;
     char (*const path)[CLI_PATH_MAX_LEN] = cli_toolchains_path_allocated(&folders, &g_cli_toolchains_cells);
     int found = 0;
-    for (unsigned int at = 0u; !found && (at < folders); at += 1u)
+    unsigned int at = 0u;
+    while (!found && (at < folders))
     {
         found = EMBED_CALL(cli_toolchains_dir.program_in, CliToolchainsDirCfg, .dir = path[at], .names = args->names,
                            .count = args->count, .path = args->program);
+        at += 1u;
     }
     g_cli_cells->persistent_buf_release(path, &g_cli_toolchains_cells);
     return found;
@@ -453,11 +457,13 @@ void cli_toolchains_run_path_with(const CliToolchainsCountPathCfg *args)
         char key[CLI_PATH_MAX_LEN];
         EMBED_CALL(cli_toolchains_dir_key.key_get, CliToolchainsDirKeyCfg, .dir = folders[at], .key = key);
         int seen = folders[at][0] == '\0';
-        for (unsigned int before = 0u; !seen && (before < at); before += 1u)
+        unsigned int before = 0u;
+        while (!seen && (before < at))
         {
             char path_buf[CLI_PATH_MAX_LEN];
             EMBED_CALL(cli_toolchains_dir_key.key_get, CliToolchainsDirKeyCfg, .dir = folders[before], .key = path_buf);
             seen = cellul.eq(&(CatenaFinitaCfg){.src = path_buf, .other = key, .cap = CLI_CELLS_POOL});
+            before += 1u;
         }
         if (!seen)
         {

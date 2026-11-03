@@ -330,9 +330,13 @@ static void serve_accept(void *context)
         }
         CliIpcJoined *joined = NULL;
         unsigned int place = CLI_IPC_JOINED;
-        for (unsigned int at = 0u; (at < CLI_IPC_JOINED) && (place == CLI_IPC_JOINED); at += 1u)
         {
-            place = (g_cli_ipc_served.joined[at] == NULL) ? at : place;
+            unsigned int at = 0u;
+            while ((at < CLI_IPC_JOINED) && (place == CLI_IPC_JOINED))
+            {
+                place = (g_cli_ipc_served.joined[at] == NULL) ? at : place;
+                at += 1u;
+            }
         }
         // a joined process's frame, queued bodies and answer stand in its cell, after it
         joined = (place < CLI_IPC_JOINED)

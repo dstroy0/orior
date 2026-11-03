@@ -196,10 +196,15 @@ void cli_versions_complete(const CliVersionCatalogTextSizeAtCtx *args)
         return;
     }
     char last = '\0';
-    for (unsigned long long one = before_size; (last == '\0') && (one > 0u); one -= 1u)
     {
-        last = ((before[one - 1u] == '{') || (before[one - 1u] == ',') || (before[one - 1u] == '=')) ? before[one - 1u]
-                                                                                                     : '\0';
+        unsigned long long one = before_size;
+        while ((last == '\0') && (one > 0u))
+        {
+            last = ((before[one - 1u] == '{') || (before[one - 1u] == ',') || (before[one - 1u] == '='))
+                       ? before[one - 1u]
+                       : '\0';
+            one -= 1u;
+        }
     }
     if ((last != '{') && (last != ','))
     {

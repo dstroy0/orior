@@ -255,10 +255,14 @@ int cli_requests_is_text(const CliRequestsNameAnswerCtx *args)
                                          "yaml", "csv", "graphql"};
     int text = (size >= 5u) && EMBED_CALL(cli_requests_text_size_needle_internal.contains, CliRequestsTextSizeNeedleCtx,
                                           .text = kind, .size = 5u, .needle = "text/");
-    for (unsigned int at = 0u; !text && (at < 7u); at += 1u)
     {
-        text = EMBED_CALL(cli_requests_text_size_needle_internal.contains, CliRequestsTextSizeNeedleCtx, .text = kind,
-                          .size = size, .needle = texts[at]);
+        unsigned int at = 0u;
+        while (!text && (at < 7u))
+        {
+            text = EMBED_CALL(cli_requests_text_size_needle_internal.contains, CliRequestsTextSizeNeedleCtx,
+                              .text = kind, .size = size, .needle = texts[at]);
+            at += 1u;
+        }
     }
     if (text)
     {

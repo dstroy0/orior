@@ -8,6 +8,10 @@
 // run the program in a terminal, is refused, and the adapter then runs it itself (dap.c, dap_start.c, dap_waiters.c)
 #ifndef DAP_H
 #define DAP_H
+#include "../command_line/cli_internal.h"
+#include "../servers/lsp.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliDapProgramCfg CliDapProgramCfg;
 typedef struct CliDapErrMsgCfg CliDapErrMsgCfg;
 typedef struct CliDapEndsProgramCfg CliDapEndsProgramCfg;
@@ -16,10 +20,6 @@ typedef struct CliDapErrMsgCommandSeqCfg CliDapErrMsgCommandSeqCfg;
 typedef struct CliDapEmitCfg CliDapEmitCfg;
 typedef struct CliDapMessageCfg CliDapMessageCfg;
 typedef struct CliDapCfg CliDapCfg;
-
-#include "../command_line/cli_internal.h"
-#include "../servers/lsp.h"
-#include "embed_dispatch_layout.h"
 
 // the most adapters open at once, and the requests that wait on answers at once
 #define CLI_DAPS_MAX 4u

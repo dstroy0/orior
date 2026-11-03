@@ -4,13 +4,13 @@
 // tree read every two seconds where the system does not report its changes
 #ifndef WATCH_INTERNAL_H
 #define WATCH_INTERNAL_H
-typedef struct CliWatchPathsCtx CliWatchPathsCtx;
-typedef struct CliWatchCtx CliWatchCtx;
-
 #include "../command_line/callback_cfg.h"
 #include "../command_line/cells.h"
 #include "embed_dispatch_layout.h"
 #include "watch.h"
+
+typedef struct CliWatchPathsCtx CliWatchPathsCtx;
+typedef struct CliWatchCtx CliWatchCtx;
 
 // a change put for the next batch, its path from the tree's top; whether the watch is stopping; the end of the thread
 // that reads the tree notified, so the watch can stop; and the cells the changes waiting and a batch occupy (watch.c)

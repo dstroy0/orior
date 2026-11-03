@@ -261,11 +261,13 @@ EMBED_INLINE int read_deployment(const DeployReadCtx *args)
                      : 0ULL;
         unsigned long long value = 0ULL;
         int whole = (length > 0u);
-        for (unsigned long long at = 0ULL; whole && (at < length); at += 1u)
+        unsigned long long at = 0ULL;
+        while (whole && (at < length))
         {
             whole = (digits[at] >= '0') && (digits[at] <= '9') &&
                     (value <= (0xffffffffffffffffULL - (unsigned long long)(digits[at] - '0')) / 10u);
             value = whole ? ((value * 10u) + (unsigned long long)(digits[at] - '0')) : value;
+            at += 1u;
         }
         if (!whole)
         {

@@ -4,6 +4,9 @@
 // and the calls one reads from the other
 #ifndef TABLES_INTERNAL_H
 #define TABLES_INTERNAL_H
+#include "../query_loops.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct QueryTablesErrMsgCtx QueryTablesErrMsgCtx;
 typedef struct QueryTablesOutArchCtx QueryTablesOutArchCtx;
 typedef struct QueryTablesOutErrMsgCtx QueryTablesOutErrMsgCtx;
@@ -14,9 +17,6 @@ typedef struct QueryTablesCtx QueryTablesCtx;
 typedef struct QueryTablesCapacityCtx QueryTablesCapacityCtx;
 typedef struct QueryTablesRootCtx QueryTablesRootCtx;
 typedef struct QueryTablesFolderCtx QueryTablesFolderCtx;
-
-#include "../query_loops.h"
-#include "embed_dispatch_layout.h"
 
 // the tables' folder: the key cubins, the vendor's disassembler for Linux, the captures and the tables
 #define QUERY_TABLES_OUT "build/vendor/nvidia"

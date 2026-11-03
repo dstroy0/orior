@@ -164,17 +164,17 @@ EMBED_INLINE int jupyter_spec_read(const JupyterSpecsCtx *args)
          index += 1u)
     {
         unsigned long long length = 0ULL;
-        const char *const word =
+        const char *const word_text =
             EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &s_listing.json,
                        .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
                                           .json_read = &s_listing.json, .array = argv, .index = index),
                        .length_pointer = &length);
-        if ((word == NULL) || (spec->argv_count == CLI_KERNEL_WORDS))
+        if ((word_text == NULL) || (spec->argv_count == CLI_KERNEL_WORDS))
         {
             return 0;
         }
         spec->argv[spec->argv_count] =
-            EMBED_CALL(jupyter_append, JupyterSpecsCtx, .spec = spec, .text = word, .length = length);
+            EMBED_CALL(jupyter_append, JupyterSpecsCtx, .spec = spec, .text = word_text, .length = length);
         spec->argv_count += 1u;
     }
     const unsigned int env = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
@@ -327,11 +327,11 @@ EMBED_INLINE void jupyter_python_specs(const JupyterSpecsCtx *args)
         spec->language = EMBED_CALL(jupyter_append, JupyterSpecsCtx, .spec = spec, .text = "python", .length = 6u);
         spec->argv[0] = EMBED_CALL(jupyter_append, JupyterSpecsCtx, .spec = spec, .text = python,
                                    .length = cellul.len(&(CatenaFinitaCfg){.src = python, .cap = CLI_CELLS_POOL}));
-        for (unsigned int word = 0u; word < 4u; word += 1u)
+        for (unsigned int word_text = 0u; word_text < 4u; word_text += 1u)
         {
-            spec->argv[word + 1u] =
-                EMBED_CALL(jupyter_append, JupyterSpecsCtx, .spec = spec, .text = words[word],
-                           .length = cellul.len(&(CatenaFinitaCfg){.src = words[word], .cap = CLI_CELLS_POOL}));
+            spec->argv[word_text + 1u] =
+                EMBED_CALL(jupyter_append, JupyterSpecsCtx, .spec = spec, .text = words[word_text],
+                           .length = cellul.len(&(CatenaFinitaCfg){.src = words[word_text], .cap = CLI_CELLS_POOL}));
         }
         spec->argv_count = 5u;
         spec->interrupt_mode =
@@ -381,10 +381,12 @@ EMBED_INLINE void jupyter_specs_each(const JupyterSpecsCtx *args)
                    .pythons_callback = (const char (*)[CLI_PATH_MAX_LEN])s_listing.pythons, .python_count = pythons,
                    .folders = s_listing.folders);
     int going = 1;
-    for (unsigned int folder = 0u; going && (folder < folders); folder += 1u)
+    unsigned int folder = 0u;
+    while (going && (folder < folders))
     {
         going = EMBED_CALL(jupyter_folder_specs, JupyterSpecsCtx, .data = s_listing.folders[folder], .each = args->each,
                            .context = args->context);
+        folder += 1u;
     }
     if (going)
     {
@@ -416,11 +418,11 @@ static int jupyter_spec_write(const CliKernelEachCfg *args)
     EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = texts[2],
                .length = cellul.len(&(CatenaFinitaCfg){.src = texts[2], .cap = CLI_CELLS_POOL}));
     mmgr_line_put(out, ",\"argv\":[");
-    for (unsigned int word = 0u; word < spec->argv_count; word += 1u)
+    for (unsigned int word_text = 0u; word_text < spec->argv_count; word_text += 1u)
     {
-        const char *const text =
-            EMBED_CALL(cli_jupyter_spec_internal.kernel_text, CliJupyterSpecCtx, .spec = spec, .at = spec->argv[word]);
-        mmgr_line_put(out, (word > 0u) ? "," : "");
+        const char *const text = EMBED_CALL(cli_jupyter_spec_internal.kernel_text, CliJupyterSpecCtx, .spec = spec,
+                                            .at = spec->argv[word_text]);
+        mmgr_line_put(out, (word_text > 0u) ? "," : "");
         EMBED_CALL(cli_json_tree_text_length.json_quote, CliJsonTreeTextLengthCfg, .out = out, .text = text,
                    .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
     }

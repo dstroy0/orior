@@ -5,12 +5,12 @@
 // reader who declines the prompt leaves the file as it was (raised.c)
 #ifndef RAISED_H
 #define RAISED_H
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliRaisedErrMsgCfg CliRaisedErrMsgCfg;
 typedef struct CliRaisedFromCfg CliRaisedFromCfg;
 typedef struct CliRaisedCfg CliRaisedCfg;
-
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // whether `err_text`, what a write that failed reported, is the system refusing it the rights; the file `from` copied
 // over `to` with the rights; and `size` bytes of `text` written to the file at `path` with the rights. Each copy and

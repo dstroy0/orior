@@ -110,15 +110,15 @@ void gui_strip_draw(const GuiStripFrameRasterCfg *args)
             EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = args->raster, .rect = on,
                        .radius = radius, .color = args->palette->strip_on);
         }
-        const GuiMask *const mask = EMBED_CALL(cli_icons.icon, GuiIconsCfg, .icons = icons,
-                                               .name = g_cli_tools[at].glyph, .size = icon, .stroke = stroke);
-        if (mask != NULL)
+        const GuiMask *const mask_bits = EMBED_CALL(cli_icons.icon, GuiIconsCfg, .icons = icons,
+                                                    .name = g_cli_tools[at].glyph, .size = icon, .stroke = stroke);
+        if (mask_bits != NULL)
         {
             const GuiColor color =
                 pointed ? args->palette->bar_bright : (displayed ? args->palette->signal : args->palette->status_text);
             // the icon's side is far inside what an int represents
-            EMBED_CALL(gui_raster_xy_color.mask, GuiRasterXYColorCfg, .raster = args->raster, .mask = mask,
-                       .x = button.x + ((button.width - (int)icon) / 2),
+            EMBED_CALL(gui_raster_xy_color.mask_bits, GuiRasterXYColorCfg, .raster = args->raster,
+                       .mask_bits = mask_bits, .x = button.x + ((button.width - (int)icon) / 2),
                        .y = button.y + ((button.height - (int)icon) / 2), .color = color, .clip = on);
         }
         // the Problems tool's mark, a dot in the error's color at the button's top right corner

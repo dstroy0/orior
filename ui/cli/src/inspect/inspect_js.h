@@ -10,14 +10,14 @@
 // object, and anything else a block (inspect_js_lex.c, inspect_js_*.c)
 #ifndef INSPECT_JS_H
 #define INSPECT_JS_H
+#include "embed_dispatch_layout.h"
+#include "inspect_internal.h"
+
 typedef struct CliInspectJsAtCfg CliInspectJsAtCfg;
 typedef struct CliInspectJsAtWordCfg CliInspectJsAtWordCfg;
 typedef struct CliInspectJsFromCfg CliInspectJsFromCfg;
 typedef struct CliInspectJsOpenCfg CliInspectJsOpenCfg;
 typedef struct CliInspectJsCfg CliInspectJsCfg;
-
-#include "embed_dispatch_layout.h"
-#include "inspect_internal.h"
 
 // a token's kind
 #define CLI_JS_NAME 0u
@@ -77,7 +77,7 @@ struct CliInspectJsAtWordCfg
 {
     const char *src;
     unsigned int at;
-    const char *word;
+    const char *word_text;
 };
 
 struct CliInspectJsFromCfg

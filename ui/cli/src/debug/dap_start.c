@@ -52,7 +52,7 @@ typedef struct
 // an adapter's reader made to read from `read`
 EMBED_INLINE void start_reader(const DapStartCtx *args)
 {
-    unsigned long long (*read)(const CliSourcePieceCapacityCfg *args) = args->read;
+    unsigned long long (*read)(const CliSourcePieceCapacityCfg *) = args->read;
     args->dap->reader.read = read;
     args->dap->reader.source = args->dap;
     args->dap->reader.start = 0ULL;
@@ -79,19 +79,19 @@ CliDap *cli_dap_start(const CliDapProgramCfg *args)
     dap->words.used = 0u;
     dap->words.full = 0;
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &dap->words,
-               .word = args->program);
+               .word_text = args->program);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &dap->words,
-                   .word = args->request[at]);
+                   .word_text = args->request[at]);
     }
     memor.cpy(&(MemoriaCfg){.dst = dap->path,
                             .src = args->path,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL}) + 1u});
     const CliSetting settings[1] = {{"PATH", dap->path}};
     if (!EMBED_CALL(cli_words_err_msg_internal.spawn_feed, CliWordsErrMsgCtx, .spawned = &dap->spawned,
-                    .words = dap->words.word, .folder = args->folder, .settings = settings, .count = 1u, .detached = 1,
-                    .err_msg = args->err_msg))
+                    .words = dap->words.word_text, .folder = args->folder, .settings = settings, .count = 1u,
+                    .detached = 1, .err_msg = args->err_msg))
     {
         dap->reserved = 0;
         return NULL;

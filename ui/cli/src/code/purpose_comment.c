@@ -257,9 +257,13 @@ EMBED_INLINE void cli_first_paragraph(const PurposeCommentCtx *args)
     for (;;)
     {
         const char *open = NULL;
-        for (const char *at = rest; (open == NULL) && ((at + 1) < end); at += 1)
         {
-            open = ((at[0] == ']') && (at[1] == '(')) ? at : NULL;
+            const char *at = rest;
+            while ((open == NULL) && ((at + 1) < end))
+            {
+                open = ((at[0] == ']') && (at[1] == '(')) ? at : NULL;
+                at += 1;
+            }
         }
         const char *const close =
             (open != NULL)

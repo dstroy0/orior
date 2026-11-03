@@ -9,6 +9,10 @@
 // or would track. A tree git cannot read is listed whole, less `.git` and `target`, and nothing in it is marked
 #ifndef FILES_H
 #define FILES_H
+#include "../command_line/callback_cfg.h"
+#include "../text/patterns.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliFilesContextCfg CliFilesContextCfg;
 typedef struct CliFilesCountCfg CliFilesCountCfg;
 typedef struct CliFilesRootCfg CliFilesRootCfg;
@@ -31,10 +35,6 @@ typedef struct CliFilesQueryLettersCfg CliFilesQueryLettersCfg;
 typedef struct CliFilesCfg CliFilesCfg;
 typedef struct CliFilesPathKindCfg CliFilesPathKindCfg;
 typedef struct CliFilesGitCfg CliFilesGitCfg;
-
-#include "../command_line/callback_cfg.h"
-#include "../text/patterns.h"
-#include "embed_dispatch_layout.h"
 
 // the most paths the tree's list contains, and the most bytes of them
 #define CLI_FILES_MAX 50000u
@@ -145,7 +145,7 @@ int cli_files_unread(const CliFilesRootPathsCfg *args);
 typedef struct
 {
     int match_case;
-    int word;
+    int word_text;
     int regex;
 } CliSearching;
 

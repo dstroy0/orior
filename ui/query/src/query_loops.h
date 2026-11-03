@@ -5,6 +5,9 @@
 // written into `err_msg`
 #ifndef QUERY_LOOPS_H
 #define QUERY_LOOPS_H
+#include "embed_dispatch_layout.h"
+#include "query_internal.h"
+
 typedef struct QueryLoopsWordsWordsTransportCfg QueryLoopsWordsWordsTransportCfg;
 typedef struct QueryLoopsFolderCfg QueryLoopsFolderCfg;
 typedef struct QueryLoopsContextFolderCfg QueryLoopsContextFolderCfg;
@@ -28,9 +31,6 @@ typedef struct QueryLoopsContextCfg QueryLoopsContextCfg;
 typedef struct QueryLoopsWordsWordsCfg QueryLoopsWordsWordsCfg;
 typedef struct QueryLoopsWordsWordsTextCfg QueryLoopsWordsWordsTextCfg;
 typedef struct QueryLoopsCfg QueryLoopsCfg;
-
-#include "embed_dispatch_layout.h"
-#include "query_internal.h"
 
 #define QUERY_USAGE                                                                                                    \
     "orior_cli protocol takes one of course, tables, decode, query, learn, cross, write, pairs, stick, retention, "    \
@@ -67,7 +67,7 @@ int query_context_end(const QueryLoopsContextRunCfg *args);
 // A list of words for a program: the words, NULL after the last
 typedef struct
 {
-    const char *word[QUERY_WORDS_MAX + 1u];
+    const char *word_text[QUERY_WORDS_MAX + 1u];
     unsigned int count;
 } QueryWords;
 
@@ -362,7 +362,7 @@ struct QueryLoopsContextCfg
 struct QueryLoopsWordsWordsCfg
 {
     QueryWords *words_words_pointer;
-    const char *word;
+    const char *word_text;
 };
 
 struct QueryLoopsWordsWordsTextCfg

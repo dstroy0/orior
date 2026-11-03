@@ -5,6 +5,9 @@
 // f-string's fields read are tokens of their own (inspect_py_lex.c, inspect_py_*.c)
 #ifndef INSPECT_PY_H
 #define INSPECT_PY_H
+#include "embed_dispatch_layout.h"
+#include "inspect_internal.h"
+
 typedef struct CliInspectPySrcCfg CliInspectPySrcCfg;
 typedef struct CliInspectPySrcWordCfg CliInspectPySrcWordCfg;
 typedef struct CliInspectPySrcSizeCfg CliInspectPySrcSizeCfg;
@@ -13,9 +16,6 @@ typedef struct CliInspectPySrcToksCfg CliInspectPySrcToksCfg;
 typedef struct CliInspectPySrcLineCfg CliInspectPySrcLineCfg;
 typedef struct CliInspectPySrcTokCfg CliInspectPySrcTokCfg;
 typedef struct CliInspectPyCfg CliInspectPyCfg;
-
-#include "embed_dispatch_layout.h"
-#include "inspect_internal.h"
 
 // a token's kind
 #define CLI_PY_NAME 0u
@@ -87,7 +87,7 @@ struct CliInspectPySrcCfg
 struct CliInspectPySrcWordCfg
 {
     const char *src;
-    const char *word;
+    const char *word_text;
     const CliInspectTok *toks;
     unsigned int count;
 };
@@ -118,14 +118,14 @@ struct CliInspectPySrcLineCfg
 {
     const char *src;
     const CliPyLine *line;
-    const char *word;
+    const char *word_text;
 };
 
 struct CliInspectPySrcTokCfg
 {
     const char *src;
     const CliInspectTok *tok;
-    const char *word;
+    const char *word_text;
 };
 
 struct CliInspectPyCfg

@@ -31,7 +31,7 @@ typedef struct
 // a number with no zero words at its top
 EMBED_INLINE void big_trim(const MysqlRsaCtx *args)
 {
-    while ((args->big->count > 0u) && (args->big->word[args->big->count - 1u] == 0u))
+    while ((args->big->count > 0u) && (args->big->word_text[args->big->count - 1u] == 0u))
     {
         args->big->count -= 1u;
     }
@@ -49,7 +49,7 @@ int cli_big_from_be(const CliMysqlCtx *args)
     for (unsigned long long at = 0ULL; at < args->size; at += 1ULL)
     {
         const unsigned long long place = args->size - 1ULL - at;
-        args->big_out->word[place / 4u] |= (unsigned int)bytes[at] << (8u * (unsigned int)(place % 4u));
+        args->big_out->word_text[place / 4u] |= (unsigned int)bytes[at] << (8u * (unsigned int)(place % 4u));
     }
     args->big_out->count = (unsigned int)((args->size + 3u) / 4u);
     EMBED_CALL(big_trim, MysqlRsaCtx, .big = args->big_out);
@@ -67,7 +67,8 @@ void cli_big_to_be(const CliMysqlBigOutCtx *args)
             const unsigned long long at = ((unsigned long long)index * 4ULL) + shift;
             if (at < args->length)
             {
-                args->out[args->length - 1ULL - at] = (unsigned char)((args->big->word[index] >> (8u * shift)) & 0xffu);
+                args->out[args->length - 1ULL - at] =
+                    (unsigned char)((args->big->word_text[index] >> (8u * shift)) & 0xffu);
             }
         }
     }
@@ -79,7 +80,7 @@ EMBED_INLINE unsigned int big_bits(const MysqlRsaCtx *args)
     {
         return 0u;
     }
-    unsigned int top = args->big_read->word[args->big_read->count - 1u];
+    unsigned int top = args->big_read->word_text[args->big_read->count - 1u];
     unsigned int bits = (args->big_read->count - 1u) * 32u;
     while (top != 0u)
     {
@@ -92,7 +93,7 @@ EMBED_INLINE unsigned int big_bits(const MysqlRsaCtx *args)
 EMBED_INLINE int big_bit(const MysqlRsaCtx *args)
 {
     return ((args->at / 32u) < args->big_read->count) &&
-           (((args->big_read->word[args->at / 32u] >> (args->at % 32u)) & 1u) == 1u);
+           (((args->big_read->word_text[args->at / 32u] >> (args->at % 32u)) & 1u) == 1u);
 }
 
 // `a` times `b` into `out`, which is neither: 1, or 0 where the product does not fit the capacity
@@ -108,16 +109,18 @@ int cli_big_mul(const CliMysqlACtx *args)
         unsigned long long carry = 0ULL;
         for (unsigned int j = 0u; j < args->b->count; j += 1u)
         {
-            const unsigned long long sum = (unsigned long long)args->out_big_pointer->word[i + j] +
-                                           ((unsigned long long)args->a->word[i] * args->b->word[j]) + carry;
-            args->out_big_pointer->word[i + j] = (unsigned int)(sum & 0xffffffffULL);
+            const unsigned long long sum = (unsigned long long)args->out_big_pointer->word_text[i + j] +
+                                           ((unsigned long long)args->a->word_text[i] * args->b->word_text[j]) + carry;
+            args->out_big_pointer->word_text[i + j] = (unsigned int)(sum & 0xffffffffULL);
             carry = sum >> 32u;
         }
-        for (unsigned int at = i + args->b->count; carry > 0ULL; at += 1u)
+        unsigned int at = i + args->b->count;
+        while (carry > 0ULL)
         {
-            const unsigned long long sum = (unsigned long long)args->out_big_pointer->word[at] + carry;
-            args->out_big_pointer->word[at] = (unsigned int)(sum & 0xffffffffULL);
+            const unsigned long long sum = (unsigned long long)args->out_big_pointer->word_text[at] + carry;
+            args->out_big_pointer->word_text[at] = (unsigned int)(sum & 0xffffffffULL);
             carry = sum >> 32u;
+            at += 1u;
         }
     }
     args->out_big_pointer->count = args->a->count + args->b->count + 1u;
@@ -133,9 +136,9 @@ EMBED_INLINE int big_at_min(const MysqlRsaCtx *args)
     }
     for (unsigned int at = args->a->count; at > 0u; at -= 1u)
     {
-        if (args->a->word[at - 1u] != args->b->word[at - 1u])
+        if (args->a->word_text[at - 1u] != args->b->word_text[at - 1u])
         {
-            return args->a->word[at - 1u] > args->b->word[at - 1u];
+            return args->a->word_text[at - 1u] > args->b->word_text[at - 1u];
         }
     }
     return 1;
@@ -147,15 +150,15 @@ EMBED_INLINE void big_sub(const MysqlRsaCtx *args)
     long long borrow = 0LL;
     for (unsigned int index = 0u; index < args->a_out->count; index += 1u)
     {
-        long long value = (long long)args->a_out->word[index] - borrow -
-                          (long long)((index < args->b->count) ? args->b->word[index] : 0u);
+        long long value = (long long)args->a_out->word_text[index] - borrow -
+                          (long long)((index < args->b->count) ? args->b->word_text[index] : 0u);
         borrow = 0LL;
         if (value < 0LL)
         {
             value += 4294967296LL;
             borrow = 1LL;
         }
-        args->a_out->word[index] = (unsigned int)value;
+        args->a_out->word_text[index] = (unsigned int)value;
     }
     EMBED_CALL(big_trim, MysqlRsaCtx, .big = args->a_out);
 }
@@ -166,13 +169,13 @@ EMBED_INLINE void big_shift_in(const MysqlRsaCtx *args)
     unsigned int carry = args->bit ? 1u : 0u;
     for (unsigned int at = 0u; at < args->big->count; at += 1u)
     {
-        const unsigned int next = args->big->word[at] >> 31u;
-        args->big->word[at] = (args->big->word[at] << 1u) | carry;
+        const unsigned int next = args->big->word_text[at] >> 31u;
+        args->big->word_text[at] = (args->big->word_text[at] << 1u) | carry;
         carry = next;
     }
     if ((carry != 0u) && (args->big->count < CLI_BIG_WORDS))
     {
-        args->big->word[args->big->count] = carry;
+        args->big->word_text[args->big->count] = carry;
         args->big->count += 1u;
     }
 }
@@ -200,7 +203,7 @@ int cli_big_pow_mod(const CliMysqlOutBigCtx *args)
     EMBED_CALL(cli_mysql_big_internal.big_rem, CliMysqlBigCtx, .big = args->base, .modulus = args->modulus,
                .out_big_pointer = &s_base);
     memor.set(&(MemoriaCfg){.dst = args->out_big_pointer, .val = 0, .bytes = sizeof(*args->out_big_pointer)});
-    args->out_big_pointer->word[0] = 1u;
+    args->out_big_pointer->word_text[0] = 1u;
     args->out_big_pointer->count = 1u;
     for (unsigned int at = EMBED_CALL(big_bits, MysqlRsaCtx, .big_read = args->exponent); at > 0u; at -= 1u)
     {
@@ -380,25 +383,25 @@ void cli_mysql_mgf1(const CliMysqlSizeOutCtx *args)
 void cli_mysql_oaep(const CliMysqlSizeLengthCtx *args)
 {
     unsigned char block[CLI_RSA_BYTES];
-    unsigned char mask[CLI_RSA_BYTES];
+    unsigned char mask_bits[CLI_RSA_BYTES];
     // the block: the empty label's hash, zeros, a one, then the message
     const unsigned long long block_size = args->length - 21u;
     memor.set(&(MemoriaCfg){.dst = block, .val = 0, .bytes = sizeof(block)});
     EMBED_CALL(cli_digest_bytes_size.sha1_bytes, CliDigestBytesSizeCfg, .bytes = "", .size = 0ULL, .digest = block);
     block[block_size - args->size - 1u] = 1u;
     memor.cpy(&(MemoriaCfg){.dst = block + block_size - args->size, .src = args->message, .bytes = (size_t)args->size});
-    EMBED_CALL(cli_mysql_size_out_internal.mgf1, CliMysqlSizeOutCtx, .seed = args->seed, .size = 20ULL, .out = mask,
-               .length = block_size);
+    EMBED_CALL(cli_mysql_size_out_internal.mgf1, CliMysqlSizeOutCtx, .seed = args->seed, .size = 20ULL,
+               .out = mask_bits, .length = block_size);
     for (unsigned long long at = 0ULL; at < block_size; at += 1ULL)
     {
-        args->padded[21u + at] = (unsigned char)(block[at] ^ mask[at]);
+        args->padded[21u + at] = (unsigned char)(block[at] ^ mask_bits[at]);
     }
     EMBED_CALL(cli_mysql_size_out_internal.mgf1, CliMysqlSizeOutCtx, .seed = args->padded + 21u, .size = block_size,
-               .out = mask, .length = 20ULL);
+               .out = mask_bits, .length = 20ULL);
     args->padded[0] = 0u;
     for (unsigned int at = 0u; at < 20u; at += 1u)
     {
-        args->padded[1u + at] = (unsigned char)(args->seed[at] ^ mask[at]);
+        args->padded[1u + at] = (unsigned char)(args->seed[at] ^ mask_bits[at]);
     }
 }
 

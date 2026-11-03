@@ -13,6 +13,9 @@
 // allocated
 #ifndef CATALOG_H
 #define CATALOG_H
+#include "cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliCatalogJobsMaxCfg CliCatalogJobsMaxCfg;
 typedef struct CliCatalogKindCfg CliCatalogKindCfg;
 typedef struct CliCatalogIdGroupCfg CliCatalogIdGroupCfg;
@@ -31,9 +34,6 @@ typedef struct CliCatalogIdCfg CliCatalogIdCfg;
 typedef struct CliCatalogRootCfg CliCatalogRootCfg;
 typedef struct CliCatalogWordCfg CliCatalogWordCfg;
 typedef struct CliCatalogTextValuesCfg CliCatalogTextValuesCfg;
-
-#include "cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // none: no text, no job
 #define CLI_CATALOG_NONE 0xffffffffu
@@ -393,7 +393,7 @@ struct CliCatalogRootCfg
 struct CliCatalogWordCfg
 {
     CliCatalog *catalog;
-    const char *word;
+    const char *word_text;
 };
 
 struct CliCatalogTextValuesCfg
@@ -484,11 +484,11 @@ EMBED_TABLE_STORAGE CliCatalogKindNs cli_catalog_kind EMBED_UNUSED = {
 
 typedef struct
 {
-    void (*word)(const CliCatalogWordCfg *args);
+    void (*word_text)(const CliCatalogWordCfg *args);
 } CliCatalogWordNs;
-EMBED_TABLE_LAYOUT(CliCatalogWordNs, word);
+EMBED_TABLE_LAYOUT(CliCatalogWordNs, word_text);
 EMBED_TABLE_STORAGE CliCatalogWordNs cli_catalog_word_table EMBED_UNUSED = {
-    .word = cli_catalog_word,
+    .word_text = cli_catalog_word,
 };
 
 typedef struct

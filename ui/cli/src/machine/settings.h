@@ -18,16 +18,16 @@
 // `${system}`. A tree's file does not set the settings the reader's alone are
 #ifndef SETTINGS_H
 #define SETTINGS_H
+#include "../command_line/cells.h"
+#include "../text/json_tree.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliSettingsChainCfg CliSettingsChainCfg;
 typedef struct CliSettingsRootCfg CliSettingsRootCfg;
 typedef struct CliSettingsPathCfg CliSettingsPathCfg;
 typedef struct CliSettingsKeyCfg CliSettingsKeyCfg;
 typedef struct CliSettingsCfg CliSettingsCfg;
 typedef struct CliSettingsOutCfg CliSettingsOutCfg;
-
-#include "../command_line/cells.h"
-#include "../text/json_tree.h"
-#include "embed_dispatch_layout.h"
 
 // the cells the settings are read and laid in (settings.c)
 extern CellOwner g_cli_settings_cells;

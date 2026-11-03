@@ -6,14 +6,14 @@
 // past git's own folder (templates.c)
 #ifndef TEMPLATES_H
 #define TEMPLATES_H
+#include "../command_line/cells.h"
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliTemplatesTemplateNameCfg CliTemplatesTemplateNameCfg;
 typedef struct CliTemplatesNameCfg CliTemplatesNameCfg;
 typedef struct CliTemplatesCfg CliTemplatesCfg;
 typedef struct CliTemplatesOutCfg CliTemplatesOutCfg;
-
-#include "../command_line/cells.h"
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // the folder that contains the reader's templates into `folder`, sized for CLI_PATH_MAX_LEN: 1, or 0 where orior_cli
 // has no folder of its own; the reader's templates, by name, in order, written as a JSON array of names; a project

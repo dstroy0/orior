@@ -166,7 +166,7 @@ EMBED_INLINE int query_vendor_read(const StickCtx *args)
     static QueryWords s_compile;
     memor.set(&(MemoriaCfg){.dst = &s_compile, .val = 0, .bytes = sizeof(s_compile)});
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_compile,
-               .word = s_nvcc);
+               .word_text = s_nvcc);
 #if defined(_WIN32)
     char cl[QUERY_PATH_MAX_LEN];
     char ignored_text[QUERY_LINE_MAX_LEN];
@@ -182,7 +182,7 @@ EMBED_INLINE int query_vendor_read(const StickCtx *args)
         {
             *slash = '\0';
             EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_compile,
-                       .word = "-ccbin");
+                       .word_text = "-ccbin");
             EMBED_CALL(query_loops_words_words_text.words_text, QueryLoopsWordsWordsTextCfg,
                        .words_words_pointer = &s_compile, .text = cl);
         }
@@ -192,14 +192,14 @@ EMBED_INLINE int query_vendor_read(const StickCtx *args)
     for (unsigned int at = 0u; s_flags[at] != NULL; at += 1u)
     {
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_compile,
-                   .word = s_flags[at]);
+                   .word_text = s_flags[at]);
     }
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_compile,
-               .word = s_paths.cubin);
+               .word_text = s_paths.cubin);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_compile,
-               .word = s_paths.cu);
+               .word_text = s_paths.cu);
     if (!EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
-                    .context = context, .run = run, .name = "nvcc", .words = s_compile.word, .code = &code,
+                    .context = context, .run = run, .name = "nvcc", .words = s_compile.word_text, .code = &code,
                     .err_msg = err_msg))
     {
         return 0;
@@ -320,11 +320,11 @@ EMBED_INLINE int query_codes_list(const StickCtx *args)
     for (unsigned int at = 0u; at < args->codes->count; at += 1u)
     {
         // the code's number, its file name's stem, and its listing's blob `<number>.dis`
-        const char *const code = args->codes->path[at];
-        const char *name =
-            EMBED_CALL(cli_text_byte.last, CliTextByteCfg, .text = code,
-                       .length_value = cellul.len(&(CatenaFinitaCfg){.src = code, .cap = CLI_CELLS_POOL}), .byte = '/');
-        name = (name != NULL) ? (name + 1) : code;
+        const char *const inner_code = args->codes->path[at];
+        const char *name = EMBED_CALL(
+            cli_text_byte.last, CliTextByteCfg, .text = inner_code,
+            .length_value = cellul.len(&(CatenaFinitaCfg){.src = inner_code, .cap = CLI_CELLS_POOL}), .byte = '/');
+        name = (name != NULL) ? (name + 1) : inner_code;
         char blob[QUERY_PATH_MAX_LEN];
         char dis[QUERY_PATH_MAX_LEN];
         VerbaLinea blob_line = {blob, sizeof(blob), 0ULL};
@@ -332,7 +332,8 @@ EMBED_INLINE int query_codes_list(const StickCtx *args)
         mmgr_line_put(&blob_line, ".dis");
         mmgr_line_finish(&blob_line);
         VerbaLinea dis_line = {dis, sizeof(dis), 0ULL};
-        mmgr_line_put_most(&dis_line, code, cellul.len(&(CatenaFinitaCfg){.src = code, .cap = CLI_CELLS_POOL}) - 4u);
+        mmgr_line_put_most(&dis_line, inner_code,
+                           cellul.len(&(CatenaFinitaCfg){.src = inner_code, .cap = CLI_CELLS_POOL}) - 4u);
         mmgr_line_put(&dis_line, ".dis");
         mmgr_line_finish(&dis_line);
         if (!EMBED_CALL(query_blob_file, StickCtx, .run = run, .name = blob, .path_read = dis, .err_msg = err_msg))
@@ -536,16 +537,16 @@ EMBED_INLINE int query_stick_read(const StickCtx *args)
     static QueryWords s_words;
     memor.set(&(MemoriaCfg){.dst = &s_words, .val = 0, .bytes = sizeof(s_words)});
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-               .word = s_reader);
+               .word_text = s_reader);
     for (unsigned int at = 0u; at < args->count; at += 1u)
     {
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-                   .word = words[at]);
+                   .word_text = words[at]);
     }
     long long code = -1LL;
     const int whole = EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
                                  .context = context, .run = &s_run, .name = "orior_measuring_stick_read",
-                                 .words = s_words.word, .code = &code, .err_msg = err_msg);
+                                 .words = s_words.word_text, .code = &code, .err_msg = err_msg);
     if (!EMBED_CALL(query_loops_context_run.context_end, QueryLoopsContextRunCfg, .context = context, .run_out = &s_run,
                     .err_msg = err_msg) ||
         !whole)

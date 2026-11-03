@@ -8,14 +8,15 @@
 // (busy.c)
 #ifndef GUI_PARTS_BUSY_H
 #define GUI_PARTS_BUSY_H
+#include "../frame.h"
+#include "../palette.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct GuiBusyFrameCfg GuiBusyFrameCfg;
 typedef struct GuiBusyRunningCfg GuiBusyRunningCfg;
 typedef struct GuiBusyCfg GuiBusyCfg;
 typedef struct GuiBusyStillCfg GuiBusyStillCfg;
 typedef struct GuiBusySinceCfg GuiBusySinceCfg;
-#include "../frame.h"
-#include "../palette.h"
-#include "embed_dispatch_layout.h"
 
 // the milliseconds an ask stands before the circle comes, and the least the circle stands once it has come; a swirl's
 // stages, a power of two, and the shift from milliseconds to a stage; and the sizes in the page's pixels: the circle's

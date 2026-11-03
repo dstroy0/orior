@@ -417,10 +417,12 @@ int cli_document_paged_edit(const CliDocumentOutCfg *args)
                    .edits = args->edits, .count_u32 = args->count_u32, .out = args->out, .err_msg = args->err_msg);
     for (unsigned int change = 0u; written && carried && (branch != NULL) && (change < args->count_u32); change += 1u)
     {
-        for (unsigned int at = args->edits[change]; carried && (at > 0u); at -= 1u)
+        unsigned int at = args->edits[change];
+        while (carried && (at > 0u))
         {
             carried = EMBED_CALL(stored_states_edit, DocumentStoreCtx, .lines = &branch->lines,
                                  .edit = &changes[change][at - 1u]);
+            at -= 1u;
         }
     }
     if (written && (branch != NULL))
@@ -800,7 +802,8 @@ int cli_document_edit(const CliDocumentErrMsgCfg *args)
     int capacity = 1;
     for (unsigned int change = 0u; fits && capacity && (change < args->count_u32); change += 1u)
     {
-        for (unsigned int at = args->edits[change]; fits && capacity && (at > 0u); at -= 1u)
+        unsigned int at = args->edits[change];
+        while (fits && capacity && (at > 0u))
         {
             const CliEdit *const edit = &changes[change][at - 1u];
             const int before = (edit->to.line < edit->from.line) ||
@@ -822,6 +825,7 @@ int cli_document_edit(const CliDocumentErrMsgCfg *args)
                     EMBED_CALL(cli_edit_write, DocumentStoreCtx, .one = one, .edit = edit, .reserve = &reserve);
                 }
             }
+            at -= 1u;
         }
     }
     if (!fits || !capacity)

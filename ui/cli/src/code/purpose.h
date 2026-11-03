@@ -14,13 +14,13 @@
 // files, each up to 512 KiB (purpose.c, purpose_comment.c)
 #ifndef PURPOSE_H
 #define PURPOSE_H
-typedef struct CliPurposeCfg CliPurposeCfg;
-typedef struct CliPurposePathTextCfg CliPurposePathTextCfg;
-typedef struct CliPurposeTextCfg CliPurposeTextCfg;
-
 #include "../command_line/cells.h"
 #include "../command_line/cli_internal.h"
 #include "embed_dispatch_layout.h"
+
+typedef struct CliPurposeCfg CliPurposeCfg;
+typedef struct CliPurposePathTextCfg CliPurposePathTextCfg;
+typedef struct CliPurposeTextCfg CliPurposeTextCfg;
 
 // the most bytes of a file read for its comment, and of each file read for its uses; the most letters of a comment
 // given, and the most users named

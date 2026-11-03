@@ -4,13 +4,13 @@
 // the requests waiting on answers, what it reported it can do and what it wrote to its errors
 #ifndef LSP_INTERNAL_H
 #define LSP_INTERNAL_H
-typedef struct CliLspCtx CliLspCtx;
-typedef struct CliLspKindCtx CliLspKindCtx;
-
 #include "../text/json_tree.h"
 #include "../toolchains/toolchains.h"
 #include "embed_dispatch_layout.h"
 #include "lsp.h"
+
+typedef struct CliLspCtx CliLspCtx;
+typedef struct CliLspKindCtx CliLspKindCtx;
 
 // A request waiting on its answer: its id, where its answer is handed over, whether it came, and the error it came
 // with, empty where none did

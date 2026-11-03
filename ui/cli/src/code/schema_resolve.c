@@ -78,16 +78,19 @@ EMBED_INLINE unsigned int resolve_pointer(const SchemaResolveCtx *args)
                          .size = size, .set = "/");
         char token[1u << 12u];
         VerbaLinea line = {token, sizeof(token), 0ULL};
-        for (unsigned long long one = start; one < end; one += 1u)
+        unsigned long long one = start;
+        while (one < end)
         {
             if ((args->pointer[one] == '~') && (one + 1u < end) &&
                 ((args->pointer[one + 1u] == '0') || (args->pointer[one + 1u] == '1')))
             {
                 mmgr_line_ch(&line, (args->pointer[one + 1u] == '1') ? '/' : '~');
                 one += 1u;
+                one += 1u;
                 continue;
             }
             mmgr_line_ch(&line, args->pointer[one]);
+            one += 1u;
         }
         if (mmgr_line_finish(&line) == 0u && (end > start))
         {

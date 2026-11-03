@@ -7,13 +7,14 @@
 // right under the tabs row and the editor filling the rest; every size the page's pixels times the scale (frame.c)
 #ifndef GUI_FRAME_H
 #define GUI_FRAME_H
+#include "embed_dispatch_layout.h"
+#include "raster.h"
+
 typedef struct GuiFrameScaleCfg GuiFrameScaleCfg;
 typedef struct GuiFrameCfg GuiFrameCfg;
 typedef struct GuiFrameHolesCfg GuiFrameHolesCfg;
 typedef struct GuiFrameDisplayedCfg GuiFrameDisplayedCfg;
 typedef struct GuiFramePixelsCfg GuiFramePixelsCfg;
-#include "embed_dispatch_layout.h"
-#include "raster.h"
 
 // the parts' sizes in the page's pixels: the bar's height, --bar-height; the status bar's; the strip's width,
 // --strip-width; the frame's gap at the right, --frame-right; the side pane's width, --side; the tabs row's height,

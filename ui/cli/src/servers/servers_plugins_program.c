@@ -105,15 +105,15 @@ void cli_servers_plugin_args(const CliServersJsonServerCtx *args)
         const char *const arg = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
                                            .json_read = args->json, .node = item, .length_pointer = NULL);
         const char *const text = (arg != NULL) ? arg : "";
-        char word[CLI_PATH_MAX_LEN * 2u];
-        VerbaLinea written = {word, sizeof(word), 0ULL};
+        char word_text[CLI_PATH_MAX_LEN * 2u];
+        VerbaLinea written = {word_text, sizeof(word_text), 0ULL};
         EMBED_CALL(cli_servers_text_internal.plugin_folder_append, CliServersTextCtx, .written = &written, .text = text,
                    .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), .folder = args->folder,
                    .escaped = 0);
         if (mmgr_line_finish(&written) != 0ULL)
         {
             EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = args->words,
-                       .word = word);
+                       .word_text = word_text);
         }
     }
 }

@@ -10,10 +10,10 @@
 // thousand edits, at either step, the two texts read as too far apart
 #ifndef STRUCTURE_H
 #define STRUCTURE_H
-typedef struct CliStructureCfg CliStructureCfg;
-
 #include "../command_line/cli_internal.h"
 #include "embed_dispatch_layout.h"
+
+typedef struct CliStructureCfg CliStructureCfg;
 
 // What a line, or a token of it, is: the same in both texts, changed, moved, reshaped, or changed only by names renamed
 enum

@@ -434,18 +434,18 @@ EMBED_INLINE int wordmark_name_init(const WordmarkCtx *args)
     {
         const unsigned char *const cover = &args->wordmark->name.cover[row * width];
         unsigned int first = 0u;
-        unsigned int end = width;
+        unsigned int inner_end = width;
         while ((first < width) && (cover[first] == 0u))
         {
             first += 1u;
         }
-        while ((end > first) && (cover[end - 1u] == 0u))
+        while ((inner_end > first) && (cover[inner_end - 1u] == 0u))
         {
-            end -= 1u;
+            inner_end -= 1u;
         }
         // a column of the mask stands below 2^16
         args->wordmark->text_color[row][0] = (unsigned short)first;
-        args->wordmark->text_color[row][1] = (unsigned short)end;
+        args->wordmark->text_color[row][1] = (unsigned short)inner_end;
     }
     return 1;
 }
@@ -617,12 +617,12 @@ EMBED_INLINE int wordmark_under_init(const WordmarkCtx *args)
                .passes = 2u * drop * drop);
     const GuiMask cuts_mask = {width, height, 0, 0, cuts};
     const GuiMask shade_mask = {width, height, 0, 0, shade};
-    EMBED_CALL(gui_raster_xy.stenciled_over, GuiRasterXYCfg, .picture = &args->wordmark->under, .mask = &shade_mask,
-               .x = 0, .y = -bevel_drop, .color = args->palette->lifted);
-    EMBED_CALL(gui_raster_xy.stenciled_over, GuiRasterXYCfg, .picture = &args->wordmark->under, .mask = &cuts_mask,
+    EMBED_CALL(gui_raster_xy.stenciled_over, GuiRasterXYCfg, .picture = &args->wordmark->under,
+               .mask_bits = &shade_mask, .x = 0, .y = -bevel_drop, .color = args->palette->lifted);
+    EMBED_CALL(gui_raster_xy.stenciled_over, GuiRasterXYCfg, .picture = &args->wordmark->under, .mask_bits = &cuts_mask,
                .x = 0, .y = bevel_drop,
                .color = (args->palette->open_text & 0x00ffffffu) | ((GuiColor)WORDMARK_LIP_ALPHA << 24u));
-    EMBED_CALL(gui_raster_xy.stenciled_over, GuiRasterXYCfg, .picture = &args->wordmark->under, .mask = &cuts_mask,
+    EMBED_CALL(gui_raster_xy.stenciled_over, GuiRasterXYCfg, .picture = &args->wordmark->under, .mask_bits = &cuts_mask,
                .x = 0, .y = 0, .color = args->palette->incised);
     g_cli_cells->persistent_buf_release(floats, &g_gui_cells);
     return 1;
@@ -1103,8 +1103,9 @@ void gui_wordmark_draw(const GuiWordmarkFrameCfg *args)
     if (args->wordmark->exists)
     {
         // the raster's sides are far inside what an int represents
-        EMBED_CALL(gui_raster_xy_color.mask, GuiRasterXYColorCfg, .raster = args->raster, .mask = &args->wordmark->name,
-                   .x = args->wordmark->from.x, .y = args->wordmark->from.y, .color = args->palette->open_text,
+        EMBED_CALL(gui_raster_xy_color.mask_bits, GuiRasterXYColorCfg, .raster = args->raster,
+                   .mask_bits = &args->wordmark->name, .x = args->wordmark->from.x, .y = args->wordmark->from.y,
+                   .color = args->palette->open_text,
                    .clip = (GuiRect){0, 0, (int)args->raster->width, (int)args->raster->height});
     }
     else if (args->wordmark->pours)
@@ -1154,8 +1155,8 @@ void gui_wordmark_logo_draw(const GuiWordmarkFrameCfg *args)
     if ((logo != NULL) && (logo->cover != NULL))
     {
         // the raster's sides are far inside what an int represents
-        EMBED_CALL(gui_raster_xy_color.mask, GuiRasterXYColorCfg, .raster = args->raster, .mask = logo, .x = square.x,
-                   .y = square.y, .color = args->palette->bar_mark,
+        EMBED_CALL(gui_raster_xy_color.mask_bits, GuiRasterXYColorCfg, .raster = args->raster, .mask_bits = logo,
+                   .x = square.x, .y = square.y, .color = args->palette->bar_mark,
                    .clip = (GuiRect){0, 0, (int)args->raster->width, (int)args->raster->height});
     }
 }

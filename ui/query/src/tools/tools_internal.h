@@ -4,6 +4,9 @@
 // bounds of a build
 #ifndef TOOLS_INTERNAL_H
 #define TOOLS_INTERNAL_H
+#include "../query_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct QueryToolsRootToolCCtx QueryToolsRootToolCCtx;
 typedef struct QueryToolsSourceKnownCtx QueryToolsSourceKnownCtx;
 typedef struct QueryToolsRootToolSourcesCtx QueryToolsRootToolSourcesCtx;
@@ -11,9 +14,6 @@ typedef struct QueryToolsRootObjectsCtx QueryToolsRootObjectsCtx;
 typedef struct QueryToolsRootCtx QueryToolsRootCtx;
 typedef struct QueryToolsRootToolCtx QueryToolsRootToolCtx;
 typedef struct QueryToolsCtx QueryToolsCtx;
-
-#include "../query_internal.h"
-#include "embed_dispatch_layout.h"
 
 // the most groups of patterns a tool's C or C++ sources are given in, and the most sources one tool compiles
 #define QUERY_TOOL_GROUPS 4u

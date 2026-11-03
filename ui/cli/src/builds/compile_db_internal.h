@@ -4,6 +4,12 @@
 // below a build finds, a command line's words, and a JSON file read into a tree
 #ifndef COMPILE_DB_INTERNAL_H
 #define COMPILE_DB_INTERNAL_H
+#include "../command_line/callback_cfg.h"
+#include "../text/json_tree.h"
+#include "../text/reply.h"
+#include "compile_db.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliCompileDbFoundCtx CliCompileDbFoundCtx;
 typedef struct CliCompileDbTextCtx CliCompileDbTextCtx;
 typedef struct CliCompileDbFoundTopCtx CliCompileDbFoundTopCtx;
@@ -15,12 +21,6 @@ typedef struct CliCompileDbPathCtx CliCompileDbPathCtx;
 typedef struct CliCompileDbReplyCtx CliCompileDbReplyCtx;
 typedef struct CliCompileDbPathStampedCtx CliCompileDbPathStampedCtx;
 typedef struct CliCompileDbCtx CliCompileDbCtx;
-
-#include "../command_line/callback_cfg.h"
-#include "../text/json_tree.h"
-#include "../text/reply.h"
-#include "compile_db.h"
-#include "embed_dispatch_layout.h"
 
 // how deep below build/cmake and build/meson a build is looked for; the most files a look reads; the most folders a
 // search below a build finds; and the files and folders their capacities are taken with

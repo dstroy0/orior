@@ -9,14 +9,15 @@
 // palette changes (base.c)
 #ifndef GUI_BASE_H
 #define GUI_BASE_H
-typedef struct GuiBaseRasterCfg GuiBaseRasterCfg;
-typedef struct GuiBaseFrameCfg GuiBaseFrameCfg;
-typedef struct GuiBaseCfg GuiBaseCfg;
-typedef struct GuiBaseWidthCfg GuiBaseWidthCfg;
 #include "embed_dispatch_layout.h"
 #include "frame.h"
 #include "palette.h"
 #include "parts/glass.h"
+
+typedef struct GuiBaseRasterCfg GuiBaseRasterCfg;
+typedef struct GuiBaseFrameCfg GuiBaseFrameCfg;
+typedef struct GuiBaseCfg GuiBaseCfg;
+typedef struct GuiBaseWidthCfg GuiBaseWidthCfg;
 
 // the grain's levels, 0 to its most alpha; the layers: nothing over the lattice, the editor's ground, the side's,
 // the tabs row's surface, the glass sheet at each grain level, a pane at each, and a pane's edge at each of its

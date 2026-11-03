@@ -178,7 +178,7 @@ static void read_on_find(const CliEachNameValueCfg *args)
 
 void cli_recording_history(const CliRecordingSerialCtx *args)
 {
-    void (*each)(const CliEachStepLineValueCfg *args) = args->each;
+    void (*each)(const CliEachStepLineValueCfg *) = args->each;
     void *context = args->context;
     const CliRecording *const recording = &g_cli_replay->recording;
     if (args->serial >= recording->frame_max)

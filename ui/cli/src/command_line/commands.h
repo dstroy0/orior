@@ -4,6 +4,9 @@
 // each its title, its word, its groups and split, and its items flattened, groups among them, in order
 #ifndef COMMANDS_H
 #define COMMANDS_H
+#include "cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliCommandsMenuCfg CliCommandsMenuCfg;
 typedef struct CliCommandsMenuGroupsCfg CliCommandsMenuGroupsCfg;
 typedef struct CliCommandsMenuCapacityCfg CliCommandsMenuCapacityCfg;
@@ -14,9 +17,6 @@ typedef struct CliCommandsMenuWordCfg CliCommandsMenuWordCfg;
 typedef struct CliCommandsCfg CliCommandsCfg;
 typedef struct CliCommandsSizeCfg CliCommandsSizeCfg;
 typedef struct CliCommandsItemCfg CliCommandsItemCfg;
-
-#include "cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // the most menus, the most items of one menu, and the longest label, command, keys or words of one
 #define CLI_MENUS_MAX 32u
@@ -75,7 +75,7 @@ const char *cli_commands_text(const CliCommandsSizeCfg *args);
 struct CliCommandsMenuCfg
 {
     unsigned int menu;
-    const char *word;
+    const char *word_text;
     CliItem *item;
 };
 
@@ -95,7 +95,7 @@ struct CliCommandsMenuCapacityCfg
 
 struct CliCommandsWordCfg
 {
-    const char *word;
+    const char *word_text;
     unsigned int *menu_pointer;
 };
 

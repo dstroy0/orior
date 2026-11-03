@@ -169,58 +169,62 @@ void cli_link_runs(const CliLinkAddressCfg *args)
         {
             memor.set(&(MemoriaCfg){.dst = words, .val = 0, .bytes = sizeof(*words)});
             EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
-                       .word = "ssh");
+                       .word_text = "ssh");
         }
         if (args->terminal)
         {
             EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
-                       .word = "-tt");
+                       .word_text = "-tt");
         }
         else
         {
             EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
-                       .word = "-T");
+                       .word_text = "-T");
             EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
-                       .word = "-o");
+                       .word_text = "-o");
             EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
-                       .word = "BatchMode=yes");
+                       .word_text = "BatchMode=yes");
         }
         static const char *const alive[4] = {"-o", "ServerAliveInterval=15", "-o", "ServerAliveCountMax=3"};
         for (unsigned int at = 0u; at < 4u; at += 1u)
         {
             EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
-                       .word = alive[at]);
+                       .word_text = alive[at]);
         }
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
-                   .word = args->address->name);
+                   .word_text = args->address->name);
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
-                   .word = args->line);
+                   .word_text = args->line);
         return;
     }
     if (args->address->way == CLI_LINK_DOCKER)
     {
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
-                   .word = "docker");
+                   .word_text = "docker");
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
-                   .word = "exec");
+                   .word_text = "exec");
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
-                   .word = args->terminal ? "-it" : "-i");
+                   .word_text = args->terminal ? "-it" : "-i");
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
-                   .word = args->address->name);
+                   .word_text = args->address->name);
     }
     else
     {
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
-                   .word = "wsl");
-        EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words, .word = "-d");
+                   .word_text = "wsl");
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
-                   .word = args->address->name);
-        EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words, .word = "--");
+                   .word_text = "-d");
+        EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
+                   .word_text = args->address->name);
+        EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
+                   .word_text = "--");
     }
-    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words, .word = "sh");
-    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words, .word = "-c");
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
-               .word = args->line);
+               .word_text = "sh");
+    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
+               .word_text = "-c");
+    EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = words,
+               .word_text = args->line);
 }
 
 int cli_link_remote_run(const CliLinkSizeCfg *args)
@@ -235,11 +239,11 @@ int cli_link_remote_run(const CliLinkSizeCfg *args)
     EMBED_CALL(cli_link_address_table.runs, CliLinkAddressCfg, .address = args->address, .line = args->line,
                .terminal = 0, .words = &words);
     CliRunResult *const run_result = cli_run_result_alloc();
-    const int started =
-        !words.full && EMBED_CALL(cli_words_internal.run_result_feed, CliWordsCtx, .words = words.word, .folder = NULL,
-                                  .settings = NULL, .count = 0u, .input = (args->input != NULL) ? args->input : "",
-                                  .length = (args->input != NULL) ? args->size : 0ULL, .run_result = run_result,
-                                  .err_msg = args->err_msg);
+    const int started = !words.full && EMBED_CALL(cli_words_internal.run_result_feed, CliWordsCtx,
+                                                  .words = words.word_text, .folder = NULL, .settings = NULL,
+                                                  .count = 0u, .input = (args->input != NULL) ? args->input : "",
+                                                  .length = (args->input != NULL) ? args->size : 0ULL,
+                                                  .run_result = run_result, .err_msg = args->err_msg);
     if (words.full)
     {
         mmgr_line_put(args->err_msg, "the line is longer than orior_cli runs");

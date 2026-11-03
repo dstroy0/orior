@@ -4,6 +4,10 @@
 // the values they may be, stored while the script is read under the module's lock
 #ifndef PYTHON_PATHS_INTERNAL_H
 #define PYTHON_PATHS_INTERNAL_H
+#include "../command_line/cells.h"
+#include "embed_dispatch_layout.h"
+#include "python_paths.h"
+
 typedef struct CliPythonPathsTextTextMaxCtx CliPythonPathsTextTextMaxCtx;
 typedef struct CliPythonPathsSizeCtx CliPythonPathsSizeCtx;
 typedef struct CliPythonPathsExprCtx CliPythonPathsExprCtx;
@@ -13,10 +17,6 @@ typedef struct CliPythonPathsCtx CliPythonPathsCtx;
 typedef struct CliPythonPathsAtCtx CliPythonPathsAtCtx;
 typedef struct CliPythonPathsTextKindCtx CliPythonPathsTextKindCtx;
 typedef struct CliPythonPathsFirstCtx CliPythonPathsFirstCtx;
-
-#include "../command_line/cells.h"
-#include "embed_dispatch_layout.h"
-#include "python_paths.h"
 
 // the most expressions, list items, letters of one expression, bytes of texts, values and names one script's reading
 // contains; no expression; and the most values a pairing of two lists gives. A reading's own most of each is sized to

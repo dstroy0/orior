@@ -261,7 +261,8 @@ EMBED_INLINE void cli_signature_tree_type(const SymbolsSignatureCtx *args)
     CliSymbolType *type = args->type;
     int seen = 0;
     char *const scratch = cli_branch_copy_alloc();
-    for (unsigned int file = 0u; !seen && (scratch != NULL) && (file < g_cli_branch_count); file += 1u)
+    unsigned int file = 0u;
+    while (!seen && (scratch != NULL) && (file < g_cli_branch_count))
     {
         const CliTreeBranch *const branch = &g_cli_branches[file];
         const int spoken = EMBED_CALL(signature_file_read, SymbolsSignatureCtx, .languages = languages,
@@ -284,6 +285,7 @@ EMBED_INLINE void cli_signature_tree_type(const SymbolsSignatureCtx *args)
                 args->signature->needle_line = symbol->line;
             }
         }
+        file += 1u;
     }
     EMBED_CALL(cli_symbols_tree_branch.branch_copy_free, CliSymbolsTreeBranchCfg, .scratch = scratch);
     char full[CLI_PATH_MAX_LEN];

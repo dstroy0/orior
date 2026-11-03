@@ -233,7 +233,8 @@ CliLsp *cli_servers_owner_get(const CliServersPathLspCtx *args)
 {
     const char *path = args->path;
     CliLsp *found = NULL;
-    for (unsigned int at = 0u; (found == NULL) && (at < CLI_SERVERS_MAX); at += 1u)
+    unsigned int at = 0u;
+    while ((found == NULL) && (at < CLI_SERVERS_MAX))
     {
         CliServerRunning *const one = &g_cli_servers.running[at];
         if (one->used && EMBED_CALL(cli_lsp_path_out.has, CliLspPathOutCfg, .lsp = one->lsp, .path = path))
@@ -241,6 +242,7 @@ CliLsp *cli_servers_owner_get(const CliServersPathLspCtx *args)
             found = one->lsp;
             EMBED_CALL(cli_lsp_context.ref, CliLspContextCfg, .lsp = found);
         }
+        at += 1u;
     }
     return found;
 }

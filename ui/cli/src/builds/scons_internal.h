@@ -6,6 +6,11 @@
 // scons_check.c)
 #ifndef SCONS_INTERNAL_H
 #define SCONS_INTERNAL_H
+#include "../command_line/callback_cfg.h"
+#include "../text/text.h"
+#include "builds_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliSconsTextCtx CliSconsTextCtx;
 typedef struct CliSconsFromCtx CliSconsFromCtx;
 typedef struct CliSconsEachCtx CliSconsEachCtx;
@@ -16,11 +21,6 @@ typedef struct CliSconsTextSizeClassOfCtx CliSconsTextSizeClassOfCtx;
 typedef struct CliSconsContextCtx CliSconsContextCtx;
 typedef struct CliSconsContextEachScriptCtx CliSconsContextEachScriptCtx;
 typedef struct CliSconsCtx CliSconsCtx;
-
-#include "../command_line/callback_cfg.h"
-#include "../text/text.h"
-#include "builds_internal.h"
-#include "embed_dispatch_layout.h"
 
 // what a byte of a file is
 #define CLI_SCONS_CODE 0u

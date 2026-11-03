@@ -438,9 +438,9 @@ EMBED_INLINE void base_tiled_draw(const BaseCtx *args)
             for (unsigned int px = 0u; px < chunk; px += 1u)
             {
                 const unsigned int lanes = red_blue[px] + ((lattice[px] & 0x00ff00ffu) * rest[px]);
-                const unsigned int lane = green[px] + (((lattice[px] >> 8u) & 0xffu) * rest[px]);
+                const unsigned int lane_at = green[px] + (((lattice[px] >> 8u) & 0xffu) * rest[px]);
                 run[px] = 0xff000000u | (((lanes + ((lanes >> 8u) & 0x00ff00ffu)) >> 8u) & 0x00ff00ffu) |
-                          ((((lane + (lane >> 8u)) >> 8u) & 0xffu) << 8u);
+                          ((((lane_at + (lane_at >> 8u)) >> 8u) & 0xffu) << 8u);
             }
         }
         else
@@ -448,9 +448,9 @@ EMBED_INLINE void base_tiled_draw(const BaseCtx *args)
             for (unsigned int px = 0u; px < chunk; px += 1u)
             {
                 const unsigned int lanes = red_blue[px] + ((args->color & 0x00ff00ffu) * rest[px]);
-                const unsigned int lane = green[px] + (((args->color >> 8u) & 0xffu) * rest[px]);
+                const unsigned int lane_at = green[px] + (((args->color >> 8u) & 0xffu) * rest[px]);
                 run[px] = 0xff000000u | (((lanes + ((lanes >> 8u) & 0x00ff00ffu)) >> 8u) & 0x00ff00ffu) |
-                          ((((lane + (lane >> 8u)) >> 8u) & 0xffu) << 8u);
+                          ((((lane_at + (lane_at >> 8u)) >> 8u) & 0xffu) << 8u);
             }
         }
         at += chunk;

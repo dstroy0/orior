@@ -64,11 +64,11 @@ int cli_pg_cancel_send(const CliPgCfg *args)
     unsigned char request[16u + sizeof(args->cancel_read->secret)];
     const unsigned long long length = 12ULL + args->cancel_read->secret_size;
     const unsigned long long words[3] = {length, 80877102ULL, args->cancel_read->pid};
-    for (unsigned int word = 0u; word < 3u; word += 1u)
+    for (unsigned int word_text = 0u; word_text < 3u; word_text += 1u)
     {
         for (unsigned int byte = 0u; byte < 4u; byte += 1u)
         {
-            request[(word * 4u) + byte] = (unsigned char)((words[word] >> (24u - (8u * byte))) & 0xffu);
+            request[(word_text * 4u) + byte] = (unsigned char)((words[word_text] >> (24u - (8u * byte))) & 0xffu);
         }
     }
     memor.cpy(

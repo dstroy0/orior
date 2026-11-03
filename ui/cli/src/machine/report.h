@@ -17,6 +17,9 @@
 // window or at the terminal. One error files once a run, and a run files at most five on its own.
 #ifndef REPORT_H
 #define REPORT_H
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliReportCategoryCfg CliReportCategoryCfg;
 typedef struct CliReportRootCfg CliReportRootCfg;
 typedef struct CliReportCategoryTextCfg CliReportCategoryTextCfg;
@@ -25,9 +28,6 @@ typedef struct CliReportTextCfg CliReportTextCfg;
 typedef struct CliReportErrMsgCfg CliReportErrMsgCfg;
 typedef struct CliReportOnCfg CliReportOnCfg;
 typedef struct CliReportCfg CliReportCfg;
-
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // the repository issues are filed on, and the question the reporter is prompted once, at installation or on the first
 // run

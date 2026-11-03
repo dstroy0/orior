@@ -196,8 +196,8 @@ void gui_controls_draw(const GuiChromeRasterCfg *args)
             const int reach = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = CONTROLS_SHADOW_REACH,
                                          .scale = args->frame->scale);
             // the raster's sides are far inside what an int represents
-            EMBED_CALL(gui_raster_xy_color.mask, GuiRasterXYColorCfg, .raster = args->raster, .mask = args->shadow,
-                       .x = args->frame->controls_pane.x - reach,
+            EMBED_CALL(gui_raster_xy_color.mask_bits, GuiRasterXYColorCfg, .raster = args->raster,
+                       .mask_bits = args->shadow, .x = args->frame->controls_pane.x - reach,
                        .y = args->frame->controls_pane.y - reach +
                             EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = CONTROLS_SHADOW_DOWN,
                                        .scale = args->frame->scale),

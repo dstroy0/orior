@@ -7,6 +7,12 @@
 // system_x11.c)
 #ifndef GUI_SYSTEM_H
 #define GUI_SYSTEM_H
+#include "../../cli/src/command_line/callback_cfg.h"
+#include "../../cli/src/controller/controller.h"
+#include "../../cli/src/view/view.h"
+#include "embed_dispatch_layout.h"
+#include "input_event.h"
+
 typedef struct GuiSystemPositionTitleCfg GuiSystemPositionTitleCfg;
 typedef struct GuiSystemTitleIconCfg GuiSystemTitleIconCfg;
 typedef struct GuiSystemRasterCfg GuiSystemRasterCfg;
@@ -14,11 +20,6 @@ typedef struct GuiSystemCfg GuiSystemCfg;
 typedef struct GuiSystemAreasCfg GuiSystemAreasCfg;
 typedef struct GuiSystemWidthCfg GuiSystemWidthCfg;
 typedef struct GuiSystemPositionCfg GuiSystemPositionCfg;
-#include "../../cli/src/command_line/callback_cfg.h"
-#include "../../cli/src/controller/controller.h"
-#include "../../cli/src/view/view.h"
-#include "embed_dispatch_layout.h"
-#include "input_event.h"
 
 // A system window, as its body defines it
 typedef struct GuiSystem GuiSystem;

@@ -16,9 +16,9 @@
 typedef struct
 {
     unsigned int count;
-    embed_word word[CLI_TEXT_SET_MAX];
+    embed_word word_text[CLI_TEXT_SET_MAX];
 #if MMGR_VECTOR_BYTES != 0u
-    MmgrVector lane[CLI_TEXT_SET_MAX];
+    MmgrVector lane_at[CLI_TEXT_SET_MAX];
 #endif
 } CliTextSet;
 unsigned int cli_text_letter(const CliTextAtCfg *args)
@@ -121,9 +121,9 @@ EMBED_INLINE void text_set_fill(const TextCtx *args)
     {
         // Explicit cast reads the byte as unsigned before it is repeated into every lane
         const uint8_t byte = (uint8_t)args->set[at];
-        args->filled_out->word[at] = MMGR_SWAR_ONES * (embed_word)byte;
+        args->filled_out->word_text[at] = MMGR_SWAR_ONES * (embed_word)byte;
 #if MMGR_VECTOR_BYTES != 0u
-        args->filled_out->lane[at] = mmgr_vector_fill(byte);
+        args->filled_out->lane_at[at] = mmgr_vector_fill(byte);
 #endif
     }
 }
@@ -134,7 +134,7 @@ EMBED_INLINE embed_word text_word_in(const TextCtx *args)
     embed_word hit = 0u;
     for (unsigned int at = 0u; at < args->filled->count; at += 1u)
     {
-        hit |= lane.has_zero(&(ScrutLaneCfg){.word = args->loaded ^ args->filled->word[at]});
+        hit |= lane.has_zero(&(ScrutLaneCfg){.word = args->loaded ^ args->filled->word_text[at]});
     }
     return hit;
 }
@@ -160,7 +160,7 @@ static unsigned long long text_walk(const TextCtx *args)
         MmgrVectorMask in_lanes = 0u;
         for (unsigned int one = 0u; one < filled.count; one += 1u)
         {
-            in_lanes |= mmgr_vector_equal_lanes(loaded, filled.lane[one]);
+            in_lanes |= mmgr_vector_equal_lanes(loaded, filled.lane_at[one]);
         }
         const MmgrVectorMask hit = args->in ? in_lanes : (MmgrVectorMask)(EMBED_LANE_MASK_ALL & ~in_lanes);
         if (hit != 0u)
@@ -732,7 +732,7 @@ void cli_text_trim(const CliTextSizeFromU64sCfg *args)
 int cli_text_word(const CliTextSizeLengthCfg *args)
 {
     unsigned long long *at = args->at_pointer;
-    unsigned long long *word = args->word;
+    unsigned long long *word_text = args->word_text;
     unsigned long long *length = args->length;
     *at += EMBED_CALL(cli_text_size_from_u_64s.lead, CliTextSizeFromU64sCfg, .text = args->text + *at,
                       .size = args->size - *at);
@@ -740,7 +740,7 @@ int cli_text_word(const CliTextSizeLengthCfg *args)
     {
         return 0;
     }
-    *word = *at;
+    *word_text = *at;
     while (*at < args->size)
     {
         unsigned long long letter = 0ULL;
@@ -752,7 +752,7 @@ int cli_text_word(const CliTextSizeLengthCfg *args)
         }
         *at += letter;
     }
-    *length = *at - *word;
+    *length = *at - *word_text;
     return 1;
 }
 

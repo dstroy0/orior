@@ -382,9 +382,14 @@ int cli_at_terminal_alloc(const CliAtTerminalCountCfg *args)
                                           .object = one, .name = "how"),
                        .length_pointer = NULL);
         int required = (count == 0u);
-        for (unsigned int at = 0u; !required && (place != NULL) && (at < count); at += 1u)
         {
-            required = (cellul.eq(&(CatenaFinitaCfg){.src = args->chosen[at], .other = place, .cap = CLI_CELLS_POOL}));
+            unsigned int at = 0u;
+            while (!required && (place != NULL) && (at < count))
+            {
+                required =
+                    (cellul.eq(&(CatenaFinitaCfg){.src = args->chosen[at], .other = place, .cap = CLI_CELLS_POOL}));
+                at += 1u;
+            }
         }
         if ((place != NULL) && (how != NULL) &&
             (!cellul.eq(&(CatenaFinitaCfg){.src = how, .other = "here", .cap = CLI_CELLS_POOL})) &&
@@ -408,9 +413,11 @@ int cli_at_terminal_alloc(const CliAtTerminalCountCfg *args)
                                               .object = setting, .name = "key"),
                            .length_pointer = NULL);
             int named = (count == 0u);
-            for (unsigned int at = 0u; !named && (key != NULL) && (at < count); at += 1u)
+            unsigned int at = 0u;
+            while (!named && (key != NULL) && (at < count))
             {
                 named = (cellul.eq(&(CatenaFinitaCfg){.src = args->chosen[at], .other = key, .cap = CLI_CELLS_POOL}));
+                at += 1u;
             }
             if ((key != NULL) && named && (keys < capacity))
             {

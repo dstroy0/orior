@@ -13,13 +13,13 @@
 // Every call works in a tree its caller hands it, `tokens` sized for `tokens_max` for the JSON it reads
 #ifndef NOTEBOOK_H
 #define NOTEBOOK_H
+#include "../text/json_tree.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliNotebookTextCfg CliNotebookTextCfg;
 typedef struct CliNotebookPathCfg CliNotebookPathCfg;
 typedef struct CliNotebookCfg CliNotebookCfg;
 typedef struct CliNotebookPathBookCfg CliNotebookPathBookCfg;
-
-#include "../text/json_tree.h"
-#include "embed_dispatch_layout.h"
 
 // the most cells of one side a merge aligns
 #define CLI_NOTEBOOK_CELLS 1024u

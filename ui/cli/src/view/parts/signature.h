@@ -6,12 +6,13 @@
 // asked for and when it goes are the controller's (signature.c)
 #ifndef GUI_PARTS_SIGNATURE_H
 #define GUI_PARTS_SIGNATURE_H
-typedef struct GuiSignatureRasterCfg GuiSignatureRasterCfg;
-typedef struct GuiSignatureXCfg GuiSignatureXCfg;
-typedef struct GuiSignatureCfg GuiSignatureCfg;
 #include "../../text/edits.h"
 #include "embed_dispatch_layout.h"
 #include "panel.h"
+
+typedef struct GuiSignatureRasterCfg GuiSignatureRasterCfg;
+typedef struct GuiSignatureXCfg GuiSignatureXCfg;
+typedef struct GuiSignatureCfg GuiSignatureCfg;
 
 // the box's most width and height in the page's pixels, 40rem by 12rem, its padding down and across and the gap between
 // the label and the documentation

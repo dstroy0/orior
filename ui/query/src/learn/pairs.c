@@ -40,14 +40,15 @@ int query_pairs_read(const QueryPairsErrMsgCtx *args)
     mode->mode = args->words_letters[0];
     for (unsigned int at = 1u; at < args->count; at += 1u)
     {
-        const char *const word = args->words_letters[at];
+        const char *const word_text = args->words_letters[at];
         const char **const field =
-            (cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "--part", .cap = CLI_CELLS_POOL}))    ? &mode->part
-            : (cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "--to", .cap = CLI_CELLS_POOL}))    ? &mode->to
-            : (cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "--seed", .cap = CLI_CELLS_POOL}))  ? &mode->seed
-            : (cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "--trace", .cap = CLI_CELLS_POOL})) ? &mode->trace
-                                                                                                      : NULL;
-        if (cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "--dry", .cap = CLI_CELLS_POOL}))
+            (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--part", .cap = CLI_CELLS_POOL}))   ? &mode->part
+            : (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--to", .cap = CLI_CELLS_POOL}))   ? &mode->to
+            : (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--seed", .cap = CLI_CELLS_POOL})) ? &mode->seed
+            : (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--trace", .cap = CLI_CELLS_POOL}))
+                ? &mode->trace
+                : NULL;
+        if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--dry", .cap = CLI_CELLS_POOL}))
         {
             mode->dry = 1;
         }
@@ -55,7 +56,7 @@ int query_pairs_read(const QueryPairsErrMsgCtx *args)
         {
             if ((at + 1u) >= args->count)
             {
-                mmgr_line_put(args->err_msg, word);
+                mmgr_line_put(args->err_msg, word_text);
                 mmgr_line_put(args->err_msg, " takes a value");
                 return 0;
             }
@@ -64,7 +65,7 @@ int query_pairs_read(const QueryPairsErrMsgCtx *args)
         }
         else if (mode->word_count < QUERY_WORDS_MAX)
         {
-            mode->words[mode->word_count] = word;
+            mode->words[mode->word_count] = word_text;
             mode->word_count += 1u;
         }
     }
@@ -136,52 +137,52 @@ void query_pairs_machine_transfer_words(const QueryPairsPartDryCtx *args)
     // the carrier, its dry flags first where `dry` as it reads them, its gated list and its lessons, the machine file
     // and the layout; the pop, dry and full; and the cross with the vendor's reader
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
-               .word = args->transport);
+               .word_text = args->transport);
     if (args->dry)
     {
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
-                   .word = "--dry");
+                   .word_text = "--dry");
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
-                   .word = "--full");
+                   .word_text = "--full");
     }
     static const char *const s_feedback_words[4] = {"--gated", "gated.txt", "--lessons", "overseer.txt"};
     for (unsigned int at = 0u; at < 4u; at += 1u)
     {
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
-                   .word = s_feedback_words[at]);
+                   .word_text = s_feedback_words[at]);
     }
     EMBED_CALL(query_loops_words_words_text.words_text, QueryLoopsWordsWordsTextCfg, .words_words_pointer = words,
                .text = args->machine);
     EMBED_CALL(query_loops_words_words_text.words_text, QueryLoopsWordsWordsTextCfg, .words_words_pointer = words,
                .text = args->layout);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
-               .word = "--pop");
+               .word_text = "--pop");
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
-               .word = args->transport);
+               .word_text = args->transport);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
-               .word = "--dry");
+               .word_text = "--dry");
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
-               .word = "--full");
+               .word_text = "--full");
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
-               .word = "--lessons");
+               .word_text = "--lessons");
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
-               .word = "overseer.txt");
+               .word_text = "overseer.txt");
     EMBED_CALL(query_loops_words_words_text.words_text, QueryLoopsWordsWordsTextCfg, .words_words_pointer = words,
                .text = args->machine);
     EMBED_CALL(query_loops_words_words_text.words_text, QueryLoopsWordsWordsTextCfg, .words_words_pointer = words,
                .text = args->layout);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
-               .word = "--cross");
+               .word_text = "--cross");
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
-               .word = args->cross);
+               .word_text = args->cross);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
-               .word = args->nvdisasm);
+               .word_text = args->nvdisasm);
     EMBED_CALL(query_loops_words_words_text.words_text, QueryLoopsWordsWordsTextCfg, .words_words_pointer = words,
                .text = reader);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
-               .word = "airlock.md");
+               .word_text = "airlock.md");
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = words,
-               .word = "gated.txt");
+               .word_text = "gated.txt");
 }
 
 int query_pairs_configs(const QueryPairsPartContextCtx *args)

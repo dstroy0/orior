@@ -154,7 +154,8 @@ EMBED_INLINE unsigned long long cli_layout(const HighlightStoreCtx *args)
     args->grammar->state =
         (CliHighlightList *)EMBED_CALL(cli_position, HighlightStoreCtx, .region = args->region, .at = at);
     at += EMBED_CALL(cli_words_get, HighlightStoreCtx, .bytes = args->grammar->states * sizeof(CliHighlightList));
-    args->grammar->word = (unsigned int *)EMBED_CALL(cli_position, HighlightStoreCtx, .region = args->region, .at = at);
+    args->grammar->word_text =
+        (unsigned int *)EMBED_CALL(cli_position, HighlightStoreCtx, .region = args->region, .at = at);
     at += EMBED_CALL(cli_words_get, HighlightStoreCtx, .bytes = args->grammar->word_count * sizeof(unsigned int));
     args->grammar->words =
         (CliHighlightList *)EMBED_CALL(cli_position, HighlightStoreCtx, .region = args->region, .at = at);
@@ -192,7 +193,7 @@ EMBED_INLINE void cli_copy(const HighlightStoreCtx *args)
     memor.cpy(&(MemoriaCfg){
         .dst = copy->state, .src = args->read->state, .bytes = args->read->states * sizeof(CliHighlightList)});
     memor.cpy(&(MemoriaCfg){
-        .dst = copy->word, .src = args->read->word, .bytes = args->read->word_count * sizeof(unsigned int)});
+        .dst = copy->word_text, .src = args->read->word_text, .bytes = args->read->word_count * sizeof(unsigned int)});
     memor.cpy(&(MemoriaCfg){
         .dst = copy->words, .src = args->read->words, .bytes = args->read->word_lists * sizeof(CliHighlightList)});
     memor.cpy(
@@ -322,8 +323,9 @@ EMBED_INLINE unsigned long long cli_grammar_parts(const HighlightStoreCtx *args)
                    .bytes = args->work_state->listing_max * sizeof(unsigned int));
     args->work_state->state = EMBED_CALL(cli_work_state_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
                                          .bytes = args->work_state->states_max * sizeof(CliHighlightList));
-    args->work_state->word = EMBED_CALL(cli_work_state_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
-                                        .bytes = args->work_state->words_max * sizeof(unsigned int));
+    args->work_state->word_text =
+        EMBED_CALL(cli_work_state_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
+                   .bytes = args->work_state->words_max * sizeof(unsigned int));
     args->work_state->words = EMBED_CALL(cli_work_state_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
                                          .bytes = args->work_state->word_lists_max * sizeof(CliHighlightList));
     args->work_state->name = EMBED_CALL(cli_work_state_part, HighlightStoreCtx, .cell = args->cell, .at_pointer = &at,
@@ -586,8 +588,8 @@ int cli_highlight_has_word(const CliHighlightLengthCtx *args)
         const unsigned int middle = low + ((high - low) / 2u);
         // the stored word is terminated and `word` contains no terminator within its length: a compare over `length`
         // bytes orders a shorter stored word by its terminator, and a longer one by the byte after `length`
-        const char *const word_at = args->grammar->text + args->grammar->word[args->list->first + middle];
-        embed_iword order = memor.cmp(&(MemoriaCfg){.src = word_at, .other = args->word, .bytes = args->length});
+        const char *const word_at = args->grammar->text + args->grammar->word_text[args->list->first + middle];
+        embed_iword order = memor.cmp(&(MemoriaCfg){.src = word_at, .other = args->word_text, .bytes = args->length});
         order = (order != 0) ? order : ((word_at[args->length] != '\0') ? 1 : 0);
         if (order == 0)
         {

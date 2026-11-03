@@ -28,6 +28,9 @@
 // `.js`, `.mjs` or `/index.js` after it where the path names no file (inspect.c, inspect_*.c)
 #ifndef INSPECT_H
 #define INSPECT_H
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliInspectFactsCfg CliInspectFactsCfg;
 typedef struct CliInspectParsedCfg CliInspectParsedCfg;
 typedef struct CliInspectLanguageCfg CliInspectLanguageCfg;
@@ -38,9 +41,6 @@ typedef struct CliInspectFactsFindingCfg CliInspectFactsFindingCfg;
 typedef struct CliInspectCountCfg CliInspectCountCfg;
 typedef struct CliInspectPoolCfg CliInspectPoolCfg;
 typedef struct CliInspectCfg CliInspectCfg;
-
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // the classes a parse gives a column, by their index: none, then each the page's own, as its colors name them
 #define CLI_INSPECT_NONE 0u

@@ -11,6 +11,10 @@
 // lsp_files.c)
 #ifndef LSP_H
 #define LSP_H
+#include "../command_line/callback_cfg.h"
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliLspErrMsgCfg CliLspErrMsgCfg;
 typedef struct CliLspErrMsgLengthCfg CliLspErrMsgLengthCfg;
 typedef struct CliLspErrMsgTextCfg CliLspErrMsgTextCfg;
@@ -31,10 +35,6 @@ typedef struct CliLspSizePathCfg CliLspSizePathCfg;
 typedef struct CliLspCapacityPathCfg CliLspCapacityPathCfg;
 typedef struct CliLspCfg CliLspCfg;
 typedef struct CliLspSizeKindCfg CliLspSizeKindCfg;
-
-#include "../command_line/callback_cfg.h"
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // the most requests that wait on answers at once, and the most bytes of what the server writes to its errors that are
 // retained

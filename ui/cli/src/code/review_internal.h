@@ -4,14 +4,14 @@
 // the files named apart the comparison of them gives, guarded by the review's lock
 #ifndef REVIEW_INTERNAL_H
 #define REVIEW_INTERNAL_H
+#include "embed_dispatch_layout.h"
+#include "review.h"
+
 typedef struct CliReviewOneCtx CliReviewOneCtx;
 typedef struct CliReviewLineCtx CliReviewLineCtx;
 typedef struct CliReviewCtx CliReviewCtx;
 typedef struct CliReviewTextLengthCtx CliReviewTextLengthCtx;
 typedef struct CliReviewTextLengthKindCtx CliReviewTextLengthKindCtx;
-
-#include "embed_dispatch_layout.h"
-#include "review.h"
 
 // the most files a change reviewed touches and the bytes of their texts; the most pieces and the bytes of their
 // texts; the bytes each text is read in; and the most calls the pieces make in all

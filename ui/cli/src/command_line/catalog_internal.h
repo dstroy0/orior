@@ -4,6 +4,11 @@
 // declares
 #ifndef CATALOG_INTERNAL_H
 #define CATALOG_INTERNAL_H
+#include "callback_cfg.h"
+#include "catalog.h"
+#include "cells.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliCatalogPathCtx CliCatalogPathCtx;
 typedef struct CliCatalogFilterCtx CliCatalogFilterCtx;
 typedef struct CliCatalogTextVariableCtx CliCatalogTextVariableCtx;
@@ -15,11 +20,6 @@ typedef struct CliCatalogMaxCtx CliCatalogMaxCtx;
 typedef struct CliCatalogOutCtx CliCatalogOutCtx;
 typedef struct CliCatalogPathOutCtx CliCatalogPathOutCtx;
 typedef struct CliCatalogCtx CliCatalogCtx;
-
-#include "callback_cfg.h"
-#include "catalog.h"
-#include "cells.h"
-#include "embed_dispatch_layout.h"
 
 // the cells the catalog occupies while it is read (catalog_lists.c, as are the lists and the givings back below)
 extern CellOwner g_cli_catalog_cells;

@@ -175,7 +175,7 @@ static void watch_servers_done(void *context)
 // what comes back on the controller's thread: the files handed to the servers' lane
 static void watch_tree_done(void *context)
 {
-    EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane = CLI_WORK_SERVERS, .run = watch_servers_run,
+    EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_SERVERS, .run = watch_servers_run,
                .done = watch_servers_done, .context = context);
 }
 
@@ -199,7 +199,7 @@ int cli_model_watch_step(const CliModelCtx *args)
             *work = (ControllerWatchWork){s_watch.waiting, NULL, 0u};
             s_watch.waiting = NULL;
             s_watch.working = 1;
-            EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane = CLI_WORK_TREE, .run = watch_tree_run,
+            EMBED_CALL(cli_controller_work.post, CliControllerWorkCfg, .lane_at = CLI_WORK_TREE, .run = watch_tree_run,
                        .done = watch_tree_done, .context = work);
         }
     }

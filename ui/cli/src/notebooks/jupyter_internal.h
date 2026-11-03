@@ -4,6 +4,12 @@
 // requests waiting on replies, and the wire: keys, ids, frames signed and messages read back
 #ifndef JUPYTER_INTERNAL_H
 #define JUPYTER_INTERNAL_H
+#include "../text/json_tree.h"
+#include "../toolchains/toolchains.h"
+#include "embed_dispatch_layout.h"
+#include "jupyter.h"
+#include "zmtp.h"
+
 typedef struct CliJupyterKernelCtx CliJupyterKernelCtx;
 typedef struct CliJupyterOutCtx CliJupyterOutCtx;
 typedef struct CliJupyterPythonsPythonCountCtx CliJupyterPythonsPythonCountCtx;
@@ -14,12 +20,6 @@ typedef struct CliJupyterKernelParentCtx CliJupyterKernelParentCtx;
 typedef struct CliJupyterSpecCtx CliJupyterSpecCtx;
 typedef struct CliJupyterCtx CliJupyterCtx;
 typedef struct CliJupyterKeyCtx CliJupyterKeyCtx;
-
-#include "../text/json_tree.h"
-#include "../toolchains/toolchains.h"
-#include "embed_dispatch_layout.h"
-#include "jupyter.h"
-#include "zmtp.h"
 
 // the most requests that wait on replies at once, the bytes a reader of published messages and a reader of replies
 // each contains, half for the frames read and half for the message written, the longest line a kernel writes of itself,

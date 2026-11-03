@@ -156,8 +156,9 @@ def cmd_source_analyze(a):
             sources.append(full)
 
     def findings_of(source):
+        how = ["-fsyntax-only", "-ferror-limit=0"] if a.compile_only else ["--analyze", "--analyzer-output", "text", "-Xclang", "-analyzer-checker=" + bound, "-o", os.devnull]
         said = subprocess.run(
-            ["clang", "--analyze", "--analyzer-output", "text", "-Xclang", "-analyzer-checker=" + bound, "-std=c11", "-o", os.devnull, *MMGR_FLAGS, "-DMMGR_ENABLE_HW_MEM_CAPACITY_CB=1", source],
+            ["clang", *how, "-std=c11", "-I", ROOT, "-I", os.path.join(ROOT, "build", "unity", "src"), "-DUNITY_INCLUDE_DOUBLE", "-DUNITY_NORETURN=_Noreturn", *MMGR_FLAGS, "-DMMGR_ENABLE_HW_MEM_CAPACITY_CB=1", source],
             cwd=ROOT,
             capture_output=True,
             text=True,
@@ -576,6 +577,7 @@ def register(sub):
     p = source.add_parser("analyze", help="the clang static analyzer over the sources or folders named, its findings under build/harness/out")
     p.add_argument("sources", nargs="+", help="C sources or folders, from the top of the tree")
     p.add_argument("--notes", action="store_true", help="each finding's path through the code written after it")
+    p.add_argument("--compile-only", action="store_true", help="the compiler's errors and warnings alone, with no analysis")
     p.set_defaults(fn=cmd_source_analyze)
     p = source.add_parser("tidy", help="clang-tidy with the static analyzer, and cppcheck, in the Linux image, their reports under build/sonarqube")
     p.add_argument("--folders", nargs="+", default=["ui/cli/src", "ui/query/src"], help="the folders read, from the top of the tree")

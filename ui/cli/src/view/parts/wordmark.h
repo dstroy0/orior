@@ -8,15 +8,16 @@
 // the bar and the strip both away; a press on either opens orior's repository (wordmark.c)
 #ifndef GUI_PARTS_WORDMARK_H
 #define GUI_PARTS_WORDMARK_H
-typedef struct GuiWordmarkFrameCfg GuiWordmarkFrameCfg;
-typedef struct GuiWordmarkReadCfg GuiWordmarkReadCfg;
-typedef struct GuiWordmarkGlyphsCfg GuiWordmarkGlyphsCfg;
-typedef struct GuiWordmarkStillCfg GuiWordmarkStillCfg;
 #include "../frame.h"
 #include "../glyphs.h"
 #include "../icons.h"
 #include "../palette.h"
 #include "embed_dispatch_layout.h"
+
+typedef struct GuiWordmarkFrameCfg GuiWordmarkFrameCfg;
+typedef struct GuiWordmarkReadCfg GuiWordmarkReadCfg;
+typedef struct GuiWordmarkGlyphsCfg GuiWordmarkGlyphsCfg;
+typedef struct GuiWordmarkStillCfg GuiWordmarkStillCfg;
 
 // the durations in milliseconds: the pane's minimum visible time; the flight; TABVLA's slide up, the delay before it
 // fades out and the fade out; the delay before it fades in as the name appears and that fade in; and the frame time

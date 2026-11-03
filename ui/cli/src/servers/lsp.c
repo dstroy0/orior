@@ -345,9 +345,13 @@ int cli_lsp_request(const CliLspErrMsgLengthCfg *args)
     const unsigned long long id = args->lsp->next;
     args->lsp->next += 1ULL;
     CliLspWaiter *waiter = NULL;
-    for (unsigned int at = 0u; (at < CLI_LSP_WAITERS) && (waiter == NULL); at += 1u)
     {
-        waiter = args->lsp->waiters[at].waiting ? NULL : &args->lsp->waiters[at];
+        unsigned int at = 0u;
+        while ((at < CLI_LSP_WAITERS) && (waiter == NULL))
+        {
+            waiter = args->lsp->waiters[at].waiting ? NULL : &args->lsp->waiters[at];
+            at += 1u;
+        }
     }
     if (waiter != NULL)
     {

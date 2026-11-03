@@ -439,12 +439,13 @@ EMBED_INLINE void explorer_row_draw(const ExplorerCtx *args)
     {
         const unsigned int size =
             (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 14, .scale = scale);
-        const GuiMask *const mask = EMBED_CALL(cli_icons.icon, GuiIconsCfg, .icons = icons, .name = "folder",
-                                               .size = size, .stroke = GUI_ICON_STROKE * (float)size / GUI_ICON_UNITS);
-        if (mask != NULL)
+        const GuiMask *const mask_bits =
+            EMBED_CALL(cli_icons.icon, GuiIconsCfg, .icons = icons, .name = "folder", .size = size,
+                       .stroke = GUI_ICON_STROKE * (float)size / GUI_ICON_UNITS);
+        if (mask_bits != NULL)
         {
             // the icon's side is far inside what an int represents
-            EMBED_CALL(gui_raster_xy_color.mask, GuiRasterXYColorCfg, .raster = raster, .mask = mask,
+            EMBED_CALL(gui_raster_xy_color.mask_bits, GuiRasterXYColorCfg, .raster = raster, .mask_bits = mask_bits,
                        .x = x + ((icon - (int)size) / 2), .y = rect.y + ((rect.height - (int)size) / 2),
                        .color = args->palette->link, .clip = met);
         }

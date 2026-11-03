@@ -3,6 +3,10 @@
 // files_internal.h: what the files sources share: the cells and lists of paths they make
 #ifndef FILES_INTERNAL_H
 #define FILES_INTERNAL_H
+#include "../command_line/callback_cfg.h"
+#include "embed_dispatch_layout.h"
+#include "files.h"
+
 typedef struct CliFilesBytesRequestedCtx CliFilesBytesRequestedCtx;
 typedef struct CliFilesRootCtx CliFilesRootCtx;
 typedef struct CliFilesPathCtx CliFilesPathCtx;
@@ -21,10 +25,6 @@ typedef struct CliFilesPathFolderCtx CliFilesPathFolderCtx;
 typedef struct CliFilesPickedIndexCtx CliFilesPickedIndexCtx;
 typedef struct CliFilesCtx CliFilesCtx;
 typedef struct CliFilesLetterCtx CliFilesLetterCtx;
-
-#include "../command_line/callback_cfg.h"
-#include "embed_dispatch_layout.h"
-#include "files.h"
 
 // The files a reader picks off the tree for one call: a list laid flat in the temporary tier, and how many
 typedef struct

@@ -138,18 +138,18 @@ CliLsp *cli_lsp_start(const CliLspErrMsgCfg *args)
     lsp->words.used = 0u;
     lsp->words.full = 0;
     EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &lsp->words,
-               .word = args->program);
+               .word_text = args->program);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &lsp->words,
-                   .word = args->request[at]);
+                   .word_text = args->request[at]);
     }
     const unsigned int settings_used = (args->setting_count < 64u) ? args->setting_count : 64u;
     memor.cpy(
         &(MemoriaCfg){.dst = lsp->settings, .src = args->settings, .bytes = settings_used * sizeof(args->settings[0])});
     if (!EMBED_CALL(cli_words_err_msg_internal.spawn_feed, CliWordsErrMsgCtx, .spawned = &lsp->spawned,
-                    .words = lsp->words.word, .folder = args->root, .settings = lsp->settings, .count = settings_used,
-                    .detached = 1, .err_msg = args->err_msg))
+                    .words = lsp->words.word_text, .folder = args->root, .settings = lsp->settings,
+                    .count = settings_used, .detached = 1, .err_msg = args->err_msg))
     {
         g_cli_cells->persistent_buf_release(lsp, &g_cli_servers_cells);
         return NULL;

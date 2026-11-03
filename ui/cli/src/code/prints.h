@@ -7,12 +7,12 @@
 // a commit and take out in one step (prints.c)
 #ifndef PRINTS_H
 #define PRINTS_H
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliPrintsOutCfg CliPrintsOutCfg;
 typedef struct CliPrintsCfg CliPrintsCfg;
 typedef struct CliPrintsPathCfg CliPrintsPathCfg;
-
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // whether `length` bytes of `text`, a line of the file at `path`, print as a print for a task does; and the prints the
 // change of the tree `root` against its last commit added, by path and then line, each once, written as

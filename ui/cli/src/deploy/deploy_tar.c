@@ -35,10 +35,12 @@ EMBED_INLINE void tar_octal(const DeployTarCtx *args)
 {
     char text[32];
     unsigned int length = 0u;
-    for (unsigned long long left = args->value; (left > 0u) || (length == 0u); left /= 8u)
+    unsigned long long left = args->value;
+    while ((left > 0u) || (length == 0u))
     {
         text[length] = (char)('0' + (left % 8u));
         length += 1u;
+        left /= 8u;
     }
     char written[40];
     unsigned int at = 0u;

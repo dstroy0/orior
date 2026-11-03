@@ -4,6 +4,9 @@
 // reads from the other
 #ifndef RETENTION_INTERNAL_H
 #define RETENTION_INTERNAL_H
+#include "../query_loops.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct QueryRetentionContextFolderCtx QueryRetentionContextFolderCtx;
 typedef struct QueryRetentionContextOwnCtx QueryRetentionContextOwnCtx;
 typedef struct QueryRetentionContextFreePartCtx QueryRetentionContextFreePartCtx;
@@ -15,9 +18,6 @@ typedef struct QueryRetentionRootCtx QueryRetentionRootCtx;
 typedef struct QueryRetentionContextErrMsgCtx QueryRetentionContextErrMsgCtx;
 typedef struct QueryRetentionCtx QueryRetentionCtx;
 typedef struct QueryRetentionInputCtx QueryRetentionInputCtx;
-
-#include "../query_loops.h"
-#include "embed_dispatch_layout.h"
 
 // A writer's account of its run, its last record (qry_writer.c): the records it put, their bytes, the records that did
 // not match their CRC, those the run had no capacity for, the panics, and the milliseconds it ran

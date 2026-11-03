@@ -282,10 +282,12 @@ int cli_pages_edit(const CliPagesOutErrMsgCfg *args)
     const int done = written;
     for (unsigned int change = 0u; written && (change < args->count_u32); change += 1u)
     {
-        for (unsigned int at = args->edits[change]; written && (at > 0u); at -= 1u)
+        unsigned int at = args->edits[change];
+        while (written && (at > 0u))
         {
             written = EMBED_CALL(cli_edit_write, PagesEditCtx, .one = one, .edit = &args->changes[change][at - 1u],
                                  .lines_out = &lines, .err_msg = args->err_msg);
+            at -= 1u;
         }
     }
     if (written)

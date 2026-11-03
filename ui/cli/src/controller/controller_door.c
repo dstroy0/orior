@@ -18,7 +18,7 @@ typedef struct ControllerDoorCommand
     struct ControllerDoorCommand *next;
     const char *id;
     const char *command;
-    const char **word;
+    const char **word_text;
     unsigned int words;
 } ControllerDoorCommand;
 
@@ -52,22 +52,23 @@ static int door_received(const CliCommsRecvCfg *args)
     }
     const unsigned int words = fields - CLI_REACH_HEAD_FIELDS;
     ControllerDoorCommand *const command = g_cli_cells->persistent_buf_alloc(
-        sizeof(*command) + ((unsigned long long)words * sizeof(*command->word)) + args->size, &g_cli_controller_cells);
+        sizeof(*command) + ((unsigned long long)words * sizeof(*command->word_text)) + args->size,
+        &g_cli_controller_cells);
     if (command == NULL)
     {
         return 1;
     }
-    command->word = (const char **)(void *)(command + 1);
-    char *const text = (char *)(void *)(command->word + words);
+    command->word_text = (const char **)(void *)(command + 1);
+    char *const text = (char *)(void *)(command->word_text + words);
     memor.cpy(&(MemoriaCfg){.dst = text, .src = args->body, .bytes = args->size});
     command->id = text;
     unsigned long long at = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = args->size}) + 1ULL;
     at += cellul.len(&(CatenaFinitaCfg){.src = text + at, .cap = args->size - at}) + 1ULL;
     command->command = text + at;
     at += cellul.len(&(CatenaFinitaCfg){.src = text + at, .cap = args->size - at}) + 1ULL;
-    for (unsigned int word = 0u; word < words; word += 1u)
+    for (unsigned int word_text = 0u; word_text < words; word_text += 1u)
     {
-        command->word[word] = text + at;
+        command->word_text[word_text] = text + at;
         at += cellul.len(&(CatenaFinitaCfg){.src = text + at, .cap = args->size - at}) + 1ULL;
     }
     command->words = words;
@@ -157,7 +158,7 @@ int cli_model_door_step(const CliModelCtx *args)
     {
         ControllerDoorCommand *const next = first->next;
         const int ran = EMBED_CALL(cli_model_commands.command_named, CliModelCtx, .path = first->command,
-                                   .words = first->word, .at = first->words);
+                                   .words = first->word_text, .at = first->words);
         EMBED_CALL(door_answer, ControllerDoorCtx, .id = first->id, .ran = ran, .command = first->command);
         g_cli_cells->persistent_buf_release(first, &g_cli_controller_cells);
         first = next;

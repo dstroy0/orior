@@ -16,10 +16,10 @@
 // recording_shim.c)
 #ifndef RECORDING_H
 #define RECORDING_H
-typedef struct CliRecordingCfg CliRecordingCfg;
-
 #include "dap.h"
 #include "embed_dispatch_layout.h"
+
+typedef struct CliRecordingCfg CliRecordingCfg;
 
 // the adapter that records a Python program's run in the tree at `root` and steps through it, begun: its context, for
 // cli_dap_within to hand `cli_recording_serve`, or NULL where no capacity for the replay is left; and a request served

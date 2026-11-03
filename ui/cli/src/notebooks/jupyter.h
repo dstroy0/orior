@@ -14,6 +14,10 @@
 // jupyter_readers.c, jupyter_requests.c, jupyter_wire.c, jupyter_debug.c)
 #ifndef JUPYTER_H
 #define JUPYTER_H
+#include "../command_line/callback_cfg.h"
+#include "../command_line/cli_internal.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliJupyterErrMsgCfg CliJupyterErrMsgCfg;
 typedef struct CliJupyterErrMsgKernelCfg CliJupyterErrMsgKernelCfg;
 typedef struct CliJupyterErrMsgKernelLengthCfg CliJupyterErrMsgKernelLengthCfg;
@@ -22,10 +26,6 @@ typedef struct CliJupyterErrMsgKernelFileCfg CliJupyterErrMsgKernelFileCfg;
 typedef struct CliJupyterNameCfg CliJupyterNameCfg;
 typedef struct CliJupyterCfg CliJupyterCfg;
 typedef struct CliJupyterOutCfg CliJupyterOutCfg;
-
-#include "../command_line/callback_cfg.h"
-#include "../command_line/cli_internal.h"
-#include "embed_dispatch_layout.h"
 
 // the most kernels that run at once, the most words and settings a spec gives, the bytes its texts take, the place
 // of a text a spec does not give, and the longest id a message is sent under

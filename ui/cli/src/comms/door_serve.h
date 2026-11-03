@@ -4,13 +4,13 @@
 // queue of what it receives (ipc_serve.c, ipc_requests.c)
 #ifndef DOOR_SERVE_H
 #define DOOR_SERVE_H
-typedef struct CliIpcServeCfg CliIpcServeCfg;
-typedef struct CliIpcServeChannelCfg CliIpcServeChannelCfg;
-typedef struct CliIpcServeErrorCfg CliIpcServeErrorCfg;
-
 #include "comms.h"
 #include "door_internal.h"
 #include "embed_dispatch_layout.h"
+
+typedef struct CliIpcServeCfg CliIpcServeCfg;
+typedef struct CliIpcServeChannelCfg CliIpcServeChannelCfg;
+typedef struct CliIpcServeErrorCfg CliIpcServeErrorCfg;
 
 // the most processes joined at once; the messages queued for one process; the channels one process listens on; and the
 // bytes of an answer waiting to be written

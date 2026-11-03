@@ -26,7 +26,7 @@ typedef struct
     unsigned long long start;
     unsigned long long end;
     const char *prefix;
-    const char *word;
+    const char *word_text;
     unsigned long long size;
     CliRequestsParsed *parsed;
     char split;
@@ -62,7 +62,7 @@ EMBED_INLINE int parse_is_method(const RequestsParseCtx *args)
 {
     for (unsigned long long at = 0ULL; at < args->size; at += 1ULL)
     {
-        if ((args->word[at] < 'A') || (args->word[at] > 'Z'))
+        if ((args->word_text[at] < 'A') || (args->word_text[at] > 'Z'))
         {
             return 0;
         }
@@ -208,7 +208,7 @@ EMBED_INLINE void parse_request_line(const RequestsParseCtx *args)
         EMBED_CALL(parse_word_next, RequestsParseCtx, .text = args->text, .at = first_end, .end = args->end);
     const unsigned long long second_end =
         EMBED_CALL(parse_word_end, RequestsParseCtx, .text = args->text, .at = second, .end = args->end);
-    if ((second < args->end) && EMBED_CALL(parse_is_method, RequestsParseCtx, .word = args->text + args->start,
+    if ((second < args->end) && EMBED_CALL(parse_is_method, RequestsParseCtx, .word_text = args->text + args->start,
                                            .size = first_end - args->start))
     {
         args->request->method = EMBED_CALL(parse_store, RequestsParseCtx, .parsed = args->parsed,
@@ -444,9 +444,11 @@ EMBED_INLINE unsigned long long parse_lines_count(const RequestsParseCtx *args)
     const char *text = args->text;
     unsigned long long size = args->size;
     unsigned long long lines = 0ULL;
-    for (unsigned long long at = 0ULL; (at < size) && (lines < CLI_REQUESTS_LINES); lines += 1ULL)
+    unsigned long long at = 0ULL;
+    while ((at < size) && (lines < CLI_REQUESTS_LINES))
     {
         at = EMBED_CALL(cli_text_at.line_at, CliTextAtCfg, .text = text, .at = at, .size = size).next;
+        lines += 1ULL;
     }
     return lines;
 }

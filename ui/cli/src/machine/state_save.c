@@ -240,12 +240,14 @@ EMBED_INLINE int cli_themes_save(const StateSaveCtx *args)
         memor.cpy(&(MemoriaCfg){.dst = name,
                                 .src = base,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_CELLS_POOL}) + 1u});
-        for (unsigned int count = 2u;; count += 1u)
+        for (unsigned int inner_count = 2u;; inner_count += 1u)
         {
             int reserved = 0;
-            for (unsigned int at = 0u; !reserved && (at < names); at += 1u)
+            unsigned int at = 0u;
+            while (!reserved && (at < names))
             {
                 reserved = cellul.eq(&(CatenaFinitaCfg){.src = saved_names[at], .other = name, .cap = CLI_CELLS_POOL});
+                at += 1u;
             }
             if (!reserved)
             {
@@ -254,7 +256,7 @@ EMBED_INLINE int cli_themes_save(const StateSaveCtx *args)
             VerbaLinea counted = {name, sizeof(name), 0ULL};
             mmgr_line_put_n(&counted, base, cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_CELLS_POOL}) - 5u);
             mmgr_line_ch(&counted, ' ');
-            mmgr_line_decimal(&counted, count, 1u);
+            mmgr_line_decimal(&counted, inner_count, 1u);
             mmgr_line_put(&counted, ".json");
             mmgr_line_finish(&counted);
         }
@@ -287,10 +289,12 @@ EMBED_INLINE int cli_themes_save(const StateSaveCtx *args)
     for (unsigned int at = 0u; at < files.count; at += 1u)
     {
         int saved_count = 0;
-        for (unsigned int each = 0u; !saved_count && (each < names); each += 1u)
+        unsigned int each = 0u;
+        while (!saved_count && (each < names))
         {
             saved_count =
                 cellul.eq(&(CatenaFinitaCfg){.src = saved_names[each], .other = files.name[at], .cap = CLI_CELLS_POOL});
+            each += 1u;
         }
         if (!saved_count)
         {

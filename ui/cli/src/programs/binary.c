@@ -183,9 +183,11 @@ int cli_pe_imports(const CliBinaryErrMsgCfg *args)
         {
             const unsigned long long step = s_reads[each][1];
             int zeros = (at + step) <= size;
-            for (unsigned long long byte = 0ULL; zeros && (byte < step); byte += 1ULL)
+            unsigned long long byte = 0ULL;
+            while (zeros && (byte < step))
             {
                 zeros = bytes[at + byte] == 0u;
+                byte += 1ULL;
             }
             const unsigned long long name_rva =
                 EMBED_CALL(cli_binary_bytes_size.number, CliBinaryBytesSizeCfg, .bytes = bytes, .size = size,
@@ -204,11 +206,13 @@ int cli_pe_imports(const CliBinaryErrMsgCfg *args)
                 char lower[CLI_NAME_MAX_LEN];
                 EMBED_CALL(cli_lower, BinaryCtx, .name = name, .out = lower);
                 int known = 0;
-                for (int index = 0; !known && (index < count); index += 1)
+                int index = 0;
+                while (!known && (index < count))
                 {
                     char other[CLI_NAME_MAX_LEN];
                     EMBED_CALL(cli_lower, BinaryCtx, .name = args->names[index], .out = other);
                     known = cellul.eq(&(CatenaFinitaCfg){.src = other, .other = lower, .cap = CLI_CELLS_POOL});
+                    index += 1;
                 }
                 if (!known && ((unsigned int)count < capacity))
                 {
@@ -316,31 +320,42 @@ EMBED_INLINE int cli_pe_read(const BinaryCtx *args)
     }
     const unsigned int system = EMBED_CALL(cli_windows_folders, BinaryCtx, .machine = machine, .folders = windows);
     unsigned int queued = 0u;
-    for (int at = 0; (at < imports) && (queued < CLI_BINARY_LIBRARIES); at += 1)
     {
-        memor.cpy(
-            &(MemoriaCfg){.dst = s_queue[queued].name,
-                          .src = s_imports[at],
-                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_imports[at], .cap = CLI_CELLS_POOL}) + 1u});
-        memor.cpy(&(MemoriaCfg){.dst = s_queue[queued].by,
-                                .src = program,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = program, .cap = CLI_CELLS_POOL}) + 1u});
-        queued += 1u;
+        int at = 0;
+        while ((at < imports) && (queued < CLI_BINARY_LIBRARIES))
+        {
+            memor.cpy(&(MemoriaCfg){
+                .dst = s_queue[queued].name,
+                .src = s_imports[at],
+                .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_imports[at], .cap = CLI_CELLS_POOL}) + 1u});
+            memor.cpy(
+                &(MemoriaCfg){.dst = s_queue[queued].by,
+                              .src = program,
+                              .bytes = cellul.len(&(CatenaFinitaCfg){.src = program, .cap = CLI_CELLS_POOL}) + 1u});
+            queued += 1u;
+            at += 1;
+        }
     }
     unsigned int seen = 0u;
-    for (unsigned int next = 0u; next < queued; next += 1u)
+    unsigned int next = 0u;
+    while (next < queued)
     {
         const CliQueued *const one = &s_queue[next];
         char lower[CLI_NAME_MAX_LEN];
         EMBED_CALL(cli_lower, BinaryCtx, .name = one->name, .out = lower);
         int known = (cellul.starts(&(CatenaFinitaCfg){.src = lower, .other = "api-ms-", .cap = CLI_CELLS_POOL})) ||
                     (cellul.starts(&(CatenaFinitaCfg){.src = lower, .other = "ext-ms-", .cap = CLI_CELLS_POOL}));
-        for (unsigned int at = 0u; !known && (at < seen); at += 1u)
         {
-            known = cellul.eq(&(CatenaFinitaCfg){.src = s_seen[at], .other = lower, .cap = CLI_CELLS_POOL});
+            unsigned int at = 0u;
+            while (!known && (at < seen))
+            {
+                known = cellul.eq(&(CatenaFinitaCfg){.src = s_seen[at], .other = lower, .cap = CLI_CELLS_POOL});
+                at += 1u;
+            }
         }
         if (known || (seen >= CLI_BINARY_LIBRARIES) || (args->report->libraries >= CLI_BINARY_LIBRARIES))
         {
+            next += 1u;
             continue;
         }
         memor.cpy(&(MemoriaCfg){.dst = s_seen[seen],
@@ -409,7 +424,8 @@ EMBED_INLINE int cli_pe_read(const BinaryCtx *args)
             const int found = EMBED_CALL(cli_binary_err_msg.pe_imports, CliBinaryErrMsgCfg, .bytes = more,
                                          .size = more_size, .machine = &more_machine, .names = s_imports,
                                          .count_i32 = 0, .capacity_u32 = CLI_BINARY_LIBRARIES, .err_msg = &ignored);
-            for (int at = 0; (at < found) && (queued < CLI_BINARY_LIBRARIES); at += 1)
+            int at = 0;
+            while ((at < found) && (queued < CLI_BINARY_LIBRARIES))
             {
                 memor.cpy(&(MemoriaCfg){
                     .dst = s_queue[queued].name,
@@ -420,10 +436,12 @@ EMBED_INLINE int cli_pe_read(const BinaryCtx *args)
                     .src = library->name,
                     .bytes = cellul.len(&(CatenaFinitaCfg){.src = library->name, .cap = CLI_CELLS_POOL}) + 1u});
                 queued += 1u;
+                at += 1;
             }
             EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = more,
                        .owner = &g_cli_programs_cells);
         }
+        next += 1u;
     }
     return 1;
 }

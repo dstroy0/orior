@@ -4,14 +4,14 @@
 // bytes; the placeholders of a pattern; and the match of the pattern's parts against the code's tokens
 #ifndef SHAPE_INTERNAL_H
 #define SHAPE_INTERNAL_H
-typedef struct CliShapeLanguagesCtx CliShapeLanguagesCtx;
-typedef struct CliShapeMatcherCtx CliShapeMatcherCtx;
-typedef struct CliShapeCtx CliShapeCtx;
-
 #include "../command_line/cells.h"
 #include "../text/text.h"
 #include "embed_dispatch_layout.h"
 #include "shape.h"
+
+typedef struct CliShapeLanguagesCtx CliShapeLanguagesCtx;
+typedef struct CliShapeMatcherCtx CliShapeMatcherCtx;
+typedef struct CliShapeCtx CliShapeCtx;
 
 // the kinds of a token: a name, a number, a string, a mark, and, in a language whose plugin says a line's end ends a
 // statement, the end of a statement at a line's end

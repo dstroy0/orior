@@ -6,12 +6,13 @@
 // status bar across the foot its own (statusbar.h)
 #ifndef GUI_PARTS_CHROME_H
 #define GUI_PARTS_CHROME_H
-typedef struct GuiChromeRasterCfg GuiChromeRasterCfg;
-typedef struct GuiChromeCfg GuiChromeCfg;
 #include "../frame.h"
 #include "../glyphs.h"
 #include "../palette.h"
 #include "embed_dispatch_layout.h"
+
+typedef struct GuiChromeRasterCfg GuiChromeRasterCfg;
+typedef struct GuiChromeCfg GuiChromeCfg;
 
 // the controls, left to right, and none
 #define GUI_CONTROL_MINIMIZE 0u

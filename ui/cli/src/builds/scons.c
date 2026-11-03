@@ -175,7 +175,8 @@ void cli_scons_calls(const CliSconsNameCtx *args)
     const unsigned long long size = g_cli_scons.size;
     const unsigned char *const class_of = g_cli_scons.class_of;
     const size_t length = cellul.len(&(CatenaFinitaCfg){.src = args->name, .cap = CLI_CELLS_POOL});
-    for (unsigned long long at = 0ULL; at + length <= size; at += 1u)
+    unsigned long long at = 0ULL;
+    while (at + length <= size)
     {
         unsigned long long before = 0ULL;
         if ((memor.cmp(&(MemoriaCfg){.src = text + at, .other = args->name, .bytes = length}) != 0) ||
@@ -184,6 +185,7 @@ void cli_scons_calls(const CliSconsNameCtx *args)
                                      .letter = EMBED_CALL(cli_text_length.letter_before, CliTextLengthCfg, .text = text,
                                                           .end_value = at, .length = &before))))
         {
+            at += 1u;
             continue;
         }
         unsigned long long open = at + length;
@@ -192,6 +194,7 @@ void cli_scons_calls(const CliSconsNameCtx *args)
         if ((open >= size) || (text[open] != '('))
         {
             at += length - 1u;
+            at += 1u;
             continue;
         }
         long long depth = 0;
@@ -219,6 +222,7 @@ void cli_scons_calls(const CliSconsNameCtx *args)
         }
         EMBED_CALL(args->each, CliSconsSpanCfg, .context = args->context, .from = open + 1u, .to = end);
         at += length - 1u;
+        at += 1u;
     }
 }
 

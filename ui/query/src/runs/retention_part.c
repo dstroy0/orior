@@ -386,11 +386,15 @@ int query_crystal_build(const QueryRetentionContextCtx *args)
     stale = stale ||
             (EMBED_CALL(query_path_seconds_internal.modify, QueryPathSecondsCtx, .path = header, .seconds = &changed) &&
              (changed > built_time));
-    for (unsigned int at = 0u; !stale && (at < objects); at += 1u)
     {
-        stale = EMBED_CALL(query_path_seconds_internal.modify, QueryPathSecondsCtx, .path = s_objects[at],
-                           .seconds = &changed) &&
-                (changed > built_time);
+        unsigned int at = 0u;
+        while (!stale && (at < objects))
+        {
+            stale = EMBED_CALL(query_path_seconds_internal.modify, QueryPathSecondsCtx, .path = s_objects[at],
+                               .seconds = &changed) &&
+                    (changed > built_time);
+            at += 1u;
+        }
     }
     if (!stale)
     {
@@ -399,7 +403,7 @@ int query_crystal_build(const QueryRetentionContextCtx *args)
     static QueryWords s_words;
     memor.set(&(MemoriaCfg){.dst = &s_words, .val = 0, .bytes = sizeof(s_words)});
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-               .word = s_nvcc);
+               .word_text = s_nvcc);
 #if defined(_WIN32)
     char cl[QUERY_PATH_MAX_LEN];
     if (EMBED_CALL(context->programs->program, QueryEachRolePathCapacityErrMsgCfg,
@@ -413,13 +417,13 @@ int query_crystal_build(const QueryRetentionContextCtx *args)
                       .length_value = cellul.len(&(CatenaFinitaCfg){.src = cl, .cap = CLI_CELLS_POOL}), .byte = '\\') -
            cl] = '\0';
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-                   .word = "-ccbin");
+                   .word_text = "-ccbin");
         EMBED_CALL(query_loops_words_words_text.words_text, QueryLoopsWordsWordsTextCfg,
                    .words_words_pointer = &s_words, .text = cl);
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-                   .word = "-Xcompiler");
+                   .word_text = "-Xcompiler");
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-                   .word = "/std:c11 /O2 /Zc:preprocessor /D_CRT_SECURE_NO_WARNINGS");
+                   .word_text = "/std:c11 /O2 /Zc:preprocessor /D_CRT_SECURE_NO_WARNINGS");
     }
 #endif
     char include[QUERY_PATH_MAX_LEN + 2u];
@@ -431,18 +435,18 @@ int query_crystal_build(const QueryRetentionContextCtx *args)
     mmgr_line_put(&include_line, engine_folder);
     mmgr_line_finish(&include_line);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-               .word = include);
+               .word_text = include);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-               .word = "-o");
+               .word_text = "-o");
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-               .word = binary);
+               .word_text = binary);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-               .word = source);
+               .word_text = source);
 #if defined(_WIN32)
     for (unsigned int at = 0u; at < objects; at += 1u)
     {
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-                   .word = s_objects[at]);
+                   .word_text = s_objects[at]);
     }
 #else
     char library[QUERY_PATH_MAX_LEN + 2u];
@@ -451,21 +455,21 @@ int query_crystal_build(const QueryRetentionContextCtx *args)
     mmgr_line_put(&library_line, engine);
     mmgr_line_finish(&library_line);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-               .word = library);
+               .word_text = library);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-               .word = "-lcell_tracking_engine");
+               .word_text = "-lcell_tracking_engine");
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-               .word = "-Xlinker");
+               .word_text = "-Xlinker");
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-               .word = "-rpath");
+               .word_text = "-rpath");
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-               .word = "-Xlinker");
+               .word_text = "-Xlinker");
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-               .word = engine);
+               .word_text = engine);
 #endif
     QueryProcess linked;
-    if (!EMBED_CALL(query_started_internal.process_start, QueryStartedCtx, .started = &linked, .words = s_words.word,
-                    .folder = NULL, .output = QUERY_OUTPUT_NONE) ||
+    if (!EMBED_CALL(query_started_internal.process_start, QueryStartedCtx, .started = &linked,
+                    .words = s_words.word_text, .folder = NULL, .output = QUERY_OUTPUT_NONE) ||
         (EMBED_CALL(query_process_internal.process_wait, QueryProcessCtx, .process_out = &linked) != 0LL))
     {
         EMBED_CALL(query_text_internal.print, QueryTextCtx, .context = context,

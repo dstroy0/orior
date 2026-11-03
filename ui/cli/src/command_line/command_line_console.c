@@ -25,7 +25,7 @@ typedef struct
     const char *one;
     const char *other;
     const VerbaLinea *err_msg;
-    const char *word;
+    const char *word_text;
     const char *named;
     const char *const *words;
     unsigned int count;
@@ -43,16 +43,16 @@ EMBED_INLINE void console_err_print(const CommandLineConsoleCtx *args)
 // `orior_cli help auto-report [on|off]`: errors filing on their own turned on or off, or which reported
 EMBED_INLINE int console_auto_report(const CommandLineConsoleCtx *args)
 {
-    if (args->word == NULL)
+    if (args->word_text == NULL)
     {
         EMBED_CALL(cli_command_line_internal.out, CliCommandLineCtx, .text = cli_report_auto() ? "on" : "off");
         return 0;
     }
-    if ((!cellul.eq(&(CatenaFinitaCfg){.src = args->word, .other = "on", .cap = CLI_CELLS_POOL})) &&
-        (!cellul.eq(&(CatenaFinitaCfg){.src = args->word, .other = "off", .cap = CLI_CELLS_POOL})))
+    if ((!cellul.eq(&(CatenaFinitaCfg){.src = args->word_text, .other = "on", .cap = CLI_CELLS_POOL})) &&
+        (!cellul.eq(&(CatenaFinitaCfg){.src = args->word_text, .other = "off", .cap = CLI_CELLS_POOL})))
     {
         VerbaLinea line = {s_line, sizeof(s_line), 0ULL};
-        mmgr_line_put(&line, args->word);
+        mmgr_line_put(&line, args->word_text);
         mmgr_line_put(&line, " is neither on nor off");
         EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = s_line,
                    .size = mmgr_line_ok(&line) ? line.at : 0ULL);
@@ -60,7 +60,7 @@ EMBED_INLINE int console_auto_report(const CommandLineConsoleCtx *args)
     }
     VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ULL};
     if (!EMBED_CALL(cli_report_on.set_auto, CliReportOnCfg,
-                    .on = cellul.eq(&(CatenaFinitaCfg){.src = args->word, .other = "on", .cap = CLI_CELLS_POOL}),
+                    .on = cellul.eq(&(CatenaFinitaCfg){.src = args->word_text, .other = "on", .cap = CLI_CELLS_POOL}),
                     .err_msg = &err_msg))
     {
         EMBED_CALL(console_err_print, CommandLineConsoleCtx, .err_msg = &err_msg);
@@ -257,7 +257,7 @@ EMBED_INLINE int console_treeless(const CommandLineConsoleCtx *args)
     }
     else if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "auto-report", .cap = CLI_CELLS_POOL}))
     {
-        *code = EMBED_CALL(console_auto_report, CommandLineConsoleCtx, .word = first);
+        *code = EMBED_CALL(console_auto_report, CommandLineConsoleCtx, .word_text = first);
     }
     else if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "search", .cap = CLI_CELLS_POOL}))
     {
@@ -345,7 +345,7 @@ int cli_console(const CliCommandLineWordsCountCtx *args)
     if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "list", .cap = CLI_CELLS_POOL}))
     {
         return EMBED_CALL(cli_command_line_word_internal.jobs_list, CliCommandLineWordCtx, .root = s_root,
-                          .word = first);
+                          .word_text = first);
     }
     if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "tests", .cap = CLI_CELLS_POOL}))
     {
@@ -355,7 +355,7 @@ int cli_console(const CliCommandLineWordsCountCtx *args)
     if (cellul.eq(&(CatenaFinitaCfg){.src = args->command, .other = "bridge", .cap = CLI_CELLS_POOL}))
     {
         return EMBED_CALL(cli_command_line_word_internal.bridge_words, CliCommandLineWordCtx, .root = s_root,
-                          .word = first);
+                          .word_text = first);
     }
     for (unsigned int at = 0u; at < sizeof(s_protocol) / sizeof(s_protocol[0]); at += 1u)
     {
@@ -401,16 +401,20 @@ int cli_file_word(const CliCommandLineOutCtx *args)
     VerbaLinea *out = args->out;
     VerbaLinea *err_msg = args->err_msg;
     // the path is the word before a line and a column, each a colon and digits, that follow it
-    size_t path = cellul.len(&(CatenaFinitaCfg){.src = args->word, .cap = CLI_CELLS_POOL});
+    size_t path = cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_CELLS_POOL});
     for (unsigned int part = 0u; part < 2u; part += 1u)
     {
         size_t colon = path;
-        colon = (size_t)EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->word,
+        colon = (size_t)EMBED_CALL(cli_text_at_size_classes.back_any, CliTextAtSizeClassesCfg, .text = args->word_text,
                                    .at = colon, .set = ":");
         int digits = (colon > 0u) && (colon < path);
-        for (size_t at = colon; (at < path) && digits; at += 1u)
         {
-            digits = (args->word[at] >= '0') && (args->word[at] <= '9');
+            size_t at = colon;
+            while ((at < path) && digits)
+            {
+                digits = (args->word_text[at] >= '0') && (args->word_text[at] <= '9');
+                at += 1u;
+            }
         }
         if (digits && (colon > 1u))
         {
@@ -422,7 +426,7 @@ int cli_file_word(const CliCommandLineOutCtx *args)
     {
         return -1;
     }
-    memor.cpy(&(MemoriaCfg){.dst = supplied, .src = args->word, .bytes = path});
+    memor.cpy(&(MemoriaCfg){.dst = supplied, .src = args->word_text, .bytes = path});
     supplied[path] = '\0';
     char full[CLI_PATH_MAX_LEN];
     if (!EMBED_CALL(query_capacity_path_internal.path_full, QueryCapacityPathCtx, .path = supplied, .full = full,
@@ -451,6 +455,6 @@ int cli_file_word(const CliCommandLineOutCtx *args)
     inner += EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = inner, .at = 0ULL,
                         .size = cellul.len(&(CatenaFinitaCfg){.src = inner, .cap = CLI_CELLS_POOL}), .set = "/\\");
     (void)EMBED_CALL(cli_text_from.append_swap, CliTextFromCfg, .out = out, .text = inner, .from = '\\', .to = '/');
-    mmgr_line_put(out, args->word + path);
+    mmgr_line_put(out, args->word_text + path);
     return 1;
 }

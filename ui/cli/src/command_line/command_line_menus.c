@@ -59,8 +59,8 @@ EMBED_INLINE void menus_subjects(const CommandLineMenusCtx *args)
 int cli_menu_lines(const CliCommandLineWordCtx *args)
 {
     static CliItem s_items[CLI_ITEMS_MAX];
-    char word[CLI_LABEL_MAX_LEN];
-    EMBED_CALL(cli_commands_menu_word.menu_word, CliCommandsMenuWordCfg, .menu = args->menu, .word_out = word);
+    char word_text[CLI_LABEL_MAX_LEN];
+    EMBED_CALL(cli_commands_menu_word.menu_word, CliCommandsMenuWordCfg, .menu = args->menu, .word_out = word_text);
     const unsigned int items = EMBED_CALL(cli_commands_menu_capacity.menu_items, CliCommandsMenuCapacityCfg,
                                           .menu = args->menu, .items = s_items, .capacity = CLI_ITEMS_MAX);
     for (unsigned int at = 0u; at < items; at += 1u)
@@ -68,7 +68,7 @@ int cli_menu_lines(const CliCommandLineWordCtx *args)
         char line[CLI_LABEL_MAX_LEN * 4u];
         VerbaLinea usage = {line, sizeof(line), 0ULL};
         mmgr_line_put(&usage, "orior_cli ");
-        mmgr_line_put(&usage, word);
+        mmgr_line_put(&usage, word_text);
         mmgr_line_ch(&usage, ' ');
         mmgr_line_put(&usage, s_items[at].command);
         mmgr_line_ch(&usage, ' ');
@@ -158,15 +158,16 @@ int cli_menu_job(const CliCommandLineWordsCountMenuCtx *args)
         if (jobs == 0u)
         {
             char title[CLI_LABEL_MAX_LEN];
-            char word[CLI_LABEL_MAX_LEN];
+            char word_text[CLI_LABEL_MAX_LEN];
             EMBED_CALL(cli_commands_menu_title.menu_title, CliCommandsMenuTitleCfg, .menu = args->menu, .title = title);
-            EMBED_CALL(cli_commands_menu_word.menu_word, CliCommandsMenuWordCfg, .menu = args->menu, .word_out = word);
+            EMBED_CALL(cli_commands_menu_word.menu_word, CliCommandsMenuWordCfg, .menu = args->menu,
+                       .word_out = word_text);
             err_msg.at = 0ULL;
             mmgr_line_put(&err_msg, title);
             mmgr_line_put(&err_msg, " has no ");
             mmgr_line_put(&err_msg, name);
             mmgr_line_put(&err_msg, ": orior_cli ");
-            mmgr_line_put(&err_msg, word);
+            mmgr_line_put(&err_msg, word_text);
             mmgr_line_put(&err_msg, " names what it has");
             EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = why,
                        .size = mmgr_line_ok(&err_msg) ? err_msg.at : 0ULL);

@@ -4,14 +4,14 @@
 // of the bus, and the passes' own calls
 #ifndef LEARN_INTERNAL_H
 #define LEARN_INTERNAL_H
+#include "../query_loops.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct QueryLearnErrMsgCtx QueryLearnErrMsgCtx;
 typedef struct QueryLearnWordsCtx QueryLearnWordsCtx;
 typedef struct QueryLearnWordsWordsCtx QueryLearnWordsWordsCtx;
 typedef struct QueryLearnCtx QueryLearnCtx;
 typedef struct QueryLearnRunCtx QueryLearnRunCtx;
-
-#include "../query_loops.h"
-#include "embed_dispatch_layout.h"
 
 // the span of the BAR0 registers the clock is queried in where none is given: the first byte offset and the count of
 // words, in hex. The part's answer is which word of it advances; the span is only where the querying starts
@@ -42,7 +42,7 @@ typedef enum
 typedef struct
 {
     QueryLearnKind kind;
-    const char *word;
+    const char *word_text;
     const char *base;
     unsigned int rounds;
 } QueryLearnStep;

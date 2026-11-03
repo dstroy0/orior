@@ -220,7 +220,7 @@ int cli_files_search(const CliFilesRootOutErrMsgCfg *args)
     if (s_specs.count == 0u)
     {
         EMBED_CALL(cli_words_words_internal.words_append, CliWordsWordsCtx, .words_words_pointer = &s_specs,
-                   .word = ".");
+                   .word_text = ".");
     }
     EMBED_CALL(cli_patterns.hidden_specs, CliPatternsCfg, .patterns = &s_patterns, .words = &s_specs);
     EMBED_CALL(cli_patterns.hidden_specs, CliPatternsCfg, .patterns = args->set, .words = &s_specs);

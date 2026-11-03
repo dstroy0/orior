@@ -125,7 +125,7 @@ int query_text_identity(const QueryPairsContextErrMsgCtx *args)
     static QueryWords s_compile;
     memor.set(&(MemoriaCfg){.dst = &s_compile, .val = 0, .bytes = sizeof(s_compile)});
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_compile,
-               .word = s_nvcc);
+               .word_text = s_nvcc);
 #if defined(_WIN32)
     char cl[QUERY_PATH_MAX_LEN];
     char ignored_text[QUERY_LINE_MAX_LEN];
@@ -140,7 +140,7 @@ int query_text_identity(const QueryPairsContextErrMsgCtx *args)
                       .length_value = cellul.len(&(CatenaFinitaCfg){.src = cl, .cap = CLI_CELLS_POOL}), .byte = '\\') -
            cl] = '\0';
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_compile,
-                   .word = "-ccbin");
+                   .word_text = "-ccbin");
         EMBED_CALL(query_loops_words_words_text.words_text, QueryLoopsWordsWordsTextCfg,
                    .words_words_pointer = &s_compile, .text = cl);
     }
@@ -154,14 +154,14 @@ int query_text_identity(const QueryPairsContextErrMsgCtx *args)
     for (unsigned int at = 0u; at < 6u; at += 1u)
     {
         EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_compile,
-                   .word = (at == 1u) ? arch : s_flags[at]);
+                   .word_text = (at == 1u) ? arch : s_flags[at]);
     }
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_compile,
-               .word = cubin);
+               .word_text = cubin);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_compile,
-               .word = cu);
+               .word_text = cu);
     whole = whole && EMBED_CALL(query_loops_context_err_msg_name_run.context_teed, QueryLoopsContextErrMsgNameRunCfg,
-                                .context = context, .run = &s_run, .name = "nvcc", .words = s_compile.word,
+                                .context = context, .run = &s_run, .name = "nvcc", .words = s_compile.word_text,
                                 .code = &code, .err_msg = err_msg);
     if (whole && (code != 0LL))
     {
@@ -218,27 +218,27 @@ int query_text_identity(const QueryPairsContextErrMsgCtx *args)
     EMBED_CALL(query_pairs_part_path_internal.part_file, QueryPairsPartPathCtx, .context_read = context,
                .part = args->mode->part, .extension = ".ksc", .path = ksc);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-               .word = "text_identity");
+               .word_text = "text_identity");
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-               .word = engine_out);
+               .word_text = engine_out);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-               .word = "host_answers.txt");
+               .word_text = "host_answers.txt");
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-               .word = ksc);
+               .word_text = ksc);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-               .word = sides);
+               .word_text = sides);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-               .word = klq);
+               .word_text = klq);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-               .word = tsv);
+               .word_text = tsv);
     EMBED_CALL(query_loops_words_words.words_add, QueryLoopsWordsWordsCfg, .words_words_pointer = &s_words,
-               .word = "--");
+               .word_text = "--");
     whole = whole &&
             EMBED_CALL(query_pairs_part_context_dry_internal.carry, QueryPairsPartContextDryCtx, .context = context,
                        .part = args->mode->part, .dry = args->mode->dry, .words = &s_words, .err_msg = err_msg) &&
             EMBED_CALL(query_pairs_context_err_msg_run_internal.identity_run, QueryPairsContextErrMsgRunCtx,
-                       .context = context, .run = &s_run, .identity = args->identity, .words_letters = s_words.word,
-                       .count = s_words.count, .code = &code, .err_msg = err_msg);
+                       .context = context, .run = &s_run, .identity = args->identity,
+                       .words_letters = s_words.word_text, .count = s_words.count, .code = &code, .err_msg = err_msg);
     if (!EMBED_CALL(query_loops_context_run.context_end, QueryLoopsContextRunCfg, .context = context, .run_out = &s_run,
                     .err_msg = err_msg) ||
         !whole)

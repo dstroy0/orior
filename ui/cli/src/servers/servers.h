@@ -31,6 +31,10 @@
 // tree is given, and whole otherwise (servers_*.c)
 #ifndef SERVERS_H
 #define SERVERS_H
+#include "../command_line/callback_cfg.h"
+#include "../text/edits.h"
+#include "embed_dispatch_layout.h"
+
 typedef struct CliServersRootCfg CliServersRootCfg;
 typedef struct CliServersRootSinkCfg CliServersRootSinkCfg;
 typedef struct CliServersPathCfg CliServersPathCfg;
@@ -47,10 +51,6 @@ typedef struct CliServersCapacityCfg CliServersCapacityCfg;
 typedef struct CliServersOutCfg CliServersOutCfg;
 typedef struct CliServersCfg CliServersCfg;
 typedef struct CliServersPathSizeKindCfg CliServersPathSizeKindCfg;
-
-#include "../command_line/callback_cfg.h"
-#include "../text/edits.h"
-#include "embed_dispatch_layout.h"
 
 // One diagnostic of a file: its span's first place and the place after it, each a line and a column in units, its
 // severity, 1 an error, 2 a warning, 3 and 4 notes, and its message, `message_length` bytes, the reader's while the

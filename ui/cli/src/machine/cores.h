@@ -7,10 +7,10 @@
 // the reader's settings the first time it is read
 #ifndef CORES_H
 #define CORES_H
-typedef struct CliCoresCfg CliCoresCfg;
-
 #include "../command_line/cli_internal.h"
 #include "embed_dispatch_layout.h"
+
+typedef struct CliCoresCfg CliCoresCfg;
 
 // the setting's key, as settings.json stores it, and the fewest cores reserved for the reader
 #define CLI_CORES_KEY "cores-reserved"

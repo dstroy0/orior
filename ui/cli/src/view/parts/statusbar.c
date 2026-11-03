@@ -139,13 +139,14 @@ void gui_statusbar_draw(const GuiStatusbarStatusCfg *args)
         right -= (float)(EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                     .pixels = GUI_FRAME_GAP + GUI_STATUS_LOCK_END, .scale = scale) +
                          lock);
-        const GuiMask *const mask =
+        const GuiMask *const mask_bits =
             EMBED_CALL(cli_icons.icon, GuiIconsCfg, .icons = icons, .name = "unlock", .size = (unsigned int)lock,
                        .stroke = GUI_ICON_STROKE * (float)lock / GUI_ICON_UNITS);
-        if (mask != NULL)
+        if (mask_bits != NULL)
         {
-            EMBED_CALL(gui_raster_xy_color.mask, GuiRasterXYColorCfg, .raster = raster, .mask = mask, .x = (int)right,
-                       .y = bar.y + ((bar.height - lock) / 2), .color = args->palette->status_text, .clip = bar);
+            EMBED_CALL(gui_raster_xy_color.mask_bits, GuiRasterXYColorCfg, .raster = raster, .mask_bits = mask_bits,
+                       .x = (int)right, .y = bar.y + ((bar.height - lock) / 2), .color = args->palette->status_text,
+                       .clip = bar);
         }
         right -= (float)gap;
         EMBED_CALL(gui_statusbar.status_indent_text, GuiStatusbarCfg, .status = args->status, .text = text,

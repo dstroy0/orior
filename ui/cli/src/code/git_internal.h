@@ -4,6 +4,9 @@
 // reaches: a status's letter and the graph laid out
 #ifndef GIT_INTERNAL_H
 #define GIT_INTERNAL_H
+#include "embed_dispatch_layout.h"
+#include "git.h"
+
 typedef struct CliGitResultCtx CliGitResultCtx;
 typedef struct CliGitRootCtx CliGitRootCtx;
 typedef struct CliGitRootErrMsgCtx CliGitRootErrMsgCtx;
@@ -16,9 +19,6 @@ typedef struct CliGitIndexCtx CliGitIndexCtx;
 typedef struct CliGitFromCtx CliGitFromCtx;
 typedef struct CliGitCtx CliGitCtx;
 typedef struct CliGitFoundCtx CliGitFoundCtx;
-
-#include "embed_dispatch_layout.h"
-#include "git.h"
 
 // the most bytes of what git writes that are stored, the bytes each read past them takes and lets go, and the most
 // bytes of what it reports went wrong

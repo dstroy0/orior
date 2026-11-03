@@ -188,9 +188,13 @@ static int client_request(const DoorClientCtx *args)
 CliIpcClient *cli_ipc_join(const CliIpcErrMsgAddressCfg *args)
 {
     CliIpcClient *client = NULL;
-    for (unsigned int at = 0u; (at < CLI_IPC_CLIENTS) && (client == NULL); at += 1u)
     {
-        client = s_clients[at].reserved ? NULL : &s_clients[at];
+        unsigned int at = 0u;
+        while ((at < CLI_IPC_CLIENTS) && (client == NULL))
+        {
+            client = s_clients[at].reserved ? NULL : &s_clients[at];
+            at += 1u;
+        }
     }
     if (client != NULL)
     {

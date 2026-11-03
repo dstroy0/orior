@@ -6,16 +6,16 @@
 // language server answers. One tree, under its own lock (inspect_tree.c, inspect_tree_*.c)
 #ifndef INSPECT_TREE_H
 #define INSPECT_TREE_H
+#include "../command_line/callback_cfg.h"
+#include "embed_dispatch_layout.h"
+#include "inspect.h"
+
 typedef struct CliInspectTreePathCfg CliInspectTreePathCfg;
 typedef struct CliInspectTreePathLanguageCfg CliInspectTreePathLanguageCfg;
 typedef struct CliInspectTreePathLineCfg CliInspectTreePathLineCfg;
 typedef struct CliInspectTreeCfg CliInspectTreeCfg;
 typedef struct CliInspectTreeEachCfg CliInspectTreeEachCfg;
 typedef struct CliInspectTreeContextEachSuppliedCfg CliInspectTreeContextEachSuppliedCfg;
-
-#include "../command_line/callback_cfg.h"
-#include "embed_dispatch_layout.h"
-#include "inspect.h"
 
 // the facts of the file at `path` set from `size` bytes of its text in `language`, or the file taken out where the
 // inspections do not read its language or its facts do not fit: 1 where it is set; a file taken out; every file taken

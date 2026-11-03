@@ -4,6 +4,11 @@
 // writes read as the tree's files, and what a make leaves read: its log's errors, its pages, and its SyncTeX boxes
 #ifndef LATEX_INTERNAL_H
 #define LATEX_INTERNAL_H
+#include "../text/json_tree.h"
+#include "../toolchains/toolchains.h"
+#include "embed_dispatch_layout.h"
+#include "latex.h"
+
 typedef struct CliLatexTextCtx CliLatexTextCtx;
 typedef struct CliLatexNamesRootCtx CliLatexNamesRootCtx;
 typedef struct CliLatexNamesCtx CliLatexNamesCtx;
@@ -16,11 +21,6 @@ typedef struct CliLatexSizeCtx CliLatexSizeCtx;
 typedef struct CliLatexTextLengthValueI64sCtx CliLatexTextLengthValueI64sCtx;
 typedef struct CliLatexFileCtx CliLatexFileCtx;
 typedef struct CliLatexCtx CliLatexCtx;
-
-#include "../text/json_tree.h"
-#include "../toolchains/toolchains.h"
-#include "embed_dispatch_layout.h"
-#include "latex.h"
 
 // the most bytes of the SVG drawn and of the SyncTeX file unzipped, the most boxes open at once, the most lines marked
 // in them, the most files a SyncTeX file names and the bytes their names take

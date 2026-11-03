@@ -12,13 +12,13 @@
 // watching's patterns hide is left out (watch.c, watch_read.c)
 #ifndef WATCH_H
 #define WATCH_H
-typedef struct CliWatchCfg CliWatchCfg;
-typedef struct CliWatchBatchCfg CliWatchBatchCfg;
-
 #include "../command_line/callback_cfg.h"
 #include "../command_line/cli_internal.h"
 #include "embed_dispatch_layout.h"
 #include "files.h"
+
+typedef struct CliWatchCfg CliWatchCfg;
+typedef struct CliWatchBatchCfg CliWatchBatchCfg;
 
 // a batch taken: the folders whose entries changed and the files whose text did, each from the tree's top and valid
 // while the call runs; whether git's view changed, and whether changes were lost

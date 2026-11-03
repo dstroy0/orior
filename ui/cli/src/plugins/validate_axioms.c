@@ -100,11 +100,11 @@ EMBED_INLINE unsigned int report_declare(const ValidateAxiomsCtx *args)
         const unsigned long long cut = EMBED_CALL(report_short, ValidateAxiomsCtx, .name = name, .size = size);
         for (unsigned int at = 0u; at + 1u < g_cli_validate->word_count; at += 1u)
         {
-            const CliCodeWord *const word = &g_cli_validate->words[at];
+            const CliCodeWord *const word_text = &g_cli_validate->words[at];
             const CliCodeWord *const next = &g_cli_validate->words[at + 1u];
             if (!EMBED_CALL(cli_validate_json_internal.in_array, CliValidateJsonCtx, .json = json,
-                            .array = g_cli_validate->tool.declarations, .text = code + word->start,
-                            .length = word->size) ||
+                            .array = g_cli_validate->tool.declarations, .text = code + word_text->start,
+                            .length = word_text->size) ||
                 !(EMBED_CALL(report_same, ValidateAxiomsCtx, .text = code + next->start, .size = next->size,
                              .other = name + cut, .length = size - cut) ||
                   EMBED_CALL(report_same, ValidateAxiomsCtx, .text = code + next->start, .size = next->size,
