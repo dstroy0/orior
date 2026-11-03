@@ -257,12 +257,15 @@ EMBED_INLINE void entries_alias(const VersionCatalogEntriesCtx *args)
     VerbaLinea line = {named, sizeof(named), 0ULL};
     EMBED_CALL(cli_version_catalog_size_out_alias_internal.versions_accessor, CliVersionCatalogSizeOutAliasCtx,
                .alias = alias, .size = args->entry->key_size, .out = &line);
-    for (unsigned int above = args->first; above != CLI_VERSIONS_NONE; above = g_cli_versions.field[above].next)
+    unsigned int above = args->first;
+    int going = 1;
+    while (going && (above != CLI_VERSIONS_NONE))
     {
         const CliVersionsField *const other = &g_cli_versions.field[above];
         if (other == args->entry)
         {
-            break;
+            going = 0;
+            continue;
         }
         char other_named[1u << 12u];
         VerbaLinea other_line = {other_named, sizeof(other_named), 0ULL};
@@ -282,8 +285,10 @@ EMBED_INLINE void entries_alias(const VersionCatalogEntriesCtx *args)
             (void)EMBED_CALL(cli_builds_lines.build_finding, CliBuildsLinesCfg, .found = check->found, .message = &msg,
                              .lines = check->lines, .from = args->entry->from, .to = args->entry->to,
                              .severity = CLI_BUILD_ERROR, .code = "catalog-alias");
-            break;
+            going = 0;
+            continue;
         }
+        above = g_cli_versions.field[above].next;
     }
     int shaped = (args->entry->key_size > 1u) && (alias[0] >= 'a') && (alias[0] <= 'z');
     for (unsigned int at = 0u; shaped && (at < args->entry->key_size); at += 1u)

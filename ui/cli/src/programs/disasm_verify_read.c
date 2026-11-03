@@ -514,7 +514,8 @@ int cli_disasm_same(const CliDisasmVerifyOneCfg *args)
     unsigned int second = 0u;
     unsigned int left_offset = 0u;
     unsigned int raw_offset = 0u;
-    while ((first < args->one->count) && (second < args->other->count))
+    int going = 1;
+    while (going && ((first < args->one->count) && (second < args->other->count)))
     {
         const CliDisasmInstruction *const left = &args->one->instruction[first];
         const CliDisasmInstruction *const right = &args->other->instruction[second];
@@ -524,7 +525,8 @@ int cli_disasm_same(const CliDisasmVerifyOneCfg *args)
                                                  .left_offset = left_offset, .right = right, .raw_offset = raw_offset);
             if (same == 0u)
             {
-                break;
+                going = 0;
+                continue;
             }
             left_offset += same;
             raw_offset += same;
@@ -541,7 +543,8 @@ int cli_disasm_same(const CliDisasmVerifyOneCfg *args)
         }
         else
         {
-            break;
+            going = 0;
+            continue;
         }
     }
     *at = first;

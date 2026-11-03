@@ -59,12 +59,14 @@ EMBED_INLINE unsigned int references_chain(const GradleReferencesCtx *args)
     unsigned long long start = args->start;
     const char *const text = g_cli_gradle.text;
     unsigned int count = 0u;
-    for (;;)
+    int going = 1;
+    while (going)
     {
         const unsigned long long length = EMBED_CALL(references_word, GradleReferencesCtx, .at = start);
         if ((length == 0u) || (count == CLI_GRADLE_SEGMENTS))
         {
-            break;
+            going = 0;
+            continue;
         }
         args->from[count] = start;
         args->to[count] = start + length;
@@ -74,7 +76,8 @@ EMBED_INLINE unsigned int references_chain(const GradleReferencesCtx *args)
             start += length + 1u;
             continue;
         }
-        break;
+        going = 0;
+        continue;
     }
     if (count > 0u)
     {

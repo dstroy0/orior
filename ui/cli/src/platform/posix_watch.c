@@ -291,7 +291,7 @@ EMBED_INLINE void inotify_record_emit(const PosixWatchCtx *args)
     }
     // a number from the system is not negative
     const unsigned int at = (unsigned int)args->record->wd;
-    if ((at == 0u) || (at >= s_watch.folder_max) || !s_watch.folder[at].used)
+    if ((at == 0u) || (at >= CLI_INOTIFY_FOLDERS) || !s_watch.folder[at].used)
     {
         return;
     }

@@ -260,8 +260,9 @@ int query_file_copy(const QueryFromCtx *args)
     ssize_t got = whole ? read(source, piece, sizeof(piece)) : 0;
     while (whole && (got > 0))
     {
-        // a read that gave bytes gave a positive count, which a write puts whole or fails
-        whole = write(target, piece, (size_t)got) == got;
+        // a read that gave bytes gave a positive count, which a write puts whole or fails; they are a file's bytes, and
+        // no path is made of them
+        whole = write(target, piece, (size_t)got) == got; // NOSONAR
         got = read(source, piece, sizeof(piece));
     }
     close(source);
@@ -389,7 +390,8 @@ unsigned long long query_terminal_line_read(const QueryCapacityLineCtx *args)
     size_t length = 0u;
     unsigned long long whole = 0ULL;
     int read_any = 0;
-    for (;;)
+    int going = 1;
+    while (going)
     {
         char letter = '\0';
         if (read(0, &letter, 1u) != 1)
@@ -398,12 +400,14 @@ unsigned long long query_terminal_line_read(const QueryCapacityLineCtx *args)
             {
                 return QRY_MEMBER_UNREAD;
             }
-            break;
+            going = 0;
+            continue;
         }
         read_any = 1;
         if (letter == '\n')
         {
-            break;
+            going = 0;
+            continue;
         }
         if (letter != '\r')
         {

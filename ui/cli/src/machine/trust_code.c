@@ -431,7 +431,8 @@ unsigned int cli_trust_git_words(const CliTrustTreeWordsCfg *args)
                             .src = args->tree,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->tree, .cap = CLI_CELLS_POOL}) + 1u});
     int hook = 0;
-    for (;;)
+    int going = 1;
+    while (going)
     {
         char git[CLI_PATH_MAX_LEN];
         VerbaLinea line = {git, sizeof(git), 0ULL};
@@ -444,12 +445,14 @@ unsigned int cli_trust_git_words(const CliTrustTreeWordsCfg *args)
             char *const config = EMBED_CALL(cli_read_in, TrustCodeCtx, .folder = folder, .name = ".git/config");
             hook = (config != NULL) && EMBED_CALL(cli_trust_table.names_a_hook, CliTrustCfg, .config = config);
             g_cli_cells->persistent_buf_release(config, &g_cli_trust_cells);
-            break;
+            going = 0;
+            continue;
         }
         char above[CLI_PATH_MAX_LEN];
         if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = folder, .out = above))
         {
-            break;
+            going = 0;
+            continue;
         }
         memor.cpy(&(MemoriaCfg){.dst = folder,
                                 .src = above,

@@ -10,29 +10,32 @@
 
 CliCommsWorkState g_cli_comms = {0};
 
-// the parts, the listeners and the channels' traffic taken at their most in one cell, all empty, as the first of them
-// is needed; under the lock
+// the parts, the listeners and the channels' traffic at their most, which one cell holds
+typedef struct
+{
+    CliCommsPart parts[CLI_COMMS_PARTS];
+    CliCommsListener listeners[CLI_COMMS_LISTENERS];
+    CliCommsTraffic traffic[CLI_COMMS_CHANNELS];
+} CliCommsTables;
+
+// the tables taken in their one cell, all empty, as the first of them is needed; under the lock
 static void comms_tables_init(void)
 {
     if (g_cli_comms.parts != NULL)
     {
         return;
     }
-    const unsigned long long part_bytes = (unsigned long long)CLI_COMMS_PARTS * sizeof(CliCommsPart);
-    const unsigned long long listener_bytes = (unsigned long long)CLI_COMMS_LISTENERS * sizeof(CliCommsListener);
-    const unsigned long long traffic_bytes = (unsigned long long)CLI_COMMS_CHANNELS * sizeof(CliCommsTraffic);
-    const unsigned long long bytes = part_bytes + listener_bytes + traffic_bytes;
-    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(bytes, &g_cli_comms_cells);
-    if (cell == NULL)
+    CliCommsTables *const tables = g_cli_cells->persistent_buf_alloc(sizeof(*tables), &g_cli_comms_cells);
+    if (tables == NULL)
     {
         return;
     }
-    memor.set(&(MemoriaCfg){.dst = cell, .val = 0, .bytes = (size_t)bytes});
-    g_cli_comms.parts = (CliCommsPart *)(void *)cell;
+    memor.set(&(MemoriaCfg){.dst = tables, .val = 0, .bytes = sizeof(*tables)});
+    g_cli_comms.parts = tables->parts;
     g_cli_comms.parts_capacity = CLI_COMMS_PARTS;
-    g_cli_comms.listeners = (CliCommsListener *)(void *)(cell + part_bytes);
+    g_cli_comms.listeners = tables->listeners;
     g_cli_comms.listeners_capacity = CLI_COMMS_LISTENERS;
-    g_cli_comms.traffic = (CliCommsTraffic *)(void *)(cell + part_bytes + listener_bytes);
+    g_cli_comms.traffic = tables->traffic;
     g_cli_comms.channels_capacity = CLI_COMMS_CHANNELS;
 }
 

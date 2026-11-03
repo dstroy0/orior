@@ -403,7 +403,8 @@ int cli_zip_with(const CliArchiveBytesSizeCtx *args)
     unsigned long long at = start;
     int done = 1;
     unsigned long long index = 0ULL;
-    while (done && (index < count))
+    int going = 1;
+    while (going && (done && (index < count)))
     {
         CliCentral record;
         done = EMBED_CALL(cli_central, ArchiveZipCtx, .bytes = bytes, .size = size, .at = at, .central = &record,
@@ -430,7 +431,8 @@ int cli_zip_with(const CliArchiveBytesSizeCtx *args)
         }
         if (!done)
         {
-            break;
+            going = 0;
+            continue;
         }
         // the member's body: the changed one deflated where that is smaller, each other's as it was
         unsigned long long method = record.method;
@@ -458,7 +460,8 @@ int cli_zip_with(const CliArchiveBytesSizeCtx *args)
             {
                 mmgr_line_put(args->err_msg, "a zip's data is cut");
                 done = 0;
-                break;
+                going = 0;
+                continue;
             }
             body = bytes + from;
         }
@@ -467,7 +470,8 @@ int cli_zip_with(const CliArchiveBytesSizeCtx *args)
         {
             mmgr_line_put(args->err_msg, "the zip is larger than orior_cli supports");
             done = 0;
-            break;
+            going = 0;
+            continue;
         }
         const unsigned long long offset = used;
         memor.cpy(&(MemoriaCfg){.dst = out + used, .src = bytes + record.local, .bytes = head_length});
@@ -489,7 +493,8 @@ int cli_zip_with(const CliArchiveBytesSizeCtx *args)
         {
             mmgr_line_put(args->err_msg, "the zip's directory is larger than orior_cli supports");
             done = 0;
-            break;
+            going = 0;
+            continue;
         }
         memor.cpy(&(MemoriaCfg){.dst = written_directory + directory, .src = bytes + at, .bytes = record.length});
         unsigned long long central_flags = 0ULL;

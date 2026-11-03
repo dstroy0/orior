@@ -27,14 +27,6 @@ unsigned long long g_cli_next_run;
 static int s_attached;
 CliWake g_cli_runs_wake = CLI_WAKE_INIT;
 
-void cli_runs_alloc(void)
-{
-}
-
-void cli_runs_release(void)
-{
-}
-
 void cli_runs_attach(void)
 {
     s_attached = 1;
@@ -429,19 +421,24 @@ void cli_run_steps(void *context)
     int built = 1;
     CliCreated made;
     memor.set(&(MemoriaCfg){.dst = &made, .val = 0, .bytes = sizeof(made)});
-    for (unsigned int at = 0u; at < count; at += 1u)
+    unsigned int at = 0u;
+    int going = 1;
+    while (going && (at < count))
     {
         if (EMBED_CALL(cli_stopping, RunnerRunCtx, .run_read = run))
         {
-            break;
+            going = 0;
+            continue;
         }
         if (ready[at][0] == CLI_READY_SIGN)
         {
             if (!EMBED_CALL(cli_sign, RunnerRunCtx, .run = run, .made = &made, .view_out = view_out,
                             .has_code = &has_code, .code = &code, .built = &built))
             {
-                break;
+                going = 0;
+                continue;
             }
+            at += 1u;
             continue;
         }
         const CliStep *const step = &catalog->step[ready[at][1]];
@@ -452,7 +449,8 @@ void cli_run_steps(void *context)
             if (!EMBED_CALL(cli_find_init, RunnerRunCtx, .run = run, .made = &made))
             {
                 has_code = 0;
-                break;
+                going = 0;
+                continue;
             }
             EMBED_CALL(cli_executables_values.run_command, CliExecutablesValuesCfg, .root = run->root,
                        .file = made.file, .values = run->values, .system = step->system, .command = command,
@@ -469,7 +467,8 @@ void cli_run_steps(void *context)
                 mmgr_line_finish(&err_msg);
                 EMBED_CALL(cli_run_print_text, RunnerRunCtx, .run = run, .text = why);
                 has_code = 0;
-                break;
+                going = 0;
+                continue;
             }
         }
         mmgr_line_finish(&displayed);
@@ -478,13 +477,16 @@ void cli_run_steps(void *context)
                         .view_out = view_out, .has_code = &has_code, .code = &code, .step_began = &began))
         {
             built = built && created_step;
-            break;
+            going = 0;
+            continue;
         }
         if (!EMBED_CALL(cli_after_step, RunnerRunCtx, .run = run, .created_step = created_step,
                         .step_began_value = began, .has_code_value = has_code, .code_value = code, .built = &built))
         {
-            break;
+            going = 0;
+            continue;
         }
+        at += 1u;
     }
     g_cli_cells->persistent_buf_release(run_command, &g_cli_runs_cells);
     char (*const pages_found)[CLI_PATH_MAX_LEN] =

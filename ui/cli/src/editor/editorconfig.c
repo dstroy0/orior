@@ -231,7 +231,8 @@ EMBED_INLINE void cli_indent_resolve(const EditorconfigCtx *args)
     unsigned int folders = 0u;
     unsigned long long end = cellul.len(&(CatenaFinitaCfg){.src = args->path, .cap = CLI_CELLS_POOL});
     // each folder from the file's up, the length of `path` it is, until one declares it is the root
-    while (folders < CLI_EDITORCONFIG_FOLDERS)
+    int going = 1;
+    while (going && (folders < CLI_EDITORCONFIG_FOLDERS))
     {
         unsigned long long cut = end;
         while ((cut > 0ULL) && !EMBED_CALL(cli_is_separator, EditorconfigCtx, .letter = args->path[cut - 1u]))
@@ -240,13 +241,15 @@ EMBED_INLINE void cli_indent_resolve(const EditorconfigCtx *args)
         }
         if (cut == 0ULL)
         {
-            break;
+            going = 0;
+            continue;
         }
         const int top = (cut == 1ULL) || ((cut == 3ULL) && (args->path[1] == ':'));
         const unsigned long long folder = top ? cut : (cut - 1ULL);
         if (folder == end)
         {
-            break;
+            going = 0;
+            continue;
         }
         char file[CLI_PATH_MAX_LEN];
         VerbaLinea line = {file, sizeof(file), 0ULL};
@@ -261,12 +264,14 @@ EMBED_INLINE void cli_indent_resolve(const EditorconfigCtx *args)
             // the file's bytes read as text: a char and an unsigned char share their width
             if (EMBED_CALL(cli_is_root, EditorconfigCtx, .text = (const char *)s_text, .size = size))
             {
-                break;
+                going = 0;
+                continue;
             }
         }
         if (top)
         {
-            break;
+            going = 0;
+            continue;
         }
         end = cut - 1ULL;
     }

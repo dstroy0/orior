@@ -48,8 +48,6 @@ int cli_run_cells_alloc(const CliRunnerRunCtx *args);
 void cli_run_cells_free(const CliRunnerRunSpawnedCtx *args);
 
 // the lock every run's state is read and changed under
-void cli_runs_alloc(void);
-void cli_runs_release(void);
 // the milliseconds since a run began, to the microsecond (runner_run.c)
 double cli_run_since(const CliRunnerCtx *args);
 // a line printed on a run's stream, stored among its lines where it is output (runner_lines.c)

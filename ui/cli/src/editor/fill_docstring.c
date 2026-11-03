@@ -46,7 +46,8 @@ EMBED_INLINE int docstring_around(const FillDocstringCtx *args)
             return 0;
         }
         unsigned long long rest = line.start;
-        for (;;)
+        int going = 1;
+        while (going)
         {
             unsigned long long place = 0ULL;
             if (open != NULL)
@@ -54,7 +55,8 @@ EMBED_INLINE int docstring_around(const FillDocstringCtx *args)
                 if (!EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = text + rest,
                                 .length_value = line.end - rest, .required = open, .size = 3u, .at_pointer = &place))
                 {
-                    break;
+                    going = 0;
+                    continue;
                 }
                 if ((open_start <= at) && (at <= line.index))
                 {
@@ -77,7 +79,8 @@ EMBED_INLINE int docstring_around(const FillDocstringCtx *args)
                            .length_value = line.end - rest, .required = "'''", .size = 3u, .at_pointer = &single_at);
             if (!has_double && !has_single)
             {
-                break;
+                going = 0;
+                continue;
             }
             const int double_first = has_double && (!has_single || (double_at < single_at));
             open = double_first ? "\"\"\"" : "'''";

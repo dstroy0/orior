@@ -192,7 +192,9 @@ def cmd_cli_test(a):
 
     def library_built(target):
         """orior_cli's library built for `target` through ui/cli/build.sh: its archive, or None where the build failed."""
-        if streamed([bash(), CLI_BUILD, "library", target], env=build_env) != 0:
+        code = streamed([bash(), CLI_BUILD, "library", target], env=build_env)
+        if code != 0:
+            print("the library's build ended with %d" % code, flush=True)
             return None
         return library_archive(target + (("-" + a.sanitize) if a.sanitize else ""))
 

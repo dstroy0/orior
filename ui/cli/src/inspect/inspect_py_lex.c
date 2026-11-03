@@ -111,14 +111,15 @@ static void lex_string(const InspectPyLexCtx *args)
     }
     unsigned int names = 0u;
     unsigned int braces = 0u;
-    for (unsigned int letter = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan);
-         letter != CLI_INSPECT_END;
-         letter = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan))
+    unsigned int letter = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan);
+    int going = 1;
+    while (going && (letter != CLI_INSPECT_END))
     {
         if (letter == '\\')
         {
             (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
             (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
+            letter = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan);
             continue;
         }
         if ((letter == quote) &&
@@ -131,11 +132,13 @@ static void lex_string(const InspectPyLexCtx *args)
             {
                 (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
             }
-            break;
+            going = 0;
+            continue;
         }
         if ((letter == '\n') && !triple)
         {
-            break;
+            going = 0;
+            continue;
         }
         if (fields && (letter == '{'))
         {
@@ -144,6 +147,7 @@ static void lex_string(const InspectPyLexCtx *args)
             {
                 (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
                 (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
+                letter = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan);
                 continue;
             }
             braces += 1u;
@@ -178,9 +182,11 @@ static void lex_string(const InspectPyLexCtx *args)
                                     EMBED_CALL(cli_inspect_scan_internal.place, CliInspectScanCtx, .scan = scan)};
                 names += 1u;
             }
+            letter = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan);
             continue;
         }
         (void)EMBED_CALL(cli_inspect_size_scan_internal.bump, CliInspectSizeScanCtx, .scan_out = scan);
+        letter = EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = scan);
     }
     EMBED_CALL(cli_inspect_scan_internal.tok_append, CliInspectScanCtx, .scan = scan, .kind = CLI_PY_STR,
                .start = start, .from = from, .field = 0);
@@ -344,13 +350,15 @@ void cli_py_read(const CliInspectPySrcSizeCfg *args)
     unsigned int indent = 0u;
     int depth = 0;
     int at_start = 1;
-    for (;;)
+    int going = 1;
+    while (going)
     {
         if (at_start)
         {
             if (!EMBED_CALL(lex_line_start, InspectPyLexCtx, .scan = &scan, .indent_pointer = &indent))
             {
-                break;
+                going = 0;
+                continue;
             }
             at_start = 0;
         }
@@ -358,7 +366,8 @@ void cli_py_read(const CliInspectPySrcSizeCfg *args)
             EMBED_CALL(cli_inspect_scan_ahead_internal.peek, CliInspectScanAheadCtx, .scan = &scan);
         if (letter == CLI_INSPECT_END)
         {
-            break;
+            going = 0;
+            continue;
         }
         const unsigned long long start = scan.pos;
         const CliInspectPosition from = EMBED_CALL(cli_inspect_scan_internal.place, CliInspectScanCtx, .scan = &scan);

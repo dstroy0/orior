@@ -230,14 +230,9 @@ unsigned int cli_process_own(void)
 int cli_program_own(const CliPathCapacityCtx *args)
 {
 #if defined(__linux__)
-    const ssize_t length = readlink("/proc/self/exe", args->path_out, args->capacity_bytes - 1u);
-    // a length read that is positive fits an unsigned long long
-    if ((length <= 0) || ((unsigned long long)length >= args->capacity_bytes))
-    {
-        return 0;
-    }
-    args->path_out[length] = '\0';
-    return 1;
+    // readlink ends nothing with a 0, and the capacity's last byte stays the 0 written here
+    memor.set(&(MemoriaCfg){.dst = args->path_out, .val = 0, .bytes = (size_t)args->capacity_bytes});
+    return readlink("/proc/self/exe", args->path_out, args->capacity_bytes - 1u) > 0;
 #elif defined(__APPLE__)
     // a capacity is far below what a uint32_t counts
     uint32_t size = (uint32_t)args->capacity_bytes;

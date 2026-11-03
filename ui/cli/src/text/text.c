@@ -703,20 +703,23 @@ void cli_text_append_fill(const CliTextOutNameCfg *args)
 unsigned long long cli_text_prefix(const CliTextSizeFromU64sCfg *args)
 {
     unsigned long long at = 0ULL;
-    while (at < args->size)
+    int going = 1;
+    while (going && (at < args->size))
     {
         at = EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = args->text, .at = at,
                         .size = args->size, .set = CLI_TEXT_WHITE);
         if (at >= args->size)
         {
-            break;
+            going = 0;
+            continue;
         }
         unsigned long long length = 0ULL;
         if (!EMBED_CALL(cli_text_table.white, CliTextCfg,
                         .letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = args->text, .size = args->size,
                                              .at = at, .length = &length)))
         {
-            break;
+            going = 0;
+            continue;
         }
         at += length;
     }

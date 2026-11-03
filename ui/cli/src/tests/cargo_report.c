@@ -449,7 +449,8 @@ void cli_cargo_workspace_get(const CliCargoReportCfg *args)
                             .src = args->package,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->package, .cap = CLI_CELLS_POOL}) + 1u});
     const size_t root_size = cellul.len(&(CatenaFinitaCfg){.src = args->root, .cap = CLI_CELLS_POOL});
-    for (;;)
+    int going = 1;
+    while (going)
     {
         const int inside =
             EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = folder, .other_pointer = args->root,
@@ -458,7 +459,8 @@ void cli_cargo_workspace_get(const CliCargoReportCfg *args)
              (root_size == 0u) || (args->root[root_size - 1u] == '/') || (args->root[root_size - 1u] == '\\'));
         if (!inside)
         {
-            break;
+            going = 0;
+            continue;
         }
         char manifest[CLI_PATH_MAX_LEN];
         EMBED_CALL(cli_root_internal.full, CliRootCtx, .root = folder, .relative = "Cargo.toml", .joined = manifest);
@@ -488,7 +490,8 @@ void cli_cargo_workspace_get(const CliCargoReportCfg *args)
         }
         if (!EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = folder, .out = above))
         {
-            break;
+            going = 0;
+            continue;
         }
         memor.cpy(&(MemoriaCfg){.dst = folder, .src = above, .bytes = sizeof(folder)});
     }

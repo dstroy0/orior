@@ -202,6 +202,7 @@ compiled() {
         newest="${BASH_SOURCE[0]}"
     fi
     OBJECTS=()
+    local running=()
     local failed="$objects/failed"
     rm -f "$failed"
     for source in "$@"; do
@@ -209,10 +210,12 @@ compiled() {
         local object="$objects/${relative//\//__}.o"
         OBJECTS+=("$object")
         if [[ -n "$newest" ]] || [[ ! -f "$object" ]] || [[ "$source" -nt "$object" ]]; then
-            while [[ "$(jobs -rp | wc -l)" -ge "$JOBS" ]]; do
-                wait "$(jobs -rp | head -1)"
-            done
+            if [[ "${#running[@]}" -ge "$JOBS" ]]; then
+                wait "${running[0]}"
+                running=("${running[@]:1}")
+            fi
             ( "${WORDS[@]}" -o "$object" "$source" > "$object.log" 2>&1 || echo "$source $object.log" >> "$failed" ) &
+            running+=("$!")
         fi
     done
     wait

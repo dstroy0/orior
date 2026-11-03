@@ -134,7 +134,8 @@ void cli_maven_resolve(const CliMavenSizeOutCtx *args)
     mmgr_line_put_n(&line, args->value, args->size);
     unsigned int turn_at = 0u;
     unsigned int round = 0u;
-    while ((round < 8u) && mmgr_line_ok(&line))
+    int going = 1;
+    while (going && ((round < 8u) && mmgr_line_ok(&line)))
     {
         unsigned long long start = 0ULL;
         unsigned long long length = 0ULL;
@@ -143,7 +144,8 @@ void cli_maven_resolve(const CliMavenSizeOutCtx *args)
             !EMBED_CALL(cli_text_size_at.find, CliTextSizeAtCfg, .text = s_turn[turn_at] + start,
                         .length_value = line.at - start, .required = "}", .size = 1u, .at_pointer = &length))
         {
-            break;
+            going = 0;
+            continue;
         }
         unsigned long long input_size = 0ULL;
         const char *const supplied =
@@ -151,7 +153,8 @@ void cli_maven_resolve(const CliMavenSizeOutCtx *args)
                        .name = s_turn[turn_at] + start + 2u, .size = length - 2u, .value_size = &input_size);
         if (supplied == NULL)
         {
-            break;
+            going = 0;
+            continue;
         }
         const unsigned int next = 1u - turn_at;
         VerbaLinea turned = {s_turn[next], sizeof(s_turn[next]), 0ULL};

@@ -308,7 +308,8 @@ EMBED_INLINE unsigned int write_member_end(const InspectJsWriteCtx *args)
     unsigned int end = args->start_u32;
     *name = NULL;
     *name_size = 0u;
-    while (end < args->close)
+    int going = 1;
+    while (going && (end < args->close))
     {
         if (g_cli_js_brace[end] == CLI_JS_FUNCTION)
         {
@@ -319,11 +320,13 @@ EMBED_INLINE unsigned int write_member_end(const InspectJsWriteCtx *args)
                 *name = EMBED_CALL(write_word, InspectJsWriteCtx, .src = src, .at = named, .size = name_size);
             }
             end = (g_cli_js_pair[end] != CLI_JS_NO) ? g_cli_js_pair[end] : end;
-            break;
+            going = 0;
+            continue;
         }
         if (EMBED_CALL(cli_inspect_js_at_word.js_is, CliInspectJsAtWordCfg, .src = src, .at = end, .word_text = ";"))
         {
-            break;
+            going = 0;
+            continue;
         }
         const unsigned int pair = g_cli_js_pair[end];
         const int opens =
@@ -341,7 +344,8 @@ EMBED_INLINE unsigned int write_member_end(const InspectJsWriteCtx *args)
         if (broken)
         {
             end -= 1u;
-            break;
+            going = 0;
+            continue;
         }
     }
     return (end < args->close - 1u) ? end : (args->close - 1u);

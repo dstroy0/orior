@@ -212,7 +212,8 @@ static void cli_about_write(const CatalogScanCtx *args)
                                  ? "#"
                                  : "//";
     int count = 0;
-    while (EMBED_CALL(cli_line, CatalogScanCtx, .at = &at, .end = args->end, .line_pointer = &line))
+    int going = 1;
+    while (going && (EMBED_CALL(cli_line, CatalogScanCtx, .at = &at, .end = args->end, .line_pointer = &line)))
     {
         line = EMBED_CALL(cli_trim, CatalogScanCtx, .line = line);
         const int license = EMBED_CALL(cli_line_contains, CatalogScanCtx, .line = line, .word_text = "SPDX") ||
@@ -228,7 +229,8 @@ static void cli_about_write(const CatalogScanCtx *args)
             {
                 continue;
             }
-            break;
+            going = 0;
+            continue;
         }
         if (license)
         {
@@ -254,7 +256,8 @@ static void cli_about_write(const CatalogScanCtx *args)
             {
                 continue;
             }
-            break;
+            going = 0;
+            continue;
         }
         EMBED_CALL(cli_paragraph_append, CatalogScanCtx, .out = args->out, .count = &count, .text = about_text.at,
                    .length = about_text.length);

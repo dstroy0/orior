@@ -26,7 +26,6 @@ void cli_run_line(const CliRunnerRunStreamCtx *args)
 {
     const char *text = args->text;
     const double ms = EMBED_CALL(cli_runner_internal.run_since, CliRunnerCtx, .run_read = args->run);
-    cli_runs_alloc();
     EMBED_CALL(cli_runner_lines.lines_append, CliRunnerLinesCfg, .lines = args->run->lines, .text = text,
                .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
     if (!args->run->has_first)
@@ -34,7 +33,6 @@ void cli_run_line(const CliRunnerRunStreamCtx *args)
         args->run->first = ms;
         args->run->has_first = 1;
     }
-    cli_runs_release();
     const CliRunEvent event = {
         CLI_RUN_EVENT_LINE, args->run->run, NULL, args->stream, text, 0, 0LL, 0, NULL, 0u, NULL, ms};
     EMBED_CALL(args->run->sink.emit, CliEachEventCfg, .context = args->run->sink.context, .event = &event);

@@ -136,7 +136,8 @@ static void read_string(const SchemaReadCtx *args)
     const unsigned long long size = args->reader->read->size;
     const unsigned long long start = args->reader->at;
     args->reader->at += 1u;
-    while (args->reader->at < size)
+    int going = 1;
+    while (going && (args->reader->at < size))
     {
         unsigned long long length = 0ULL;
         const unsigned int letter = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = text, .size = size,
@@ -148,7 +149,8 @@ static void read_string(const SchemaReadCtx *args)
         }
         if (letter == '\n')
         {
-            break;
+            going = 0;
+            continue;
         }
         args->reader->at += length;
         if (letter != '\\')
@@ -158,7 +160,8 @@ static void read_string(const SchemaReadCtx *args)
         }
         if (args->reader->at >= size)
         {
-            break;
+            going = 0;
+            continue;
         }
         const unsigned int next = EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = text, .size = size,
                                              .at = args->reader->at, .length = &length);

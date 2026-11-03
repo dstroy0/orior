@@ -345,7 +345,8 @@ void cli_settings_chain(const CliSettingsPathCfg *args)
         {
             EMBED_CALL(cli_problem, SettingsCtx, .chain = args->chain, .named = named,
                        .detail = ": more than 16 files take one another, and those past them are not read");
-            break;
+            going = 0;
+            continue;
         }
         char full[CLI_PATH_MAX_LEN];
         if (!EMBED_CALL(query_capacity_path_internal.path_full, QueryCapacityPathCtx, .path = next, .full = full,
@@ -365,7 +366,8 @@ void cli_settings_chain(const CliSettingsPathCfg *args)
         {
             EMBED_CALL(cli_problem, SettingsCtx, .chain = args->chain, .named = named,
                        .detail = " is taken twice in one chain, and is read once");
-            break;
+            going = 0;
+            continue;
         }
         memor.cpy(&(MemoriaCfg){.dst = walk->seen[walk->count],
                                 .src = full,
@@ -384,7 +386,8 @@ void cli_settings_chain(const CliSettingsPathCfg *args)
                                          ? ": it could not be read"
                                          : ": it is not there");
             }
-            break;
+            going = 0;
+            continue;
         }
         first = 0;
         // a file's text with its comments taken out is no longer than the file
@@ -418,7 +421,8 @@ void cli_settings_chain(const CliSettingsPathCfg *args)
                        .detail = (values == CLI_JSON_NONE) ? msg_buf : " is not an object of settings");
             EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &own);
             g_cli_cells->persistent_buf_release(plain_text, &g_cli_settings_cells);
-            break;
+            going = 0;
+            continue;
         }
         CliChainFile *const walked = &walk->file[walk->count];
         memor.cpy(&(MemoriaCfg){.dst = walked->named,

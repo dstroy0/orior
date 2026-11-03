@@ -107,7 +107,8 @@ static void cli_pipe_read(const RanCtx *args)
     CliRunResultPiece *first = NULL;
     CliRunResultPiece *last = NULL;
     unsigned long long total = 0ULL;
-    for (;;)
+    int going = 1;
+    while (going)
     {
         if ((last == NULL) || (last->size == CLI_RUN_RESULT_PIECE))
         {
@@ -123,7 +124,8 @@ static void cli_pipe_read(const RanCtx *args)
                 {
                     // the rest read and dropped, so that the program does not stand on a full pipe
                 }
-                break;
+                going = 0;
+                continue;
             }
             piece->bytes = (char *)(void *)(piece + 1);
             piece->next = NULL;
@@ -143,7 +145,8 @@ static void cli_pipe_read(const RanCtx *args)
             .piece = last->bytes + last->size, .capacity = CLI_RUN_RESULT_PIECE - last->size);
         if (got == 0ULL)
         {
-            break;
+            going = 0;
+            continue;
         }
         last->size += got;
         total += got;
@@ -200,18 +203,21 @@ static void cli_on_watch(void *context)
 {
     CliRunResultWorkState *const work_state = (CliRunResultWorkState *)context;
     const unsigned long long began = cli_clock_milliseconds();
-    for (;;)
+    int going = 1;
+    while (going)
     {
         const int finished = work_state->finished;
         if (finished)
         {
-            break;
+            going = 0;
+            continue;
         }
         if ((cli_clock_milliseconds() - began) >= work_state->limit)
         {
             work_state->run_result.stopped = 1;
             EMBED_CALL(cli_id_internal.spawn_tree_end, CliIdCtx, .id_u64 = work_state->spawned.id);
-            break;
+            going = 0;
+            continue;
         }
         EMBED_CALL(query_milliseconds_internal.pause, QueryMillisecondsCtx, .milliseconds = 20u);
     }

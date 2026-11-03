@@ -283,7 +283,8 @@ static void cli_batch(void *context)
     {
         batch->changes = (CliChanges){NULL, 0u, 0ULL, NULL, 0ULL, 0ULL};
     }
-    while (batch != NULL)
+    int going = 1;
+    while (going && (batch != NULL))
     {
         while ((s_watching.waiting.count == 0u) && !s_watching.overflowed && !s_watching.stop)
         {
@@ -291,18 +292,21 @@ static void cli_batch(void *context)
         }
         if (s_watching.stop)
         {
-            break;
+            going = 0;
+            continue;
         }
         batch->lost = 0;
         EMBED_CALL(cli_waiting_alloc, WatchCtx, .batch = batch);
         // more changes taken while they come within CLI_WATCH_QUIET of one another, for at most CLI_WATCH_BATCH_MAX
         const unsigned long long began = cli_clock_milliseconds();
-        for (;;)
+        int gathering = 1;
+        while (gathering)
         {
             const unsigned long long spent = cli_clock_milliseconds() - began;
             if ((spent >= CLI_WATCH_BATCH_MAX) || s_watching.stop)
             {
-                break;
+                gathering = 0;
+                continue;
             }
             const unsigned long long left = CLI_WATCH_BATCH_MAX - spent;
             const unsigned long long quiet = (left < CLI_WATCH_QUIET) ? left : CLI_WATCH_QUIET;
@@ -315,7 +319,8 @@ static void cli_batch(void *context)
             }
             if ((s_watching.waiting.count == 0u) && !s_watching.overflowed)
             {
-                break;
+                gathering = 0;
+                continue;
             }
             EMBED_CALL(cli_waiting_alloc, WatchCtx, .batch = batch);
         }
@@ -331,7 +336,8 @@ static void cli_batch(void *context)
         EMBED_CALL(cli_changes_clear, WatchCtx, .changes = &batch->changes);
         if (stopping)
         {
-            break;
+            going = 0;
+            continue;
         }
     }
     EMBED_CALL(cli_changes_free, WatchCtx, .changes = &s_watching.waiting);

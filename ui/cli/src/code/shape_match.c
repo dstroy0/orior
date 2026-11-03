@@ -89,12 +89,14 @@ EMBED_INLINE void match_ends(const ShapeMatchCtx *args)
     const unsigned int first = args->matcher_out->ends_top;
     long long depth = 0;
     unsigned int at_end = args->at;
-    for (; at_end < args->matcher_out->tokens->count; at_end += 1u)
+    int going = 1;
+    while (going && (at_end < args->matcher_out->tokens->count))
     {
         const int change = EMBED_CALL(match_depth_get, ShapeMatchCtx, .matcher = args->matcher_out, .at = at_end);
         if ((change < 0) && (depth == 0))
         {
-            break;
+            going = 0;
+            continue;
         }
         if (args->hole == CLI_SHAPE_HOLE_NAME)
         {
@@ -102,20 +104,23 @@ EMBED_INLINE void match_ends(const ShapeMatchCtx *args)
             {
                 EMBED_CALL(match_end_append, ShapeMatchCtx, .matcher_out = args->matcher_out, .end = at_end + 1u);
             }
-            break;
+            going = 0;
+            continue;
         }
         if (args->hole == CLI_SHAPE_HOLE_EXPR)
         {
             if ((depth == 0) &&
                 EMBED_CALL(match_ends_statement, ShapeMatchCtx, .matcher = args->matcher_out, .at = at_end))
             {
-                break;
+                going = 0;
+                continue;
             }
             depth += change;
             if (depth == 0)
             {
                 EMBED_CALL(match_end_append, ShapeMatchCtx, .matcher_out = args->matcher_out, .end = at_end + 1u);
             }
+            at_end += 1u;
             continue;
         }
         depth += change;
@@ -126,9 +131,11 @@ EMBED_INLINE void match_ends(const ShapeMatchCtx *args)
             EMBED_CALL(match_end_append, ShapeMatchCtx, .matcher_out = args->matcher_out, .end = at_end + 1u);
             if (args->last)
             {
-                break;
+                going = 0;
+                continue;
             }
         }
+        at_end += 1u;
     }
     if ((args->hole == CLI_SHAPE_HOLE_STMT) && (depth == 0) && (at_end > args->at) &&
         ((args->matcher_out->ends_top == first) ||
