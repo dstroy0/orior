@@ -807,6 +807,8 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM pixel_w
         return 0;
     case WM_KILLFOCUS:
         system->mods = 0u;
+        EMBED_CALL(system->events->input, GuiEachInputCfg, .context = system->context,
+                   .input = &(GuiInput){.type = GUI_INPUT_BLUR});
         return 0;
     case WM_KEYDOWN:
     case WM_SYSKEYDOWN:

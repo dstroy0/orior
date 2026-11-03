@@ -367,10 +367,26 @@ EMBED_INLINE void window_side(const GuiWindowCtx *args)
     window_view_resize(args);
 }
 
+// the menus open closed, as menu.js closes them on a press or the wheel away from them, the window resized or its keys
+// gone to another window
+EMBED_INLINE void window_menus_close(const GuiWindowCtx *args)
+{
+    const CliMenus *const menus = args->window_read->menubar.menus;
+    if ((menus != NULL) && (menus->levels != 0u))
+    {
+        const CliInput closing = {.kind = CLI_INPUT_MENU_AWAY};
+        cli_controller_input(&closing, NULL);
+    }
+}
+
 int gui_window_resize(const GuiWindowWidthCfg *args)
 {
     unsigned int width = args->width;
     unsigned int height = args->height;
+    if ((width != args->window->frame.width) || (height != args->window->frame.height))
+    {
+        EMBED_CALL(window_menus_close, GuiWindowCtx, .window_read = args->window);
+    }
     int system_scale = args->system_scale;
     // the frame is laid at the zoom's share of the scale the system gives
     args->window->system_scale = system_scale;
@@ -1560,7 +1576,7 @@ EMBED_INLINE void window_menus_away(const GuiWindowCtx *args)
                .input = &pressed);
     if ((pressed.hit != CLI_HIT_MENU_ROW) && ((pressed.hit != CLI_HIT_MENU_TITLE) || (menus->open < 0)))
     {
-        cli_controller_input(&pressed, NULL);
+        EMBED_CALL(window_menus_close, GuiWindowCtx, .window_read = args->window_read);
     }
 }
 
@@ -1863,6 +1879,12 @@ static void window_key(const GuiInputHandlerCfg *args)
                .length = cellul.len(&(CatenaFinitaCfg){.src = args->input->name, .cap = 64ULL}) + 1ULL);
 }
 
+// the keys gone to another window: the menus open closed
+static void window_blur(const GuiInputHandlerCfg *args)
+{
+    EMBED_CALL(window_menus_close, GuiWindowCtx, .window_read = args->window);
+}
+
 // the system's gesture for a menu: the menu of what stands at the pointer asked for there
 static void window_menu(const GuiInputHandlerCfg *args)
 {
@@ -1893,7 +1915,8 @@ static const GuiInputHandlers s_window_handlers = {{[GUI_INPUT_MOVED] = window_m
                                                     [GUI_INPUT_WHEEL] = window_wheel,
                                                     [GUI_INPUT_KEY] = window_key,
                                                     [GUI_INPUT_TEXT] = window_text,
-                                                    [GUI_INPUT_MENU] = window_menu}};
+                                                    [GUI_INPUT_MENU] = window_menu,
+                                                    [GUI_INPUT_BLUR] = window_blur}};
 static const GuiInputHandlers s_preferences_handlers = {{[GUI_INPUT_MOVED] = window_preferences_move,
                                                          [GUI_INPUT_DOWN] = window_preferences_press,
                                                          [GUI_INPUT_LEFT] = window_preferences_leave,

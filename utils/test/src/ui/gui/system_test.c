@@ -22,6 +22,7 @@ typedef struct
     char text[32];
     unsigned int pointers;
     unsigned int lefts;
+    unsigned int blurs;
     unsigned int pointer;
     unsigned int button;
     int x;
@@ -62,6 +63,10 @@ static void transferred_input(const GuiEachInputCfg *args)
     else if (args->input->type == GUI_INPUT_LEFT)
     {
         transferred->lefts += 1u;
+    }
+    else if (args->input->type == GUI_INPUT_BLUR)
+    {
+        transferred->blurs += 1u;
     }
     else if (args->input->type != GUI_INPUT_MOVED)
     {
@@ -222,6 +227,11 @@ int main(void)
     EMBED_CALL(gui_system_table.pumped, GuiSystemCfg, .system = system);
     cli_check((transferred.pointers == 4u) && (transferred.pointer == GUI_INPUT_MENU) && (transferred.x == 44) && (transferred.y == 72),
               "its release asks for a menu at its pixel");
+
+    // the keys gone to another window are told, as a page's window is blurred
+    const unsigned int blurs_before = transferred.blurs;
+    SendMessageW(window, WM_KILLFOCUS, 0, 0);
+    cli_check(transferred.blurs == (blurs_before + 1u), "the keys gone to another window are told as the window blurred");
 
     // the pointer gone from the client is told only where it stands off the window altogether
     POINT cursor;

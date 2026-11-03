@@ -121,7 +121,7 @@ void cli_model_session_restore(const CliModelCtx *args);
 // taken: the menus', and where `on` is 0 a command's or a tool's, else the view's; the catalog read; a press and a move
 // on the menu bar or its menus; a menu's rest; the snapshot of the menus; a part's menu asked for, `input` a CliInput
 // of the kind CLI_INPUT_MENU, every menu open closed and the part's opened at its place where the part has one, or the
-// right button pressed or the wheel turned away from the menus, of the kind CLI_INPUT_MENU_AWAY, which closes them
+// menus closed, of the kind CLI_INPUT_MENU_AWAY
 int cli_model_catalog_read(const CliModelCtx *args);
 void cli_model_command_run(const CliModelCtx *args);
 // the command `path` run as the menus run it with its `at` `words`, whoever named it: `file` opening its first word, a

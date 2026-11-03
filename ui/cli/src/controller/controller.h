@@ -21,8 +21,8 @@
 // whose name is in the bytes, a key pressed in Preferences' window, taken only where it is that command's own, the size
 // in rows and columns of the terminal's view `index`, 0 the one shown and 1 the one beside it, the terminal's panel's
 // height dragged to `rows` pixels at a scale of one, a part's menu asked for at x, y on what the window's layout found
-// there, as the system's gesture for one asks, and the right button pressed or the wheel turned away from the menus
-// open
+// there, as the system's gesture for one asks, and the menus open closed by the right button pressed or the wheel
+// turned away from them, the window resized or its keys gone to another window
 #define CLI_INPUT_KEY 0u
 #define CLI_INPUT_TEXT 1u
 #define CLI_INPUT_POINTER_DOWN 2u

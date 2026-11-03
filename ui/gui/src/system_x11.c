@@ -390,6 +390,10 @@ static void system_event(const SystemX11Ctx *args)
     case KeyPress:
         EMBED_CALL(system_key_press, SystemX11Ctx, .system = args->system, .event = &args->event_x_event_pointer->xkey);
         break;
+    case FocusOut:
+        EMBED_CALL(args->system->events->input, GuiEachInputCfg, .context = args->system->context,
+                   .input = &(GuiInput){.type = GUI_INPUT_BLUR});
+        break;
     case ButtonPress:
         if (args->event_x_event_pointer->xbutton.button == Button1)
         {
@@ -516,7 +520,7 @@ EMBED_INLINE void system_window_init(const SystemX11Ctx *args)
     XSetWindowAttributes attributes;
     attributes.background_pixel = 0x131331UL;
     attributes.event_mask = ExposureMask | StructureNotifyMask | ButtonPressMask | ButtonReleaseMask |
-                            PointerMotionMask | LeaveWindowMask | KeyPressMask | KeyReleaseMask;
+                            PointerMotionMask | LeaveWindowMask | KeyPressMask | KeyReleaseMask | FocusChangeMask;
     args->system->window = XCreateWindow(args->system->display, root, args->place->x, args->place->y,
                                          args->place->width, args->place->height, 0, CopyFromParent, InputOutput,
                                          CopyFromParent, CWBackPixel | CWEventMask, &attributes);
