@@ -24,20 +24,21 @@
 #define CONTROLLER_ROWS_BYTES ((unsigned long long)CLI_ITEMS_MAX * sizeof(CliItem))
 
 // An open menu: its rows in a cell sized to them, the row marked and the row whose items are open under it, each -1 for
-// none
+// none, and the serial it took as it opened
 typedef struct
 {
     CliItem *row;
     unsigned int rows;
     int pointed;
     int opened;
+    unsigned int serial;
 } ControllerMenu;
 
 // The menus: each menu's title and how many, those with a place on the bar and the menu each stands for; the rows with
 // keys; how many titles the window's width shows and whether the rest fold into a last one; the title open, -1 for
-// none; the menus open, one under another, and the place the first stands at where it was asked for; and the rest
-// the pointer is in: when it ends, 0 for none, the level of the row it rests on, and the row whose items are to open,
-// -1 where the rest closes the items open beside a sibling
+// none; the menus open, one under another, the place the first stands at where it was asked for, and the serial the
+// last menu opened took; and the rest the pointer is in: when it ends, 0 for none, the level of the row it rests on,
+// and the row whose items are to open, -1 where the rest closes the items open beside a sibling
 typedef struct
 {
     unsigned int menus;
@@ -54,6 +55,7 @@ typedef struct
     unsigned int place;
     int x;
     int y;
+    unsigned int serials;
     unsigned long long rest_due_ms;
     unsigned int rest_level;
     int rest_index;
@@ -183,11 +185,19 @@ EMBED_INLINE void commands_menu_release(const ControllerCommandsCtx *args)
     s_menus.menu[args->level].rows = 0u;
 }
 
+// the menu at `level` given the next serial, as it opens with rows read anew
+EMBED_INLINE void commands_serial_take(const ControllerCommandsCtx *args)
+{
+    s_menus.serials += 1u;
+    s_menus.menu[args->level].serial = s_menus.serials;
+}
+
 // the rows of the list `list` a menu shows read into a cell sized to them for the menu at `level`: a line, or an item
 // neither hidden nor filled in as the menu opens
 EMBED_INLINE void commands_rows_read(const ControllerCommandsCtx *args)
 {
     EMBED_CALL(commands_menu_release, ControllerCommandsCtx, .level = args->level);
+    EMBED_CALL(commands_serial_take, ControllerCommandsCtx, .level = args->level);
     CliItem *const read = g_cli_cells->temporary_buf_alloc(CONTROLLER_ROWS_BYTES, &g_cli_controller_cells);
     if (read == NULL)
     {
@@ -219,6 +229,7 @@ EMBED_INLINE void commands_folded_read(const ControllerCommandsCtx *args)
 {
     (void)args;
     EMBED_CALL(commands_menu_release, ControllerCommandsCtx, .level = 0u);
+    EMBED_CALL(commands_serial_take, ControllerCommandsCtx, .level = 0u);
     const unsigned int count = (s_menus.titles > s_menus.shown) ? (s_menus.titles - s_menus.shown) : 0u;
     ControllerMenu *const menu = &s_menus.menu[0];
     menu->row =
@@ -698,6 +709,7 @@ EMBED_INLINE void commands_terminal_menu_open(const ControllerCommandsCtx *args)
                             .src = EMBED_CALL(cli_model_terminal.menu, CliModelCtx, .at = 0u),
                             .bytes = CLI_MODEL_TERMINAL_MENU_ROWS * sizeof(*menu->row)});
     menu->rows = CLI_MODEL_TERMINAL_MENU_ROWS;
+    EMBED_CALL(commands_serial_take, ControllerCommandsCtx, .level = 0u);
     s_menus.levels = 1u;
     s_menus.open = -1;
     s_menus.place = args->place;
@@ -1066,7 +1078,7 @@ void *cli_model_menus_alloc(const CliModelCtx *args)
     for (unsigned int level = 0u; level < s_menus.levels; level += 1u)
     {
         const ControllerMenu *const menu = &s_menus.menu[level];
-        menus->level[level] = (CliMenuLevel){row, menu->rows, menu->pointed, menu->opened};
+        menus->level[level] = (CliMenuLevel){row, menu->rows, menu->pointed, menu->opened, menu->serial};
         for (unsigned int at = 0u; at < menu->rows; at += 1u)
         {
             const CliItem *const item = &menu->row[at];

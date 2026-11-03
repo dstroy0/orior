@@ -101,7 +101,7 @@ EMBED_INLINE int menubar_label_x(const MenubarCtx *args)
                       .pixels = checks ? GUI_ITEM_CHECKS_PAD_X : GUI_ITEM_PAD_X, .scale = args->scale);
 }
 
-// the rectangle of the row `index` of the open menu at `level`
+// the rectangle of the row `index` of the open menu at `level`, as its rows are scrolled
 EMBED_INLINE GuiRect menubar_row_rect(const MenubarCtx *args)
 {
     const GuiMenubar *menubar = args->menubar;
@@ -109,7 +109,7 @@ EMBED_INLINE GuiRect menubar_row_rect(const MenubarCtx *args)
     const CliMenuLevel *const level = &menubar->menus->level[args->level];
     const GuiRect menu = menubar->menu_rect[args->level];
     const int pad = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_MENU_PAD, .scale = scale);
-    int y = menu.y + pad;
+    int y = menu.y + pad - menubar->scrolled[args->level];
     for (unsigned int at = 0u; at < args->index; at += 1u)
     {
         y += EMBED_CALL(menubar_row_height, MenubarCtx, .row = &level->row[at], .scale = scale);
@@ -118,9 +118,9 @@ EMBED_INLINE GuiRect menubar_row_rect(const MenubarCtx *args)
                      EMBED_CALL(menubar_row_height, MenubarCtx, .row = &level->row[args->index], .scale = scale)};
 }
 
-// the menu at `level` sized for its rows and placed with its top left at x, y, turned in from the window's edges;
-// where it opens beside an item, `adjacent` that item's rectangle, it goes to the item's other side where the right
-// has no capacity
+// the menu at `level` sized for its rows, no taller than the window less GUI_MENU_HEIGHT_SPARE, the height its rows
+// take saved, and placed with its top left at x, y, turned in from the window's edges; where it opens beside an item,
+// `adjacent` that item's rectangle, it goes to the item's other side where the right has no capacity
 static void menubar_menu_position(const MenubarCtx *args)
 {
     GuiMenubar *menubar = args->menubar_out;
@@ -173,7 +173,10 @@ static void menubar_menu_position(const MenubarCtx *args)
     }
     left = (left > window_width - pixel_width - edge) ? window_width - pixel_width - edge : left;
     left = (left < edge) ? edge : left;
-    pixel_height = (pixel_height > window_height - (2 * edge)) ? window_height - (2 * edge) : pixel_height;
+    menubar->content[args->level] = pixel_height;
+    const int tallest = window_height - EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
+                                                   .pixels = GUI_MENU_HEIGHT_SPARE, .scale = scale);
+    pixel_height = (pixel_height > tallest) ? tallest : pixel_height;
     int top = args->y;
     if (top + pixel_height > window_height - edge)
     {
@@ -181,6 +184,54 @@ static void menubar_menu_position(const MenubarCtx *args)
     }
     top = (top < edge) ? edge : top;
     menubar->menu_rect[args->level] = (GuiRect){left, top, pixel_width, pixel_height};
+}
+
+// the rows of the open menu at `level` scrolled no further than their ends
+EMBED_INLINE void menubar_scroll_clamp(const MenubarCtx *args)
+{
+    GuiMenubar *const menubar = args->menubar_out;
+    const int most = menubar->content[args->level] - menubar->menu_rect[args->level].height;
+    int scrolled = menubar->scrolled[args->level];
+    scrolled = (scrolled > most) ? most : scrolled;
+    menubar->scrolled[args->level] = (scrolled < 0) ? 0 : scrolled;
+}
+
+// the rows of the open menu at `level` scrolled as it is laid: a menu opened anew stands at its first row, and a row
+// marked anew is scrolled into view by the least that shows it whole, as a browser scrolls what takes the keys
+static void menubar_scroll_layout(const MenubarCtx *args)
+{
+    GuiMenubar *const menubar = args->menubar_out;
+    const unsigned int at_level = args->level;
+    const CliMenuLevel *const level = &menubar->menus->level[at_level];
+    if (level->serial != menubar->serial[at_level])
+    {
+        menubar->serial[at_level] = level->serial;
+        menubar->scrolled[at_level] = 0;
+        menubar->pointed_seen[at_level] = -1;
+    }
+    // the marked row is among the rows past the test
+    if ((level->pointed >= 0) && (level->pointed != menubar->pointed_seen[at_level]) &&
+        ((unsigned int)level->pointed < level->rows))
+    {
+        int top = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_MENU_PAD, .scale = args->scale);
+        for (unsigned int at = 0u; at < (unsigned int)level->pointed; at += 1u)
+        {
+            top += EMBED_CALL(menubar_row_height, MenubarCtx, .row = &level->row[at], .scale = args->scale);
+        }
+        const int bottom =
+            top + EMBED_CALL(menubar_row_height, MenubarCtx, .row = &level->row[level->pointed], .scale = args->scale);
+        const int visible = menubar->menu_rect[at_level].height;
+        if (top < menubar->scrolled[at_level])
+        {
+            menubar->scrolled[at_level] = top;
+        }
+        else if (bottom > (menubar->scrolled[at_level] + visible))
+        {
+            menubar->scrolled[at_level] = bottom - visible;
+        }
+    }
+    menubar->pointed_seen[at_level] = level->pointed;
+    EMBED_CALL(menubar_scroll_clamp, MenubarCtx, .menubar_out = menubar, .level = at_level);
 }
 
 void gui_menubar_menus_layout(const GuiMenubarBarCfg *args)
@@ -213,6 +264,7 @@ void gui_menubar_menus_layout(const GuiMenubarBarCfg *args)
                                    .scale = args->frame->scale),
                    .adjacent = NULL);
     }
+    EMBED_CALL(menubar_scroll_layout, MenubarCtx, .menubar_out = menubar, .level = 0u, .scale = args->frame->scale);
     for (unsigned int level = 1u; (level < menus->levels) && (level < GUI_MENU_LEVELS); level += 1u)
     {
         const int opened = menus->level[level - 1u].opened;
@@ -229,6 +281,8 @@ void gui_menubar_menus_layout(const GuiMenubarBarCfg *args)
                    .y = adjacent.y - EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_MENU_ABOVE,
                                                 .scale = args->frame->scale),
                    .adjacent = &adjacent);
+        EMBED_CALL(menubar_scroll_layout, MenubarCtx, .menubar_out = menubar, .level = level,
+                   .scale = args->frame->scale);
     }
 }
 
@@ -393,6 +447,28 @@ int gui_menubar_move(const GuiMenubarGlyphsFrameXCfg *args)
     return changed;
 }
 
+int gui_menubar_wheel(const GuiMenubarGlyphsFrameXCfg *args)
+{
+    GuiMenubar *const menubar = args->menubar;
+    const CliMenus *const menus = menubar->menus;
+    for (unsigned int level = (menus != NULL) ? menus->levels : 0u; level > 0u; level -= 1u)
+    {
+        if ((level <= GUI_MENU_LEVELS) &&
+            EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = menubar->menu_rect[level - 1u],
+                       .x = args->x, .y = args->y))
+        {
+            // a notch's pixels at the scale, a third of them a row: a wheel's turn and a scale are far inside an int
+            menubar->scrolled[level - 1u] +=
+                (args->rows * EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = GUI_MENU_NOTCH_PIXELS,
+                                         .scale = args->frame->scale)) /
+                GUI_MENU_NOTCH_ROWS;
+            EMBED_CALL(menubar_scroll_clamp, MenubarCtx, .menubar_out = menubar, .level = level - 1u);
+            return 1;
+        }
+    }
+    return 0;
+}
+
 void gui_menubar_titles_draw(const GuiMenubarGlyphsFrameCfg *args)
 {
     GuiRaster *raster = args->raster;
@@ -484,35 +560,45 @@ void gui_menubar_menus_draw(const GuiMenubarGlyphsFrameCfg *args)
                    .radius = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg,
                                                       .pixels = GUI_MENU_RADIUS, .scale = scale),
                    .color = args->palette->surface);
-        EMBED_CALL(menubar_box_draw, MenubarCtx, .raster = raster, .rect = menu_rect,
-                   .thick = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1, .scale = scale),
+        const int thick = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1, .scale = scale);
+        EMBED_CALL(menubar_box_draw, MenubarCtx, .raster = raster, .rect = menu_rect, .thick = thick,
                    .color = args->palette->widget_line);
+        // the rows scroll under the border, each drawn as much of it as shows inside
+        const GuiRect inner = {menu_rect.x + thick, menu_rect.y + thick, menu_rect.width - (2 * thick),
+                               menu_rect.height - (2 * thick)};
         for (unsigned int at = 0u; at < menu->rows; at += 1u)
         {
             const CliMenuRow *const row = &menu->row[at];
             const GuiRect rect = EMBED_CALL(menubar_row_rect, MenubarCtx, .menubar = args->menubar_read, .level = level,
                                             .index = at, .scale = scale);
+            const GuiRect shown =
+                EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg, .one = rect, .other = inner);
+            if (EMBED_CALL(gui_raster_rect.rect_empty, GuiRasterRectCfg, .rect = shown))
+            {
+                continue;
+            }
             if (row->kind == CLI_MENU_ROW_LINE)
             {
                 const int inset = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 6, .scale = scale);
                 EMBED_CALL(gui_raster_rect_color.fill, GuiRasterRectColorCfg, .raster = raster,
-                           .rect = (GuiRect){rect.x + inset, rect.y + (rect.height / 2), rect.width - (2 * inset),
-                                             EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 1,
-                                                        .scale = scale)},
+                           .rect = EMBED_CALL(gui_raster_one.rect_intersect, GuiRasterOneCfg,
+                                              .one = (GuiRect){rect.x + inset, rect.y + (rect.height / 2),
+                                                               rect.width - (2 * inset), thick},
+                                              .other = inner),
                            .color = args->palette->line);
                 continue;
             }
             // the rows are fewer than an int counts
             if ((int)at == menu->pointed)
             {
-                EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster, .rect = rect,
+                EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster, .rect = shown,
                            .radius = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 4,
                                                               .scale = scale),
                            .color = args->palette->selection);
             }
             else if ((int)at == menu->opened)
             {
-                EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster, .rect = rect,
+                EMBED_CALL(gui_raster_rect_color.round, GuiRasterRectColorCfg, .raster = raster, .rect = shown,
                            .radius = (unsigned int)EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 4,
                                                               .scale = scale),
                            .color = args->palette->selection_idle);
@@ -524,27 +610,28 @@ void gui_menubar_menus_draw(const GuiMenubarGlyphsFrameCfg *args)
                 (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster,
                                  .glyphs = glyphs, .face = GUI_FACE_HEAD, .size = size,
                                  .x_f32 = (float)(rect.x + check_x), .y = baseline, .text = "\xe2\x9c\x93",
-                                 .length = 3ULL, .color = args->palette->signal, .clip = rect);
+                                 .length = 3ULL, .color = args->palette->signal, .clip = shown);
             }
             (void)EMBED_CALL(gui_glyphs_face_size.text_draw, GuiGlyphsFaceSizeCfg, .raster = raster, .glyphs = glyphs,
                              .face = GUI_FACE_HEAD, .size = size, .x_f32 = (float)(rect.x + label_x), .y = baseline,
                              .text = row->label,
                              .length = cellul.len(&(CatenaFinitaCfg){.src = row->label, .cap = CLI_CELLS_POOL}),
-                             .color = color, .clip = rect);
+                             .color = color, .clip = shown);
             const unsigned long long keys_length =
                 cellul.len(&(CatenaFinitaCfg){.src = row->keys, .cap = CLI_CELLS_POOL});
-            if (row->kind == CLI_MENU_ROW_MORE)
+            const int arm = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 3, .scale = scale);
+            const int middle = rect.y + (rect.height / 2);
+            if ((row->kind == CLI_MENU_ROW_MORE) && ((middle - arm) >= shown.y) &&
+                ((middle + arm) < (shown.y + shown.height)))
             {
-                // a chevron pointing to where the items open
-                const int arm = EMBED_CALL(gui_frame_pixels.scale, GuiFramePixelsCfg, .pixels = 3, .scale = scale);
+                // a chevron pointing to where the items open, drawn where all of it shows
                 const int tip_x = rect.x + rect.width - item_pad;
-                const int middle = rect.y + (rect.height / 2);
                 EMBED_CALL(gui_raster_color_x_0.line, GuiRasterColorX0Cfg, .raster = raster, .x0 = tip_x - arm,
                            .y0 = middle - arm, .x1 = tip_x, .y1 = middle, .color = color);
                 EMBED_CALL(gui_raster_color_x_0.line, GuiRasterColorX0Cfg, .raster = raster, .x0 = tip_x - arm,
                            .y0 = middle + arm, .x1 = tip_x, .y1 = middle, .color = color);
             }
-            else if (keys_length != 0ULL)
+            else if ((row->kind != CLI_MENU_ROW_MORE) && (keys_length != 0ULL))
             {
                 const float keys_width =
                     EMBED_CALL(gui_glyphs_face_size.text_width, GuiGlyphsFaceSizeCfg, .glyphs = glyphs,
@@ -553,7 +640,7 @@ void gui_menubar_menus_draw(const GuiMenubarGlyphsFrameCfg *args)
                                  .glyphs = glyphs, .face = GUI_FACE_CODE, .size = keys_size,
                                  .x_f32 = (float)(rect.x + rect.width - item_pad) - keys_width, .y = baseline,
                                  .text = row->keys, .length = keys_length, .color = args->palette->text_3,
-                                 .clip = rect);
+                                 .clip = shown);
             }
         }
     }

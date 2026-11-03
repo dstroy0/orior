@@ -109,13 +109,15 @@ typedef struct
     int checked;
 } CliMenuRow;
 
-// One open menu: its rows, the row marked and the row whose items are open under it, each -1 for none
+// One open menu: its rows, the row marked and the row whose items are open under it, each -1 for none, and its serial,
+// a number it takes as it opens, a new one each time and the same while it stands open
 typedef struct
 {
     CliMenuRow *row;
     unsigned int rows;
     int pointed;
     int opened;
+    unsigned int serial;
 } CliMenuLevel;
 
 // where a menu asked for and not opened under a title stands: at its point, or at the terminal's key field, the panel's

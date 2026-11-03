@@ -8,6 +8,7 @@
 extern void setUp(void);
 extern void tearDown(void);
 extern void test_reduce_motion_shows_on_while_the_saved_setting_or_the_system_asks_for_less_motion(void);
+extern void test_a_menu_opened_anew_takes_a_new_serial_and_keeps_it_while_it_stands_open(void);
 
 
 /*=======Mock Management=====*/
@@ -69,7 +70,8 @@ static void run_test(UnityTestFunction func, const char* name, UNITY_LINE_TYPE l
 int main(void)
 {
   UnityBegin("D:\\git_project\\repos\\owned\\public\\anchor_sift\\utils\\test\\src\\ui\\cli\\unit\\controller\\test_controller\\test_controller.c");
-  run_test(test_reduce_motion_shows_on_while_the_saved_setting_or_the_system_asks_for_less_motion, "test_reduce_motion_shows_on_while_the_saved_setting_or_the_system_asks_for_less_motion", 62);
+  run_test(test_reduce_motion_shows_on_while_the_saved_setting_or_the_system_asks_for_less_motion, "test_reduce_motion_shows_on_while_the_saved_setting_or_the_system_asks_for_less_motion", 87);
+  run_test(test_a_menu_opened_anew_takes_a_new_serial_and_keeps_it_while_it_stands_open, "test_a_menu_opened_anew_takes_a_new_serial_and_keeps_it_while_it_stands_open", 116);
 
   return UNITY_END();
 }

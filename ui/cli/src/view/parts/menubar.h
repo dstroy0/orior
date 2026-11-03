@@ -27,7 +27,9 @@ typedef struct GuiMenubarCfg GuiMenubarCfg;
 // across, its padding at its left in a menu with rows on or off and where the mark of one that is on stands from its
 // left, its height, the least gap between a label and its keys, a line's height with its margins, how far a menu opens
 // below its title, how far a menu of items opens beside and above its item, how far a menu saves from the window's
-// edges, and the keys' size
+// edges, and the keys' size; how far short of the window's height a menu stands at its tallest, 3.5rem, its rows
+// scrolling inside it past that; and how far a notch of the wheel, three of its rows, scrolls a menu, as a browser on
+// Windows scrolls a box
 #define GUI_MENUBAR_TITLES 40u
 #define GUI_MENU_LEVELS 4u
 #define GUI_TITLE_PAD 12
@@ -51,6 +53,9 @@ typedef struct GuiMenubarCfg GuiMenubarCfg;
 #define GUI_MENU_ABOVE 5
 #define GUI_MENU_EDGE 4
 #define GUI_KEYS_SIZE 12u
+#define GUI_MENU_HEIGHT_SPARE 56
+#define GUI_MENU_NOTCH_PIXELS 100
+#define GUI_MENU_NOTCH_ROWS 3
 
 // A title on the bar: its place among the menus' titles, or the folded menus where `folded` is 1; and its rectangle
 typedef struct
@@ -62,7 +67,9 @@ typedef struct
 
 // The menu bar: the menus as last published, NULL for none, the controller's and read alone; the titles laid, how many,
 // and the place among the titles from which they are folded into the last; the title the pointer stands on, -1 for
-// none; and where each menu open stands
+// none; where each menu open stands; and each menu's rows as they scroll: the pixels scrolled off its top, the height
+// all its rows take, the serial of the menu they are scrolled in and the row last marked in it, which was scrolled into
+// view
 typedef struct
 {
     const CliMenus *menus;
@@ -71,6 +78,10 @@ typedef struct
     unsigned int folded_from;
     int pointed;
     GuiRect menu_rect[GUI_MENU_LEVELS];
+    int scrolled[GUI_MENU_LEVELS];
+    int content[GUI_MENU_LEVELS];
+    unsigned int serial[GUI_MENU_LEVELS];
+    int pointed_seen[GUI_MENU_LEVELS];
 } GuiMenubar;
 
 // a menu bar holding no menus
@@ -87,8 +98,11 @@ void gui_menubar_menus_layout(const GuiMenubarBarCfg *args);
 // CLI_HIT_MENU_TITLE or CLI_HIT_MENU_ROW
 int gui_menubar_holds(const GuiMenubarXCfg *args);
 unsigned int gui_menubar_hit(const GuiMenubarXCfg *args);
-// the pointer moved to x, y: the title it stands on marked: 1 where that changed
+// the pointer moved to x, y: the title it stands on marked: 1 where that changed; and the wheel turned `rows` rows at
+// x, y, down where positive: the menu open there scrolled, no further than its ends: 1 where the pixel stands on an
+// open menu, the wheel then the menu's
 int gui_menubar_move(const GuiMenubarGlyphsFrameXCfg *args);
+int gui_menubar_wheel(const GuiMenubarGlyphsFrameXCfg *args);
 // the titles drawn on the bar, the one pointed or open on its ground; and the menus open drawn, each over what is under
 // it
 void gui_menubar_titles_draw(const GuiMenubarGlyphsFrameCfg *args);
@@ -107,6 +121,7 @@ struct GuiMenubarGlyphsFrameXCfg
     const GuiFrame *frame;
     int x;
     int y;
+    int rows;
 };
 
 struct GuiMenubarGlyphsFrameCfg
@@ -186,10 +201,12 @@ EMBED_TABLE_STORAGE GuiMenubarXNs gui_menubar_x EMBED_UNUSED = {
 typedef struct
 {
     int (*move)(const GuiMenubarGlyphsFrameXCfg *args);
+    int (*wheel)(const GuiMenubarGlyphsFrameXCfg *args);
 } GuiMenubarGlyphsFrameXNs;
-EMBED_TABLE_LAYOUT(GuiMenubarGlyphsFrameXNs, move);
+EMBED_TABLE_LAYOUT(GuiMenubarGlyphsFrameXNs, move, wheel);
 EMBED_TABLE_STORAGE GuiMenubarGlyphsFrameXNs gui_menubar_glyphs_frame_x EMBED_UNUSED = {
     .move = gui_menubar_move,
+    .wheel = gui_menubar_wheel,
 };
 
 typedef struct

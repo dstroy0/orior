@@ -1592,6 +1592,14 @@ static void window_wheel(const GuiInputHandlerCfg *args)
         return;
     }
     EMBED_CALL(window_menus_away, GuiWindowCtx, .window_read = window, .x = args->input->x, .y = args->input->y);
+    // over an open menu the wheel scrolls its rows and nothing under it
+    if (EMBED_CALL(gui_menubar_glyphs_frame_x.wheel, GuiMenubarGlyphsFrameXCfg, .menubar = &window->menubar,
+                   .glyphs = &window->glyphs, .frame = &window->frame, .x = args->input->x, .y = args->input->y,
+                   .rows = args->input->rows))
+    {
+        window->pending = 1;
+        return;
+    }
     // the wheel over the side scrolls the rows, which is the window's own; over the completion's list its rows; over
     // the editor or the map, the text
     if (EMBED_CALL(gui_raster_rect.rect_holds, GuiRasterRectCfg, .rect = window->frame.side, .x = args->input->x,
