@@ -640,6 +640,86 @@ EMBED_INLINE void panels_completion_scrolled(ControllerCompletion *list)
     list->first = (list->first > most) ? most : list->first;
 }
 
+// the placeholder of a tab stop, from `from` in `length` bytes of `text`, written to `out` up to the brace that closes
+// the stop, each stop nested in it flattened to its own placeholder and an escaped byte written as itself: the place
+// past that brace, or the text's end
+EMBED_INLINE unsigned long long panels_placeholder_write(const ControllerPanelsCtx *args)
+{
+    const char *const text = args->text;
+    const unsigned long long length = args->length;
+    VerbaLinea *const out = args->out;
+    unsigned long long each = args->from;
+    unsigned long long depth = 1ULL;
+    while ((each < length) && (depth > 0ULL))
+    {
+        const unsigned long long inner = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
+                                                    .text = text, .at = each, .size = length, .set = "\\$}");
+        mmgr_line_put_n(out, text + each, inner - each);
+        each = inner;
+        if (each >= length)
+        {
+            return each;
+        }
+        if ((text[each] == '\\') && ((each + 1ULL) < length))
+        {
+            mmgr_line_ch(out, text[each + 1ULL]);
+            each += 2ULL;
+        }
+        else if ((text[each] == '$') && ((each + 1ULL) < length) && (text[each + 1ULL] == '{'))
+        {
+            depth += 1ULL;
+            each = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = text,
+                              .at = each + 2ULL, .size = length, .classes = CLI_TEXT_DIGITS, .set = "");
+            each += ((each < length) && (text[each] == ':')) ? 1ULL : 0ULL;
+        }
+        else if (text[each] == '}')
+        {
+            depth -= 1ULL;
+            each += 1ULL;
+        }
+        else
+        {
+            mmgr_line_ch(out, text[each]);
+            each += 1ULL;
+        }
+    }
+    return each;
+}
+
+// the tab stop whose `$` stands just before `from` in `length` bytes of `text` written to `out` as the text it
+// inserts: `$n` and `${n}` as nothing, `${n:text}` as its placeholder and `${n|a,b|}` as its first choice: the place
+// past it
+EMBED_INLINE unsigned long long panels_stop_write(const ControllerPanelsCtx *args)
+{
+    const char *const text = args->text;
+    const unsigned long long length = args->length;
+    unsigned long long each = args->from;
+    if ((each < length) && (text[each] != '{'))
+    {
+        return EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = text, .at = each,
+                          .size = length, .classes = CLI_TEXT_DIGITS, .set = "");
+    }
+    each += (each < length) ? 1ULL : 0ULL;
+    each = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = text, .at = each,
+                      .size = length, .classes = CLI_TEXT_DIGITS, .set = "");
+    if ((each < length) && (text[each] == ':'))
+    {
+        return EMBED_CALL(panels_placeholder_write, ControllerPanelsCtx, .text = text, .length = length,
+                          .out = args->out, .from = each + 1ULL);
+    }
+    if ((each < length) && (text[each] == '|'))
+    {
+        each += 1ULL;
+        const unsigned long long stop = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
+                                                   .text = text, .at = each, .size = length, .set = ",|");
+        mmgr_line_put_n(args->out, text + each, stop - each);
+        each = stop;
+    }
+    each = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = text, .at = each,
+                      .size = length, .set = "}");
+    return each + ((each < length) ? 1ULL : 0ULL);
+}
+
 // `length` bytes of a snippet `text` written as the text it inserts: a tab stop with a placeholder, `${n:text}`, as its
 // placeholder, nested stops flattened the same way; one with choices, `${n|a,b|}`, as its first choice; a bare stop,
 // `$n` or `${n}`, as nothing; and an escaped byte as itself
@@ -655,77 +735,17 @@ EMBED_INLINE void panels_snippet_write(const ControllerPanelsCtx *args)
                                                     .text = text, .at = each, .size = length, .set = "\\$");
         mmgr_line_put_n(out, text + each, plain - each);
         each = plain;
-        if (each >= length)
-        {
-            break;
-        }
-        if (text[each] == '\\')
+        if ((each < length) && (text[each] == '\\'))
         {
             const unsigned long long escaped = (each + 1ULL < length) ? (each + 1ULL) : each;
             mmgr_line_ch(out, text[escaped]);
             each = escaped + 1ULL;
-            continue;
         }
-        each += 1ULL;
-        if ((each < length) && (text[each] != '{'))
+        else if (each < length)
         {
-            each = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = text, .at = each,
-                              .size = length, .classes = CLI_TEXT_DIGITS, .set = "");
-            continue;
+            each = EMBED_CALL(panels_stop_write, ControllerPanelsCtx, .text = text, .length = length, .out = out,
+                              .from = each + 1ULL);
         }
-        each += (each < length) ? 1ULL : 0ULL;
-        each = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = text, .at = each,
-                          .size = length, .classes = CLI_TEXT_DIGITS, .set = "");
-        if ((each < length) && (text[each] == ':'))
-        {
-            each += 1ULL;
-            unsigned long long depth = 1ULL;
-            while ((each < length) && (depth > 0ULL))
-            {
-                const unsigned long long inner = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
-                                                            .text = text, .at = each, .size = length, .set = "\\$}");
-                mmgr_line_put_n(out, text + each, inner - each);
-                each = inner;
-                if (each >= length)
-                {
-                    break;
-                }
-                if ((text[each] == '\\') && ((each + 1ULL) < length))
-                {
-                    mmgr_line_ch(out, text[each + 1ULL]);
-                    each += 2ULL;
-                }
-                else if ((text[each] == '$') && ((each + 1ULL) < length) && (text[each + 1ULL] == '{'))
-                {
-                    depth += 1ULL;
-                    each = EMBED_CALL(cli_text_at_size_classes.end_class, CliTextAtSizeClassesCfg, .text = text,
-                                      .at = each + 2ULL, .size = length, .classes = CLI_TEXT_DIGITS, .set = "");
-                    each += ((each < length) && (text[each] == ':')) ? 1ULL : 0ULL;
-                }
-                else if (text[each] == '}')
-                {
-                    depth -= 1ULL;
-                    each += 1ULL;
-                }
-                else
-                {
-                    mmgr_line_ch(out, text[each]);
-                    each += 1ULL;
-                }
-            }
-            continue;
-        }
-        if ((each < length) && (text[each] == '|'))
-        {
-            each += 1ULL;
-            const unsigned long long stop = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg,
-                                                       .text = text, .at = each, .size = length, .set = ",|");
-            mmgr_line_put_n(out, text + each, stop - each);
-            each = stop;
-        }
-        each = EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = text, .at = each,
-                          .size = length, .set = "}");
-        each += (each < length) ? 1ULL : 0ULL;
     }
 }
 
