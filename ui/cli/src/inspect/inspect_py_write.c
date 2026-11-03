@@ -397,59 +397,84 @@ EMBED_INLINE void write_remainder(const InspectPyWriteCtx *args)
     }
 }
 
+// the parameters' section of Google's or NumPy's `form` put on the docstring where the function has parameters: each
+// parameter's name, with its annotation where it has one
+EMBED_INLINE void write_params_section(const InspectPyWriteCtx *args)
+{
+    if (s_sign.params == 0u)
+    {
+        return;
+    }
+    const int numpy = cellul.eq(&(CatenaFinitaCfg){.src = args->form, .other = "numpy", .cap = CLI_CELLS_POOL});
+    EMBED_CALL(write_section, InspectPyWriteCtx, .form = args->form, .title = numpy ? "Parameters" : "Args");
+    for (unsigned int at = 0u; at < s_sign.params; at += 1u)
+    {
+        VerbaLinea *const line = write_line();
+        mmgr_line_put(line, numpy ? "" : "    ");
+        mmgr_line_put(line, s_sign.param[at]);
+        if (s_sign.annotated[at])
+        {
+            mmgr_line_put(line, numpy ? " : " : " (");
+            EMBED_CALL(write_part, InspectPyWriteCtx, .src = args->src, .start = s_sign.annotation_start[at],
+                       .end_u64 = s_sign.annotation_end[at]);
+            mmgr_line_put(line, numpy ? "" : ")");
+        }
+        mmgr_line_put(line, numpy ? "" : ":");
+        write_line_finish();
+    }
+}
+
+// the returns' or yields' section of Google's or NumPy's `form` put on the docstring where the function gives or
+// yields anything: what its header names it gives, or an empty line taken off again where it names none
+EMBED_INLINE void write_returns_section(const InspectPyWriteCtx *args)
+{
+    if (!s_sign.releases && !s_sign.yields)
+    {
+        return;
+    }
+    const int numpy = cellul.eq(&(CatenaFinitaCfg){.src = args->form, .other = "numpy", .cap = CLI_CELLS_POOL});
+    EMBED_CALL(write_section, InspectPyWriteCtx, .form = args->form, .title = s_sign.yields ? "Yields" : "Returns");
+    VerbaLinea *const line = write_line();
+    if (s_sign.has_returns)
+    {
+        mmgr_line_put(line, numpy ? "" : "    ");
+        EMBED_CALL(write_part, InspectPyWriteCtx, .src = args->src, .start = s_sign.returns_start,
+                   .end_u64 = s_sign.returns_end);
+        mmgr_line_put(line, numpy ? "" : ":");
+    }
+    write_line_finish();
+    if (s_line_size[s_lines - 1u] == 0u)
+    {
+        s_lines -= 1u;
+    }
+}
+
+// the raises' section of Google's or NumPy's `form` put on the docstring where the function raises anything: each
+// name it raises
+EMBED_INLINE void write_raises_section(const InspectPyWriteCtx *args)
+{
+    if (s_sign.raises == 0u)
+    {
+        return;
+    }
+    const int numpy = cellul.eq(&(CatenaFinitaCfg){.src = args->form, .other = "numpy", .cap = CLI_CELLS_POOL});
+    EMBED_CALL(write_section, InspectPyWriteCtx, .form = args->form, .title = "Raises");
+    for (unsigned int at = 0u; at < s_sign.raises; at += 1u)
+    {
+        VerbaLinea *const line = write_line();
+        mmgr_line_put(line, numpy ? "" : "    ");
+        mmgr_line_put(line, s_sign.raised[at]);
+        mmgr_line_put(line, numpy ? "" : ":");
+        write_line_finish();
+    }
+}
+
 // the sections of Google's or NumPy's form put on the docstring
 EMBED_INLINE void write_sections(const InspectPyWriteCtx *args)
 {
-    const char *src = args->src;
-    const int numpy = (cellul.eq(&(CatenaFinitaCfg){.src = args->form, .other = "numpy", .cap = CLI_CELLS_POOL}));
-    if (s_sign.params > 0u)
-    {
-        EMBED_CALL(write_section, InspectPyWriteCtx, .form = args->form, .title = numpy ? "Parameters" : "Args");
-        for (unsigned int at = 0u; at < s_sign.params; at += 1u)
-        {
-            VerbaLinea *const line = write_line();
-            mmgr_line_put(line, numpy ? "" : "    ");
-            mmgr_line_put(line, s_sign.param[at]);
-            if (s_sign.annotated[at])
-            {
-                mmgr_line_put(line, numpy ? " : " : " (");
-                EMBED_CALL(write_part, InspectPyWriteCtx, .src = src, .start = s_sign.annotation_start[at],
-                           .end_u64 = s_sign.annotation_end[at]);
-                mmgr_line_put(line, numpy ? "" : ")");
-            }
-            mmgr_line_put(line, numpy ? "" : ":");
-            write_line_finish();
-        }
-    }
-    if (s_sign.releases || s_sign.yields)
-    {
-        EMBED_CALL(write_section, InspectPyWriteCtx, .form = args->form, .title = s_sign.yields ? "Yields" : "Returns");
-        VerbaLinea *const line = write_line();
-        if (s_sign.has_returns)
-        {
-            mmgr_line_put(line, numpy ? "" : "    ");
-            EMBED_CALL(write_part, InspectPyWriteCtx, .src = src, .start = s_sign.returns_start,
-                       .end_u64 = s_sign.returns_end);
-            mmgr_line_put(line, numpy ? "" : ":");
-        }
-        write_line_finish();
-        if (s_line_size[s_lines - 1u] == 0u)
-        {
-            s_lines -= 1u;
-        }
-    }
-    if (s_sign.raises > 0u)
-    {
-        EMBED_CALL(write_section, InspectPyWriteCtx, .form = args->form, .title = "Raises");
-        for (unsigned int at = 0u; at < s_sign.raises; at += 1u)
-        {
-            VerbaLinea *const line = write_line();
-            mmgr_line_put(line, numpy ? "" : "    ");
-            mmgr_line_put(line, s_sign.raised[at]);
-            mmgr_line_put(line, numpy ? "" : ":");
-            write_line_finish();
-        }
-    }
+    EMBED_CALL(write_params_section, InspectPyWriteCtx, .src = args->src, .form = args->form);
+    EMBED_CALL(write_returns_section, InspectPyWriteCtx, .src = args->src, .form = args->form);
+    EMBED_CALL(write_raises_section, InspectPyWriteCtx, .src = args->src, .form = args->form);
 }
 
 unsigned int cli_py_around(const CliInspectPySrcLineHeadCfg *args)
