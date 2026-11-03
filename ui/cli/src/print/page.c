@@ -91,6 +91,11 @@ typedef struct
     CliPrintRow *row;
     CliPrintPiece *piece;
     unsigned int letter;
+    const CliPrintListing *listing_read;
+    const CliPrintRun *run;
+    unsigned long long *column;
+    unsigned long long columns;
+    unsigned long long tab;
 } PageCtx;
 // `length` bytes of `text` stored among the listing's texts: where they start
 EMBED_INLINE unsigned int cli_text_store(const PageCtx *args)
@@ -557,9 +562,82 @@ EMBED_INLINE void cli_letter_append(const PageCtx *args)
     args->piece->length += (unsigned int)line.at;
 }
 
+// the columns the line numbers of `listing_read` take: the digits of the widest and two after them, none where no line
+// is numbered
+EMBED_INLINE unsigned long long cli_number_columns(const PageCtx *args)
+{
+    unsigned long long widest = 0ULL;
+    for (unsigned int at = 0u; at < args->listing_read->lines; at += 1u)
+    {
+        widest = (args->listing_read->line[at].numbered && (args->listing_read->line[at].number > widest))
+                     ? args->listing_read->line[at].number
+                     : widest;
+    }
+    unsigned long long digits = 0ULL;
+    for (unsigned long long left = widest; left != 0ULL; left /= 10ULL)
+    {
+        digits += 1ULL;
+    }
+    return (widest == 0ULL) ? 0ULL : (digits + 2ULL);
+}
+
+// the letter `letter` laid after the piece being made at `*column`: a tab as spaces to the next multiple of `tab`, a
+// control letter as nothing, else the letter itself, the row broken where it reaches `columns`
+EMBED_INLINE void cli_letter_laid(const PageCtx *args)
+{
+    const unsigned int letter = args->letter;
+    const int control = (letter < 0x20u) || ((letter >= 0x7fu) && (letter <= 0x9fu));
+    unsigned long long spaces = 1ULL;
+    if (letter == '\t')
+    {
+        spaces = args->tab - (*args->column % ((args->tab > 1ULL) ? args->tab : 1ULL));
+    }
+    else if (control)
+    {
+        spaces = 0ULL;
+    }
+    for (unsigned long long one = 0ULL; one < spaces; one += 1ULL)
+    {
+        if (*args->column == args->columns)
+        {
+            EMBED_CALL(cli_piece_append, PageCtx, .laid = args->laid, .row = args->row, .piece = args->piece);
+            EMBED_CALL(cli_row_append, PageCtx, .laid = args->laid, .row = args->row);
+            *args->column = 0ULL;
+            args->piece->column = 0ULL;
+        }
+        EMBED_CALL(cli_letter_append, PageCtx, .laid = args->laid, .piece = args->piece,
+                   .letter = (letter == '\t') ? ' ' : letter);
+        *args->column += 1ULL;
+    }
+}
+
+// the run `run` of `listing_read` laid as pieces after `row` from `*column`, in its color as `layout` prints it, bold
+// or italic, each of its letters laid in turn
+EMBED_INLINE void cli_run_laid(const PageCtx *args)
+{
+    const CliPrintRun *const run = args->run;
+    CliPrintPiece piece;
+    memor.set(&(MemoriaCfg){.dst = &piece, .val = 0, .bytes = sizeof(piece)});
+    EMBED_CALL(cli_print_text.color, CliPrintTextCfg, .text = args->listing_read->text + run->color,
+               .length = run->color_length, .gray = args->layout->gray, .rgb = piece.color);
+    piece.bold = run->bold;
+    piece.italic = run->italic;
+    piece.column = *args->column;
+    piece.text = args->laid->text_used;
+    unsigned int *const letters = s_work_state->letters;
+    const unsigned long long count =
+        EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = args->listing_read->text + run->text,
+                   .size = run->length, .letters = letters, .capacity_u64 = s_work_state->letters_capacity);
+    for (unsigned long long at = 0ULL; at < count; at += 1ULL)
+    {
+        EMBED_CALL(cli_letter_laid, PageCtx, .laid = args->laid, .row = args->row, .piece = &piece,
+                   .letter = letters[at], .column = args->column, .columns = args->columns, .tab = args->tab);
+    }
+    EMBED_CALL(cli_piece_append, PageCtx, .laid = args->laid, .row = args->row, .piece = &piece);
+}
+
 const CliPrintLaid *cli_print_lay_out(const CliPrintLayoutListingOutCfg *args)
 {
-    unsigned int *const letters = s_work_state->letters;
     CliPrintLaid *const laid = &s_work_state->laid;
     laid->rows = 0u;
     laid->pieces = 0u;
@@ -569,19 +647,7 @@ const CliPrintLaid *cli_print_lay_out(const CliPrintLayoutListingOutCfg *args)
     float height = 0.0f;
     EMBED_CALL(cli_print_layout_width.size, CliPrintLayoutWidthCfg, .layout = args->layout, .width = &width,
                .height = &height);
-    unsigned long long widest = 0ULL;
-    for (unsigned int at = 0u; at < args->listing->lines; at += 1u)
-    {
-        widest = (args->listing->line[at].numbered && (args->listing->line[at].number > widest))
-                     ? args->listing->line[at].number
-                     : widest;
-    }
-    unsigned long long digits = 0ULL;
-    for (unsigned long long left = widest; left != 0ULL; left /= 10ULL)
-    {
-        digits += 1ULL;
-    }
-    laid->number_columns = (widest == 0ULL) ? 0ULL : (digits + 2ULL);
+    laid->number_columns = EMBED_CALL(cli_number_columns, PageCtx, .listing_read = args->listing);
     // a page's columns and rows are whole and not negative, the floor of what fits
     const unsigned long long fit = (unsigned long long)floorf((width - (2.0f * CLI_PRINT_MARGIN)) / CLI_PRINT_ADVANCE);
     const unsigned long long left = (fit > laid->number_columns) ? (fit - laid->number_columns) : 0ULL;
@@ -598,50 +664,9 @@ const CliPrintLaid *cli_print_lay_out(const CliPrintLayoutListingOutCfg *args)
         unsigned long long column = 0ULL;
         for (unsigned int each = 0u; each < line->runs; each += 1u)
         {
-            const CliPrintRun *const run = &args->listing->run[line->first + each];
-            CliPrintPiece piece;
-            memor.set(&(MemoriaCfg){.dst = &piece, .val = 0, .bytes = sizeof(piece)});
-            EMBED_CALL(cli_print_text.color, CliPrintTextCfg, .text = args->listing->text + run->color,
-                       .length = run->color_length, .gray = args->layout->gray, .rgb = piece.color);
-            piece.bold = run->bold;
-            piece.italic = run->italic;
-            piece.column = column;
-            piece.text = laid->text_used;
-            const unsigned long long count =
-                EMBED_CALL(cli_regexp_text.letters, CliRegexpTextCfg, .text = args->listing->text + run->text,
-                           .size = run->length, .letters = letters, .capacity_u64 = s_work_state->letters_capacity);
-            for (unsigned long long at = 0ULL; at < count; at += 1ULL)
-            {
-                const unsigned int letter = letters[at];
-                const int control = (letter < 0x20u) || ((letter >= 0x7fu) && (letter <= 0x9fu));
-                unsigned long long spaces;
-                if (letter == '\t')
-                {
-                    spaces = tab - (column % ((tab > 1ULL) ? tab : 1ULL));
-                }
-                else if (control)
-                {
-                    spaces = 0ULL;
-                }
-                else
-                {
-                    spaces = 1ULL;
-                }
-                for (unsigned long long one = 0ULL; one < spaces; one += 1ULL)
-                {
-                    if (column == columns)
-                    {
-                        EMBED_CALL(cli_piece_append, PageCtx, .laid = laid, .row = &row, .piece = &piece);
-                        EMBED_CALL(cli_row_append, PageCtx, .laid = laid, .row = &row);
-                        column = 0ULL;
-                        piece.column = 0ULL;
-                    }
-                    EMBED_CALL(cli_letter_append, PageCtx, .laid = laid, .piece = &piece,
-                               .letter = (letter == '\t') ? ' ' : letter);
-                    column += 1ULL;
-                }
-            }
-            EMBED_CALL(cli_piece_append, PageCtx, .laid = laid, .row = &row, .piece = &piece);
+            EMBED_CALL(cli_run_laid, PageCtx, .listing_read = args->listing,
+                       .run = &args->listing->run[line->first + each], .layout = args->layout, .laid = laid,
+                       .row = &row, .column = &column, .columns = columns, .tab = tab);
         }
         EMBED_CALL(cli_row_append, PageCtx, .laid = laid, .row = &row);
     }
