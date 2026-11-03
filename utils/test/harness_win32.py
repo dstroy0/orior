@@ -387,11 +387,15 @@ INPUT_KEYBOARD = 1
 KEYEVENTF_KEYUP = 2
 VK_OF = {"Left": 0x25, "Right": 0x27, "Up": 0x26, "Down": 0x28, "Home": 0x24, "End": 0x23, "PageUp": 0x21, "PageDown": 0x22,
          "Backspace": 0x08, "Delete": 0x2E, "Enter": 0x0D, "Tab": 0x09, "Escape": 0x1B, "Space": 0x20, "Insert": 0x2D,
-         "[": 0xDB, "]": 0xDD, "/": 0xBF, "\\": 0xDC, ".": 0xBE, ",": 0xBC}
+         "[": 0xDB, "]": 0xDD, "/": 0xBF, "\\": 0xDC, ".": 0xBE, ",": 0xBC, "`": 0xC0, "-": 0xBD, "=": 0xBB,
+         ";": 0xBA, "'": 0xDE}
 VK_SHIFT, VK_CONTROL, VK_MENU = 0x10, 0x11, 0x12
 
 
 WM_KEYDOWN, WM_KEYUP, WM_CHAR = 0x0100, 0x0101, 0x0102
+# a key message's lParam as the keyboard sends it: a press once, and a release with its previous state down and its
+# transition up, which TranslateMessage reads as no character
+KEY_PRESSED, KEY_RELEASED = 0x00000001, 0xC0000001
 WM_MOUSEMOVE, WM_LBUTTONDOWN, WM_LBUTTONUP = 0x0200, 0x0201, 0x0202
 MK_LBUTTON = 0x0001
 
@@ -436,19 +440,19 @@ def keys_sent(handle, names):
         pressed = [VK_CONTROL for part in parts if part in ("Mod", "Ctrl")] + [VK_MENU for part in parts if part == "Alt"]
         pressed += [VK_SHIFT for part in parts if part == "Shift"]
         for modifier in pressed:
-            user32.PostMessageW(handle, WM_KEYDOWN, modifier, 0)
+            user32.PostMessageW(handle, WM_KEYDOWN, modifier, KEY_PRESSED)
         if key in VK_OF:
-            user32.PostMessageW(handle, WM_KEYDOWN, VK_OF[key], 0)
-            user32.PostMessageW(handle, WM_KEYUP, VK_OF[key], 0)
+            user32.PostMessageW(handle, WM_KEYDOWN, VK_OF[key], KEY_PRESSED)
+            user32.PostMessageW(handle, WM_KEYUP, VK_OF[key], KEY_RELEASED)
         elif len(key) == 1 and not pressed:
-            user32.PostMessageW(handle, WM_CHAR, ord(key), 0)
+            user32.PostMessageW(handle, WM_CHAR, ord(key), KEY_PRESSED)
         elif len(key) == 1:
-            user32.PostMessageW(handle, WM_KEYDOWN, ord(key.upper()), 0)
-            user32.PostMessageW(handle, WM_KEYUP, ord(key.upper()), 0)
+            user32.PostMessageW(handle, WM_KEYDOWN, ord(key.upper()), KEY_PRESSED)
+            user32.PostMessageW(handle, WM_KEYUP, ord(key.upper()), KEY_RELEASED)
         else:
             raise SystemExit("no key is named %s" % name)
         for modifier in reversed(pressed):
-            user32.PostMessageW(handle, WM_KEYUP, modifier, 0)
+            user32.PostMessageW(handle, WM_KEYUP, modifier, KEY_RELEASED)
         time.sleep(0.02)
     return True
 
