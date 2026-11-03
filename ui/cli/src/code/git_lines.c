@@ -31,7 +31,7 @@ typedef struct
     unsigned int *positions;
     const char *key;
     unsigned long long key_length;
-    const char *word;
+    const char *word_text;
     CliLineCommit *commit;
 } GitLinesCtx;
 // whether `length` bytes of `text` are all hex digits
@@ -131,9 +131,9 @@ EMBED_INLINE unsigned int cli_commit_placed(const GitLinesCtx *args)
 // whether the `key_length` bytes of `key` are `word`
 EMBED_INLINE int cli_key_is(const GitLinesCtx *args)
 {
-    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->word, .cap = CLI_CELLS_POOL});
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = args->word_text, .cap = CLI_CELLS_POOL});
     return (args->key_length == size) &&
-           (memor.cmp(&(MemoriaCfg){.src = args->key, .other = args->word, .bytes = size}) == 0);
+           (memor.cmp(&(MemoriaCfg){.src = args->key, .other = args->word_text, .bytes = size}) == 0);
 }
 
 // a line of a commit's own read into `commit`, `key` its first word and the `length` bytes of `text` after it: the
@@ -145,29 +145,32 @@ EMBED_INLINE void cli_commit_read(const GitLinesCtx *args)
     const char *const value = args->text;
     const unsigned long long value_length = args->length;
     const char *const stop = value + value_length;
-    if (EMBED_CALL(cli_key_is, GitLinesCtx, .key = args->key, .key_length = args->key_length, .word = "author"))
+    if (EMBED_CALL(cli_key_is, GitLinesCtx, .key = args->key, .key_length = args->key_length, .word_text = "author"))
     {
         commit->author = EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &found->text, .from = value,
                                     .length = value_length);
     }
     else if (EMBED_CALL(cli_key_is, GitLinesCtx, .key = args->key, .key_length = args->key_length,
-                        .word = "author-time"))
+                        .word_text = "author-time"))
     {
         commit->when = 0LL;
         EMBED_CALL(cli_git_length_text_internal.seconds, CliGitLengthTextCtx, .text = value, .length = value_length,
                    .value = &commit->when);
     }
-    else if (EMBED_CALL(cli_key_is, GitLinesCtx, .key = args->key, .key_length = args->key_length, .word = "summary"))
+    else if (EMBED_CALL(cli_key_is, GitLinesCtx, .key = args->key, .key_length = args->key_length,
+                        .word_text = "summary"))
     {
         commit->subject = EMBED_CALL(cli_git_text.text_append, CliGitTextCfg, .text = &found->text, .from = value,
                                      .length = value_length);
     }
-    else if (EMBED_CALL(cli_key_is, GitLinesCtx, .key = args->key, .key_length = args->key_length, .word = "filename"))
+    else if (EMBED_CALL(cli_key_is, GitLinesCtx, .key = args->key, .key_length = args->key_length,
+                        .word_text = "filename"))
     {
         commit->has_path = EMBED_CALL(cli_under, GitLinesCtx, .found = found, .under = args->under, .path = value,
                                       .length = value_length, .at = &commit->path);
     }
-    else if (EMBED_CALL(cli_key_is, GitLinesCtx, .key = args->key, .key_length = args->key_length, .word = "previous"))
+    else if (EMBED_CALL(cli_key_is, GitLinesCtx, .key = args->key, .key_length = args->key_length,
+                        .word_text = "previous"))
     {
         const char *gap = value;
         gap += EMBED_CALL(cli_text_at_size_classes.to_any, CliTextAtSizeClassesCfg, .text = gap, .at = 0ULL,

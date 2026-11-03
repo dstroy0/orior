@@ -181,13 +181,15 @@ EMBED_INLINE unsigned int write_params_found(const InspectJsWriteCtx *args)
         int known = !EMBED_CALL(cli_inspect_at_internal.set_has, CliInspectAtCtx, .set_read = &s_names, .at = word_text,
                                 .size_u32 = length) ||
                     (g_cli_inspect_tok[at].kind != CLI_JS_NAME);
-        for (unsigned int index = 0u; !known && (index < params); index += 1u)
+        unsigned int index = 0u;
+        while (!known && (index < params))
         {
             unsigned int other = 0u;
             const char *const before =
                 EMBED_CALL(write_word, InspectJsWriteCtx, .src = src, .at = s_params[index], .size = &other);
             known = (other == length) &&
                     (memor.cmp(&(MemoriaCfg){.src = before, .other = word_text, .bytes = length}) == 0);
+            index += 1u;
         }
         if (!known)
         {
