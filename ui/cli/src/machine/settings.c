@@ -158,6 +158,11 @@ typedef struct
     const char *detail;
     const char *root;
     const CliChainWalk *walk;
+    CliChainWalk *walking;
+    char *next;
+    int *first;
+    const char *text;
+    unsigned long long length;
 } SettingsCtx;
 // `path` with each `.` taken out and each `..` taking out the folder before it, into `out`, sized for
 // CLI_PATH_MAX_LEN
@@ -321,6 +326,150 @@ EMBED_INLINE void cli_chain_read(const SettingsCtx *args)
     g_cli_cells->persistent_buf_release(tokens, &g_cli_settings_cells);
 }
 
+// whether the file at the whole `path` is among those the `walk` has walked
+EMBED_INLINE int cli_walked_twice(const SettingsCtx *args)
+{
+    int twice = 0;
+    for (unsigned int at = 0u; !twice && (at < args->walk->count); at += 1u)
+    {
+        twice = cellul.eq(&(CatenaFinitaCfg){.src = args->walk->seen[at], .other = args->path, .cap = CLI_CELLS_POOL});
+    }
+    return twice;
+}
+
+// the file a chain's file at `path` takes, `length` bytes of `text` with their names expanded and joined to the file's
+// folder where they name no whole path, tidied into `out`
+EMBED_INLINE void cli_takes_followed(const SettingsCtx *args)
+{
+    char expanded[CLI_PATH_MAX_LEN];
+    VerbaLinea line = {expanded, sizeof(expanded), 0ULL};
+    EMBED_CALL(cli_settings_text_internal.expand, CliSettingsTextCtx, .text = args->text, .length = args->length,
+               .look = cli_alloc_look, .context = NULL, .out_verba_linea_pointer = &line);
+    mmgr_line_finish(&line);
+    const int absolute =
+        (expanded[0] == '/') || (expanded[0] == '\\') || ((expanded[0] != '\0') && (expanded[1] == ':'));
+    char folder[CLI_PATH_MAX_LEN];
+    char joined[CLI_PATH_MAX_LEN];
+    VerbaLinea join = {joined, sizeof(joined), 0ULL};
+    if (!absolute &&
+        EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = args->path, .out = folder))
+    {
+        mmgr_line_put(&join, folder);
+        mmgr_line_ch(&join, '/');
+    }
+    mmgr_line_put(&join, expanded);
+    mmgr_line_finish(&join);
+    EMBED_CALL(cli_tidy, SettingsCtx, .path = joined, .out = args->out);
+}
+
+// one file of a chain walked: the file at `next`, shown from `root`, read with its comments taken out and put on
+// `walking` where it is an object of settings, and `next` put as the file it takes; a problem told to `chain` where it
+// cannot be, the `first` file let be missing: 1 where the walk goes on, else 0
+EMBED_INLINE int cli_chain_step(const SettingsCtx *args)
+{
+    CliChainWalk *const walk = args->walking;
+    char *const next = args->next;
+    char named[CLI_PATH_MAX_LEN];
+    EMBED_CALL(cli_show, SettingsCtx, .path = next, .root = args->root, .out = named);
+    if (walk->count >= CLI_SETTINGS_DEEPEST)
+    {
+        EMBED_CALL(cli_problem, SettingsCtx, .chain = args->chain, .named = named,
+                   .detail = ": more than 16 files take one another, and those past them are not read");
+        return 0;
+    }
+    char full[CLI_PATH_MAX_LEN];
+    if (!EMBED_CALL(query_capacity_path_internal.path_full, QueryCapacityPathCtx, .path = next, .full = full,
+                    .capacity = sizeof(full)))
+    {
+        memor.cpy(&(MemoriaCfg){.dst = full,
+                                .src = next,
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = next, .cap = CLI_CELLS_POOL}) + 1u});
+    }
+    if (EMBED_CALL(cli_walked_twice, SettingsCtx, .walk = walk, .path = full))
+    {
+        EMBED_CALL(cli_problem, SettingsCtx, .chain = args->chain, .named = named,
+                   .detail = " is taken twice in one chain, and is read once");
+        return 0;
+    }
+    memor.cpy(&(MemoriaCfg){.dst = walk->seen[walk->count],
+                            .src = full,
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_CELLS_POOL}) + 1u});
+    unsigned long long size = 0ULL;
+    const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = next,
+                                                  .size_pointer = &size, .owner = &g_cli_settings_cells);
+    if ((bytes == NULL) || (size > CLI_SETTINGS_FILE))
+    {
+        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes,
+                   .owner = &g_cli_settings_cells);
+        const int is_file = EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = next);
+        if (!*args->first || is_file)
+        {
+            EMBED_CALL(cli_problem, SettingsCtx, .chain = args->chain, .named = named,
+                       .detail = is_file ? ": it could not be read" : ": it is not there");
+        }
+        return 0;
+    }
+    *args->first = 0;
+    // a file's text with its comments taken out is no longer than the file
+    char *const plain_text = g_cli_cells->persistent_buf_alloc(size + 1ULL, &g_cli_settings_cells);
+    VerbaLinea plain = mmgr_line_over(plain_text, size + 1ULL);
+    // the file's bytes are its text
+    EMBED_CALL(cli_devcontainer_text.plain_json, CliDevcontainerTextCfg, .text = (const char *)bytes, .size = size,
+               .plain = &plain);
+    EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes, .owner = &g_cli_settings_cells);
+    char why[CLI_PATH_MAX_LEN];
+    VerbaLinea reason = {why, sizeof(why), 0ULL};
+    CliJson own;
+    EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &own, .node_json_node_pointer = NULL,
+               .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
+    const unsigned int values =
+        mmgr_line_ok(&plain) ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
+                                          .json = &own, .text = plain_text, .size = plain.at, .nodes_more = 0u,
+                                          .text_more = 0ULL, .err_msg = &reason, .owner = &g_cli_settings_cells)
+                             : CLI_JSON_NONE;
+    if ((values == CLI_JSON_NONE) || !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
+                                                 .json_read = &own, .node = values, .kind = CFG_JSON_OBJECT))
+    {
+        mmgr_line_finish(&reason);
+        char msg_buf[CLI_PATH_MAX_LEN + 2u];
+        VerbaLinea msg = {msg_buf, sizeof(msg_buf), 0ULL};
+        mmgr_line_put(&msg, ": ");
+        mmgr_line_put(&msg, why);
+        mmgr_line_finish(&msg);
+        EMBED_CALL(cli_problem, SettingsCtx, .chain = args->chain, .named = named,
+                   .detail = (values == CLI_JSON_NONE) ? msg_buf : " is not an object of settings");
+        EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &own);
+        g_cli_cells->persistent_buf_release(plain_text, &g_cli_settings_cells);
+        return 0;
+    }
+    CliChainFile *const walked = &walk->file[walk->count];
+    memor.cpy(&(MemoriaCfg){.dst = walked->named,
+                            .src = named,
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}) + 1u});
+    walked->plain = plain_text;
+    walked->size = plain.at;
+    walked->nodes =
+        EMBED_CALL(cli_json_tree_text.json_tokens_count, CliJsonTreeTextCfg, .text = plain_text, .size = plain.at) + 1u;
+    walk->count += 1u;
+    // the file it takes, from its own folder
+    const unsigned int allocs = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = &own,
+                                           .object = values, .name = s_allocs);
+    unsigned long long length = 0ULL;
+    const char *const reserved = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
+                                            .json_read = &own, .node = allocs, .length_pointer = &length);
+    if ((allocs != CLI_JSON_NONE) && (reserved == NULL))
+    {
+        EMBED_CALL(cli_problem, SettingsCtx, .chain = args->chain, .named = named,
+                   .detail = ": `takes` is the path of a file");
+    }
+    if (reserved != NULL)
+    {
+        EMBED_CALL(cli_takes_followed, SettingsCtx, .text = reserved, .length = length, .path = next, .out = next);
+    }
+    EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &own);
+    return reserved != NULL;
+}
+
 void cli_settings_chain(const CliSettingsPathCfg *args)
 {
     EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &args->chain->json,
@@ -339,136 +488,8 @@ void cli_settings_chain(const CliSettingsPathCfg *args)
     int going = 1;
     while (going)
     {
-        char named[CLI_PATH_MAX_LEN];
-        EMBED_CALL(cli_show, SettingsCtx, .path = next, .root = args->root, .out = named);
-        if (walk->count >= CLI_SETTINGS_DEEPEST)
-        {
-            EMBED_CALL(cli_problem, SettingsCtx, .chain = args->chain, .named = named,
-                       .detail = ": more than 16 files take one another, and those past them are not read");
-            going = 0;
-            continue;
-        }
-        char full[CLI_PATH_MAX_LEN];
-        if (!EMBED_CALL(query_capacity_path_internal.path_full, QueryCapacityPathCtx, .path = next, .full = full,
-                        .capacity = sizeof(full)))
-        {
-            memor.cpy(&(MemoriaCfg){.dst = full,
-                                    .src = next,
-                                    .bytes = cellul.len(&(CatenaFinitaCfg){.src = next, .cap = CLI_CELLS_POOL}) + 1u});
-        }
-        int allocated_twice = 0;
-        for (unsigned int at = 0u; !allocated_twice && (at < walk->count); at += 1u)
-        {
-            allocated_twice =
-                cellul.eq(&(CatenaFinitaCfg){.src = walk->seen[at], .other = full, .cap = CLI_CELLS_POOL});
-        }
-        if (allocated_twice)
-        {
-            EMBED_CALL(cli_problem, SettingsCtx, .chain = args->chain, .named = named,
-                       .detail = " is taken twice in one chain, and is read once");
-            going = 0;
-            continue;
-        }
-        memor.cpy(&(MemoriaCfg){.dst = walk->seen[walk->count],
-                                .src = full,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_CELLS_POOL}) + 1u});
-        unsigned long long size = 0ULL;
-        const unsigned char *const bytes = EMBED_CALL(cli_path_internal.file_alloc, CliPathCtx, .path = next,
-                                                      .size_pointer = &size, .owner = &g_cli_settings_cells);
-        if ((bytes == NULL) || (size > CLI_SETTINGS_FILE))
-        {
-            EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes,
-                       .owner = &g_cli_settings_cells);
-            if (!first || EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = next))
-            {
-                EMBED_CALL(cli_problem, SettingsCtx, .chain = args->chain, .named = named,
-                           .detail = EMBED_CALL(query_path_seconds_internal.is_file, QueryPathSecondsCtx, .path = next)
-                                         ? ": it could not be read"
-                                         : ": it is not there");
-            }
-            going = 0;
-            continue;
-        }
-        first = 0;
-        // a file's text with its comments taken out is no longer than the file
-        char *const plain_text = g_cli_cells->persistent_buf_alloc(size + 1ULL, &g_cli_settings_cells);
-        VerbaLinea plain = mmgr_line_over(plain_text, size + 1ULL);
-        // the file's bytes are its text
-        EMBED_CALL(cli_devcontainer_text.plain_json, CliDevcontainerTextCfg, .text = (const char *)bytes, .size = size,
-                   .plain = &plain);
-        EMBED_CALL(cli_owner_internal.file_free, CliOwnerCtx, .bytes_bytes_other = bytes,
-                   .owner = &g_cli_settings_cells);
-        char why[CLI_PATH_MAX_LEN];
-        VerbaLinea reason = {why, sizeof(why), 0ULL};
-        CliJson own;
-        EMBED_CALL(cli_json_tree_node_node.json_begin, CliJsonTreeNodeNodeCfg, .json = &own,
-                   .node_json_node_pointer = NULL, .nodes_max = 0u, .text_out = NULL, .text_max = 0ULL);
-        const unsigned int values =
-            mmgr_line_ok(&plain) ? EMBED_CALL(cli_json_tree_text_size_err_msg.json_alloc, CliJsonTreeTextSizeErrMsgCfg,
-                                              .json = &own, .text = plain_text, .size = plain.at, .nodes_more = 0u,
-                                              .text_more = 0ULL, .err_msg = &reason, .owner = &g_cli_settings_cells)
-                                 : CLI_JSON_NONE;
-        if ((values == CLI_JSON_NONE) || !EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                                     .json_read = &own, .node = values, .kind = CFG_JSON_OBJECT))
-        {
-            mmgr_line_finish(&reason);
-            char msg_buf[CLI_PATH_MAX_LEN + 2u];
-            VerbaLinea msg = {msg_buf, sizeof(msg_buf), 0ULL};
-            mmgr_line_put(&msg, ": ");
-            mmgr_line_put(&msg, why);
-            mmgr_line_finish(&msg);
-            EMBED_CALL(cli_problem, SettingsCtx, .chain = args->chain, .named = named,
-                       .detail = (values == CLI_JSON_NONE) ? msg_buf : " is not an object of settings");
-            EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &own);
-            g_cli_cells->persistent_buf_release(plain_text, &g_cli_settings_cells);
-            going = 0;
-            continue;
-        }
-        CliChainFile *const walked = &walk->file[walk->count];
-        memor.cpy(&(MemoriaCfg){.dst = walked->named,
-                                .src = named,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}) + 1u});
-        walked->plain = plain_text;
-        walked->size = plain.at;
-        walked->nodes =
-            EMBED_CALL(cli_json_tree_text.json_tokens_count, CliJsonTreeTextCfg, .text = plain_text, .size = plain.at) +
-            1u;
-        walk->count += 1u;
-        // the file it takes, from its own folder
-        const unsigned int allocs = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                               .json_read = &own, .object = values, .name = s_allocs);
-        unsigned long long length = 0ULL;
-        const char *const reserved = EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
-                                                .json_read = &own, .node = allocs, .length_pointer = &length);
-        going = reserved != NULL;
-        if ((allocs != CLI_JSON_NONE) && (reserved == NULL))
-        {
-            EMBED_CALL(cli_problem, SettingsCtx, .chain = args->chain, .named = named,
-                       .detail = ": `takes` is the path of a file");
-        }
-        if (going)
-        {
-            char expanded[CLI_PATH_MAX_LEN];
-            VerbaLinea line = {expanded, sizeof(expanded), 0ULL};
-            EMBED_CALL(cli_settings_text_internal.expand, CliSettingsTextCtx, .text = reserved, .length = length,
-                       .look = cli_alloc_look, .context = NULL, .out_verba_linea_pointer = &line);
-            mmgr_line_finish(&line);
-            const int absolute =
-                (expanded[0] == '/') || (expanded[0] == '\\') || ((expanded[0] != '\0') && (expanded[1] == ':'));
-            char folder[CLI_PATH_MAX_LEN];
-            char joined[CLI_PATH_MAX_LEN];
-            VerbaLinea join = {joined, sizeof(joined), 0ULL};
-            if (!absolute &&
-                EMBED_CALL(cli_path_out_kind_internal.path_parent, CliPathOutKindCtx, .path = next, .out = folder))
-            {
-                mmgr_line_put(&join, folder);
-                mmgr_line_ch(&join, '/');
-            }
-            mmgr_line_put(&join, expanded);
-            mmgr_line_finish(&join);
-            EMBED_CALL(cli_tidy, SettingsCtx, .path = joined, .out = next);
-        }
-        EMBED_CALL(cli_json_tree.json_free, CliJsonTreeCfg, .json = &own);
+        going = EMBED_CALL(cli_chain_step, SettingsCtx, .walking = walk, .next = next, .first = &first,
+                           .root = args->root, .chain = args->chain);
     }
     EMBED_CALL(cli_chain_read, SettingsCtx, .chain = args->chain, .walk = walk);
     for (unsigned int at = 0u; at < walk->count; at += 1u)
