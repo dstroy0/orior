@@ -4,12 +4,16 @@
 // colors, the cursor moved, lines erased and scrolled into the scrollback, the second screen, the answers to where the
 // cursor is, the folder a shell reports, wrapping at the last column and letters past ASCII cut between two reads; and
 // a shell started in a pseudo-terminal, what it writes drained onto its screen, text typed while it starts sent once it
-// settles, and its end printed
-#include "ui/cli/src/controller/controller.h"
+// settles, and its end printed; and the terminal's model, its panel opened on a tab whose shell starts as its view is
+// sized, the keys it takes and those it lets go to the window, and what it publishes
+#include "ui/cli/src/command_line/cells.h"
+#include "ui/cli/src/controller/controller_internal.h"
 #include "ui/cli/src/terminal/keys.h"
+
 #include "ui/cli/src/terminal/screen.h"
 #include "ui/cli/src/terminal/shells.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
+#include <stdlib.h>
 
 static CliTerminalScreen s_screen;
 static char s_text[256];
@@ -334,4 +338,101 @@ void test_text_typed_while_a_shell_starts_reaches_it_once_the_shell_settles(void
     TEST_ASSERT_TRUE(shell_run(words, "abc\r"));
     TEST_ASSERT_TRUE(screen_holds("got abc"));
     TEST_ASSERT_TRUE(screen_holds("[exited 0]"));
+}
+
+// the terminal's snapshot, published as the controller publishes it, NULL where none could be had
+static CliTerminalPanel *panel_read(void)
+{
+    return (CliTerminalPanel *)EMBED_CALL(cli_model_terminal.alloc, CliModelCtx, .at = 0u);
+}
+
+// whether a row of the view `view` of `panel` holds `text`, a C string
+static int panel_holds(const CliTerminalPanel *panel, unsigned int view, const char *text)
+{
+    const CliTerminalView *const shown = &panel->view[view];
+    for (unsigned int y = 0u; y < shown->rows; y += 1u)
+    {
+        for (unsigned int from = 0u; from < shown->columns; from += 1u)
+        {
+            unsigned int at = 0u;
+            while ((text[at] != '\0') && ((from + at) < shown->columns) &&
+                   (shown->cell[((unsigned long long)y * shown->columns) + from + at].letter == (unsigned int)text[at]))
+            {
+                at += 1u;
+            }
+            if (text[at] == '\0')
+            {
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
+// the model stepped until its view 0 holds `text` or ten seconds pass: 1 where it does
+static int model_until(const char *text)
+{
+    static CliWake s_pause;
+    const unsigned long long last_ms = cli_clock_milliseconds() + 10000ULL;
+    while (cli_clock_milliseconds() < last_ms)
+    {
+        (void)EMBED_CALL(cli_model_terminal.step, CliModelCtx, .at = 0u);
+        CliTerminalPanel *const panel = panel_read();
+        const int holds = (panel != NULL) && (panel->views != 0u) && panel_holds(panel, 0u, text);
+        g_cli_cells->persistent_buf_release(panel, &g_cli_controller_cells);
+        if (holds)
+        {
+            return 1;
+        }
+        (void)EMBED_CALL(cli_wake_internal.wake_wait_for, CliWakeCtx, .wake = &s_pause,
+                         .milliseconds_u64 = CLI_TERMINAL_LOOK_MS);
+    }
+    return 0;
+}
+
+void test_the_terminal_opens_on_a_tab_whose_shell_takes_what_is_typed_and_shows_what_it_writes(void)
+{
+#if defined(_WIN32)
+    TEST_ASSERT_EQUAL_INT(0, _putenv_s("ORIOR_SHELL", "cmd.exe"));
+#else
+    TEST_ASSERT_EQUAL_INT(0, setenv("ORIOR_SHELL", "/bin/sh", 1));
+#endif
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.command, CliModelCtx, .path = "toggle"));
+    const CliInput sized = {.kind = CLI_INPUT_TERMINAL_SIZE, .index = 0u, .columns = 80u, .rows = 24u};
+    EMBED_CALL(cli_model_terminal.size, CliModelCtx, .input = &sized);
+    CliTerminalPanel *const opened = panel_read();
+    TEST_ASSERT_NOT_NULL(opened);
+    TEST_ASSERT_TRUE(opened->open);
+    TEST_ASSERT_TRUE(opened->keys);
+    TEST_ASSERT_EQUAL_UINT(1u, opened->tabs);
+    TEST_ASSERT_EQUAL_STRING("1 shell", opened->tab[0].label);
+    TEST_ASSERT_EQUAL_UINT(1u, opened->views);
+    TEST_ASSERT_EQUAL_UINT(80u, opened->view[0].columns);
+    TEST_ASSERT_EQUAL_UINT(24u, opened->view[0].rows);
+    g_cli_cells->persistent_buf_release(opened, &g_cli_controller_cells);
+    // Control with a letter goes to the shell, a plain letter comes as text, and Ctrl+` goes on to the window
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.key, CliModelCtx, .path = "A"));
+    TEST_ASSERT_FALSE(EMBED_CALL(cli_model_terminal.key, CliModelCtx, .path = "Ctrl+`"));
+    // what is typed and echoed reads `model^_heard` or `model''_heard`; only the shell's output reads `model_heard`
+#if defined(_WIN32)
+    const char *const typed = "echo model^_heard";
+#else
+    const char *const typed = "echo model''_heard";
+#endif
+    unsigned long long typed_size = 0ULL;
+    while (typed[typed_size] != '\0')
+    {
+        typed_size += 1ULL;
+    }
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.text, CliModelCtx, .path = typed, .length = typed_size));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.key, CliModelCtx, .path = "Enter"));
+    TEST_ASSERT_TRUE(model_until("model_heard"));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.text, CliModelCtx, .path = "exit", .length = 4ULL));
+    TEST_ASSERT_TRUE(EMBED_CALL(cli_model_terminal.key, CliModelCtx, .path = "Enter"));
+    TEST_ASSERT_TRUE(model_until("[exited 0]"));
+    CliTerminalPanel *const ended = panel_read();
+    TEST_ASSERT_NOT_NULL(ended);
+    TEST_ASSERT_TRUE(ended->tab[0].exited);
+    g_cli_cells->persistent_buf_release(ended, &g_cli_controller_cells);
+    EMBED_CALL(cli_model_terminal.end, CliModelCtx, .at = 0u);
 }

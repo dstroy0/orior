@@ -5,6 +5,7 @@
 // the map are the editor view's (editor/view.h, editor/document.h)
 #ifndef CONTROLLER_PARTS_H
 #define CONTROLLER_PARTS_H
+#include "../terminal/screen.h"
 #include "../text/edits.h"
 
 // the groups a tool stands in
@@ -225,5 +226,42 @@ typedef struct
     unsigned int chosen;
     CliCompletionRow *row;
 } CliCompletionPanel;
+
+// One tab of the terminal: its label, its number and the last folder of the place its shell reported, `shell` where it
+// reported none, and whether its shell ended
+typedef struct
+{
+    const char *label;
+    int exited;
+} CliTerminalTab;
+
+// One screen the terminal's panel shows: its columns and rows, its cells row by row, the cursor's column and row and
+// whether it is shown, and whether the keys go to its shell
+typedef struct
+{
+    unsigned int columns;
+    unsigned int rows;
+    const CliTerminalCell *cell;
+    unsigned int cursor_x;
+    unsigned int cursor_y;
+    int cursor_shown;
+    int focused;
+} CliTerminalView;
+
+// The terminal: whether its panel is open and whether it takes the keys; its height in pixels at a scale of one; its
+// tabs, the tab shown and the one beside it, -1 for none; and the screens shown, the tab shown's then the one beside's,
+// a screen not yet sized having no rows
+typedef struct
+{
+    int open;
+    int keys;
+    unsigned int height;
+    unsigned int tabs;
+    CliTerminalTab *tab;
+    int shown;
+    int beside;
+    unsigned int views;
+    CliTerminalView view[2];
+} CliTerminalPanel;
 
 #endif

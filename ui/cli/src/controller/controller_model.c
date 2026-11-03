@@ -138,6 +138,12 @@ void cli_model_tool_toggle(const CliModelCtx *args)
     {
         return;
     }
+    // the terminal's panel stands under both views beside whatever tool is shown
+    if (cellul.eq(&(CatenaFinitaCfg){.src = g_cli_tools[args->at].name, .other = "terminal", .cap = 16ULL}))
+    {
+        (void)EMBED_CALL(cli_model_terminal.command, CliModelCtx, .path = "toggle");
+        return;
+    }
     // the tools are fewer than an int counts
     g_cli_model.tool = (g_cli_model.tool == (int)args->at) ? -1 : (int)args->at;
     EMBED_CALL(cli_model.editing, CliModelCtx, .on = 0);
@@ -189,6 +195,12 @@ EMBED_INLINE void model_press(const ControllerModelCtx *args)
         break;
     }
     EMBED_CALL(cli_model.panels_hide, CliModelCtx, .at = 0u);
+    // a press on the terminal is the terminal's; one elsewhere takes the keys from it
+    EMBED_CALL(cli_model_terminal.press, CliModelCtx, .input = input);
+    if ((input->hit >= CLI_HIT_TERMINAL) && (input->hit <= CLI_HIT_TERMINAL_SPLIT))
+    {
+        return;
+    }
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ULL};
     switch (input->hit)
@@ -362,6 +374,10 @@ void cli_controller_model_input(const CliInput *input, const char *bytes)
         EMBED_CALL(cli_model_commands.key_take, CliModelCtx, .path = bytes, .on = input->hit == CLI_HIT_WORDMARK);
         break;
     case CLI_INPUT_TEXT: {
+        if (EMBED_CALL(cli_model_terminal.text, CliModelCtx, .path = bytes, .length = input->length))
+        {
+            break;
+        }
         const CliViewInput typed = {.kind = CLI_VIEW_TEXT, .text = bytes, .length = input->length};
         EMBED_CALL(cli_model.editing, CliModelCtx, .on = 1);
         EMBED_CALL(cli_model_panels.text, CliModelCtx, .path = bytes, .length = input->length);
@@ -428,6 +444,9 @@ void cli_controller_model_input(const CliInput *input, const char *bytes)
             g_cli_model.map_last = input->column;
             g_cli_model.dirty |= CLI_MODEL_DIRTY(CLI_SNAPSHOT_MAP);
         }
+        break;
+    case CLI_INPUT_TERMINAL_SIZE:
+        EMBED_CALL(cli_model_terminal.size, CliModelCtx, .input = input);
         break;
     default:
         break;
@@ -572,6 +591,8 @@ EMBED_INLINE void *model_part_alloc(const ControllerModelCtx *args)
         return (key != NULL) ? EMBED_CALL(cli_document_names.names_alloc, CliDocumentNamesCfg, .key = key,
                                           .owner = &g_cli_controller_cells)
                              : NULL;
+    case CLI_SNAPSHOT_TERMINAL:
+        return EMBED_CALL(cli_model_terminal.alloc, CliModelCtx, .at = 0u);
     default:
         return NULL;
     }
@@ -609,6 +630,7 @@ int cli_controller_model_step(void)
     did = EMBED_CALL(cli_model_problems.step, CliModelCtx, .at = 0u) || did;
     did = EMBED_CALL(cli_model_door.step, CliModelCtx, .at = 0u) || did;
     did = EMBED_CALL(cli_model_watch.step, CliModelCtx, .at = 0u) || did;
+    did = EMBED_CALL(cli_model_terminal.step, CliModelCtx, .at = 0u) || did;
     if (!s_memory_reading && (now_ms >= g_cli_model.memory_due_ms))
     {
         unsigned long long *const reading =
@@ -638,6 +660,7 @@ unsigned long long cli_controller_model_due_ms(void)
 {
     const unsigned long long dues[] = {EMBED_CALL(cli_model_commands.menu_due_ms, CliModelCtx, .at = 0u),
                                        EMBED_CALL(cli_model_panels.due_ms, CliModelCtx, .at = 0u),
+                                       EMBED_CALL(cli_model_terminal.next_ms, CliModelCtx, .at = 0u),
                                        g_cli_model.memory_due_ms};
     unsigned long long earliest = 0ULL;
     for (unsigned int at = 0u; at < (sizeof(dues) / sizeof(dues[0])); at += 1u)
@@ -768,6 +791,7 @@ void cli_controller_model_begin(void)
 void cli_controller_model_end(void)
 {
     EMBED_CALL(cli_model.session_save, CliModelCtx, .on = 1);
+    EMBED_CALL(cli_model_terminal.end, CliModelCtx, .at = 0u);
     EMBED_CALL(cli_model_watch.end, CliModelCtx, .at = 0u);
     cli_controller_work_end();
     EMBED_CALL(cli_model_problems.end, CliModelCtx, .at = 0u);

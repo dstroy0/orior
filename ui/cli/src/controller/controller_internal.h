@@ -183,6 +183,21 @@ void cli_model_launch_run(const CliModelCtx *args);
 void cli_controller_watch_taken(const CliWatchBatchCfg *args);
 int cli_model_watch_step(const CliModelCtx *args);
 void cli_model_watch_end(const CliModelCtx *args);
+// the terminal (controller_terminal.c): the terminal's command `path` run, `value` the words it is handed or NULL: 1,
+// or 0 where it is none of the terminal's; the key `path` taken where the panel takes the keys: 1, or 0 where it goes
+// on to the rest of the window; `length` bytes of text `path` typed where the panel takes the keys: 1, or 0 where it
+// does not; a press on the terminal, `input` a CliInput, or elsewhere, which takes the keys from it; the view `input`
+// names sized to its rows and columns; every shell drained, 1 where a screen changed; the clock's reading of its next
+// timer, 0 for none; its snapshot; and every shell hung up on and its tabs let go
+int cli_model_terminal_command(const CliModelCtx *args);
+int cli_model_terminal_key(const CliModelCtx *args);
+int cli_model_terminal_text(const CliModelCtx *args);
+void cli_model_terminal_press(const CliModelCtx *args);
+void cli_model_terminal_size(const CliModelCtx *args);
+int cli_model_terminal_step(const CliModelCtx *args);
+unsigned long long cli_model_terminal_next_ms(const CliModelCtx *args);
+void *cli_model_terminal_alloc(const CliModelCtx *args);
+void cli_model_terminal_end(const CliModelCtx *args);
 
 struct CliModelCtx
 {
@@ -356,6 +371,31 @@ EMBED_TABLE_LAYOUT(CliModelWatchNs, step, end);
 EMBED_TABLE_STORAGE CliModelWatchNs cli_model_watch EMBED_UNUSED = {
     .step = cli_model_watch_step,
     .end = cli_model_watch_end,
+};
+
+typedef struct
+{
+    int (*command)(const CliModelCtx *args);
+    int (*key)(const CliModelCtx *args);
+    int (*text)(const CliModelCtx *args);
+    void (*press)(const CliModelCtx *args);
+    void (*size)(const CliModelCtx *args);
+    int (*step)(const CliModelCtx *args);
+    unsigned long long (*next_ms)(const CliModelCtx *args);
+    void *(*alloc)(const CliModelCtx *args);
+    void (*end)(const CliModelCtx *args);
+} CliModelTerminalNs;
+EMBED_TABLE_LAYOUT(CliModelTerminalNs, command, key, text, press, size, step, next_ms, alloc, end);
+EMBED_TABLE_STORAGE CliModelTerminalNs cli_model_terminal EMBED_UNUSED = {
+    .command = cli_model_terminal_command,
+    .key = cli_model_terminal_key,
+    .text = cli_model_terminal_text,
+    .press = cli_model_terminal_press,
+    .size = cli_model_terminal_size,
+    .step = cli_model_terminal_step,
+    .next_ms = cli_model_terminal_next_ms,
+    .alloc = cli_model_terminal_alloc,
+    .end = cli_model_terminal_end,
 };
 
 #endif

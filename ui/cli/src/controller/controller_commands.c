@@ -58,9 +58,10 @@ static ControllerMenus s_menus;
 // the commands the window has no keys for that the view runs by name
 static const char *const s_view_commands[] = {"sort-ascending", "sort-descending", "unique-lines",
                                               "upper-case",     "lower-case",      "title-case"};
-// the commands that run here whatever else their keys might mean
-static const char *const s_own_commands[] = {"exit",        "close-editor",  "close-all",
-                                             "last-editor", "reduce-motion", "preferences"};
+// the commands that run here whatever else their keys might mean, the terminal's among them
+static const char *const s_own_commands[] = {
+    "exit", "close-editor", "close-all", "last-editor", "reduce-motion", "preferences",    "terminal-view", "toggle",
+    "new",  "split",        "clear",     "kill",        "terminal-copy", "terminal-paste", "terminal-close"};
 
 typedef struct
 {
@@ -628,6 +629,10 @@ void cli_model_command_run(const CliModelCtx *args)
                    .value = g_cli_model.motion_saved ? "true" : "false");
         g_cli_model.dirty |= CLI_MODEL_DIRTY(CLI_SNAPSHOT_SETTINGS);
     }
+    else if (EMBED_CALL(cli_model_terminal.command, CliModelCtx, .path = command, .words = args->words, .at = args->at))
+    {
+        return;
+    }
     else if ((args->value != NULL) && (args->value[0] != '\0'))
     {
         EMBED_CALL(cli_model_commands.key_take, CliModelCtx, .path = args->value);
@@ -728,7 +733,7 @@ int cli_model_command_named(const CliModelCtx *args)
     if (known)
     {
         EMBED_CALL(cli_model_commands.command_run, CliModelCtx, .path = command,
-                   .value = (item != NULL) ? item->keys : NULL);
+                   .value = (item != NULL) ? item->keys : NULL, .words = args->words, .at = args->at);
     }
     return known;
 }
@@ -770,6 +775,11 @@ EMBED_INLINE int commands_tool_key(const ControllerCommandsCtx *args)
 void cli_model_key_take(const CliModelCtx *args)
 {
     const char *const name = args->path;
+    // the terminal's panel, where it takes the keys, takes them ahead of the window while no menu is open
+    if ((s_menus.levels == 0u) && !args->on && EMBED_CALL(cli_model_terminal.key, CliModelCtx, .path = name))
+    {
+        return;
+    }
     if (EMBED_CALL(commands_menu_key, ControllerCommandsCtx, .name = name) || args->on)
     {
         return;

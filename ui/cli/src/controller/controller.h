@@ -18,7 +18,8 @@
 // what an input is: a key by its name, text typed, the pointer pressed, moved or let go on what it hit, the wheel, the
 // editor's size in rows and columns of its text, a file dropped on it, the system's close, a setting changed, its key
 // and its value in the bytes with a 0 between, the lines the minimap stands for, from `row` to `column`, a command
-// named in the bytes, and a key pressed in Preferences' window, taken only where it is that command's own
+// whose name is in the bytes, a key pressed in Preferences' window, taken only where it is that command's own, and the
+// size in rows and columns of the terminal's view `index`, 0 the one shown and 1 the one beside it
 #define CLI_INPUT_KEY 0u
 #define CLI_INPUT_TEXT 1u
 #define CLI_INPUT_POINTER_DOWN 2u
@@ -32,9 +33,10 @@
 #define CLI_INPUT_MAP_SPAN 10u
 #define CLI_INPUT_COMMAND 11u
 #define CLI_INPUT_PREFERENCES_KEY 12u
+#define CLI_INPUT_TERMINAL_SIZE 13u
 
 // what the pointer hit, as the window's layout places it; a key sent while the name's pane stands names the wordmark,
-// no view taking it
+// no view taking it. In the terminal: its view `index`, a tab, a tab's ×, New Terminal and Split
 #define CLI_HIT_NONE 0u
 #define CLI_HIT_MENU_TITLE 1u
 #define CLI_HIT_MENU_ROW 2u
@@ -52,6 +54,11 @@
 #define CLI_HIT_HOVER_BOX 14u
 #define CLI_HIT_SIGNATURE_BOX 15u
 #define CLI_HIT_SUGGEST_LIST 16u
+#define CLI_HIT_TERMINAL 17u
+#define CLI_HIT_TERMINAL_TAB 18u
+#define CLI_HIT_TERMINAL_TAB_CLOSE 19u
+#define CLI_HIT_TERMINAL_NEW 20u
+#define CLI_HIT_TERMINAL_SPLIT 21u
 
 // the modifier keys down on an input, as bits
 #define CLI_INPUT_MOD_SHIFT 1u
@@ -90,7 +97,8 @@ typedef struct
 #define CLI_SNAPSHOT_STATUS 9u
 #define CLI_SNAPSHOT_SETTINGS 10u
 #define CLI_SNAPSHOT_NAMES 11u
-#define CLI_SNAPSHOT_PARTS 12u
+#define CLI_SNAPSHOT_TERMINAL 12u
+#define CLI_SNAPSHOT_PARTS 13u
 
 // What wakes the view's thread, from any thread
 typedef void (*CliControllerWoken)(void *context);
