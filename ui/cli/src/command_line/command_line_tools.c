@@ -49,7 +49,11 @@ typedef struct
     const char *one;
     const char *other;
     VerbaLinea *err_msg;
+    unsigned int at;
 } CommandLineToolsCtx;
+
+// a flag of new-plugin refused, its closing word missing
+#define CLI_TOOLS_REFUSED 0xffffffffu
 // `text` copied into `into`, sized for `capacity`, cut where it does not fit
 EMBED_INLINE void tools_copy(const CommandLineToolsCtx *args)
 {
@@ -265,13 +269,92 @@ EMBED_INLINE void tools_err_two(const CommandLineToolsCtx *args)
                .size = mmgr_line_ok(&line) ? line.at : 0ULL);
 }
 
+// the block comment's opening, the word after the flag at `at`, and its closing, the word after that, set on the
+// plugin's `object`: 2, the words it takes, or CLI_TOOLS_REFUSED where the `count` words end before its closing, why
+// given
+EMBED_INLINE unsigned int tools_block_comment(const CommandLineToolsCtx *args)
+{
+    if (args->at + 2u >= args->count)
+    {
+        EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx,
+                   .text = "--block-comment takes two words, the opening and the closing");
+        return CLI_TOOLS_REFUSED;
+    }
+    const unsigned int block =
+        EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = &s_json, .kind = CFG_JSON_ARRAY);
+    for (unsigned int word = 1u; word <= 2u; word += 1u)
+    {
+        const char *const text = args->words[args->at + word];
+        EMBED_CALL(cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = &s_json, .array = block,
+                   .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
+                                       .json = &s_json, .text = text,
+                                       .length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL})));
+    }
+    EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = &s_json, .object = args->object,
+               .name = "blockComment", .value = block);
+    return 2u;
+}
+
+// the flag at `at` of the `count` words that takes the words after it set on the plugin's `object`: a list, a text or
+// the block comment; how many words after the flag it takes, 0 where it is none of these, or CLI_TOOLS_REFUSED with
+// why given
+EMBED_INLINE unsigned int tools_valued_flag(const CommandLineToolsCtx *args)
+{
+    static const char *const s_lists[5][2] = {{"--ext", "extensions"},
+                                              {"--keywords", "keywords"},
+                                              {"--types", "types"},
+                                              {"--constants", "constants"},
+                                              {"--quotes", "quotes"}};
+    static const char *const s_texts[3][2] = {{"--id", "id"}, {"--from", "from"}, {"--line-comment", "lineComment"}};
+    const char *const word_text = args->words[args->at];
+    const char *const value = args->words[args->at + 1u];
+    for (unsigned int list = 0u; list < 5u; list += 1u)
+    {
+        if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = s_lists[list][0], .cap = CLI_CELLS_POOL}))
+        {
+            EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = &s_json,
+                       .object = args->object, .name = s_lists[list][1],
+                       .value = EMBED_CALL(tools_list, CommandLineToolsCtx, .text = value));
+            return 1u;
+        }
+    }
+    for (unsigned int text = 0u; text < 3u; text += 1u)
+    {
+        if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = s_texts[text][0], .cap = CLI_CELLS_POOL}))
+        {
+            EMBED_CALL(tools_set_text, CommandLineToolsCtx, .object = args->object, .name = s_texts[text][1],
+                       .text = value);
+            return 1u;
+        }
+    }
+    if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--block-comment", .cap = CLI_CELLS_POOL}))
+    {
+        return EMBED_CALL(tools_block_comment, CommandLineToolsCtx, .words = args->words, .count = args->count,
+                          .at = args->at, .object = args->object);
+    }
+    return 0u;
+}
+
+// a flag `name` new-plugin does not take refused, why given: it needs a value where `text`, the word after it, is
+// NULL, else it is not one new-plugin takes
+EMBED_INLINE void tools_flag_refused(const CommandLineToolsCtx *args)
+{
+    if (args->text == NULL)
+    {
+        EMBED_CALL(tools_err_two, CommandLineToolsCtx, .one = args->name, .other = " needs a value");
+        return;
+    }
+    VerbaLinea line = {s_line, sizeof(s_line), 0ULL};
+    mmgr_line_put(&line, "new-plugin takes no ");
+    mmgr_line_put(&line, args->name);
+    mmgr_line_put(&line, ": orior_cli help names what it takes");
+    EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = s_line,
+               .size = mmgr_line_ok(&line) ? line.at : 0ULL);
+}
+
 // the language plugin `new-plugin` describes written, the tree allocated for its words: 0, or CLI_WRONG with why given
 EMBED_INLINE int tools_new_plugin(const CommandLineToolsCtx *args)
 {
-    static const char *const s_lists[6][2] = {{"--ext", "extensions"}, {"--keywords", "keywords"},
-                                              {"--types", "types"},    {"--constants", "constants"},
-                                              {"--quotes", "quotes"},  {NULL, NULL}};
-    static const char *const s_texts[3][2] = {{"--id", "id"}, {"--from", "from"}, {"--line-comment", "lineComment"}};
     const unsigned int spec =
         EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = &s_json, .kind = CFG_JSON_OBJECT);
     static char s_name[1u << 12u];
@@ -282,86 +365,21 @@ EMBED_INLINE int tools_new_plugin(const CommandLineToolsCtx *args)
     {
         const char *const word_text = args->words[at];
         const char *const value = (at + 1u < args->count) ? args->words[at + 1u] : NULL;
-        unsigned int reserved = 0u;
-        int known = 0;
-        if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--replace", .cap = CLI_CELLS_POOL}))
+        const int replacing =
+            cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--replace", .cap = CLI_CELLS_POOL});
+        replace = replace || replacing;
+        const unsigned int reserved = (!replacing && (value != NULL))
+                                          ? EMBED_CALL(tools_valued_flag, CommandLineToolsCtx, .words = args->words,
+                                                       .count = args->count, .at = at, .object = spec)
+                                          : 0u;
+        if (reserved == CLI_TOOLS_REFUSED)
         {
-            replace = 1;
-            known = 1;
+            return CLI_WRONG;
         }
-        if (value != NULL)
-        {
-            unsigned int list = 0u;
-            while ((s_lists[list][0] != NULL) && !known)
-            {
-                if (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = s_lists[list][0], .cap = CLI_CELLS_POOL}))
-                {
-                    EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = &s_json,
-                               .object = spec, .name = s_lists[list][1],
-                               .value = EMBED_CALL(tools_list, CommandLineToolsCtx, .text = value));
-                    reserved = 1u;
-                    known = 1;
-                }
-                list += 1u;
-            }
-            {
-                unsigned int text = 0u;
-                while ((text < 3u) && !known)
-                {
-                    if (cellul.eq(
-                            &(CatenaFinitaCfg){.src = word_text, .other = s_texts[text][0], .cap = CLI_CELLS_POOL}))
-                    {
-                        EMBED_CALL(tools_set_text, CommandLineToolsCtx, .object = spec, .name = s_texts[text][1],
-                                   .text = value);
-                        reserved = 1u;
-                        known = 1;
-                    }
-                    text += 1u;
-                }
-            }
-            if (!known &&
-                (cellul.eq(&(CatenaFinitaCfg){.src = word_text, .other = "--block-comment", .cap = CLI_CELLS_POOL})))
-            {
-                if (at + 2u >= args->count)
-                {
-                    EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx,
-                               .text = "--block-comment takes two words, the opening and the closing");
-                    return CLI_WRONG;
-                }
-                const unsigned int block = EMBED_CALL(cli_json_tree_kind.json_init, CliJsonTreeKindCfg, .json = &s_json,
-                                                      .kind = CFG_JSON_ARRAY);
-                EMBED_CALL(
-                    cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = &s_json, .array = block,
-                    .value = EMBED_CALL(cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg,
-                                        .json = &s_json, .text = value,
-                                        .length = cellul.len(&(CatenaFinitaCfg){.src = value, .cap = CLI_CELLS_POOL})));
-                EMBED_CALL(
-                    cli_json_tree_array.json_append, CliJsonTreeArrayCfg, .json = &s_json, .array = block,
-                    .value = EMBED_CALL(
-                        cli_json_tree_text_length_kind.json_string_init, CliJsonTreeTextLengthKindCfg, .json = &s_json,
-                        .text = args->words[at + 2u],
-                        .length = cellul.len(&(CatenaFinitaCfg){.src = args->words[at + 2u], .cap = CLI_CELLS_POOL})));
-                EMBED_CALL(cli_json_tree_object_name.json_set, CliJsonTreeObjectNameCfg, .json = &s_json,
-                           .object = spec, .name = "blockComment", .value = block);
-                reserved = 2u;
-                known = 1;
-            }
-        }
+        const int known = replacing || (reserved != 0u);
         if (!known && (cellul.starts(&(CatenaFinitaCfg){.src = word_text, .other = "--", .cap = CLI_CELLS_POOL})))
         {
-            if (value == NULL)
-            {
-                EMBED_CALL(tools_err_two, CommandLineToolsCtx, .one = word_text, .other = " needs a value");
-            }
-            else
-            {
-                VerbaLinea line = {s_line, sizeof(s_line), 0ULL};
-                mmgr_line_put(&line, "new-plugin takes no ");
-                mmgr_line_put(&line, word_text);
-                mmgr_line_put(&line, ": orior_cli help names what it takes");
-                EMBED_CALL(cli_command_line_text_size_internal.err_line, CliCommandLineTextSizeCtx, .text = s_line,
-                           .size = mmgr_line_ok(&line) ? line.at : 0ULL);
-            }
+            EMBED_CALL(tools_flag_refused, CommandLineToolsCtx, .name = word_text, .text = value);
             return CLI_WRONG;
         }
         if (!known)
