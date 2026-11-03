@@ -204,10 +204,10 @@ EMBED_INLINE void cli_contour(const FontOutlineCtx *args)
 {
     const unsigned int start = args->start;
     const unsigned int ring = args->end - start + 1u;
-    unsigned int first_on = ring;
-    for (unsigned int index = 0u; (first_on == ring) && (index < ring); index += 1u)
+    unsigned int first_on = 0u;
+    while ((first_on < ring) && ((args->flags[start + first_on] & 1u) == 0u))
     {
-        first_on = ((args->flags[start + index] & 1u) != 0u) ? index : ring;
+        first_on += 1u;
     }
     const unsigned int second = start + ((ring > 1u) ? 1u : 0u);
     const float *const xs = args->xs;
@@ -250,8 +250,8 @@ EMBED_INLINE void cli_contour(const FontOutlineCtx *args)
     }
     if (controlled)
     {
-        EMBED_CALL(cli_curve, FontOutlineCtx, .out = args->out, .matrix = args->matrix, .from = pen,
-                   .control = control, .to = begin);
+        EMBED_CALL(cli_curve, FontOutlineCtx, .out = args->out, .matrix = args->matrix, .from = pen, .control = control,
+                   .to = begin);
     }
     if (args->out->contours < CLI_OUTLINE_CONTOURS)
     {
@@ -307,8 +307,8 @@ void cli_font_outline(const CliFontGlyphMatrixCfg *args)
         {
             break;
         }
-        EMBED_CALL(cli_contour, FontOutlineCtx, .out = args->out, .matrix = args->matrix, .flags = s_flags,
-                   .xs = s_xs, .ys = s_ys, .start = start, .end = end);
+        EMBED_CALL(cli_contour, FontOutlineCtx, .out = args->out, .matrix = args->matrix, .flags = s_flags, .xs = s_xs,
+                   .ys = s_ys, .start = start, .end = end);
         start = end + 1u;
     }
 }

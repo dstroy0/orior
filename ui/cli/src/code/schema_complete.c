@@ -87,8 +87,8 @@ EMBED_INLINE int complete_string(const SchemaCompleteCtx *args)
     return 0;
 }
 
-// the place past a comment beginning at `from` of `text`, the line's end for a `//` comment and past its `*/` for a
-// `/*` one, the text's end where it is not closed; `from` itself where no comment begins there
+// the place past a comment beginning at `from` of `text`, the line's end for a line comment and past its close for a
+// block comment, the text's end where it is not closed; `from` itself where no comment begins there
 EMBED_INLINE unsigned long long complete_comment_end(const SchemaCompleteCtx *args)
 {
     const char *const text = args->text + args->from;

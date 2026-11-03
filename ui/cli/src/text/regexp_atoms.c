@@ -85,8 +85,8 @@ EMBED_INLINE int cli_escape_code(const RegexpAtomsCtx *args)
         return CLI_ESCAPE_FAILED;
     }
     // a code past what a character represents, or none, reads as `u`
-    const int valid = (digits != 0ULL) && (digits <= 6ULL) && (code <= 0x10ffffULL) &&
-                      !((code >= 0xd800ULL) && (code <= 0xdfffULL));
+    const int valid =
+        (digits != 0ULL) && (digits <= 6ULL) && (code <= 0x10ffffULL) && !((code >= 0xd800ULL) && (code <= 0xdfffULL));
     *letter = valid ? (unsigned int)code : 'u';
     return CLI_ESCAPE_LETTER;
 }
@@ -102,9 +102,11 @@ EMBED_INLINE unsigned int cli_property_named(const RegexpAtomsCtx *args)
     {
         const size_t name_length = cellul.len(&(CatenaFinitaCfg){.src = s_properties[at], .cap = CLI_CELLS_POOL});
         int same = name_length == args->count;
-        for (size_t letter_at = 0u; same && (letter_at < name_length); letter_at += 1u)
+        size_t letter_at = 0u;
+        while (same && (letter_at < name_length))
         {
             same = letters[letter_at] == (unsigned char)s_properties[at][letter_at];
+            letter_at += 1u;
         }
         if (same)
         {
@@ -479,8 +481,8 @@ EMBED_INLINE unsigned int cli_atom_escape(const RegexpAtomsCtx *args)
     if (there && ((peeked == 'b') || (peeked == 'B')))
     {
         reader->at += 1u;
-        const unsigned int made = EMBED_CALL(cli_regexp_read_kind_internal.node, CliRegexpReadKindCtx,
-                                             .reader = reader, .kind = CLI_REGEXP_BOUNDARY);
+        const unsigned int made = EMBED_CALL(cli_regexp_read_kind_internal.node, CliRegexpReadKindCtx, .reader = reader,
+                                             .kind = CLI_REGEXP_BOUNDARY);
         if (made != CLI_REGEXP_NONE)
         {
             reader->regexp->node[made].negated = peeked == 'B';
@@ -491,8 +493,8 @@ EMBED_INLINE unsigned int cli_atom_escape(const RegexpAtomsCtx *args)
     {
         unsigned int index = 0u;
         EMBED_CALL(cli_regexp_read_value_internal.number, CliRegexpReadValueCtx, .reader = reader, .value = &index);
-        const unsigned int made = EMBED_CALL(cli_regexp_read_kind_internal.node, CliRegexpReadKindCtx,
-                                             .reader = reader, .kind = CLI_REGEXP_BACK);
+        const unsigned int made = EMBED_CALL(cli_regexp_read_kind_internal.node, CliRegexpReadKindCtx, .reader = reader,
+                                             .kind = CLI_REGEXP_BACK);
         if (made != CLI_REGEXP_NONE)
         {
             reader->regexp->node[made].group = index;

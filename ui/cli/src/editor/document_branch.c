@@ -1948,7 +1948,7 @@ int cli_document_cache(const CliDocumentKeyFromCfg *args)
     {
         one->refused =
             one->refused || (one->paged && !EMBED_CALL(cli_document_internal.paged_count, CliDocumentCtx, .one = one));
-        CliLines *const lines = &one->lines;
+        const CliLines *const lines = &one->lines;
         // the lines the view mirrors stand among those the pages count, which an unsigned int counts
         const unsigned int cached_from = (args->from < lines->lines) ? (unsigned int)args->from : lines->lines;
         const unsigned int cached_to = (args->to < lines->lines) ? (unsigned int)args->to : lines->lines;

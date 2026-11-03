@@ -154,7 +154,7 @@ EMBED_INLINE unsigned long long scan_word_end(const CargoScanCtx *args)
     return at;
 }
 
-// a block comment passed over from its `/*`, those written in it with it, each line it ends counted into
+// a block comment passed over from its opening, those written in it with it, each line it ends counted into
 // `line_pointer`: where the text goes on
 EMBED_INLINE unsigned long long scan_block_comment(const CargoScanCtx *args)
 {
@@ -207,8 +207,8 @@ EMBED_INLINE unsigned long long scan_quote(const CargoScanCtx *args)
     const unsigned long long size = args->size;
     const unsigned long long at = args->at_u64;
     unsigned long long next_bytes = 0ULL;
-    const unsigned int next = EMBED_CALL(scan_letter, CargoScanCtx, .text = text, .size = size, .at_u64 = at + 1ULL,
-                                         .reserved = &next_bytes);
+    const unsigned int next =
+        EMBED_CALL(scan_letter, CargoScanCtx, .text = text, .size = size, .at_u64 = at + 1ULL, .reserved = &next_bytes);
     unsigned long long third_bytes = 0ULL;
     const unsigned int third = EMBED_CALL(scan_letter, CargoScanCtx, .text = text, .size = size,
                                           .at_u64 = at + 1ULL + next_bytes, .reserved = &third_bytes);

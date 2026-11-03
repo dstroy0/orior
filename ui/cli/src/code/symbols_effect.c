@@ -789,14 +789,9 @@ EMBED_INLINE void cli_effect_directive_include(const SymbolsEffectCtx *args)
                    .depth = args->depth + 1u);
         return;
     }
-    const CliEffectSeen seen = {CLI_SEEN_INCLUDE,
-                                args->branch->read_at,
-                                read->leaf[args->role].line,
-                                args->from,
-                                args->end,
-                                CLI_JSON_NONE,
-                                0u,
-                                CLI_JSON_NONE};
+    const CliEffectSeen seen = {
+        CLI_SEEN_INCLUDE, args->branch->read_at, read->leaf[args->role].line, args->from, args->end, CLI_JSON_NONE, 0u,
+        CLI_JSON_NONE};
     (void)EMBED_CALL(cli_effect_visit, SymbolsEffectCtx, .effect = effect, .seen = &seen);
 }
 
@@ -931,7 +926,7 @@ EMBED_INLINE void cli_effect_line_found(const SymbolsEffectCtx *args)
 // `declared_at` moved past them whatever the region, and the line among the walk's texts for each needle naming it
 EMBED_INLINE void cli_effect_line_met(const SymbolsEffectCtx *args)
 {
-    CliEffectBranch *const branch = args->branch;
+    const CliEffectBranch *const branch = args->branch;
     const unsigned int line = args->read->leaf[args->from].line;
     const int active = (branch->open == 0u) || branch->condition[branch->open - 1u].active;
     unsigned int declared = *args->declared_at;

@@ -523,7 +523,7 @@ EMBED_INLINE void cli_library_found(const BinaryElfCtx *args)
 // it needs queued after the `queued` before them, with the folder it stands in as their origin; how many are queued
 EMBED_INLINE unsigned int cli_library_loaded(const BinaryElfCtx *args)
 {
-    CliLibrary *const library = args->library;
+    const CliLibrary *const library = args->library;
     CliBinaryReport *const report = args->report;
     unsigned int queued = args->queued;
     unsigned long long more_size = 0ULL;

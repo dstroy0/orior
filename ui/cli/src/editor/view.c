@@ -2831,7 +2831,8 @@ EMBED_INLINE unsigned long long view_comment_line(const ViewCtx *args)
     // the blanks are a byte a unit: a place among them is their count
     const unsigned long long place = args->marked ? blanks - read : args->col;
     const int spaced = (blanks + token < end) && (text[blanks + token] == ' ');
-    const unsigned long long cut = args->marked ? (token + (spaced ? 1ULL : 0ULL)) : 0ULL;
+    const unsigned long long space_after = spaced ? 1ULL : 0ULL;
+    const unsigned long long cut = args->marked ? (token + space_after) : 0ULL;
     const CliPosition from = {line, place};
     const CliPosition to = {line, place + (args->marked ? (cut - token) + args->units_u64 : 0ULL)};
     const CliPosition ends = {line, args->marked ? place : place + args->units_u64 + 1ULL};
