@@ -2675,13 +2675,15 @@ EMBED_INLINE unsigned long long view_indent_line(const ViewCtx *args)
     const CliPosition ends = {line, added};
     if (view->cursor.line == line)
     {
-        *args->cursor_pointer = EMBED_CALL(view_position_machine_transfer, ViewCtx, .place = view->cursor, .from = from,
-                                           .to = to, .end = ends, .after = (view->cursor.col > 0ULL) || !args->selected);
+        *args->cursor_pointer =
+            EMBED_CALL(view_position_machine_transfer, ViewCtx, .place = view->cursor, .from = from, .to = to,
+                       .end = ends, .after = (view->cursor.col > 0ULL) || !args->selected);
     }
     if (view->anchor.line == line)
     {
-        *args->anchor_pointer = EMBED_CALL(view_position_machine_transfer, ViewCtx, .place = view->anchor, .from = from,
-                                           .to = to, .end = ends, .after = (view->anchor.col > 0ULL) || !args->selected);
+        *args->anchor_pointer =
+            EMBED_CALL(view_position_machine_transfer, ViewCtx, .place = view->anchor, .from = from, .to = to,
+                       .end = ends, .after = (view->anchor.col > 0ULL) || !args->selected);
     }
     return at;
 }
@@ -2795,13 +2797,13 @@ EMBED_INLINE unsigned long long view_comment_line(const ViewCtx *args)
     const CliPosition ends = {line, args->marked ? place : place + args->units_u64 + 1ULL};
     if (view->cursor.line == line)
     {
-        *args->cursor_pointer = EMBED_CALL(view_position_machine_transfer, ViewCtx, .place = view->cursor,
-                                           .from = from, .to = to, .end = ends, .after = 1);
+        *args->cursor_pointer = EMBED_CALL(view_position_machine_transfer, ViewCtx, .place = view->cursor, .from = from,
+                                           .to = to, .end = ends, .after = 1);
     }
     if (view->anchor.line == line)
     {
-        *args->anchor_pointer = EMBED_CALL(view_position_machine_transfer, ViewCtx, .place = view->anchor,
-                                           .from = from, .to = to, .end = ends, .after = args->after);
+        *args->anchor_pointer = EMBED_CALL(view_position_machine_transfer, ViewCtx, .place = view->anchor, .from = from,
+                                           .to = to, .end = ends, .after = args->after);
     }
     memor.cpy(&(MemoriaCfg){.dst = put + at, .src = text + read, .bytes = place});
     at += place;
@@ -2882,8 +2884,8 @@ EMBED_INLINE int view_lines_comment(const ViewCtx *args)
         if (blanks < end)
         {
             at = EMBED_CALL(view_comment_line, ViewCtx, .view_read = args->view, .text = consumed, .from_u64 = read,
-                            .to_u64 = end, .start_value = blanks, .line = line, .mark = put, .at = at,
-                            .marked = marked, .col = lead, .count = token, .units_u64 = token_units, .after = after,
+                            .to_u64 = end, .start_value = blanks, .line = line, .mark = put, .at = at, .marked = marked,
+                            .col = lead, .count = token, .units_u64 = token_units, .after = after,
                             .cursor_pointer = &cursor, .anchor_pointer = &anchor);
         }
         else
@@ -3628,6 +3630,30 @@ static int view_command_run(const ViewCtx *args)
 
 // a key's name taken where it runs a line edit, by the keys the page's editor binds them to: 1 with whether it was
 // taken into `reserved`, or 0 where the key is none of them
+// an Up or Down arrow held with Mod or Alt taken: with Mod alone, the view scrolled a line, the cursor staying; with
+// Alt alone, the selection's lines moved a line, or with Shift copied; with both, nothing, as they would add a cursor,
+// which the view has not
+EMBED_INLINE void view_vertical_key(const ViewCtx *args)
+{
+    CliView *const view = args->view;
+    const int up = EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "Up");
+    if (args->mod && !args->alt && !args->shift)
+    {
+        view->top = up ? EMBED_CALL(view_up, ViewCtx, .view_read = view, .line = view->top, .count = 1ULL)
+                       : EMBED_CALL(view_down, ViewCtx, .view_read = view, .line = view->top, .count = 1ULL);
+    }
+    else if (args->alt && !args->mod)
+    {
+        *args->reserved = args->shift
+                              ? EMBED_CALL(view_lines_copy, ViewCtx, .view = view, .up = up, .err_msg = args->err_msg)
+                              : EMBED_CALL(view_lines_move, ViewCtx, .view = view, .up = up, .err_msg = args->err_msg);
+    }
+}
+
+// a key held with Mod and not Alt that selects, joins, comments, deletes, indents, jumps or inserts lines, or deletes a
+// word, taken: 1, or 0 where it is none of them
+EMBED_INLINE int view_mod_line_key(const ViewCtx *args);
+
 EMBED_INLINE int view_line_key(const ViewCtx *args)
 {
     int *reserved = args->reserved;
@@ -3635,22 +3661,7 @@ EMBED_INLINE int view_line_key(const ViewCtx *args)
                          EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "Down");
     if (vertical && (args->mod || args->alt))
     {
-        const int up = EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "Up");
-        if (args->mod && !args->alt && !args->shift)
-        {
-            // Mod and an arrow scroll a line, the cursor staying; with Alt they would add a cursor, which the view has
-            // not
-            args->view->top =
-                up ? EMBED_CALL(view_up, ViewCtx, .view_read = args->view, .line = args->view->top, .count = 1ULL)
-                   : EMBED_CALL(view_down, ViewCtx, .view_read = args->view, .line = args->view->top, .count = 1ULL);
-        }
-        else if (args->alt && !args->mod)
-        {
-            *reserved =
-                args->shift
-                    ? EMBED_CALL(view_lines_copy, ViewCtx, .view = args->view, .up = up, .err_msg = args->err_msg)
-                    : EMBED_CALL(view_lines_move, ViewCtx, .view = args->view, .up = up, .err_msg = args->err_msg);
-        }
+        view_vertical_key(args);
         return 1;
     }
     if (args->alt && args->shift && !args->mod &&
@@ -3665,69 +3676,9 @@ EMBED_INLINE int view_line_key(const ViewCtx *args)
         view_selection_shrunk(args);
         return 1;
     }
-    if (args->mod && !args->alt)
+    if (args->mod && !args->alt && view_mod_line_key(args))
     {
-        if (!args->shift && EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "L"))
-        {
-            view_line_select(args);
-            return 1;
-        }
-        if (!args->shift && EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "J"))
-        {
-            *reserved = view_lines_join(args);
-            return 1;
-        }
-        if (!args->shift && EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "/"))
-        {
-            return EMBED_CALL(view_command_run, ViewCtx, .view = args->view, .name = "comment", .reserved = reserved,
-                              .err_msg = args->err_msg);
-        }
-        if (args->shift && EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "K"))
-        {
-            *reserved = view_lines_delete(args);
-            return 1;
-        }
-        if (!args->shift && (EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "]") ||
-                             EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "[")))
-        {
-            *reserved = EMBED_CALL(view_lines_indent, ViewCtx, .view = args->view,
-                                   .deeper = EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "]"),
-                                   .err_msg = args->err_msg);
-            return 1;
-        }
-        if (args->shift && EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "\\"))
-        {
-            view_bracket_jump(args);
-            return 1;
-        }
-        if (EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "Enter"))
-        {
-            *reserved = EMBED_CALL(view_line_insert, ViewCtx, .view = args->view, .below = !args->shift,
-                                   .err_msg = args->err_msg);
-            return 1;
-        }
-        if (!EMBED_CALL(view_select, ViewCtx, .view_read = args->view) &&
-            EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "Backspace") &&
-            (args->view->cursor.col != 0ULL))
-        {
-            *reserved = EMBED_CALL(
-                view_edit, ViewCtx, .view = args->view,
-                .from = EMBED_CALL(view_word_leave, ViewCtx, .view = args->view, .place = args->view->cursor),
-                .to = args->view->cursor, .text = "", .length = 0ULL, .kind = CLI_VIEW_KIND_DELETE,
-                .err_msg = args->err_msg);
-            return 1;
-        }
-        if (!EMBED_CALL(view_select, ViewCtx, .view_read = args->view) &&
-            EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "Delete") &&
-            (args->view->cursor.col <
-             EMBED_CALL(view_length, ViewCtx, .view = args->view, .line = args->view->cursor.line)))
-        {
-            *reserved =
-                EMBED_CALL(view_edit, ViewCtx, .view = args->view, .from = args->view->cursor,
-                           .to = EMBED_CALL(view_word_right, ViewCtx, .view = args->view, .place = args->view->cursor),
-                           .text = "", .length = 0ULL, .kind = CLI_VIEW_KIND_DELETE_FORWARD, .err_msg = args->err_msg);
-            return 1;
-        }
+        return 1;
     }
     if (EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "Tab"))
     {
@@ -3740,6 +3691,73 @@ EMBED_INLINE int view_line_key(const ViewCtx *args)
                                    .err_msg = args->err_msg);
             return 1;
         }
+    }
+    return 0;
+}
+
+EMBED_INLINE int view_mod_line_key(const ViewCtx *args)
+{
+    int *reserved = args->reserved;
+    if (!args->shift && EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "L"))
+    {
+        view_line_select(args);
+        return 1;
+    }
+    if (!args->shift && EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "J"))
+    {
+        *reserved = view_lines_join(args);
+        return 1;
+    }
+    if (!args->shift && EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "/"))
+    {
+        return EMBED_CALL(view_command_run, ViewCtx, .view = args->view, .name = "comment", .reserved = reserved,
+                          .err_msg = args->err_msg);
+    }
+    if (args->shift && EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "K"))
+    {
+        *reserved = view_lines_delete(args);
+        return 1;
+    }
+    if (!args->shift && (EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "]") ||
+                         EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "[")))
+    {
+        *reserved = EMBED_CALL(view_lines_indent, ViewCtx, .view = args->view,
+                               .deeper = EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "]"),
+                               .err_msg = args->err_msg);
+        return 1;
+    }
+    if (args->shift && EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "\\"))
+    {
+        view_bracket_jump(args);
+        return 1;
+    }
+    if (EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "Enter"))
+    {
+        *reserved =
+            EMBED_CALL(view_line_insert, ViewCtx, .view = args->view, .below = !args->shift, .err_msg = args->err_msg);
+        return 1;
+    }
+    if (!EMBED_CALL(view_select, ViewCtx, .view_read = args->view) &&
+        EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "Backspace") &&
+        (args->view->cursor.col != 0ULL))
+    {
+        *reserved =
+            EMBED_CALL(view_edit, ViewCtx, .view = args->view,
+                       .from = EMBED_CALL(view_word_leave, ViewCtx, .view = args->view, .place = args->view->cursor),
+                       .to = args->view->cursor, .text = "", .length = 0ULL, .kind = CLI_VIEW_KIND_DELETE,
+                       .err_msg = args->err_msg);
+        return 1;
+    }
+    if (!EMBED_CALL(view_select, ViewCtx, .view_read = args->view) &&
+        EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "Delete") &&
+        (args->view->cursor.col <
+         EMBED_CALL(view_length, ViewCtx, .view = args->view, .line = args->view->cursor.line)))
+    {
+        *reserved =
+            EMBED_CALL(view_edit, ViewCtx, .view = args->view, .from = args->view->cursor,
+                       .to = EMBED_CALL(view_word_right, ViewCtx, .view = args->view, .place = args->view->cursor),
+                       .text = "", .length = 0ULL, .kind = CLI_VIEW_KIND_DELETE_FORWARD, .err_msg = args->err_msg);
+        return 1;
     }
     return 0;
 }
@@ -3783,6 +3801,107 @@ EMBED_INLINE const char *view_key_read(const ViewCtx *args)
     }
 }
 
+// the cursor moved a unit, or with `mod` a word, left, or where `forward` right, or a selection collapsed to its end
+// that way where `shift` is not held; the selection extended where it is
+EMBED_INLINE void view_key_across(const ViewCtx *args)
+{
+    CliView *const view = args->view;
+    CliPosition from;
+    CliPosition to;
+    EMBED_CALL(view_selection, ViewCtx, .view_read = view, .from_pointer = &from, .to_pointer = &to);
+    CliPosition place;
+    if (args->mod)
+    {
+        place = args->forward ? EMBED_CALL(view_word_right, ViewCtx, .view = view, .place = view->cursor)
+                              : EMBED_CALL(view_word_leave, ViewCtx, .view = view, .place = view->cursor);
+    }
+    else if (!args->shift && EMBED_CALL(view_select, ViewCtx, .view_read = view))
+    {
+        place = args->forward ? to : from;
+    }
+    else
+    {
+        place = args->forward ? EMBED_CALL(view_right, ViewCtx, .view = view, .place = view->cursor)
+                              : EMBED_CALL(view_leave, ViewCtx, .view = view, .place = view->cursor);
+    }
+    EMBED_CALL(view_move, ViewCtx, .view = view, .place = place, .extend = args->shift, .saved = 0);
+}
+
+// the cursor moved to the line's first letter, or its start where it stands there, or with `mod` to the text's start
+EMBED_INLINE void view_key_home(const ViewCtx *args)
+{
+    CliView *const view = args->view;
+    CliPosition place = {0ULL, 0ULL};
+    if (!args->mod)
+    {
+        const unsigned long long first =
+            EMBED_CALL(view_first_letter, ViewCtx, .view = view, .line = view->cursor.line);
+        place = (CliPosition){view->cursor.line, (view->cursor.col == first) ? 0ULL : first};
+    }
+    EMBED_CALL(view_move, ViewCtx, .view = view, .place = place, .extend = args->shift, .saved = 0);
+}
+
+// the cursor moved to its line's end, or with `mod` to the text's end
+EMBED_INLINE void view_key_end(const ViewCtx *args)
+{
+    CliView *const view = args->view;
+    const unsigned long long lines = EMBED_CALL(view_lines, ViewCtx, .view_read = view);
+    const unsigned long long last = (lines != 0ULL) ? lines - 1ULL : 0ULL;
+    const unsigned long long line =
+        args->mod ? EMBED_CALL(view_displayed_up, ViewCtx, .view_read = view, .line = last) : view->cursor.line;
+    const CliPosition place = {line, EMBED_CALL(view_length, ViewCtx, .view = view, .line = line)};
+    EMBED_CALL(view_move, ViewCtx, .view = view, .place = place, .extend = args->shift, .saved = 0);
+}
+
+// the cursor and the top moved a page up, or where `forward` down. A page is the rows less one: the last row seen
+// stays in view
+EMBED_INLINE void view_key_page(const ViewCtx *args)
+{
+    CliView *const view = args->view;
+    const unsigned int rows = (view->rows > 1u) ? view->rows : 1u;
+    const unsigned long long by = rows - 1u;
+    EMBED_CALL(view_vertical, ViewCtx, .view = view, .by = args->forward ? (long long)by : -(long long)by,
+               .extend = args->shift);
+    view->top = args->forward ? EMBED_CALL(view_down, ViewCtx, .view_read = view, .line = view->top, .count = by)
+                              : EMBED_CALL(view_up, ViewCtx, .view_read = view, .line = view->top, .count = by);
+    EMBED_CALL(view_follow, ViewCtx, .view = view);
+}
+
+// a key that moves the cursor taken: an arrow, Home, End or a page key; 1, or 0 where the key is none of them
+EMBED_INLINE int view_move_key(const ViewCtx *args)
+{
+    const char *const name = args->name;
+    const int left = EMBED_CALL(view_by_name, ViewCtx, .name = name, .required = "Left");
+    const int up = EMBED_CALL(view_by_name, ViewCtx, .name = name, .required = "Up");
+    const int page_up = EMBED_CALL(view_by_name, ViewCtx, .name = name, .required = "PageUp");
+    if (left || EMBED_CALL(view_by_name, ViewCtx, .name = name, .required = "Right"))
+    {
+        EMBED_CALL(view_key_across, ViewCtx, .view = args->view, .mod = args->mod, .shift = args->shift,
+                   .forward = !left);
+    }
+    else if (up || EMBED_CALL(view_by_name, ViewCtx, .name = name, .required = "Down"))
+    {
+        EMBED_CALL(view_vertical, ViewCtx, .view = args->view, .by = up ? -1LL : 1LL, .extend = args->shift);
+    }
+    else if (EMBED_CALL(view_by_name, ViewCtx, .name = name, .required = "Home"))
+    {
+        EMBED_CALL(view_key_home, ViewCtx, .view = args->view, .mod = args->mod, .shift = args->shift);
+    }
+    else if (EMBED_CALL(view_by_name, ViewCtx, .name = name, .required = "End"))
+    {
+        EMBED_CALL(view_key_end, ViewCtx, .view = args->view, .mod = args->mod, .shift = args->shift);
+    }
+    else if (page_up || EMBED_CALL(view_by_name, ViewCtx, .name = name, .required = "PageDown"))
+    {
+        EMBED_CALL(view_key_page, ViewCtx, .view = args->view, .shift = args->shift, .forward = !page_up);
+    }
+    else
+    {
+        return 0;
+    }
+    return 1;
+}
+
 // a key taken: 1, or 0 with why given where an edit it makes fails; a key the view has no use for is taken and does
 // nothing
 EMBED_INLINE int view_on_key(const ViewCtx *args)
@@ -3794,7 +3913,6 @@ EMBED_INLINE int view_on_key(const ViewCtx *args)
                                         .shift_pointer = &shift, .alt_pointer = &alt);
     const unsigned long long lines = EMBED_CALL(view_lines, ViewCtx, .view_read = args->view);
     const unsigned long long last = (lines != 0ULL) ? lines - 1ULL : 0ULL;
-    const unsigned int rows = (args->view->rows > 1u) ? args->view->rows : 1u;
     if (EMBED_CALL(view_find_key, ViewCtx, .view = args->view, .name = name, .mod = mod, .shift = shift, .alt = alt))
     {
         return 1;
@@ -3807,94 +3925,11 @@ EMBED_INLINE int view_on_key(const ViewCtx *args)
     {
         return reserved;
     }
-    if (EMBED_CALL(view_by_name, ViewCtx, .name = name, .required = "Left"))
+    if (EMBED_CALL(view_move_key, ViewCtx, .view = args->view, .name = name, .mod = mod, .shift = shift))
     {
-        CliPosition from;
-        CliPosition to;
-        EMBED_CALL(view_selection, ViewCtx, .view_read = args->view, .from_pointer = &from, .to_pointer = &to);
-        CliPosition place;
-        if (mod)
-        {
-            place = EMBED_CALL(view_word_leave, ViewCtx, .view = args->view, .place = args->view->cursor);
-        }
-        else if (!shift && EMBED_CALL(view_select, ViewCtx, .view_read = args->view))
-        {
-            place = from;
-        }
-        else
-        {
-            place = EMBED_CALL(view_leave, ViewCtx, .view = args->view, .place = args->view->cursor);
-        }
-        EMBED_CALL(view_move, ViewCtx, .view = args->view, .place = place, .extend = shift, .saved = 0);
+        return 1;
     }
-    else if (EMBED_CALL(view_by_name, ViewCtx, .name = name, .required = "Right"))
-    {
-        CliPosition from;
-        CliPosition to;
-        EMBED_CALL(view_selection, ViewCtx, .view_read = args->view, .from_pointer = &from, .to_pointer = &to);
-        CliPosition place;
-        if (mod)
-        {
-            place = EMBED_CALL(view_word_right, ViewCtx, .view = args->view, .place = args->view->cursor);
-        }
-        else if (!shift && EMBED_CALL(view_select, ViewCtx, .view_read = args->view))
-        {
-            place = to;
-        }
-        else
-        {
-            place = EMBED_CALL(view_right, ViewCtx, .view = args->view, .place = args->view->cursor);
-        }
-        EMBED_CALL(view_move, ViewCtx, .view = args->view, .place = place, .extend = shift, .saved = 0);
-    }
-    else if (EMBED_CALL(view_by_name, ViewCtx, .name = name, .required = "Up"))
-    {
-        EMBED_CALL(view_vertical, ViewCtx, .view = args->view, .by = -1LL, .extend = shift);
-    }
-    else if (EMBED_CALL(view_by_name, ViewCtx, .name = name, .required = "Down"))
-    {
-        EMBED_CALL(view_vertical, ViewCtx, .view = args->view, .by = 1LL, .extend = shift);
-    }
-    else if (EMBED_CALL(view_by_name, ViewCtx, .name = name, .required = "Home"))
-    {
-        if (mod)
-        {
-            EMBED_CALL(view_move, ViewCtx, .view = args->view, .place = (CliPosition){0ULL, 0ULL}, .extend = shift,
-                       .saved = 0);
-        }
-        else
-        {
-            const unsigned long long first =
-                EMBED_CALL(view_first_letter, ViewCtx, .view = args->view, .line = args->view->cursor.line);
-            EMBED_CALL(view_move, ViewCtx, .view = args->view,
-                       .place =
-                           (CliPosition){args->view->cursor.line, (args->view->cursor.col == first) ? 0ULL : first},
-                       .extend = shift, .saved = 0);
-        }
-    }
-    else if (EMBED_CALL(view_by_name, ViewCtx, .name = name, .required = "End"))
-    {
-        const unsigned long long end = EMBED_CALL(view_displayed_up, ViewCtx, .view_read = args->view, .line = last);
-        const CliPosition place =
-            mod ? (CliPosition){end, EMBED_CALL(view_length, ViewCtx, .view = args->view, .line = end)}
-                : (CliPosition){args->view->cursor.line,
-                                EMBED_CALL(view_length, ViewCtx, .view = args->view, .line = args->view->cursor.line)};
-        EMBED_CALL(view_move, ViewCtx, .view = args->view, .place = place, .extend = shift, .saved = 0);
-    }
-    else if (EMBED_CALL(view_by_name, ViewCtx, .name = name, .required = "PageUp") ||
-             EMBED_CALL(view_by_name, ViewCtx, .name = name, .required = "PageDown"))
-    {
-        // a page is the rows less one: the last row seen stays in view
-        const unsigned long long by = rows - 1u;
-        const int up = EMBED_CALL(view_by_name, ViewCtx, .name = name, .required = "PageUp");
-        EMBED_CALL(view_vertical, ViewCtx, .view = args->view, .by = up ? -(long long)by : (long long)by,
-                   .extend = shift);
-        args->view->top =
-            up ? EMBED_CALL(view_up, ViewCtx, .view_read = args->view, .line = args->view->top, .count = by)
-               : EMBED_CALL(view_down, ViewCtx, .view_read = args->view, .line = args->view->top, .count = by);
-        view_follow(args);
-    }
-    else if (mod && shift && EMBED_CALL(view_by_name, ViewCtx, .name = name, .required = "["))
+    if (mod && shift && EMBED_CALL(view_by_name, ViewCtx, .name = name, .required = "["))
     {
         (void)EMBED_CALL(view_fold, ViewCtx, .view = args->view, .line = args->view->cursor.line, .exact = 0);
     }
@@ -3993,6 +4028,48 @@ EMBED_INLINE void view_point(const ViewCtx *args)
     EMBED_CALL(view_move, ViewCtx, .view = args->view, .place = place, .extend = args->input->shift, .saved = 0);
 }
 
+// text the input gives taken: typed into find's query where find has the focus, a byte a unit at the most, else into
+// the text at the cursor, one letter as a letter typed and a space or more as an edit of its own kind: 1, or 0 with
+// why given where the edit fails
+EMBED_INLINE int view_input_text(const ViewCtx *args)
+{
+    CliView *const view = args->view;
+    const CliViewInput *const input = args->input;
+    const int one = (input->length != 0ULL) && (EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg,
+                                                           .text = input->text, .size = input->length) == 1ULL);
+    const int blank =
+        (input->length != 0ULL) && ((input->text[0] == ' ') || (input->text[0] == '\t') || (input->text[0] == '\n'));
+    unsigned int kind = CLI_VIEW_KIND_NONE;
+    if (one)
+    {
+        kind = blank ? CLI_VIEW_KIND_SPACE : CLI_VIEW_KIND_TYPE;
+    }
+    unsigned long long consumed = 0ULL;
+    const unsigned int letter = one ? EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = input->text,
+                                                 .size = input->length, .at = 0ULL, .length = &consumed)
+                                    : 0u;
+    if (view->find_open && view->find_focus)
+    {
+        unsigned short *const units =
+            g_cli_cells->temporary_buf_alloc((input->length + 1ULL) * sizeof(*units), &g_cli_views_cells);
+        if (units != NULL)
+        {
+            EMBED_CALL(view_query_append, ViewCtx, .view = view, .units_read = units,
+                       .count = EMBED_CALL(view_units_get, ViewCtx, .text = input->text, .size = input->length,
+                                           .units = units, .capacity = input->length + 1ULL));
+            g_cli_cells->persistent_buf_release(units, &g_cli_views_cells);
+        }
+        return 1;
+    }
+    if (one && !blank && (letter < 0x10000u))
+    {
+        return EMBED_CALL(view_letter_type, ViewCtx, .view = view, .text = input->text, .length = input->length,
+                          .letter = letter, .kind = kind, .err_msg = args->err_msg);
+    }
+    return EMBED_CALL(view_type, ViewCtx, .view = view, .text = input->text, .length = input->length, .kind = kind,
+                      .err_msg = args->err_msg);
+}
+
 int cli_view_input(const CliViewInputCfg *args)
 {
     const char *key = args->key;
@@ -4012,52 +4089,7 @@ int cli_view_input(const CliViewInputCfg *args)
         break;
     }
     case CLI_VIEW_TEXT: {
-        const int one = (args->input->length != 0ULL) &&
-                        (EMBED_CALL(cli_text_size_byte.letters, CliTextSizeByteCfg, .text = args->input->text,
-                                    .size = args->input->length) == 1ULL);
-        const int blank =
-            (args->input->length != 0ULL) &&
-            ((args->input->text[0] == ' ') || (args->input->text[0] == '\t') || (args->input->text[0] == '\n'));
-        unsigned int kind;
-        if (one && !blank)
-        {
-            kind = CLI_VIEW_KIND_TYPE;
-        }
-        else if (one)
-        {
-            kind = CLI_VIEW_KIND_SPACE;
-        }
-        else
-        {
-            kind = CLI_VIEW_KIND_NONE;
-        }
-        unsigned long long consumed = 0ULL;
-        const unsigned int letter = one ? EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = args->input->text,
-                                                     .size = args->input->length, .at = 0ULL, .length = &consumed)
-                                        : 0u;
-        if (view->find_open && view->find_focus)
-        {
-            // text typed goes into the query, a byte a unit at the most
-            unsigned short *const units =
-                g_cli_cells->temporary_buf_alloc((args->input->length + 1ULL) * sizeof(*units), &g_cli_views_cells);
-            if (units != NULL)
-            {
-                EMBED_CALL(view_query_append, ViewCtx, .view = view, .units_read = units,
-                           .count = EMBED_CALL(view_units_get, ViewCtx, .text = args->input->text,
-                                               .size = args->input->length, .units = units,
-                                               .capacity = args->input->length + 1ULL));
-                g_cli_cells->persistent_buf_release(units, &g_cli_views_cells);
-            }
-        }
-        else
-        {
-            reserved = (one && !blank && (letter < 0x10000u))
-                           ? EMBED_CALL(view_letter_type, ViewCtx, .view = view, .text = args->input->text,
-                                        .length = args->input->length, .letter = letter, .kind = kind,
-                                        .err_msg = args->err_msg)
-                           : EMBED_CALL(view_type, ViewCtx, .view = view, .text = args->input->text,
-                                        .length = args->input->length, .kind = kind, .err_msg = args->err_msg);
-        }
+        reserved = EMBED_CALL(view_input_text, ViewCtx, .view = view, .input = args->input, .err_msg = args->err_msg);
         break;
     }
     case CLI_VIEW_POINTER: {
@@ -4097,19 +4129,8 @@ int cli_view_input(const CliViewInputCfg *args)
     case CLI_VIEW_POSITION: {
         // the cursor placed at the line `row` and the unit `column`, each cut to the text, the top following it
         const unsigned long long lines = EMBED_CALL(view_lines, ViewCtx, .view_read = view);
-        unsigned long long line;
-        if (args->input->row < lines)
-        {
-            line = args->input->row;
-        }
-        else if (lines > 0ULL)
-        {
-            line = lines - 1ULL;
-        }
-        else
-        {
-            line = 0ULL;
-        }
+        const unsigned long long last = (lines > 0ULL) ? lines - 1ULL : 0ULL;
+        const unsigned long long line = (args->input->row < lines) ? args->input->row : last;
         const unsigned long long length = EMBED_CALL(view_length, ViewCtx, .view = view, .line = line);
         EMBED_CALL(view_move, ViewCtx, .view = view,
                    .place = (CliPosition){line, (args->input->column < length) ? args->input->column : length},
@@ -4298,8 +4319,8 @@ EMBED_INLINE void view_frame_stored(const ViewCtx *args)
 }
 
 // the folds that open on the frame's rows put in it, each with whether the view has it closed, and where it shows the
-// line it closes on, that line's text after the bytes `out` holds, its blanks at either end left off and the rest cut at
-// `width` units
+// line it closes on, that line's text after the bytes `out` holds, its blanks at either end left off and the rest cut
+// at `width` units
 EMBED_INLINE void view_frame_folds(const ViewCtx *args)
 {
     CliView *const view = args->view;
@@ -4436,13 +4457,13 @@ CliViewFrame *cli_view_frame_alloc(const char *key)
     VerbaLinea bytes = {frame->bytes, text_bytes, 0ULL};
     if (view->paged)
     {
-        EMBED_CALL(view_frame_paged, ViewCtx, .key = view->key, .displayed = &displayed, .frame = frame,
-                   .out = &bytes, .width = columns);
+        EMBED_CALL(view_frame_paged, ViewCtx, .key = view->key, .displayed = &displayed, .frame = frame, .out = &bytes,
+                   .width = columns);
     }
     else
     {
-        EMBED_CALL(view_frame_stored, ViewCtx, .key = view->key, .displayed = &displayed, .frame = frame,
-                   .out = &bytes, .width = columns);
+        EMBED_CALL(view_frame_stored, ViewCtx, .key = view->key, .displayed = &displayed, .frame = frame, .out = &bytes,
+                   .width = columns);
     }
     // the closers after the rows' text; a count of folds among the rows is far inside what an unsigned int represents
     frame->folds = (unsigned int)folds.count;
