@@ -86,6 +86,20 @@ typedef struct
     unsigned int ghidra_at;
     const char *id;
     VerbaLinea *err_msg;
+    const char *const *words;
+    unsigned int count;
+    const char **toolchain_out;
+    const char **target_out;
+    const char **required;
+    unsigned int requested;
+    unsigned int *requested_out;
+    unsigned int functions;
+    const char *objdump_text;
+    unsigned long long objdump_size;
+    const char *ghidra_text;
+    unsigned long long ghidra_size;
+    CliDisasmReadState *one;
+    CliDisasmReadState *other;
 } DisasmVerifyCtx;
 // the module's path within the tree: `module` past the tree's top and its separator where it begins with them, else
 // `module` as given, taken as within the tree already
@@ -223,14 +237,12 @@ EMBED_INLINE const CliDisasmToolchain *verify_toolchain(const DisasmVerifyCtx *a
     return NULL;
 }
 
-int cli_disasm_verify_words(const CliDisasmVerifyWordsCfg *args)
+// the command's `count` words read: the toolchain and the target their flags name into `toolchain_out` and
+// `target_out`, and each function a --function names into `required`, up to CLI_DISASM_FUNCTIONS of them, their count
+// into `requested_out`; the module, the last word no flag takes, or NULL where every word is a flag's
+EMBED_INLINE const char *verify_words_read(const DisasmVerifyCtx *args)
 {
-    VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ULL};
     const char *module = NULL;
-    const char *toolchain_id = "llvm";
-    const char *target = "x86_64-unknown-linux-gnu";
-    const char *required[CLI_DISASM_FUNCTIONS];
-    unsigned int requested_count = 0u;
     for (unsigned int each = 0u; each < args->count; each += 1u)
     {
         const int function =
@@ -239,22 +251,86 @@ int cli_disasm_verify_words(const CliDisasmVerifyWordsCfg *args)
             cellul.eq(&(CatenaFinitaCfg){.src = args->words[each], .other = "--toolchain", .cap = CLI_NAME_MAX_LEN});
         const int triple =
             cellul.eq(&(CatenaFinitaCfg){.src = args->words[each], .other = "--target", .cap = CLI_NAME_MAX_LEN});
-        if ((function || toolchain || triple) && (each + 1u < args->count))
+        if ((function || toolchain || triple) && ((each + 1u) < args->count))
         {
             each += 1u;
-            if (function && (requested_count < CLI_DISASM_FUNCTIONS))
+            if (function && (*args->requested_out < CLI_DISASM_FUNCTIONS))
             {
-                required[requested_count] = args->words[each];
-                requested_count += 1u;
+                args->required[*args->requested_out] = args->words[each];
+                *args->requested_out += 1u;
             }
-            toolchain_id = toolchain ? args->words[each] : toolchain_id;
-            target = triple ? args->words[each] : target;
+            *args->toolchain_out = toolchain ? args->words[each] : *args->toolchain_out;
+            *args->target_out = triple ? args->words[each] : *args->target_out;
         }
         else
         {
             module = args->words[each];
         }
     }
+    return module;
+}
+
+// the module's `functions` names in s_names narrowed, in their order, to those of the `requested` names in `required`,
+// every one where none is: how many are left
+EMBED_INLINE unsigned int verify_requested_only(const DisasmVerifyCtx *args)
+{
+    unsigned int named_count = 0u;
+    for (unsigned int each = 0u; each < args->functions; each += 1u)
+    {
+        int all_requested = args->requested == 0u;
+        unsigned int one = 0u;
+        while (!all_requested && (one < args->requested))
+        {
+            all_requested = cellul.eq(
+                &(CatenaFinitaCfg){.src = s_names[each], .other = args->required[one], .cap = CLI_NAME_MAX_LEN});
+            one += 1u;
+        }
+        if (all_requested)
+        {
+            memor.cpy(&(MemoriaCfg){.dst = s_names[named_count], .src = s_names[each], .bytes = CLI_NAME_MAX_LEN});
+            named_count += 1u;
+        }
+    }
+    return named_count;
+}
+
+// each of the `functions` with a symbol in s_symbols read from the disassembler's text and from Ghidra's into `one` and
+// `other`, the two readings compared and the function's row written: 1 where any function's readings differ, else 0
+EMBED_INLINE int verify_readings_compared(const DisasmVerifyCtx *args)
+{
+    int code = 0;
+    for (unsigned int each = 0u; each < args->functions; each += 1u)
+    {
+        if (s_symbols[each][0] != '\0')
+        {
+            (void)EMBED_CALL(cli_disasm_verify_size.disasm_objdump_read, CliDisasmVerifySizeCfg,
+                             .text = args->objdump_text, .size = args->objdump_size, .symbol = s_symbols[each],
+                             .read_state = args->one);
+            (void)EMBED_CALL(cli_disasm_verify_size.disasm_ghidra_read, CliDisasmVerifySizeCfg,
+                             .text = args->ghidra_text, .size = args->ghidra_size, .symbol = s_symbols[each],
+                             .read_state = args->other);
+            unsigned int at = 0u;
+            unsigned int other_at = 0u;
+            const int same = EMBED_CALL(cli_disasm_verify_one.disasm_same, CliDisasmVerifyOneCfg, .one = args->one,
+                                        .other = args->other, .at = &at, .other_at = &other_at);
+            EMBED_CALL(verify_row, DisasmVerifyCtx, .name_read = s_symbols[each], .llvm = args->one,
+                       .ghidra = args->other, .same = same, .at = at, .ghidra_at = other_at);
+            code = same ? code : 1;
+        }
+    }
+    return code;
+}
+
+int cli_disasm_verify_words(const CliDisasmVerifyWordsCfg *args)
+{
+    VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ULL};
+    const char *toolchain_id = "llvm";
+    const char *target = "x86_64-unknown-linux-gnu";
+    const char *required[CLI_DISASM_FUNCTIONS];
+    unsigned int requested_count = 0u;
+    const char *const module = EMBED_CALL(verify_words_read, DisasmVerifyCtx, .words = args->words,
+                                          .count = args->count, .toolchain_out = &toolchain_id, .target_out = &target,
+                                          .required = required, .requested_out = &requested_count);
     if (module == NULL)
     {
         EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx,
@@ -343,25 +419,8 @@ int cli_disasm_verify_words(const CliDisasmVerifyWordsCfg *args)
         EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx, .text = s_err_buf);
         return CLI_NO_CODE;
     }
-    // the functions named on the command line alone, where any were
-    unsigned int named_count = 0u;
-    for (unsigned int each = 0u; each < functions; each += 1u)
-    {
-        int all_requested = requested_count == 0u;
-        unsigned int one = 0u;
-        while (!all_requested && (one < requested_count))
-        {
-            all_requested =
-                cellul.eq(&(CatenaFinitaCfg){.src = s_names[each], .other = required[one], .cap = CLI_NAME_MAX_LEN});
-            one += 1u;
-        }
-        if (all_requested)
-        {
-            memor.cpy(&(MemoriaCfg){.dst = s_names[named_count], .src = s_names[each], .bytes = CLI_NAME_MAX_LEN});
-            named_count += 1u;
-        }
-    }
-    functions = named_count;
+    functions = EMBED_CALL(verify_requested_only, DisasmVerifyCtx, .functions = functions, .required = required,
+                           .requested = requested_count);
     if ((EMBED_CALL(cli_disasm_verify_count_err_msg_lister.disasm_symbols, CliDisasmVerifyCountErrMsgListerCfg,
                     .lister = lister, .program = program, .names_callback = s_names, .symbols_callback = s_symbols,
                     .count = functions, .err_msg = &err_msg) == 0u) ||
@@ -392,38 +451,19 @@ int cli_disasm_verify_words(const CliDisasmVerifyWordsCfg *args)
     CliDisasmReadState other = {g_cli_cells->persistent_buf_alloc(
                                     CLI_DISASM_INSTRUCTIONS * sizeof(CliDisasmInstruction), &g_cli_programs_cells),
                                 0u, 0};
-    int code = 0;
+    int code = CLI_NO_CODE;
     if ((ghidra == NULL) || (one.instruction == NULL) || (other.instruction == NULL))
     {
         (void)mmgr_line_finish(&err_msg);
         EMBED_CALL(cli_command_line_internal.err, CliCommandLineCtx,
                    .text = (ghidra == NULL) ? s_err_buf : "the readings' cells could not be taken");
-        code = CLI_NO_CODE;
     }
+    else
     {
-        unsigned int each = 0u;
-        while ((code != CLI_NO_CODE) && (each < functions))
-        {
-            if (s_symbols[each][0] == '\0')
-            {
-                each += 1u;
-                continue;
-            }
-            (void)EMBED_CALL(cli_disasm_verify_size.disasm_objdump_read, CliDisasmVerifySizeCfg,
-                             .text = disassembled->out, .size = disassembled->out_size, .symbol = s_symbols[each],
-                             .read_state = &one);
-            (void)EMBED_CALL(cli_disasm_verify_size.disasm_ghidra_read, CliDisasmVerifySizeCfg,
-                             .text = (const char *)ghidra, .size = ghidra_size, .symbol = s_symbols[each],
-                             .read_state = &other);
-            unsigned int at = 0u;
-            unsigned int other_at = 0u;
-            const int same = EMBED_CALL(cli_disasm_verify_one.disasm_same, CliDisasmVerifyOneCfg, .one = &one,
-                                        .other = &other, .at = &at, .other_at = &other_at);
-            EMBED_CALL(verify_row, DisasmVerifyCtx, .name_read = s_symbols[each], .llvm = &one, .ghidra = &other,
-                       .same = same, .at = at, .ghidra_at = other_at);
-            code = same ? code : 1;
-            each += 1u;
-        }
+        code =
+            EMBED_CALL(verify_readings_compared, DisasmVerifyCtx, .functions = functions,
+                       .objdump_text = disassembled->out, .objdump_size = disassembled->out_size,
+                       .ghidra_text = (const char *)ghidra, .ghidra_size = ghidra_size, .one = &one, .other = &other);
     }
     g_cli_cells->persistent_buf_release(one.instruction, &g_cli_programs_cells);
     g_cli_cells->persistent_buf_release(other.instruction, &g_cli_programs_cells);
