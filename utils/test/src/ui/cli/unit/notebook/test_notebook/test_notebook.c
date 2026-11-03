@@ -245,6 +245,20 @@ void test_a_diff_reads_sources_and_outputs(void)
     CLI_TEST_ASSERT_TEXT("# cell 1 (code)\nprint('hi')\nx = 1\n## stream\nhi\n# cell 2 (markdown)\n# Title\n", s_out, out.at);
 }
 
+void test_a_diff_reads_a_result_errors_and_the_kinds_of_an_outputs_data(void)
+{
+    static const char outputs[] = "{\"cells\": [{\"cell_type\": \"code\", \"metadata\": {}, \"source\": [\"x\"], \"outputs\": ["
+                                  "{\"output_type\": \"execute_result\", \"data\": {\"text/plain\": \"1\"}}, "
+                                  "{\"output_type\": \"error\", \"ename\": \"ValueError\", \"evalue\": \"bad\"}, "
+                                  "{\"output_type\": \"error\", \"evalue\": \"worse\"}, "
+                                  "{\"output_type\": \"display_data\", \"data\": {\"image/png\": \"AAA\", \"text/html\": \"<b>\"}}]}], "
+                                  "\"metadata\": {}, \"nbformat\": 4, \"nbformat_minor\": 5}\n";
+    VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
+    (void)EMBED_CALL(cli_notebook_text.for_diff, CliNotebookTextCfg, .json = tree_emptied(), .text = outputs, .size = sizeof(outputs) - 1u, .tokens = s_token, .tokens_max = sizeof(s_token) / sizeof(s_token[0]), .out = &out, .err_msg = &err_msg);
+    CLI_TEST_ASSERT_TEXT("# cell 1 (code)\nx\n## execute_result\n1\n## error\nValueError: bad\n## error\nerror: worse\n## display_data: image/png, text/html\n", s_out, out.at);
+}
+
 void test_a_notebook_without_outputs_has_no_run_counts_or_outputs(void)
 {
     VerbaLinea err_msg = {s_error, sizeof(s_error), 0ull};

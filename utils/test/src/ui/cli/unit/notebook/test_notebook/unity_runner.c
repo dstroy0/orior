@@ -22,6 +22,7 @@ extern void test_a_merge_separates_a_cell_both_sides_changed(void);
 extern void test_a_merge_separates_a_cell_one_changed_and_the_other_deleted(void);
 extern void test_a_merges_memory_is_sized_to_its_notebooks_and_released(void);
 extern void test_a_diff_reads_sources_and_outputs(void);
+extern void test_a_diff_reads_a_result_errors_and_the_kinds_of_an_outputs_data(void);
 extern void test_a_notebook_without_outputs_has_no_run_counts_or_outputs(void);
 
 
@@ -99,7 +100,8 @@ int main(void)
   run_test(test_a_merge_separates_a_cell_one_changed_and_the_other_deleted, "test_a_merge_separates_a_cell_one_changed_and_the_other_deleted", 219);
   run_test(test_a_merges_memory_is_sized_to_its_notebooks_and_released, "test_a_merges_memory_is_sized_to_its_notebooks_and_released", 228);
   run_test(test_a_diff_reads_sources_and_outputs, "test_a_diff_reads_sources_and_outputs", 240);
-  run_test(test_a_notebook_without_outputs_has_no_run_counts_or_outputs, "test_a_notebook_without_outputs_has_no_run_counts_or_outputs", 248);
+  run_test(test_a_diff_reads_a_result_errors_and_the_kinds_of_an_outputs_data, "test_a_diff_reads_a_result_errors_and_the_kinds_of_an_outputs_data", 248);
+  run_test(test_a_notebook_without_outputs_has_no_run_counts_or_outputs, "test_a_notebook_without_outputs_has_no_run_counts_or_outputs", 262);
 
   return UNITY_END();
 }

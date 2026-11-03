@@ -18,127 +18,11 @@ typedef struct
 // the most lines of one cell's source two cells are compared by
 #define CLI_NOTEBOOK_LINES 4096u
 
-int cli_notebook_for_diff(const CliNotebookTextCfg *args)
-{
-    const unsigned int book = EMBED_CALL(
-        cli_notebook_path.read, CliNotebookPathCfg, .json = args->json, .path = "x.ipynb", .text = args->text,
-        .size = args->size, .tokens = args->tokens, .tokens_max = args->tokens_max, .err_msg = args->err_msg);
-    if (book == CLI_JSON_NONE)
-    {
-        return 0;
-    }
-    const unsigned long long begun = args->out->at;
-    const unsigned int cells = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                          .json_read = args->json, .object = book, .name = "cells");
-    unsigned int index = 0u;
-    for (unsigned int cell = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                        .json_read = args->json, .node = cells, .kind = CFG_JSON_ARRAY)
-                                 ? args->json->node[cells].first
-                                 : CLI_JSON_NONE;
-         cell != CLI_JSON_NONE; cell = args->json->node[cell].next)
-    {
-        index += 1u;
-        const char *const named =
-            EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = args->json,
-                       .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                          .json_read = args->json, .object = cell, .name = "cell_type"),
-                       .length_pointer = NULL);
-        mmgr_line_put(args->out, "# cell ");
-        mmgr_line_decimal(args->out, index, 1u);
-        mmgr_line_put(args->out, " (");
-        mmgr_line_put(args->out, (named != NULL) ? named : "code");
-        mmgr_line_put(args->out, ")\n");
-        unsigned long long length = 0ULL;
-        const char *const source = EMBED_CALL(cli_notebook_json_cell_internal.source, CliNotebookJsonCellCtx,
-                                              .json_read = args->json, .cell = cell, .length_pointer = &length);
-        mmgr_line_put_n(args->out, source, length);
-        if (mmgr_line_ok(args->out) &&
-            !EMBED_CALL(cli_notebook_text_internal.ends, CliNotebookTextCtx, .text = args->out->out + begun,
-                        .length = args->out->at - begun, .ending = "\n"))
-        {
-            mmgr_line_ch(args->out, '\n');
-        }
-        const unsigned int outputs = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                                .json_read = args->json, .object = cell, .name = "outputs");
-        for (unsigned int output = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                              .json_read = args->json, .node = outputs, .kind = CFG_JSON_ARRAY)
-                                       ? args->json->node[outputs].first
-                                       : CLI_JSON_NONE;
-             output != CLI_JSON_NONE; output = args->json->node[output].next)
-        {
-            const unsigned int data = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                                 .json_read = args->json, .object = output, .name = "data");
-            const char *displayed =
-                EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = args->json,
-                           .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                              .json_read = args->json, .object = output, .name = "text"),
-                           .length_pointer = NULL);
-            displayed =
-                (displayed != NULL)
-                    ? displayed
-                    : EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg,
-                                 .json_read = args->json,
-                                 .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                                    .json_read = args->json, .object = data, .name = "text/plain"),
-                                 .length_pointer = NULL);
-            const char *const evalue =
-                EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = args->json,
-                           .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                              .json_read = args->json, .object = output, .name = "evalue"),
-                           .length_pointer = NULL);
-            const char *const ename =
-                EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = args->json,
-                           .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                              .json_read = args->json, .object = output, .name = "ename"),
-                           .length_pointer = NULL);
-            const char *const typed =
-                EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = args->json,
-                           .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
-                                              .json_read = args->json, .object = output, .name = "output_type"),
-                           .length_pointer = NULL);
-            mmgr_line_put(args->out, "## ");
-            mmgr_line_put(args->out, (typed != NULL) ? typed : "output");
-            if ((displayed != NULL) || (evalue != NULL))
-            {
-                mmgr_line_ch(args->out, '\n');
-                if (displayed != NULL)
-                {
-                    mmgr_line_put(args->out, displayed);
-                }
-                else
-                {
-                    mmgr_line_put(args->out, (ename != NULL) ? ename : "error");
-                    mmgr_line_put(args->out, ": ");
-                    mmgr_line_put(args->out, evalue);
-                }
-                if (mmgr_line_ok(args->out) &&
-                    !EMBED_CALL(cli_notebook_text_internal.ends, CliNotebookTextCtx, .text = args->out->out + begun,
-                                .length = args->out->at - begun, .ending = "\n"))
-                {
-                    mmgr_line_ch(args->out, '\n');
-                }
-                continue;
-            }
-            mmgr_line_put(args->out, ": ");
-            int first = 1;
-            for (unsigned int kind = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
-                                                .json_read = args->json, .node = data, .kind = CFG_JSON_OBJECT)
-                                         ? args->json->node[data].first
-                                         : CLI_JSON_NONE;
-                 kind != CLI_JSON_NONE; kind = args->json->node[kind].next)
-            {
-                mmgr_line_put(args->out, first ? "" : ", ");
-                mmgr_line_put(args->out, args->json->text + args->json->node[kind].key);
-                first = 0;
-            }
-            mmgr_line_ch(args->out, '\n');
-        }
-    }
-    return 1;
-}
-
 typedef struct
 {
+    VerbaLinea *out;
+    unsigned long long begun;
+    unsigned int output;
     const char *text;
     unsigned long long length;
     const char *(*lines)[2];
@@ -168,6 +52,133 @@ typedef struct
     unsigned int ours_index;
     unsigned int theirs_index;
 } NotebookMergeCtx;
+
+// the text member `key` of `cell` in `json`, NULL where it has none
+EMBED_INLINE const char *cli_member_text(const NotebookMergeCtx *args)
+{
+    return EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = args->json,
+                      .node = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                         .json_read = args->json, .object = args->cell, .name = args->key),
+                      .length_pointer = NULL);
+}
+
+// a line's end put after `out` where what it holds from `begun` on does not end in one
+EMBED_INLINE void cli_line_ended(const NotebookMergeCtx *args)
+{
+    if (mmgr_line_ok(args->out) &&
+        !EMBED_CALL(cli_notebook_text_internal.ends, CliNotebookTextCtx, .text = args->out->out + args->begun,
+                    .length = args->out->at - args->begun, .ending = "\n"))
+    {
+        mmgr_line_ch(args->out, '\n');
+    }
+}
+
+// an `output` of a cell in `json` written after `out` for a diff, `begun` where the diff's text starts: its type, then
+// the text it shows or the error it raised, or else the kinds of its data
+EMBED_INLINE void cli_output_written(const NotebookMergeCtx *args)
+{
+    const CliJson *const json = args->json;
+    const unsigned int output = args->output;
+    const unsigned int data = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                         .object = output, .name = "data");
+    const char *displayed = EMBED_CALL(cli_member_text, NotebookMergeCtx, .json = json, .cell = output, .key = "text");
+    displayed = (displayed != NULL)
+                    ? displayed
+                    : EMBED_CALL(cli_member_text, NotebookMergeCtx, .json = json, .cell = data, .key = "text/plain");
+    const char *const evalue =
+        EMBED_CALL(cli_member_text, NotebookMergeCtx, .json = json, .cell = output, .key = "evalue");
+    const char *const ename =
+        EMBED_CALL(cli_member_text, NotebookMergeCtx, .json = json, .cell = output, .key = "ename");
+    const char *const typed =
+        EMBED_CALL(cli_member_text, NotebookMergeCtx, .json = json, .cell = output, .key = "output_type");
+    mmgr_line_put(args->out, "## ");
+    mmgr_line_put(args->out, (typed != NULL) ? typed : "output");
+    if ((displayed != NULL) || (evalue != NULL))
+    {
+        mmgr_line_ch(args->out, '\n');
+        if (displayed != NULL)
+        {
+            mmgr_line_put(args->out, displayed);
+        }
+        else
+        {
+            mmgr_line_put(args->out, (ename != NULL) ? ename : "error");
+            mmgr_line_put(args->out, ": ");
+            mmgr_line_put(args->out, evalue);
+        }
+        EMBED_CALL(cli_line_ended, NotebookMergeCtx, .out = args->out, .begun = args->begun);
+        return;
+    }
+    mmgr_line_put(args->out, ": ");
+    int first = 1;
+    for (unsigned int kind = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                                        .node = data, .kind = CFG_JSON_OBJECT)
+                                 ? json->node[data].first
+                                 : CLI_JSON_NONE;
+         kind != CLI_JSON_NONE; kind = json->node[kind].next)
+    {
+        mmgr_line_put(args->out, first ? "" : ", ");
+        mmgr_line_put(args->out, json->text + json->node[kind].key);
+        first = 0;
+    }
+    mmgr_line_ch(args->out, '\n');
+}
+
+// the `index`th `cell` of a book in `json` written after `out` for a diff, `begun` where the diff's text starts: its
+// place and kind, its source on lines of its own, and each of its outputs
+EMBED_INLINE void cli_cell_written(const NotebookMergeCtx *args)
+{
+    const CliJson *const json = args->json;
+    const char *const named =
+        EMBED_CALL(cli_member_text, NotebookMergeCtx, .json = json, .cell = args->cell, .key = "cell_type");
+    mmgr_line_put(args->out, "# cell ");
+    mmgr_line_decimal(args->out, args->index, 1u);
+    mmgr_line_put(args->out, " (");
+    mmgr_line_put(args->out, (named != NULL) ? named : "code");
+    mmgr_line_put(args->out, ")\n");
+    unsigned long long length = 0ULL;
+    const char *const source = EMBED_CALL(cli_notebook_json_cell_internal.source, CliNotebookJsonCellCtx,
+                                          .json_read = json, .cell = args->cell, .length_pointer = &length);
+    mmgr_line_put_n(args->out, source, length);
+    EMBED_CALL(cli_line_ended, NotebookMergeCtx, .out = args->out, .begun = args->begun);
+    const unsigned int outputs = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg, .json_read = json,
+                                            .object = args->cell, .name = "outputs");
+    for (unsigned int output = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json,
+                                          .node = outputs, .kind = CFG_JSON_ARRAY)
+                                   ? json->node[outputs].first
+                                   : CLI_JSON_NONE;
+         output != CLI_JSON_NONE; output = json->node[output].next)
+    {
+        EMBED_CALL(cli_output_written, NotebookMergeCtx, .json = json, .output = output, .out = args->out,
+                   .begun = args->begun);
+    }
+}
+
+int cli_notebook_for_diff(const CliNotebookTextCfg *args)
+{
+    const unsigned int book = EMBED_CALL(
+        cli_notebook_path.read, CliNotebookPathCfg, .json = args->json, .path = "x.ipynb", .text = args->text,
+        .size = args->size, .tokens = args->tokens, .tokens_max = args->tokens_max, .err_msg = args->err_msg);
+    if (book == CLI_JSON_NONE)
+    {
+        return 0;
+    }
+    const unsigned long long begun = args->out->at;
+    const unsigned int cells = EMBED_CALL(cli_json_tree_object.json_member, CliJsonTreeObjectCfg,
+                                          .json_read = args->json, .object = book, .name = "cells");
+    unsigned int index = 0u;
+    for (unsigned int cell = EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg,
+                                        .json_read = args->json, .node = cells, .kind = CFG_JSON_ARRAY)
+                                 ? args->json->node[cells].first
+                                 : CLI_JSON_NONE;
+         cell != CLI_JSON_NONE; cell = args->json->node[cell].next)
+    {
+        index += 1u;
+        EMBED_CALL(cli_cell_written, NotebookMergeCtx, .json = args->json, .cell = cell, .index = index,
+                   .out = args->out, .begun = begun);
+    }
+    return 1;
+}
 // the lines of a text, CLI_NOTEBOOK_LINES at the most, each its start and its end, into `lines` where it is given:
 // their count
 EMBED_INLINE unsigned int cli_lines_split(const NotebookMergeCtx *args)
