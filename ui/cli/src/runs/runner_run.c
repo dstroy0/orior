@@ -58,6 +58,11 @@ typedef struct
     const char (*pages_found)[CLI_PATH_MAX_LEN];
     unsigned int pages;
     const char *created_text;
+    unsigned int (*ready)[2];
+    int program;
+    unsigned int step;
+    char *displayed_out;
+    char *created_out;
 } RunnerRunCtx;
 // whether a reader has stopped the run
 EMBED_INLINE int cli_stopping(const RunnerRunCtx *args)
@@ -351,6 +356,110 @@ EMBED_INLINE void cli_run_end(const RunnerRunCtx *args)
     EMBED_CALL(cli_wake_internal.wake_all, CliWakeCtx, .wake = &g_cli_runs_wake);
 }
 
+// the steps of the run's job that run with its values into `ready`, each its kind and the place of its step, and the
+// signing put before the first that runs the made program where the job opens a `program` and the system signs: how
+// many
+EMBED_INLINE unsigned int cli_steps_ready(const RunnerRunCtx *args)
+{
+    const CliCatalog *const catalog = &args->run->catalog;
+    const CliJob *const job = &catalog->job[0];
+    unsigned int (*const ready)[2] = args->ready;
+    unsigned int count = 0u;
+    for (unsigned int at = 0u; at < job->steps; at += 1u)
+    {
+        const CliStep *const step = &catalog->step[job->step_first + at];
+        if (EMBED_CALL(cli_runner_command_table.runs, CliRunnerCommandCfg, .catalog = catalog, .step = step,
+                       .values = args->run->values))
+        {
+            ready[count][0] = (step->program == CLI_PROGRAM_CREATED) ? CLI_READY_CREATED : CLI_READY_NOW;
+            ready[count][1] = job->step_first + at;
+            count += 1u;
+        }
+    }
+    if (args->program && cli_executables_signs())
+    {
+        unsigned int place = 0u;
+        while ((place < count) && (ready[place][0] != CLI_READY_CREATED))
+        {
+            place += 1u;
+        }
+        for (unsigned int at = count; at > place; at -= 1u)
+        {
+            ready[at][0] = ready[at - 1u][0];
+            ready[at][1] = ready[at - 1u][1];
+        }
+        ready[place][0] = CLI_READY_SIGN;
+        count += 1u;
+    }
+    return count;
+}
+
+// the job's step at `step` taken: its command written into `command` and its line into `displayed_out`, for the
+// program the build made, `made`, where it is a `created_step`, then run, and what follows it read; 1 where the run
+// goes on
+EMBED_INLINE int cli_job_step(const RunnerRunCtx *args)
+{
+    CliRun *const run = args->run;
+    const CliStep *const step = &run->catalog.step[args->step];
+    VerbaLinea displayed = {args->displayed_out, CLI_COMMAND_TEXT, 0ULL};
+    if (args->created_step)
+    {
+        if (!EMBED_CALL(cli_find_init, RunnerRunCtx, .run = run, .made = args->made))
+        {
+            *args->has_code = 0;
+            return 0;
+        }
+        EMBED_CALL(cli_executables_values.run_command, CliExecutablesValuesCfg, .root = run->root,
+                   .file = args->made->file, .values = run->values, .system = step->system, .command = args->command,
+                   .displayed_verba_linea_pointer = &displayed);
+    }
+    else
+    {
+        char why[CLI_PATH_MAX_LEN];
+        VerbaLinea err_msg = {why, sizeof(why), 0ULL};
+        if (!EMBED_CALL(cli_runner_command_table.command, CliRunnerCommandCfg, .root = run->root,
+                        .catalog = &run->catalog, .step = step, .values = run->values, .command = args->command,
+                        .displayed = &displayed, .err_msg = &err_msg))
+        {
+            mmgr_line_finish(&err_msg);
+            EMBED_CALL(cli_run_print_text, RunnerRunCtx, .run = run, .text = why);
+            *args->has_code = 0;
+            return 0;
+        }
+    }
+    mmgr_line_finish(&displayed);
+    double began = 0.0;
+    if (!EMBED_CALL(cli_step, RunnerRunCtx, .run = run, .command = args->command, .displayed = args->displayed_out,
+                    .view_out = args->view_out, .has_code = args->has_code, .code = args->code, .step_began = &began))
+    {
+        *args->built = *args->built && args->created_step;
+        return 0;
+    }
+    return EMBED_CALL(cli_after_step, RunnerRunCtx, .run = run, .created_step = args->created_step,
+                      .step_began_value = began, .has_code_value = *args->has_code, .code_value = *args->code,
+                      .built = args->built);
+}
+
+// the path of the program the build made, `made`, written into `created_out`: from the run's tree where it lies under
+// it, else whole
+EMBED_INLINE void cli_created_written(const RunnerRunCtx *args)
+{
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = args->run->root, .cap = CLI_CELLS_POOL});
+    if (EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = args->made->file, .other_pointer = args->run->root,
+                   .size = length))
+    {
+        EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = args->run->root, .path = args->made->file,
+                   .relative_out = args->created_out);
+    }
+    else
+    {
+        memor.cpy(&(MemoriaCfg){
+            .dst = args->created_out,
+            .src = args->made->file,
+            .bytes = cellul.len(&(CatenaFinitaCfg){.src = args->made->file, .cap = CLI_CELLS_POOL}) + 1u});
+    }
+}
+
 // A run's steps taken in turn on its thread, its end reported after the last
 void cli_run_steps(void *context)
 {
@@ -389,33 +498,8 @@ void cli_run_steps(void *context)
     }
     // the steps in turn: the job's own that run with these values, the signing put before the first made program's
     unsigned int ready[CLI_RUN_STEPS + 1u][2];
-    unsigned int count = 0u;
-    for (unsigned int at = 0u; at < job->steps; at += 1u)
-    {
-        const CliStep *const step = &catalog->step[job->step_first + at];
-        if (EMBED_CALL(cli_runner_command_table.runs, CliRunnerCommandCfg, .catalog = catalog, .step = step,
-                       .values = run->values))
-        {
-            ready[count][0] = (step->program == CLI_PROGRAM_CREATED) ? CLI_READY_CREATED : CLI_READY_NOW;
-            ready[count][1] = job->step_first + at;
-            count += 1u;
-        }
-    }
-    if (program && cli_executables_signs())
-    {
-        unsigned int place = 0u;
-        while ((place < count) && (ready[place][0] != CLI_READY_CREATED))
-        {
-            place += 1u;
-        }
-        for (unsigned int at = count; at > place; at -= 1u)
-        {
-            ready[at][0] = ready[at - 1u][0];
-            ready[at][1] = ready[at - 1u][1];
-        }
-        ready[place][0] = CLI_READY_SIGN;
-        count += 1u;
-    }
+    const unsigned int count =
+        EMBED_CALL(cli_steps_ready, RunnerRunCtx, .run = run, .ready = ready, .program = program);
     int has_code = 1;
     long long code = 0LL;
     int built = 1;
@@ -428,63 +512,18 @@ void cli_run_steps(void *context)
         if (EMBED_CALL(cli_stopping, RunnerRunCtx, .run_read = run))
         {
             going = 0;
-            continue;
         }
-        if (ready[at][0] == CLI_READY_SIGN)
+        else if (ready[at][0] == CLI_READY_SIGN)
         {
-            if (!EMBED_CALL(cli_sign, RunnerRunCtx, .run = run, .made = &made, .view_out = view_out,
-                            .has_code = &has_code, .code = &code, .built = &built))
-            {
-                going = 0;
-                continue;
-            }
-            at += 1u;
-            continue;
-        }
-        const CliStep *const step = &catalog->step[ready[at][1]];
-        VerbaLinea displayed = {run_command->displayed, CLI_COMMAND_TEXT, 0ULL};
-        const int created_step = ready[at][0] == CLI_READY_CREATED;
-        if (created_step)
-        {
-            if (!EMBED_CALL(cli_find_init, RunnerRunCtx, .run = run, .made = &made))
-            {
-                has_code = 0;
-                going = 0;
-                continue;
-            }
-            EMBED_CALL(cli_executables_values.run_command, CliExecutablesValuesCfg, .root = run->root,
-                       .file = made.file, .values = run->values, .system = step->system, .command = command,
-                       .displayed_verba_linea_pointer = &displayed);
+            going = EMBED_CALL(cli_sign, RunnerRunCtx, .run = run, .made = &made, .view_out = view_out,
+                               .has_code = &has_code, .code = &code, .built = &built);
         }
         else
         {
-            char why[CLI_PATH_MAX_LEN];
-            VerbaLinea err_msg = {why, sizeof(why), 0ULL};
-            if (!EMBED_CALL(cli_runner_command_table.command, CliRunnerCommandCfg, .root = run->root,
-                            .catalog = catalog, .step = step, .values = run->values, .command = command,
-                            .displayed = &displayed, .err_msg = &err_msg))
-            {
-                mmgr_line_finish(&err_msg);
-                EMBED_CALL(cli_run_print_text, RunnerRunCtx, .run = run, .text = why);
-                has_code = 0;
-                going = 0;
-                continue;
-            }
-        }
-        mmgr_line_finish(&displayed);
-        double began = 0.0;
-        if (!EMBED_CALL(cli_step, RunnerRunCtx, .run = run, .command = command, .displayed = run_command->displayed,
-                        .view_out = view_out, .has_code = &has_code, .code = &code, .step_began = &began))
-        {
-            built = built && created_step;
-            going = 0;
-            continue;
-        }
-        if (!EMBED_CALL(cli_after_step, RunnerRunCtx, .run = run, .created_step = created_step,
-                        .step_began_value = began, .has_code_value = has_code, .code_value = code, .built = &built))
-        {
-            going = 0;
-            continue;
+            going = EMBED_CALL(cli_job_step, RunnerRunCtx, .run = run, .step = ready[at][1],
+                               .created_step = ready[at][0] == CLI_READY_CREATED, .made = &made, .command = command,
+                               .displayed_out = run_command->displayed, .view_out = view_out, .has_code = &has_code,
+                               .code = &code, .built = &built);
         }
         at += 1u;
     }
@@ -510,20 +549,7 @@ void cli_run_steps(void *context)
         program && built && !stopped && EMBED_CALL(cli_find_init, RunnerRunCtx, .run = run, .made = &made);
     if (has_created)
     {
-        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = run->root, .cap = CLI_CELLS_POOL});
-        if (EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = made.file, .other_pointer = run->root,
-                       .size = length))
-        {
-            EMBED_CALL(cli_path_root_internal.relative, CliPathRootCtx, .root = run->root, .path = made.file,
-                       .relative_out = created_text);
-        }
-        else
-        {
-            memor.cpy(
-                &(MemoriaCfg){.dst = created_text,
-                              .src = made.file,
-                              .bytes = cellul.len(&(CatenaFinitaCfg){.src = made.file, .cap = CLI_CELLS_POOL}) + 1u});
-        }
+        EMBED_CALL(cli_created_written, RunnerRunCtx, .run = run, .made = &made, .created_out = created_text);
     }
     EMBED_CALL(cli_run_end, RunnerRunCtx, .run = run, .has_code_value = has_code, .code_value = code,
                .pages_found = (const char (*)[CLI_PATH_MAX_LEN])pages_found, .pages = pages,
