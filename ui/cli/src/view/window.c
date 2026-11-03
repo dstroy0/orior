@@ -1642,14 +1642,19 @@ static void window_wheel(const GuiInputHandlerCfg *args)
     }
 }
 
-// a press of the middle button: on a terminal's tab it ends the tab's shell and closes the tab, as its × does, and
-// elsewhere it does nothing
+// a press of the middle button: on an editor's tab it closes the tab, and on a terminal's tab it ends the tab's shell
+// and closes the tab, each as its × does; elsewhere it does nothing
 EMBED_INLINE void window_middle_press(const GuiWindowCtx *args)
 {
     CliInput pressed = {.kind = CLI_INPUT_POINTER_DOWN};
     EMBED_CALL(window_hit_read, GuiWindowCtx, .window_read = args->window_read, .x = args->x, .y = args->y,
                .input = &pressed);
-    if (pressed.hit == CLI_HIT_TERMINAL_TAB)
+    if ((pressed.hit == CLI_HIT_TAB) || (pressed.hit == CLI_HIT_TAB_CLOSE))
+    {
+        pressed.hit = CLI_HIT_TAB_CLOSE;
+        cli_controller_input(&pressed, NULL);
+    }
+    else if (pressed.hit == CLI_HIT_TERMINAL_TAB)
     {
         pressed.hit = CLI_HIT_TERMINAL_TAB_CLOSE;
         cli_controller_input(&pressed, NULL);
