@@ -123,6 +123,11 @@ typedef struct
     const CliPyLine *line;
     const PySet *set;
     CliFacts *facts;
+    unsigned int start;
+    unsigned int equal;
+    unsigned int equals;
+    unsigned int last;
+    int annotated;
 } InspectPyUnreadCtx;
 // whether the token at `offset` of `count` is a name read: a name that is no keyword, no attribute after a dot, and no
 // keyword argument's name
@@ -239,12 +244,113 @@ EMBED_INLINE void unread_as(const InspectPyUnreadCtx *args)
     }
 }
 
+// how the token `tok` moves the depth of brackets: 1 where it opens one, -1 where it closes one, else 0
+EMBED_INLINE int unread_depth_change(const InspectPyUnreadCtx *args)
+{
+    const char *const src = args->src;
+    const CliInspectTok *const tok = args->tok;
+    if (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word_text = "(") ||
+        EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word_text = "[") ||
+        EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word_text = "{"))
+    {
+        return 1;
+    }
+    if (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word_text = ")") ||
+        EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word_text = "]") ||
+        EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word_text = "}"))
+    {
+        return -1;
+    }
+    return 0;
+}
+
+// the offsets of the `=` of a statement of `count` tokens that stand outside every bracket into s_equals, as many as it
+// holds: their count
+EMBED_INLINE unsigned int unread_equals_found(const InspectPyUnreadCtx *args)
+{
+    unsigned int equals = 0u;
+    int depth = 0;
+    for (unsigned int offset = 0u; offset < args->count; offset += 1u)
+    {
+        const CliInspectTok *const tok = &args->toks[offset];
+        depth += EMBED_CALL(unread_depth_change, InspectPyUnreadCtx, .src = args->src, .tok = tok);
+        if ((depth == 0) &&
+            EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = args->src, .tok = tok,
+                       .word_text = "=") &&
+            (tok->kind == CLI_PY_OP) && (equals < CLI_INSPECT_TOKENS / 8u))
+        {
+            s_equals[equals] = offset;
+            equals += 1u;
+        }
+    }
+    return equals;
+}
+
+// the name a lone target at `start` sets, or an `annotated` first one, noted as one that may go unread and its token
+// recorded as no read; where the statement of `count` tokens stands alone on its line and holds one `=`, `equals` 1 and
+// `last` its offset, its fix keeps the value where it calls and else takes the line out
+EMBED_INLINE void unread_target_set(const InspectPyUnreadCtx *args)
+{
+    const CliInspectTok *const toks = args->toks;
+    const unsigned int last = args->last;
+    EMBED_CALL(unread_skip, InspectPyUnreadCtx, .offset = args->start);
+    unsigned int fix = CLI_PY_FIX_NONE;
+    CliInspectPosition from = toks[0].from;
+    CliInspectPosition to = toks[0].from;
+    if ((args->equals == 1u) && args->lone && !args->annotated)
+    {
+        const int calls = EMBED_CALL(cli_inspect_py_src_word.py_contains, CliInspectPySrcWordCfg, .src = args->src,
+                                     .toks = &toks[last + 1u], .count = args->count - last - 1u, .word_text = "(");
+        fix = calls ? CLI_PY_FIX_VALUE : CLI_PY_FIX_LINE;
+        if (calls)
+        {
+            to = toks[last + 1u].from;
+        }
+        else
+        {
+            const unsigned int end_line = g_cli_inspect_tok[args->line->first + args->line->count - 1u].to.line;
+            EMBED_CALL(cli_inspect_py_src.py_full_line_span, CliInspectPySrcCfg, .src = args->src, .size = args->size,
+                       .from = toks[0].from.line, .to = end_line, .start = &from, .end = &to);
+        }
+    }
+    if (last + 1u < args->count)
+    {
+        EMBED_CALL(unread_set, InspectPyUnreadCtx, .tok = &toks[args->start], .fix = fix, .from = from, .to = to);
+    }
+}
+
+// the names of the targets from `start` up to the `=` at `equal` recorded as no reads where they are a tuple of names
+// alone: a tuple's names are set, and not reported
+EMBED_INLINE void unread_tuple_skipped(const InspectPyUnreadCtx *args)
+{
+    const CliInspectTok *const toks = args->toks;
+    int names_only = 1;
+    int comma = 0;
+    for (unsigned int at = args->start; at < args->equal; at += 1u)
+    {
+        const int is_comma = EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = args->src,
+                                        .tok = &toks[at], .word_text = ",");
+        names_only = names_only && ((toks[at].kind == CLI_PY_NAME) || is_comma);
+        comma = comma || is_comma;
+    }
+    if (!names_only || !comma)
+    {
+        return;
+    }
+    for (unsigned int at = args->start; at < args->equal; at += 1u)
+    {
+        if (toks[at].kind == CLI_PY_NAME)
+        {
+            EMBED_CALL(unread_skip, InspectPyUnreadCtx, .offset = at);
+        }
+    }
+}
+
 // the names a statement of `count` tokens sets that may go unread noted, and the offsets of its tokens that set them,
 // which are no reads, recorded in s_skip
 EMBED_INLINE void unread_setting(const InspectPyUnreadCtx *args)
 {
     const char *src = args->src;
-    unsigned long long size = args->size;
     const CliInspectTok *toks = args->toks;
     unsigned int count = args->count;
     s_skips = 0u;
@@ -262,35 +368,8 @@ EMBED_INLINE void unread_setting(const InspectPyUnreadCtx *args)
         EMBED_CALL(unread_as, InspectPyUnreadCtx, .src = src, .toks = toks, .count = count);
         return;
     }
-    unsigned int equals = 0u;
-    int depth = 0;
-    for (unsigned int offset = 0u; offset < count; offset += 1u)
-    {
-        const CliInspectTok *const tok = &toks[offset];
-        depth +=
-            (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok,
-                        .word_text = "(") ||
-             EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok,
-                        .word_text = "[") ||
-             EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word_text = "{"))
-                ? 1
-                : 0;
-        depth -=
-            (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok,
-                        .word_text = ")") ||
-             EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok,
-                        .word_text = "]") ||
-             EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word_text = "}"))
-                ? 1
-                : 0;
-        if ((depth == 0) &&
-            EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = tok, .word_text = "=") &&
-            (tok->kind == CLI_PY_OP) && (equals < CLI_INSPECT_TOKENS / 8u))
-        {
-            s_equals[equals] = offset;
-            equals += 1u;
-        }
-    }
+    const unsigned int equals =
+        EMBED_CALL(unread_equals_found, InspectPyUnreadCtx, .src = src, .toks = toks, .count = count);
     if (equals == 0u)
     {
         return;
@@ -307,51 +386,14 @@ EMBED_INLINE void unread_setting(const InspectPyUnreadCtx *args)
         if (((targets == 1u) || annotated) && (toks[start].kind == CLI_PY_NAME) &&
             !EMBED_CALL(cli_inspect_py_src_tok.py_keyword, CliInspectPySrcTokCfg, .src = src, .tok = &toks[start]))
         {
-            EMBED_CALL(unread_skip, InspectPyUnreadCtx, .offset = start);
-            unsigned int fix = CLI_PY_FIX_NONE;
-            CliInspectPosition from = toks[0].from;
-            CliInspectPosition to = toks[0].from;
-            if ((equals == 1u) && args->lone && !annotated)
-            {
-                const int calls = EMBED_CALL(cli_inspect_py_src_word.py_contains, CliInspectPySrcWordCfg, .src = src,
-                                             .toks = &toks[last + 1u], .count = count - last - 1u, .word_text = "(");
-                fix = calls ? CLI_PY_FIX_VALUE : CLI_PY_FIX_LINE;
-                if (calls)
-                {
-                    to = toks[last + 1u].from;
-                }
-                else
-                {
-                    const unsigned int end_line = g_cli_inspect_tok[args->line->first + args->line->count - 1u].to.line;
-                    EMBED_CALL(cli_inspect_py_src.py_full_line_span, CliInspectPySrcCfg, .src = src, .size = size,
-                               .from = toks[0].from.line, .to = end_line, .start = &from, .end = &to);
-                }
-            }
-            if (last + 1u < count)
-            {
-                EMBED_CALL(unread_set, InspectPyUnreadCtx, .tok = &toks[start], .fix = fix, .from = from, .to = to);
-            }
+            EMBED_CALL(unread_target_set, InspectPyUnreadCtx, .src = src, .size = args->size, .toks = toks,
+                       .count = count, .lone = args->lone, .line = args->line, .start = start, .equals = equals,
+                       .last = last, .annotated = annotated);
         }
         else
         {
-            int names_only = 1;
-            int comma = 0;
-            for (unsigned int at = start; at < equal; at += 1u)
-            {
-                names_only = names_only && ((toks[at].kind == CLI_PY_NAME) ||
-                                            EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src,
-                                                       .tok = &toks[at], .word_text = ","));
-                comma = comma || EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src,
-                                            .tok = &toks[at], .word_text = ",");
-            }
-            // a tuple's names are set, and not reported
-            for (unsigned int at = start; names_only && comma && (at < equal); at += 1u)
-            {
-                if (toks[at].kind == CLI_PY_NAME)
-                {
-                    EMBED_CALL(unread_skip, InspectPyUnreadCtx, .offset = at);
-                }
-            }
+            EMBED_CALL(unread_tuple_skipped, InspectPyUnreadCtx, .src = src, .toks = toks, .start = start,
+                       .equal = equal);
         }
         start = equal + 1u;
     }
@@ -385,22 +427,7 @@ EMBED_INLINE void unread_line(const InspectPyUnreadCtx *args)
                                                                   .src = src, .tok = &toks[at], .word_text = ";"));
         if ((at < args->line->count) && (toks[at].kind == CLI_PY_OP))
         {
-            depth += (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = &toks[at],
-                                 .word_text = "(") ||
-                      EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = &toks[at],
-                                 .word_text = "[") ||
-                      EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = &toks[at],
-                                 .word_text = "{"))
-                         ? 1
-                         : 0;
-            depth -= (EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = &toks[at],
-                                 .word_text = ")") ||
-                      EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = &toks[at],
-                                 .word_text = "]") ||
-                      EMBED_CALL(cli_inspect_py_src_tok.py_is, CliInspectPySrcTokCfg, .src = src, .tok = &toks[at],
-                                 .word_text = "}"))
-                         ? 1
-                         : 0;
+            depth += EMBED_CALL(unread_depth_change, InspectPyUnreadCtx, .src = src, .tok = &toks[at]);
         }
         if (!ends)
         {
