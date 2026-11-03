@@ -369,6 +369,51 @@ EMBED_INLINE void view_comment_read(const ViewCtx *args)
     }
 }
 
+// the brackets a language pairs, the array at `node` of the plugin's `json`, each two letters, an opener and its
+// closer, put among the view's; the round, square and curly brackets where the plugin gives none
+EMBED_INLINE void view_pairs_read(const ViewCtx *args)
+{
+    CliView *const view = args->view;
+    const CliJson *const json = args->json;
+    view->pairs = 0u;
+    if (!EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = args->node,
+                    .kind = CFG_JSON_ARRAY))
+    {
+        view->pair_open[0] = '(';
+        view->pair_close[0] = ')';
+        view->pair_open[1] = '[';
+        view->pair_close[1] = ']';
+        view->pair_open[2] = '{';
+        view->pair_close[2] = '}';
+        view->pairs = 3u;
+        return;
+    }
+    for (unsigned int at = 0u; (at < json->node[args->node].count) && (view->pairs < CLI_VIEW_PAIRS); at += 1u)
+    {
+        unsigned long long length = 0ULL;
+        const char *const text =
+            EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                       .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                          .json_read = json, .array = args->node, .index = at),
+                       .length_pointer = &length);
+        unsigned long long consumed = 0ULL;
+        const unsigned int open = ((text != NULL) && (length != 0ULL))
+                                      ? EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = text, .size = length,
+                                                   .at = 0ULL, .length = &consumed)
+                                      : 0u;
+        const unsigned int close = ((open != 0u) && (consumed < length))
+                                       ? EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = text, .size = length,
+                                                    .at = consumed, .length = &consumed)
+                                       : 0u;
+        if ((open != 0u) && (close != 0u))
+        {
+            view->pair_open[view->pairs] = open;
+            view->pair_close[view->pairs] = close;
+            view->pairs += 1u;
+        }
+    }
+}
+
 static void view_plugin_read(const CliEachPluginCfg *args)
 {
     CliViewPluginNeedle *const needle = args->context;
@@ -412,46 +457,8 @@ static void view_plugin_read(const CliEachPluginCfg *args)
                .json = &json,
                .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = &json,
                                   .array = block, .index = 1u));
-    view->pairs = 0u;
     view->quotes = 0u;
-    if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json, .node = pairs,
-                   .kind = CFG_JSON_ARRAY))
-    {
-        for (unsigned int at = 0u; (at < json.node[pairs].count) && (view->pairs < CLI_VIEW_PAIRS); at += 1u)
-        {
-            unsigned long long length = 0ULL;
-            const char *const text =
-                EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = &json,
-                           .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
-                                              .json_read = &json, .array = pairs, .index = at),
-                           .length_pointer = &length);
-            unsigned long long consumed = 0ULL;
-            const unsigned int open = ((text != NULL) && (length != 0ULL))
-                                          ? EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = text, .size = length,
-                                                       .at = 0ULL, .length = &consumed)
-                                          : 0u;
-            const unsigned int close = ((open != 0u) && (consumed < length))
-                                           ? EMBED_CALL(cli_text_at.letter, CliTextAtCfg, .text = text, .size = length,
-                                                        .at = consumed, .length = &consumed)
-                                           : 0u;
-            if ((open != 0u) && (close != 0u))
-            {
-                view->pair_open[view->pairs] = open;
-                view->pair_close[view->pairs] = close;
-                view->pairs += 1u;
-            }
-        }
-    }
-    else
-    {
-        view->pair_open[0] = '(';
-        view->pair_close[0] = ')';
-        view->pair_open[1] = '[';
-        view->pair_close[1] = ']';
-        view->pair_open[2] = '{';
-        view->pair_close[2] = '}';
-        view->pairs = 3u;
-    }
+    EMBED_CALL(view_pairs_read, ViewCtx, .view = view, .json = &json, .node = pairs);
     if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = &json, .node = quotes,
                    .kind = CFG_JSON_ARRAY))
     {
@@ -1407,6 +1414,9 @@ EMBED_INLINE void view_find_close(const ViewCtx *args)
     args->view->find_focus = 0;
 }
 
+EMBED_INLINE int view_find_toggle_key(const ViewCtx *args);
+EMBED_INLINE int view_find_query_key(const ViewCtx *args);
+
 // a key taken by find where its bar is open or the key opens it: Mod+F opens it or gives it the keys, F3 seeks the
 // query again, Escape closes it, and with the keys its own Enter seeks the next match, Shift+Enter the one before,
 // Left, Right, Home, End, Backspace and Delete edit the query, and Alt+C, Alt+W and Alt+R turn its case, whole words
@@ -1447,27 +1457,40 @@ EMBED_INLINE int view_find_key(const ViewCtx *args)
         view_find_close(args);
         return 1;
     }
-    if (args->alt && !args->mod &&
-        (EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "C") ||
-         EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "W") ||
-         EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "R")))
+    if (args->alt && !args->mod)
     {
-        args->view->find_case = EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "C")
-                                    ? !args->view->find_case
-                                    : args->view->find_case;
-        args->view->find_word = EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "W")
-                                    ? !args->view->find_word
-                                    : args->view->find_word;
-        args->view->find_regex = EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "R")
-                                     ? !args->view->find_regex
-                                     : args->view->find_regex;
-        args->view->find_stale = 1;
-        return 1;
+        return EMBED_CALL(view_find_toggle_key, ViewCtx, .view = args->view, .name = args->name);
     }
     if (!args->view->find_focus || args->mod || args->alt)
     {
         return 0;
     }
+    return EMBED_CALL(view_find_query_key, ViewCtx, .view = args->view, .name = args->name, .shift = args->shift);
+}
+
+// a key held with Alt while find's bar is open: C, W and R turn its case, whole words and pattern on and off, and the
+// matches are sought again; 1 where the key was one of them
+EMBED_INLINE int view_find_toggle_key(const ViewCtx *args)
+{
+    CliView *const view = args->view;
+    const int case_key = EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "C");
+    const int word_key = EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "W");
+    const int regex_key = EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "R");
+    if (!case_key && !word_key && !regex_key)
+    {
+        return 0;
+    }
+    view->find_case = case_key ? !view->find_case : view->find_case;
+    view->find_word = word_key ? !view->find_word : view->find_word;
+    view->find_regex = regex_key ? !view->find_regex : view->find_regex;
+    view->find_stale = 1;
+    return 1;
+}
+
+// a key while find's query has the keys: Enter seeks the next match, Shift+Enter the one before, and Left, Right,
+// Home, End, Backspace and Delete edit the query; 1 where the key was one of them
+EMBED_INLINE int view_find_query_key(const ViewCtx *args)
+{
     if (EMBED_CALL(view_by_name, ViewCtx, .name = args->name, .required = "Enter"))
     {
         EMBED_CALL(view_find_step, ViewCtx, .view = args->view, .forward = !args->shift);
@@ -2212,6 +2235,72 @@ EMBED_INLINE void view_span_write(const ViewCtx *args)
     }
 }
 
+// an opener, `length` bytes of `text`, typed around the selection from `from` to `to`: the selection wrapped in it and
+// its closer `letter`, the selection saved inside: 1, or 0 with why given where the edit fails
+EMBED_INLINE int view_letter_wrap(const ViewCtx *args)
+{
+    const CliPosition from = args->from;
+    unsigned long long capacity = 0ULL;
+    for (unsigned long long line = from.line; line <= args->to.line; line += 1ULL)
+    {
+        capacity += (EMBED_CALL(view_length, ViewCtx, .view = args->view, .line = line) * 4ULL) + 1ULL;
+    }
+    char *const cell = g_cli_cells->temporary_buf_alloc(capacity + args->length + 8ULL, &g_cli_views_cells);
+    if (cell == NULL)
+    {
+        mmgr_line_put(args->err_msg, "the wrap's cell could not be taken");
+        return 0;
+    }
+    VerbaLinea wrapped = {cell, capacity + args->length + 8ULL, 0ULL};
+    mmgr_line_put_n(&wrapped, args->text, args->length);
+    EMBED_CALL(view_span_write, ViewCtx, .view = args->view, .from = from, .to = args->to, .out = &wrapped);
+    EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &wrapped, .letter = args->letter);
+    const int written = EMBED_CALL(view_edit, ViewCtx, .view = args->view, .from = from, .to = args->to, .text = cell,
+                                   .length = wrapped.at, .kind = CLI_VIEW_KIND_NONE, .err_msg = args->err_msg);
+    g_cli_cells->persistent_buf_release(cell, &g_cli_views_cells);
+    if (!written)
+    {
+        return 0;
+    }
+    const CliPosition end = args->view->cursor;
+    EMBED_CALL(view_settle, ViewCtx, .view = args->view, .cursor = (CliPosition){end.line, end.col - 1ULL},
+               .anchor = (CliPosition){from.line, from.col + 1ULL});
+    return 1;
+}
+
+// a closing bracket, `length` bytes of `text`, typed at `from` on a lead of blanks: the lead taken back a step, a tab,
+// the step's spaces where the lead ends in them, else the run of blanks it ends in, and the bracket written after it
+EMBED_INLINE int view_letter_outdent(const ViewCtx *args)
+{
+    const CliPosition from = args->from;
+    unsigned long long less = from.col;
+    const unsigned long long step = EMBED_CALL(view_tab, ViewCtx, .view_read = args->view);
+    if (EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = from.line, .col = less - 1ULL) == '\t')
+    {
+        less -= 1ULL;
+    }
+    else
+    {
+        unsigned long long spaces = 0ULL;
+        while ((spaces < less) && (EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = from.line,
+                                              .col = less - 1ULL - spaces) == ' '))
+        {
+            spaces += 1ULL;
+        }
+        less -= (spaces >= step) ? step : spaces;
+    }
+    char lead[CLI_PATH_MAX_LEN];
+    VerbaLinea line = {lead, sizeof(lead), 0ULL};
+    for (unsigned long long at = 0ULL; (at < less) && (line.at + 4ULL < sizeof(lead)); at += 1ULL)
+    {
+        EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &line,
+                   .letter = EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = from.line, .col = at));
+    }
+    mmgr_line_put_n(&line, args->text, args->length);
+    return EMBED_CALL(view_edit, ViewCtx, .view = args->view, .from = (CliPosition){from.line, 0ULL}, .to = args->to,
+                      .text = lead, .length = line.at, .kind = args->kind, .err_msg = args->err_msg);
+}
+
 // one letter typed, `length` bytes of `text` as the unit `letter`: a closer typed before itself steps over it; an
 // opener typed around a selection wraps it, the selection saved inside, and typed alone brings its closer where what
 // follows allows, the cursor between them, a quote where what comes before allows too; a closing bracket typed on a
@@ -2238,32 +2327,8 @@ EMBED_INLINE int view_letter_type(const ViewCtx *args)
     const unsigned int close = EMBED_CALL(view_closer_get, ViewCtx, .view_read = args->view, .unit = letter);
     if ((close != 0u) && !empty)
     {
-        unsigned long long capacity = 0ULL;
-        for (unsigned long long line = from.line; line <= to.line; line += 1ULL)
-        {
-            capacity += (EMBED_CALL(view_length, ViewCtx, .view = args->view, .line = line) * 4ULL) + 1ULL;
-        }
-        char *const cell = g_cli_cells->temporary_buf_alloc(capacity + args->length + 8ULL, &g_cli_views_cells);
-        if (cell == NULL)
-        {
-            mmgr_line_put(args->err_msg, "the wrap's cell could not be taken");
-            return 0;
-        }
-        VerbaLinea wrapped = {cell, capacity + args->length + 8ULL, 0ULL};
-        mmgr_line_put_n(&wrapped, args->text, args->length);
-        EMBED_CALL(view_span_write, ViewCtx, .view = args->view, .from = from, .to = to, .out = &wrapped);
-        EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &wrapped, .letter = close);
-        const int written = EMBED_CALL(view_edit, ViewCtx, .view = args->view, .from = from, .to = to, .text = cell,
-                                       .length = wrapped.at, .kind = CLI_VIEW_KIND_NONE, .err_msg = args->err_msg);
-        g_cli_cells->persistent_buf_release(cell, &g_cli_views_cells);
-        if (!written)
-        {
-            return 0;
-        }
-        const CliPosition end = args->view->cursor;
-        EMBED_CALL(view_settle, ViewCtx, .view = args->view, .cursor = (CliPosition){end.line, end.col - 1ULL},
-                   .anchor = (CliPosition){from.line, from.col + 1ULL});
-        return 1;
+        return EMBED_CALL(view_letter_wrap, ViewCtx, .view = args->view, .text = args->text, .length = args->length,
+                          .letter = close, .from = from, .to = to, .err_msg = args->err_msg);
     }
     if (close != 0u)
     {
@@ -2296,33 +2361,8 @@ EMBED_INLINE int view_letter_type(const ViewCtx *args)
         (from.col > 0ULL) &&
         (EMBED_CALL(view_first_letter, ViewCtx, .view = args->view, .line = from.line) >= from.col))
     {
-        // the lead less a step: a tab, the step's spaces where the lead ends in them, else the run of blanks it ends in
-        unsigned long long less = from.col;
-        const unsigned long long step = EMBED_CALL(view_tab, ViewCtx, .view_read = args->view);
-        if (EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = from.line, .col = less - 1ULL) == '\t')
-        {
-            less -= 1ULL;
-        }
-        else
-        {
-            unsigned long long spaces = 0ULL;
-            while ((spaces < less) && (EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = from.line,
-                                                  .col = less - 1ULL - spaces) == ' '))
-            {
-                spaces += 1ULL;
-            }
-            less -= (spaces >= step) ? step : spaces;
-        }
-        char lead[CLI_PATH_MAX_LEN];
-        VerbaLinea line = {lead, sizeof(lead), 0ULL};
-        for (unsigned long long at = 0ULL; (at < less) && (line.at + 4ULL < sizeof(lead)); at += 1ULL)
-        {
-            EMBED_CALL(cli_line_letter_internal.utf8_append, CliLineLetterCtx, .line = &line,
-                       .letter = EMBED_CALL(view_unit, ViewCtx, .view = args->view, .line = from.line, .col = at));
-        }
-        mmgr_line_put_n(&line, args->text, args->length);
-        return EMBED_CALL(view_edit, ViewCtx, .view = args->view, .from = (CliPosition){from.line, 0ULL}, .to = to,
-                          .text = lead, .length = line.at, .kind = args->kind, .err_msg = args->err_msg);
+        return EMBED_CALL(view_letter_outdent, ViewCtx, .view = args->view, .text = args->text, .length = args->length,
+                          .from = from, .to = to, .kind = args->kind, .err_msg = args->err_msg);
     }
     return EMBED_CALL(view_edit, ViewCtx, .view = args->view, .from = from, .to = to, .text = args->text,
                       .length = args->length, .kind = args->kind, .err_msg = args->err_msg);
@@ -3079,6 +3119,62 @@ static void view_ranks_init(void)
 
 // two lines as the numeric collator orders them: by rank, a run of digits by the number it writes, and where those are
 // level a small letter before its capital: below 0, 0 or above 0
+// the runs of digits at `from_u64s` in `text`, `size` bytes, and at `to_u64s` in `supplied`, `length` bytes, compared
+// as the numbers they write, their leading zeros passed over, each place moved past its run: -1 or 1 where the first
+// is less or more, 0 where they are equal
+EMBED_INLINE int view_numbers_compared(const ViewCtx *args)
+{
+    const char *const one = args->text;
+    const char *const other = args->supplied;
+    unsigned long long left = *args->from_u64s;
+    unsigned long long right = *args->to_u64s;
+    unsigned long long a_end = left;
+    unsigned long long b_end = right;
+    while ((a_end < args->size) && ((unsigned int)((unsigned char)one[a_end] - '0') < 10u))
+    {
+        a_end += 1ULL;
+    }
+    while ((b_end < args->length) && ((unsigned int)((unsigned char)other[b_end] - '0') < 10u))
+    {
+        b_end += 1ULL;
+    }
+    while ((left + 1ULL < a_end) && (one[left] == '0'))
+    {
+        left += 1ULL;
+    }
+    while ((right + 1ULL < b_end) && (other[right] == '0'))
+    {
+        right += 1ULL;
+    }
+    *args->from_u64s = a_end;
+    *args->to_u64s = b_end;
+    if (a_end - left != b_end - right)
+    {
+        return (a_end - left < b_end - right) ? -1 : 1;
+    }
+    const embed_iword digits =
+        memor.cmp(&(MemoriaCfg){.src = one + left, .other = other + right, .bytes = a_end - left});
+    if (digits == 0)
+    {
+        return 0;
+    }
+    return (digits < 0) ? -1 : 1;
+}
+
+// two lines level but for case: a small letter, the greater byte, first
+EMBED_INLINE int view_case_compared(const ViewCtx *args)
+{
+    const unsigned long long shorter = (args->size < args->length) ? args->size : args->length;
+    for (unsigned long long at = 0ULL; at < shorter; at += 1ULL)
+    {
+        if (args->text[at] != args->supplied[at])
+        {
+            return ((unsigned char)args->text[at] > (unsigned char)args->supplied[at]) ? -1 : 1;
+        }
+    }
+    return 0;
+}
+
 static int view_lines_collated(const CliCompareCfg *args)
 {
     const char *other = args->other;
@@ -3090,36 +3186,13 @@ static int view_lines_collated(const CliCompareCfg *args)
         const unsigned char b = (unsigned char)other[right];
         if (((unsigned int)(a - '0') < 10u) && ((unsigned int)(b - '0') < 10u))
         {
-            unsigned long long a_end = left;
-            unsigned long long b_end = right;
-            while ((a_end < args->one_length) && ((unsigned int)((unsigned char)args->one[a_end] - '0') < 10u))
+            const int numbers =
+                EMBED_CALL(view_numbers_compared, ViewCtx, .text = args->one, .size = args->one_length,
+                           .supplied = other, .length = args->other_length, .from_u64s = &left, .to_u64s = &right);
+            if (numbers != 0)
             {
-                a_end += 1ULL;
+                return numbers;
             }
-            while ((b_end < args->other_length) && ((unsigned int)((unsigned char)other[b_end] - '0') < 10u))
-            {
-                b_end += 1ULL;
-            }
-            while ((left + 1ULL < a_end) && (args->one[left] == '0'))
-            {
-                left += 1ULL;
-            }
-            while ((right + 1ULL < b_end) && (other[right] == '0'))
-            {
-                right += 1ULL;
-            }
-            if (a_end - left != b_end - right)
-            {
-                return (a_end - left < b_end - right) ? -1 : 1;
-            }
-            const embed_iword digits =
-                memor.cmp(&(MemoriaCfg){.src = args->one + left, .other = other + right, .bytes = a_end - left});
-            if (digits != 0)
-            {
-                return (digits < 0) ? -1 : 1;
-            }
-            left = a_end;
-            right = b_end;
             continue;
         }
         if (s_view_ranks[a] != s_view_ranks[b])
@@ -3133,16 +3206,8 @@ static int view_lines_collated(const CliCompareCfg *args)
     {
         return (left < args->one_length) ? 1 : -1;
     }
-    // level but for case: a small letter, the greater byte, first
-    const unsigned long long shorter = (args->one_length < args->other_length) ? args->one_length : args->other_length;
-    for (unsigned long long at = 0ULL; at < shorter; at += 1ULL)
-    {
-        if (args->one[at] != other[at])
-        {
-            return ((unsigned char)args->one[at] > (unsigned char)other[at]) ? -1 : 1;
-        }
-    }
-    return 0;
+    return EMBED_CALL(view_case_compared, ViewCtx, .text = args->one, .size = args->one_length, .supplied = other,
+                      .length = args->other_length);
 }
 
 // two lines by their bytes
@@ -3162,6 +3227,40 @@ static int view_lines_bytes(const CliCompareCfg *args)
     return (args->one_length < args->other_length) ? -1 : 1;
 }
 
+// one pass of the merge sort: each two runs of `width` lines in `order` merged into `work`, level ones saving their
+// order
+EMBED_INLINE void view_lines_merge_pass(const ViewCtx *args)
+{
+    const unsigned int *const from = args->order;
+    unsigned int *const into = args->work;
+    // the width of a pass is below the count of lines, which an unsigned int counts
+    const unsigned int width = (unsigned int)args->width;
+    for (unsigned int first = 0u; first < args->count_u32; first += 2u * width)
+    {
+        const unsigned int middle = (first + width < args->count_u32) ? first + width : args->count_u32;
+        const unsigned int end = (first + (2u * width) < args->count_u32) ? first + (2u * width) : args->count_u32;
+        unsigned int left = first;
+        unsigned int right = middle;
+        for (unsigned int at = first; at < end; at += 1u)
+        {
+            int take_left = left < middle;
+            if (take_left && (right < end))
+            {
+                const unsigned int one = from[left];
+                const unsigned int other = from[right];
+                const int compared = EMBED_CALL(args->compare, CliCompareCfg, .one = args->text + args->start[one],
+                                                .one_length = args->start[one + 1u] - args->start[one] - 1ULL,
+                                                .other = args->text + args->start[other],
+                                                .other_length = args->start[other + 1u] - args->start[other] - 1ULL);
+                take_left = (args->descending ? -compared : compared) <= 0;
+            }
+            into[at] = take_left ? from[left] : from[right];
+            left += take_left ? 1u : 0u;
+            right += take_left ? 0u : 1u;
+        }
+    }
+}
+
 // the `count` lines of `text`, each at its `start` and ending a byte before the next, their numbers in `order` merge
 // sorted, level ones saving their order, by `compare`, or its reverse with `descending`, `work` a table of as many
 EMBED_INLINE void view_lines_merge(const ViewCtx *args)
@@ -3170,31 +3269,9 @@ EMBED_INLINE void view_lines_merge(const ViewCtx *args)
     unsigned int *into = args->work;
     for (unsigned int width = 1u; width < args->count_u32; width *= 2u)
     {
-        for (unsigned int first = 0u; first < args->count_u32; first += 2u * width)
-        {
-            const unsigned int middle = (first + width < args->count_u32) ? first + width : args->count_u32;
-            const unsigned int end = (first + (2u * width) < args->count_u32) ? first + (2u * width) : args->count_u32;
-            unsigned int left = first;
-            unsigned int right = middle;
-            for (unsigned int at = first; at < end; at += 1u)
-            {
-                int take_left = left < middle;
-                if (take_left && (right < end))
-                {
-                    const unsigned int one = from[left];
-                    const unsigned int other = from[right];
-                    const int compared =
-                        EMBED_CALL(args->compare, CliCompareCfg, .one = args->text + args->start[one],
-                                   .one_length = args->start[one + 1u] - args->start[one] - 1ULL,
-                                   .other = args->text + args->start[other],
-                                   .other_length = args->start[other + 1u] - args->start[other] - 1ULL);
-                    take_left = (args->descending ? -compared : compared) <= 0;
-                }
-                into[at] = take_left ? from[left] : from[right];
-                left += take_left ? 1u : 0u;
-                right += take_left ? 0u : 1u;
-            }
-        }
+        EMBED_CALL(view_lines_merge_pass, ViewCtx, .order = from, .work = into, .width = width,
+                   .count_u32 = args->count_u32, .compare = args->compare, .text = args->text, .start = args->start,
+                   .descending = args->descending);
         unsigned int *const was = from;
         from = into;
         into = was;
@@ -3305,51 +3382,66 @@ static int view_lines_sort(const ViewCtx *args)
 
 // a letter in its other case: `upper` its capital, else its small letter, the letters of ASCII, Latin-1, Latin
 // Extended-A, Greek and Cyrillic; any other as it is; each stays as many bytes of UTF-8 as it was
+// whether a unit is a small letter of a run of Latin-1, Greek or Cyrillic whose capitals stand 0x20 before its small
+// letters
+EMBED_INLINE int view_unit_small(const ViewCtx *args)
+{
+    const unsigned int unit = args->unit;
+    return ((unit >= 'a') && (unit <= 'z')) || ((unit >= 0xe0u) && (unit <= 0xfeu) && (unit != 0xf7u)) ||
+           ((unit >= 0x3b1u) && (unit <= 0x3c9u) && (unit != 0x3c2u)) || ((unit >= 0x430u) && (unit <= 0x44fu));
+}
+
+// whether a unit is a capital of a run of Latin-1, Greek or Cyrillic whose small letters stand 0x20 after its capitals
+EMBED_INLINE int view_unit_capital(const ViewCtx *args)
+{
+    const unsigned int unit = args->unit;
+    return ((unit >= 'A') && (unit <= 'Z')) || ((unit >= 0xc0u) && (unit <= 0xdeu) && (unit != 0xd7u)) ||
+           ((unit >= 0x391u) && (unit <= 0x3a9u)) || ((unit >= 0x410u) && (unit <= 0x42fu));
+}
+
+// a unit of Latin Extended-A, which pairs each capital with the letter after it, an even or an odd capital by its run,
+// in capitals where `upper`, else in small letters; any other unit as it is
+EMBED_INLINE unsigned int view_unit_case_paired(const ViewCtx *args)
+{
+    const unsigned int unit = args->unit;
+    const int even_run = ((unit >= 0x100u) && (unit <= 0x137u)) || ((unit >= 0x14au) && (unit <= 0x177u));
+    const int odd_run = ((unit >= 0x139u) && (unit <= 0x148u)) || ((unit >= 0x179u) && (unit <= 0x17eu));
+    if (!even_run && !odd_run)
+    {
+        return unit;
+    }
+    const int capital = even_run ? ((unit & 1u) == 0u) : ((unit & 1u) == 1u);
+    if (args->upper && !capital)
+    {
+        return unit - 1u;
+    }
+    if (!args->upper && capital)
+    {
+        return unit + 1u;
+    }
+    return unit;
+}
+
 EMBED_INLINE unsigned int view_unit_case(const ViewCtx *args)
 {
-    const int small_run = ((args->unit >= 'a') && (args->unit <= 'z')) ||
-                          ((args->unit >= 0xe0u) && (args->unit <= 0xfeu) && (args->unit != 0xf7u)) ||
-                          ((args->unit >= 0x3b1u) && (args->unit <= 0x3c9u) && (args->unit != 0x3c2u)) ||
-                          ((args->unit >= 0x430u) && (args->unit <= 0x44fu));
-    const int capital_run = ((args->unit >= 'A') && (args->unit <= 'Z')) ||
-                            ((args->unit >= 0xc0u) && (args->unit <= 0xdeu) && (args->unit != 0xd7u)) ||
-                            ((args->unit >= 0x391u) && (args->unit <= 0x3a9u)) ||
-                            ((args->unit >= 0x410u) && (args->unit <= 0x42fu));
-    if (args->upper && small_run)
+    const unsigned int unit = args->unit;
+    if (args->upper && EMBED_CALL(view_unit_small, ViewCtx, .unit = unit))
     {
-        return args->unit - 0x20u;
+        return unit - 0x20u;
     }
-    if (!args->upper && capital_run)
+    if (!args->upper && EMBED_CALL(view_unit_capital, ViewCtx, .unit = unit))
     {
-        return args->unit + 0x20u;
+        return unit + 0x20u;
     }
-    if (args->upper && (args->unit >= 0x450u) && (args->unit <= 0x45fu))
+    if (args->upper && (unit >= 0x450u) && (unit <= 0x45fu))
     {
-        return args->unit - 0x50u;
+        return unit - 0x50u;
     }
-    if (!args->upper && (args->unit >= 0x400u) && (args->unit <= 0x40fu))
+    if (!args->upper && (unit >= 0x400u) && (unit <= 0x40fu))
     {
-        return args->unit + 0x50u;
+        return unit + 0x50u;
     }
-    // Latin Extended-A pairs each capital with the letter after it, an even or an odd capital by its run
-    const int even_run =
-        ((args->unit >= 0x100u) && (args->unit <= 0x137u)) || ((args->unit >= 0x14au) && (args->unit <= 0x177u));
-    const int odd_run =
-        ((args->unit >= 0x139u) && (args->unit <= 0x148u)) || ((args->unit >= 0x179u) && (args->unit <= 0x17eu));
-    if (even_run || odd_run)
-    {
-        const int capital = even_run ? ((args->unit & 1u) == 0u) : ((args->unit & 1u) == 1u);
-        if (args->upper && !capital)
-        {
-            return args->unit - 1u;
-        }
-        if (!args->upper && capital)
-        {
-            return args->unit + 1u;
-        }
-        return args->unit;
-    }
-    return args->unit;
+    return EMBED_CALL(view_unit_case_paired, ViewCtx, .unit = unit, .upper = args->upper);
 }
 
 // whether a unit is a letter, and whether it carries a title's word on, a letter, a digit or an apostrophe
