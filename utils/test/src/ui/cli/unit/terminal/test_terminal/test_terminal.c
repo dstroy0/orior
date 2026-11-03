@@ -3,6 +3,8 @@
 // test_terminal.c: a terminal's screen reads a shell's output as an xterm reads it: letters at the cursor in their
 // colors, the cursor moved, lines erased and scrolled into the scrollback, the second screen, the answers to where the
 // cursor is, the folder a shell reports, wrapping at the last column and letters past ASCII cut between two reads
+#include "ui/cli/src/controller/controller.h"
+#include "ui/cli/src/terminal/keys.h"
 #include "ui/cli/src/terminal/screen.h"
 #include "utils/test/src/ui/cli/unit/support/cli_unity.h"
 
@@ -45,9 +47,70 @@ static const char *screen_row_text(unsigned int y)
     return s_text;
 }
 
+// the bytes the key `name` sends with the modifiers `mods` into s_text, ended by a 0: 1, or 0 where it sends nothing
+static int key_sent(const char *name, unsigned int mods, int application_cursor)
+{
+    unsigned int size = 0u;
+    while (name[size] != '\0')
+    {
+        size += 1u;
+    }
+    VerbaLinea out = {s_text, sizeof(s_text), 0ULL};
+    const int sends = EMBED_CALL(cli_terminal_key.bytes, CliTerminalKeyCfg, .name = name, .name_size = size,
+                                 .mods = mods, .application_cursor = application_cursor, .out = &out);
+    (void)mmgr_line_finish(&out);
+    return sends;
+}
+
 void setUp(void)
 {
     cli_unity_begun();
+}
+
+void test_the_cursor_keys_send_plain_application_and_modified_sequences(void)
+{
+    TEST_ASSERT_TRUE(key_sent("Up", 0u, 0));
+    TEST_ASSERT_EQUAL_STRING("\x1b[A", s_text);
+    TEST_ASSERT_TRUE(key_sent("Up", 0u, 1));
+    TEST_ASSERT_EQUAL_STRING("\x1bOA", s_text);
+    TEST_ASSERT_TRUE(key_sent("Left", CLI_INPUT_MOD_CONTROL, 0));
+    TEST_ASSERT_EQUAL_STRING("\x1b[1;5D", s_text);
+    TEST_ASSERT_TRUE(key_sent("End", CLI_INPUT_MOD_SHIFT | CLI_INPUT_MOD_ALT, 1));
+    TEST_ASSERT_EQUAL_STRING("\x1b[1;4F", s_text);
+}
+
+void test_the_keys_with_sequences_of_their_own_send_them_alt_putting_an_escape_first(void)
+{
+    TEST_ASSERT_TRUE(key_sent("Tab", CLI_INPUT_MOD_SHIFT, 0));
+    TEST_ASSERT_EQUAL_STRING("\x1b[Z", s_text);
+    TEST_ASSERT_TRUE(key_sent("Enter", CLI_INPUT_MOD_ALT, 0));
+    TEST_ASSERT_EQUAL_STRING("\x1b\r", s_text);
+    TEST_ASSERT_TRUE(key_sent("F5", 0u, 0));
+    TEST_ASSERT_EQUAL_STRING("\x1b[15~", s_text);
+    TEST_ASSERT_TRUE(key_sent("Backspace", CLI_INPUT_MOD_CONTROL, 0));
+    TEST_ASSERT_EQUAL_STRING("\x08", s_text);
+}
+
+void test_control_sends_control_letters_and_alt_an_escape_and_the_letter(void)
+{
+    TEST_ASSERT_TRUE(key_sent("A", CLI_INPUT_MOD_CONTROL, 0));
+    TEST_ASSERT_EQUAL_STRING("\x01", s_text);
+    TEST_ASSERT_TRUE(key_sent("[", CLI_INPUT_MOD_CONTROL, 0));
+    TEST_ASSERT_EQUAL_STRING("\x1b", s_text);
+    TEST_ASSERT_TRUE(key_sent("Space", CLI_INPUT_MOD_CONTROL, 0));
+    TEST_ASSERT_EQUAL_UINT(0u, (unsigned int)s_text[0]);
+    TEST_ASSERT_TRUE(key_sent("/", CLI_INPUT_MOD_CONTROL | CLI_INPUT_MOD_SHIFT, 0));
+    TEST_ASSERT_EQUAL_STRING("\x7f", s_text);
+    TEST_ASSERT_TRUE(key_sent("A", CLI_INPUT_MOD_ALT, 0));
+    TEST_ASSERT_EQUAL_STRING("\x1b"
+                             "a",
+                             s_text);
+    TEST_ASSERT_TRUE(key_sent("A", CLI_INPUT_MOD_ALT | CLI_INPUT_MOD_SHIFT, 0));
+    TEST_ASSERT_EQUAL_STRING("\x1b"
+                             "A",
+                             s_text);
+    TEST_ASSERT_FALSE(key_sent("A", 0u, 0));
+    TEST_ASSERT_FALSE(key_sent("2", CLI_INPUT_MOD_CONTROL, 0));
 }
 
 void tearDown(void)
