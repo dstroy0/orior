@@ -44,7 +44,19 @@ typedef struct
     unsigned long long open_size;
     const char *body;
     unsigned long long body_size;
+    const char *classname;
+    char *required_out;
+    char *id_out;
+    const char *id;
+    unsigned long long at;
+    unsigned int kind;
+    long long own_line;
+    double seconds;
 } TestReportsCtx;
+
+// the tags a case's outcome other than a pass stands in, and the outcome each reports
+static const char *const s_tags[3] = {"<failure", "<error", "<skipped"};
+static const char *const s_outcomes[3] = {"failed", "failed", "skipped"};
 // `length` bytes of an XML text with their entities read written into `out`
 EMBED_INLINE void report_unescaped(const TestReportsCtx *args)
 {
@@ -309,24 +321,17 @@ int cli_report_last_line(const CliTestRunsTextCtx *args)
     return found;
 }
 
-// one test case of the report reported: its outcome, the message and line of a failure, an error or a skip, and how
-// long it took; a test that passed is reported for how long it took
-EMBED_INLINE void report_case_emit(const TestReportsCtx *args)
+// the test's file, `text`, with its separators as slashes into `required_out`, sized for CLI_PATH_MAX_LEN, and its id
+// into `id_out`, sized for twice that: the file, its class past the module the file makes, each dot as `::`, where
+// `classname` names one, and its `name`, `::` between them
+EMBED_INLINE void report_case_named(const TestReportsCtx *args)
 {
-    CliTestWorker *worker = args->worker;
-    EMBED_CALL(report_attributes, TestReportsCtx, .text = args->open, .length = args->open_size, .tag = &s_case);
-    const char *const file = EMBED_CALL(report_attribute, TestReportsCtx, .tag_read = &s_case, .name = "file");
-    if (file == NULL)
-    {
-        return;
-    }
-    const char *const name = EMBED_CALL(report_attribute, TestReportsCtx, .tag_read = &s_case, .name = "name");
-    const char *const classname =
-        EMBED_CALL(report_attribute, TestReportsCtx, .tag_read = &s_case, .name = "classname");
-    char required[CLI_PATH_MAX_LEN];
+    const char *const file = args->text;
+    const char *const name = args->name;
+    const char *const classname = args->classname;
+    char *const required = args->required_out;
     char module[CLI_PATH_MAX_LEN];
-    char id[CLI_PATH_MAX_LEN * 2u];
-    VerbaLinea requested_line = {required, sizeof(required), 0ULL};
+    VerbaLinea requested_line = {required, CLI_PATH_MAX_LEN, 0ULL};
     VerbaLinea module_line = {module, sizeof(module), 0ULL};
     size_t file_size = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL});
     for (size_t at = 0u; at < file_size; at += 1u)
@@ -356,7 +361,7 @@ EMBED_INLINE void report_case_emit(const TestReportsCtx *args)
             EMBED_CALL(cli_text_at_size_classes.end_any, CliTextAtSizeClassesCfg, .text = class_name, .at = 0ULL,
                        .size = cellul.len(&(CatenaFinitaCfg){.src = class_name, .cap = CLI_CELLS_POOL}), .set = ".");
     }
-    VerbaLinea id_line = {id, sizeof(id), 0ULL};
+    VerbaLinea id_line = {args->id_out, CLI_PATH_MAX_LEN * 2u, 0ULL};
     mmgr_line_put(&id_line, required);
     mmgr_line_put(&id_line, "::");
     const char *const class_part = (class_name != NULL) ? class_name : "";
@@ -365,6 +370,73 @@ EMBED_INLINE void report_case_emit(const TestReportsCtx *args)
     mmgr_line_put(&id_line, (class_part[0] != '\0') ? "::" : "");
     mmgr_line_put(&id_line, (name != NULL) ? name : "");
     mmgr_line_finish(&id_line);
+}
+
+// the outcome `kind` of s_outcomes reported by `worker` for the test `id`, its tag at `at` of the `body_size` bytes of
+// `body`: the message the tag gives, else the last line of its text; the line the traceback gives in the test's file
+// `required`, else `own_line`; and its `seconds`
+EMBED_INLINE void report_outcome_emit(const TestReportsCtx *args)
+{
+    const unsigned long long at = args->at;
+    const unsigned long long tag_end =
+        at + EMBED_CALL(cli_test_runs_text_length_needle_internal.report_find, CliTestRunsTextLengthNeedleCtx,
+                        .text = args->body + at, .length = args->body_size - at, .needle = ">");
+    EMBED_CALL(report_attributes, TestReportsCtx, .text = args->body + at, .length = tag_end - at, .tag = &s_tag);
+    const unsigned long long text_end =
+        (tag_end < args->body_size) ? tag_end + EMBED_CALL(cli_test_runs_text_length_needle_internal.report_find,
+                                                           CliTestRunsTextLengthNeedleCtx, .text = args->body + tag_end,
+                                                           .length = args->body_size - tag_end, .needle = "</")
+                                    : args->body_size;
+    const unsigned long long text_start = (tag_end + 1ULL < text_end) ? tag_end + 1ULL : text_end;
+    // the text read takes no more bytes than it is written in, an entity read to one letter
+    const unsigned long long text_capacity =
+        ((text_end - text_start) < CLI_REPORT_TEXT) ? ((text_end - text_start) + 1ULL) : CLI_REPORT_TEXT;
+    char *const text_cell = g_cli_cells->temporary_buf_alloc(text_capacity, &g_cli_test_report_cells);
+    char refused[1] = {'\0'};
+    VerbaLinea text = (text_cell != NULL) ? (VerbaLinea){text_cell, text_capacity, 0ULL}
+                                          : (VerbaLinea){refused, sizeof(refused), 0ULL};
+    EMBED_CALL(report_unescaped, TestReportsCtx, .text = args->body + text_start, .length = text_end - text_start,
+               .out = &text);
+    long long line = args->own_line;
+    if (!EMBED_CALL(report_traceback_line, TestReportsCtx, .text = text.out, .size = text.at,
+                    .required = args->required, .line = &line))
+    {
+        line = args->own_line;
+    }
+    const char *const message = EMBED_CALL(report_attribute, TestReportsCtx, .tag_read = &s_tag, .name = "message");
+    unsigned long long last = 0ULL;
+    unsigned long long last_size = 0ULL;
+    const int supplied = (message != NULL) && (message[0] != '\0');
+    const int found =
+        !supplied && EMBED_CALL(cli_test_runs_text_internal.report_last_line, CliTestRunsTextCtx, .text = text.out,
+                                .size = text.at, .skip_rules = 0, .last = &last, .last_size = &last_size);
+    const char *const found_text = found ? text.out + last : "";
+    const unsigned long long found_size = found ? last_size : 0ULL;
+    EMBED_CALL(cli_test_runs_outcome_internal.test_result_emit, CliTestRunsOutcomeCtx, .worker = args->worker,
+               .id = args->id, .outcome = s_outcomes[args->kind], .message = supplied ? message : found_text,
+               .message_size =
+                   supplied ? cellul.len(&(CatenaFinitaCfg){.src = message, .cap = CLI_CELLS_POOL}) : found_size,
+               .file = args->required, .line_i64 = line, .seconds = args->seconds);
+    g_cli_cells->persistent_buf_release(text_cell, &g_cli_test_report_cells);
+}
+
+// one test case of the report reported: its outcome, the message and line of a failure, an error or a skip, and how
+// long it took; a test that passed is reported for how long it took
+EMBED_INLINE void report_case_emit(const TestReportsCtx *args)
+{
+    CliTestWorker *worker = args->worker;
+    EMBED_CALL(report_attributes, TestReportsCtx, .text = args->open, .length = args->open_size, .tag = &s_case);
+    const char *const file = EMBED_CALL(report_attribute, TestReportsCtx, .tag_read = &s_case, .name = "file");
+    if (file == NULL)
+    {
+        return;
+    }
+    char required[CLI_PATH_MAX_LEN];
+    char id[CLI_PATH_MAX_LEN * 2u];
+    EMBED_CALL(report_case_named, TestReportsCtx, .text = file,
+               .name = EMBED_CALL(report_attribute, TestReportsCtx, .tag_read = &s_case, .name = "name"),
+               .classname = EMBED_CALL(report_attribute, TestReportsCtx, .tag_read = &s_case, .name = "classname"),
+               .required_out = required, .id_out = id);
     const char *const time = EMBED_CALL(report_attribute, TestReportsCtx, .tag_read = &s_case, .name = "time");
     char *ended = NULL;
     const double seconds = (time != NULL) ? strtod(time, &ended) : 0.0;
@@ -378,59 +450,18 @@ EMBED_INLINE void report_case_emit(const TestReportsCtx *args)
         own_line = -1LL;
     }
     const double reserved = ((ended != NULL) && (*ended == '\0') && (ended != time)) ? seconds : 0.0;
-    static const char *const s_tags[3] = {"<failure", "<error", "<skipped"};
-    static const char *const s_outcomes[3] = {"failed", "failed", "skipped"};
     for (unsigned int tag = 0u; tag < 3u; tag += 1u)
     {
         const unsigned long long at =
             EMBED_CALL(cli_test_runs_text_length_needle_internal.report_find, CliTestRunsTextLengthNeedleCtx,
                        .text = args->body, .length = args->body_size, .needle = s_tags[tag]);
-        if (at >= args->body_size)
+        if (at < args->body_size)
         {
-            continue;
+            EMBED_CALL(report_outcome_emit, TestReportsCtx, .worker = worker, .id = id, .required = required,
+                       .body = args->body, .body_size = args->body_size, .at = at, .kind = tag, .own_line = own_line,
+                       .seconds = reserved);
+            return;
         }
-        const unsigned long long tag_end =
-            at + EMBED_CALL(cli_test_runs_text_length_needle_internal.report_find, CliTestRunsTextLengthNeedleCtx,
-                            .text = args->body + at, .length = args->body_size - at, .needle = ">");
-        EMBED_CALL(report_attributes, TestReportsCtx, .text = args->body + at, .length = tag_end - at, .tag = &s_tag);
-        const unsigned long long text_end =
-            (tag_end < args->body_size)
-                ? tag_end + EMBED_CALL(cli_test_runs_text_length_needle_internal.report_find,
-                                       CliTestRunsTextLengthNeedleCtx, .text = args->body + tag_end,
-                                       .length = args->body_size - tag_end, .needle = "</")
-                : args->body_size;
-        const unsigned long long text_start = (tag_end + 1ULL < text_end) ? tag_end + 1ULL : text_end;
-        // the text read takes no more bytes than it is written in, an entity read to one letter
-        const unsigned long long text_capacity =
-            ((text_end - text_start) < CLI_REPORT_TEXT) ? ((text_end - text_start) + 1ULL) : CLI_REPORT_TEXT;
-        char *const text_cell = g_cli_cells->temporary_buf_alloc(text_capacity, &g_cli_test_report_cells);
-        char refused[1] = {'\0'};
-        VerbaLinea text = (text_cell != NULL) ? (VerbaLinea){text_cell, text_capacity, 0ULL}
-                                              : (VerbaLinea){refused, sizeof(refused), 0ULL};
-        EMBED_CALL(report_unescaped, TestReportsCtx, .text = args->body + text_start, .length = text_end - text_start,
-                   .out = &text);
-        long long line = own_line;
-        if (!EMBED_CALL(report_traceback_line, TestReportsCtx, .text = text.out, .size = text.at, .required = required,
-                        .line = &line))
-        {
-            line = own_line;
-        }
-        const char *const message = EMBED_CALL(report_attribute, TestReportsCtx, .tag_read = &s_tag, .name = "message");
-        unsigned long long last = 0ULL;
-        unsigned long long last_size = 0ULL;
-        const int supplied = (message != NULL) && (message[0] != '\0');
-        const int found =
-            !supplied && EMBED_CALL(cli_test_runs_text_internal.report_last_line, CliTestRunsTextCtx, .text = text.out,
-                                    .size = text.at, .skip_rules = 0, .last = &last, .last_size = &last_size);
-        const char *const found_text = found ? text.out + last : "";
-        const unsigned long long found_size = found ? last_size : 0ULL;
-        EMBED_CALL(cli_test_runs_outcome_internal.test_result_emit, CliTestRunsOutcomeCtx, .worker = worker, .id = id,
-                   .outcome = s_outcomes[tag], .message = supplied ? message : found_text,
-                   .message_size =
-                       supplied ? cellul.len(&(CatenaFinitaCfg){.src = message, .cap = CLI_CELLS_POOL}) : found_size,
-                   .file = required, .line_i64 = line, .seconds = reserved);
-        g_cli_cells->persistent_buf_release(text_cell, &g_cli_test_report_cells);
-        return;
     }
     EMBED_CALL(cli_test_runs_outcome_internal.test_result_emit, CliTestRunsOutcomeCtx, .worker = worker, .id = id,
                .outcome = "passed", .message = "", .message_size = 0ULL, .file = required, .line_i64 = own_line,
