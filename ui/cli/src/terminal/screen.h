@@ -112,9 +112,9 @@ typedef struct
 } CliTerminalScreen;
 
 // a screen `columns` wide and `rows` tall, its cursor home and every cell blank: 1, or 0 where its cells are not had;
-// the screen given another size, each line cut or padded and the lines a shorter main screen loses from its top while
-// the cursor would fall off its foot sent to the scrollback: 1, or 0 where its cells are not had and it stands as it
-// was; and its cells given back
+// the screen resized, each line cut or padded and the lines a shorter main screen loses from its top while the cursor
+// would fall off its foot sent to the scrollback: 1, or 0 where its cells are not had and it stands as it was; and its
+// cells released
 int cli_terminal_screen_init(const CliTerminalScreenSizeCfg *args);
 int cli_terminal_screen_resize(const CliTerminalScreenSizeCfg *args);
 void cli_terminal_screen_free(const CliTerminalScreenCfg *args);

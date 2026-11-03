@@ -385,6 +385,9 @@ void cli_clipboard_clear(void);
 // where a signal ended it; its job ended; its job and pipes let go; and the process group `leader` leads ended,
 // requested first, or on Windows the process `id` and every process under it
 unsigned long long cli_spawn_read(const CliCapacityPipeHandleCtx *args);
+// the bytes waiting to be read from `pipe_handle`, which a read of no more than that many takes without waiting; 0
+// where none wait or the pipe has ended
+unsigned long long cli_spawn_waiting(const CliCapacityPipeHandleCtx *args);
 long long cli_spawn_wait(const CliSpawnedCtx *args);
 // whether a started process has ended, without waiting: 1 with its exit code into `code`, -1 where a signal ended it,
 // or 0 where it goes on
@@ -1468,10 +1471,12 @@ EMBED_TABLE_STORAGE CliEachNs cli_each_internal EMBED_UNUSED = {
 typedef struct
 {
     unsigned long long (*spawn_read)(const CliCapacityPipeHandleCtx *args);
+    unsigned long long (*spawn_waiting)(const CliCapacityPipeHandleCtx *args);
 } CliCapacityPipeHandleNs;
-EMBED_TABLE_LAYOUT(CliCapacityPipeHandleNs, spawn_read);
+EMBED_TABLE_LAYOUT(CliCapacityPipeHandleNs, spawn_read, spawn_waiting);
 EMBED_TABLE_STORAGE CliCapacityPipeHandleNs cli_capacity_pipe_handle_internal EMBED_UNUSED = {
     .spawn_read = cli_spawn_read,
+    .spawn_waiting = cli_spawn_waiting,
 };
 
 typedef struct

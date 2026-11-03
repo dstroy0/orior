@@ -537,6 +537,17 @@ unsigned long long cli_spawn_read(const CliCapacityPipeHandleCtx *args)
     return read;
 }
 
+unsigned long long cli_spawn_waiting(const CliCapacityPipeHandleCtx *args)
+{
+    DWORD waiting = 0u;
+    if ((args->pipe_handle == 0ull) ||
+        !PeekNamedPipe((HANDLE)(uintptr_t)args->pipe_handle, NULL, 0u, NULL, &waiting, NULL))
+    {
+        return 0ull;
+    }
+    return waiting;
+}
+
 long long cli_spawn_wait(const CliSpawnedCtx *args)
 {
     const HANDLE process = (HANDLE)(uintptr_t)args->spawned->process;

@@ -188,7 +188,7 @@ EMBED_INLINE void screen_scroll_down(const ScreenCtx *args)
     }
 }
 
-// the cursor moved to column `x` and row `y`, each kept inside the screen, the next letter no longer wrapping first
+// the cursor moved to column `x` and row `y`, each bounded by the screen, the next letter no longer wrapping first
 EMBED_INLINE void screen_move(const ScreenCtx *args)
 {
     CliTerminalScreen *const screen = args->screen;
@@ -358,11 +358,11 @@ EMBED_INLINE void screen_answer_place(const ScreenCtx *args)
 EMBED_INLINE unsigned int screen_number(const ScreenCtx *args)
 {
     const int present = (args->count < args->number_count) && (args->numbers[args->count] != SCREEN_ABSENT);
-    // the number given in its place is an unsigned int's
+    // the number read in its place is an unsigned int's
     return present ? args->numbers[args->count] : (unsigned int)args->value;
 }
 
-// a red, a green and a blue each read as at most 255, made into a direct color
+// a red, a green and a blue each read as at most 255, put together as a direct color
 EMBED_INLINE unsigned int screen_direct(const ScreenCtx *args)
 {
     unsigned int color = CLI_TERMINAL_COLOR_DIRECT;
@@ -782,9 +782,9 @@ EMBED_INLINE void screen_command(const ScreenCtx *args)
         return;
     }
     const unsigned int size = screen->command_size - 2u;
-    const unsigned int kept = (size < (CLI_TERMINAL_PLACE_MAX - 1u)) ? size : (CLI_TERMINAL_PLACE_MAX - 1u);
-    memor.cpy(&(MemoriaCfg){.dst = screen->place, .src = body + 2, .bytes = kept});
-    screen->place[kept] = '\0';
+    const unsigned int taken = (size < (CLI_TERMINAL_PLACE_MAX - 1u)) ? size : (CLI_TERMINAL_PLACE_MAX - 1u);
+    memor.cpy(&(MemoriaCfg){.dst = screen->place, .src = body + 2, .bytes = taken});
+    screen->place[taken] = '\0';
     screen->place_reported = 1;
 }
 

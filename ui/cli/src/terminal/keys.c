@@ -23,7 +23,7 @@ typedef struct
 } KeysCtx;
 
 // whether the key's name is `other`, a C string
-EMBED_INLINE int keys_named(const KeysCtx *args)
+EMBED_INLINE int keys_name_is(const KeysCtx *args)
 {
     unsigned int at = 0u;
     while ((at < args->name_size) && (args->other[at] != '\0') && (args->name[at] == args->other[at]))
@@ -45,7 +45,7 @@ EMBED_INLINE int keys_cursor(const KeysCtx *args)
                                  (((args->mods & CLI_INPUT_MOD_CONTROL) != 0u) ? 4u : 0u);
     for (unsigned int at = 0u; at < 6u; at += 1u)
     {
-        if (!EMBED_CALL(keys_named, KeysCtx, .name = args->name, .name_size = args->name_size,
+        if (!EMBED_CALL(keys_name_is, KeysCtx, .name = args->name, .name_size = args->name_size,
                         .other = s_cursor[at].name))
         {
             continue;
@@ -72,7 +72,7 @@ EMBED_INLINE int keys_special(const KeysCtx *args)
         {"F9", "\x1b[20~"},    {"F10", "\x1b[21~"},   {"F11", "\x1b[23~"},   {"F12", "\x1b[24~"}};
     for (unsigned int at = 0u; at < 20u; at += 1u)
     {
-        if (EMBED_CALL(keys_named, KeysCtx, .name = args->name, .name_size = args->name_size,
+        if (EMBED_CALL(keys_name_is, KeysCtx, .name = args->name, .name_size = args->name_size,
                        .other = s_special[at].name))
         {
             mmgr_line_put(args->out, ((args->mods & CLI_INPUT_MOD_ALT) != 0u) ? "\x1b" : "");
@@ -83,31 +83,31 @@ EMBED_INLINE int keys_special(const KeysCtx *args)
     return 0;
 }
 
-// a key named by one letter or sign, or Space, with Control or Alt down: Control's control letter, or Alt's escape and
-// the letter, a letter in its upper case only with Shift: 1, or 0 where it sends nothing
+// a key whose name is one letter or sign, or Space, with Control or Alt down: Control's control letter, or Alt's escape
+// and the letter, a letter in its upper case only with Shift: 1, or 0 where it sends nothing
 EMBED_INLINE int keys_modified(const KeysCtx *args)
 {
     const int space =
-        EMBED_CALL(keys_named, KeysCtx, .name = args->name, .name_size = args->name_size, .other = "Space");
+        EMBED_CALL(keys_name_is, KeysCtx, .name = args->name, .name_size = args->name_size, .other = "Space");
     if ((args->name_size != 1u) && !space)
     {
         return 0;
     }
-    const char named = space ? ' ' : args->name[0];
+    const char key = space ? ' ' : args->name[0];
     const int control = (args->mods & CLI_INPUT_MOD_CONTROL) != 0u;
     const int alt = (args->mods & CLI_INPUT_MOD_ALT) != 0u;
     const int shift = (args->mods & CLI_INPUT_MOD_SHIFT) != 0u;
-    const int letter = (named >= 'A') && (named <= 'Z');
+    const int letter = (key >= 'A') && (key <= 'Z');
     if (control && !alt)
     {
         // a letter or one of @ [ \ ] ^ _ is its code less 64; Space, / and ? have control letters of their own
-        const int lettered = letter || (named == '@') || (named == '[') || (named == '\\') || (named == ']') ||
-                             (named == '^') || (named == '_');
-        const int sends = lettered || (named == ' ') || (named == '/');
-        const char sent = lettered                    ? (char)(named - '@')
-                          : (named == ' ')            ? '\0'
-                          : ((named == '/') && shift) ? '\x7f'
-                                                      : '\x1f';
+        const int lettered =
+            letter || (key == '@') || (key == '[') || (key == '\\') || (key == ']') || (key == '^') || (key == '_');
+        const int sends = lettered || (key == ' ') || (key == '/');
+        const char sent = lettered                  ? (char)(key - '@')
+                          : (key == ' ')            ? '\0'
+                          : ((key == '/') && shift) ? '\x7f'
+                                                    : '\x1f';
         if (sends)
         {
             mmgr_line_ch(args->out, sent);
@@ -117,7 +117,7 @@ EMBED_INLINE int keys_modified(const KeysCtx *args)
     if (alt && !control)
     {
         mmgr_line_ch(args->out, '\x1b');
-        mmgr_line_ch(args->out, (letter && !shift) ? (char)(named + ('a' - 'A')) : named);
+        mmgr_line_ch(args->out, (letter && !shift) ? (char)(key + ('a' - 'A')) : key);
         return 1;
     }
     return 0;
@@ -132,13 +132,13 @@ int cli_terminal_key_bytes(const CliTerminalKeyCfg *args)
     {
         return 1;
     }
-    if (shift && EMBED_CALL(keys_named, KeysCtx, .name = args->name, .name_size = args->name_size, .other = "Tab"))
+    if (shift && EMBED_CALL(keys_name_is, KeysCtx, .name = args->name, .name_size = args->name_size, .other = "Tab"))
     {
         mmgr_line_put(args->out, "\x1b[Z");
         return 1;
     }
     if (control &&
-        EMBED_CALL(keys_named, KeysCtx, .name = args->name, .name_size = args->name_size, .other = "Backspace"))
+        EMBED_CALL(keys_name_is, KeysCtx, .name = args->name, .name_size = args->name_size, .other = "Backspace"))
     {
         mmgr_line_ch(args->out, '\x08');
         return 1;

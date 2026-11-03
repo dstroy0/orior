@@ -358,6 +358,18 @@ unsigned long long cli_spawn_read(const CliCapacityPipeHandleCtx *args)
     return (read_count > 0) ? (unsigned long long)read_count : 0ULL;
 }
 
+unsigned long long cli_spawn_waiting(const CliCapacityPipeHandleCtx *args)
+{
+    int waiting = 0;
+    // a descriptor stored one past is one the system gave, and a count the system reports is not negative
+    if ((args->pipe_handle == 0ULL) || (ioctl((int)(args->pipe_handle - 1ULL), FIONREAD, &waiting) != 0) ||
+        (waiting < 0))
+    {
+        return 0ULL;
+    }
+    return (unsigned long long)waiting;
+}
+
 long long cli_spawn_wait(const CliSpawnedCtx *args)
 {
     int status = 0;
