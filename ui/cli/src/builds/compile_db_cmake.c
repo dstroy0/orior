@@ -341,21 +341,23 @@ EMBED_INLINE void cli_target_entries(const CompileDbCmakeCtx *args)
             {
                 index = EMBED_CALL(cli_reply.next, CliReplyCfg, .reply = args->target, .item = index);
             }
-            if ((index != CLI_REPLY_NONE) &&
-                (EMBED_CALL(cli_reply_at.whole, CliReplyAtCfg, .reply = args->target, .at = index) == place))
-            {
-                char path[CLI_PATH_MAX_LEN];
-                if (EMBED_CALL(cli_reply_at_out.string, CliReplyAtOutCfg, .reply = args->target,
-                               .at = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = args->target,
-                                                .object = item, .key = "path"),
-                               .out = path, .capacity = sizeof(path)))
-                {
-                    EMBED_CALL(cli_entry_init, CompileDbCmakeCtx, .source = args->source, .build = args->build,
-                               .path = path, .compiler = one, .msvc = msvc, .entries = args->entries);
-                }
-                index = EMBED_CALL(cli_reply.next, CliReplyCfg, .reply = args->target, .item = index);
-            }
+            const int listed = (index != CLI_REPLY_NONE) && (EMBED_CALL(cli_reply_at.whole, CliReplyAtCfg,
+                                                                        .reply = args->target, .at = index) == place);
             place += 1ULL;
+            if (!listed)
+            {
+                continue;
+            }
+            char path[CLI_PATH_MAX_LEN];
+            if (EMBED_CALL(cli_reply_at_out.string, CliReplyAtOutCfg, .reply = args->target,
+                           .at = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = args->target,
+                                            .object = item, .key = "path"),
+                           .out = path, .capacity = sizeof(path)))
+            {
+                EMBED_CALL(cli_entry_init, CompileDbCmakeCtx, .source = args->source, .build = args->build,
+                           .path = path, .compiler = one, .msvc = msvc, .entries = args->entries);
+            }
+            index = EMBED_CALL(cli_reply.next, CliReplyCfg, .reply = args->target, .item = index);
         }
     }
 }

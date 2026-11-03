@@ -410,6 +410,29 @@ EMBED_INLINE const char *cli_meson_compiler_kind(const CompileDbProgramCtx *args
                : "GNU";
 }
 
+// whether the array `node` of `reply`, a target's group of sources, names the source the search looks for
+EMBED_INLINE int cli_sources_required(const CompileDbProgramCtx *args)
+{
+    for (unsigned long long place =
+             EMBED_CALL(cli_reply_array.first, CliReplyArrayCfg, .reply = args->reply, .array = args->node);
+         place != CLI_REPLY_NONE; place = EMBED_CALL(cli_reply.next, CliReplyCfg, .reply = args->reply, .item = place))
+    {
+        char path[CLI_PATH_MAX_LEN];
+        char compared[CLI_PATH_MAX_LEN];
+        if (!EMBED_CALL(cli_reply_at_out.string, CliReplyAtOutCfg, .reply = args->reply, .at = place, .out = path,
+                        .capacity = sizeof(path)))
+        {
+            continue;
+        }
+        EMBED_CALL(cli_same, CompileDbProgramCtx, .path = path, .out = compared);
+        if (cellul.eq(&(CatenaFinitaCfg){.src = compared, .other = s_search.required, .cap = CLI_CELLS_POOL}))
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 // the executables of one Meson build that make `required` from a source, each put among those found
 EMBED_INLINE void cli_meson_programs(const CompileDbProgramCtx *args)
 {
@@ -452,25 +475,8 @@ EMBED_INLINE void cli_meson_programs(const CompileDbProgramCtx *args)
         {
             const unsigned long long sources = EMBED_CALL(cli_reply_object.member, CliReplyObjectCfg, .reply = &reply,
                                                           .object = one, .key = "sources");
-            for (unsigned long long place =
-                     EMBED_CALL(cli_reply_array.first, CliReplyArrayCfg, .reply = &reply, .array = sources);
-                 place != CLI_REPLY_NONE;
-                 place = EMBED_CALL(cli_reply.next, CliReplyCfg, .reply = &reply, .item = place))
-            {
-                char path[CLI_PATH_MAX_LEN];
-                char compared[CLI_PATH_MAX_LEN];
-                if (!EMBED_CALL(cli_reply_at_out.string, CliReplyAtOutCfg, .reply = &reply, .at = place, .out = path,
-                                .capacity = sizeof(path)))
-                {
-                    continue;
-                }
-                EMBED_CALL(cli_same, CompileDbProgramCtx, .path = path, .out = compared);
-                if (cellul.eq(&(CatenaFinitaCfg){.src = compared, .other = s_search.required, .cap = CLI_CELLS_POOL}))
-                {
-                    group = one;
-                    break;
-                }
-            }
+            group =
+                EMBED_CALL(cli_sources_required, CompileDbProgramCtx, .reply = &reply, .node = sources) ? one : group;
         }
         CliProgram found;
         if ((group == CLI_REPLY_NONE) ||

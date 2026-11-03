@@ -143,10 +143,10 @@ typedef struct
 
 static CliFlagsSaved s_saved;
 
-// the text at `at` among the saved texts
+// the text at `at` among the saved texts, an empty one where no texts are saved
 EMBED_INLINE const char *cli_flags_text(const CompileDbFlagsCtx *args)
 {
-    return s_saved.text.out + args->at;
+    return (s_saved.text.out != NULL) ? (s_saved.text.out + args->at) : "";
 }
 
 // `length` bytes of `text` put after the saved texts with a zero after them: their place, or CLI_JSON_NONE where the
@@ -432,25 +432,26 @@ EMBED_INLINE unsigned int cli_flags_folder_intersect(const CompileDbFlagsCtx *ar
     {
         const char *const saved =
             EMBED_CALL(cli_flags_text, CompileDbFlagsCtx, .at = args->read_state->folder[at].path);
-        if ((cellul.len(&(CatenaFinitaCfg){.src = saved, .cap = CLI_CELLS_POOL}) == args->length) &&
-            EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = saved, .other_pointer = args->path,
-                       .size = args->length))
+        if ((cellul.len(&(CatenaFinitaCfg){.src = saved, .cap = CLI_CELLS_POOL}) != args->length) ||
+            !EMBED_CALL(cli_text_size_one.same, CliTextSizeOneCfg, .one = saved, .other_pointer = args->path,
+                        .size = args->length))
         {
-            CliDefineNode *const folder = &args->read_state->folder[at];
-            unsigned int inner_saved = 0u;
-            for (unsigned int each = 0u; each < folder->count; each += 1u)
-            {
-                const unsigned int id = args->read_state->id[folder->first + each];
-                if (EMBED_CALL(cli_flags_holds, CompileDbFlagsCtx, .read_state_read = args->read_state,
-                               .node = args->file, .id = id))
-                {
-                    args->read_state->id[folder->first + inner_saved] = id;
-                    inner_saved += 1u;
-                }
-            }
-            folder->count = inner_saved;
-            return at;
+            continue;
         }
+        CliDefineNode *const folder = &args->read_state->folder[at];
+        unsigned int inner_saved = 0u;
+        for (unsigned int each = 0u; each < folder->count; each += 1u)
+        {
+            const unsigned int id = args->read_state->id[folder->first + each];
+            if (EMBED_CALL(cli_flags_holds, CompileDbFlagsCtx, .read_state_read = args->read_state, .node = args->file,
+                           .id = id))
+            {
+                args->read_state->id[folder->first + inner_saved] = id;
+                inner_saved += 1u;
+            }
+        }
+        folder->count = inner_saved;
+        return at;
     }
     const unsigned int named =
         (args->read_state->folders < args->read_state->folder_capacity)
@@ -523,6 +524,29 @@ EMBED_INLINE void cli_flags_input_append(const CompileDbFlagsCtx *args)
     }
 }
 
+// each text of the array `entries` of `json`, an entry's arguments, read into `read_state` as one word of its command
+EMBED_INLINE void cli_flags_arguments_read(const CompileDbFlagsCtx *args)
+{
+    const CliJson *const json = args->json;
+    for (unsigned int word_text = 0u;
+         EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = json,
+                    .array = args->entries, .index = word_text) != CLI_JSON_NONE;
+         word_text += 1u)
+    {
+        unsigned long long size = 0ULL;
+        const char *const text =
+            EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
+                       .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
+                                          .json_read = json, .array = args->entries, .index = word_text),
+                       .length_pointer = &size);
+        if (text != NULL)
+        {
+            EMBED_CALL(cli_flags_word_read, CliEachWordSizeCfg, .context = args->read_state, .word_text = text,
+                       .size = size);
+        }
+    }
+}
+
 // the entries of the database read into the saved files, each with its defines and include folders and files, under
 // the lock; an entry of a file read before passed over
 EMBED_INLINE void cli_flags_entries(const CompileDbFlagsCtx *args)
@@ -571,23 +595,8 @@ EMBED_INLINE void cli_flags_entries(const CompileDbFlagsCtx *args)
         if (EMBED_CALL(cli_json_tree_node_kind.json_is, CliJsonTreeNodeKindCfg, .json_read = json, .node = arguments,
                        .kind = CFG_JSON_ARRAY))
         {
-            for (unsigned int word_text = 0u;
-                 EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg, .json_read = json,
-                            .array = arguments, .index = word_text) != CLI_JSON_NONE;
-                 word_text += 1u)
-            {
-                unsigned long long size = 0ULL;
-                const char *const text =
-                    EMBED_CALL(cli_json_tree_node_length.json_string, CliJsonTreeNodeLengthCfg, .json_read = json,
-                               .node = EMBED_CALL(cli_json_tree_array_index.json_item, CliJsonTreeArrayIndexCfg,
-                                                  .json_read = json, .array = arguments, .index = word_text),
-                               .length_pointer = &size);
-                if (text != NULL)
-                {
-                    EMBED_CALL(cli_flags_word_read, CliEachWordSizeCfg, .context = args->read_state, .word_text = text,
-                               .size = size);
-                }
-            }
+            EMBED_CALL(cli_flags_arguments_read, CompileDbFlagsCtx, .json = json, .entries = arguments,
+                       .read_state = args->read_state);
         }
         else
         {
